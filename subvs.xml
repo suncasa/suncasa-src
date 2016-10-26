@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" ?>
+<casaxml xmlns="http://casa.nrao.edu/schema/psetTypes.html"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://casa.nrao.edu/schema/casa.xsd
+file:///opt/casa/code/xmlcasa/xml/casa.xsd">
+
+<task type="function" name="subvs">
+     <shortdescription>Vector-subtraction in UV using selected time ranges and spectral channels as background</shortdescription>
+
+<description>
+
+<!-- THIS DOES NOT GET READ, PUT IT IN example! -->
+Split is the general purpose program to make a new data set that is a
+subset or averaged form of an existing data set.  General selection
+parameters are included, and one or all of the various data columns
+(DATA, LAG_DATA and/or FLOAT_DATA, and possibly MODEL_DATA and/or
+CORRECTED_DATA) can be selected.
+
+Split is often used after the initial calibration of the data to make a
+smaller measurement set with only the data that will be used in
+further flagging, imaging and/or self-calibration.  split can
+average over frequency (channels) and time (integrations).
+</description>
+
+<input>
+    <param type="string" name="vis" mustexist="true">
+		<description>Name of input measurement set</description>
+		<value></value>
+    </param>
+
+    <param type="string" name="outputvis" mustexist="false">
+		<description>Name of output measurement set</description>
+		<value></value>
+    </param>
+
+    <param type="string" name="timerange" >
+		<description>Select the time range of the input visbility to be subtracted from</description>
+		<value></value>
+    </param>
+
+    <param type="string" name="spw" >
+		<description>Select the spectral channels of the input visibility to be subtracted from</description>
+		<value></value>
+    </param>
+
+    <param type="string" name="mode">
+        <description>Operation: linear, highpass</description>
+        <value>linear</value>
+        <allowed kind="enum">
+            <value>linear</value>
+            <value>lowpass</value>
+            <value>highpass</value>
+        </allowed>
+    </param>
+
+    <param type="string" name="subtime1" subparam="true">
+		<description>Select the first time range as the background for uv subtraction </description>
+		<value></value>
+    </param>
+
+    <param type="string" name="subtime2" subparam="true">
+		<description>Select the second time range as the background for uv subtraction </description>
+		<value></value>
+    </param>
+
+    <param type="string" name="smoothaxis" subparam="true">
+		<description>Select the axis along which smooth is performed</description>
+		<value>time</value>
+    </param>
+
+    <param type="string" name="smoothtype" subparam="true">
+		<description>Select the smooth type</description>
+		<value>flat</value>
+    </param>
+
+    <param type="int" name="smoothwidth" subparam="true">
+		<description>Select the width of the smoothing window</description>
+		<value>5</value>
+    </param>
+
+    <param type="bool" name="splitsel">
+		<description>Split the selected timerange and spectral channels as outputvis</description>
+		<value>True</value>
+    </param>
+
+    <param type="bool" name="reverse" >
+		<description>Reverse the sign of the background-subtracted data (for absorptive structure)</description>
+		<value>False</value>
+    </param>
+
+    <param type="bool" name="overwrite" >
+		<description>Overwrite the already existing output measurement set</description>
+		<value>False</value>
+    </param>
+
+    <constraints>
+        <when param="mode">
+            <equals value="linear">
+                <default param="subtime1"><value type="string"></value></default>
+                <default param="subtime2"><value type="string"></value></default>
+            </equals>
+            <equals value="lowpass">
+                <default param="smoothaxis"><value type="string">time</value></default>
+                <default param="smoothtype"><value type="string">hanning</value></default>
+                <default param="smoothwidth"><value type="int">5</value></default>
+            </equals>
+            <equals value="highpass">
+                <default param="smoothaxis"><value type="string">time</value></default>
+                <default param="smoothtype"><value type="string">hanning</value></default>
+                <default param="smoothwidth"><value type="int">5</value></default>
+            </equals>
+        </when>
+    </constraints>
+
+</input>
+<example>
+
+    Subvs is a task to do UV vector-subtraction, by selecting time ranges 
+    in the data as background. Subvs can be used to subtract the background
+    continuum emission to separate the time-dependent emission, e.g. solar 
+    coherent radio bursts. 
+    
+    Keyword arguments:
+    vis -- Name of input visibility file (MS)
+            default: none; example: vis='ngc5921.ms'
+    outputvis -- Name of output uv-subtracted visibility file (MS)
+                  default: none; example: outputvis='ngc5921_src.ms'
+    timerange -- Time range of performing the UV subtraction:
+                 default='' means all times.  examples:
+                 timerange = 'YYYY/MM/DD/hh:mm:ss~YYYY/MM/DD/hh:mm:ss'
+                 timerange = 'hh:mm:ss~hh:mm:ss'
+    spw -- Select spectral window/channel.
+           default = '' all the spectral channels. Example: spw='0:1~20'
+    mode -- operation mode
+            default 'linear' 
+                mode = 'linear': use a linear fit for the background to be subtracted
+                mode = 'lowpass': act as a lowpass filter---smooth the data using different smooth
+                        types and smooth window size. Can be performed along either time 
+                        or frequency axis
+                mode = 'highpass': act as a highpass filter---smooth the data first, and 
+                        subtract the smoothed data from the original. Can be performed along either time
+                        or frequency axis
+            mode = 'linear' expandable parameters:
+                subtime1 -- Time range 1 of the background to be subtracted from the data 
+                             default='' means all times.  format:
+                             timerange = 'YYYY/MM/DD/hh:mm:ss~YYYY/MM/DD/hh:mm:ss'
+                             timerange = 'hh:mm:ss~hh:mm:ss'
+                subtime2 -- Time range 2 of the backgroud to be subtracted from the data
+                             default='' means all times.  examples:
+                             timerange = 'YYYY/MM/DD/hh:mm:ss~YYYY/MM/DD/hh:mm:ss'
+                             timerange = 'hh:mm:ss~hh:mm:ss'
+            mode = 'lowpass' or 'highpass' expandable parameters:
+                smoothaxis -- axis of smooth
+                    Default: 'time'
+                    smoothaxis = 'time': smooth is along the time axis
+                    smoothaxis = 'freq': smooth is along the frequency axis
+                smoothtype -- type of the smooth depending on the convolving kernel
+                    Default: 'flat'
+                    smoothtype = 'flat': convolving kernel is a flat rectangle,
+                            equivalent to a boxcar moving smooth
+                    smoothtype = 'hanning': Hanning smooth kernel. See numpy.hanning
+                    smoothtype = 'hamming': Hamming smooth kernel. See numpy.hamming
+                    smoothtype = 'bartlett': Bartlett smooth kernel. See numpy.bartlett
+                    smoothtype = 'blackman': Blackman smooth kernel. See numpy.blackman
+                smoothwidth -- width of the smooth kernel
+                    Default: 5
+                    Examples: smoothwidth=5, meaning the width is 5 pixels
+    splitsel -- True or False. default = False. If splitsel = False, then the entire input
+            measurement set is copied as the output measurement set (outputvis), with 
+            background subtracted at selected timerange and spectral channels. 
+            If splitsel = True,then only the selected timerange and spectral channels 
+            are copied into the output measurement set (outputvis).
+    reverse -- True or False. default = False. If reverse = False, then the times indicated
+            by subtime1 and/or subtime2 are treated as background and subtracted; If reverse
+            = True, then reverse the sign of the background-subtracted data. The option can 
+            be used for mapping absorptive structure.
+    overwrite -- True or False. default = False. If overwrite = True and
+                outputvis already exists, the selected subtime and spw in the 
+                output measurment set will be replaced with background subtracted 
+                visibilities
+</example> 
+</task>
+</casaxml>
