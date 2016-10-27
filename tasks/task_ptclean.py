@@ -8,7 +8,7 @@ from functools import partial
 from time import time
 import pdb
 
-def clean_iter(tim, freq, vis, imagedir, 
+def clean_iter(tim, freq, vis, imageprefix, 
             ncpu, twidth, doreg, ephemfile, ephem, msinfofile,
             outlierfile, field, spw, selectdata, 
             uvrange, antenna, scan, observation, intent, mode, resmooth,gridmode,
@@ -47,10 +47,10 @@ def clean_iter(tim, freq, vis, imagedir,
     timerange = qa.time(qa.quantity(bt_d,'d'),prec=9)[0] + '~' + \
                 qa.time(qa.quantity(et_d,'d'),prec=9)[0]
     tmid = (bt_d + et_d)/2. 
-    tmidstr=qa.time(qa.quantity(tmid,'d'),prec=9)[0]
+    btstr=qa.time(qa.quantity(bt_d,'d'),prec=9,form='fits')[0]
     print 'cleaning timerange: ' + timerange
-    image0=tmidstr.replace(':','')
-    imname=imagedir+image0
+    image0=btstr.replace(':','').replace('-','')
+    imname=imageprefix+image0
     if not os.path.exists(imname):
         #inp(taskname = 'clean')
         clean(vis=vis,imagename=imname,outlierfile=outlierfile,field=field,
@@ -92,7 +92,7 @@ def clean_iter(tim, freq, vis, imagedir,
         vla_prep.imreg(imagefile = imagefile, fitsfile = fitsfile, helio = helio, toTb = False, scl100 = True)
     return
 
-def ptclean(vis, imagedir, ncpu, twidth, doreg, ephemfile, msinfofile,
+def ptclean(vis, imageprefix, ncpu, twidth, doreg, ephemfile, msinfofile,
             outlierfile, field, spw, selectdata, timerange,
             uvrange, antenna, scan, observation, intent, mode, resmooth,gridmode,
             wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
@@ -172,7 +172,7 @@ def ptclean(vis, imagedir, ncpu, twidth, doreg, ephemfile, msinfofile,
 
     # partition
     clnpart = partial(clean_iter, tim, freq, vis, 
-            imagedir, ncpu, twidth, doreg, ephemfile, ephem, msinfofile,
+            imageprefix, ncpu, twidth, doreg, ephemfile, ephem, msinfofile,
             outlierfile, field, spw, selectdata,
             uvrange, antenna, scan, observation, intent, mode, resmooth,gridmode,
             wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,

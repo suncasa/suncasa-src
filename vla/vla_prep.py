@@ -431,8 +431,8 @@ def imreg(imagefile=None, fitsfile=None, beamfile=None, helio=None, \
         else:
             xoff=hel['refx']
             yoff=hel['refy']
-        print 'offset of image to pointing center (arcsec): ', dx, dy
-        print 'offset of pointing center to solar center (arcsec): ', xoff,yoff
+        print 'offset of image phase center to visibility phase center (arcsec): ', dx, dy
+        print 'offset of visibility phase center to solar disk center (arcsec): ', xoff,yoff
         (crval1,crval2)=(xoff+dx,yoff+dy)
         # update the fits header to heliocentric coordinates
         hdu=pyfits.open(fits,mode='update')

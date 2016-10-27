@@ -31,9 +31,9 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
       <value type="string"></value>
     </param>
 
-    <param type="string" name="imagedir">
-      <description>directory to store output images</description>
-      <value>./</value>
+    <param type="string" name="imageprefix">
+      <description>Prefix of image names (may include the path)</description>
+      <value></value>
     </param>
 
     <param type="int" name="ncpu">
