@@ -1,0 +1,62 @@
+{
+  "plot_config": {
+    "tab3": {
+      "aia_submap_hght": 720,
+      "dspec_small_hght": 180,
+      "dspec_small_wdth": 500,
+      "aia_submap_wdth": 720
+    },
+    "tab2": {
+      "dspec_thumb_wdth": 330,
+      "dspec_yPro_hght": 200,
+      "vla_wdth": 330,
+      "dspec_yPro_wdth": 390,
+      "dspec_hght": 220,
+      "dspec_wdth": 1290,
+      "aia_hght": 390,
+      "vla_hght": 390,
+      "dspec_xPro_wdth": 900,
+      "aia_wdth": 395,
+      "dspec_thumb_hght": 390,
+      "dspec_xPro_hght": 200
+    },
+    "tab1": {
+      "StrID_DataTb_wdth": 1050,
+      "dspec_Ctrl_widget_wdth": 200,
+      "dspec_hght": 500,
+      "dspec_wdth": 1450,
+      "StrID_DataTb_BUT_wdth": 200,
+      "StrID_DataTb_hght": 280
+    },
+    "tab2_2CASA": {
+      "tab2_Div_tCLN_wdth": 800,
+      "tab2_Div_tCLN_hght": 300,
+      "dspec_thumb_wdth": 330,
+      "aia_hght": 390,
+      "dspec_yPro_hght": 200,
+      "vla_wdth": 330,
+      "vla_hght": 390,
+      "dspec_xPro_wdth": 800,
+      "dspec_yPro_wdth": 500,
+      "dspec_hght": 400,
+      "aia_wdth": 395,
+      "dspec_thumb_hght": 390,
+      "dspec_wdth": 1450,
+      "dspec_xPro_hght": 200,
+      "input_tCLN_hght": 250,
+      "input_tCLN_wdth": 500
+    },
+    "WebGL": false
+  },
+  "datadir": {
+    "dspecDF": "dspecDF-save",
+    "J2000": "J2000/",
+    "fits_LOCL": "Synthesis_Image/local/",
+    "fits_LOCL_init": "QLook/static/Synthesis_Image_fits_LOCL_init.fits",
+    "event_specfile": "SUN01_20141101.163940-164700.50ms.cal.ms.spec.npz",
+    "database": "/Users/fisher/Desktop/work/2016/NJIT/2014-11-01/test/database/",
+    "event_id": "SUN01_20141101.163940-164700.50ms/",
+    "fits_GLOB": "Synthesis_Image/global/",
+    "fits_GLOB_init": "QLook/static/Synthesis_Image_fits_GLOB_init.fits"
+  }
+}

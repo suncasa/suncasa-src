@@ -1,0 +1,44 @@
+{
+  "plot_config": {
+    "tab3": {
+      "aia_submap_hght": 720,
+      "dspec_small_hght": 180,
+      "dspec_small_wdth": 500,
+      "aia_submap_wdth": 720
+    },
+    "tab2": {
+      "dspec_thumb_wdth": 330,
+      "dspec_yPro_hght": 200,
+      "vla_wdth": 330,
+      "dspec_yPro_wdth": 390,
+      "dspec_hght": 220,
+      "dspec_wdth": 1290,
+      "aia_hght": 390,
+      "vla_hght": 390,
+      "dspec_xPro_wdth": 900,
+      "aia_wdth": 395,
+      "dspec_thumb_hght": 390,
+      "dspec_xPro_hght": 200
+    },
+    "tab1": {
+      "StrID_DataTb_wdth": 900,
+      "dspec_Ctrl_widget_wdth": 200,
+      "dspec_hght": 500,
+      "dspec_wdth": 1400,
+      "StrID_DataTb_BUT_wdth": 200,
+      "StrID_DataTb_hght": 200
+    },
+    "WebGL": false
+  },
+  "datadir": {
+    "dspecDF": "dspecDF-save",
+    "FS_specfile": "U01_SUN01_20141101T164613.125-164629.525.spw1.50ms.slfcal.ms.spec.npz",
+    "fits_LOCL": "Synthesis_Image/local/",
+    "event_specfile": "SUN01_20141101.163940-164700.50ms.cal.ms.spec.npz",
+    "database": "/afs/cad/u/s/j/sjyu/sjyu/database/",
+    "event_id": "SUN01_20141101.163940-164700.50ms/",
+    "fits_GLOB": "Synthesis_Image/global/",
+    "struct_id": "U01/",
+    "J2000": "J2000/"
+  }
+}
