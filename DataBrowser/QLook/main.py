@@ -38,7 +38,7 @@ elif platform == "win32":
     print 'Runing QLook in Windows platform'
 
 '''load config file'''
-with open('config.json', 'r') as fp:
+with open('../config.json', 'r') as fp:
     config_plot = json.load(fp)
 with open('config_EvtID.json', 'r') as fp:
     config_EvtID = json.load(fp)
@@ -313,7 +313,7 @@ def tab1_update_FSviewStrID():
         with open(in_json, 'r') as fp:
             FS_config = json.load(fp)
         FS_specfile = FS_config['datadir']['FS_specfile']
-        FS_dspecDF = database_dir + event_id + struct_id + config_EvtID['datadir']['dspecDF']
+        FS_dspecDF = database_dir + event_id + struct_id + 'dspecDF-save'
         if os.path.exists(FS_specfile):
             print 'bokeh serve FSview --show --port {} &'.format(port)
             os.system('cd .. & bokeh serve FSview --show --port {} &'.format(port))

@@ -29,7 +29,7 @@ __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
 '''load config file'''
-with open('../QLook/config.json', 'r') as fp:
+with open('../config.json', 'r') as fp:
     config_plot = json.load(fp)
 with open('../QLook/config_EvtID.json', 'r') as fp:
     config_EvtID = json.load(fp)
