@@ -49,7 +49,7 @@
     "WebGL": false
   },
   "datadir": {
-    "database": "/Users/fisher/Desktop/work/2016/NJIT/2014-11-01/test/database/",
+    "database": "${SUNCASADB}",
     "EvtID_list": "EvtID_list.json"
   }
 }
