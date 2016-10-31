@@ -44,6 +44,8 @@ with open('config.json', 'r') as fp:
 
 database_dir = config['datadir']['database']
 database_dir = os.path.expandvars(database_dir)
+lsakdjf
+aslifjiaowerfdsalkjafdsa
 
 EvtID_list = pd.read_json(config['datadir']['EvtID_list'])
 EvtID_list = EvtID_list.sort_values(['date'], ascending=[True])
