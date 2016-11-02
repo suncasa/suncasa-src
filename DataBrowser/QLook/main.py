@@ -55,7 +55,8 @@ bokehpalette_jet = [colors.rgb2hex(m) for m in colormap_jet(np.arange(colormap_j
 '''
 
 start_timestamp = time.time()
-database_dir = config_EvtID['datadir']['database']
+database_dir = config_plot['datadir']['database']
+database_dir = os.path.expandvars(database_dir)
 event_id = config_EvtID['datadir']['event_id']
 specfile = database_dir + event_id + config_EvtID['datadir']['event_specfile']
 
@@ -101,8 +102,8 @@ load_specdata(specfile)
 TOOLS = "pan,wheel_zoom,box_zoom,reset,save"
 '''create the dynamic spectrum plot'''
 tab1_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
-    plot_width=config_plot['plot_config']['tab1']['dspec_wdth'],
-    plot_height=config_plot['plot_config']['tab1']['dspec_hght'], x_range=(tab1_dtim[0], tab1_dtim[-1]),
+    plot_width=config_plot['plot_config']['tab_QLook']['dspec_wdth'],
+    plot_height=config_plot['plot_config']['tab_QLook']['dspec_hght'], x_range=(tab1_dtim[0], tab1_dtim[-1]),
     y_range=(tab1_freq[0], tab1_freq[-1]), toolbar_location="above")
 tim0_char = jdutil.jd_to_datetime((tab1_tim[0] / 3600. / 24. + 2400000.5) * 86400. / 3600. / 24.)
 tim0_char = tim0_char.strftime('%Y-%b-%d %H:%M:%S') + '.{}'.format(round(tim0_char.microsecond / 1e3) * 1e3)[0:4]
@@ -203,10 +204,10 @@ tab1_p_dspec.axis.minor_tick_line_color = "white"
 tab1_TbCols = [TableColumn(field="str_id", title="StrID"), TableColumn(field="timeran", title="Time Range"),
                TableColumn(field="freqran", title="Freq Range"), ]
 tab1_DataTb_dspec = DataTable(source=tab1_render_patch.data_source, columns=tab1_TbCols,
-    width=config_plot['plot_config']['tab1']['StrID_DataTb_wdth'],
-    height=config_plot['plot_config']['tab1']['StrID_DataTb_hght'])  # , editable=True)
+    width=config_plot['plot_config']['tab_QLook']['StrID_DataTb_wdth'],
+    height=config_plot['plot_config']['tab_QLook']['StrID_DataTb_hght'])  # , editable=True)
 
-tab1_Div_Tb = Div(text=""" """, width=config_plot['plot_config']['tab1']['StrID_DataTb_wdth'])
+tab1_Div_Tb = Div(text=""" """, width=config_plot['plot_config']['tab_QLook']['StrID_DataTb_wdth'])
 tab1_Div_exit = Div(text="""
 <p><b>Warning</b>: 1. Click the <b>Exit QLook</b> first before closing the tab</p>
 <p><b>Warning</b>: 2. <b>FSview</b> or <b>FSview2CASA</b> tabs will disconnect if <b>Exit QLook is clicked</b></p>""",
@@ -226,7 +227,7 @@ def tab1_SRC_dspec_square_select(attrname, old, new):
 tab1_SRC_dspec_square.on_change('selected', tab1_SRC_dspec_square_select)
 
 tab1_input_StrID = TextInput(value="Type in here", title="New StrID:",
-    width=config_plot['plot_config']['tab1']['StrID_DataTb_BUT_wdth'])
+    width=config_plot['plot_config']['tab_QLook']['StrID_DataTb_BUT_wdth'])
 timestart = xx[0]
 
 
@@ -372,7 +373,7 @@ def tab1_update_reloadStrID():
         database_dir + event_id)
 
 
-tab1_BUT_OPT = dict(width=config_plot['plot_config']['tab1']['StrID_DataTb_BUT_wdth'])
+tab1_BUT_OPT = dict(width=config_plot['plot_config']['tab_QLook']['StrID_DataTb_BUT_wdth'])
 tab1_BUT_addStrID = Button(label='Add to StrID', button_type='success', **tab1_BUT_OPT)
 tab1_BUT_addStrID.on_click(tab1_update_addStrID)
 tab1_BUT_deleteStrID = Button(label='Delete StrID', button_type='danger', **tab1_BUT_OPT)
