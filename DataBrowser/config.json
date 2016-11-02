@@ -4,7 +4,12 @@
       "aia_submap_hght": 720,
       "dspec_small_hght": 180,
       "dspec_small_wdth": 500,
-      "aia_submap_wdth": 720
+      "aia_submap_wdth": 720,
+      "button_wdth":100,
+      "space_wdth50":50,
+      "space_hght18":18,
+      "space_wdth20":20,
+      "space_hght10":10
     },
     "tab_FSview_base": {
       "dspec_thumb_wdth": 330,
@@ -18,7 +23,13 @@
       "dspec_xPro_wdth": 900,
       "aia_wdth": 395,
       "dspec_thumb_hght": 390,
-      "dspec_xPro_hght": 200
+      "dspec_xPro_hght": 200,
+      "widgetbox_wdth": 150,
+      "button_wdth":100,
+      "space_wdth50":50,
+      "space_hght18":18,
+      "space_wdth20":20,
+      "space_hght10":10
     },
     "tab_QLook": {
       "StrID_DataTb_wdth": 1050,
@@ -52,7 +63,13 @@
       "dspec_wdth": 1450,
       "dspec_xPro_hght": 200,
       "input_tCLN_hght": 250,
-      "input_tCLN_wdth": 200
+      "input_tCLN_wdth": 200,
+      "widgetbox_wdth": 150,
+      "button_wdth":100,
+      "space_wdth50":50,
+      "space_hght18":18,
+      "space_wdth20":20,
+      "space_hght10":10
     },
     "WebGL": false
   },
