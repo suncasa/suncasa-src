@@ -5,7 +5,7 @@
     "fits_LOCL": "Synthesis_Image/local/",
     "fits_LOCL_init": "QLook/static/Synthesis_Image_fits_LOCL_init.fits",
     "event_specfile": "SUN01_20141101.163940-164700.50ms.cal.ms.spec.npz",
-    "database": "/Users/fisher/Desktop/work/2016/NJIT/2014-11-01/test/database/",
+    "database": "${SUNCASADB}",
     "event_id": "SUN01_20141101.163940-164700.50ms/",
     "fits_GLOB": "Synthesis_Image/global/",
     "fits_GLOB_init": "QLook/static/Synthesis_Image_fits_GLOB_init.fits"
