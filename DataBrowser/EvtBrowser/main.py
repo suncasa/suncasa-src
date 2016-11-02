@@ -3,21 +3,12 @@
 import json
 import os
 import os.path
-import time
 from sys import platform
-
-import matplotlib.cm as cm
-import matplotlib.colors as colors
-import numpy as np
 import pandas as pd
-import scipy.ndimage as sn
 from bokeh.layouts import row, column, widgetbox
 from bokeh.models import (ColumnDataSource, Button, TextInput, DataTable, TableColumn, BoxSelectTool, TapTool,
                           HoverTool, Spacer, Div)
-from bokeh.models.widgets import Select
-from bokeh.plotting import figure, curdoc
-
-import jdutil
+from bokeh.plotting import curdoc
 import glob
 
 __author__ = ["Sijie Yu"]

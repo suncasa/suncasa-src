@@ -5,7 +5,6 @@ import os
 import os.path
 import time
 from sys import platform
-
 import matplotlib.cm as cm
 import matplotlib.colors as colors
 import numpy as np
