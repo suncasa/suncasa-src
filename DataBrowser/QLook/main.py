@@ -302,7 +302,7 @@ def tab1_update_FSviewStrID():
         out_json = database_dir + event_id + StrID['str_id'][0] + '.json'
         StrID.to_json(out_json)
         out_json = database_dir + event_id + 'CurrFS.json'
-        print out_json
+        print '##################'+out_json+'##################'
         struct_id = StrID['str_id'][0] + '/'
         FS_config = {'datadir': {'event_id': event_id, 'struct_id': struct_id,
                                  'FS_specfile': database_dir + event_id + struct_id + StrID['str_id'][0] + '_' +
