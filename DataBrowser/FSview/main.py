@@ -1972,7 +1972,7 @@ else:
                                 width=config_plot['plot_config']['tab_FSview2CASA']['input_tCLN_wdth'])
 
     tab2_Div_tCLN = Div(text='', width=config_plot['plot_config']['tab_FSview2CASA']['tab2_Div_tCLN_wdth'])
-    tab2_Div_tCLN2 = Div(text='', width=600)
+    tab2_Div_tCLN2 = Div(text='', width=config_plot['plot_config']['tab_FSview2CASA']['tab2_Div_tCLN2_wdth'])
 
     timestart = xx[0]
 

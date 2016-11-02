@@ -96,7 +96,7 @@ def load_specdata(specfile=None):
     # dmax = np.amax(tab1_spec_plt)
     # dmin = np.amin(tab1_spec_plt)
     # tab1_spec_plt = (tab1_spec_plt - dmin) / (dmax - dmin) * 255.
-
+#todo lskajdflksadf
 
 load_specdata(specfile)
 TOOLS = "pan,wheel_zoom,box_zoom,reset,save"
