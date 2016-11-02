@@ -48,6 +48,7 @@ try:
     with open(database_dir + event_id + 'CurrFS.json', 'r') as fp:
         FS_config = json.load(fp)
 except:
+    print '##################' + database_dir + event_id + 'CurrFS.json' + '##################'
     print 'Error: No CurrFS.json found!!!'
     raise SystemExit
 struct_id = FS_config['datadir']['struct_id']
