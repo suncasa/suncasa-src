@@ -90,7 +90,7 @@ try:
                     config_EvtID = {
                         "datadir": {"dspecDF": "dspecDF-save", "J2000": "J2000/", "fits_LOCL": "Synthesis_Image/local/",
                                     "fits_LOCL_init": "QLook/static/Synthesis_Image_fits_LOCL_init.fits",
-                                    "event_specfile": event_specfile[0].split('/')[-1], "database": database_dir,
+                                    "event_specfile": event_specfile[0].split('/')[-1], "database": "${SUNCASADB}",
                                     "event_id": event_id, "fits_GLOB": "Synthesis_Image/global/",
                                     "fits_GLOB_init": "QLook/static/Synthesis_Image_fits_GLOB_init.fits"}}
                     with open(event_id_dir + 'config_EvtID.json', 'w') as fp:
