@@ -55,7 +55,7 @@ bokehpalette_jet = [colors.rgb2hex(m) for m in colormap_jet(np.arange(colormap_j
 '''
 
 start_timestamp = time.time()
-database_dir = config_EvtID['datadir']['database']
+database_dir = os.path.expandvars(config_plot['datadir']['database'])
 event_id = config_EvtID['datadir']['event_id']
 specfile = database_dir + event_id + config_EvtID['datadir']['event_specfile']
 
