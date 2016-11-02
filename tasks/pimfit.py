@@ -371,7 +371,7 @@ imfit()
         mytmp['rms'] = rms
         mytmp['noisefwhm'] = noisefwhm
         mytmp['summary'] = summary
-	pathname="file:///Users/binchen/Dropbox/bc_python/casa_task/"
+	pathname="file:///afs/cad.njit.edu/research/physics/binchen/1/bchen/Dropbox/bc_python/suncasa/tasks/"
 	trec = casac.utils().torecord(pathname+'pimfit.xml')
 
         casalog.origin('pimfit')

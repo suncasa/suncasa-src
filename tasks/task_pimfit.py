@@ -4,7 +4,6 @@ import shutil
 import os, struct
 import bisect
 from math import *
-import dspec 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as colors
