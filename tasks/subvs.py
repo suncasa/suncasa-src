@@ -99,7 +99,11 @@ def subvs(vis='', outputvis='', timerange='', spw='', mode='linear', subtime1=''
         mytmp['splitsel'] = splitsel
         mytmp['reverse'] = reverse
         mytmp['overwrite'] = overwrite
+<<<<<<< HEAD
 	pathname="file:///local/software/suncasa/tasks/"
+=======
+	pathname="file:///afs/cad.njit.edu/research/physics/binchen/1/bchen/Dropbox/bc_python/suncasa/tasks/"
+>>>>>>> origin/master
 	trec = casac.utils().torecord(pathname+'subvs.xml')
 
         casalog.origin('subvs')

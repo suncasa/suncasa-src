@@ -435,7 +435,7 @@ def imreg(imagefile=None, fitsfile=None, beamfile=None, helio=None, \
         print 'offset of visibility phase center to solar disk center (arcsec): ', xoff,yoff
         (crval1,crval2)=(xoff+dx,yoff+dy)
         # update the fits header to heliocentric coordinates
-        hdu=pyfits.open(fits,mode='update')
+        hdu=fits.open(fits,mode='update')
         header=hdu[0].header
         (cdelt1,cdelt2)=(-header['cdelt1']*3600.,header['cdelt2']*3600.) #Original CDELT1, 2 are for RA and DEC in degrees
         header['cdelt1']=cdelt1

@@ -109,7 +109,11 @@ def ptclean(vis='', imageprefix='', ncpu=8, twidth=1, doreg=False, ephemfile='',
         mytmp['chaniter'] = chaniter
         mytmp['flatnoise'] = flatnoise
         mytmp['allowchunk'] = allowchunk
+<<<<<<< HEAD
 	pathname="file:///local/software/suncasa/tasks/"
+=======
+	pathname="file:///afs/cad.njit.edu/research/physics/binchen/1/bchen/Dropbox/bc_python/suncasa/tasks/"
+>>>>>>> origin/master
 	trec = casac.utils().torecord(pathname+'ptclean.xml')
 
         casalog.origin('ptclean')
