@@ -1,12 +1,12 @@
 {
   "plot_config": {
-    "tab3": {
+    "tab_FSview_FitANLYS": {
       "aia_submap_hght": 720,
       "dspec_small_hght": 180,
       "dspec_small_wdth": 500,
       "aia_submap_wdth": 720
     },
-    "tab2": {
+    "tab_FSview_base": {
       "dspec_thumb_wdth": 330,
       "dspec_yPro_hght": 200,
       "vla_wdth": 330,
@@ -20,15 +20,23 @@
       "dspec_thumb_hght": 390,
       "dspec_xPro_hght": 200
     },
-    "tab1": {
-      "StrID_DataTb_wdth": 900,
+    "tab_QLook": {
+      "StrID_DataTb_wdth": 1050,
       "dspec_Ctrl_widget_wdth": 200,
       "dspec_hght": 500,
       "dspec_wdth": 1450,
       "StrID_DataTb_BUT_wdth": 200,
-      "StrID_DataTb_hght": 200
+      "StrID_DataTb_hght": 280
     },
-    "tab2_2CASA": {
+    "tab_EvtBrowser": {
+      "StrID_DataTb_wdth": 1050,
+      "dspec_Ctrl_widget_wdth": 200,
+      "dspec_hght": 500,
+      "dspec_wdth": 1450,
+      "StrID_DataTb_BUT_wdth": 200,
+      "StrID_DataTb_hght": 280
+    },
+    "tab_FSview2CASA": {
       "tab2_Div_tCLN_wdth": 800,
       "tab2_Div_tCLN_hght": 300,
       "dspec_thumb_wdth": 330,
