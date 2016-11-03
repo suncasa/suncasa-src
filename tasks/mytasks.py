@@ -3,13 +3,8 @@
 # Generated from buildmytask.
 #
 
-<<<<<<< HEAD
 if sys.path[1] != '/local/software/suncasa/tasks':
   sys.path.insert(1, '/local/software/suncasa/tasks')
-=======
-if sys.path[1] != '/afs/cad.njit.edu/research/physics/binchen/1/bchen/Dropbox/bc_python/suncasa/tasks':
-  sys.path.insert(1, '/afs/cad.njit.edu/research/physics/binchen/1/bchen/Dropbox/bc_python/suncasa/tasks')
->>>>>>> origin/master
 from odict import odict
 if not globals().has_key('mytasks') :
   mytasks = odict()
@@ -21,15 +16,9 @@ mytasks['subvs'] = 'Vector-subtraction in UV using selected time ranges and spec
 if not globals().has_key('task_location') :
   task_location = odict()
 
-<<<<<<< HEAD
 task_location['pimfit'] = '/local/software/suncasa/tasks'
 task_location['ptclean'] = '/local/software/suncasa/tasks'
 task_location['subvs'] = '/local/software/suncasa/tasks'
-=======
-task_location['pimfit'] = '/afs/cad.njit.edu/research/physics/binchen/1/bchen/Dropbox/bc_python/suncasa/tasks'
-task_location['ptclean'] = '/afs/cad.njit.edu/research/physics/binchen/1/bchen/Dropbox/bc_python/suncasa/tasks'
-task_location['subvs'] = '/afs/cad.njit.edu/research/physics/binchen/1/bchen/Dropbox/bc_python/suncasa/tasks'
->>>>>>> origin/master
 import inspect
 myglobals = sys._getframe(len(inspect.stack())-1).f_globals
 tasksum = myglobals['tasksum'] 
