@@ -86,15 +86,15 @@ try:
             if len(event_specfile) == 0:
                 tab0_Div_Tb.text = """<p>Warning: No <b>dynamic spectrum</b> data found! Create a <b>dynamic spectrum</b> first.</p>"""
             else:
-                if not os.path.exists(event_id_dir + 'config_EvtID.json'):
-                    config_EvtID = {
-                        "datadir": {"dspecDF": "dspecDF-save", "J2000": "J2000/", "fits_LOCL": "Synthesis_Image/local/",
-                                    "fits_LOCL_init": "QLook/static/Synthesis_Image_fits_LOCL_init.fits",
-                                    "event_specfile": event_specfile[0].split('/')[-1], "database": database_dir,
-                                    "event_id": event_id, "fits_GLOB": "Synthesis_Image/global/",
-                                    "fits_GLOB_init": "QLook/static/Synthesis_Image_fits_GLOB_init.fits"}}
-                    with open(event_id_dir + 'config_EvtID.json', 'w') as fp:
-                        json.dump(config_EvtID, fp)
+                # if not os.path.exists(event_id_dir + 'config_EvtID.json'):
+                config_EvtID = {
+                    "datadir": {"dspecDF": "dspecDF-save", "J2000": "J2000/", "fits_LOCL": "Synthesis_Image/local/",
+                                "fits_LOCL_init": "QLook/static/Synthesis_Image_fits_LOCL_init.fits",
+                                "event_specfile": event_specfile[0].split('/')[-1], "database": "${SUNCASADB}",
+                                "event_id": event_id, "fits_GLOB": "Synthesis_Image/global/",
+                                "fits_GLOB_init": "QLook/static/Synthesis_Image_fits_GLOB_init.fits"}}
+                with open(event_id_dir + 'config_EvtID.json', 'w') as fp:
+                    json.dump(config_EvtID, fp)
                 os.system('cp {} QLook/'.format(event_id_dir + 'config_EvtID.json'))
                 print 'bokeh serve QLook --show --port {} &'.format(port)
                 os.system('cd .. & bokeh serve QLook --show --port {} &'.format(port))
