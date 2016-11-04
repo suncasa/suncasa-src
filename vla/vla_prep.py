@@ -8,10 +8,10 @@ import pdb
 from taskinit import * 
 
 try:
-    from astropy.io import fits
+    from astropy.io import fits as pyfits
 except:
     try: 
-        import pyfits as fits
+        import pyfits
     except ImportError:
         raise ImportError('Neither astropy nor pyfits exists in this CASA installation')
 
@@ -388,20 +388,20 @@ def imreg(imagefile=None, fitsfile=None, beamfile=None, helio=None, \
     for n in range(nimg):
         print 'processing image #'+str(n)
         img=imagefile[n]
-        fits=fitsfile[n]
+        fitsf=fitsfile[n]
         hel=helio[n]
         bmaj=bmajs[n]
         bmin=bmins[n]
         beamunit=beamunits[n]
         if not os.path.exists(img):
             raise ValueError, 'Please specify input image'
-        if os.path.exists(fits):
+        if os.path.exists(fitsf):
             raise ValueError, 'Specified fits file already exists!'
         else:
             p0=hel['p0']
             ia.open(img)
             imr=ia.rotate(pa=str(-p0)+'deg')
-            imr.tofits(fits,history=False)
+            imr.tofits(fitsf,history=False)
             imr.close()
             sum=ia.summary()
             ia.close()
@@ -435,7 +435,7 @@ def imreg(imagefile=None, fitsfile=None, beamfile=None, helio=None, \
         print 'offset of visibility phase center to solar disk center (arcsec): ', xoff,yoff
         (crval1,crval2)=(xoff+dx,yoff+dy)
         # update the fits header to heliocentric coordinates
-        hdu=fits.open(fits,mode='update')
+        hdu=pyfits.open(fitsf,mode='update')
         header=hdu[0].header
         (cdelt1,cdelt2)=(-header['cdelt1']*3600.,header['cdelt2']*3600.) #Original CDELT1, 2 are for RA and DEC in degrees
         header['cdelt1']=cdelt1

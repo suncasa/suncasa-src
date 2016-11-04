@@ -1,7 +1,7 @@
 import os
 from taskinit import * 
 import numpy as np
-import vla_prep
+import suncasa.vla.vla_prep as vla_prep
 import shutil
 import multiprocessing as mp
 from functools import partial
@@ -33,21 +33,21 @@ def clean_iter(tim, freq, vis, imageprefix,
     else:
         et = len(tim)-1
 
-    tim_d = tim/3600./24.-np.fix(tim/3600./24.) 
+    #tim_d = tim/3600./24.-np.fix(tim/3600./24.) 
 
     if bt == 0:
-        bt_d=tim_d[bt]-((tim_d[bt+1]-tim_d[bt])/2)
+        bt_d=tim[bt]-((tim[bt+1]-tim[bt])/2)
     else:
-        bt_d=tim_d[bt]-((tim_d[bt]-tim_d[bt-1])/2)
+        bt_d=tim[bt]-((tim[bt]-tim[bt-1])/2)
     if et == (len(tim)-1) or et == -1:
-        et_d=tim_d[et]+((tim_d[et]-tim_d[et-1])/2)
+        et_d=tim[et]+((tim[et]-tim[et-1])/2)
     else:
-        et_d=tim_d[et]+((tim_d[et+1]-tim_d[et])/2)
+        et_d=tim[et]+((tim[et+1]-tim[et])/2)
 
-    timerange = qa.time(qa.quantity(bt_d,'d'),prec=9)[0] + '~' + \
-                qa.time(qa.quantity(et_d,'d'),prec=9)[0]
+    timerange = qa.time(qa.quantity(bt_d,'s'),prec=9)[0] + '~' + \
+                qa.time(qa.quantity(et_d,'s'),prec=9)[0]
     tmid = (bt_d + et_d)/2. 
-    btstr=qa.time(qa.quantity(bt_d,'d'),prec=9,form='fits')[0]
+    btstr=qa.time(qa.quantity(bt_d,'s'),prec=9,form='fits')[0]
     print 'cleaning timerange: ' + timerange
     image0=btstr.replace(':','').replace('-','')
     imname=imageprefix+image0
@@ -90,7 +90,15 @@ def clean_iter(tim, freq, vis, imageprefix,
         imagefile=[imname+'.image']
         fitsfile=[imname+'.fits']
         vla_prep.imreg(imagefile = imagefile, fitsfile = fitsfile, helio = helio, toTb = False, scl100 = True)
-    return
+        if os.path.exists(imname+'.fits'):
+            return [True, btstr, imname+'.fits']
+        else:
+            return [False, btstr, '']
+    else:
+        if os.path.exists(imname+'.image'):
+            return [True, btstr, imname+'.image']
+        else:
+            return [False, btstr, '']
 
 def ptclean(vis, imageprefix, ncpu, twidth, doreg, ephemfile, msinfofile,
             outlierfile, field, spw, selectdata, timerange,
@@ -162,14 +170,15 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, ephemfile, msinfofile,
         except ValueError:
             print "keyword 'timerange' has a wrong format"
     
-    btstr=qa.time(qa.quantity(tim[btidx],'s'),prec=9)[0]
-    etstr=qa.time(qa.quantity(tim[etidx],'s'),prec=9)[0]
+    btstr=qa.time(qa.quantity(tim[btidx],'s'),prec=9,form='fits')[0]
+    etstr=qa.time(qa.quantity(tim[etidx],'s'),prec=9,form='fits')[0]
     
     iterable = range(btidx, etidx+1, twidth)
     print 'First time pixel: '+btstr
     print 'Last time pixel: '+etstr 
     print str(len(iterable))+' images to clean...'
 
+    res = []
     # partition
     clnpart = partial(clean_iter, tim, freq, vis, 
             imageprefix, ncpu, twidth, doreg, ephemfile, ephem, msinfofile,
@@ -185,15 +194,32 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, ephemfile, msinfofile,
             pbcor, minpb, usescratch, noise, npixels, npercycle, cyclefactor,
             cyclespeedup, nterms, reffreq, chaniter, flatnoise, allowchunk)
     timelapse = 0
-    casalog.post('Perform clean in parallel ...')
     t0 = time()
-    pool = mp.Pool(ncpu)
-    dummy = pool.map_async(clnpart, iterable)
-    pool.close()
-    pool.join()
+    # parallelization
+    para=0
+    if para:
+        casalog.post('Perform clean in parallel ...')
+        pool = mp.Pool(ncpu)
+        #res = pool.map_async(clnpart, iterable)
+        res = pool.map(clnpart, iterable)
+        pool.close()
+        pool.join()
+    else:
+        for i in iterable:
+            res.append(clnpart(i))
+
     t1 = time()
     timelapse = t1 - t0
     print 'It took %f secs to complete' % timelapse
+    # repackage this into a single dictionary
+    results={'succeeded':[], 'timestamps':[], 'imagenames':[]}
+    for r in res:
+        results['succeeded'].append(r[0])
+        results['timestamps'].append(r[1])
+        results['imagenames'].append(r[2])
+
+    return results
+
 
 
 
