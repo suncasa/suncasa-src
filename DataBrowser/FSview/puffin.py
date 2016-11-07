@@ -88,7 +88,7 @@ class PuffinMap:
         # draw the latitude lines
         for lat in hg_latitude_deg:
             x, y = wcs.convert_hg_hpc(hg_longitude_deg, lat * np.ones(361), b0_deg=b0, l0_deg=l0, dsun_meters=dsun,
-                angle_units=units.x, occultation=True)
+                                      angle_units=units.x, occultation=True)
             valid = np.logical_and(np.isfinite(x), np.isfinite(y))
             x = x[valid]
             y = y[valid]
@@ -101,7 +101,7 @@ class PuffinMap:
         # draw the longitude lines
         for lon in hg_longitude_deg:
             x, y = wcs.convert_hg_hpc(lon * np.ones(181), hg_latitude_deg, b0_deg=b0, l0_deg=l0, dsun_meters=dsun,
-                angle_units=units[0], occultation=True)
+                                      angle_units=units[0], occultation=True)
             valid = np.logical_and(np.isfinite(x), np.isfinite(y))
             x = x[valid]
             y = y[valid]
@@ -121,7 +121,8 @@ class PuffinMap:
 
         return ColumnDataSource(data={'x': x, 'y': y})
 
-    def PlotMap(self, DrawLimb=True, DrawGrid=True, title=None, x_range=None, y_range=None, palette=None, *args,
+    def PlotMap(self, DrawLimb=True, DrawGrid=True, grid_spacing=15 * u.deg, title=None, x_range=None, y_range=None,
+                palette=None, *args,
                 **kwargs):
         """Plot the map using the bokeh.plotting interface
         """
@@ -137,17 +138,17 @@ class PuffinMap:
         if not palette:
             palette = bokehpalette_jet
         # plot the global vla image
-        p_image = figure(x_range=x_range, y_range=y_range, title=title, plot_height=self.plot_height,
-            plot_width=self.plot_width, *args, **kwargs)
+        p_image = figure(tools='pan,wheel_zoom,save,reset',x_range=x_range, y_range=y_range, title=title, plot_height=self.plot_height,
+                         plot_width=self.plot_width, *args, **kwargs)
         p_image.xaxis.axis_label = 'X-position [arcsec]'
         p_image.yaxis.axis_label = 'Y-position [arcsec]'
         r_img = p_image.image(image="data", x=self.x, y=self.y, dw=self.dw, dh=self.dh, source=source_image,
-            palette=palette)
+                              palette=palette)
         if DrawLimb:
             p_image.line(x='x', y='y', line_color='white', line_dash='solid', source=self.DrawLimbSource())
             if DrawGrid:
                 p_image.multi_line(xs='xs', ys='ys', line_color='white', line_dash='dotted',
-                    source=self.DrawGridSource())
+                                   source=self.DrawGridSource(grid_spacing=grid_spacing))
 
         return p_image, r_img
 
@@ -219,7 +220,7 @@ class PuffinImage:
 
         # plot the global vla image
         p_image = figure(tools='', x_range=x_range, y_range=y_range, title=title, toolbar_location=None,
-            plot_height=self.plot_height, plot_width=self.plot_width)
+                         plot_height=self.plot_height, plot_width=self.plot_width)
         p_image.xaxis.visible = False
         p_image.yaxis.visible = False
         r_img = p_image.image_rgba(image="data", x=self.x, y=self.y, dw=self.dw, dh=self.dh, source=source_image)

@@ -4,13 +4,14 @@ import numpy as np
 import pylab as plt
 import scipy.optimize as opt
 from bokeh.models import (ColumnDataSource)
+import matplotlib.cm as cm
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
 
 def get_contour_data(X, Y, Z):
-    cs = plt.contour(X, Y, Z, levels=(np.arange(5, 10, 2) / 10.0 * Z.max()).tolist())
+    cs = plt.contour(X, Y, Z, levels=(np.arange(5, 10, 2) / 10.0 * Z.max()).tolist(), cmap=cm.Greys_r)
     xs = []
     ys = []
     xt = []
@@ -19,13 +20,14 @@ def get_contour_data(X, Y, Z):
     text = []
     isolevelid = 0
     for isolevel in cs.collections:
-        isocol = isolevel.get_color()[0]
-        thecol = 3 * [None]
+        # isocol = isolevel.get_color()[0]
+        # thecol = 3 * [None]
         theiso = '{:.0f}%'.format(cs.get_array()[isolevelid] / Z.max() * 100)
         isolevelid += 1
-        for i in xrange(3):
-            thecol[i] = int(255 * isocol[i])
-        thecol = '#%02x%02x%02x' % (thecol[0], thecol[1], thecol[2])
+        # for i in xrange(3):
+        # thecol[i] = int(255 * isocol[i])
+        thecol = '#%02x%02x%02x' % (220, 220, 220)
+        # thecol = '#03FFF9'
 
         for path in isolevel.get_paths():
             v = path.vertices
@@ -94,9 +96,10 @@ def maxfit(image, plot=False):
         # image_fitted.data = data_fitted
         # image_fitted.draw_contours([10,20,30,40,50,60,70,80,90] * u.percent)
         plt.plot((popt[1] * u.arcsec).to(u.deg), (popt[2] * u.arcsec).to(u.deg), 'o',
-            transform=ax1.get_transform('world'))
+                 transform=ax1.get_transform('world'))
         plt.contour((mapx * u.arcsec).to(u.deg), (mapy * u.arcsec).to(u.deg), data_fitted,
-            levels=(np.arange(5, 10, 2) / 10.0 * np.amax(data_fitted)).tolist(), transform=ax1.get_transform('world'))
+                    levels=(np.arange(5, 10, 2) / 10.0 * np.amax(data_fitted)).tolist(),
+                    transform=ax1.get_transform('world'))
     # from sunpy.net.helioviewer import HelioviewerClient
     # import matplotlib.colors as colors
     # hv = HelioviewerClient()
