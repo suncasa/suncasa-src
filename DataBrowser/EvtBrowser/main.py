@@ -43,7 +43,7 @@ try:
     -------------------------- panel 0 --------------------------
     '''
     tab0_Div_title = Div(text="""
-    <p><b>Welcome to Event Browser. Select one solar event to process. Have fun!</b></p>""",
+    <p><b>Welcome to Event Browser. Select one solar event to start. Have fun!</b></p>""",
                          width=config['plot_config']['tab_EvtBrowser']['StrID_DataTb_wdth'])
 
     tab0_SRC_Tb_EvtID = ColumnDataSource(EvtID_list)
