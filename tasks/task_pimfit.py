@@ -21,10 +21,10 @@ def imfit_iter(imgfiles, doreg, tims, msinfofile, ephem, box, region, chans, sto
     from taskinit import iatool
     import pdb
     try:
-        from astropy.io import fits
+        from astropy.io import fits as pyfits
     except:
         try: 
-            import pyfits as fits
+            import pyfits
         except ImportError:
             raise ImportError('Neither astropy nor pyfits exists in this CASA installation')
     img=imgfiles[imidx]
@@ -62,7 +62,7 @@ def imfit_iter(imgfiles, doreg, tims, msinfofile, ephem, box, region, chans, sto
             rms=rms, noisefwhm=noisefwhm, summary=summary
         )
         # update timestamp
-        hdr=fits.getheader(img)
+        hdr=pyfits.getheader(img)
         result_dict['timestamp']=hdr['date-obs']
         print('I am here after fitcomponents')
         return result_dict

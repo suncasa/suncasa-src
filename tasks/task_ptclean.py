@@ -196,7 +196,7 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, ephemfile, msinfofile,
     timelapse = 0
     t0 = time()
     # parallelization
-    para=0
+    para=1
     if para:
         casalog.post('Perform clean in parallel ...')
         pool = mp.Pool(ncpu)
