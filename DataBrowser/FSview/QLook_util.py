@@ -11,7 +11,7 @@ __email__ = "sijie.yu@njit.edu"
 
 
 def get_contour_data(X, Y, Z):
-    cs = plt.contour(X, Y, Z, levels=(np.arange(5, 10, 2) / 10.0 * Z.max()).tolist(), cmap=cm.Greys_r)
+    cs = plt.contour(X, Y, Z, levels=(np.arange(5, 10, 2) / 10.0 * np.nanmax(Z)).tolist(), cmap=cm.Greys_r)
     xs = []
     ys = []
     xt = []

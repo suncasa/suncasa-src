@@ -138,7 +138,8 @@ class PuffinMap:
         if not palette:
             palette = bokehpalette_jet
         # plot the global vla image
-        p_image = figure(tools='pan,wheel_zoom,save,reset',x_range=x_range, y_range=y_range, title=title, plot_height=self.plot_height,
+        p_image = figure(tools='pan,wheel_zoom,save,reset', x_range=x_range, y_range=y_range, title=title,
+                         plot_height=self.plot_height,
                          plot_width=self.plot_width, *args, **kwargs)
         p_image.xaxis.axis_label = 'X-position [arcsec]'
         p_image.yaxis.axis_label = 'Y-position [arcsec]'
