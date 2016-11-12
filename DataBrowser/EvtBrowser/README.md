@@ -1,2 +1,2 @@
 # EvtBrowser
-A interactive tool for browsing radio spectral imaging data (panel0)
+A interactive page for selection of radio observation events
