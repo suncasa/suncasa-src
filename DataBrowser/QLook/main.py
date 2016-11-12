@@ -16,7 +16,7 @@ from bokeh.models import (ColumnDataSource, Button, TextInput, DataTable, TableC
 from bokeh.models.widgets import Select
 from bokeh.plotting import figure, curdoc
 
-import jdutil
+import suncasa.utils.jdutil as jdutil
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -39,11 +39,10 @@ elif platform == "win32":
 '''load config file'''
 with open('../config.json', 'r') as fp:
     config_plot = json.load(fp)
-with open('config_EvtID.json', 'r') as fp:
+database_dir = config_plot['datadir']['database']
+database_dir = os.path.expandvars(database_dir)
+with open('{}config_EvtID_curr.json'.format(database_dir), 'r') as fp:
     config_EvtID = json.load(fp)
-
-EvtID_list = pd.read_json('EvtID_list.json')
-EvtID_list = EvtID_list.sort_values(['date'], ascending=[True])
 
 '''define the colormaps'''
 colormap_jet = cm.get_cmap("jet")  # choose any matplotlib colormap here
@@ -67,10 +66,6 @@ def load_specdata(specfile=None):
     tab1_pol = 'I'
     bl_index = 0
     tab1_spec = tab1_specdata['spec'][:, :, :, :]
-    tab1_npol = tab1_specdata['npol']
-    tab1_nbl = tab1_specdata['nbl']
-    tab1_ntim = tab1_specdata['ntim']
-    tab1_nfreq = tab1_specdata['nfreq']
     tab1_tim = tab1_specdata['tim'][:]
     tab1_freq = tab1_specdata['freq'] / 1e9
     tab1_spec_sz = tab1_spec.shape
@@ -92,18 +87,15 @@ def load_specdata(specfile=None):
     elif tab1_pol == 'V':
         tab1_spec_plt = (tab1_spec[0, bl_index, :, :] - tab1_spec[1, bl_index, :, :]) / 2.
     tab1_dtim = tab1_tim - tab1_tim[0]
-    # dmax = np.amax(tab1_spec_plt)
-    # dmin = np.amin(tab1_spec_plt)
-    # tab1_spec_plt = (tab1_spec_plt - dmin) / (dmax - dmin) * 255.
-#todo lskajdflksadf
 
 load_specdata(specfile)
 TOOLS = "pan,wheel_zoom,box_zoom,reset,save"
 '''create the dynamic spectrum plot'''
 tab1_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
-    plot_width=config_plot['plot_config']['tab_QLook']['dspec_wdth'],
-    plot_height=config_plot['plot_config']['tab_QLook']['dspec_hght'], x_range=(tab1_dtim[0], tab1_dtim[-1]),
-    y_range=(tab1_freq[0], tab1_freq[-1]), toolbar_location="above")
+                      plot_width=config_plot['plot_config']['tab_QLook']['dspec_wdth'],
+                      plot_height=config_plot['plot_config']['tab_QLook']['dspec_hght'],
+                      x_range=(tab1_dtim[0], tab1_dtim[-1]),
+                      y_range=(tab1_freq[0], tab1_freq[-1]), toolbar_location="above")
 tim0_char = jdutil.jd_to_datetime((tab1_tim[0] / 3600. / 24. + 2400000.5) * 86400. / 3600. / 24.)
 tim0_char = tim0_char.strftime('%Y-%b-%d %H:%M:%S') + '.{}'.format(round(tim0_char.microsecond / 1e3) * 1e3)[0:4]
 tab1_p_dspec.axis.visible = True
@@ -121,7 +113,7 @@ tab1_p_dspec.axis.minor_tick_line_color = "white"
 
 tab1_SRC_dspec = ColumnDataSource(data={'data': [tab1_spec_plt], 'xx': [tab1_dtim], 'yy': [tab1_freq]})
 tab1_r_dspec = tab1_p_dspec.image(image="data", x=tab1_dtim[0], y=tab1_freq[0], dw=tab1_dtim[-1] - tab1_dtim[0],
-    dh=tab1_freq[-1] - tab1_freq[0], source=tab1_SRC_dspec, palette=bokehpalette_jet)
+                                  dh=tab1_freq[-1] - tab1_freq[0], source=tab1_SRC_dspec, palette=bokehpalette_jet)
 
 tab1_spec_sz = tab1_spec.shape
 ratio_spec_sz2, ratio_spec_sz1 = 10, 10
@@ -134,21 +126,25 @@ tab1_freq_square = sn.interpolation.zoom(tab1_freq, ratio_spec_sz1 / 10., order=
 tab1_nfreq_square, = tab1_freq_square.shape
 tab1_ntim_square, = tab1_tim_square.shape
 tim_map = ((np.tile(tab1_tim_square, tab1_nfreq_square).reshape(tab1_nfreq_square,
-    tab1_ntim_square) / 3600. / 24. + 2400000.5)) * 86400.
+                                                                tab1_ntim_square) / 3600. / 24. + 2400000.5)) * 86400.
 freq_map = np.tile(tab1_freq_square, tab1_ntim_square).reshape(tab1_ntim_square, tab1_nfreq_square).swapaxes(0, 1)
 xx = tim_map.flatten()
 yy = freq_map.flatten()
 tab1_dspecDF_square = pd.DataFrame({'time': xx - xx[0], 'freq': yy})
 tab1_SRC_dspec_square = ColumnDataSource(tab1_dspecDF_square)
-'''make the plot lasso selectable'''
-tab1_render_square = tab1_p_dspec.square('time', 'freq', source=tab1_SRC_dspec_square, fill_color=None, fill_alpha=0.0,
-    line_color=None, line_alpha=0.0, selection_fill_color='red', selection_fill_alpha=0.2, nonselection_fill_alpha=0.0,
-    selection_line_alpha=0.0, nonselection_line_alpha=0.0)
+tab1_r_square = tab1_p_dspec.square('time', 'freq', source=tab1_SRC_dspec_square, fill_color=None, fill_alpha=0.0,
+                                    line_color=None, line_alpha=0.0, selection_fill_color=None,
+                                    selection_fill_alpha=0.0, nonselection_fill_alpha=0.0,
+                                    selection_line_alpha=0.0, nonselection_line_alpha=0.0)
+tab2_SRC_dspec_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
+tab2_r_dspec_patch = tab1_p_dspec.patch('xx', 'yy', source=tab2_SRC_dspec_Patch,
+                                        fill_color=None, fill_alpha=0.5, line_color="Magenta",
+                                        line_alpha=1.0, line_width=1)
 
 ## ----------------baseline & polarization selection------------------------
 tab1_Select_bl = Select(title="Baseline:", value=tab1_bl[0], options=tab1_bl, width=150)
 tab1_Select_pol = Select(title="Polarization:", value="I", options=["RR", "LL", "I", "V"], width=150)
-tab1_Select_colormap = Select(title="Colormap:", value="linear", options=["linear", "log"], width=150)
+tab1_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"], width=150)
 
 
 def tab1_update_dspec(attrname, old, new):
@@ -164,13 +160,13 @@ def tab1_update_dspec(attrname, old, new):
         spec_plt = (tab1_spec[0, bl_index, :, :] + tab1_spec[1, bl_index, :, :]) / 2.
     elif select_pol == 'V':
         spec_plt = (tab1_spec[0, bl_index, :, :] - tab1_spec[1, bl_index, :, :]) / 2.
-        tab1_Select_colormap.value = 'linear'
-    if tab1_Select_colormap.value == 'log' and select_pol != 'V':
+        tab1_Select_colorspace.value = 'linear'
+    if tab1_Select_colorspace.value == 'log' and select_pol != 'V':
         spec_plt = np.log(spec_plt)
     tab1_SRC_dspec.data = {'data': [spec_plt], 'xx': [tab1_dtim], 'yy': [tab1_freq]}
 
 
-tab1_ctrls = [tab1_Select_bl, tab1_Select_pol, tab1_Select_colormap]
+tab1_ctrls = [tab1_Select_bl, tab1_Select_pol, tab1_Select_colorspace]
 for ctrl in tab1_ctrls:
     ctrl.on_change('value', tab1_update_dspec)
 try:
@@ -184,9 +180,15 @@ except:
     os.system('cp {}StrID_list.json {}StrID_list_tmp.json'.format(database_dir + event_id, database_dir + event_id))
 
 tab1_SRC_StrIDPatch = ColumnDataSource(StrIDList)
-tab1_render_patch = tab1_p_dspec.patches('time', 'freq', source=tab1_SRC_StrIDPatch, hover_fill_color="firebrick",
-    hover_line_color='#cc3333', hover_fill_alpha=0.2, fill_color="grey", fill_alpha=0.0, line_color="white",
-    line_width=1)
+tab1_render_patch = tab1_p_dspec.patches('time', 'freq', source=tab1_SRC_StrIDPatch, hover_fill_color="OrangeRed",
+                                         hover_line_color='OrangeRed', hover_fill_alpha=0.2, hover_line_alpha=1.0,
+                                         selection_fill_color=None,
+                                         selection_fill_alpha=0.0, selection_line_color="OrangeRed",
+                                         selection_line_alpha=1, nonselection_fill_color=None,
+                                         nonselection_fill_alpha=0.0,
+                                         nonselection_line_color="white", nonselection_line_alpha=0.6,
+                                         line_width=1, fill_color=None, fill_alpha=0.0,
+                                         line_color="white")
 
 tooltips = [("StrID", "@str_id"), ("Date", "@date"), ("TimeRange", "@timeran"), ("FreqRange", "@freqran")]
 tab1_HoverTool_dspec = HoverTool(tooltips=tooltips, anchor='top_left', renderers=[tab1_render_patch])
@@ -204,36 +206,43 @@ tab1_p_dspec.axis.minor_tick_line_color = "white"
 tab1_TbCols = [TableColumn(field="str_id", title="StrID"), TableColumn(field="timeran", title="Time Range"),
                TableColumn(field="freqran", title="Freq Range"), ]
 tab1_DataTb_dspec = DataTable(source=tab1_render_patch.data_source, columns=tab1_TbCols,
-    width=config_plot['plot_config']['tab_QLook']['StrID_DataTb_wdth'],
-    height=config_plot['plot_config']['tab_QLook']['StrID_DataTb_hght'])  # , editable=True)
+                              width=config_plot['plot_config']['tab_QLook']['StrID_DataTb_wdth'],
+                              height=config_plot['plot_config']['tab_QLook']['StrID_DataTb_hght'])  # , editable=True)
 
 tab1_Div_Tb = Div(text=""" """, width=config_plot['plot_config']['tab_QLook']['StrID_DataTb_wdth'])
 tab1_Div_exit = Div(text="""
 <p><b>Warning</b>: 1. Click the <b>Exit QLook</b> first before closing the tab</p>
 <p><b>Warning</b>: 2. <b>FSview</b> or <b>FSview2CASA</b> tabs will disconnect if <b>Exit QLook is clicked</b></p>""",
-    width=150)
+                    width=150)
 
-tab1_selected_SRC_dspec_square = None
+tab1_selected_dspec_square = None
 
 
 def tab1_SRC_dspec_square_select(attrname, old, new):
-    global tab1_selected_SRC_dspec_square
-    tab1_selected_SRC_dspec_square = tab1_SRC_dspec_square.selected['1d']['indices']
-    if tab1_selected_SRC_dspec_square:
+    global tab1_selected_dspec_square
+    tab1_selected_dspec_square = tab1_SRC_dspec_square.selected['1d']['indices']
+    if tab1_selected_dspec_square:
         global dftmp
-        dftmp = tab1_dspecDF_square.iloc[tab1_selected_SRC_dspec_square, :]
+        dftmp = tab1_dspecDF_square.iloc[tab1_selected_dspec_square, :]
+        x0, x1 = dftmp['time'].min(), dftmp['time'].max()
+        y0, y1 = dftmp['freq'].min(), dftmp['freq'].max()
+        tab2_r_dspec_patch.data_source.data = ColumnDataSource(
+            pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
+    else:
+        tab2_r_dspec_patch.data_source.data = ColumnDataSource(
+            pd.DataFrame({'xx': [], 'yy': []})).data
 
 
 tab1_SRC_dspec_square.on_change('selected', tab1_SRC_dspec_square_select)
 
 tab1_input_StrID = TextInput(value="Type in here", title="New StrID:",
-    width=config_plot['plot_config']['tab_QLook']['StrID_DataTb_BUT_wdth'])
+                             width=config_plot['plot_config']['tab_QLook']['StrID_DataTb_BUT_wdth'])
 timestart = xx[0]
 
 
 def tab1_update_addStrID():
-    global dftmp, tab1_tim_square, timestart, database_dir, tab1_selected_SRC_dspec_squarez
-    if tab1_selected_SRC_dspec_square:
+    global dftmp
+    if tab1_selected_dspec_square:
         time0, time1 = dftmp['time'].min() + timestart, dftmp['time'].max() + timestart
         freq0, freq1 = dftmp['freq'].min(), dftmp['freq'].max()
         date_char = jdutil.jd_to_datetime(timestart / 3600. / 24.)
@@ -244,8 +253,9 @@ def tab1_update_addStrID():
         t1_char = t1_char.strftime('%H:%M:%S') + '.{:03d}'.format(int(round(t1_char.microsecond / 1e3)))
         time0, time1 = (time0 / 86400. - 2400000.5) * 24. * 3600., (time1 / 86400. - 2400000.5) * 24. * 3600.
         StrID = pd.DataFrame(dict(time=[[time0, time1, time1, time0]], freq=[[freq0, freq0, freq1, freq1]],
-            str_id=[[tab1_input_StrID.value]], date=[[date_char]], timeran=[[t0_char + '~' + t1_char]],
-            freqran=[["{:.3f}~{:.3f} GHz".format(freq0, freq1)]]))
+                                  str_id=[[tab1_input_StrID.value]], date=[[date_char]],
+                                  timeran=[[t0_char + '~' + t1_char]],
+                                  freqran=[["{:.3f}~{:.3f} GHz".format(freq0, freq1)]]))
         StrIDList = pd.read_json(database_dir + event_id + 'StrID_list_tmp.json')
         StrIDList = pd.concat([StrIDList, StrID])
         StrIDList = StrIDList.sort_values(by='timeran', ascending=1)
@@ -294,8 +304,8 @@ ports.append(port)
 
 
 def tab1_update_FSviewStrID():
-    global tab1_selected_StrID_entry, tab1_dtim, tab1_specdata, dftmp, timestart, database_dir, event_id
-    global port, ports, config_plot, tab1_tim_square
+    global dftmp
+    global port, ports
     if tab1_selected_StrID_entry:
         StrIDList = pd.read_json(database_dir + event_id + 'StrID_list_tmp.json')
         StrIDList = StrIDList.sort_values(by='timeran', ascending=1)
@@ -307,7 +317,7 @@ def tab1_update_FSviewStrID():
         FS_config = {'datadir': {'event_id': event_id, 'struct_id': struct_id,
                                  'FS_specfile': database_dir + event_id + struct_id + StrID['str_id'][0] + '_' +
                                                 StrID['date'][0] + 'T' + str(StrID['timeran'][0]).translate(None,
-                                     ':') + '.spec.npz'}}
+                                                                                                            ':') + '.spec.npz'}}
         with open(out_json, 'w') as fp:
             json.dump(FS_config, fp)
         in_json = database_dir + event_id + 'CurrFS.json'
@@ -357,13 +367,11 @@ def tab1_update_FSviewStrID():
 
 
 def tab1_update_saveStrID():
-    global database_dir, event_id
     os.system('cp {}StrID_list_tmp.json {}StrID_list.json'.format(database_dir + event_id, database_dir + event_id))
     tab1_Div_Tb.text = """<p>StrID data saved to <b>""" + '{}StrID_list.json</b></p>'.format(database_dir + event_id)
 
 
 def tab1_update_reloadStrID():
-    global tab1_tim_square, database_dir, event_id
     os.system('cp {}StrID_list.json {}StrID_list_tmp.json'.format(database_dir + event_id, database_dir + event_id))
     StrIDList = pd.read_json(database_dir + event_id + 'StrID_list_tmp.json')
     StrIDList = StrIDList.sort_values(by='timeran', ascending=1)
@@ -412,10 +420,13 @@ tab1_BUT_exit = Button(label='Exit QLook', width=150, button_type='danger')
 tab1_BUT_exit.on_click(tab1_exit)
 
 panel1 = column(tab1_p_dspec,
-    row(widgetbox(tab1_Select_bl, tab1_Select_pol, tab1_Select_colormap, tab1_BUT_exit, tab1_Div_exit, width=150),
-        tab1_SPCR_LFT_DataTb_evt, tab1_SPCR_LFT_DataTb_dspec, column(tab1_DataTb_dspec, tab1_Div_Tb), tab1_SPCR_LFT_But,
-        widgetbox(tab1_BUT_FSviewStrID, tab1_input_StrID, tab1_BUT_addStrID, tab1_BUT_deleteStrID, tab1_BUT_saveStrID,
-            tab1_BUT_reloadStrID)))
+                row(widgetbox(tab1_Select_bl, tab1_Select_pol, tab1_Select_colorspace, tab1_BUT_exit, tab1_Div_exit,
+                              width=150),
+                    tab1_SPCR_LFT_DataTb_evt, tab1_SPCR_LFT_DataTb_dspec, column(tab1_DataTb_dspec, tab1_Div_Tb),
+                    tab1_SPCR_LFT_But,
+                    widgetbox(tab1_BUT_FSviewStrID, tab1_input_StrID, tab1_BUT_addStrID, tab1_BUT_deleteStrID,
+                              tab1_BUT_saveStrID,
+                              tab1_BUT_reloadStrID)))
 
 print("--- %s seconds ---" % (time.time() - start_timestamp))
 

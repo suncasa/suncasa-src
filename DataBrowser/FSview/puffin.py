@@ -59,6 +59,11 @@ class PuffinMap:
         x, y = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)
         return x, y
 
+    def meshgridpix(self, *args, **kwargs):
+        XX, YY = np.meshgrid(np.arange(self.smap.data.shape[0]), np.arange(self.smap.data.shape[1]))
+        x, y = XX * u.pix, YY * u.pix
+        return x, y
+
     def ImageSource(self, *args, **kwargs):
         """maps the Sunpy map to Bokeh DataSource
         """
