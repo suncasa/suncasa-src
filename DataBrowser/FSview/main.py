@@ -159,7 +159,7 @@ if os.path.exists(FS_dspecDF):
 
         TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
 
-        tab2_SRC_dspec = ColumnDataSource(dspecDF)
+        tab2_SRC_dspec_square = ColumnDataSource(dspecDF)
 
         '''create the dynamic spectrum plot'''
         tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
@@ -180,8 +180,8 @@ if os.path.exists(FS_dspecDF):
                            dh=tab2_freq[-1] - tab2_freq[0],
                            source=tab2_SRC_dspec_image, palette=bokehpalette_jet)
 
-        # make the plot lasso selectable
-        tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec, fill_color=colors_dspec,
+        # make the dspec data source selectable
+        tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=colors_dspec,
                                             fill_alpha=0.0,
                                             line_color=None, line_alpha=0.0, selection_fill_alpha=0.1,
                                             selection_fill_color='black',
@@ -320,7 +320,7 @@ if os.path.exists(FS_dspecDF):
                 tab2_SRC_dspec_image.data = {'data': [np.log(spec_plt)], 'xx': [tab2_dtim], 'yy': [tab2_freq]}
             else:
                 tab2_SRC_dspec_image.data = {'data': [spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]}
-            tab2_SRC_dspec.data['dspec'] = spec_plt.flatten()
+            tab2_SRC_dspec_square.data['dspec'] = spec_plt.flatten()
             tab2_p_dspec_xPro.y_range.start = spec_plt_min
             tab2_p_dspec_xPro.y_range.end = spec_plt_max
             tab2_p_dspec_yPro.x_range.start = spec_plt_min
@@ -444,8 +444,6 @@ if os.path.exists(FS_dspecDF):
             tab2_SRC_vlamap_peak = ColumnDataSource(
                 data={'dspec': [dspecDF.loc[76, :]['dspec']], 'x_pos': [dspecDF.loc[76, :]['x_pos']],
                       'y_pos': [dspecDF.loc[76, :]['y_pos']], 'amp_gaus': [dspecDF.loc[76, :]['amp_gaus']]})
-
-
 
         # import the aia image
         # from sunpy.net.helioviewer import HelioviewerClient
@@ -850,7 +848,7 @@ if os.path.exists(FS_dspecDF):
 
         def tab2_dspec_selection_change(attrname, old, new):
             global tab2_dspec_selected
-            tab2_dspec_selected = tab2_SRC_dspec.selected['1d']['indices']
+            tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
             if tab2_dspec_selected:
                 global dspecDF
                 dspecDF = dspecDF0.iloc[tab2_dspec_selected, :]
@@ -869,7 +867,7 @@ if os.path.exists(FS_dspecDF):
                     tab3_r_aia_submap_cross.data_source.data = SRC_maxfit_centroid.data
 
 
-        tab2_SRC_dspec.on_change('selected', tab2_dspec_selection_change)
+        tab2_SRC_dspec_square.on_change('selected', tab2_dspec_selection_change)
 
         tab3_dspec_small_CTRLs_OPT = dict(mean_values=[mean_amp_g, mean_vx, mean_vy],
                                           drange_values=[drange_amp_g, drange_vx, drange_vy],
@@ -1306,7 +1304,7 @@ if os.path.exists(FS_dspecDF):
 
             TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
 
-            tab2_SRC_dspec = ColumnDataSource(dspecDF)
+            tab2_SRC_dspec_square = ColumnDataSource(dspecDF)
 
             '''create the dynamic spectrum plot'''
             tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
@@ -1327,8 +1325,8 @@ if os.path.exists(FS_dspecDF):
                                dh=tab2_freq[-1] - tab2_freq[0],
                                source=tab2_SRC_dspec_image, palette=bokehpalette_jet)
 
-            # make the plot lasso selectable
-            tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec, fill_color=colors_dspec,
+            # make the dspec data source selectable
+            tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=colors_dspec,
                                                 fill_alpha=0.0,
                                                 line_color=None, line_alpha=0.0, selection_fill_alpha=0.1,
                                                 selection_fill_color='black',
@@ -1341,10 +1339,6 @@ if os.path.exists(FS_dspecDF):
                                                     config_plot['plot_config']['tab_FSview_base'][
                                                         'dspec_hght'] / tab2_nfreq))
 
-            tab2_p_dspec.add_tools(BoxSelectTool())
-            tab2_p_dspec.add_tools(LassoSelectTool())
-            tab2_p_dspec.select(BoxSelectTool).select_every_mousemove = False
-            tab2_p_dspec.select(LassoSelectTool).select_every_mousemove = False
             tab2_p_dspec.border_fill_color = "silver"
             tab2_p_dspec.border_fill_alpha = 0.4
             tab2_p_dspec.axis.major_tick_out = 0
@@ -1465,7 +1459,7 @@ if os.path.exists(FS_dspecDF):
                     tab2_SRC_dspec_image.data = {'data': [np.log(spec_plt)], 'xx': [tab2_dtim], 'yy': [tab2_freq]}
                 else:
                     tab2_SRC_dspec_image.data = {'data': [spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]}
-                tab2_SRC_dspec.data['dspec'] = spec_plt.flatten()
+                tab2_SRC_dspec_square.data['dspec'] = spec_plt.flatten()
                 tab2_p_dspec_xPro.y_range.start = spec_plt_min
                 tab2_p_dspec_xPro.y_range.end = spec_plt_max
                 tab2_p_dspec_yPro.x_range.start = spec_plt_min
@@ -1499,19 +1493,19 @@ if os.path.exists(FS_dspecDF):
                                 idxfreq_ref = freq.index(freq_ref)
                                 # select_pol == 'RR':
                                 vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1]
-                                spec_plt_R[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nansum(vladata, axis=(-1, -2))
+                                spec_plt_R[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata, axis=(-1, -2))
                                 spec_plt_R[spec_plt_R < 0] = 0
                                 # select_pol == 'LL':
                                 vladata = hdu.data[1, :, y0:y1 + 1, x0:x1 + 1]
-                                spec_plt_L[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nansum(vladata, axis=(-1, -2))
+                                spec_plt_L[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata, axis=(-1, -2))
                                 spec_plt_L[spec_plt_L < 0] = 0
                                 # select_pol == 'I':
                                 vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1] + hdu.data[1, :, y0:y1 + 1, x0:x1 + 1]
-                                spec_plt_I[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nansum(vladata, axis=(-1, -2))
+                                spec_plt_I[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata, axis=(-1, -2))
                                 spec_plt_I[spec_plt_I < 0] = 0
                                 # select_pol == 'V':
                                 vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1] - hdu.data[1, :, y0:y1 + 1, x0:x1 + 1]
-                                spec_plt_V[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nansum(vladata, axis=(-1, -2))
+                                spec_plt_V[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata, axis=(-1, -2))
                                 spec_plt_V[spec_plt_V < 0] = 0
                         tab2_dspec_image_plt(select_pol)
                         tab2_p_dspec.title.text = "Vector Dynamic spectrum"
@@ -1751,6 +1745,8 @@ if os.path.exists(FS_dspecDF):
             tab2_source_idx_line_y = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
             tab2_r_dspec_line_y = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
                                                     line_color='white', source=tab2_source_idx_line_y)
+
+
             def tab3_slider_LinkImg_update(attrname, old, new):
                 global hdu
                 select_vla_pol = tab2_Select_vla_pol.value
@@ -1826,7 +1822,7 @@ if os.path.exists(FS_dspecDF):
 
             def tab2_dspec_selection_change(attrname, old, new):
                 global tab2_dspec_selected
-                tab2_dspec_selected = tab2_SRC_dspec.selected['1d']['indices']
+                tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
                 if tab2_dspec_selected:
                     global dspecDF
                     dspecDF = dspecDF0.iloc[tab2_dspec_selected, :]
@@ -1843,7 +1839,7 @@ if os.path.exists(FS_dspecDF):
                     tab2_Slider_freq_LinkImg.value = fidx
 
 
-            tab2_SRC_dspec.on_change('selected', tab2_dspec_selection_change)
+            tab2_SRC_dspec_square.on_change('selected', tab2_dspec_selection_change)
             tab2_vla_square_selected = None
 
 
@@ -2007,9 +2003,9 @@ else:
     rmax, rmin = tab2_spec_plt.max(), tab2_spec_plt.min()
     colors_dspec = [colors.rgb2hex(m) for m in colormap_jet((tab2_spec_plt.flatten() - rmin) / (rmax - rmin))]
 
-    TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
+    TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
 
-    tab2_SRC_dspec = ColumnDataSource(dspecDF0)
+    tab2_SRC_dspec_square = ColumnDataSource(dspecDF0)
 
     '''create the dynamic spectrum plot'''
     tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
@@ -2028,23 +2024,22 @@ else:
                        dh=tab2_freq[-1] - tab2_freq[0],
                        source=tab2_SRC_dspec_image, palette=bokehpalette_jet)
 
-    # make the plot lasso selectable
-    tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec, fill_color=colors_dspec,
-                                        fill_alpha=0.0,
-                                        line_color=None, line_alpha=0.0, selection_fill_alpha=0.1,
-                                        selection_fill_color='black',
-                                        nonselection_fill_alpha=0.0,
-                                        selection_line_alpha=0.2, selection_line_color='white',
-                                        nonselection_line_alpha=0.0,
+    # make the dspec data source selectable
+    tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=None, fill_alpha=0.0,
+                                        line_color=None, line_alpha=0.0, selection_fill_color=None,
+                                        selection_fill_alpha=0.0, nonselection_fill_alpha=0.0,
+                                        selection_line_alpha=0.0, nonselection_line_alpha=0.0,
                                         size=max(
                                             config_plot['plot_config']['tab_FSview2CASA']['dspec_wdth'] / float(
                                                 tab2_ntim),
                                             config_plot['plot_config']['tab_FSview2CASA']['dspec_hght'] / float(
                                                 tab2_nfreq)))
+    tab2_SRC_dspec_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
+    tab2_r_dspec_patch = tab2_p_dspec.patch('xx', 'yy', source=tab2_SRC_dspec_Patch,
+                                            fill_color=None, fill_alpha=0.5, line_color="Magenta",
+                                            line_alpha=1.0, line_width=1)
     tab2_p_dspec.add_tools(BoxSelectTool())
-    tab2_p_dspec.add_tools(LassoSelectTool())
     tab2_p_dspec.select(BoxSelectTool).select_every_mousemove = False
-    tab2_p_dspec.select(LassoSelectTool).select_every_mousemove = False
     tab2_p_dspec.border_fill_color = "silver"
     tab2_p_dspec.border_fill_alpha = 0.4
     tab2_p_dspec.axis.major_tick_out = 0
@@ -2059,14 +2054,21 @@ else:
 
     def tab2_dspec_selection_change(attrname, old, new):
         global tab2_dspec_selected
-        tab2_dspec_selected = tab2_SRC_dspec.selected['1d']['indices']
+        tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
         if tab2_dspec_selected:
             global dspecDF
             dspecDF = dspecDF0.copy()
             dspecDF = dspecDF.iloc[tab2_dspec_selected, :]
+            x0, x1 = dspecDF['time'].min(), dspecDF['time'].max()
+            y0, y1 = dspecDF['freq'].min(), dspecDF['freq'].max()
+            tab2_r_dspec_patch.data_source.data = ColumnDataSource(
+                pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
+        else:
+            tab2_r_dspec_patch.data_source.data = ColumnDataSource(
+                pd.DataFrame({'xx': [], 'yy': []})).data
 
 
-    tab2_SRC_dspec.on_change('selected', tab2_dspec_selection_change)
+    tab2_SRC_dspec_square.on_change('selected', tab2_dspec_selection_change)
 
     tab2_Select_pol = Select(title="Polarization:", value='I', options=['RR', 'LL', 'I', 'V'],
                              width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
@@ -2176,7 +2178,7 @@ else:
             tab2_SRC_dspec_image.data = {'data': [np.log(spec_plt)], 'xx': [tab2_dtim], 'yy': [tab2_freq]}
         else:
             tab2_SRC_dspec_image.data = {'data': [spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]}
-        tab2_SRC_dspec.data['dspec'] = spec_plt.flatten()
+        tab2_SRC_dspec_square.data['dspec'] = spec_plt.flatten()
         tab2_p_dspec_xPro.y_range.start = spec_plt_min
         tab2_p_dspec_xPro.y_range.end = spec_plt_max
         tab2_p_dspec_yPro.x_range.start = spec_plt_min
