@@ -143,12 +143,12 @@ def pimfit(imagefiles, ncpu, doreg, timestamps, msinfofile, ephemfile, box, regi
     timelapse = t1 - t0
     print 'It took %f secs to complete' % timelapse
     # repackage this into a single dictionary
-    results={'succeeded':[], 'timestamps':[], 'imagenames':[], 'results':[]}
+    results={'succeeded':[], 'timestamps':[], 'imagenames':[], 'outputs':[]}
     for r in res:
         results['succeeded'].append(r[0])
         results['timestamps'].append(r[1])
         results['imagenames'].append(r[2])
-        results['results'].append(r[3])
+        results['outputs'].append(r[3])
 
     return results
 
