@@ -63,12 +63,12 @@ def imfit_iter(imgfiles, doreg, tims, msinfofile, ephem, box, region, chans, sto
         )
         # update timestamp
         hdr=pyfits.getheader(img)
-        result_dict['timestamp']=hdr['date-obs']
-        print('I am here after fitcomponents')
-        return result_dict
+        timstr=hdr['date-obs']
+        return [True, timstr, img, result_dict]
     except Exception, instance:
-        casalog.post( str( '*** Error in imfit ***') + str(instance), 'SEVERE')
-        raise instance
+        casalog.post( str( '*** Error in imfit ***') + str(instance) )
+        #raise instance
+        return [False, timstr, img, {}]
     finally:
         myia.done()
 
@@ -142,5 +142,13 @@ def pimfit(imagefiles, ncpu, doreg, timestamps, msinfofile, ephemfile, box, regi
     t1 = time()
     timelapse = t1 - t0
     print 'It took %f secs to complete' % timelapse
-    return res
+    # repackage this into a single dictionary
+    results={'succeeded':[], 'timestamps':[], 'imagenames':[], 'results':[]}
+    for r in res:
+        results['succeeded'].append(r[0])
+        results['timestamps'].append(r[1])
+        results['imagenames'].append(r[2])
+        results['results'].append(r[3])
+
+    return results
 
