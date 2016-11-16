@@ -36,7 +36,7 @@ try:
     database_dir = config['datadir']['database']
     database_dir = os.path.expandvars(database_dir)
 
-    EvtID_list = pd.read_json(config['datadir']['EvtID_list'])
+    EvtID_list = pd.read_json(database_dir+config['datadir']['EvtID_list'])
     EvtID_list = EvtID_list.sort_values(['date'], ascending=[True])
 
     '''
@@ -74,7 +74,7 @@ try:
 
 
     def tab0_EvtSel():
-        global database_dir, port, ports
+        global port, ports
         EvtID = EvtID_list.iloc[tab0_selected_EvtID_entry[0]]['event_id'][0]
         event_id = EvtID + '/'
         event_id_dir = database_dir + event_id
@@ -95,7 +95,7 @@ try:
                                 "fits_GLOB_init": "QLook/static/Synthesis_Image_fits_GLOB_init.fits"}}
                 with open(event_id_dir + 'config_EvtID.json', 'w') as fp:
                     json.dump(config_EvtID, fp)
-                os.system('cp {} QLook/'.format(event_id_dir + 'config_EvtID.json'))
+                os.system('cp {} {}config_EvtID_curr.json'.format(event_id_dir + 'config_EvtID.json',database_dir))
                 print 'bokeh serve QLook --show --port {} &'.format(port)
                 os.system('cd .. & bokeh serve QLook --show --port {} &'.format(port))
                 port += 1

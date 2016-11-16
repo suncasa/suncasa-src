@@ -2,7 +2,7 @@ import numpy as np
 from bokeh.models import (
     ColumnDataSource)
 import pandas as pd
-import jdutil
+import suncasa.utils.jdutil as jdutil
 import os
 from astropy.io import fits
 import sunpy.map

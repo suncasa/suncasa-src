@@ -54,7 +54,7 @@ def twoD_Gaussian((x, y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     return g.ravel()
 
 
-def maxfit(image, plot=False):
+def maxfit(image):
     # NAME:
     #    maxfit
     # PURPOSE:
@@ -73,7 +73,6 @@ def maxfit(image, plot=False):
     idxhm = np.where(data >= np.amax(data) / 2)
     hmfw = np.sqrt(len(idxhm[0]) / np.pi) * dx
     xmax, ymax = mapx[idxmax[0][0], idxmax[1][0]], mapy[idxmax[0][0], idxmax[1][0]]
-    # add some noise to the data and try to fit the data generated beforehand
     theta = np.arctan(
         abs(idxhm[1] - image.reference_pixel.y.value).sum() / abs(idxhm[0] - image.reference_pixel.x.value).sum())
     initial_guess = (np.amax(data), xmax, ymax, hmfw, hmfw, theta, data.std())
@@ -84,41 +83,5 @@ def maxfit(image, plot=False):
         popt = np.empty((7))
         popt[:] = np.nan
 
-    if plot:
-        import matplotlib.pyplot as plt
-        fig = plt.figure()
-        ax1 = plt.subplot(121, projection=image)
-        im = image.plot()
-        # plt.colorbar()
-        ax1.set_autoscale_on(False)
-        data_fitted = twoD_Gaussian((mapx, mapy), *popt).reshape(nx, ny)
-        # image_fitted = copy.deepcopy(image)
-        # image_fitted.data = data_fitted
-        # image_fitted.draw_contours([10,20,30,40,50,60,70,80,90] * u.percent)
-        plt.plot((popt[1] * u.arcsec).to(u.deg), (popt[2] * u.arcsec).to(u.deg), 'o',
-                 transform=ax1.get_transform('world'))
-        plt.contour((mapx * u.arcsec).to(u.deg), (mapy * u.arcsec).to(u.deg), data_fitted,
-                    levels=(np.arange(5, 10, 2) / 10.0 * np.amax(data_fitted)).tolist(),
-                    transform=ax1.get_transform('world'))
-    # from sunpy.net.helioviewer import HelioviewerClient
-    # import matplotlib.colors as colors
-    # hv = HelioviewerClient()
-    # filepath = hv.download_jp2(image.date, observatory='SDO', instrument='AIA', detector='AIA', measurement='171',directory='/Users/fisher/Desktop/work/2016/NJIT/2014-11-01/test/output/U01/database/J2000/', overwrite=True)
-    # image_aia = sunpy.map.Map(filepath)
-    # image_aia.plot_settings['norm'] = colors.LogNorm(30, image_aia.max())
-    # # fig = plt.figure()
-    # lengthx = nx*dx/2.0*u.arcsec
-    # lengthy = ny*dy/2.0*u.arcsec
-    # x0 = xc*u.arcsec
-    # y0 = yc*u.arcsec
-    # image_aia_submap = image_aia.submap(u.Quantity([x0 - lengthx, x0 + lengthx]),
-    # 	                     u.Quantity([y0 - lengthy, y0 + lengthy]))
-    # ax2 = plt.subplot(122,projection=image_aia_submap)
-    # im = image_aia_submap.plot()
-    # # plt.colorbar()
-    # ax2.set_autoscale_on(False)
-    # plt.plot((popt[1]*u.arcsec).to(u.deg), (popt[2]*u.arcsec).to(u.deg), 'o',
-    # 	transform=ax2.get_transform('world'))
-    # plt.contour((mapx*u.arcsec).to(u.deg),(mapy*u.arcsec).to(u.deg),data_fitted,levels=(np.arange(5,10,2)/10.0*data_fitted.max()).tolist(),transform=ax2.get_transform('world'))
-
     return popt
+
