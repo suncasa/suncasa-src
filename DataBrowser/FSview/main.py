@@ -2296,25 +2296,24 @@ else:
     def tab2_BUT_tCLN_param_default():
         global tab2_tCLN_Param_dict
         tab2_tCLN_Param_dict = OrderedDict()
-        tab2_tCLN_Param_dict['mspath'] = "'/srg/sjyu/20141101/'"
-        tab2_tCLN_Param_dict['vis'] = "'/srg/sjyu/20141101/sun_20141101_t191020-191040.50ms.cal.ms'"
+        tab2_tCLN_Param_dict['vis'] = "''"
         tab2_tCLN_Param_dict['imageprefix'] = "'slfcal/{}'".format(struct_id)
-        tab2_tCLN_Param_dict['ncpu'] = "8"
+        tab2_tCLN_Param_dict['ncpu'] = "10"
         tab2_tCLN_Param_dict['twidth'] = "1"
         tab2_tCLN_Param_dict['doreg'] = "True"
         tab2_tCLN_Param_dict['timerange'] = "''"
         tab2_tCLN_Param_dict['uvrange'] = "''"
         tab2_tCLN_Param_dict['antenna'] = "''"
         tab2_tCLN_Param_dict['ephemfile'] = "'horizons_sun_20141101.radecp'"
-        tab2_tCLN_Param_dict['msinfofile'] = "'sun_20141101_t191020-191040.50ms.cal.msinfo.npz'"
+        tab2_tCLN_Param_dict['msinfofile'] = "'SUN01_20141101.T163940-164700.50ms.cal.msinfo.npz'"
         tab2_tCLN_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
         tab2_tCLN_Param_dict['event_id'] = "'{}'".format(event_id.replace("/", ""))
         tab2_tCLN_Param_dict['mode'] = "'channel'"
         tab2_tCLN_Param_dict['imagermode'] = "'csclean'"
-        tab2_tCLN_Param_dict['weighting'] = "'briggs'"
+        tab2_tCLN_Param_dict['weighting'] = "'natural'"
         tab2_tCLN_Param_dict['gain'] = '0.1'
         tab2_tCLN_Param_dict['psfmode'] = "'clark'"
-        tab2_tCLN_Param_dict['imsize'] = ""'[512, 512]'""
+        tab2_tCLN_Param_dict['imsize'] = ""'[128, 128]'""
         tab2_tCLN_Param_dict['cell'] = "['5.0arcsec', '5.0arcsec']"
         tab2_tCLN_Param_dict['phasecenter'] = "'J2000 14h26m22.7351 -14d29m29.801'"
         tab2_tCLN_Param_dict['mask'] = "' '"
@@ -2366,6 +2365,7 @@ else:
         with open(database_dir + event_id + struct_id + 'CASA_CLN_args.json', 'w') as fp:
             json.dump(tab2_tCLN_Param_dict, fp)
         os.system('cp FSview/script_process.py {}'.format(database_dir + event_id + struct_id))
+        # os.system('cp FSview/script_preprocess.py {}'.format(database_dir + event_id + struct_id))
         tab2_Div_tCLN2.text = '<p>CASA script and arguments config file saved to <b>{}</b>.</p>'.format(
             database_dir + event_id + struct_id)
         timestrs = []
