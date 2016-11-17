@@ -76,7 +76,7 @@ if os.path.exists('CASA_CLN_args.json'):
     for key, val in CASA_CLN_args.items():
         exec (key + '= {}'.format(val))
     timerange = timeran
-    width = 16
+    # width = 32
     if 'freqrange' in locals() and spw == '':
         freq0, freq1 = freqrange.split(' ')[0].split('~')
         freq0, freq1 = float(freq0), float(freq1)

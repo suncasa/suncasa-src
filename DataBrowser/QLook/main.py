@@ -15,8 +15,8 @@ from bokeh.models import (ColumnDataSource, Button, TextInput, DataTable, TableC
                           HoverTool, Spacer, Div)
 from bokeh.models.widgets import Select
 from bokeh.plotting import figure, curdoc
+from astropy.time import Time
 
-import suncasa.utils.jdutil as jdutil
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -40,9 +40,10 @@ elif platform == "win32":
 with open('../config.json', 'r') as fp:
     config_plot = json.load(fp)
 database_dir = config_plot['datadir']['database']
-database_dir = os.path.expandvars(database_dir)
+database_dir = os.path.expandvars(database_dir)+'/'
 with open('{}config_EvtID_curr.json'.format(database_dir), 'r') as fp:
     config_EvtID = json.load(fp)
+
 
 '''define the colormaps'''
 colormap_jet = cm.get_cmap("jet")  # choose any matplotlib colormap here
@@ -54,7 +55,7 @@ bokehpalette_jet = [colors.rgb2hex(m) for m in colormap_jet(np.arange(colormap_j
 
 start_timestamp = time.time()
 database_dir = config_plot['datadir']['database']
-database_dir = os.path.expandvars(database_dir)
+database_dir = os.path.expandvars(database_dir)+'/'
 event_id = config_EvtID['datadir']['event_id']
 specfile = database_dir + event_id + config_EvtID['datadir']['event_specfile']
 
@@ -88,6 +89,7 @@ def load_specdata(specfile=None):
         tab1_spec_plt = (tab1_spec[0, bl_index, :, :] - tab1_spec[1, bl_index, :, :]) / 2.
     tab1_dtim = tab1_tim - tab1_tim[0]
 
+
 load_specdata(specfile)
 TOOLS = "pan,wheel_zoom,box_zoom,reset,save"
 '''create the dynamic spectrum plot'''
@@ -96,8 +98,8 @@ tab1_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
                       plot_height=config_plot['plot_config']['tab_QLook']['dspec_hght'],
                       x_range=(tab1_dtim[0], tab1_dtim[-1]),
                       y_range=(tab1_freq[0], tab1_freq[-1]), toolbar_location="above")
-tim0_char = jdutil.jd_to_datetime((tab1_tim[0] / 3600. / 24. + 2400000.5) * 86400. / 3600. / 24.)
-tim0_char = tim0_char.strftime('%Y-%b-%d %H:%M:%S') + '.{}'.format(round(tim0_char.microsecond / 1e3) * 1e3)[0:4]
+tim0_char = Time((tab1_tim[0] / 3600. / 24. + 2400000.5) * 86400. / 3600. / 24., format='jd', scale='utc',
+                 precision=3).iso
 tab1_p_dspec.axis.visible = True
 tab1_p_dspec.title.text = "Dynamic spectrum"
 tab1_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
@@ -245,12 +247,11 @@ def tab1_update_addStrID():
     if tab1_selected_dspec_square:
         time0, time1 = dftmp['time'].min() + timestart, dftmp['time'].max() + timestart
         freq0, freq1 = dftmp['freq'].min(), dftmp['freq'].max()
-        date_char = jdutil.jd_to_datetime(timestart / 3600. / 24.)
-        date_char = date_char.strftime('%Y-%b-%d')
-        t0_char = jdutil.jd_to_datetime(time0 / 3600. / 24.)
-        t0_char = t0_char.strftime('%H:%M:%S') + '.{:03d}'.format(int(round(t0_char.microsecond / 1e3)))
-        t1_char = jdutil.jd_to_datetime(time1 / 3600. / 24.)
-        t1_char = t1_char.strftime('%H:%M:%S') + '.{:03d}'.format(int(round(t1_char.microsecond / 1e3)))
+        date_char = Time(timestart / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date').iso
+        t0_char = Time(time0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+        t0_char = t0_char.split(' ')[1]
+        t1_char = Time(time1 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+        t1_char = t1_char.split(' ')[1]
         time0, time1 = (time0 / 86400. - 2400000.5) * 24. * 3600., (time1 / 86400. - 2400000.5) * 24. * 3600.
         StrID = pd.DataFrame(dict(time=[[time0, time1, time1, time0]], freq=[[freq0, freq0, freq1, freq1]],
                                   str_id=[[tab1_input_StrID.value]], date=[[date_char]],
@@ -325,43 +326,42 @@ def tab1_update_FSviewStrID():
             FS_config = json.load(fp)
         FS_specfile = FS_config['datadir']['FS_specfile']
         FS_dspecDF = database_dir + event_id + struct_id + 'dspecDF-save'
-        if os.path.exists(FS_specfile):
-            print 'bokeh serve FSview --show --port {} &'.format(port)
-            os.system('cd .. & bokeh serve FSview --show --port {} &'.format(port))
-            port += 1
-            ports.append(port)
-            if os.path.exists(FS_dspecDF):
-                tab1_Div_Tb.text = """<p>sent StrID to <b>""" + database_dir + StrID['str_id'][0] + """.json</b></p>
-                    <p>sent FS_config to <b>""" + database_dir + event_id + """CurrFS.json</b></p>
-                    <p>Check the <b>FS_view</b> in the <b>new tab</b></p>"""
-            else:
-                tab1_Div_Tb.text = """<p>Check the <b>FS_clean </b> in the <b>new tab</b></p>"""
-        else:
-            time0, time1 = StrID['time'][0], StrID['time'][1]
-            freq0, freq1 = StrID['freq'][0], StrID['freq'][-1]
-            bl = tab1_specdata['bl']
-            spec = tab1_specdata['spec']
-            npol = tab1_specdata['npol']
-            nbl = tab1_specdata['nbl']
-            ntim = tab1_specdata['ntim']
-            nfreq = tab1_specdata['nfreq']
-            tim = tab1_specdata['tim'][:]
-            freq = tab1_specdata['freq'] / 1e9
-            timeidx0 = next(i for i in xrange(ntim) if tim[i] >= time0)
-            timeidx1 = next(i for i in xrange(ntim - 1, -1, -1) if tim[i] <= time1) + 1
-            freqidx0 = next(i for i in xrange(nfreq) if freq[i] >= freq0)
-            freqidx1 = next(i for i in xrange(nfreq - 1, -1, -1) if freq[i] <= freq1) + 1
-            spec = spec[:, :, freqidx0:(freqidx1 + 1), timeidx0:(timeidx1 + 1)]
-            tim = tim[timeidx0:(timeidx1 + 1)]
-            freq = freq[freqidx0:(freqidx1 + 1)] * 1.0e9
-            ntim = len(tim)
-            nfreq = len(freq)
+        time0, time1 = StrID['time'][0], StrID['time'][1]
+        freq0, freq1 = StrID['freq'][0], StrID['freq'][-1]
+        bl = tab1_specdata['bl']
+        spec = tab1_specdata['spec']
+        npol = tab1_specdata['npol']
+        nbl = tab1_specdata['nbl']
+        ntim = tab1_specdata['ntim']
+        nfreq = tab1_specdata['nfreq']
+        tim = tab1_specdata['tim'][:]
+        freq = tab1_specdata['freq'] / 1e9
+        timeidx0 = next(i for i in xrange(ntim) if tim[i] >= time0)
+        timeidx1 = next(i for i in xrange(ntim - 1, -1, -1) if tim[i] <= time1) + 1
+        freqidx0 = next(i for i in xrange(nfreq) if freq[i] >= freq0)
+        freqidx1 = next(i for i in xrange(nfreq - 1, -1, -1) if freq[i] <= freq1) + 1
+        spec = spec[:, :, freqidx0:(freqidx1 + 1), timeidx0:(timeidx1 + 1)]
+        tim = tim[timeidx0:(timeidx1 + 1)]
+        freq = freq[freqidx0:(freqidx1 + 1)] * 1.0e9
+        ntim = len(tim)
+        nfreq = len(freq)
+        if not os.path.exists(FS_specfile):
             struct_id_dir = database_dir + event_id + struct_id
             if not os.path.exists(struct_id_dir):
                 os.system('mkdir {}'.format(struct_id_dir))
             np.savez(FS_specfile, spec=spec, tim=tim, freq=freq, bl=bl, npol=npol, nbl=nbl, nfreq=nfreq, ntim=ntim)
-            # todo save a full resolution dspec within the selected time/freq range
-            tab1_Div_Tb.text = """<p><b>""" + FS_specfile + """</b> saved >>>>>> Click the <b>FS veiw button</b> again to make aperture synthesis images</p>"""
+            # tab1_Div_Tb.text = """<p><b>""" + FS_specfile + """</b> saved >>>>>> Click the <b>FS veiw button</b> again to make aperture synthesis images</p>"""
+
+        print 'bokeh serve FSview --show --port {} &'.format(port)
+        os.system('cd .. & bokeh serve FSview --show --port {} &'.format(port))
+        port += 1
+        ports.append(port)
+        if os.path.exists(FS_dspecDF):
+            tab1_Div_Tb.text = """<p>sent StrID to <b>""" + database_dir + StrID['str_id'][0] + """.json</b></p>
+                <p>sent FS_config to <b>""" + database_dir + event_id + """CurrFS.json</b></p>
+                <p>Check the <b>FS_view</b> in the <b>new tab</b></p>"""
+        else:
+            tab1_Div_Tb.text = """<p>Check the <b>FS_clean </b> in the <b>new tab</b></p>"""
     else:
         tab1_Div_Tb.text = """<p><b>Warning: No StrID selected. Select one StrID first!!!</b></p>"""
 
