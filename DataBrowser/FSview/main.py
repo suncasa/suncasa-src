@@ -22,7 +22,7 @@ from bokeh.models.widgets import Select
 from bokeh.palettes import Spectral11
 from bokeh.plotting import figure, curdoc
 import glob
-import suncasa.utils.jdutil as jdutil
+from astropy.time import Time
 from QLook_util import get_contour_data, twoD_Gaussian
 from puffin import PuffinMap
 
@@ -167,9 +167,7 @@ if os.path.exists(FS_dspecDF):
                               plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
                               x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
                               toolbar_location="above")
-        tim0_char = jdutil.jd_to_datetime(xx[0] / 3600. / 24.)
-        tim0_char = tim0_char.strftime('%Y-%b-%d %H:%M:%S') + '.{}'.format(
-            round(tim0_char.microsecond / 1e3) * 1e3)[0:4]
+        tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
         tab2_p_dspec.axis.visible = True
         tab2_p_dspec.title.text = "Dynamic spectrum"
         tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
@@ -705,9 +703,7 @@ if os.path.exists(FS_dspecDF):
                                                       'dspec_small_hght'] + 40,
                                       x_range=tab3_p_dspec_small.x_range,
                                       y_range=tab3_p_dspec_small.y_range, toolbar_location='above')
-        tim0_char = jdutil.jd_to_datetime(xx[0] / 3600. / 24.)
-        tim0_char = tim0_char.strftime('%Y-%b-%d %H:%M:%S') + '.{}'.format(
-            round(tim0_char.microsecond / 1e3) * 1e3)[0:4]
+        tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
         tab3_p_dspec_small.xaxis.visible = False
         tab3_p_dspecvx_small.xaxis.visible = False
         tab3_p_dspec_small.title.text = "Vector Dynamic spectrum (Intensity)"
@@ -1312,9 +1308,7 @@ if os.path.exists(FS_dspecDF):
                                   plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
                                   x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
                                   toolbar_location="above")
-            tim0_char = jdutil.jd_to_datetime(xx[0] / 3600. / 24.)
-            tim0_char = tim0_char.strftime('%Y-%b-%d %H:%M:%S') + '.{}'.format(
-                round(tim0_char.microsecond / 1e3) * 1e3)[0:4]
+            tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
             tab2_p_dspec.axis.visible = True
             tab2_p_dspec.title.text = "Dynamic spectrum"
             tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
@@ -1993,8 +1987,8 @@ else:
     timestrs = []
     for ii in range(len(xx)):
         t0 = xx[ii]  # -0.5*t_int
-        timestr0 = jdutil.jd_to_datetime(t0 / 3600. / 24.)
-        timestrs.append(timestr0.strftime('%H:%M:%S') + '.{:03d}'.format(int(round(timestr0.microsecond / 1e3))))
+        timestr0 = Time(t0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+        timestrs.append(timestr0.split(' ')[1])
     dspecDF0 = pd.DataFrame({'time': xx - xx[0],
                              'freq': yy,
                              'dspec': tab2_spec_plt.flatten(),
@@ -2013,8 +2007,7 @@ else:
                           plot_height=config_plot['plot_config']['tab_FSview2CASA']['dspec_hght'],
                           x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
                           toolbar_location="above")
-    tim0_char = jdutil.jd_to_datetime(xx[0] / 3600. / 24.)
-    tim0_char = tim0_char.strftime('%Y-%b-%d %H:%M:%S') + '.{:03d}'.format(int(round(tim0_char.microsecond / 1e3)))
+    tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
     tab2_p_dspec.axis.visible = True
     tab2_p_dspec.title.text = "Dynamic spectrum"
     tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
@@ -2253,13 +2246,12 @@ else:
             txt = txt.strip()
             if txt == 'timerange':
                 time0, time1 = dspecDF['time'].min() + timestart, dspecDF['time'].max() + timestart
-                date_char = jdutil.jd_to_datetime(timestart / 3600. / 24.)
-                date_char = date_char.strftime('%Y/%m/%d')
-                t0_char = jdutil.jd_to_datetime(time0 / 3600. / 24.)
-                t0_char = t0_char.strftime('%H:%M:%S') + '.{:03d}'.format(int(round(t0_char.microsecond / 1e3)))
-                t1_char = jdutil.jd_to_datetime(time1 / 3600. / 24.)
-                t1_char = t1_char.strftime('%H:%M:%S') + '.{:03d}'.format(int(round(t1_char.microsecond / 1e3)))
-                tab2_tCLN_Param_dict['timerange'] = "'{}/{}~{}/{}'".format(date_char, t0_char, date_char, t1_char)
+                date_char = Time(timestart / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date').iso
+                t0_char = Time(time0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+                t0_char = t0_char.split(' ')[1]
+                t1_char = Time(time1 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+                t1_char = t1_char.split(' ')[1]
+                tab2_tCLN_Param_dict['timerange'] = "'{}T{}~{}T{}'".format(date_char, t0_char, date_char, t1_char)
             elif txt == 'freqrange':
                 freq0, freq1 = dspecDF['freq'].min(), dspecDF['freq'].max()
                 freqrange = "'{:.3f}~{:.3f} GHz'".format(freq0, freq1)
@@ -2373,11 +2365,11 @@ else:
         fits_global = []
         for ii in range(len(xx)):
             t0 = xx[ii]
-            timestr0 = jdutil.jd_to_datetime(t0 / 3600. / 24.)
-            # timestr = timestr0.strftime('%H%M%S') + '.{:03d}'.format(int(round(timestr0.microsecond / 1e3)))
-            timestr = timestr0.strftime('%Y%m%dT%H%M%S') + '.{:03d}'.format(int(round(timestr0.microsecond / 1e3)))
-            timestrs.append(timestr0.strftime('%H:%M:%S') + '.{:03d}'.format(int(round(timestr0.microsecond / 1e3))))
-            f0 = yy[ii] * 1e3
+            datestr = Time(t0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date').iso
+            timestr0 = Time(t0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+            timestr0 = timestr0.split(' ')[1]
+            timestr = datestr.replace("-", "") + 'T' + timestr0.replace(":", "")
+            timestrs.append(timestr0)
             fits_local.append(timestr + '.fits')
             fits_global.append(timestr + '.fits')
         dspecDF_tmp = pd.DataFrame({'time': xx - xx[0],

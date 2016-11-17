@@ -96,6 +96,8 @@
     "database": "${SUNCASADB}",
     "EvtID_list": "EvtID_list.json",
     "J2000": "J2000/",
+    "AIA":"AIA/",
+    "HMI":"HMI/",
     "fits_LOCL": "Synthesis_Image/local/",
     "fits_LOCL_init": "QLook/static/Synthesis_Image_fits_LOCL_init.fits",
     "fits_GLOB": "Synthesis_Image/global/",
