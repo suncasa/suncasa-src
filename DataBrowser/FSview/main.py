@@ -1,7 +1,7 @@
 # The plot server must be running
 # Go to http://localhost:5006/bokeh to view this plot
 import json
-import os
+import os,sys
 import pickle
 import time
 from collections import OrderedDict
@@ -33,7 +33,7 @@ __email__ = "sijie.yu@njit.edu"
 with open('../config.json', 'r') as fp:
     config_plot = json.load(fp)
 database_dir = config_plot['datadir']['database']
-database_dir = os.path.expandvars(database_dir)
+database_dir = os.path.expandvars(database_dir)+'/'
 with open('{}config_EvtID_curr.json'.format(database_dir), 'r') as fp:
     config_EvtID = json.load(fp)
 
