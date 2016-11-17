@@ -26,7 +26,6 @@ def clean_iter(tim, freq, vis, imageprefix,
     #from  __casac__.quanta import quanta as qa 
     from __main__ import default, inp
     from clean import clean    
-
     bt = btidx #0 
     if bt+twidth < len(tim)-1:
         et = btidx+twidth-1  
@@ -49,56 +48,61 @@ def clean_iter(tim, freq, vis, imageprefix,
     tmid = (bt_d + et_d)/2. 
     btstr=qa.time(qa.quantity(bt_d,'s'),prec=9,form='fits')[0]
     print 'cleaning timerange: ' + timerange
-    image0=btstr.replace(':','').replace('-','')
-    imname=imageprefix+image0
-    if not os.path.exists(imname):
-        #inp(taskname = 'clean')
-        clean(vis=vis,imagename=imname,outlierfile=outlierfile,field=field,
-              spw=spw,selectdata=selectdata,timerange=timerange,uvrange=uvrange,
-              antenna=antenna,scan=scan, observation=str(observation),intent=intent,
-              mode=mode, resmooth=resmooth, gridmode=gridmode, 
-              wprojplanes=wprojplanes,facets=facets,cfcache=cfcache,rotpainc=rotpainc, painc=painc,
-              psterm=psterm,aterm=aterm,mterm=mterm,wbawp=wbawp,conjbeams=conjbeams,
-              epjtable=epjtable,interpolation=interpolation,niter=niter,
-              gain=gain,
-              threshold=threshold,psfmode=psfmode,imagermode=imagermode, 
-              ftmachine=ftmachine,mosweight=mosweight,scaletype=scaletype,
-              multiscale=multiscale,negcomponent=negcomponent,
-              smallscalebias=smallscalebias,interactive=interactive,
-              mask=mask,nchan=nchan,start=start,width=width,outframe=outframe,
-              veltype=veltype,imsize=imsize,cell=cell,phasecenter=phasecenter,
-              restfreq=restfreq,stokes=stokes,weighting=weighting,
-              robust=robust,uvtaper=uvtaper,outertaper=outertaper,
-              innertaper=innertaper,modelimage=modelimage,
-              restoringbeam=restoringbeam,pbcor=pbcor,minpb=minpb,
-              usescratch=usescratch,noise=noise,npixels=npixels,npercycle=npercycle,
-              cyclefactor=cyclefactor,cyclespeedup=cyclespeedup,nterms=nterms,
-              reffreq=reffreq,chaniter=chaniter,flatnoise=flatnoise,
-              allowchunk=False)
-        clnjunks=['.flux','.mask','.model','.psf','.residual']
-        for clnjunk in clnjunks:
-            if os.path.exists(imname+clnjunk):
+
+    try:
+        image0=btstr.replace(':','').replace('-','')
+        imname=imageprefix+image0
+        if not os.path.exists(imname):
+            #inp(taskname = 'clean')
+            clean(vis=vis,imagename=imname,outlierfile=outlierfile,field=field,
+                  spw=spw,selectdata=selectdata,timerange=timerange,uvrange=uvrange,
+                  antenna=antenna,scan=scan, observation=str(observation),intent=intent,
+                  mode=mode, resmooth=resmooth, gridmode=gridmode, 
+                  wprojplanes=wprojplanes,facets=facets,cfcache=cfcache,rotpainc=rotpainc, painc=painc,
+                  psterm=psterm,aterm=aterm,mterm=mterm,wbawp=wbawp,conjbeams=conjbeams,
+                  epjtable=epjtable,interpolation=interpolation,niter=niter,
+                  gain=gain,
+                  threshold=threshold,psfmode=psfmode,imagermode=imagermode, 
+                  ftmachine=ftmachine,mosweight=mosweight,scaletype=scaletype,
+                  multiscale=multiscale,negcomponent=negcomponent,
+                  smallscalebias=smallscalebias,interactive=interactive,
+                  mask=mask,nchan=nchan,start=start,width=width,outframe=outframe,
+                  veltype=veltype,imsize=imsize,cell=cell,phasecenter=phasecenter,
+                  restfreq=restfreq,stokes=stokes,weighting=weighting,
+                  robust=robust,uvtaper=uvtaper,outertaper=outertaper,
+                  innertaper=innertaper,modelimage=modelimage,
+                  restoringbeam=restoringbeam,pbcor=pbcor,minpb=minpb,
+                  usescratch=usescratch,noise=noise,npixels=npixels,npercycle=npercycle,
+                  cyclefactor=cyclefactor,cyclespeedup=cyclespeedup,nterms=nterms,
+                  reffreq=reffreq,chaniter=chaniter,flatnoise=flatnoise,
+                  allowchunk=False)
+            clnjunks=['.flux','.mask','.model','.psf','.residual']
+            for clnjunk in clnjunks:
+                if os.path.exists(imname+clnjunk):
                     shutil.rmtree(imname+clnjunk)
 
-    if doreg: 
-        # check if ephemfile and msinfofile exist
-        if not ephem:
-            print("ephemeris info does not exist!")
-            return
-        reftime = [timerange] 
-        helio=vla_prep.ephem_to_helio(msinfo = msinfofile, ephem = ephem, reftime = reftime)
-        imagefile=[imname+'.image']
-        fitsfile=[imname+'.fits']
-        vla_prep.imreg(imagefile = imagefile, fitsfile = fitsfile, helio = helio, toTb = False, scl100 = True)
-        if os.path.exists(imname+'.fits'):
-            return [True, btstr, imname+'.fits']
+        if doreg: 
+            # check if ephemfile and msinfofile exist
+            if not ephem:
+                print("ephemeris info does not exist!")
+                return
+            reftime = [timerange] 
+            helio=vla_prep.ephem_to_helio(msinfo = msinfofile, ephem = ephem, reftime = reftime)
+            imagefile=[imname+'.image']
+            fitsfile=[imname+'.fits']
+            vla_prep.imreg(imagefile = imagefile, fitsfile = fitsfile, helio = helio, toTb = False, scl100 = True)
+            if os.path.exists(imname+'.fits'):
+                return [True, btstr, imname+'.fits']
+            else:
+                return [False, btstr, '']
         else:
-            return [False, btstr, '']
-    else:
-        if os.path.exists(imname+'.image'):
-            return [True, btstr, imname+'.image']
-        else:
-            return [False, btstr, '']
+            if os.path.exists(imname+'.image'):
+                return [True, btstr, imname+'.image']
+            else:
+                return [False, btstr, '']
+    except:
+        print('error in processing image: '+btstr)
+        return [False, btstr, '']
 
 def ptclean(vis, imageprefix, ncpu, twidth, doreg, ephemfile, msinfofile,
             outlierfile, field, spw, selectdata, timerange,
