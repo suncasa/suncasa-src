@@ -7,8 +7,8 @@
 
 import numpy as np
 
-def imfitres2dict(imfitres):
-    ''' parse (p)imfit results to a dictionary '''
+def pimfitres2dict(pimfitres):
+    ''' parse pimfit results to a dictionary '''
     # check whether the input is a single dictionary (from imfit) or a list (from pimfit)
     if isinstance(imfitres,dict):
         imfitres=[imfitres]

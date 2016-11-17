@@ -370,7 +370,7 @@ def getbeam(imagefile=None, beamfile=None):
     return bmaj, bmin, bpa, beamunit, bpaunit
 
 def imreg(imagefile=None, fitsfile=None, beamfile=None, helio=None, \
-          offsetfile=None, toTb=None, scl100=None): 
+          offsetfile=None, toTb=None, scl100=None, verbose=False): 
     if not imagefile:
         raise ValueError, 'Please specify input image'
     if not helio:
@@ -384,9 +384,11 @@ def imreg(imagefile=None, fitsfile=None, beamfile=None, helio=None, \
     # get restoring beam info
     (bmajs,bmins,bpas,beamunits,bpaunits)=getbeam(imagefile=imagefile,beamfile=beamfile)
     nimg=len(imagefile)
-    print str(nimg)+' images to process...'
+    if verbose:
+        print str(nimg)+' images to process...'
     for n in range(nimg):
-        print 'processing image #'+str(n)
+        if verbose:
+            print 'processing image #'+str(n)
         img=imagefile[n]
         fitsf=fitsfile[n]
         hel=helio[n]
@@ -431,8 +433,9 @@ def imreg(imagefile=None, fitsfile=None, beamfile=None, helio=None, \
         else:
             xoff=hel['refx']
             yoff=hel['refy']
-        print 'offset of image phase center to visibility phase center (arcsec): ', dx, dy
-        print 'offset of visibility phase center to solar disk center (arcsec): ', xoff,yoff
+        if verbose:
+            print 'offset of image phase center to visibility phase center (arcsec): ', dx, dy
+            print 'offset of visibility phase center to solar disk center (arcsec): ', xoff,yoff
         (crval1,crval2)=(xoff+dx,yoff+dy)
         # update the fits header to heliocentric coordinates
         hdu=pyfits.open(fitsf,mode='update')

@@ -133,7 +133,8 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, ephemfile, msinfofile,
     ms.selectinit()
     timfreq = ms.getdata(['time', 'axis_info'], ifraxis = True)
     tim = timfreq['time']
-    dt = tim[1]-tim[0] #need to change to median of all time intervals
+    #dt = tim[1]-tim[0] #need to change to median of all time intervals
+    dt = np.median(np.diff(tim))
     freq = timfreq['axis_info']['freq_axis']['chan_freq'].flatten()
     ms.close()
 
@@ -145,7 +146,7 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, ephemfile, msinfofile,
     # if not defined (empty string), use start and end from the entire time of the ms
     if not timerange:
         btidx = 0
-        etidx = len(tim) 
+        etidx = len(tim)-1 
     else:
         try:
             (tstart, tend)=timerange.split('~')
@@ -166,7 +167,7 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, ephemfile, msinfofile,
                 print "ending time must be greater than starting time"
                 print "reinitiating to the entire time range"
                 btidx = 0
-                etidx = len(tim)
+                etidx = len(tim)-1
         except ValueError:
             print "keyword 'timerange' has a wrong format"
     
