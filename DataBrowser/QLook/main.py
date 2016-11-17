@@ -40,7 +40,7 @@ elif platform == "win32":
 with open('../config.json', 'r') as fp:
     config_plot = json.load(fp)
 database_dir = config_plot['datadir']['database']
-database_dir = os.path.expandvars(database_dir)
+database_dir = os.path.expandvars(database_dir)+'/'
 with open('{}config_EvtID_curr.json'.format(database_dir), 'r') as fp:
     config_EvtID = json.load(fp)
 
@@ -55,7 +55,7 @@ bokehpalette_jet = [colors.rgb2hex(m) for m in colormap_jet(np.arange(colormap_j
 
 start_timestamp = time.time()
 database_dir = config_plot['datadir']['database']
-database_dir = os.path.expandvars(database_dir)
+database_dir = os.path.expandvars(database_dir)+'/'
 event_id = config_EvtID['datadir']['event_id']
 specfile = database_dir + event_id + config_EvtID['datadir']['event_specfile']
 
