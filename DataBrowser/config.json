@@ -90,7 +90,7 @@
       "space_hght10": 10,
       "space_hght5": 5
     },
-    "WebGL": False
+    "WebGL": false
   },
   "datadir": {
     "database": "${SUNCASADB}",
