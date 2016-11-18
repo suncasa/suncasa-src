@@ -13,12 +13,11 @@ import glob
 from astropy.time import Time
 import astropy.units as u
 import numpy as np
-from sunpy.net import vso
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
-client = vso.VSOClient()
+
 '''Prepare the ports for FSview'''
 try:
     if platform == "linux" or platform == "linux2":
@@ -35,8 +34,9 @@ try:
     elif platform == "win32":
         print 'Runing EvtBrowser in Windows platform'
 
+    suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
     '''load config file'''
-    with open('../config.json', 'r') as fp:
+    with open(suncasa_dir+'DataBrowser/config.json', 'r') as fp:
         config = json.load(fp)
 
     database_dir = config['datadir']['database']
@@ -64,7 +64,7 @@ try:
     <p><b>Warning</b>: 2. <b>QLook</b> <b>FSview</b> or <b>FSview2CASA</b> tabs will disconnect if <b>Exit EvtBrowser is clicked</b></p>""",
                         width=150)
 
-    port = 5010
+    port = 5011
     ports = []
     ports.append(port)
 
@@ -102,59 +102,66 @@ try:
                 with open(event_id_dir + 'config_EvtID.json', 'w') as fp:
                     json.dump(config_EvtID, fp)
                 os.system('cp {} {}config_EvtID_curr.json'.format(event_id_dir + 'config_EvtID.json', database_dir))
-                print 'bokeh serve QLook --show --port {} &'.format(port)
-                os.system('cd .. & bokeh serve QLook --show --port {} &'.format(port))
+                print 'bokeh serve {}DataBrowser/QLook --show --port {} &'.format(suncasa_dir,port)
+                os.system('bokeh serve {}DataBrowser/QLook --show --port {} &'.format(suncasa_dir,port))
                 port += 1
                 ports.append(port)
                 tab0_Div_Tb.text = """<p>Event <b>""" + EvtID + """</b> selected. <p>Check the <b>QLook</b> in the <b>new tab</b>.</p>"""
-                tab0_specdata = np.load(event_specfile[0])
-                tab0_tim = tab0_specdata['tim'][:]
-                tstrstart = Time(tab0_tim[0] / 3600. / 24., format='mjd', scale='utc', precision=3,
-                                 out_subfmt='date_hms').iso
-                tstrend = Time(tab0_tim[-1] / 3600. / 24., format='mjd', scale='utc', precision=3,
-                               out_subfmt='date_hms').iso
-                tab0_Div_Tb_txt = tab0_Div_Tb.text
-                tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO data downloading....</p>"""
 
-                qr_aia171 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
-                                         vso.attrs.Wave(171 * u.AA, 171 * u.AA))
-                qr_hmi_los = client.query_legacy(tstart=tstrstart, tend=tstrend, instrument='HMI',
-                                                 physobs='los_magnetic_field')
-                if len(qr_aia171) == 0:
-                    cadence = 12
-                    tstrstart = Time((tab0_tim[0] - cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
+                try:
+                    from sunpy.net import vso
+                    client = vso.VSOClient()
+                    tab0_specdata = np.load(event_specfile[0])
+                    tab0_tim = tab0_specdata['tim'][:]
+                    tstrstart = Time(tab0_tim[0] / 3600. / 24., format='mjd', scale='utc', precision=3,
                                      out_subfmt='date_hms').iso
-                    tstrend = Time((tab0_tim[-1] + cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
+                    tstrend = Time(tab0_tim[-1] / 3600. / 24., format='mjd', scale='utc', precision=3,
                                    out_subfmt='date_hms').iso
+                    tab0_Div_Tb_txt = tab0_Div_Tb.text
+
                     qr_aia171 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
                                              vso.attrs.Wave(171 * u.AA, 171 * u.AA))
-                if len(qr_hmi_los) == 0:
-                    cadence = 45
-                    tstrstart = Time((tab0_tim[0] - cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
-                                     out_subfmt='date_hms').iso
-                    tstrend = Time((tab0_tim[-1] + cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
-                                   out_subfmt='date_hms').iso
                     qr_hmi_los = client.query_legacy(tstart=tstrstart, tend=tstrend, instrument='HMI',
                                                      physobs='los_magnetic_field')
+                    if len(qr_aia171) == 0:
+                        cadence = 12
+                        tstrstart = Time((tab0_tim[0] - cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
+                                         out_subfmt='date_hms').iso
+                        tstrend = Time((tab0_tim[-1] + cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
+                                       out_subfmt='date_hms').iso
+                        qr_aia171 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
+                                                 vso.attrs.Wave(171 * u.AA, 171 * u.AA))
+                    if len(qr_hmi_los) == 0:
+                        cadence = 45
+                        tstrstart = Time((tab0_tim[0] - cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
+                                         out_subfmt='date_hms').iso
+                        tstrend = Time((tab0_tim[-1] + cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
+                                       out_subfmt='date_hms').iso
+                        qr_hmi_los = client.query_legacy(tstart=tstrstart, tend=tstrend, instrument='HMI',
+                                                         physobs='los_magnetic_field')
 
-                if len(qr_aia171) != 0:
-                    instrument = 'AIA'
-                    files = glob.glob(event_id_dir + '{}/*.fits'.format(instrument))
-                    if len(files)==0:
-                        for ll in xrange(len(qr_aia171)):
-                            tab0_Div_Tb_txt = tab0_Div_Tb.text
-                            res = client.get(qr_aia171[ll:ll + 1], path=event_id_dir + '{instrument}/{file}.fits').wait()
-                            tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>{}</p>""".format(res)
-                if len(qr_hmi_los) != 0:
-                    instrument = 'HMI'
-                    files = glob.glob(event_id_dir + '{}/*.fits'.format(instrument))
-                    if len(files)==0:
-                        for ll in xrange(len(qr_hmi_los)):
-                            tab0_Div_Tb_txt = tab0_Div_Tb.text
-                            res = client.get(qr_hmi_los[ll:ll + 1], path=event_id_dir + '{instrument}/{file}.fits').wait()
-                            tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>{}</p>""".format(res)
-                # todo add vso query, add timestamp to check if fits exist
-                tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO data downloaded.</p>"""
+                    if len(qr_aia171) != 0:
+                        instrument = 'AIA'
+                        tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO/{} data downloading....</p>""".format(instrument)
+                        files = glob.glob(event_id_dir + '{}/*.fits'.format(instrument))
+                        if len(files)==0:
+                            for ll in xrange(len(qr_aia171)):
+                                tab0_Div_Tb_txt = tab0_Div_Tb.text
+                                res = client.get(qr_aia171[ll:ll + 1], path=event_id_dir + '{instrument}/{file}.fits').wait()
+                                tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>{}</p>""".format(res)
+                    if len(qr_hmi_los) != 0:
+                        instrument = 'HMI'
+                        tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO/{} data downloading....</p>""".format(instrument)
+                        files = glob.glob(event_id_dir + '{}/*.fits'.format(instrument))
+                        if len(files)==0:
+                            for ll in xrange(len(qr_hmi_los)):
+                                tab0_Div_Tb_txt = tab0_Div_Tb.text
+                                res = client.get(qr_hmi_los[ll:ll + 1], path=event_id_dir + '{instrument}/{file}.fits').wait()
+                                tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>{}</p>""".format(res)
+                    tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO data downloaded.</p>"""
+                except:
+                    tab0_Div_Tb_txt = tab0_Div_Tb.text
+                    tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>Unable to load vso.</p>"""
 
 
     tab0_BUT_EvtSel = Button(label='Evt Select', width=150, button_type='success')

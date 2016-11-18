@@ -5,7 +5,7 @@ import os
 from  casac import *
 
 database_dir = "${SUNCASADB}"
-database_dir = os.path.expandvars(database_dir)
+database_dir = os.path.expandvars(database_dir)+'/'
 if os.path.exists('CASA_CLN_args.json'):
     with open('CASA_CLN_args.json', 'r') as fp:
         CASA_CLN_args = json.load(fp)

@@ -30,7 +30,9 @@ __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
 '''load config file'''
-with open('../config.json', 'r') as fp:
+suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
+'''load config file'''
+with open(suncasa_dir + 'DataBrowser/config.json', 'r') as fp:
     config_plot = json.load(fp)
 database_dir = config_plot['datadir']['database']
 database_dir = os.path.expandvars(database_dir)+'/'
@@ -214,7 +216,7 @@ if os.path.exists(FS_dspecDF):
         map = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
-        tab2_p_dspec_xPro = figure(tools='',
+        tab2_p_dspec_xPro = figure(tools='',webgl=config_plot['plot_config']['WebGL'],
                                    plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_xPro_wdth'],
                                    plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_xPro_hght'],
                                    x_range=tab2_p_dspec.x_range, y_range=(spec_plt_min, spec_plt_max),
@@ -247,7 +249,7 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec_xPro.axis.major_tick_line_color = "black"
         tab2_p_dspec_xPro.axis.minor_tick_line_color = "black"
 
-        tab2_p_dspec_yPro = figure(tools='',
+        tab2_p_dspec_yPro = figure(tools='',webgl=config_plot['plot_config']['WebGL'],
                                    plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_yPro_wdth'],
                                    plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_yPro_hght'],
                                    x_range=(spec_plt_min, spec_plt_max), y_range=tab2_p_dspec.y_range,
@@ -427,7 +429,7 @@ if os.path.exists(FS_dspecDF):
             vla_global_pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header,
                                          plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
                                          plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
-                                         palette=bokehpalette_SynthesisImg)
+                                         palette=bokehpalette_SynthesisImg,webgl=config_plot['plot_config']['WebGL'])
             hdulist = fits.open(fits_LOCL_dir + dspecDF.loc[76, :]['fits_local'])
             hdu = hdulist[0]
             vla_local_pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header)
@@ -470,7 +472,7 @@ if os.path.exists(FS_dspecDF):
 
         aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
                                         plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                        plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'])
+                                        plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],webgl=config_plot['plot_config']['WebGL'])
 
         tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
                                                              palette=bokehpalette_sdoaia171)
@@ -495,7 +497,7 @@ if os.path.exists(FS_dspecDF):
         # plot the detail AIA image
         aia_submap_pfmap = PuffinMap(smap=aiamap_submap,
                                      plot_height=config_plot['plot_config']['tab_FSview_FitANLYS']['aia_submap_hght'],
-                                     plot_width=config_plot['plot_config']['tab_FSview_FitANLYS']['aia_submap_wdth'])
+                                     plot_width=config_plot['plot_config']['tab_FSview_FitANLYS']['aia_submap_wdth'],webgl=config_plot['plot_config']['WebGL'])
 
         tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
                                                                         grid_spacing=20 * u.deg,
@@ -540,7 +542,7 @@ if os.path.exists(FS_dspecDF):
         hmi_resampled_map = hmimap.resample(dimensions)
         hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
                                         plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                        plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'])
+                                        plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],webgl=config_plot['plot_config']['WebGL'])
 
         tab2_p_hmi, tab2_r_hmi = hmi_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
                                                              x_range=tab2_p_aia.x_range,
@@ -644,7 +646,7 @@ if os.path.exists(FS_dspecDF):
                 hdulist = fits.open(fits_GLOB_dir + dspecDF.loc[idx_selected, :]['fits_global'])
                 hdu = hdulist[0]
                 pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header, plot_height=tab2_LinkImg_HGHT,
-                                  plot_width=tab2_LinkImg_WDTH)
+                                  plot_width=tab2_LinkImg_WDTH,webgl=config_plot['plot_config']['WebGL'])
                 SRC_Img = pfmap.ImageSource()
                 tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
                 popt = [dspecDF.loc[idx_selected, :]['amp_gaus'], dspecDF.loc[idx_selected, :]['x_pos'],
@@ -1200,13 +1202,13 @@ if os.path.exists(FS_dspecDF):
             aia_resampled_map = aiamap.resample(dimensions)
             aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
                                             plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                            plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'])
+                                            plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],webgl=config_plot['plot_config']['WebGL'])
             SRC_AIA = aia_resampled_pfmap.ImageSource()
             tab2_r_aia.data_source.data['data'] = SRC_AIA.data['data']
             hmi_resampled_map = hmimap.resample(dimensions)
             hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
                                             plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                            plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'])
+                                            plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],webgl=config_plot['plot_config']['WebGL'])
             SRC_HMI = hmi_resampled_pfmap.ImageSource()
             tab2_r_hmi.data_source.data['data'] = SRC_HMI.data['data']
             print("---tab2_update_MapRES -- %s seconds ---" % (time.time() - start_timestamp))
@@ -1352,7 +1354,7 @@ if os.path.exists(FS_dspecDF):
             map = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
-            tab2_p_dspec_xPro = figure(tools='',
+            tab2_p_dspec_xPro = figure(tools='',webgl=config_plot['plot_config']['WebGL'],
                                        plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_xPro_wdth'],
                                        plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_xPro_hght'],
                                        x_range=tab2_p_dspec.x_range, y_range=(spec_plt_min, spec_plt_max),
@@ -1385,7 +1387,7 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec_xPro.axis.major_tick_line_color = "black"
             tab2_p_dspec_xPro.axis.minor_tick_line_color = "black"
 
-            tab2_p_dspec_yPro = figure(tools='',
+            tab2_p_dspec_yPro = figure(tools='',webgl=config_plot['plot_config']['WebGL'],
                                        plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_yPro_wdth'],
                                        plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_yPro_hght'],
                                        x_range=(spec_plt_min, spec_plt_max), y_range=tab2_p_dspec.y_range,
@@ -1595,7 +1597,7 @@ if os.path.exists(FS_dspecDF):
             hdu = hdulist[0]
             vla_local_pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header,
                                         plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                        plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'])
+                                        plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],webgl=config_plot['plot_config']['WebGL'])
             # plot the contour of vla image
             mapx, mapy = vla_local_pfmap.meshgrid()
             mapx, mapy = mapx.value, mapy.value
@@ -1627,7 +1629,7 @@ if os.path.exists(FS_dspecDF):
 
             aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
                                             plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                            plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'])
+                                            plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],webgl=config_plot['plot_config']['WebGL'])
 
             tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
                                                                  palette=bokehpalette_sdoaia171)
@@ -1662,7 +1664,7 @@ if os.path.exists(FS_dspecDF):
             hmi_resampled_map = hmimap.resample(dimensions)
             hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
                                             plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                            plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'])
+                                            plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],webgl=config_plot['plot_config']['WebGL'])
 
             tab2_p_hmi, tab2_r_hmi = hmi_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
                                                                  x_range=tab2_p_aia.x_range,
@@ -1773,7 +1775,7 @@ if os.path.exists(FS_dspecDF):
                     elif select_vla_pol == 'V':
                         vladata = hdu.data[0, fidx, :, :] - hdu.data[1, fidx, :, :]
                     pfmap = PuffinMap(vladata, hdu.header, plot_height=tab2_LinkImg_HGHT,
-                                      plot_width=tab2_LinkImg_WDTH)
+                                      plot_width=tab2_LinkImg_WDTH,webgl=config_plot['plot_config']['WebGL'])
                     SRC_Img = pfmap.ImageSource()
                     tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
                     mapx, mapy = pfmap.meshgrid()
@@ -1867,13 +1869,13 @@ if os.path.exists(FS_dspecDF):
                 aia_resampled_map = aiamap.resample(dimensions)
                 aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
                                                 plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                                plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'])
+                                                plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],webgl=config_plot['plot_config']['WebGL'])
                 SRC_AIA = aia_resampled_pfmap.ImageSource()
                 tab2_r_aia.data_source.data['data'] = SRC_AIA.data['data']
                 hmi_resampled_map = hmimap.resample(dimensions)
                 hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
                                                 plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                                plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'])
+                                                plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],webgl=config_plot['plot_config']['WebGL'])
                 SRC_HMI = hmi_resampled_pfmap.ImageSource()
                 tab2_r_hmi.data_source.data['data'] = SRC_HMI.data['data']
                 print("---tab2_update_MapRES -- %s seconds ---" % (time.time() - start_timestamp))
@@ -2070,7 +2072,7 @@ else:
     tab2_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
                                     width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
 
-    tab2_p_dspec_xPro = figure(tools='', plot_width=config_plot['plot_config']['tab_FSview2CASA']['dspec_xPro_wdth'],
+    tab2_p_dspec_xPro = figure(tools='',webgl=config_plot['plot_config']['WebGL'], plot_width=config_plot['plot_config']['tab_FSview2CASA']['dspec_xPro_wdth'],
                                plot_height=config_plot['plot_config']['tab_FSview2CASA']['dspec_xPro_hght'],
                                x_range=tab2_p_dspec.x_range, y_range=(spec_plt_min, spec_plt_max),
                                title="Time profile", toolbar_location=None)
@@ -2102,7 +2104,7 @@ else:
     tab2_p_dspec_xPro.axis.major_tick_line_color = "black"
     tab2_p_dspec_xPro.axis.minor_tick_line_color = "black"
 
-    tab2_p_dspec_yPro = figure(tools='', plot_width=config_plot['plot_config']['tab_FSview2CASA']['dspec_yPro_wdth'],
+    tab2_p_dspec_yPro = figure(tools='',webgl=config_plot['plot_config']['WebGL'], plot_width=config_plot['plot_config']['tab_FSview2CASA']['dspec_yPro_wdth'],
                                plot_height=config_plot['plot_config']['tab_FSview2CASA']['dspec_yPro_hght'],
                                x_range=(spec_plt_min, spec_plt_max), y_range=tab2_p_dspec.y_range,
                                title="Frequency profile", toolbar_location=None)
@@ -2244,6 +2246,7 @@ else:
         txts = txts.split(';')
         for txt in txts:
             txt = txt.strip()
+            # todo box selection to timerange and freqrange automaticlly for clean in FSview2CASA
             if txt == 'timerange':
                 time0, time1 = dspecDF['time'].min() + timestart, dspecDF['time'].max() + timestart
                 date_char = Time(timestart / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date').iso
@@ -2308,10 +2311,10 @@ else:
         tab2_tCLN_Param_dict['imsize'] = ""'[128, 128]'""
         tab2_tCLN_Param_dict['cell'] = "['5.0arcsec', '5.0arcsec']"
         tab2_tCLN_Param_dict['phasecenter'] = "'J2000 14h26m22.7351 -14d29m29.801'"
-        tab2_tCLN_Param_dict['mask'] = "' '"
+        tab2_tCLN_Param_dict['mask'] = "''"
         tab2_tCLN_Param_dict['stokes'] = "'RRLL'"
         tab2_tCLN_Param_dict['uvtaper'] = 'True'
-        tab2_tCLN_Param_dict['outertaper'] = "['50arcsec']"
+        tab2_tCLN_Param_dict['outertaper'] = "[]"
         tab2_tCLN_Param_dict['uvrange'] = "''"
         tab2_tCLN_Param_dict['niter'] = "200"
         tab2_tCLN_Param_dict['usescratch'] = "False"
@@ -2356,7 +2359,7 @@ else:
     def tab2_BUT_tCLN_clean():
         with open(database_dir + event_id + struct_id + 'CASA_CLN_args.json', 'w') as fp:
             json.dump(tab2_tCLN_Param_dict, fp)
-        os.system('cp FSview/script_process.py {}'.format(database_dir + event_id + struct_id))
+        os.system('cp {}FSview/script_process.py {}'.format(suncasa_dir,database_dir + event_id + struct_id))
         # os.system('cp FSview/script_preprocess.py {}'.format(database_dir + event_id + struct_id))
         tab2_Div_tCLN2.text = '<p>CASA script and arguments config file saved to <b>{}</b>.</p>'.format(
             database_dir + event_id + struct_id)
@@ -2384,7 +2387,22 @@ else:
             database_dir + event_id + struct_id) + 'Go back to <b>QLook</b> window, select StrID <b>{}</b> and \
             click <b>FSview</b> button again.</p>'.format(
             database_dir + event_id + struct_id, struct_id[0:-1])
-
+        cwd = os.getcwd()
+        try:
+            os.chdir(database_dir + event_id + struct_id)
+            suncasapy = config_plot['core']['casapy']
+            suncasapy = os.path.expandvars(suncasapy)
+            os.system('{} -c script_process.py'.format(suncasapy))
+            tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}</b></p>. <p>CASA clean is in processing.</p>'.format(
+                database_dir + event_id + struct_id) + '<p>When finished, go back to <b>QLook</b> window, select StrID <b>{}</b> and \
+                click <b>FSview</b> button again.</p>'.format(
+                database_dir + event_id + struct_id, struct_id[0:-1])
+        except:
+            tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}</b></p>. <p>Do image clean with CASA manually.</p>'.format(
+                database_dir + event_id + struct_id) + '<p>When finished, go back to <b>QLook</b> window, select StrID <b>{}</b> and \
+                click <b>FSview</b> button again.</p>'.format(
+                database_dir + event_id + struct_id, struct_id[0:-1])
+        os.chdir(cwd)
 
     tab2_BUT_tCLN_param_RELOAD = Button(label='reload Param',
                                         width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'])
