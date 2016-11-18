@@ -63,7 +63,7 @@ try:
     <p><b>Warning</b>: 2. <b>QLook</b> <b>FSview</b> or <b>FSview2CASA</b> tabs will disconnect if <b>Exit EvtBrowser is clicked</b></p>""",
                         width=150)
 
-    port = 5010
+    port = 5011
     ports = []
     ports.append(port)
 
