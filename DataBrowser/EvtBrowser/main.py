@@ -102,8 +102,8 @@ try:
                 with open(event_id_dir + 'config_EvtID.json', 'w') as fp:
                     json.dump(config_EvtID, fp)
                 os.system('cp {} {}config_EvtID_curr.json'.format(event_id_dir + 'config_EvtID.json', database_dir))
-                print 'bokeh serve QLook --show --port {} &'.format(port)
-                os.system('cd .. & bokeh serve {}DataBrowser/QLook --show --port {} &'.format(suncasa_dir,port))
+                print 'bokeh serve {}DataBrowser/QLook --show --port {} &'.format(suncasa_dir,port)
+                os.system('bokeh serve {}DataBrowser/QLook --show --port {} &'.format(suncasa_dir,port))
                 port += 1
                 ports.append(port)
                 tab0_Div_Tb.text = """<p>Event <b>""" + EvtID + """</b> selected. <p>Check the <b>QLook</b> in the <b>new tab</b>.</p>"""
