@@ -94,6 +94,7 @@
   },
   "datadir": {
     "database": "${SUNCASADB}",
+    "suncasa":"${SUNCASA}",
     "EvtID_list": "EvtID_list.json",
     "J2000": "J2000/",
     "AIA":"AIA/",

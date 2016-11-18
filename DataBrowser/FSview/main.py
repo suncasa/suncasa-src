@@ -30,7 +30,9 @@ __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
 '''load config file'''
-with open('../config.json', 'r') as fp:
+suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
+'''load config file'''
+with open(suncasa_dir + 'DataBrowser/config.json', 'r') as fp:
     config_plot = json.load(fp)
 database_dir = config_plot['datadir']['database']
 database_dir = os.path.expandvars(database_dir)+'/'

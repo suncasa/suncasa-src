@@ -34,8 +34,9 @@ try:
     elif platform == "win32":
         print 'Runing EvtBrowser in Windows platform'
 
+    suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
     '''load config file'''
-    with open('../config.json', 'r') as fp:
+    with open(suncasa_dir+'DataBrowser/config.json', 'r') as fp:
         config = json.load(fp)
 
     database_dir = config['datadir']['database']
