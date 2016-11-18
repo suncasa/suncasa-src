@@ -355,7 +355,7 @@ def tab1_update_FSviewStrID():
             # tab1_Div_Tb.text = """<p><b>""" + FS_specfile + """</b> saved >>>>>> Click the <b>FS veiw button</b> again to make aperture synthesis images</p>"""
 
         print 'bokeh serve FSview --show --port {} &'.format(port)
-        os.system('cd .. & bokeh serve FSview --show --port {} &'.format(port))
+        os.system('cd .. & bokeh serve {}FSview --show --port {} &'.format(suncasa_dir,port))
         port += 1
         ports.append(port)
         if os.path.exists(FS_dspecDF):

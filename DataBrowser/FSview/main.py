@@ -2359,7 +2359,7 @@ else:
     def tab2_BUT_tCLN_clean():
         with open(database_dir + event_id + struct_id + 'CASA_CLN_args.json', 'w') as fp:
             json.dump(tab2_tCLN_Param_dict, fp)
-        os.system('cp FSview/script_process.py {}'.format(database_dir + event_id + struct_id))
+        os.system('cp {}FSview/script_process.py {}'.format(suncasa_dir,database_dir + event_id + struct_id))
         # os.system('cp FSview/script_preprocess.py {}'.format(database_dir + event_id + struct_id))
         tab2_Div_tCLN2.text = '<p>CASA script and arguments config file saved to <b>{}</b>.</p>'.format(
             database_dir + event_id + struct_id)
