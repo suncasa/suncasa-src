@@ -2244,6 +2244,7 @@ else:
         txts = txts.split(';')
         for txt in txts:
             txt = txt.strip()
+            # todo box selection to timerange and freqrange automaticlly for clean in FSview2CASA
             if txt == 'timerange':
                 time0, time1 = dspecDF['time'].min() + timestart, dspecDF['time'].max() + timestart
                 date_char = Time(timestart / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date').iso
@@ -2308,10 +2309,10 @@ else:
         tab2_tCLN_Param_dict['imsize'] = ""'[128, 128]'""
         tab2_tCLN_Param_dict['cell'] = "['5.0arcsec', '5.0arcsec']"
         tab2_tCLN_Param_dict['phasecenter'] = "'J2000 14h26m22.7351 -14d29m29.801'"
-        tab2_tCLN_Param_dict['mask'] = "' '"
+        tab2_tCLN_Param_dict['mask'] = "''"
         tab2_tCLN_Param_dict['stokes'] = "'RRLL'"
         tab2_tCLN_Param_dict['uvtaper'] = 'True'
-        tab2_tCLN_Param_dict['outertaper'] = "['50arcsec']"
+        tab2_tCLN_Param_dict['outertaper'] = "[]"
         tab2_tCLN_Param_dict['uvrange'] = "''"
         tab2_tCLN_Param_dict['niter'] = "200"
         tab2_tCLN_Param_dict['usescratch'] = "False"
@@ -2384,7 +2385,22 @@ else:
             database_dir + event_id + struct_id) + 'Go back to <b>QLook</b> window, select StrID <b>{}</b> and \
             click <b>FSview</b> button again.</p>'.format(
             database_dir + event_id + struct_id, struct_id[0:-1])
-
+        cwd = os.getcwd()
+        try:
+            os.chdir(database_dir + event_id + struct_id)
+            suncasapy = config_plot['core']['casapy']
+            suncasapy = os.path.expandvars(suncasapy)
+            os.system('{} -c script_process.py'.format(suncasapy))
+            tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}</b></p>. <p>CASA clean is in processing.</p>'.format(
+                database_dir + event_id + struct_id) + '<p>When finished, go back to <b>QLook</b> window, select StrID <b>{}</b> and \
+                click <b>FSview</b> button again.</p>'.format(
+                database_dir + event_id + struct_id, struct_id[0:-1])
+        except:
+            tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}</b></p>. <p>Do image clean with CASA manually.</p>'.format(
+                database_dir + event_id + struct_id) + '<p>When finished, go back to <b>QLook</b> window, select StrID <b>{}</b> and \
+                click <b>FSview</b> button again.</p>'.format(
+                database_dir + event_id + struct_id, struct_id[0:-1])
+        os.chdir(cwd)
 
     tab2_BUT_tCLN_param_RELOAD = Button(label='reload Param',
                                         width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'])

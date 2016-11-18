@@ -102,5 +102,8 @@
     "fits_LOCL_init": "QLook/static/Synthesis_Image_fits_LOCL_init.fits",
     "fits_GLOB": "Synthesis_Image/global/",
     "fits_GLOB_init": "QLook/static/Synthesis_Image_fits_GLOB_init.fits"
+  },
+  "core":{
+    "casapy":"${SUNCASAPY}"
   }
 }

@@ -114,7 +114,6 @@ try:
                 tstrend = Time(tab0_tim[-1] / 3600. / 24., format='mjd', scale='utc', precision=3,
                                out_subfmt='date_hms').iso
                 tab0_Div_Tb_txt = tab0_Div_Tb.text
-                tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO data downloading....</p>"""
 
                 qr_aia171 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
                                          vso.attrs.Wave(171 * u.AA, 171 * u.AA))
@@ -139,6 +138,7 @@ try:
 
                 if len(qr_aia171) != 0:
                     instrument = 'AIA'
+                    tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO/{} data downloading....</p>""".format(instrument)
                     files = glob.glob(event_id_dir + '{}/*.fits'.format(instrument))
                     if len(files)==0:
                         for ll in xrange(len(qr_aia171)):
@@ -147,13 +147,13 @@ try:
                             tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>{}</p>""".format(res)
                 if len(qr_hmi_los) != 0:
                     instrument = 'HMI'
+                    tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO/{} data downloading....</p>""".format(instrument)
                     files = glob.glob(event_id_dir + '{}/*.fits'.format(instrument))
                     if len(files)==0:
                         for ll in xrange(len(qr_hmi_los)):
                             tab0_Div_Tb_txt = tab0_Div_Tb.text
                             res = client.get(qr_hmi_los[ll:ll + 1], path=event_id_dir + '{instrument}/{file}.fits').wait()
                             tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>{}</p>""".format(res)
-                # todo add vso query, add timestamp to check if fits exist
                 tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO data downloaded.</p>"""
 
 
