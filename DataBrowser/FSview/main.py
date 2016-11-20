@@ -1,7 +1,7 @@
 # The plot server must be running
 # Go to http://localhost:5006/bokeh to view this plot
 import json
-import os,sys
+import os, sys
 import pickle
 import time
 from collections import OrderedDict
@@ -35,7 +35,7 @@ suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
 with open(suncasa_dir + 'DataBrowser/config.json', 'r') as fp:
     config_plot = json.load(fp)
 database_dir = config_plot['datadir']['database']
-database_dir = os.path.expandvars(database_dir)+'/'
+database_dir = os.path.expandvars(database_dir) + '/'
 with open('{}config_EvtID_curr.json'.format(database_dir), 'r') as fp:
     config_EvtID = json.load(fp)
 
@@ -213,10 +213,7 @@ if os.path.exists(FS_dspecDF):
         tab2_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
                                         width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
-        map = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
-                     width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-
-        tab2_p_dspec_xPro = figure(tools='',webgl=config_plot['plot_config']['WebGL'],
+        tab2_p_dspec_xPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
                                    plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_xPro_wdth'],
                                    plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_xPro_hght'],
                                    x_range=tab2_p_dspec.x_range, y_range=(spec_plt_min, spec_plt_max),
@@ -249,7 +246,7 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec_xPro.axis.major_tick_line_color = "black"
         tab2_p_dspec_xPro.axis.minor_tick_line_color = "black"
 
-        tab2_p_dspec_yPro = figure(tools='',webgl=config_plot['plot_config']['WebGL'],
+        tab2_p_dspec_yPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
                                    plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_yPro_wdth'],
                                    plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_yPro_hght'],
                                    x_range=(spec_plt_min, spec_plt_max), y_range=tab2_p_dspec.y_range,
@@ -429,7 +426,7 @@ if os.path.exists(FS_dspecDF):
             vla_global_pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header,
                                          plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
                                          plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
-                                         palette=bokehpalette_SynthesisImg,webgl=config_plot['plot_config']['WebGL'])
+                                         palette=bokehpalette_SynthesisImg, webgl=config_plot['plot_config']['WebGL'])
             hdulist = fits.open(fits_LOCL_dir + dspecDF.loc[76, :]['fits_local'])
             hdu = hdulist[0]
             vla_local_pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header)
@@ -472,7 +469,8 @@ if os.path.exists(FS_dspecDF):
 
         aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
                                         plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                        plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],webgl=config_plot['plot_config']['WebGL'])
+                                        plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
+                                        webgl=config_plot['plot_config']['WebGL'])
 
         tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
                                                              palette=bokehpalette_sdoaia171)
@@ -497,7 +495,8 @@ if os.path.exists(FS_dspecDF):
         # plot the detail AIA image
         aia_submap_pfmap = PuffinMap(smap=aiamap_submap,
                                      plot_height=config_plot['plot_config']['tab_FSview_FitANLYS']['aia_submap_hght'],
-                                     plot_width=config_plot['plot_config']['tab_FSview_FitANLYS']['aia_submap_wdth'],webgl=config_plot['plot_config']['WebGL'])
+                                     plot_width=config_plot['plot_config']['tab_FSview_FitANLYS']['aia_submap_wdth'],
+                                     webgl=config_plot['plot_config']['WebGL'])
 
         tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
                                                                         grid_spacing=20 * u.deg,
@@ -542,7 +541,8 @@ if os.path.exists(FS_dspecDF):
         hmi_resampled_map = hmimap.resample(dimensions)
         hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
                                         plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                        plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],webgl=config_plot['plot_config']['WebGL'])
+                                        plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
+                                        webgl=config_plot['plot_config']['WebGL'])
 
         tab2_p_hmi, tab2_r_hmi = hmi_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
                                                              x_range=tab2_p_aia.x_range,
@@ -646,7 +646,7 @@ if os.path.exists(FS_dspecDF):
                 hdulist = fits.open(fits_GLOB_dir + dspecDF.loc[idx_selected, :]['fits_global'])
                 hdu = hdulist[0]
                 pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header, plot_height=tab2_LinkImg_HGHT,
-                                  plot_width=tab2_LinkImg_WDTH,webgl=config_plot['plot_config']['WebGL'])
+                                  plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
                 SRC_Img = pfmap.ImageSource()
                 tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
                 popt = [dspecDF.loc[idx_selected, :]['amp_gaus'], dspecDF.loc[idx_selected, :]['x_pos'],
@@ -1202,13 +1202,15 @@ if os.path.exists(FS_dspecDF):
             aia_resampled_map = aiamap.resample(dimensions)
             aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
                                             plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                            plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],webgl=config_plot['plot_config']['WebGL'])
+                                            plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
+                                            webgl=config_plot['plot_config']['WebGL'])
             SRC_AIA = aia_resampled_pfmap.ImageSource()
             tab2_r_aia.data_source.data['data'] = SRC_AIA.data['data']
             hmi_resampled_map = hmimap.resample(dimensions)
             hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
                                             plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                            plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],webgl=config_plot['plot_config']['WebGL'])
+                                            plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
+                                            webgl=config_plot['plot_config']['WebGL'])
             SRC_HMI = hmi_resampled_pfmap.ImageSource()
             tab2_r_hmi.data_source.data['data'] = SRC_HMI.data['data']
             print("---tab2_update_MapRES -- %s seconds ---" % (time.time() - start_timestamp))
@@ -1351,10 +1353,7 @@ if os.path.exists(FS_dspecDF):
             tab2_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
                                             width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
-            map = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
-                         width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-
-            tab2_p_dspec_xPro = figure(tools='',webgl=config_plot['plot_config']['WebGL'],
+            tab2_p_dspec_xPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
                                        plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_xPro_wdth'],
                                        plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_xPro_hght'],
                                        x_range=tab2_p_dspec.x_range, y_range=(spec_plt_min, spec_plt_max),
@@ -1387,7 +1386,7 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec_xPro.axis.major_tick_line_color = "black"
             tab2_p_dspec_xPro.axis.minor_tick_line_color = "black"
 
-            tab2_p_dspec_yPro = figure(tools='',webgl=config_plot['plot_config']['WebGL'],
+            tab2_p_dspec_yPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
                                        plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_yPro_wdth'],
                                        plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_yPro_hght'],
                                        x_range=(spec_plt_min, spec_plt_max), y_range=tab2_p_dspec.y_range,
@@ -1462,12 +1461,18 @@ if os.path.exists(FS_dspecDF):
                 tab2_p_dspec_yPro.x_range.end = spec_plt_max
 
 
+            tab2_Select_pol_opt = ['RR', 'LL', 'I', 'V']
+
+
             def tab2_vdspec_update():
-                global spec_plt_R, spec_plt_L, spec_plt_I, spec_plt_V
+                global spec_plt_R, spec_plt_L, spec_plt_I, spec_plt_V, tab2_Select_pol_opt
                 select_pol = tab2_Select_pol.value
                 tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
                 if tab2_BUT_vdspec.label == "VEC Dyn Spec":
                     if tab2_vla_square_selected:
+                        tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum in calculating...</b></p>'
+                        tab2_Select_pol_opt = tab2_Select_pol.options
+                        tab2_Select_pol.options = pols
                         tab2_BUT_vdspec.label = "Dyn Spec"
                         idxmax = max(tab2_vla_square_selected)
                         idxmin = min(tab2_vla_square_selected)
@@ -1478,36 +1483,64 @@ if os.path.exists(FS_dspecDF):
                         spec_plt_L = np.zeros((tab2_nfreq, tab2_ntim))
                         spec_plt_I = np.zeros((tab2_nfreq, tab2_ntim))
                         spec_plt_V = np.zeros((tab2_nfreq, tab2_ntim))
-                        for ll in xrange(tab2_ntim):
-                            hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
-                            if os.path.exists(hdufile):
-                                hdulist = fits.open(hdufile)
-                                hdu = hdulist[0]
-                                nfreq_hdu = hdu.header['NAXIS3']
-                                freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
-                                freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
-                                idxfreq_ref = freq.index(freq_ref)
-                                # select_pol == 'RR':
-                                vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1]
-                                spec_plt_R[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata, axis=(-1, -2))
-                                spec_plt_R[spec_plt_R < 0] = 0
-                                # select_pol == 'LL':
-                                vladata = hdu.data[1, :, y0:y1 + 1, x0:x1 + 1]
-                                spec_plt_L[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata, axis=(-1, -2))
-                                spec_plt_L[spec_plt_L < 0] = 0
-                                # select_pol == 'I':
-                                vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1] + hdu.data[1, :, y0:y1 + 1, x0:x1 + 1]
-                                spec_plt_I[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata, axis=(-1, -2))
-                                spec_plt_I[spec_plt_I < 0] = 0
-                                # select_pol == 'V':
-                                vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1] - hdu.data[1, :, y0:y1 + 1, x0:x1 + 1]
-                                spec_plt_V[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata, axis=(-1, -2))
-                                spec_plt_V[spec_plt_V < 0] = 0
+                        if len(pols) > 1:
+                            for ll in xrange(tab2_ntim):
+                                hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
+                                if os.path.exists(hdufile):
+                                    hdulist = fits.open(hdufile)
+                                    hdu = hdulist[0]
+                                    nfreq_hdu = hdu.header['NAXIS3']
+                                    freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
+                                    freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
+                                    idxfreq_ref = freq.index(freq_ref)
+                                    # select_pol == 'RR':
+                                    vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1]
+                                    spec_plt_R[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata,
+                                                                                                     axis=(-1, -2))
+                                    spec_plt_R[spec_plt_R < 0] = 0
+                                    # select_pol == 'LL':
+                                    vladata = hdu.data[1, :, y0:y1 + 1, x0:x1 + 1]
+                                    spec_plt_L[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata,
+                                                                                                     axis=(-1, -2))
+                                    spec_plt_L[spec_plt_L < 0] = 0
+                                    # select_pol == 'I':
+                                    vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1] + hdu.data[1, :, y0:y1 + 1,
+                                                                                     x0:x1 + 1]
+                                    spec_plt_I[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata,
+                                                                                                     axis=(-1, -2))
+                                    spec_plt_I[spec_plt_I < 0] = 0
+                                    # select_pol == 'V':
+                                    vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1] - hdu.data[1, :, y0:y1 + 1,
+                                                                                     x0:x1 + 1]
+                                    spec_plt_V[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata,
+                                                                                                     axis=(-1, -2))
+                                    spec_plt_V[spec_plt_V < 0] = 0
+                        elif len(pols) == 1:
+                            for ll in xrange(tab2_ntim):
+                                hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
+                                if os.path.exists(hdufile):
+                                    hdulist = fits.open(hdufile)
+                                    hdu = hdulist[0]
+                                    nfreq_hdu = hdu.header['NAXIS3']
+                                    freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
+                                    freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
+                                    idxfreq_ref = freq.index(freq_ref)
+                                    vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1]
+                                    vlaflux = np.nanmean(vladata, axis=(-1, -2))
+                                    spec_plt_R[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = vlaflux
+                                    spec_plt_R[spec_plt_R < 0] = 0
+                            spec_plt_L = spec_plt_R
+                            spec_plt_I = spec_plt_R
+                            spec_plt_V = spec_plt_R
+                            # print spec_plt_L
+                        tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum calculated.</b></p>'
+
                         tab2_dspec_image_plt(select_pol)
                         tab2_p_dspec.title.text = "Vector Dynamic spectrum"
                     else:
                         tab2_Div_LinkImg_plot.text = '<p><b>Warning:</b> select a region first.</p>'
                 else:
+                    tab2_Select_pol.options = tab2_Select_pol_opt
                     select_bl = tab2_Select_bl.value
                     tab2_BUT_vdspec.label = "VEC Dyn Spec"
                     bl_index = tab2_bl.index(select_bl)
@@ -1517,6 +1550,7 @@ if os.path.exists(FS_dspecDF):
                     spec_plt_V = (tab2_spec[0, bl_index, :, :] - tab2_spec[1, bl_index, :, :]) / 2.
                     tab2_dspec_image_plt(select_pol)
                     tab2_p_dspec.title.text = "Dynamic spectrum"
+                    tab2_Div_LinkImg_plot.text = ''
 
 
             tab2_BUT_vdspec.on_click(tab2_vdspec_update)
@@ -1597,7 +1631,8 @@ if os.path.exists(FS_dspecDF):
             hdu = hdulist[0]
             vla_local_pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header,
                                         plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                        plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],webgl=config_plot['plot_config']['WebGL'])
+                                        plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
+                                        webgl=config_plot['plot_config']['WebGL'])
             # plot the contour of vla image
             mapx, mapy = vla_local_pfmap.meshgrid()
             mapx, mapy = mapx.value, mapy.value
@@ -1629,7 +1664,8 @@ if os.path.exists(FS_dspecDF):
 
             aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
                                             plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                            plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],webgl=config_plot['plot_config']['WebGL'])
+                                            plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
+                                            webgl=config_plot['plot_config']['WebGL'])
 
             tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
                                                                  palette=bokehpalette_sdoaia171)
@@ -1664,7 +1700,8 @@ if os.path.exists(FS_dspecDF):
             hmi_resampled_map = hmimap.resample(dimensions)
             hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
                                             plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                            plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],webgl=config_plot['plot_config']['WebGL'])
+                                            plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
+                                            webgl=config_plot['plot_config']['WebGL'])
 
             tab2_p_hmi, tab2_r_hmi = hmi_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
                                                                  x_range=tab2_p_aia.x_range,
@@ -1732,7 +1769,21 @@ if os.path.exists(FS_dspecDF):
                                               width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                               callback_policy='mouseup')
 
-            tab2_Select_vla_pol = Select(title="Polarization:", value='RR', options=['RR', 'LL', 'I', 'V'],
+            stokeslist = ['{}'.format(int(ll)) for ll in
+                          (hdu.header["CRVAL4"] + np.arange(hdu.header["NAXIS4"]) * hdu.header["CDELT4"])]
+            stokesdict = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3': 'RL', '-4': 'LR',
+                          '-5': 'XX', '-6': 'YY', '-7': 'XY', '-8': 'YX'}
+            pols = map(lambda x: stokesdict[x], stokeslist)
+            # pols = ['RR', 'LL', 'I', 'V']
+            SRL = set(['RR', 'LL'])
+            SXY = set(['XX', 'YY', 'XY', 'YX'])
+            Spol = set(pols)
+            if hdu.header['NAXIS4'] == 2 and len(SRL.intersection(Spol)) == 2:
+                pols = pols + ['I', 'V']
+            if hdu.header['NAXIS4'] == 4 and len(SXY.intersection(Spol)) == 4:
+                pols = pols + ['I', 'V']
+
+            tab2_Select_vla_pol = Select(title="Polarization:", value='RR', options=pols,
                                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
             tab2_source_idx_line_x = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
@@ -1767,15 +1818,15 @@ if os.path.exists(FS_dspecDF):
                     hdulist = fits.open(hdufile)
                     hdu = hdulist[0]
                     if select_vla_pol == 'RR':
-                        vladata = hdu.data[0, fidx, :, :]
+                        vladata = hdu.data[pols.index('RR'), fidx, :, :]
                     elif select_vla_pol == 'LL':
-                        vladata = hdu.data[1, fidx, :, :]
+                        vladata = hdu.data[pols.index('LL'), fidx, :, :]
                     elif select_vla_pol == 'I':
-                        vladata = hdu.data[0, fidx, :, :] + hdu.data[1, fidx, :, :]
+                        vladata = hdu.data[pols.index('RR'), fidx, :, :] + hdu.data[pols.index('1'), fidx, :, :]
                     elif select_vla_pol == 'V':
-                        vladata = hdu.data[0, fidx, :, :] - hdu.data[1, fidx, :, :]
+                        vladata = hdu.data[pols.index('RR'), fidx, :, :] - hdu.data[pols.index('1'), fidx, :, :]
                     pfmap = PuffinMap(vladata, hdu.header, plot_height=tab2_LinkImg_HGHT,
-                                      plot_width=tab2_LinkImg_WDTH,webgl=config_plot['plot_config']['WebGL'])
+                                      plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
                     SRC_Img = pfmap.ImageSource()
                     tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
                     mapx, mapy = pfmap.meshgrid()
@@ -1823,10 +1874,6 @@ if os.path.exists(FS_dspecDF):
                     global dspecDF
                     dspecDF = dspecDF0.iloc[tab2_dspec_selected, :]
                     idx_selected = dspecDF.index[len(dspecDF) / 2]
-                    # print ['{:.3f}'.format(ll) for ll in tab2_dtim], '{:.3f}'.format(
-                    #     dspecDF0.loc[idx_selected, :]['time'])
-                    # print ['{:.3f}'.format(ll) for ll in tab2_freq], '{:.3f}'.format(
-                    #     dspecDF0.loc[idx_selected, :]['freq'])
                     tidx = int(['{:.3f}'.format(ll) for ll in tab2_dtim].index(
                         '{:.3f}'.format(dspecDF0.loc[idx_selected, :]['time'])))
                     fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
@@ -1869,13 +1916,15 @@ if os.path.exists(FS_dspecDF):
                 aia_resampled_map = aiamap.resample(dimensions)
                 aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
                                                 plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                                plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],webgl=config_plot['plot_config']['WebGL'])
+                                                plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
+                                                webgl=config_plot['plot_config']['WebGL'])
                 SRC_AIA = aia_resampled_pfmap.ImageSource()
                 tab2_r_aia.data_source.data['data'] = SRC_AIA.data['data']
                 hmi_resampled_map = hmimap.resample(dimensions)
                 hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
                                                 plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                                plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],webgl=config_plot['plot_config']['WebGL'])
+                                                plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
+                                                webgl=config_plot['plot_config']['WebGL'])
                 SRC_HMI = hmi_resampled_pfmap.ImageSource()
                 tab2_r_hmi.data_source.data['data'] = SRC_HMI.data['data']
                 print("---tab2_update_MapRES -- %s seconds ---" % (time.time() - start_timestamp))
@@ -2072,7 +2121,8 @@ else:
     tab2_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
                                     width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
 
-    tab2_p_dspec_xPro = figure(tools='',webgl=config_plot['plot_config']['WebGL'], plot_width=config_plot['plot_config']['tab_FSview2CASA']['dspec_xPro_wdth'],
+    tab2_p_dspec_xPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
+                               plot_width=config_plot['plot_config']['tab_FSview2CASA']['dspec_xPro_wdth'],
                                plot_height=config_plot['plot_config']['tab_FSview2CASA']['dspec_xPro_hght'],
                                x_range=tab2_p_dspec.x_range, y_range=(spec_plt_min, spec_plt_max),
                                title="Time profile", toolbar_location=None)
@@ -2104,7 +2154,8 @@ else:
     tab2_p_dspec_xPro.axis.major_tick_line_color = "black"
     tab2_p_dspec_xPro.axis.minor_tick_line_color = "black"
 
-    tab2_p_dspec_yPro = figure(tools='',webgl=config_plot['plot_config']['WebGL'], plot_width=config_plot['plot_config']['tab_FSview2CASA']['dspec_yPro_wdth'],
+    tab2_p_dspec_yPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
+                               plot_width=config_plot['plot_config']['tab_FSview2CASA']['dspec_yPro_wdth'],
                                plot_height=config_plot['plot_config']['tab_FSview2CASA']['dspec_yPro_hght'],
                                x_range=(spec_plt_min, spec_plt_max), y_range=tab2_p_dspec.y_range,
                                title="Frequency profile", toolbar_location=None)
@@ -2359,7 +2410,7 @@ else:
     def tab2_BUT_tCLN_clean():
         with open(database_dir + event_id + struct_id + 'CASA_CLN_args.json', 'w') as fp:
             json.dump(tab2_tCLN_Param_dict, fp)
-        os.system('cp {}FSview/script_process.py {}'.format(suncasa_dir,database_dir + event_id + struct_id))
+        os.system('cp {}FSview/script_process.py {}'.format(suncasa_dir, database_dir + event_id + struct_id))
         # os.system('cp FSview/script_preprocess.py {}'.format(database_dir + event_id + struct_id))
         tab2_Div_tCLN2.text = '<p>CASA script and arguments config file saved to <b>{}</b>.</p>'.format(
             database_dir + event_id + struct_id)
@@ -2403,6 +2454,7 @@ else:
                 click <b>FSview</b> button again.</p>'.format(
                 database_dir + event_id + struct_id, struct_id[0:-1])
         os.chdir(cwd)
+
 
     tab2_BUT_tCLN_param_RELOAD = Button(label='reload Param',
                                         width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'])

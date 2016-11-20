@@ -3,9 +3,10 @@ import numpy as np
 import glob
 import os
 from  casac import *
+import pickle
 
 database_dir = "${SUNCASADB}"
-database_dir = os.path.expandvars(database_dir)+'/'
+database_dir = os.path.expandvars(database_dir) + '/'
 if os.path.exists('CASA_CLN_args.json'):
     with open('CASA_CLN_args.json', 'r') as fp:
         CASA_CLN_args = json.load(fp)
@@ -100,6 +101,8 @@ if os.path.exists('CASA_CLN_args.json'):
     imgdir = database_dir + event_id + '/' + struct_id + '/Synthesis_Image/'
     if not os.path.exists(imgdir):
         os.mkdir(imgdir)
+    with open(imgdir + 'CASA_CLN_out', 'r') as fp:
+        pickle.dump(out, fp)
     imgdir = imgdir + 'local/'
     if not os.path.exists(imgdir):
         os.mkdir(imgdir)
