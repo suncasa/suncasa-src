@@ -1783,7 +1783,7 @@ if os.path.exists(FS_dspecDF):
             if hdu.header['NAXIS4'] == 4 and len(SXY.intersection(Spol)) == 4:
                 pols = pols + ['I', 'V']
 
-            tab2_Select_vla_pol = Select(title="Polarization:", value='RR', options=pols,
+            tab2_Select_vla_pol = Select(title="Polarization:", value=pols[0], options=pols,
                                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
             tab2_source_idx_line_x = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))

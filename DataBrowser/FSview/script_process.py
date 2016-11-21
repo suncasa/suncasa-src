@@ -116,5 +116,6 @@ if os.path.exists('CASA_CLN_args.json'):
         # print imgdir+fits1
         os.system('mv {} {}'.format(fits, imgdir + fits1))
 
+
 else:
     print 'CASA arguments config file not found!!'

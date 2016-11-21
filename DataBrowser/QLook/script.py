@@ -142,3 +142,43 @@ for t0 in tim2:
     # print timestr0.microsecond,'{:03d}'.format(int(round(timestr0.microsecond / 1e3)))
     timestr = timestr0.strftime('%Y-%m-%dT%H%M%S') + '.{:03d}'.format(int(round(timestr0.microsecond / 1e3)))
     print timestr
+
+tofits = True
+if tofits:
+    import json
+    import numpy as np
+    import glob
+    import os
+    from  casac import *
+    import pickle
+    from astropy.time import Time
+
+    database_dir = "${SUNCASADB}"
+    database_dir = os.path.expandvars(database_dir) + '/'
+    if os.path.exists('CASA_CLN_args.json'):
+        with open('CASA_CLN_args.json', 'r') as fp:
+            CASA_CLN_args = json.load(fp)
+        for key, val in CASA_CLN_args.items():
+            exec (key + '= {}'.format(val))
+    import suncasa.vla.vla_prep as vla_prep
+
+    ephem = vla_prep.read_horizons(ephemfile=ephemfile)
+    imagenames = glob.glob('slfcal/U04/*.image')
+    vlafits = ['/'.join(img.split('/')[0:-1]) + '/' + img.split('/')[-1][0:-6] + '.fits' for img in imagenames]
+    timeran_tmp = [img.split('/')[-1][0:-6] for img in imagenames]
+    # timeran = ['{}:{}:{}.{:03d}~{}:{}:{}.{:03d}'.format(ll[9:11],ll[11:13],ll[13:15],int(ll[16:])-25,ll[9:11],ll[11:13],ll[13:15],int(ll[16:])+25) for ll in timeran_tmp]
+    timeran0 = [
+        '{}-{}-{}T{}:{}:{}.{:03d}'.format(ll[0:4], ll[4:6], ll[6:8], ll[9:11], ll[11:13], ll[13:15], int(ll[16:])) for
+        ll in timeran_tmp]
+    timeran1 = Time(timeran0, format='isot', scale='utc')
+    dt = 25. / 1000 / 24 / 3600
+    timeranjd0 = timeran1.jd - dt
+    timeranjd1 = timeran1.jd + dt
+    timeran0 = list(Time(timeranjd0, format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso)
+    timeran1 = list(Time(timeranjd1, format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso)
+    timeran0 = [ll.replace(' ', 'T') for ll in timeran0]
+    timeran1 = [ll.replace(' ', 'T') for ll in timeran1]
+    timeran=['{}~{}'.format(ll[0],ll[1]) for ll in zip(timeran0,timeran1)]
+    reftime = timeran
+    helio = vla_prep.ephem_to_helio(msinfo=msinfofile, ephem=ephem, reftime=reftime)
+    vla_prep.imreg(imagefile=imagenames, fitsfile=vlafits, helio=helio, toTb=False, scl100=True)
