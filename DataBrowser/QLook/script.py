@@ -167,9 +167,7 @@ if tofits:
     vlafits = ['/'.join(img.split('/')[0:-1]) + '/' + img.split('/')[-1][0:-6] + '.fits' for img in imagenames]
     timeran_tmp = [img.split('/')[-1][0:-6] for img in imagenames]
     # timeran = ['{}:{}:{}.{:03d}~{}:{}:{}.{:03d}'.format(ll[9:11],ll[11:13],ll[13:15],int(ll[16:])-25,ll[9:11],ll[11:13],ll[13:15],int(ll[16:])+25) for ll in timeran_tmp]
-    timeran0 = [
-        '{}-{}-{}T{}:{}:{}.{:03d}'.format(ll[0:4], ll[4:6], ll[6:8], ll[9:11], ll[11:13], ll[13:15], int(ll[16:])) for
-        ll in timeran_tmp]
+    timeran0 = ['{}-{}-{}T{}:{}:{}.{:03d}'.format(ll[0:4], ll[4:6], ll[6:8], ll[9:11], ll[11:13], ll[13:15], int(ll[16:])) for ll in timeran_tmp]
     timeran1 = Time(timeran0, format='isot', scale='utc')
     dt = 25. / 1000 / 24 / 3600
     timeranjd0 = timeran1.jd - dt

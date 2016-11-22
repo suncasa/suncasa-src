@@ -2243,8 +2243,6 @@ else:
     tab2_dspec_selected = None
 
     timestart = xx[0]
-
-
     def tab2_dspec_selection_change(attrname, old, new):
         global tab2_dspec_selected
         tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
@@ -2258,12 +2256,13 @@ else:
             tab2_r_dspec_patch.data_source.data = ColumnDataSource(
                 pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
             time0, time1 = dspecDF['time'].min() + timestart, dspecDF['time'].max() + timestart
-            date_char = Time(timestart / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date').iso
             t0_char = Time(time0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
-            t0_char = t0_char.split(' ')[1]
+            date0_char = t0_char.split(' ')[0].replace('-','/')
+            time0_char = t0_char.split(' ')[1]
             t1_char = Time(time1 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
-            t1_char = t1_char.split(' ')[1]
-            tab2_tCLN_Param_dict['timerange'] = "'{}T{}~{}T{}'".format(date_char, t0_char, date_char, t1_char)
+            date1_char = t1_char.split(' ')[0].replace('-','/')
+            time1_char = t1_char.split(' ')[1]
+            tab2_tCLN_Param_dict['timerange'] = "'{}/{}~{}/{}'".format(date0_char, time0_char, date1_char, time1_char)
             freq0, freq1 = dspecDF['freq'].min(), dspecDF['freq'].max()
             freqrange = "'{:.3f}~{:.3f} GHz'".format(freq0, freq1)
             tab2_tCLN_Param_dict['freqrange'] = freqrange
