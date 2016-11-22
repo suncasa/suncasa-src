@@ -1492,28 +1492,20 @@ if os.path.exists(FS_dspecDF):
                                     nfreq_hdu = hdu.header['NAXIS3']
                                     freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                                     freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
-                                    idxfreq_ref = freq.index(freq_ref)
-                                    # select_pol == 'RR':
-                                    vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1]
-                                    spec_plt_R[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata,
-                                                                                                     axis=(-1, -2))
+                                    idxfreq = freq.index(freq_ref)
+                                    vla_l = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1]
+                                    vla_r = hdu.data[1, :, y0:y1 + 1, x0:x1 + 1]
+                                    spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = \
+                                        np.nanmean(vla_l, axis=(-1, -2))
                                     spec_plt_R[spec_plt_R < 0] = 0
-                                    # select_pol == 'LL':
-                                    vladata = hdu.data[1, :, y0:y1 + 1, x0:x1 + 1]
-                                    spec_plt_L[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata,
-                                                                                                     axis=(-1, -2))
+                                    spec_plt_L[idxfreq:idxfreq + nfreq_hdu, ll] = \
+                                        np.nanmean(vla_r, axis=(-1, -2))
                                     spec_plt_L[spec_plt_L < 0] = 0
-                                    # select_pol == 'I':
-                                    vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1] + hdu.data[1, :, y0:y1 + 1,
-                                                                                     x0:x1 + 1]
-                                    spec_plt_I[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata,
-                                                                                                     axis=(-1, -2))
+                                    spec_plt_I[idxfreq:idxfreq + nfreq_hdu, ll] = \
+                                        np.nanmean(vla_l + vla_r, axis=(-1, -2))
                                     spec_plt_I[spec_plt_I < 0] = 0
-                                    # select_pol == 'V':
-                                    vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1] - hdu.data[1, :, y0:y1 + 1,
-                                                                                     x0:x1 + 1]
-                                    spec_plt_V[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata,
-                                                                                                     axis=(-1, -2))
+                                    spec_plt_V[idxfreq:idxfreq + nfreq_hdu, ll] = \
+                                        np.nanmean(vla_l - vla_r, axis=(-1, -2))
                                     spec_plt_V[spec_plt_V < 0] = 0
                         elif len(pols) == 1:
                             for ll in xrange(tab2_ntim):
@@ -1524,10 +1516,10 @@ if os.path.exists(FS_dspecDF):
                                     nfreq_hdu = hdu.header['NAXIS3']
                                     freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                                     freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
-                                    idxfreq_ref = freq.index(freq_ref)
+                                    idxfreq = freq.index(freq_ref)
                                     vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1]
                                     vlaflux = np.nanmean(vladata, axis=(-1, -2))
-                                    spec_plt_R[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = vlaflux
+                                    spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = vlaflux
                                     spec_plt_R[spec_plt_R < 0] = 0
                             spec_plt_L = spec_plt_R
                             spec_plt_I = spec_plt_R
@@ -1932,33 +1924,42 @@ if os.path.exists(FS_dspecDF):
 
             tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
 
-
             # todo add the threshold selection (overplot another gylph)
 
 
+            rgnfitsfile = database_dir + event_id + struct_id + "CASA_imfit_region_fits.rgn"
+
+
             def tab2_save_region():
-                pangle = hdu.header['p_angle']
-                x0Deg, x1Deg, y0Deg, y1Deg = (x0 - hdu.header['CRVAL1']) / 3600., (x1 - hdu.header['CRVAL1']) / 3600., (
-                    y0 - hdu.header['CRVAL2']) / 3600., (y1 - hdu.header['CRVAL2']) / 3600.
-                # todo find p0 in fits header
-                p0 = -pangle
-                prad = radians(p0)
-                dx0 = (x0Deg) * cos(prad) - y0Deg * sin(prad)
-                dy0 = (x0Deg) * sin(prad) + y0Deg * cos(prad)
-                dx1 = (x1Deg) * cos(prad) - y1Deg * sin(prad)
-                dy1 = (x1Deg) * sin(prad) + y1Deg * cos(prad)
-                x0Deg, x1Deg, y0Deg, y1Deg = (dx0 + hdu.header['CRVAL1'] / 3600.), (
-                    dx1 + hdu.header['CRVAL1'] / 3600.), (dy0 + hdu.header['CRVAL2'] / 3600.), (
-                                                 dy1 + hdu.header['CRVAL2'] / 3600.)
-                c0fits = SkyCoord(ra=(x0Deg) * u.degree, dec=(y0Deg) * u.degree)
-                c1fits = SkyCoord(ra=(x1Deg) * u.degree, dec=(y1Deg) * u.degree)
-                rgnfits = '#CRTFv0 CASA Region Text Format version 0\nbox [[{}], [{}]] coord=J2000, linewidth=1, linestyle=-, symsize=1, symthick=1, color=magenta, font="DejaVu Sans", fontsize=11, fontstyle=normal, usetex=false'.format(
-                    ', '.join(c0fits.to_string('hmsdms').split(' ')), ', '.join(c1fits.to_string('hmsdms').split(' ')))
-                print rgnfits
-                rgnfitsfile = database_dir + event_id + struct_id + "CASA_imfit_region_fits.rgn"
-                with open(rgnfitsfile, "w") as fp:
-                    fp.write(rgnfits)
-                tab2_Div_LinkImg_plot.text = '<p>region saved to <b>{}</b>.</p>'.format(rgnfitsfile)
+                tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
+                if tab2_vla_square_selected:
+                    pangle = hdu.header['p_angle']
+                    x0Deg, x1Deg, y0Deg, y1Deg = (x0 - hdu.header['CRVAL1']) / 3600., (
+                        x1 - hdu.header['CRVAL1']) / 3600., (
+                                                     y0 - hdu.header['CRVAL2']) / 3600., (
+                                                     y1 - hdu.header['CRVAL2']) / 3600.
+                    p0 = -pangle
+                    prad = radians(p0)
+                    dx0 = (x0Deg) * cos(prad) - y0Deg * sin(prad)
+                    dy0 = (x0Deg) * sin(prad) + y0Deg * cos(prad)
+                    dx1 = (x1Deg) * cos(prad) - y1Deg * sin(prad)
+                    dy1 = (x1Deg) * sin(prad) + y1Deg * cos(prad)
+                    x0Deg, x1Deg, y0Deg, y1Deg = (dx0 + hdu.header['CRVAL1'] / 3600.), (
+                        dx1 + hdu.header['CRVAL1'] / 3600.), (dy0 + hdu.header['CRVAL2'] / 3600.), (
+                                                     dy1 + hdu.header['CRVAL2'] / 3600.)
+                    c0fits = SkyCoord(ra=(x0Deg) * u.degree, dec=(y0Deg) * u.degree)
+                    c1fits = SkyCoord(ra=(x1Deg) * u.degree, dec=(y1Deg) * u.degree)
+                    rgnfits = '#CRTFv0 CASA Region Text Format version 0\n\
+                    box [[{}], [{}]] coord=J2000, linewidth=1, \
+                    linestyle=-, symsize=1, symthick=1, color=magenta, \
+                    font="DejaVu Sans", fontsize=11, fontstyle=normal, \
+                    usetex=false'.format(', '.join(c0fits.to_string('hmsdms').split(' ')),
+                                         ', '.join(c1fits.to_string('hmsdms').split(' ')))
+                    with open(rgnfitsfile, "w") as fp:
+                        fp.write(rgnfits)
+                    tab2_Div_LinkImg_plot.text = '<p>region saved to <b>{}</b>.</p>'.format(rgnfitsfile)
+                else:
+                    tab2_Div_LinkImg_plot.text = '<p><b>Warning:</b> select a region first.</p>'
 
 
             tab2_BUT_SavRgn = Button(label='Save Region',
@@ -1966,7 +1967,146 @@ if os.path.exists(FS_dspecDF):
                                      button_type='primary')
             tab2_BUT_SavRgn.on_click(tab2_save_region)
 
-            panel2 = column(
+            tab2_input_tImfit = TextInput(value="Input the param here", title="pimfit task parameters:",
+                                          width=config_plot['plot_config']['tab_FSviewPrep']['input_tCLN_wdth'])
+            tab2_Div_tImfit = Div(text='', width=config_plot['plot_config']['tab_FSviewPrep']['tab2_Div_tImfit_wdth'])
+            tab2_Div_tImfit2 = Div(text='', width=config_plot['plot_config']['tab_FSviewPrep']['input_tCLN_wdth'])
+
+
+            def tab2_BUT_tImfit_param_add():
+                tab2_Div_tImfit2.text = ' '
+                txts = tab2_input_tImfit.value.strip()
+                txts = txts.split(';')
+                for txt in txts:
+                    txt = txt.strip()
+                    txt = txt.split('=')
+                    if len(txt) == 2:
+                        key, val = txt
+                        tab2_tImfit_Param_dict[key.strip()] = val.strip()
+                    else:
+                        tab2_Div_tImfit2.text = '<p>Input syntax: <b>stokes</b>="LL"; \
+                        <b>ncpu</b>=10; Any spaces will be ignored.</p>'
+                tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
+                on an image region(s)</b></p>' + ' '.join(
+                    "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+                tab2_Div_tImfit.text = tab2_Div_tImfit_text
+
+
+            def tab2_BUT_tImfit_param_delete():
+                global tab2_tImfit_Param_dict
+                tab2_Div_tImfit2.text = ' '
+                txts = tab2_input_tImfit.value.strip()
+                txts = txts.split(';')
+                for key in txts:
+                    try:
+                        tab2_tImfit_Param_dict.pop(key)
+                    except:
+                        tab2_Div_tImfit2.text = '<p>Input syntax: <b>stokes</b>; <b>ncpu</b>; ' \
+                                                '<b>region</b>. Any spaces will be ignored.</p>'
+                tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
+                on an image region(s)</b></p>' + ' '.join(
+                    "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+                tab2_Div_tImfit.text = tab2_Div_tImfit_text
+
+
+            def tab2_BUT_tImfit_param_default():
+                global tab2_tImfit_Param_dict
+                tab2_tImfit_Param_dict = OrderedDict()
+                vlafileliststr = "'" + "','".join(vlafile) + "'"
+                tab2_tImfit_Param_dict['event_id'] = "'{}'".format(event_id.replace("/", ""))
+                tab2_tImfit_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
+                tab2_tImfit_Param_dict['ncpu'] = "10"
+                tab2_tImfit_Param_dict['doreg'] = "True"
+                tab2_tImfit_Param_dict['region'] = "'{}'".format(rgnfitsfile)
+                tab2_tImfit_Param_dict['stokes'] = "'{}'".format(tab2_Select_vla_pol.value)
+                tab2_tImfit_Param_dict['mask'] = "''"
+                tab2_tImfit_Param_dict['imagefiles'] = "[{}]".format(vlafileliststr)
+                tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
+                on an image region(s)</b></p>' + ' '.join(
+                    "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+                tab2_Div_tImfit.text = tab2_Div_tImfit_text
+                tab2_Div_tImfit2.text = '<p><b>Default parameter Restored.</b></p>'
+
+
+            tab2_BUT_tImfit_param_default()
+
+            tab2_BUT_tImfit_param_ADD = Button(label='Add to Param',
+                                               width=config_plot['plot_config']['tab_FSviewPrep']['button_wdth'],
+                                               button_type='primary')
+            tab2_BUT_tImfit_param_ADD.on_click(tab2_BUT_tImfit_param_add)
+            tab2_BUT_tImfit_param_DEL = Button(label='Delete Param',
+                                               width=config_plot['plot_config']['tab_FSviewPrep']['button_wdth'],
+                                               button_type='warning')
+            tab2_BUT_tImfit_param_DEL.on_click(tab2_BUT_tImfit_param_delete)
+            tab2_BUT_tImfit_param_Default = Button(label='Default Param',
+                                                   width=config_plot['plot_config']['tab_FSviewPrep']['button_wdth'])
+            tab2_BUT_tImfit_param_Default.on_click(tab2_BUT_tImfit_param_default)
+            tab2_SPCR_LFT_BUT_tImfit_param_DEL = Spacer(
+                width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth10'])
+            tab2_SPCR_LFT_BUT_tImfit_param_RELOAD = Spacer(
+                width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth10'])
+            tab2_SPCR_LFT_BUT_tImfit_param_DEFAULT = Spacer(
+                width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth10'])
+
+
+            def tab2_BUT_timfit_param_reload():
+                try:
+                    with open(database_dir + event_id + struct_id + 'CASA_imfit_args.json', 'r') as fp:
+                        tab2_timfit_Param_dict = json.load(fp)
+                    tab2_Div_timfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
+                    on an image region(s)</b></p>' + ' '.join(
+                        "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_timfit_Param_dict.items())
+                    tab2_Div_tImfit.text = tab2_Div_timfit_text
+                    tab2_Div_tImfit2.text = '<p>CASA pimfit arguments reload from config file in <b>{}</b>.</p>'.format(
+                        database_dir + event_id + struct_id)
+                except:
+                    tab2_Div_tImfit2.text = '<p>' + database_dir + event_id + struct_id + \
+                                            '{}CASA_imfit_args.json not found!!!</p>'.format(
+                                                database_dir + event_id + struct_id)
+
+
+            tab2_BUT_tImfit_param_RELOAD = Button(label='reload Param',
+                                                  width=config_plot['plot_config']['tab_FSviewPrep']['button_wdth'])
+            tab2_BUT_tImfit_param_RELOAD.on_click(tab2_BUT_timfit_param_reload)
+            tab2_SPCR_LFT_BUT_tImfit_param_reload = Spacer(
+                width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth20'])
+
+
+            def tab2_BUT_tImfit_update():
+                with open(database_dir + event_id + struct_id + 'CASA_imfit_args.json', 'w') as fp:
+                    json.dump(tab2_tImfit_Param_dict, fp)
+                os.system('cp {}/DataBrowser/FSview/script_imfit.py {}'.format(suncasa_dir, database_dir + event_id + struct_id))
+                tab2_Div_tImfit2.text = '<p>CASA pimfit script and arguments config\
+                 file saved to <b>{}</b>.</p>'.format(database_dir + event_id + struct_id)
+                cwd = os.getcwd()
+                try:
+                    tab2_Div_tImfit2.text = '<p>CASA imfit script and arguments config file saved to <b>{}.</b></p>\
+                    <p>CASA imfit is in processing.</p>'.format(
+                        database_dir + event_id + struct_id)
+                    os.chdir(database_dir + event_id + struct_id)
+                    suncasapy = config_plot['core']['casapy']
+                    suncasapy = os.path.expandvars(suncasapy)
+                    os.system('{} -c script_imfit.py'.format(suncasapy))
+                    tab2_Div_tImfit2.text = '<p>imfit finished, go back to <b>QLook</b> \
+                    window, select StrID <b>{}</b> and click <b>FSview</b> button again.</p>'.format(
+                        struct_id[0:-1])
+                except:
+                    tab2_Div_tImfit2.text = '<p>CASA imfit script and arguments config file \
+                    saved to <b>{}.</b></p><p>Do imfit with CASA manually.</p>'.format(
+                        database_dir + event_id + struct_id) + '<p>When finished, go back to <b>QLook</b> window, \
+                        select StrID <b>{}</b> and click <b>FSview</b> button again.</p>'.format(struct_id[0:-1])
+                os.chdir(cwd)
+
+
+            tab2_BUT_tImfit = Button(label='imfit',
+                                     width=config_plot['plot_config']['tab_FSviewPrep']['button_wdth'],
+                                     button_type='success')
+            tab2_BUT_tImfit.on_click(tab2_BUT_tImfit_update)
+            tab2_SPCR_ABV_BUT_timfit = Spacer(width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth10'])
+
+            tab2_SPCR_LFT_Div_tImfit = Spacer(width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth10'])
+
+            panel2 = row(column(
                 row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
                     widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
                               tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
@@ -1976,7 +2116,14 @@ if os.path.exists(FS_dspecDF):
                     widgetbox(tab2_Select_pol, tab2_Select_bl,
                               tab2_Select_colorspace,
                               tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
-                              width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])))
+                              width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))),
+                tab2_SPCR_LFT_Div_tImfit,
+                column(tab2_input_tImfit, tab2_Div_tImfit2,
+                       row(tab2_BUT_tImfit_param_ADD, tab2_SPCR_LFT_BUT_tImfit_param_DEL,
+                           tab2_BUT_tImfit_param_DEL, tab2_SPCR_LFT_BUT_tImfit_param_DEFAULT,
+                           tab2_BUT_tImfit_param_Default, tab2_SPCR_LFT_BUT_tImfit_param_RELOAD,
+                           tab2_BUT_tImfit_param_RELOAD, tab2_SPCR_ABV_BUT_timfit, tab2_BUT_tImfit),
+                       tab2_Div_tImfit))
 
             lout = panel2
 
@@ -2095,10 +2242,13 @@ else:
 
     tab2_dspec_selected = None
 
+    timestart = xx[0]
+
 
     def tab2_dspec_selection_change(attrname, old, new):
         global tab2_dspec_selected
         tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
+
         if tab2_dspec_selected:
             global dspecDF
             dspecDF = dspecDF0.copy()
@@ -2107,6 +2257,19 @@ else:
             y0, y1 = dspecDF['freq'].min(), dspecDF['freq'].max()
             tab2_r_dspec_patch.data_source.data = ColumnDataSource(
                 pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
+            time0, time1 = dspecDF['time'].min() + timestart, dspecDF['time'].max() + timestart
+            date_char = Time(timestart / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date').iso
+            t0_char = Time(time0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+            t0_char = t0_char.split(' ')[1]
+            t1_char = Time(time1 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+            t1_char = t1_char.split(' ')[1]
+            tab2_tCLN_Param_dict['timerange'] = "'{}T{}~{}T{}'".format(date_char, t0_char, date_char, t1_char)
+            freq0, freq1 = dspecDF['freq'].min(), dspecDF['freq'].max()
+            freqrange = "'{:.3f}~{:.3f} GHz'".format(freq0, freq1)
+            tab2_tCLN_Param_dict['freqrange'] = freqrange
+            tab2_Div_tCLN_text = ' '.join(
+                "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tCLN_Param_dict.items())
+            tab2_Div_tCLN.text = tab2_Div_tCLN_text
         else:
             tab2_r_dspec_patch.data_source.data = ColumnDataSource(
                 pd.DataFrame({'xx': [], 'yy': []})).data
@@ -2284,11 +2447,8 @@ else:
 
     tab2_input_tCLN = TextInput(value="Input the param here", title="Clean task parameters:",
                                 width=config_plot['plot_config']['tab_FSview2CASA']['input_tCLN_wdth'])
-
     tab2_Div_tCLN = Div(text='', width=config_plot['plot_config']['tab_FSview2CASA']['tab2_Div_tCLN_wdth'])
     tab2_Div_tCLN2 = Div(text='', width=config_plot['plot_config']['tab_FSview2CASA']['input_tCLN_wdth'])
-
-    timestart = xx[0]
 
 
     def tab2_BUT_tCLN_param_add():
@@ -2297,28 +2457,14 @@ else:
         txts = txts.split(';')
         for txt in txts:
             txt = txt.strip()
-            # todo box selection to timerange and freqrange automaticlly for clean in FSview2CASA
-            if txt == 'timerange':
-                time0, time1 = dspecDF['time'].min() + timestart, dspecDF['time'].max() + timestart
-                date_char = Time(timestart / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date').iso
-                t0_char = Time(time0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
-                t0_char = t0_char.split(' ')[1]
-                t1_char = Time(time1 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
-                t1_char = t1_char.split(' ')[1]
-                tab2_tCLN_Param_dict['timerange'] = "'{}T{}~{}T{}'".format(date_char, t0_char, date_char, t1_char)
-            elif txt == 'freqrange':
-                freq0, freq1 = dspecDF['freq'].min(), dspecDF['freq'].max()
-                freqrange = "'{:.3f}~{:.3f} GHz'".format(freq0, freq1)
-                tab2_tCLN_Param_dict['freqrange'] = freqrange
+            txt = txt.split('=')
+            if len(txt) == 2:
+                key, val = txt
+                tab2_tCLN_Param_dict[key.strip()] = val.strip()
             else:
-                txt = txt.split('=')
-                if len(txt) == 2:
-                    key, val = txt
-                    tab2_tCLN_Param_dict[key.strip()] = val.strip()
-                else:
-                    tab2_Div_tCLN2.text = '<p>Input syntax: <b>uvtaper</b>=True; <b>niter</b>=200; ' \
-                                          '<b>cell</b>=["5.0arcsec", "5.0arcsec"]. Any spaces will be ignored.</p>'
-        tab2_Div_tCLN_text = ' '.join(
+                tab2_Div_tCLN2.text = '<p>Input syntax: <b>uvtaper</b>=True; <b>niter</b>=200; ' \
+                                      '<b>cell</b>=["5.0arcsec", "5.0arcsec"]. Any spaces will be ignored.</p>'
+        tab2_Div_tCLN_text = '<p><b>#  ptclean :: Parallelized clean in consecutive time steps</b></p>' + ' '.join(
             "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tCLN_Param_dict.items())
         tab2_Div_tCLN.text = tab2_Div_tCLN_text
 
@@ -2334,7 +2480,7 @@ else:
             except:
                 tab2_Div_tCLN2.text = '<p>Input syntax: <b>uvtaper</b>; <b>niter</b>; ' \
                                       '<b>cell</b>. Any spaces will be ignored.</p>'
-        tab2_Div_tCLN_text = ' '.join(
+        tab2_Div_tCLN_text = '<p><b>#  ptclean :: Parallelized clean in consecutive time steps</b></p>' + ' '.join(
             "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tCLN_Param_dict.items())
         tab2_Div_tCLN.text = tab2_Div_tCLN_text
 
@@ -2352,8 +2498,8 @@ else:
         tab2_tCLN_Param_dict['antenna'] = "''"
         tab2_tCLN_Param_dict['ephemfile'] = "'horizons_sun_20141101.radecp'"
         tab2_tCLN_Param_dict['msinfofile'] = "'SUN01_20141101.T163940-164700.50ms.cal.msinfo.npz'"
-        tab2_tCLN_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
         tab2_tCLN_Param_dict['event_id'] = "'{}'".format(event_id.replace("/", ""))
+        tab2_tCLN_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
         tab2_tCLN_Param_dict['mode'] = "'channel'"
         tab2_tCLN_Param_dict['imagermode'] = "'csclean'"
         tab2_tCLN_Param_dict['weighting'] = "'natural'"
@@ -2370,7 +2516,7 @@ else:
         tab2_tCLN_Param_dict['niter'] = "200"
         tab2_tCLN_Param_dict['usescratch'] = "False"
         tab2_tCLN_Param_dict['interactive'] = "False"
-        tab2_Div_tCLN_text = ' '.join(
+        tab2_Div_tCLN_text = '<p><b>#  ptclean :: Parallelized clean in consecutive time steps</b></p>' + ' '.join(
             "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tCLN_Param_dict.items())
         tab2_Div_tCLN.text = tab2_Div_tCLN_text
         tab2_Div_tCLN2.text = '<p><b>Default parameter Restored.</b></p>'
@@ -2391,8 +2537,8 @@ else:
     tab2_BUT_tCLN_param_Default.on_click(tab2_BUT_tCLN_param_default)
     tab2_SPCR_LFT_BUT_tCLN_param_DEL = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
     tab2_SPCR_LFT_BUT_tCLN_param_RELOAD = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
-    tab2_SPCR_LFT_BUT_tCLN_param_FSVIEW = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
     tab2_SPCR_LFT_BUT_tCLN_param_DEFAULT = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
+    tab2_SPCR_LFT_BUT_tCLN_param_FSVIEW = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
     tab2_SPCR_LFT_Div_tCLN2 = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth50'],
                                      height=config_plot['plot_config']['tab_FSview2CASA']['space_hght10'])
 
@@ -2400,7 +2546,7 @@ else:
     def tab2_BUT_tCLN_param_reload():
         with open(database_dir + event_id + struct_id + 'CASA_CLN_args.json', 'r') as fp:
             tab2_tCLN_Param_dict = json.load(fp)
-        tab2_Div_tCLN_text = ' '.join(
+        tab2_Div_tCLN_text = '<p><b>#  ptclean :: Parallelized clean in consecutive time steps</b></p>' + ' '.join(
             "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tCLN_Param_dict.items())
         tab2_Div_tCLN.text = tab2_Div_tCLN_text
         tab2_Div_tCLN2.text = '<p>CASA arguments reload from config file in <b>{}</b>.</p>'.format(
@@ -2410,8 +2556,7 @@ else:
     def tab2_BUT_tCLN_clean():
         with open(database_dir + event_id + struct_id + 'CASA_CLN_args.json', 'w') as fp:
             json.dump(tab2_tCLN_Param_dict, fp)
-        os.system('cp {}FSview/script_process.py {}'.format(suncasa_dir, database_dir + event_id + struct_id))
-        # os.system('cp FSview/script_preprocess.py {}'.format(database_dir + event_id + struct_id))
+        os.system('cp {}/DataBrowser/FSview/script_clean.py {}'.format(suncasa_dir, database_dir + event_id + struct_id))
         tab2_Div_tCLN2.text = '<p>CASA script and arguments config file saved to <b>{}</b>.</p>'.format(
             database_dir + event_id + struct_id)
         timestrs = []
@@ -2440,19 +2585,20 @@ else:
             database_dir + event_id + struct_id, struct_id[0:-1])
         cwd = os.getcwd()
         try:
+            tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}.</b></p>\
+            <p>CASA clean is in processing.</p>'.format(database_dir + event_id + struct_id)
             os.chdir(database_dir + event_id + struct_id)
             suncasapy = config_plot['core']['casapy']
             suncasapy = os.path.expandvars(suncasapy)
-            os.system('{} -c script_process.py'.format(suncasapy))
-            tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}</b></p>. <p>CASA clean is in processing.</p>'.format(
-                database_dir + event_id + struct_id) + '<p>When finished, go back to <b>QLook</b> window, select StrID <b>{}</b> and \
+            os.system('{} -c script_clean.py'.format(suncasapy))
+            tab2_Div_tCLN2.text = '<p>Clean finished, go back to <b>QLook</b> window, select StrID <b>{}</b> and \
                 click <b>FSview</b> button again.</p>'.format(
-                database_dir + event_id + struct_id, struct_id[0:-1])
+                struct_id[0:-1])
         except:
-            tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}</b></p>. <p>Do image clean with CASA manually.</p>'.format(
-                database_dir + event_id + struct_id) + '<p>When finished, go back to <b>QLook</b> window, select StrID <b>{}</b> and \
-                click <b>FSview</b> button again.</p>'.format(
-                database_dir + event_id + struct_id, struct_id[0:-1])
+            tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}.</b></p>\
+            <p>Do image clean with CASA manually.</p>'.format(database_dir + event_id + struct_id) + '<p>When finished,\
+             go back to <b>QLook</b> window, select StrID <b>{}</b>\
+              and click <b>FSview</b> button again.</p>'.format(struct_id[0:-1])
         os.chdir(cwd)
 
 
@@ -2461,13 +2607,13 @@ else:
     tab2_BUT_tCLN_param_RELOAD.on_click(tab2_BUT_tCLN_param_reload)
     tab2_SPCR_LFT_BUT_tCLN_param_reload = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth20'],
                                                  height=config_plot['plot_config']['tab_FSview2CASA']['space_hght10'])
-    tab2_BUT_tCLN_CLEAN = Button(label='ToClean',
+    tab2_BUT_tCLN_CLEAN = Button(label='clean',
                                  width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'],
                                  button_type='success')
     tab2_SPCR_ABV_BUT_tCLN = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'],
                                     height=config_plot['plot_config']['tab_FSview2CASA']['space_hght18'])
     tab2_BUT_tCLN_CLEAN.on_click(tab2_BUT_tCLN_clean)
-    tab2_SPCR_LFT_BUT_FS_view = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
+    tab2_SPCR_LFT_BUT_CLEAN = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
     tab2_BUT_FS_view = Button(label='FS view', width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'],
                               button_type='primary')
 
@@ -2487,7 +2633,7 @@ else:
                                               row(tab2_BUT_tCLN_param_ADD, tab2_SPCR_LFT_BUT_tCLN_param_DEL,
                                                   tab2_BUT_tCLN_param_DEL, tab2_SPCR_LFT_BUT_tCLN_param_DEFAULT,
                                                   tab2_BUT_tCLN_param_Default, tab2_SPCR_LFT_BUT_tCLN_param_RELOAD,
-                                                  tab2_BUT_tCLN_param_RELOAD, tab2_SPCR_LFT_BUT_FS_view,
+                                                  tab2_BUT_tCLN_param_RELOAD, tab2_SPCR_LFT_BUT_CLEAN,
                                                   tab2_BUT_tCLN_CLEAN)),
                                        widgetbox(tab2_Select_pol, tab2_Select_bl, tab2_Select_colorspace,
                                                  tab2_panel2_BUT_exit,

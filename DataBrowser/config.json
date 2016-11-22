@@ -32,6 +32,7 @@
       "space_hght10": 10
     },
     "tab_FSviewPrep": {
+      "tab2_Div_tImfit_wdth": 600,
       "dspec_thumb_wdth": 330,
       "dspec_yPro_hght": 200,
       "vla_wdth": 330,
@@ -45,11 +46,13 @@
       "dspec_thumb_hght": 390,
       "dspec_xPro_hght": 200,
       "widgetbox_wdth": 150,
-      "button_wdth": 100,
+      "input_tCLN_wdth": 640,
+      "button_wdth": 120,
       "space_wdth50": 50,
       "space_hght18": 18,
       "space_wdth20": 20,
-      "space_hght10": 10
+      "space_hght10": 10,
+      "space_wdth10": 10
     },
     "tab_QLook": {
       "StrID_DataTb_wdth": 1050,
