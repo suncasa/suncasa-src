@@ -207,15 +207,15 @@ def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=Tr
     msfile = []
     for filename in filelist:
         uv = aipy.miriad.UV(filename)
-        if uv['source'].lower() == 'sun':
-            visprefix = visprefix + 'sun/'
-            if not os.path.exists(visprefix):
-                os.mkdir(visprefix)
-        else:
-            visprefix = visprefix + 'calibrator/'
-            if not os.path.exists(visprefix):
-                os.mkdir(visprefix)
-        uv.rewind()
+        # if uv['source'].lower() == 'sun':
+        #     visprefix = visprefix + 'sun/'
+        #     if not os.path.exists(visprefix):
+        #         os.mkdir(visprefix)
+        # else:
+        #     visprefix = visprefix + 'calibrator/'
+        #     if not os.path.exists(visprefix):
+        #         os.mkdir(visprefix)
+        # uv.rewind()
 
         start_time = 0  # The start and stop times are referenced to ref_time_jd in second
         end_time = 600
@@ -312,6 +312,9 @@ def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=Tr
         timearr = timearr.reshape(nband * npairs * time_steps) + ref_time_mjd
         tb.putcol('TIME', timearr)
         tb.putcol('TIME_CENTROID', timearr)
+        scan_id = tb.getcol('SCAN_NUMBER')
+        scan_id *= 0
+        tb.putcol('SCAN_NUMBER', scan_id)
         colnames = tb.colnames()
         cols2rm = ["MODEL_DATA", "CORRECTED_DATA"]
         for l in range(len(cols2rm)):
