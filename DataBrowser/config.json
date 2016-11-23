@@ -5,11 +5,11 @@
       "dspec_small_hght": 180,
       "dspec_small_wdth": 465,
       "aia_submap_wdth": 590,
-      "button_wdth":100,
-      "space_wdth50":50,
-      "space_hght18":18,
-      "space_wdth20":20,
-      "space_hght10":10
+      "button_wdth": 100,
+      "space_wdth50": 50,
+      "space_hght18": 18,
+      "space_wdth20": 20,
+      "space_hght10": 10
     },
     "tab_FSview_base": {
       "dspec_thumb_wdth": 200,
@@ -25,13 +25,14 @@
       "dspec_thumb_hght": 250,
       "dspec_xPro_hght": 250,
       "widgetbox_wdth": 150,
-      "button_wdth":100,
-      "space_wdth50":50,
-      "space_hght18":18,
-      "space_wdth20":20,
-      "space_hght10":10
+      "button_wdth": 100,
+      "space_wdth50": 50,
+      "space_hght18": 18,
+      "space_wdth20": 20,
+      "space_hght10": 10
     },
-      "tab_FSviewPrep": {
+    "tab_FSviewPrep": {
+      "tab2_Div_tImfit_wdth": 600,
       "dspec_thumb_wdth": 330,
       "dspec_yPro_hght": 200,
       "vla_wdth": 330,
@@ -45,11 +46,13 @@
       "dspec_thumb_hght": 390,
       "dspec_xPro_hght": 200,
       "widgetbox_wdth": 150,
-      "button_wdth":100,
-      "space_wdth50":50,
-      "space_hght18":18,
-      "space_wdth20":20,
-      "space_hght10":10
+      "input_tCLN_wdth": 640,
+      "button_wdth": 120,
+      "space_wdth50": 50,
+      "space_hght18": 18,
+      "space_wdth20": 20,
+      "space_hght10": 10,
+      "space_wdth10": 10
     },
     "tab_QLook": {
       "StrID_DataTb_wdth": 1050,
@@ -81,26 +84,30 @@
       "input_tCLN_wdth": 640,
       "widgetbox_wdth1": 200,
       "widgetbox_wdth2": 300,
-      "button_wdth":120,
-      "space_wdth50":50,
-      "space_hght18":18,
-      "space_hght30":30,
-      "space_wdth10":10,
-      "space_wdth20":20,
-      "space_hght10":10,
-      "space_hght5":5
+      "button_wdth": 120,
+      "space_wdth50": 50,
+      "space_hght18": 18,
+      "space_hght30": 30,
+      "space_wdth10": 10,
+      "space_wdth20": 20,
+      "space_hght10": 10,
+      "space_hght5": 5
     },
     "WebGL": false
   },
   "datadir": {
     "database": "${SUNCASADB}",
+    "suncasa": "${SUNCASA}",
     "EvtID_list": "EvtID_list.json",
     "J2000": "J2000/",
-    "AIA":"AIA/",
-    "HMI":"HMI/",
+    "AIA": "AIA/",
+    "HMI": "HMI/",
     "fits_LOCL": "Synthesis_Image/local/",
     "fits_LOCL_init": "QLook/static/Synthesis_Image_fits_LOCL_init.fits",
     "fits_GLOB": "Synthesis_Image/global/",
     "fits_GLOB_init": "QLook/static/Synthesis_Image_fits_GLOB_init.fits"
+  },
+  "core": {
+    "casapy": "${SUNCASAPY}"
   }
 }

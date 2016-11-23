@@ -3,9 +3,10 @@ import numpy as np
 import glob
 import os
 from  casac import *
+import pickle
 
 database_dir = "${SUNCASADB}"
-database_dir = os.path.expandvars(database_dir)
+database_dir = os.path.expandvars(database_dir) + '/'
 if os.path.exists('CASA_CLN_args.json'):
     with open('CASA_CLN_args.json', 'r') as fp:
         CASA_CLN_args = json.load(fp)
@@ -29,7 +30,7 @@ if os.path.exists('CASA_CLN_args.json'):
         structure_id = struct_id
     else:
         raise ValueError('define a struct_id!!!')
-    print 'Script for calibrating --- {} in {}'.format(structure_id, event_id)
+    print 'Script for clean --- {} in {}'.format(structure_id, event_id)
     print ''
     if not ('timerange' in locals()):
         timeran = [qa.time(qa.quantity(ll, 's'), prec=9)[0] for ll in mstimran['time']]
@@ -37,7 +38,6 @@ if os.path.exists('CASA_CLN_args.json'):
         timeran = timerange
     if not 'ncpu' in locals():
         ncpu = 10
-    chunksize = ncpu
     (tstart, tend) = timeran.split('~')
     bt_s = qa.convert(qa.quantity(tstart, 's'), 's')['value']
     et_s = qa.convert(qa.quantity(tend, 's'), 's')['value']
@@ -46,6 +46,7 @@ if os.path.exists('CASA_CLN_args.json'):
     dt = float('{:.3f}'.format(np.median(np.diff(timeInfo))))
     if not 'twidth' in locals():
         twidth = 1
+    # chunksize = ncpu
     # timerans = []
     # if etidx <= btidx + twidth * chunksize:
     #     btstr = qa.time(qa.quantity(timeInfo[btidx] - dt / 2, 's'), prec=9, form='fits')[0]
@@ -100,6 +101,8 @@ if os.path.exists('CASA_CLN_args.json'):
     imgdir = database_dir + event_id + '/' + struct_id + '/Synthesis_Image/'
     if not os.path.exists(imgdir):
         os.mkdir(imgdir)
+    with open(imgdir + 'CASA_CLN_out', 'r') as fp:
+        pickle.dump(out, fp)
     imgdir = imgdir + 'local/'
     if not os.path.exists(imgdir):
         os.mkdir(imgdir)
@@ -112,6 +115,7 @@ if os.path.exists('CASA_CLN_args.json'):
         fits1 = fits1.split('/')[-1]
         # print imgdir+fits1
         os.system('mv {} {}'.format(fits, imgdir + fits1))
+
 
 else:
     print 'CASA arguments config file not found!!'

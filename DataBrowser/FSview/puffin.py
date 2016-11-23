@@ -27,7 +27,8 @@ class PuffinMap:
     """
     __slots__ = ['smap', 'plot_height', 'plot_width', 'x', 'y', 'dw', 'dh', 'x_range', 'y_range']
 
-    def __init__(self, data=None, header=None, smap=None, plot_height=None, plot_width=None, *args, **kwargs):
+    def __init__(self, data=None, header=None, smap=None, plot_height=None, plot_width=None, webgl=False, *args,
+                 **kwargs):
         if not smap:
             smap = sunpy.map.Map((data, header))
         self.smap = smap
@@ -35,7 +36,7 @@ class PuffinMap:
             plot_height = 400.0
         if not plot_width:
             plot_width = 400.0
-
+        self.webgl = webgl
         self.plot_height = plot_height
         self.plot_width = plot_width
 
@@ -143,7 +144,8 @@ class PuffinMap:
         if not palette:
             palette = bokehpalette_jet
         # plot the global vla image
-        p_image = figure(tools='pan,wheel_zoom,save,reset', x_range=x_range, y_range=y_range, title=title,
+        p_image = figure(tools='pan,wheel_zoom,save,reset', webgl=self.webgl, x_range=x_range, y_range=y_range,
+                         title=title,
                          plot_height=self.plot_height,
                          plot_width=self.plot_width, *args, **kwargs)
         p_image.xaxis.axis_label = 'X-position [arcsec]'

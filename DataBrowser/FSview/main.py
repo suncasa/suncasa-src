@@ -1,7 +1,7 @@
 # The plot server must be running
 # Go to http://localhost:5006/bokeh to view this plot
 import json
-import os,sys
+import os, sys
 import pickle
 import time
 from collections import OrderedDict
@@ -30,10 +30,12 @@ __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
 '''load config file'''
-with open('../config.json', 'r') as fp:
+suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
+'''load config file'''
+with open(suncasa_dir + 'DataBrowser/config.json', 'r') as fp:
     config_plot = json.load(fp)
 database_dir = config_plot['datadir']['database']
-database_dir = os.path.expandvars(database_dir)+'/'
+database_dir = os.path.expandvars(database_dir) + '/'
 with open('{}config_EvtID_curr.json'.format(database_dir), 'r') as fp:
     config_EvtID = json.load(fp)
 
@@ -211,10 +213,7 @@ if os.path.exists(FS_dspecDF):
         tab2_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
                                         width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
-        map = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
-                     width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-
-        tab2_p_dspec_xPro = figure(tools='',
+        tab2_p_dspec_xPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
                                    plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_xPro_wdth'],
                                    plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_xPro_hght'],
                                    x_range=tab2_p_dspec.x_range, y_range=(spec_plt_min, spec_plt_max),
@@ -247,7 +246,7 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec_xPro.axis.major_tick_line_color = "black"
         tab2_p_dspec_xPro.axis.minor_tick_line_color = "black"
 
-        tab2_p_dspec_yPro = figure(tools='',
+        tab2_p_dspec_yPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
                                    plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_yPro_wdth'],
                                    plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_yPro_hght'],
                                    x_range=(spec_plt_min, spec_plt_max), y_range=tab2_p_dspec.y_range,
@@ -427,7 +426,7 @@ if os.path.exists(FS_dspecDF):
             vla_global_pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header,
                                          plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
                                          plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
-                                         palette=bokehpalette_SynthesisImg)
+                                         palette=bokehpalette_SynthesisImg, webgl=config_plot['plot_config']['WebGL'])
             hdulist = fits.open(fits_LOCL_dir + dspecDF.loc[76, :]['fits_local'])
             hdu = hdulist[0]
             vla_local_pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header)
@@ -470,7 +469,8 @@ if os.path.exists(FS_dspecDF):
 
         aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
                                         plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                        plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'])
+                                        plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
+                                        webgl=config_plot['plot_config']['WebGL'])
 
         tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
                                                              palette=bokehpalette_sdoaia171)
@@ -495,7 +495,8 @@ if os.path.exists(FS_dspecDF):
         # plot the detail AIA image
         aia_submap_pfmap = PuffinMap(smap=aiamap_submap,
                                      plot_height=config_plot['plot_config']['tab_FSview_FitANLYS']['aia_submap_hght'],
-                                     plot_width=config_plot['plot_config']['tab_FSview_FitANLYS']['aia_submap_wdth'])
+                                     plot_width=config_plot['plot_config']['tab_FSview_FitANLYS']['aia_submap_wdth'],
+                                     webgl=config_plot['plot_config']['WebGL'])
 
         tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
                                                                         grid_spacing=20 * u.deg,
@@ -540,7 +541,8 @@ if os.path.exists(FS_dspecDF):
         hmi_resampled_map = hmimap.resample(dimensions)
         hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
                                         plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                        plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'])
+                                        plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
+                                        webgl=config_plot['plot_config']['WebGL'])
 
         tab2_p_hmi, tab2_r_hmi = hmi_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
                                                              x_range=tab2_p_aia.x_range,
@@ -644,7 +646,7 @@ if os.path.exists(FS_dspecDF):
                 hdulist = fits.open(fits_GLOB_dir + dspecDF.loc[idx_selected, :]['fits_global'])
                 hdu = hdulist[0]
                 pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header, plot_height=tab2_LinkImg_HGHT,
-                                  plot_width=tab2_LinkImg_WDTH)
+                                  plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
                 SRC_Img = pfmap.ImageSource()
                 tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
                 popt = [dspecDF.loc[idx_selected, :]['amp_gaus'], dspecDF.loc[idx_selected, :]['x_pos'],
@@ -1200,13 +1202,15 @@ if os.path.exists(FS_dspecDF):
             aia_resampled_map = aiamap.resample(dimensions)
             aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
                                             plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                            plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'])
+                                            plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
+                                            webgl=config_plot['plot_config']['WebGL'])
             SRC_AIA = aia_resampled_pfmap.ImageSource()
             tab2_r_aia.data_source.data['data'] = SRC_AIA.data['data']
             hmi_resampled_map = hmimap.resample(dimensions)
             hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
                                             plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                            plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'])
+                                            plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
+                                            webgl=config_plot['plot_config']['WebGL'])
             SRC_HMI = hmi_resampled_pfmap.ImageSource()
             tab2_r_hmi.data_source.data['data'] = SRC_HMI.data['data']
             print("---tab2_update_MapRES -- %s seconds ---" % (time.time() - start_timestamp))
@@ -1349,10 +1353,7 @@ if os.path.exists(FS_dspecDF):
             tab2_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
                                             width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
-            map = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
-                         width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-
-            tab2_p_dspec_xPro = figure(tools='',
+            tab2_p_dspec_xPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
                                        plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_xPro_wdth'],
                                        plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_xPro_hght'],
                                        x_range=tab2_p_dspec.x_range, y_range=(spec_plt_min, spec_plt_max),
@@ -1385,7 +1386,7 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec_xPro.axis.major_tick_line_color = "black"
             tab2_p_dspec_xPro.axis.minor_tick_line_color = "black"
 
-            tab2_p_dspec_yPro = figure(tools='',
+            tab2_p_dspec_yPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
                                        plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_yPro_wdth'],
                                        plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_yPro_hght'],
                                        x_range=(spec_plt_min, spec_plt_max), y_range=tab2_p_dspec.y_range,
@@ -1460,12 +1461,18 @@ if os.path.exists(FS_dspecDF):
                 tab2_p_dspec_yPro.x_range.end = spec_plt_max
 
 
+            tab2_Select_pol_opt = ['RR', 'LL', 'I', 'V']
+
+
             def tab2_vdspec_update():
-                global spec_plt_R, spec_plt_L, spec_plt_I, spec_plt_V
+                global spec_plt_R, spec_plt_L, spec_plt_I, spec_plt_V, tab2_Select_pol_opt
                 select_pol = tab2_Select_pol.value
                 tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
                 if tab2_BUT_vdspec.label == "VEC Dyn Spec":
                     if tab2_vla_square_selected:
+                        tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum in calculating...</b></p>'
+                        tab2_Select_pol_opt = tab2_Select_pol.options
+                        tab2_Select_pol.options = pols
                         tab2_BUT_vdspec.label = "Dyn Spec"
                         idxmax = max(tab2_vla_square_selected)
                         idxmin = min(tab2_vla_square_selected)
@@ -1476,36 +1483,56 @@ if os.path.exists(FS_dspecDF):
                         spec_plt_L = np.zeros((tab2_nfreq, tab2_ntim))
                         spec_plt_I = np.zeros((tab2_nfreq, tab2_ntim))
                         spec_plt_V = np.zeros((tab2_nfreq, tab2_ntim))
-                        for ll in xrange(tab2_ntim):
-                            hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
-                            if os.path.exists(hdufile):
-                                hdulist = fits.open(hdufile)
-                                hdu = hdulist[0]
-                                nfreq_hdu = hdu.header['NAXIS3']
-                                freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
-                                freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
-                                idxfreq_ref = freq.index(freq_ref)
-                                # select_pol == 'RR':
-                                vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1]
-                                spec_plt_R[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata, axis=(-1, -2))
-                                spec_plt_R[spec_plt_R < 0] = 0
-                                # select_pol == 'LL':
-                                vladata = hdu.data[1, :, y0:y1 + 1, x0:x1 + 1]
-                                spec_plt_L[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata, axis=(-1, -2))
-                                spec_plt_L[spec_plt_L < 0] = 0
-                                # select_pol == 'I':
-                                vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1] + hdu.data[1, :, y0:y1 + 1, x0:x1 + 1]
-                                spec_plt_I[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata, axis=(-1, -2))
-                                spec_plt_I[spec_plt_I < 0] = 0
-                                # select_pol == 'V':
-                                vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1] - hdu.data[1, :, y0:y1 + 1, x0:x1 + 1]
-                                spec_plt_V[idxfreq_ref:idxfreq_ref + nfreq_hdu, ll] = np.nanmean(vladata, axis=(-1, -2))
-                                spec_plt_V[spec_plt_V < 0] = 0
+                        if len(pols) > 1:
+                            for ll in xrange(tab2_ntim):
+                                hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
+                                if os.path.exists(hdufile):
+                                    hdulist = fits.open(hdufile)
+                                    hdu = hdulist[0]
+                                    nfreq_hdu = hdu.header['NAXIS3']
+                                    freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
+                                    freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
+                                    idxfreq = freq.index(freq_ref)
+                                    vla_l = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1]
+                                    vla_r = hdu.data[1, :, y0:y1 + 1, x0:x1 + 1]
+                                    spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = \
+                                        np.nanmean(vla_l, axis=(-1, -2))
+                                    spec_plt_R[spec_plt_R < 0] = 0
+                                    spec_plt_L[idxfreq:idxfreq + nfreq_hdu, ll] = \
+                                        np.nanmean(vla_r, axis=(-1, -2))
+                                    spec_plt_L[spec_plt_L < 0] = 0
+                                    spec_plt_I[idxfreq:idxfreq + nfreq_hdu, ll] = \
+                                        np.nanmean(vla_l + vla_r, axis=(-1, -2))
+                                    spec_plt_I[spec_plt_I < 0] = 0
+                                    spec_plt_V[idxfreq:idxfreq + nfreq_hdu, ll] = \
+                                        np.nanmean(vla_l - vla_r, axis=(-1, -2))
+                                    spec_plt_V[spec_plt_V < 0] = 0
+                        elif len(pols) == 1:
+                            for ll in xrange(tab2_ntim):
+                                hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
+                                if os.path.exists(hdufile):
+                                    hdulist = fits.open(hdufile)
+                                    hdu = hdulist[0]
+                                    nfreq_hdu = hdu.header['NAXIS3']
+                                    freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
+                                    freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
+                                    idxfreq = freq.index(freq_ref)
+                                    vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1]
+                                    vlaflux = np.nanmean(vladata, axis=(-1, -2))
+                                    spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = vlaflux
+                                    spec_plt_R[spec_plt_R < 0] = 0
+                            spec_plt_L = spec_plt_R
+                            spec_plt_I = spec_plt_R
+                            spec_plt_V = spec_plt_R
+                            # print spec_plt_L
+                        tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum calculated.</b></p>'
+
                         tab2_dspec_image_plt(select_pol)
                         tab2_p_dspec.title.text = "Vector Dynamic spectrum"
                     else:
                         tab2_Div_LinkImg_plot.text = '<p><b>Warning:</b> select a region first.</p>'
                 else:
+                    tab2_Select_pol.options = tab2_Select_pol_opt
                     select_bl = tab2_Select_bl.value
                     tab2_BUT_vdspec.label = "VEC Dyn Spec"
                     bl_index = tab2_bl.index(select_bl)
@@ -1515,6 +1542,7 @@ if os.path.exists(FS_dspecDF):
                     spec_plt_V = (tab2_spec[0, bl_index, :, :] - tab2_spec[1, bl_index, :, :]) / 2.
                     tab2_dspec_image_plt(select_pol)
                     tab2_p_dspec.title.text = "Dynamic spectrum"
+                    tab2_Div_LinkImg_plot.text = ''
 
 
             tab2_BUT_vdspec.on_click(tab2_vdspec_update)
@@ -1595,7 +1623,8 @@ if os.path.exists(FS_dspecDF):
             hdu = hdulist[0]
             vla_local_pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header,
                                         plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                        plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'])
+                                        plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
+                                        webgl=config_plot['plot_config']['WebGL'])
             # plot the contour of vla image
             mapx, mapy = vla_local_pfmap.meshgrid()
             mapx, mapy = mapx.value, mapy.value
@@ -1627,7 +1656,8 @@ if os.path.exists(FS_dspecDF):
 
             aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
                                             plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                            plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'])
+                                            plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
+                                            webgl=config_plot['plot_config']['WebGL'])
 
             tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
                                                                  palette=bokehpalette_sdoaia171)
@@ -1662,7 +1692,8 @@ if os.path.exists(FS_dspecDF):
             hmi_resampled_map = hmimap.resample(dimensions)
             hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
                                             plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                            plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'])
+                                            plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
+                                            webgl=config_plot['plot_config']['WebGL'])
 
             tab2_p_hmi, tab2_r_hmi = hmi_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
                                                                  x_range=tab2_p_aia.x_range,
@@ -1730,7 +1761,21 @@ if os.path.exists(FS_dspecDF):
                                               width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                               callback_policy='mouseup')
 
-            tab2_Select_vla_pol = Select(title="Polarization:", value='RR', options=['RR', 'LL', 'I', 'V'],
+            stokeslist = ['{}'.format(int(ll)) for ll in
+                          (hdu.header["CRVAL4"] + np.arange(hdu.header["NAXIS4"]) * hdu.header["CDELT4"])]
+            stokesdict = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3': 'RL', '-4': 'LR',
+                          '-5': 'XX', '-6': 'YY', '-7': 'XY', '-8': 'YX'}
+            pols = map(lambda x: stokesdict[x], stokeslist)
+            # pols = ['RR', 'LL', 'I', 'V']
+            SRL = set(['RR', 'LL'])
+            SXY = set(['XX', 'YY', 'XY', 'YX'])
+            Spol = set(pols)
+            if hdu.header['NAXIS4'] == 2 and len(SRL.intersection(Spol)) == 2:
+                pols = pols + ['I', 'V']
+            if hdu.header['NAXIS4'] == 4 and len(SXY.intersection(Spol)) == 4:
+                pols = pols + ['I', 'V']
+
+            tab2_Select_vla_pol = Select(title="Polarization:", value=pols[0], options=pols,
                                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
             tab2_source_idx_line_x = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
@@ -1765,15 +1810,15 @@ if os.path.exists(FS_dspecDF):
                     hdulist = fits.open(hdufile)
                     hdu = hdulist[0]
                     if select_vla_pol == 'RR':
-                        vladata = hdu.data[0, fidx, :, :]
+                        vladata = hdu.data[pols.index('RR'), fidx, :, :]
                     elif select_vla_pol == 'LL':
-                        vladata = hdu.data[1, fidx, :, :]
+                        vladata = hdu.data[pols.index('LL'), fidx, :, :]
                     elif select_vla_pol == 'I':
-                        vladata = hdu.data[0, fidx, :, :] + hdu.data[1, fidx, :, :]
+                        vladata = hdu.data[pols.index('RR'), fidx, :, :] + hdu.data[pols.index('1'), fidx, :, :]
                     elif select_vla_pol == 'V':
-                        vladata = hdu.data[0, fidx, :, :] - hdu.data[1, fidx, :, :]
+                        vladata = hdu.data[pols.index('RR'), fidx, :, :] - hdu.data[pols.index('1'), fidx, :, :]
                     pfmap = PuffinMap(vladata, hdu.header, plot_height=tab2_LinkImg_HGHT,
-                                      plot_width=tab2_LinkImg_WDTH)
+                                      plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
                     SRC_Img = pfmap.ImageSource()
                     tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
                     mapx, mapy = pfmap.meshgrid()
@@ -1821,10 +1866,6 @@ if os.path.exists(FS_dspecDF):
                     global dspecDF
                     dspecDF = dspecDF0.iloc[tab2_dspec_selected, :]
                     idx_selected = dspecDF.index[len(dspecDF) / 2]
-                    # print ['{:.3f}'.format(ll) for ll in tab2_dtim], '{:.3f}'.format(
-                    #     dspecDF0.loc[idx_selected, :]['time'])
-                    # print ['{:.3f}'.format(ll) for ll in tab2_freq], '{:.3f}'.format(
-                    #     dspecDF0.loc[idx_selected, :]['freq'])
                     tidx = int(['{:.3f}'.format(ll) for ll in tab2_dtim].index(
                         '{:.3f}'.format(dspecDF0.loc[idx_selected, :]['time'])))
                     fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
@@ -1867,13 +1908,15 @@ if os.path.exists(FS_dspecDF):
                 aia_resampled_map = aiamap.resample(dimensions)
                 aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
                                                 plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                                plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'])
+                                                plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
+                                                webgl=config_plot['plot_config']['WebGL'])
                 SRC_AIA = aia_resampled_pfmap.ImageSource()
                 tab2_r_aia.data_source.data['data'] = SRC_AIA.data['data']
                 hmi_resampled_map = hmimap.resample(dimensions)
                 hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
                                                 plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                                plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'])
+                                                plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
+                                                webgl=config_plot['plot_config']['WebGL'])
                 SRC_HMI = hmi_resampled_pfmap.ImageSource()
                 tab2_r_hmi.data_source.data['data'] = SRC_HMI.data['data']
                 print("---tab2_update_MapRES -- %s seconds ---" % (time.time() - start_timestamp))
@@ -1881,33 +1924,42 @@ if os.path.exists(FS_dspecDF):
 
             tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
 
-
             # todo add the threshold selection (overplot another gylph)
 
 
+            rgnfitsfile = database_dir + event_id + struct_id + "CASA_imfit_region_fits.rgn"
+
+
             def tab2_save_region():
-                pangle = hdu.header['p_angle']
-                x0Deg, x1Deg, y0Deg, y1Deg = (x0 - hdu.header['CRVAL1']) / 3600., (x1 - hdu.header['CRVAL1']) / 3600., (
-                    y0 - hdu.header['CRVAL2']) / 3600., (y1 - hdu.header['CRVAL2']) / 3600.
-                # todo find p0 in fits header
-                p0 = -pangle
-                prad = radians(p0)
-                dx0 = (x0Deg) * cos(prad) - y0Deg * sin(prad)
-                dy0 = (x0Deg) * sin(prad) + y0Deg * cos(prad)
-                dx1 = (x1Deg) * cos(prad) - y1Deg * sin(prad)
-                dy1 = (x1Deg) * sin(prad) + y1Deg * cos(prad)
-                x0Deg, x1Deg, y0Deg, y1Deg = (dx0 + hdu.header['CRVAL1'] / 3600.), (
-                    dx1 + hdu.header['CRVAL1'] / 3600.), (dy0 + hdu.header['CRVAL2'] / 3600.), (
-                                                 dy1 + hdu.header['CRVAL2'] / 3600.)
-                c0fits = SkyCoord(ra=(x0Deg) * u.degree, dec=(y0Deg) * u.degree)
-                c1fits = SkyCoord(ra=(x1Deg) * u.degree, dec=(y1Deg) * u.degree)
-                rgnfits = '#CRTFv0 CASA Region Text Format version 0\nbox [[{}], [{}]] coord=J2000, linewidth=1, linestyle=-, symsize=1, symthick=1, color=magenta, font="DejaVu Sans", fontsize=11, fontstyle=normal, usetex=false'.format(
-                    ', '.join(c0fits.to_string('hmsdms').split(' ')), ', '.join(c1fits.to_string('hmsdms').split(' ')))
-                print rgnfits
-                rgnfitsfile = database_dir + event_id + struct_id + "CASA_imfit_region_fits.rgn"
-                with open(rgnfitsfile, "w") as fp:
-                    fp.write(rgnfits)
-                tab2_Div_LinkImg_plot.text = '<p>region saved to <b>{}</b>.</p>'.format(rgnfitsfile)
+                tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
+                if tab2_vla_square_selected:
+                    pangle = hdu.header['p_angle']
+                    x0Deg, x1Deg, y0Deg, y1Deg = (x0 - hdu.header['CRVAL1']) / 3600., (
+                        x1 - hdu.header['CRVAL1']) / 3600., (
+                                                     y0 - hdu.header['CRVAL2']) / 3600., (
+                                                     y1 - hdu.header['CRVAL2']) / 3600.
+                    p0 = -pangle
+                    prad = radians(p0)
+                    dx0 = (x0Deg) * cos(prad) - y0Deg * sin(prad)
+                    dy0 = (x0Deg) * sin(prad) + y0Deg * cos(prad)
+                    dx1 = (x1Deg) * cos(prad) - y1Deg * sin(prad)
+                    dy1 = (x1Deg) * sin(prad) + y1Deg * cos(prad)
+                    x0Deg, x1Deg, y0Deg, y1Deg = (dx0 + hdu.header['CRVAL1'] / 3600.), (
+                        dx1 + hdu.header['CRVAL1'] / 3600.), (dy0 + hdu.header['CRVAL2'] / 3600.), (
+                                                     dy1 + hdu.header['CRVAL2'] / 3600.)
+                    c0fits = SkyCoord(ra=(x0Deg) * u.degree, dec=(y0Deg) * u.degree)
+                    c1fits = SkyCoord(ra=(x1Deg) * u.degree, dec=(y1Deg) * u.degree)
+                    rgnfits = '#CRTFv0 CASA Region Text Format version 0\n\
+                    box [[{}], [{}]] coord=J2000, linewidth=1, \
+                    linestyle=-, symsize=1, symthick=1, color=magenta, \
+                    font="DejaVu Sans", fontsize=11, fontstyle=normal, \
+                    usetex=false'.format(', '.join(c0fits.to_string('hmsdms').split(' ')),
+                                         ', '.join(c1fits.to_string('hmsdms').split(' ')))
+                    with open(rgnfitsfile, "w") as fp:
+                        fp.write(rgnfits)
+                    tab2_Div_LinkImg_plot.text = '<p>region saved to <b>{}</b>.</p>'.format(rgnfitsfile)
+                else:
+                    tab2_Div_LinkImg_plot.text = '<p><b>Warning:</b> select a region first.</p>'
 
 
             tab2_BUT_SavRgn = Button(label='Save Region',
@@ -1915,7 +1967,146 @@ if os.path.exists(FS_dspecDF):
                                      button_type='primary')
             tab2_BUT_SavRgn.on_click(tab2_save_region)
 
-            panel2 = column(
+            tab2_input_tImfit = TextInput(value="Input the param here", title="pimfit task parameters:",
+                                          width=config_plot['plot_config']['tab_FSviewPrep']['input_tCLN_wdth'])
+            tab2_Div_tImfit = Div(text='', width=config_plot['plot_config']['tab_FSviewPrep']['tab2_Div_tImfit_wdth'])
+            tab2_Div_tImfit2 = Div(text='', width=config_plot['plot_config']['tab_FSviewPrep']['input_tCLN_wdth'])
+
+
+            def tab2_BUT_tImfit_param_add():
+                tab2_Div_tImfit2.text = ' '
+                txts = tab2_input_tImfit.value.strip()
+                txts = txts.split(';')
+                for txt in txts:
+                    txt = txt.strip()
+                    txt = txt.split('=')
+                    if len(txt) == 2:
+                        key, val = txt
+                        tab2_tImfit_Param_dict[key.strip()] = val.strip()
+                    else:
+                        tab2_Div_tImfit2.text = '<p>Input syntax: <b>stokes</b>="LL"; \
+                        <b>ncpu</b>=10; Any spaces will be ignored.</p>'
+                tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
+                on an image region(s)</b></p>' + ' '.join(
+                    "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+                tab2_Div_tImfit.text = tab2_Div_tImfit_text
+
+
+            def tab2_BUT_tImfit_param_delete():
+                global tab2_tImfit_Param_dict
+                tab2_Div_tImfit2.text = ' '
+                txts = tab2_input_tImfit.value.strip()
+                txts = txts.split(';')
+                for key in txts:
+                    try:
+                        tab2_tImfit_Param_dict.pop(key)
+                    except:
+                        tab2_Div_tImfit2.text = '<p>Input syntax: <b>stokes</b>; <b>ncpu</b>; ' \
+                                                '<b>region</b>. Any spaces will be ignored.</p>'
+                tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
+                on an image region(s)</b></p>' + ' '.join(
+                    "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+                tab2_Div_tImfit.text = tab2_Div_tImfit_text
+
+
+            def tab2_BUT_tImfit_param_default():
+                global tab2_tImfit_Param_dict
+                tab2_tImfit_Param_dict = OrderedDict()
+                vlafileliststr = "'" + "','".join(vlafile) + "'"
+                tab2_tImfit_Param_dict['event_id'] = "'{}'".format(event_id.replace("/", ""))
+                tab2_tImfit_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
+                tab2_tImfit_Param_dict['ncpu'] = "10"
+                tab2_tImfit_Param_dict['doreg'] = "True"
+                tab2_tImfit_Param_dict['region'] = "'{}'".format(rgnfitsfile)
+                tab2_tImfit_Param_dict['stokes'] = "'{}'".format(tab2_Select_vla_pol.value)
+                tab2_tImfit_Param_dict['mask'] = "''"
+                tab2_tImfit_Param_dict['imagefiles'] = "[{}]".format(vlafileliststr)
+                tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
+                on an image region(s)</b></p>' + ' '.join(
+                    "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+                tab2_Div_tImfit.text = tab2_Div_tImfit_text
+                tab2_Div_tImfit2.text = '<p><b>Default parameter Restored.</b></p>'
+
+
+            tab2_BUT_tImfit_param_default()
+
+            tab2_BUT_tImfit_param_ADD = Button(label='Add to Param',
+                                               width=config_plot['plot_config']['tab_FSviewPrep']['button_wdth'],
+                                               button_type='primary')
+            tab2_BUT_tImfit_param_ADD.on_click(tab2_BUT_tImfit_param_add)
+            tab2_BUT_tImfit_param_DEL = Button(label='Delete Param',
+                                               width=config_plot['plot_config']['tab_FSviewPrep']['button_wdth'],
+                                               button_type='warning')
+            tab2_BUT_tImfit_param_DEL.on_click(tab2_BUT_tImfit_param_delete)
+            tab2_BUT_tImfit_param_Default = Button(label='Default Param',
+                                                   width=config_plot['plot_config']['tab_FSviewPrep']['button_wdth'])
+            tab2_BUT_tImfit_param_Default.on_click(tab2_BUT_tImfit_param_default)
+            tab2_SPCR_LFT_BUT_tImfit_param_DEL = Spacer(
+                width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth10'])
+            tab2_SPCR_LFT_BUT_tImfit_param_RELOAD = Spacer(
+                width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth10'])
+            tab2_SPCR_LFT_BUT_tImfit_param_DEFAULT = Spacer(
+                width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth10'])
+
+
+            def tab2_BUT_timfit_param_reload():
+                try:
+                    with open(database_dir + event_id + struct_id + 'CASA_imfit_args.json', 'r') as fp:
+                        tab2_timfit_Param_dict = json.load(fp)
+                    tab2_Div_timfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
+                    on an image region(s)</b></p>' + ' '.join(
+                        "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_timfit_Param_dict.items())
+                    tab2_Div_tImfit.text = tab2_Div_timfit_text
+                    tab2_Div_tImfit2.text = '<p>CASA pimfit arguments reload from config file in <b>{}</b>.</p>'.format(
+                        database_dir + event_id + struct_id)
+                except:
+                    tab2_Div_tImfit2.text = '<p>' + database_dir + event_id + struct_id + \
+                                            '{}CASA_imfit_args.json not found!!!</p>'.format(
+                                                database_dir + event_id + struct_id)
+
+
+            tab2_BUT_tImfit_param_RELOAD = Button(label='reload Param',
+                                                  width=config_plot['plot_config']['tab_FSviewPrep']['button_wdth'])
+            tab2_BUT_tImfit_param_RELOAD.on_click(tab2_BUT_timfit_param_reload)
+            tab2_SPCR_LFT_BUT_tImfit_param_reload = Spacer(
+                width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth20'])
+
+
+            def tab2_BUT_tImfit_update():
+                with open(database_dir + event_id + struct_id + 'CASA_imfit_args.json', 'w') as fp:
+                    json.dump(tab2_tImfit_Param_dict, fp)
+                os.system('cp {}/DataBrowser/FSview/script_imfit.py {}'.format(suncasa_dir, database_dir + event_id + struct_id))
+                tab2_Div_tImfit2.text = '<p>CASA pimfit script and arguments config\
+                 file saved to <b>{}</b>.</p>'.format(database_dir + event_id + struct_id)
+                cwd = os.getcwd()
+                try:
+                    tab2_Div_tImfit2.text = '<p>CASA imfit script and arguments config file saved to <b>{}.</b></p>\
+                    <p>CASA imfit is in processing.</p>'.format(
+                        database_dir + event_id + struct_id)
+                    os.chdir(database_dir + event_id + struct_id)
+                    suncasapy = config_plot['core']['casapy']
+                    suncasapy = os.path.expandvars(suncasapy)
+                    os.system('{} -c script_imfit.py'.format(suncasapy))
+                    tab2_Div_tImfit2.text = '<p>imfit finished, go back to <b>QLook</b> \
+                    window, select StrID <b>{}</b> and click <b>FSview</b> button again.</p>'.format(
+                        struct_id[0:-1])
+                except:
+                    tab2_Div_tImfit2.text = '<p>CASA imfit script and arguments config file \
+                    saved to <b>{}.</b></p><p>Do imfit with CASA manually.</p>'.format(
+                        database_dir + event_id + struct_id) + '<p>When finished, go back to <b>QLook</b> window, \
+                        select StrID <b>{}</b> and click <b>FSview</b> button again.</p>'.format(struct_id[0:-1])
+                os.chdir(cwd)
+
+
+            tab2_BUT_tImfit = Button(label='imfit',
+                                     width=config_plot['plot_config']['tab_FSviewPrep']['button_wdth'],
+                                     button_type='success')
+            tab2_BUT_tImfit.on_click(tab2_BUT_tImfit_update)
+            tab2_SPCR_ABV_BUT_timfit = Spacer(width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth10'])
+
+            tab2_SPCR_LFT_Div_tImfit = Spacer(width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth10'])
+
+            panel2 = row(column(
                 row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
                     widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
                               tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
@@ -1925,7 +2116,14 @@ if os.path.exists(FS_dspecDF):
                     widgetbox(tab2_Select_pol, tab2_Select_bl,
                               tab2_Select_colorspace,
                               tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
-                              width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])))
+                              width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))),
+                tab2_SPCR_LFT_Div_tImfit,
+                column(tab2_input_tImfit, tab2_Div_tImfit2,
+                       row(tab2_BUT_tImfit_param_ADD, tab2_SPCR_LFT_BUT_tImfit_param_DEL,
+                           tab2_BUT_tImfit_param_DEL, tab2_SPCR_LFT_BUT_tImfit_param_DEFAULT,
+                           tab2_BUT_tImfit_param_Default, tab2_SPCR_LFT_BUT_tImfit_param_RELOAD,
+                           tab2_BUT_tImfit_param_RELOAD, tab2_SPCR_ABV_BUT_timfit, tab2_BUT_tImfit),
+                       tab2_Div_tImfit))
 
             lout = panel2
 
@@ -2044,10 +2242,11 @@ else:
 
     tab2_dspec_selected = None
 
-
+    timestart = xx[0]
     def tab2_dspec_selection_change(attrname, old, new):
         global tab2_dspec_selected
         tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
+
         if tab2_dspec_selected:
             global dspecDF
             dspecDF = dspecDF0.copy()
@@ -2056,6 +2255,20 @@ else:
             y0, y1 = dspecDF['freq'].min(), dspecDF['freq'].max()
             tab2_r_dspec_patch.data_source.data = ColumnDataSource(
                 pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
+            time0, time1 = dspecDF['time'].min() + timestart, dspecDF['time'].max() + timestart
+            t0_char = Time(time0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+            date0_char = t0_char.split(' ')[0].replace('-','/')
+            time0_char = t0_char.split(' ')[1]
+            t1_char = Time(time1 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+            date1_char = t1_char.split(' ')[0].replace('-','/')
+            time1_char = t1_char.split(' ')[1]
+            tab2_tCLN_Param_dict['timerange'] = "'{}/{}~{}/{}'".format(date0_char, time0_char, date1_char, time1_char)
+            freq0, freq1 = dspecDF['freq'].min(), dspecDF['freq'].max()
+            freqrange = "'{:.3f}~{:.3f} GHz'".format(freq0, freq1)
+            tab2_tCLN_Param_dict['freqrange'] = freqrange
+            tab2_Div_tCLN_text = ' '.join(
+                "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tCLN_Param_dict.items())
+            tab2_Div_tCLN.text = tab2_Div_tCLN_text
         else:
             tab2_r_dspec_patch.data_source.data = ColumnDataSource(
                 pd.DataFrame({'xx': [], 'yy': []})).data
@@ -2070,7 +2283,8 @@ else:
     tab2_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
                                     width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
 
-    tab2_p_dspec_xPro = figure(tools='', plot_width=config_plot['plot_config']['tab_FSview2CASA']['dspec_xPro_wdth'],
+    tab2_p_dspec_xPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
+                               plot_width=config_plot['plot_config']['tab_FSview2CASA']['dspec_xPro_wdth'],
                                plot_height=config_plot['plot_config']['tab_FSview2CASA']['dspec_xPro_hght'],
                                x_range=tab2_p_dspec.x_range, y_range=(spec_plt_min, spec_plt_max),
                                title="Time profile", toolbar_location=None)
@@ -2102,7 +2316,8 @@ else:
     tab2_p_dspec_xPro.axis.major_tick_line_color = "black"
     tab2_p_dspec_xPro.axis.minor_tick_line_color = "black"
 
-    tab2_p_dspec_yPro = figure(tools='', plot_width=config_plot['plot_config']['tab_FSview2CASA']['dspec_yPro_wdth'],
+    tab2_p_dspec_yPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
+                               plot_width=config_plot['plot_config']['tab_FSview2CASA']['dspec_yPro_wdth'],
                                plot_height=config_plot['plot_config']['tab_FSview2CASA']['dspec_yPro_hght'],
                                x_range=(spec_plt_min, spec_plt_max), y_range=tab2_p_dspec.y_range,
                                title="Frequency profile", toolbar_location=None)
@@ -2231,11 +2446,8 @@ else:
 
     tab2_input_tCLN = TextInput(value="Input the param here", title="Clean task parameters:",
                                 width=config_plot['plot_config']['tab_FSview2CASA']['input_tCLN_wdth'])
-
     tab2_Div_tCLN = Div(text='', width=config_plot['plot_config']['tab_FSview2CASA']['tab2_Div_tCLN_wdth'])
     tab2_Div_tCLN2 = Div(text='', width=config_plot['plot_config']['tab_FSview2CASA']['input_tCLN_wdth'])
-
-    timestart = xx[0]
 
 
     def tab2_BUT_tCLN_param_add():
@@ -2244,27 +2456,14 @@ else:
         txts = txts.split(';')
         for txt in txts:
             txt = txt.strip()
-            if txt == 'timerange':
-                time0, time1 = dspecDF['time'].min() + timestart, dspecDF['time'].max() + timestart
-                date_char = Time(timestart / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date').iso
-                t0_char = Time(time0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
-                t0_char = t0_char.split(' ')[1]
-                t1_char = Time(time1 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
-                t1_char = t1_char.split(' ')[1]
-                tab2_tCLN_Param_dict['timerange'] = "'{}T{}~{}T{}'".format(date_char, t0_char, date_char, t1_char)
-            elif txt == 'freqrange':
-                freq0, freq1 = dspecDF['freq'].min(), dspecDF['freq'].max()
-                freqrange = "'{:.3f}~{:.3f} GHz'".format(freq0, freq1)
-                tab2_tCLN_Param_dict['freqrange'] = freqrange
+            txt = txt.split('=')
+            if len(txt) == 2:
+                key, val = txt
+                tab2_tCLN_Param_dict[key.strip()] = val.strip()
             else:
-                txt = txt.split('=')
-                if len(txt) == 2:
-                    key, val = txt
-                    tab2_tCLN_Param_dict[key.strip()] = val.strip()
-                else:
-                    tab2_Div_tCLN2.text = '<p>Input syntax: <b>uvtaper</b>=True; <b>niter</b>=200; ' \
-                                          '<b>cell</b>=["5.0arcsec", "5.0arcsec"]. Any spaces will be ignored.</p>'
-        tab2_Div_tCLN_text = ' '.join(
+                tab2_Div_tCLN2.text = '<p>Input syntax: <b>uvtaper</b>=True; <b>niter</b>=200; ' \
+                                      '<b>cell</b>=["5.0arcsec", "5.0arcsec"]. Any spaces will be ignored.</p>'
+        tab2_Div_tCLN_text = '<p><b>#  ptclean :: Parallelized clean in consecutive time steps</b></p>' + ' '.join(
             "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tCLN_Param_dict.items())
         tab2_Div_tCLN.text = tab2_Div_tCLN_text
 
@@ -2280,7 +2479,7 @@ else:
             except:
                 tab2_Div_tCLN2.text = '<p>Input syntax: <b>uvtaper</b>; <b>niter</b>; ' \
                                       '<b>cell</b>. Any spaces will be ignored.</p>'
-        tab2_Div_tCLN_text = ' '.join(
+        tab2_Div_tCLN_text = '<p><b>#  ptclean :: Parallelized clean in consecutive time steps</b></p>' + ' '.join(
             "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tCLN_Param_dict.items())
         tab2_Div_tCLN.text = tab2_Div_tCLN_text
 
@@ -2298,8 +2497,8 @@ else:
         tab2_tCLN_Param_dict['antenna'] = "''"
         tab2_tCLN_Param_dict['ephemfile'] = "'horizons_sun_20141101.radecp'"
         tab2_tCLN_Param_dict['msinfofile'] = "'SUN01_20141101.T163940-164700.50ms.cal.msinfo.npz'"
-        tab2_tCLN_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
         tab2_tCLN_Param_dict['event_id'] = "'{}'".format(event_id.replace("/", ""))
+        tab2_tCLN_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
         tab2_tCLN_Param_dict['mode'] = "'channel'"
         tab2_tCLN_Param_dict['imagermode'] = "'csclean'"
         tab2_tCLN_Param_dict['weighting'] = "'natural'"
@@ -2308,15 +2507,15 @@ else:
         tab2_tCLN_Param_dict['imsize'] = ""'[128, 128]'""
         tab2_tCLN_Param_dict['cell'] = "['5.0arcsec', '5.0arcsec']"
         tab2_tCLN_Param_dict['phasecenter'] = "'J2000 14h26m22.7351 -14d29m29.801'"
-        tab2_tCLN_Param_dict['mask'] = "' '"
+        tab2_tCLN_Param_dict['mask'] = "''"
         tab2_tCLN_Param_dict['stokes'] = "'RRLL'"
         tab2_tCLN_Param_dict['uvtaper'] = 'True'
-        tab2_tCLN_Param_dict['outertaper'] = "['50arcsec']"
+        tab2_tCLN_Param_dict['outertaper'] = "[]"
         tab2_tCLN_Param_dict['uvrange'] = "''"
         tab2_tCLN_Param_dict['niter'] = "200"
         tab2_tCLN_Param_dict['usescratch'] = "False"
         tab2_tCLN_Param_dict['interactive'] = "False"
-        tab2_Div_tCLN_text = ' '.join(
+        tab2_Div_tCLN_text = '<p><b>#  ptclean :: Parallelized clean in consecutive time steps</b></p>' + ' '.join(
             "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tCLN_Param_dict.items())
         tab2_Div_tCLN.text = tab2_Div_tCLN_text
         tab2_Div_tCLN2.text = '<p><b>Default parameter Restored.</b></p>'
@@ -2337,8 +2536,8 @@ else:
     tab2_BUT_tCLN_param_Default.on_click(tab2_BUT_tCLN_param_default)
     tab2_SPCR_LFT_BUT_tCLN_param_DEL = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
     tab2_SPCR_LFT_BUT_tCLN_param_RELOAD = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
-    tab2_SPCR_LFT_BUT_tCLN_param_FSVIEW = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
     tab2_SPCR_LFT_BUT_tCLN_param_DEFAULT = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
+    tab2_SPCR_LFT_BUT_tCLN_param_FSVIEW = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
     tab2_SPCR_LFT_Div_tCLN2 = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth50'],
                                      height=config_plot['plot_config']['tab_FSview2CASA']['space_hght10'])
 
@@ -2346,7 +2545,7 @@ else:
     def tab2_BUT_tCLN_param_reload():
         with open(database_dir + event_id + struct_id + 'CASA_CLN_args.json', 'r') as fp:
             tab2_tCLN_Param_dict = json.load(fp)
-        tab2_Div_tCLN_text = ' '.join(
+        tab2_Div_tCLN_text = '<p><b>#  ptclean :: Parallelized clean in consecutive time steps</b></p>' + ' '.join(
             "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tCLN_Param_dict.items())
         tab2_Div_tCLN.text = tab2_Div_tCLN_text
         tab2_Div_tCLN2.text = '<p>CASA arguments reload from config file in <b>{}</b>.</p>'.format(
@@ -2356,8 +2555,7 @@ else:
     def tab2_BUT_tCLN_clean():
         with open(database_dir + event_id + struct_id + 'CASA_CLN_args.json', 'w') as fp:
             json.dump(tab2_tCLN_Param_dict, fp)
-        os.system('cp FSview/script_process.py {}'.format(database_dir + event_id + struct_id))
-        # os.system('cp FSview/script_preprocess.py {}'.format(database_dir + event_id + struct_id))
+        os.system('cp {}/DataBrowser/FSview/script_clean.py {}'.format(suncasa_dir, database_dir + event_id + struct_id))
         tab2_Div_tCLN2.text = '<p>CASA script and arguments config file saved to <b>{}</b>.</p>'.format(
             database_dir + event_id + struct_id)
         timestrs = []
@@ -2384,6 +2582,23 @@ else:
             database_dir + event_id + struct_id) + 'Go back to <b>QLook</b> window, select StrID <b>{}</b> and \
             click <b>FSview</b> button again.</p>'.format(
             database_dir + event_id + struct_id, struct_id[0:-1])
+        cwd = os.getcwd()
+        try:
+            tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}.</b></p>\
+            <p>CASA clean is in processing.</p>'.format(database_dir + event_id + struct_id)
+            os.chdir(database_dir + event_id + struct_id)
+            suncasapy = config_plot['core']['casapy']
+            suncasapy = os.path.expandvars(suncasapy)
+            os.system('{} -c script_clean.py'.format(suncasapy))
+            tab2_Div_tCLN2.text = '<p>Clean finished, go back to <b>QLook</b> window, select StrID <b>{}</b> and \
+                click <b>FSview</b> button again.</p>'.format(
+                struct_id[0:-1])
+        except:
+            tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}.</b></p>\
+            <p>Do image clean with CASA manually.</p>'.format(database_dir + event_id + struct_id) + '<p>When finished,\
+             go back to <b>QLook</b> window, select StrID <b>{}</b>\
+              and click <b>FSview</b> button again.</p>'.format(struct_id[0:-1])
+        os.chdir(cwd)
 
 
     tab2_BUT_tCLN_param_RELOAD = Button(label='reload Param',
@@ -2391,13 +2606,13 @@ else:
     tab2_BUT_tCLN_param_RELOAD.on_click(tab2_BUT_tCLN_param_reload)
     tab2_SPCR_LFT_BUT_tCLN_param_reload = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth20'],
                                                  height=config_plot['plot_config']['tab_FSview2CASA']['space_hght10'])
-    tab2_BUT_tCLN_CLEAN = Button(label='ToClean',
+    tab2_BUT_tCLN_CLEAN = Button(label='clean',
                                  width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'],
                                  button_type='success')
     tab2_SPCR_ABV_BUT_tCLN = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'],
                                     height=config_plot['plot_config']['tab_FSview2CASA']['space_hght18'])
     tab2_BUT_tCLN_CLEAN.on_click(tab2_BUT_tCLN_clean)
-    tab2_SPCR_LFT_BUT_FS_view = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
+    tab2_SPCR_LFT_BUT_CLEAN = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
     tab2_BUT_FS_view = Button(label='FS view', width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'],
                               button_type='primary')
 
@@ -2417,7 +2632,7 @@ else:
                                               row(tab2_BUT_tCLN_param_ADD, tab2_SPCR_LFT_BUT_tCLN_param_DEL,
                                                   tab2_BUT_tCLN_param_DEL, tab2_SPCR_LFT_BUT_tCLN_param_DEFAULT,
                                                   tab2_BUT_tCLN_param_Default, tab2_SPCR_LFT_BUT_tCLN_param_RELOAD,
-                                                  tab2_BUT_tCLN_param_RELOAD, tab2_SPCR_LFT_BUT_FS_view,
+                                                  tab2_BUT_tCLN_param_RELOAD, tab2_SPCR_LFT_BUT_CLEAN,
                                                   tab2_BUT_tCLN_CLEAN)),
                                        widgetbox(tab2_Select_pol, tab2_Select_bl, tab2_Select_colorspace,
                                                  tab2_panel2_BUT_exit,

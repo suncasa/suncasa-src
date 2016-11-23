@@ -7,10 +7,10 @@ os.chdir(mspath)
 msfile = 'SUN01_20141101.T163940-164700.50ms.cal.ms'
 ephemfile = 'horizons_sun_20141101.radecp'
 msinfofile = 'SUN01_20141101.T163940-164700.50ms.cal.msinfo.npz'
-slfcalms_timeran = '16:46:12.425~16:46:23.475'
+slfcalms_timeran = '16:46:12.375~16:46:32.475'
 slfcalms_s = ['0', '1', '2', '3']
 slfcalms_chan = ['0~63', '0~63', '0~63', '0~63']
-structure_id = 'U04-prep'
+structure_id = 'U04-prep_test'
 spwchan = ','.join('%s:%s' % t for t in zip(slfcalms_s, slfcalms_chan))
 
 ''' ----- step 1 ----- '''
@@ -88,21 +88,21 @@ antennas = '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26'
 
 t_int = 0.05
 ##  ----------- spw 0 -----------------
-# timerange = '2014/11/01/16:46:17.100~2014/11/01/16:46:17.600'
-# freqrange = '1.086~1.106 GHz'
-# CLNmask = 'slfcal/U04-prep/region_spw0.rgn'
+timerange = '2014/11/01/16:46:17.100~2014/11/01/16:46:17.600'
+freqrange = '1.086~1.106 GHz'
+CLNmask = 'slfcal/U04-prep/region_spw0.rgn'
 ##  ----------- spw 1 -----------------
 # timerange = '2014/11/01/16:46:17.600~2014/11/01/16:46:18.400'
 # freqrange = '1.146~1.182 GHz'
 # CLNmask = 'slfcal/U04-prep/region_spw0.rgn'
 ##  ----------- spw 2 -----------------
-timerange = '2014/11/01/16:46:17.650~2014/11/01/16:46:18.250'
-freqrange = '1.286~1.318 GHz'
-CLNmask = 'slfcal/U04-prep/region_spw0.rgn'
+# timerange = '2014/11/01/16:46:17.650~2014/11/01/16:46:18.250'
+# freqrange = '1.286~1.318 GHz'
+# CLNmask = 'slfcal/U04-prep/region_spw0.rgn'
 ##  ----------- spw 4 -----------------
-timerange = '2014/11/01/16:46:17.275~2014/11/01/16:46:19.450'
-freqrange = '1.426~1.472 GHz'
-CLNmask = 'slfcal/U04-prep/region_spw0.rgn'
+# timerange = '2014/11/01/16:46:17.275~2014/11/01/16:46:19.450'
+# freqrange = '1.426~1.472 GHz'
+# CLNmask = 'slfcal/U04-prep/region_spw0.rgn'
 
 tt = timerange.split('~')
 t0str = tt[0].split('/')[-1]
