@@ -2022,16 +2022,16 @@ if os.path.exists(FS_dspecDF):
                 global tab2_tImfit_Param_dict
                 tab2_tImfit_Param_dict = OrderedDict()
                 vlafileliststr = "'" + "','".join(vlafile) + "'"
-                timeran_tmp = [file.split('/')[-1][0:-5] for file in vlafile]
-                timestamps = ['{}-{}-{}T{}:{}:{}.{:03d}'.format(ll[0:4], ll[4:6], ll[6:8], ll[9:11], ll[11:13], ll[13:15],
-                                                              int(ll[16:])) for ll in timeran_tmp]
+                # timeran_tmp = [file.split('/')[-1][0:-5] for file in vlafile]
+                # timestamps = ['{}-{}-{}T{}:{}:{}.{:03d}'.format(ll[0:4], ll[4:6], ll[6:8], ll[9:11], ll[11:13], ll[13:15],
+                #                                               int(ll[16:])) for ll in timeran_tmp]
                 tab2_tImfit_Param_dict['event_id'] = "'{}'".format(event_id.replace("/", ""))
                 tab2_tImfit_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
                 tab2_tImfit_Param_dict['ncpu'] = "10"
-                tab2_tImfit_Param_dict['doreg'] = "True"
-                tab2_tImfit_Param_dict['timestamps'] = "{}".format(timestamps)
-                tab2_tImfit_Param_dict['ephemfile'] = "'horizons_sun_20141101.radecp'"
-                tab2_tImfit_Param_dict['msinfofile'] = "'SUN01_20141101.T163940-164700.50ms.cal.msinfo.npz'"
+                # tab2_tImfit_Param_dict['doreg'] = "True"
+                # tab2_tImfit_Param_dict['timestamps'] = "{}".format(timestamps)
+                # tab2_tImfit_Param_dict['ephemfile'] = "'horizons_sun_20141101.radecp'"
+                # tab2_tImfit_Param_dict['msinfofile'] = "'SUN01_20141101.T163940-164700.50ms.cal.msinfo.npz'"
                 # tab2_tImfit_Param_dict['region'] = "'{}'".format(rgnfitsfile)
                 tab2_tImfit_Param_dict['box'] = "''"
                 # tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, x1pix, y0pix, y1pix)
