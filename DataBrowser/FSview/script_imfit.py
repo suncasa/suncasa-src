@@ -21,7 +21,7 @@ if os.path.exists('CASA_imfit_args.json'):
         ncpu = 10
 
     default('pimfit')
-    with open('CASA_imfit_args.json', 'r') as fp:
+    with open('CASA_imfit_args.json', 'w') as fp:
         CASA_imfit_args = json.load(fp)
     for key, val in CASA_imfit_args.items():
         exec (key + '= {}'.format(val))
