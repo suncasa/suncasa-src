@@ -2018,6 +2018,8 @@ if os.path.exists(FS_dspecDF):
                 tab2_tImfit_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
                 tab2_tImfit_Param_dict['ncpu'] = "10"
                 tab2_tImfit_Param_dict['doreg'] = "True"
+                tab2_tImfit_Param_dict['ephemfile'] = "'horizons_sun_20141101.radecp'"
+                tab2_tImfit_Param_dict['msinfofile'] = "'SUN01_20141101.T163940-164700.50ms.cal.msinfo.npz'"
                 # tab2_tImfit_Param_dict['region'] = "'{}'".format(rgnfitsfile)
                 tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, x1pix, y0pix, y1pix)
                 tab2_tImfit_Param_dict['stokes'] = "'{}'".format(tab2_Select_vla_pol.value)
