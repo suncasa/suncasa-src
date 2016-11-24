@@ -7,13 +7,13 @@ import time
 from collections import OrderedDict
 import astropy.units as u
 from astropy.coordinates import SkyCoord
+from astropy.io import fits
 import matplotlib.cm as cm
 import matplotlib.colors as colors
 import numpy as np
 import pandas as pd
 import sunpy.map
 from math import radians, cos, sin
-from astropy.io import fits
 from bokeh.layouts import row, column, widgetbox, gridplot
 from bokeh.models import (ColumnDataSource, CustomJS, Slider, Button, TextInput, RadioButtonGroup, CheckboxGroup,
                           BoxSelectTool, LassoSelectTool, HoverTool, Spacer, LabelSet, Div)
@@ -1466,6 +1466,7 @@ if os.path.exists(FS_dspecDF):
 
             def tab2_vdspec_update():
                 global spec_plt_R, spec_plt_L, spec_plt_I, spec_plt_V, tab2_Select_pol_opt
+                global x0pix, x1pix, y0pix, y1pix
                 select_pol = tab2_Select_pol.value
                 tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
                 if tab2_BUT_vdspec.label == "VEC Dyn Spec":
@@ -1476,9 +1477,9 @@ if os.path.exists(FS_dspecDF):
                         tab2_BUT_vdspec.label = "Dyn Spec"
                         idxmax = max(tab2_vla_square_selected)
                         idxmin = min(tab2_vla_square_selected)
-                        x0, x1 = idxmin % mapvlasize[0], idxmax % mapvlasize[0]
-                        y0, y1 = idxmin / mapvlasize[0], idxmax / mapvlasize[0]
-                        print x0, x1, y0, y1
+                        x0pix, x1pix = idxmin % mapvlasize[0], idxmax % mapvlasize[0]
+                        y0pix, y1pix = idxmin / mapvlasize[0], idxmax / mapvlasize[0]
+                        print x0pix, x1pix, y0pix, y1pix
                         spec_plt_R = np.zeros((tab2_nfreq, tab2_ntim))
                         spec_plt_L = np.zeros((tab2_nfreq, tab2_ntim))
                         spec_plt_I = np.zeros((tab2_nfreq, tab2_ntim))
@@ -1493,8 +1494,8 @@ if os.path.exists(FS_dspecDF):
                                     freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                                     freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
                                     idxfreq = freq.index(freq_ref)
-                                    vla_l = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1]
-                                    vla_r = hdu.data[1, :, y0:y1 + 1, x0:x1 + 1]
+                                    vla_l = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
+                                    vla_r = hdu.data[1, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                                     spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = \
                                         np.nanmean(vla_l, axis=(-1, -2))
                                     spec_plt_R[spec_plt_R < 0] = 0
@@ -1517,7 +1518,7 @@ if os.path.exists(FS_dspecDF):
                                     freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                                     freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
                                     idxfreq = freq.index(freq_ref)
-                                    vladata = hdu.data[0, :, y0:y1 + 1, x0:x1 + 1]
+                                    vladata = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                                     vlaflux = np.nanmean(vladata, axis=(-1, -2))
                                     spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = vlaflux
                                     spec_plt_R[spec_plt_R < 0] = 0
@@ -2017,7 +2018,10 @@ if os.path.exists(FS_dspecDF):
                 tab2_tImfit_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
                 tab2_tImfit_Param_dict['ncpu'] = "10"
                 tab2_tImfit_Param_dict['doreg'] = "True"
-                tab2_tImfit_Param_dict['region'] = "'{}'".format(rgnfitsfile)
+                tab2_tImfit_Param_dict['ephemfile'] = "'horizons_sun_20141101.radecp'"
+                tab2_tImfit_Param_dict['msinfofile'] = "'SUN01_20141101.T163940-164700.50ms.cal.msinfo.npz'"
+                # tab2_tImfit_Param_dict['region'] = "'{}'".format(rgnfitsfile)
+                tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, x1pix, y0pix, y1pix)
                 tab2_tImfit_Param_dict['stokes'] = "'{}'".format(tab2_Select_vla_pol.value)
                 tab2_tImfit_Param_dict['mask'] = "''"
                 tab2_tImfit_Param_dict['imagefiles'] = "[{}]".format(vlafileliststr)
