@@ -1891,7 +1891,7 @@ if os.path.exists(FS_dspecDF):
                     idxmin = min(tab2_vla_square_selected)
                     x0pix, x1pix = idxmin % mapvlasize[0], idxmax % mapvlasize[0]
                     y0pix, y1pix = idxmin / mapvlasize[0], idxmax / mapvlasize[0]
-                    tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, x1pix, y0pix, y1pix)
+                    tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, y0pix, x1pix, y1pix)
                     tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
                     on an image region(s)</b></p>' + ' '.join(
                         "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
