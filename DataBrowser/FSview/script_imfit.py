@@ -21,7 +21,7 @@ if os.path.exists('CASA_imfit_args.json'):
         ncpu = 10
 
     default('pimfit')
-    with open('CASA_imfit_args.json', 'w') as fp:
+    with open('CASA_imfit_args.json', 'r') as fp:
         CASA_imfit_args = json.load(fp)
     for key, val in CASA_imfit_args.items():
         exec (key + '= {}'.format(val))
@@ -31,7 +31,7 @@ if os.path.exists('CASA_imfit_args.json'):
     imgdir = database_dir + event_id + '/' + struct_id + '/Synthesis_Image/'
     if not os.path.exists(imgdir):
         os.mkdir(imgdir)
-    with open(imgdir + 'CASA_imfit_out', 'r') as fp:
+    with open(imgdir + 'CASA_imfit_out', 'w') as fp:
         pickle.dump(out, fp)
 
 
