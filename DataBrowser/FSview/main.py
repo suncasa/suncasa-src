@@ -2097,9 +2097,9 @@ if os.path.exists(FS_dspecDF):
                     <p>CASA imfit is in processing.</p>'.format(
                         database_dir + event_id + struct_id)
                     os.chdir(database_dir + event_id + struct_id)
-                    suncasapy = config_plot['core']['casapy']
-                    suncasapy = os.path.expandvars(suncasapy)
-                    os.system('{} -c script_imfit.py'.format(suncasapy))
+                    suncasapy47 = config_plot['core']['casapy47']
+                    suncasapy47 = os.path.expandvars(suncasapy47)
+                    os.system('{} -c script_imfit.py'.format(suncasapy47))
                     tab2_Div_tImfit2.text = '<p>imfit finished, go back to <b>QLook</b> \
                     window, select StrID <b>{}</b> and click <b>FSview</b> button again.</p>'.format(
                         struct_id[0:-1])
@@ -2600,9 +2600,9 @@ else:
             tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}.</b></p>\
             <p>CASA clean is in processing.</p>'.format(database_dir + event_id + struct_id)
             os.chdir(database_dir + event_id + struct_id)
-            suncasapy = config_plot['core']['casapy']
-            suncasapy = os.path.expandvars(suncasapy)
-            os.system('{} -c script_clean.py'.format(suncasapy))
+            suncasapy46 = config_plot['core']['casapy46']
+            suncasapy46 = os.path.expandvars(suncasapy46)
+            os.system('{} -c script_clean.py'.format(suncasapy46))
             tab2_Div_tCLN2.text = '<p>Clean finished, go back to <b>QLook</b> window, select StrID <b>{}</b> and \
                 click <b>FSview</b> button again.</p>'.format(
                 struct_id[0:-1])

@@ -1,6 +1,4 @@
 import json
-import numpy as np
-import glob
 import os
 from  casac import *
 import pickle
