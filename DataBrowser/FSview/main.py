@@ -1466,7 +1466,6 @@ if os.path.exists(FS_dspecDF):
 
             def tab2_vdspec_update():
                 global spec_plt_R, spec_plt_L, spec_plt_I, spec_plt_V, tab2_Select_pol_opt
-                global x0pix, x1pix, y0pix, y1pix
                 select_pol = tab2_Select_pol.value
                 tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
                 if tab2_BUT_vdspec.label == "VEC Dyn Spec":
@@ -1880,7 +1879,7 @@ if os.path.exists(FS_dspecDF):
 
 
             def tab2_vla_square_selection_change(attrname, old, new):
-                global x0, x1, y0, y1, x0pix, x1pix, y0pix, y1pix
+                global x0, x1, y0, y1
                 tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
                 if tab2_vla_square_selected:
                     ImgDF = ImgDF0.iloc[tab2_vla_square_selected, :]
@@ -1888,6 +1887,15 @@ if os.path.exists(FS_dspecDF):
                     y0, y1 = ImgDF['yy'].min(), ImgDF['yy'].max()
                     tab2_r_vla_ImgRgn_patch.data_source.data = ColumnDataSource(
                         pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
+                    idxmax = max(tab2_vla_square_selected)
+                    idxmin = min(tab2_vla_square_selected)
+                    x0pix, x1pix = idxmin % mapvlasize[0], idxmax % mapvlasize[0]
+                    y0pix, y1pix = idxmin / mapvlasize[0], idxmax / mapvlasize[0]
+                    tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, x1pix, y0pix, y1pix)
+                    tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
+                    on an image region(s)</b></p>' + ' '.join(
+                        "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+                    tab2_Div_tImfit.text = tab2_Div_tImfit_text
                 else:
                     tab2_r_vla_ImgRgn_patch.data_source.data = ColumnDataSource(
                         pd.DataFrame({'xx': [], 'yy': []})).data
@@ -2021,7 +2029,8 @@ if os.path.exists(FS_dspecDF):
                 tab2_tImfit_Param_dict['ephemfile'] = "'horizons_sun_20141101.radecp'"
                 tab2_tImfit_Param_dict['msinfofile'] = "'SUN01_20141101.T163940-164700.50ms.cal.msinfo.npz'"
                 # tab2_tImfit_Param_dict['region'] = "'{}'".format(rgnfitsfile)
-                tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, x1pix, y0pix, y1pix)
+                tab2_tImfit_Param_dict['box'] = "''"
+                # tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, x1pix, y0pix, y1pix)
                 tab2_tImfit_Param_dict['stokes'] = "'{}'".format(tab2_Select_vla_pol.value)
                 tab2_tImfit_Param_dict['mask'] = "''"
                 tab2_tImfit_Param_dict['imagefiles'] = "[{}]".format(vlafileliststr)
