@@ -1,5 +1,3 @@
-# The plot server must be running
-# Go to http://localhost:5006/bokeh to view this plot
 import json
 import os
 import os.path
@@ -16,6 +14,15 @@ from bokeh.models import (ColumnDataSource, Button, TextInput, DataTable, TableC
 from bokeh.models.widgets import Select
 from bokeh.plotting import figure, curdoc
 from astropy.time import Time
+
+
+def getfreeport():
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(('localhost', 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
 
 
 __author__ = ["Sijie Yu"]
@@ -42,10 +49,9 @@ suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
 with open(suncasa_dir + 'DataBrowser/config.json', 'r') as fp:
     config_plot = json.load(fp)
 database_dir = config_plot['datadir']['database']
-database_dir = os.path.expandvars(database_dir)+'/'
+database_dir = os.path.expandvars(database_dir) + '/'
 with open('{}config_EvtID_curr.json'.format(database_dir), 'r') as fp:
     config_EvtID = json.load(fp)
-
 
 '''define the colormaps'''
 colormap_jet = cm.get_cmap("jet")  # choose any matplotlib colormap here
@@ -57,7 +63,7 @@ bokehpalette_jet = [colors.rgb2hex(m) for m in colormap_jet(np.arange(colormap_j
 
 start_timestamp = time.time()
 database_dir = config_plot['datadir']['database']
-database_dir = os.path.expandvars(database_dir)+'/'
+database_dir = os.path.expandvars(database_dir) + '/'
 event_id = config_EvtID['datadir']['event_id']
 specfile = database_dir + event_id + config_EvtID['datadir']['event_specfile']
 
@@ -301,14 +307,12 @@ def tab1_update_deleteStrID():
         tab1_Div_Tb.text = """<p><b>Warning: No StrID selected. Select one StrID first!!!</b></p>"""
 
 
-port = 5100
 ports = []
-ports.append(port)
 
 
 def tab1_update_FSviewStrID():
     global dftmp
-    global port, ports
+    global ports
     if tab1_selected_StrID_entry:
         StrIDList = pd.read_json(database_dir + event_id + 'StrID_list_tmp.json')
         StrIDList = StrIDList.sort_values(by='timeran', ascending=1)
@@ -354,9 +358,9 @@ def tab1_update_FSviewStrID():
             np.savez(FS_specfile, spec=spec, tim=tim, freq=freq, bl=bl, npol=npol, nbl=nbl, nfreq=nfreq, ntim=ntim)
             # tab1_Div_Tb.text = """<p><b>""" + FS_specfile + """</b> saved >>>>>> Click the <b>FS veiw button</b> again to make aperture synthesis images</p>"""
 
-        print 'bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir,port)
-        os.system('bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir,port))
-        port += 1
+        port = getfreeport()
+        print 'bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port)
+        os.system('bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port))
         ports.append(port)
         if os.path.exists(FS_dspecDF):
             tab1_Div_Tb.text = """<p>sent StrID to <b>""" + database_dir + StrID['str_id'][0] + """.json</b></p>
@@ -436,3 +440,5 @@ lout = panel1
 
 curdoc().add_root(lout)
 curdoc().title = "QLook tool"
+
+
