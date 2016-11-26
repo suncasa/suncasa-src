@@ -22,5 +22,7 @@ export SUNCASAPY47 = "<your CASA 4.7 path>"
 alias browser='bokeh serve --show $SUNCASA/DataBrowser/EvtBrowser'
 ```
 
+To launch the Databrowser, type in browser in your terminal.
+
 # Author
 Sijie Yu (@sjyu1988)
