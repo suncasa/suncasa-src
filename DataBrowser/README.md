@@ -26,6 +26,6 @@ To launch the Databrowser, type in browser in your terminal.
 
 # Authors
 ### Original Author and Development Lead
--Sijie Yu ([@sjyu1988](https://github.com/sjyu1988))
+- Sijie Yu ([@sjyu1988](https://github.com/sjyu1988))
 ### Co-Author
--Bin Chen([@binchensun](https://github.com/binchensun))
+- Bin Chen([@binchensun](https://github.com/binchensun))
