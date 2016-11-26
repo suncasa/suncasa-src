@@ -24,5 +24,8 @@ alias browser='bokeh serve --show $SUNCASA/DataBrowser/EvtBrowser'
 
 To launch the Databrowser, type in browser in your terminal.
 
-# Author
-Sijie Yu ([@sjyu1988](https://github.com/sjyu1988))
+# Authors
+## Original Author and Development Lead
+-Sijie Yu ([@sjyu1988](https://github.com/sjyu1988))
+## Co-Author
+-Bin Chen([@binchensun](https://github.com/binchensun))
