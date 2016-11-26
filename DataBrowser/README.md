@@ -1,5 +1,5 @@
 # DataBrowser
-A interactive page for selection of radio observation events
+A interactive tool for radio imaging spectroscopy data analysis
 
 # Usage
 set the PATH environment variable.
