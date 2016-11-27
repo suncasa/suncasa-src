@@ -1,5 +1,5 @@
 # DataBrowser
-A interactive tool for radio imaging spectroscopy data analysis
+A interactive tool for solar radio imaging spectroscopy data analysis
 
 # Usage
 set the PATH environment variable.
