@@ -65,6 +65,7 @@ tab2_ntim = tab2_specdata['ntim']
 tab2_nfreq = tab2_specdata['nfreq']
 tab2_tim = tab2_specdata['tim']
 tab2_freq = tab2_specdata['freq'] / 1e9
+tab2_freq = [float('{:.03f}'.format(ll)) for ll in tab2_freq]
 tab2_bl = tab2_specdata['bl'].item().split(';')
 bl_index = 0
 tab2_pol = 'I'
@@ -2585,10 +2586,11 @@ else:
             timestrs.append(timestr0)
             fits_local.append(timestr + '.fits')
             fits_global.append(timestr + '.fits')
-        freqs = [float('{:.3f}'.format(ll)) for ll in yy]
+        freqstrs = ['{:.3f}'.format(ll) for ll in yy]
         dspecDF_tmp = pd.DataFrame({'time': xx - xx[0],
-                                    'freq': freqs,
+                                    'freq': yy,
                                     'timestr': timestrs,
+                                    'freqstr':freqstrs,
                                     'dspec': tab2_spec_plt.flatten(),
                                     'fits_local': fits_local,
                                     'fits_global': fits_global})

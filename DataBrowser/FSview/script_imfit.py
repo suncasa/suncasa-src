@@ -48,6 +48,7 @@ if os.path.exists('CASA_imfit_args.json'):
     beam_minor = []
     beam_positionangle = []
     freq = []
+    freqstrs = []
     timestrs = []
     ra2arcsec = 180. * 3600. / np.pi
     for ll in out['timestamps']:
@@ -72,6 +73,8 @@ if os.path.exists('CASA_imfit_args.json'):
                     beam_minor.append(out['outputs'][tidx]['results'][comp]['beam']['beamarcsec']['minor']['value'])
                     beam_positionangle.append(
                         out['outputs'][tidx]['results'][comp]['beam']['beamarcsec']['positionangle']['value'])
+                    freqstrs.append(
+                        '{:.3f}'.format(out['outputs'][tidx]['results'][comp]['spectrum']['frequency']['m0']['value']))
                     freq.append(float(
                         '{:.3f}'.format(out['outputs'][tidx]['results'][comp]['spectrum']['frequency']['m0']['value'])))
                     timestrs.append(out['imagenames'][tidx].split('/')[-1].replace('.fits', ''))
@@ -92,9 +95,9 @@ if os.path.exists('CASA_imfit_args.json'):
     })
     with open(database_dir + event_id +'/'+ struct_id + '/dspecDF-save', 'rb') as fp:
         dspecDF1 = pickle.load(fp)
-    # for ll in dspecDF1.index:
-    #     tmp = dspecDF1.loc[ll, 'freq']
-    #     dspecDF1.loc[ll, 'freq'] = float('{:.3f}'.format(tmp))
+    for ll in dspecDF1.index:
+        tmp = dspecDF1.loc[ll, 'freq']
+        dspecDF1.loc[ll, 'freq'] = float('{:.3f}'.format(tmp))
     dspecDF = pd.merge(dspecDF1, dspecDF2, how='inner', on=['freq', 'timestr'])
 
 else:
