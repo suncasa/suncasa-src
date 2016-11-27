@@ -2585,8 +2585,9 @@ else:
             timestrs.append(timestr0)
             fits_local.append(timestr + '.fits')
             fits_global.append(timestr + '.fits')
+        freqs = [float('{:.3f}'.format(ll)) for ll in yy]
         dspecDF_tmp = pd.DataFrame({'time': xx - xx[0],
-                                    'freq': yy,
+                                    'freq': freqs,
                                     'timestr': timestrs,
                                     'dspec': tab2_spec_plt.flatten(),
                                     'fits_local': fits_local,
