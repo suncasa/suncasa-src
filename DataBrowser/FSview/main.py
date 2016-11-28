@@ -193,10 +193,6 @@ if os.path.exists(FS_dspecDF):
                                                 config_plot['plot_config']['tab_FSview_base'][
                                                     'dspec_hght'] / tab2_nfreq))
 
-        tab2_p_dspec.add_tools(BoxSelectTool())
-        tab2_p_dspec.add_tools(LassoSelectTool())
-        tab2_p_dspec.select(BoxSelectTool).select_every_mousemove = False
-        tab2_p_dspec.select(LassoSelectTool).select_every_mousemove = False
         tab2_p_dspec.border_fill_color = "silver"
         tab2_p_dspec.border_fill_alpha = 0.4
         tab2_p_dspec.axis.major_tick_out = 0
@@ -927,6 +923,10 @@ if os.path.exists(FS_dspecDF):
         tab3_p_dspecvy_small.axis.minor_tick_in = 3
         tab3_p_dspecvy_small.axis.major_tick_line_color = "white"
         tab3_p_dspecvy_small.axis.minor_tick_line_color = "white"
+        tab3_p_dspec_small.add_tools(BoxSelectTool())
+        tab3_p_dspec_small.add_tools(LassoSelectTool())
+        tab3_p_dspec_small.select(BoxSelectTool).select_every_mousemove = False
+        tab3_p_dspec_small.select(LassoSelectTool).select_every_mousemove = False
 
         dspecDFtmp = pd.DataFrame()
         nrows_dspecDF = len(dspecDF0.index)
