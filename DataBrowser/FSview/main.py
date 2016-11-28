@@ -285,15 +285,9 @@ if os.path.exists(FS_dspecDF):
                                  width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                  button_type="success")
 
-        def tab2_update_dspec_image(attrname, old, new):
-            global tab2_spec, tab2_dtim, tab2_freq, tab2_bl
-            select_pol = tab2_Select_pol.value
-            select_bl = tab2_Select_bl.value
-            bl_index = tab2_bl.index(select_bl)
-            spec_plt_R = tab2_spec[0, bl_index, :, :]
-            spec_plt_L = tab2_spec[1, bl_index, :, :]
-            spec_plt_I = (tab2_spec[0, bl_index, :, :] + tab2_spec[1, bl_index, :, :]) / 2.
-            spec_plt_V = (tab2_spec[0, bl_index, :, :] - tab2_spec[1, bl_index, :, :]) / 2.
+
+        def tab2_dspec_image_plt(select_pol):
+            global spec_plt_R, spec_plt_L, spec_plt_I, spec_plt_V
             spec_plt_max_IRL = int(
                 max(spec_plt_R.max(), spec_plt_L.max(), spec_plt_I.max())) * 1.2
             spec_plt_min_IRL = (int(min(spec_plt_R.min(), spec_plt_L.min(), spec_plt_I.min())) / 10) * 10
@@ -325,6 +319,107 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec_xPro.y_range.end = spec_plt_max
             tab2_p_dspec_yPro.x_range.start = spec_plt_min
             tab2_p_dspec_yPro.x_range.end = spec_plt_max
+
+
+        tab2_Select_pol_opt = ['RR', 'LL', 'I', 'V']
+
+
+        def tab2_vdspec_update():
+            global spec_plt_R, spec_plt_L, spec_plt_I, spec_plt_V, tab2_Select_pol_opt
+            select_pol = tab2_Select_pol.value
+            tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
+            if tab2_BUT_vdspec.label == "VEC Dyn Spec":
+                if tab2_vla_square_selected:
+                    tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum in calculating...</b></p>'
+                    tab2_Select_pol_opt = tab2_Select_pol.options
+                    tab2_Select_pol.options = pols
+                    tab2_BUT_vdspec.label = "Dyn Spec"
+                    idxmax = max(tab2_vla_square_selected)
+                    idxmin = min(tab2_vla_square_selected)
+                    x0pix, x1pix = idxmin % mapvlasize[0], idxmax % mapvlasize[0]
+                    y0pix, y1pix = idxmin / mapvlasize[0], idxmax / mapvlasize[0]
+                    print x0pix, x1pix, y0pix, y1pix
+                    spec_plt_R = np.zeros((tab2_nfreq, tab2_ntim))
+                    spec_plt_L = np.zeros((tab2_nfreq, tab2_ntim))
+                    spec_plt_I = np.zeros((tab2_nfreq, tab2_ntim))
+                    spec_plt_V = np.zeros((tab2_nfreq, tab2_ntim))
+                    if len(pols) > 1:
+                        for ll in xrange(tab2_ntim):
+                            hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
+                            if os.path.exists(hdufile):
+                                hdulist = fits.open(hdufile)
+                                hdu = hdulist[0]
+                                nfreq_hdu = hdu.header['NAXIS3']
+                                freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
+                                freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
+                                idxfreq = freq.index(freq_ref)
+                                vla_l = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
+                                vla_r = hdu.data[1, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
+                                spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = \
+                                    np.nanmean(vla_l, axis=(-1, -2))
+                                spec_plt_R[spec_plt_R < 0] = 0
+                                spec_plt_L[idxfreq:idxfreq + nfreq_hdu, ll] = \
+                                    np.nanmean(vla_r, axis=(-1, -2))
+                                spec_plt_L[spec_plt_L < 0] = 0
+                                spec_plt_I[idxfreq:idxfreq + nfreq_hdu, ll] = \
+                                    np.nanmean(vla_l + vla_r, axis=(-1, -2))
+                                spec_plt_I[spec_plt_I < 0] = 0
+                                spec_plt_V[idxfreq:idxfreq + nfreq_hdu, ll] = \
+                                    np.nanmean(vla_l - vla_r, axis=(-1, -2))
+                                spec_plt_V[spec_plt_V < 0] = 0
+                    elif len(pols) == 1:
+                        for ll in xrange(tab2_ntim):
+                            hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
+                            if os.path.exists(hdufile):
+                                hdulist = fits.open(hdufile)
+                                hdu = hdulist[0]
+                                nfreq_hdu = hdu.header['NAXIS3']
+                                freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
+                                freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
+                                idxfreq = freq.index(freq_ref)
+                                vladata = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
+                                vlaflux = np.nanmean(vladata, axis=(-1, -2))
+                                spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = vlaflux
+                                spec_plt_R[spec_plt_R < 0] = 0
+                        spec_plt_L = spec_plt_R
+                        spec_plt_I = spec_plt_R
+                        spec_plt_V = spec_plt_R
+                        # print spec_plt_L
+                    tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum calculated.</b></p>'
+
+                    tab2_dspec_image_plt(select_pol)
+                    tab2_p_dspec.title.text = "Vector Dynamic spectrum"
+                else:
+                    tab2_Div_LinkImg_plot.text = '<p><b>Warning:</b> select a region first.</p>'
+            else:
+                tab2_Select_pol.options = tab2_Select_pol_opt
+                select_bl = tab2_Select_bl.value
+                tab2_BUT_vdspec.label = "VEC Dyn Spec"
+                bl_index = tab2_bl.index(select_bl)
+                spec_plt_R = tab2_spec[0, bl_index, :, :]
+                spec_plt_L = tab2_spec[1, bl_index, :, :]
+                spec_plt_I = (tab2_spec[0, bl_index, :, :] + tab2_spec[1, bl_index, :, :]) / 2.
+                spec_plt_V = (tab2_spec[0, bl_index, :, :] - tab2_spec[1, bl_index, :, :]) / 2.
+                tab2_dspec_image_plt(select_pol)
+                tab2_p_dspec.title.text = "Dynamic spectrum"
+                tab2_Div_LinkImg_plot.text = ''
+
+
+        tab2_BUT_vdspec.on_click(tab2_vdspec_update)
+
+
+        def tab2_update_dspec_image(attrname, old, new):
+            global spec_plt_R, spec_plt_L, spec_plt_I, spec_plt_V
+            global tab2_spec, tab2_dtim, tab2_freq, tab2_bl
+            select_pol = tab2_Select_pol.value
+            select_bl = tab2_Select_bl.value
+            bl_index = tab2_bl.index(select_bl)
+            if tab2_BUT_vdspec.label == "VEC Dyn Spec":
+                spec_plt_R = tab2_spec[0, bl_index, :, :]
+                spec_plt_L = tab2_spec[1, bl_index, :, :]
+                spec_plt_I = (tab2_spec[0, bl_index, :, :] + tab2_spec[1, bl_index, :, :]) / 2.
+                spec_plt_V = (tab2_spec[0, bl_index, :, :] - tab2_spec[1, bl_index, :, :]) / 2.
+            tab2_dspec_image_plt(select_pol)
 
 
         tab2_ctrls = [tab2_Select_bl, tab2_Select_pol, tab2_Select_colorspace]
