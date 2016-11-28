@@ -508,9 +508,8 @@ if os.path.exists(FS_dspecDF):
             SRC_maxfit_centroid = {}
             for ll in np.unique(dspecDF['time']):
                 df_tmp = pd.DataFrame(
-                    {'freq': [], 'shape_longitude': [], 'shape_latitude': [], 'x_width': [], 'y_width': [], 'peak': [],
-                     'theta': [],
-                     'amp_offset': []})
+                    {'freq': [], 'shape_longitude': [], 'shape_latitude': [], 'shape_majoraxis': [], 'shape_minoraxis': [], 'peak': [],
+                     'shape_positionangle': []})
                 SRC_maxfit_centroid[np.where(abs(tab2_dtim - ll) < 0.02)[0].tolist()[0]] = ColumnDataSource(df_tmp)
             print("---tab2_SRC_maxfit_centroid_init -- %s seconds ---" % (time.time() - start_timestamp))
 
@@ -795,9 +794,8 @@ if os.path.exists(FS_dspecDF):
                     dftmp = dspecDF[dspecDF.time == ll]
                     dftmp = dftmp.dropna(how='any')
                     df_tmp = pd.concat(
-                        [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'], dftmp.loc[:, 'x_width'],
-                         dftmp.loc[:, 'y_width'], dftmp.loc[:, 'peak'], dftmp.loc[:, 'theta'] - np.pi / 2,
-                         dftmp.loc[:, 'amp_offset']], axis=1)
+                        [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'], dftmp.loc[:, 'shape_majoraxis'],
+                         dftmp.loc[:, 'shape_minoraxis'], dftmp.loc[:, 'peak'], dftmp.loc[:, 'shape_positionangle'] - np.pi / 2], axis=1)
                     SRC_maxfit_centroid[np.where(abs(tab2_dtim - ll) < 0.02)[0].tolist()[0]] = ColumnDataSource(df_tmp)
             else:
                 time_dspec = np.unique(dspecDF['time'])
@@ -816,15 +814,14 @@ if os.path.exists(FS_dspecDF):
                                                            ignore_index=True)
                     SRC_maxfit_centroid = ColumnDataSource(
                         dftmp_concat[
-                            ['freq', 'shape_longitude', 'shape_latitude', 'x_width', 'y_width', 'peak', 'theta', 'amp_offset']].dropna(
+                            ['freq', 'shape_longitude', 'shape_latitude', 'shape_majoraxis', 'shape_minoraxis', 'peak', 'shape_positionangle']].dropna(
                             how='any'))
                 else:
                     dftmp = dspecDF.copy()
                     dftmp = dftmp.dropna(how='any')
                     df_tmp = pd.concat(
-                        [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'], dftmp.loc[:, 'x_width'],
-                         dftmp.loc[:, 'y_width'], dftmp.loc[:, 'peak'], dftmp.loc[:, 'theta'] - np.pi / 2,
-                         dftmp.loc[:, 'amp_offset']], axis=1)
+                        [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'], dftmp.loc[:, 'shape_majoraxis'],
+                         dftmp.loc[:, 'shape_minoraxis'], dftmp.loc[:, 'peak'], dftmp.loc[:, 'shape_positionangle'] - np.pi / 2], axis=1)
                     SRC_maxfit_centroid = ColumnDataSource(df_tmp)
             print("--- tab2_SRC_maxfit_centroid_update -- %s seconds ---" % (time.time() - start_timestamp))
 
@@ -843,9 +840,8 @@ if os.path.exists(FS_dspecDF):
         #         SRC_Img = pfmap.ImageSource()
         #         tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
         #         popt = [dspecDF.loc[idx_selected, :]['peak'], dspecDF.loc[idx_selected, :]['shape_longitude'],
-        #                 dspecDF.loc[idx_selected, :]['shape_latitude'], dspecDF.loc[idx_selected, :]['x_width'],
-        #                 dspecDF.loc[idx_selected, :]['y_width'], dspecDF.loc[idx_selected, :]['theta'],
-        #                 dspecDF.loc[idx_selected, :]['amp_offset']]
+        #                 dspecDF.loc[idx_selected, :]['shape_latitude'], dspecDF.loc[idx_selected, :]['shape_majoraxis'],
+        #                 dspecDF.loc[idx_selected, :]['shape_minoraxis'], dspecDF.loc[idx_selected, :]['shape_positionangle']]
         #         hdulist = fits.open(fits_LOCL_dir + dspecDF.loc[idx_selected, :]['fits_local'])
         #         hdu = hdulist[0]
         #         pfmap_local = PuffinMap(hdu.data[0, 0, :, :], hdu.header)
