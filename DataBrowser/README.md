@@ -10,7 +10,7 @@ setenv SUNCASA "<your suncasa path>"
 setenv SUNCASADB "<your database path>"
 setenv SUNCASAPY46 "<your CASA 4.6 path>"
 setenv SUNCASAPY47 "<your CASA 4.7 path>"
-alias browser csh $SUNCASA/DataBrowser/browser.csh
+alias browser csh $SUNCASA/DataBrowser/browser_csh.sh
 ```
 
 
@@ -20,7 +20,7 @@ export SUNCASA = "<your suncasa path>"
 export SUNCASADB = "<your database path>"
 export SUNCASAPY46 = "<your CASA 4.6 path>"
 export SUNCASAPY47 = "<your CASA 4.7 path>"
-alias browser='bash $SUNCASA/DataBrowser/browser.sh'
+alias browser='bash $SUNCASA/DataBrowser/browser_bsh.sh'
 ```
 
 To launch the Databrowser, type in browser in your terminal.
