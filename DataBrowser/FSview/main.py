@@ -149,6 +149,7 @@ if os.path.exists(FS_dspecDF):
         ########################################################################################
         ########################################################################################
         '''
+        vlafile = glob.glob(fits_LOCL_dir + '*.fits')
         tab2_panel2_Div_exit = Div(text="""<p><b>Warning</b>: Click the <b>Exit FSview</b>
                                 first before closing the tab</p></b>""",
                                    width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
@@ -280,6 +281,9 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec_yPro.axis.major_tick_line_color = "black"
         tab2_p_dspec_yPro.axis.minor_tick_line_color = "black"
 
+        tab2_BUT_vdspec = Button(label="VEC Dyn Spec",
+                                 width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                 button_type="success")
 
         def tab2_update_dspec_image(attrname, old, new):
             global tab2_spec, tab2_dtim, tab2_freq, tab2_bl
@@ -418,28 +422,29 @@ if os.path.exists(FS_dspecDF):
 
         tab2_SRC_maxfit_centroid_init(dspecDF)
 
+        # initial the VLA map contour source
+        tab2_SRC_vlamap_contour = ColumnDataSource(
+            data={'xs': [], 'ys': [], 'line_color': [], 'xt': [], 'yt': [], 'text': []})
+        tab2_SRC_vlamap_peak = ColumnDataSource(
+            data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
+
         # import the vla image
-        if dspecDF.loc[76, :]['fits_exist']:
-            hdulist = fits.open(fits_GLOB_dir + dspecDF.loc[76, :]['fits_global'])
-            hdu = hdulist[0]
-            vla_global_pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header,
-                                         plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                         plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
-                                         palette=bokehpalette_SynthesisImg, webgl=config_plot['plot_config']['WebGL'])
-            hdulist = fits.open(fits_LOCL_dir + dspecDF.loc[76, :]['fits_local'])
-            hdu = hdulist[0]
-            vla_local_pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header)
-            # plot the contour of vla image
-            popt = [dspecDF.loc[76, :]['peak'], dspecDF.loc[76, :]['shape_longitude'], dspecDF.loc[76, :]['shape_latitude'],
-                    dspecDF.loc[76, :]['x_width'], dspecDF.loc[76, :]['y_width'], dspecDF.loc[76, :]['theta'],
-                    dspecDF.loc[76, :]['amp_offset']]
-            mapx, mapy = vla_local_pfmap.meshgrid()
-            mapx, mapy = mapx.value, mapy.value
-            vlamap_fitted = twoD_Gaussian((mapx, mapy), *popt).reshape(vla_local_pfmap.smap.data.shape)
-            tab2_SRC_vlamap_contour = get_contour_data(mapx, mapy, vlamap_fitted)
-            tab2_SRC_vlamap_peak = ColumnDataSource(
-                data={'dspec': [dspecDF.loc[76, :]['dspec']], 'shape_longitude': [dspecDF.loc[76, :]['shape_longitude']],
-                      'shape_latitude': [dspecDF.loc[76, :]['shape_latitude']], 'peak': [dspecDF.loc[76, :]['peak']]})
+        hdulist = fits.open(vlafile[0])
+        hdu = hdulist[0]
+        vla_local_pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header,
+                                    plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
+                                    plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
+                                    webgl=config_plot['plot_config']['WebGL'])
+        # plot the contour of vla image
+        mapx, mapy = vla_local_pfmap.meshgrid()
+        mapx, mapy = mapx.value, mapy.value
+        mapvlasize = mapy.shape
+        ImgDF0 = pd.DataFrame({'xx': mapx.ravel(), 'yy': mapy.ravel()})
+        tab2_SRC_vla_square = ColumnDataSource(ImgDF0)
+        tab2_SRC_vlamap_contour = get_contour_data(mapx, mapy, vla_local_pfmap.smap.data)
+        colormap = cm.get_cmap("cubehelix")  # choose any matplotlib colormap here
+        bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
+        tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
 
         # import the aia image
         # from sunpy.net.helioviewer import HelioviewerClient
@@ -564,32 +569,126 @@ if os.path.exists(FS_dspecDF):
         tab2_p_hmi.grid.grid_line_color = None
         tab2_p_hmi.background_fill_color = "black"
 
-        # plot the global vla image
-        if dspecDF.loc[76, :]['fits_exist']:
-            tab2_p_vla, tab2_r_vla = vla_global_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
-                                                              palette=bokehpalette_SynthesisImg,
-                                                              x_range=tab2_p_aia.x_range,
-                                                              y_range=tab2_p_aia.y_range)
-            tab2_p_vla.title.text_font_size = '6pt'
-            tab2_p_vla.yaxis.visible = False
-            tab2_p_vla.border_fill_color = "silver"
-            tab2_p_vla.border_fill_alpha = 0.4
-            tab2_p_vla.axis.major_tick_out = 0
-            tab2_p_vla.axis.major_tick_in = 5
-            tab2_p_vla.axis.minor_tick_out = 0
-            tab2_p_vla.axis.minor_tick_in = 3
-            tab2_p_vla.axis.major_tick_line_color = "white"
-            tab2_p_vla.axis.minor_tick_line_color = "white"
-            tab2_p_vla.grid.grid_line_color = None
-            tab2_p_vla.background_fill_color = "black"
+        # plot the vla image
+        tab2_p_vla, tab2_r_vla = vla_local_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
+                                                         palette=bokehpalette_SynthesisImg,
+                                                         x_range=tab2_p_aia.x_range,
+                                                         y_range=tab2_p_aia.y_range)
+        tab2_p_vla.title.text_font_size = '6pt'
+        tab2_p_vla.yaxis.visible = False
+        tab2_p_vla.border_fill_color = "silver"
+        tab2_p_vla.border_fill_alpha = 0.4
+        tab2_p_vla.axis.major_tick_out = 0
+        tab2_p_vla.axis.major_tick_in = 5
+        tab2_p_vla.axis.minor_tick_out = 0
+        tab2_p_vla.axis.minor_tick_in = 3
+        tab2_p_vla.axis.major_tick_line_color = "white"
+        tab2_p_vla.axis.minor_tick_line_color = "white"
+        tab2_p_vla.grid.grid_line_color = None
+        tab2_p_vla.background_fill_color = "black"
+        tab2_r_vla_square = tab2_p_vla.square('xx', 'yy', source=tab2_SRC_vla_square,
+                                              fill_alpha=0.0, fill_color=None,
+                                              line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
+                                              selection_fill_color=None,
+                                              nonselection_fill_alpha=0.0,
+                                              selection_line_alpha=0.0, selection_line_color=None,
+                                              nonselection_line_alpha=0.0,
+                                              size=4)
+        tab2_p_vla.add_tools(BoxSelectTool(renderers=[tab2_r_vla_square]))
+        tab2_r_vla_multi_line = tab2_p_vla.multi_line(xs='xs', ys='ys', line_color='line_color',
+                                                      source=tab2_SRC_vlamap_contour, alpha=0.7, line_width=2)
 
-            tab2_r_vla_multi_line = tab2_p_vla.multi_line(xs='xs', ys='ys', line_color='line_color',
-                                                          source=tab2_SRC_vlamap_contour, alpha=0.7, line_width=2)
-            tab2_r_vla_circle = tab2_p_vla.circle(x='shape_longitude', y='shape_latitude',
-                                                  # size=10.*dspecDF.loc[76,:]['peak']/50.,
-                                                  radius=3, radius_units='data', source=tab2_SRC_vlamap_peak,
-                                                  fill_alpha=0.8, fill_color='#7c7e71',
-                                                  line_color='#7c7e71')
+        tab2_r_vla_ImgRgn_patch = tab2_p_vla.patch('xx', 'yy', source=tab2_SRC_ImgRgn_Patch,
+                                                   fill_color=None, fill_alpha=0.5, line_color="white",
+                                                   line_alpha=1, line_width=1)
+
+        tab2_LinkImg_HGHT = config_plot['plot_config']['tab_FSview_base']['vla_hght']
+        tab2_LinkImg_WDTH = config_plot['plot_config']['tab_FSview_base']['vla_wdth']
+
+        tab2_Div_LinkImg_plot = Div(text=""" """,
+                                    width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+
+        tab2_Slider_time_LinkImg = Slider(start=0, end=tab2_ntim - 1, value=0, step=1, title="time idx",
+                                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                          callback_policy='mouseup')
+        tab2_Slider_freq_LinkImg = Slider(start=0, end=tab2_nfreq - 1, value=0, step=1, title="freq idx",
+                                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                          callback_policy='mouseup')
+
+        stokeslist = ['{}'.format(int(ll)) for ll in
+                      (hdu.header["CRVAL4"] + np.arange(hdu.header["NAXIS4"]) * hdu.header["CDELT4"])]
+        stokesdict = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3': 'RL', '-4': 'LR',
+                      '-5': 'XX', '-6': 'YY', '-7': 'XY', '-8': 'YX'}
+        pols = map(lambda x: stokesdict[x], stokeslist)
+        # pols = ['RR', 'LL', 'I', 'V']
+        SRL = set(['RR', 'LL'])
+        SXY = set(['XX', 'YY', 'XY', 'YX'])
+        Spol = set(pols)
+        if hdu.header['NAXIS4'] == 2 and len(SRL.intersection(Spol)) == 2:
+            pols = pols + ['I', 'V']
+        if hdu.header['NAXIS4'] == 4 and len(SXY.intersection(Spol)) == 4:
+            pols = pols + ['I', 'V']
+
+        tab2_Select_vla_pol = Select(title="Polarization:", value=pols[0], options=pols,
+                                     width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+
+        tab2_source_idx_line_x = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
+        tab2_r_dspec_line_x = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
+                                                line_color='white', source=tab2_source_idx_line_x)
+        tab2_source_idx_line_y = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
+        tab2_r_dspec_line_y = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
+                                                line_color='white', source=tab2_source_idx_line_y)
+
+
+        def tab3_slider_LinkImg_update(attrname, old, new):
+            global hdu
+            select_vla_pol = tab2_Select_vla_pol.value
+            tab2_Slider_time_LinkImg.start = next(
+                i for i in xrange(tab2_ntim) if tab2_dtim[i] >= tab2_p_dspec.x_range.start)
+            tab2_Slider_time_LinkImg.end = next(
+                i for i in xrange(tab2_ntim - 1, -1, -1) if tab2_dtim[i] <= tab2_p_dspec.x_range.end) + 1
+            tab2_Slider_freq_LinkImg.start = next(
+                i for i in xrange(tab2_nfreq) if tab2_freq[i] >= tab2_p_dspec.y_range.start)
+            tab2_Slider_freq_LinkImg.end = next(
+                i for i in xrange(tab2_nfreq - 1, -1, -1) if tab2_freq[i] <= tab2_p_dspec.y_range.end) + 1
+            tidx = int(tab2_Slider_time_LinkImg.value)
+            fidx = int(tab2_Slider_freq_LinkImg.value)
+            tab2_r_dspec_line_x.data_source.data = ColumnDataSource(
+                pd.DataFrame({'time': [tab2_dtim[tidx], tab2_dtim[tidx]],
+                              'freq': [tab2_freq[0], tab2_freq[-1]]})).data
+            tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
+                pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
+                              'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
+            hdufile = fits_LOCL_dir + dspecDF0.loc[tidx, :]['fits_local']
+            if os.path.exists(hdufile):
+                hdulist = fits.open(hdufile)
+                hdu = hdulist[0]
+                if select_vla_pol == 'RR':
+                    vladata = hdu.data[pols.index('RR'), fidx, :, :]
+                elif select_vla_pol == 'LL':
+                    vladata = hdu.data[pols.index('LL'), fidx, :, :]
+                elif select_vla_pol == 'I':
+                    vladata = hdu.data[pols.index('RR'), fidx, :, :] + hdu.data[pols.index('1'), fidx, :, :]
+                elif select_vla_pol == 'V':
+                    vladata = hdu.data[pols.index('RR'), fidx, :, :] - hdu.data[pols.index('1'), fidx, :, :]
+                pfmap = PuffinMap(vladata, hdu.header, plot_height=tab2_LinkImg_HGHT,
+                                  plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
+                SRC_Img = pfmap.ImageSource()
+                tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
+                mapx, mapy = pfmap.meshgrid()
+                mapx, mapy = mapx.value, mapy.value
+                SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
+                tab2_r_vla_multi_line.data_source.data = SRC_contour.data
+                tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
+                    dspecDF0.loc[tidx, :]['fits_local'])
+            else:
+                tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
+                    dspecDF0.loc[tidx, :]['fits_local'])
+
+
+        tab2_CTRLs_LinkImg = [tab2_Slider_time_LinkImg, tab2_Slider_freq_LinkImg, tab2_Select_vla_pol]
+        for ctrl in tab2_CTRLs_LinkImg:
+            ctrl.on_change('value', tab3_slider_LinkImg_update)
 
 
         def tab2_SRC_maxfit_centroid_update(dspecDF):
@@ -639,37 +738,36 @@ if os.path.exists(FS_dspecDF):
         tab2_LinkImg_WDTH = config_plot['plot_config']['tab_FSview_base']['vla_wdth']
 
 
-        def tab2_LinkImg_replot_update():
-            idx_selected = dspecDF.index[len(dspecDF) / 2]
-            if dspecDF.loc[idx_selected, :]['fits_exist']:
-                hdulist = fits.open(fits_GLOB_dir + dspecDF.loc[idx_selected, :]['fits_global'])
-                hdu = hdulist[0]
-                pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header, plot_height=tab2_LinkImg_HGHT,
-                                  plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
-                SRC_Img = pfmap.ImageSource()
-                tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
-                popt = [dspecDF.loc[idx_selected, :]['peak'], dspecDF.loc[idx_selected, :]['shape_longitude'],
-                        dspecDF.loc[idx_selected, :]['shape_latitude'], dspecDF.loc[idx_selected, :]['x_width'],
-                        dspecDF.loc[idx_selected, :]['y_width'], dspecDF.loc[idx_selected, :]['theta'],
-                        dspecDF.loc[idx_selected, :]['amp_offset']]
-                hdulist = fits.open(fits_LOCL_dir + dspecDF.loc[idx_selected, :]['fits_local'])
-                hdu = hdulist[0]
-                pfmap_local = PuffinMap(hdu.data[0, 0, :, :], hdu.header)
-                mapx, mapy = pfmap_local.meshgrid()
-                mapx, mapy = mapx.value, mapy.value
-                vlamap_fitted = twoD_Gaussian((mapx, mapy), *popt).reshape(pfmap_local.smap.data.shape)
-                SRC_contour = get_contour_data(mapx, mapy, vlamap_fitted)
-                tab2_r_vla_multi_line.data_source.data = SRC_contour.data
-                SRC_peak = ColumnDataSource(data={'dspec': [dspecDF.loc[idx_selected, :]['dspec']],
-                                                  'shape_longitude': [dspecDF.loc[idx_selected, :]['shape_longitude']],
-                                                  'shape_latitude': [dspecDF.loc[idx_selected, :]['shape_latitude']],
-                                                  'peak': [dspecDF.loc[idx_selected, :]['peak']]})
-                tab2_r_vla_circle.data_source.data = SRC_peak.data
+        # def tab2_LinkImg_replot_update():
+        #     idx_selected = dspecDF.index[len(dspecDF) / 2]
+        #     if dspecDF.loc[idx_selected, :]['fits_exist']:
+        #         hdulist = fits.open(fits_GLOB_dir + dspecDF.loc[idx_selected, :]['fits_global'])
+        #         hdu = hdulist[0]
+        #         pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header, plot_height=tab2_LinkImg_HGHT,
+        #                           plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
+        #         SRC_Img = pfmap.ImageSource()
+        #         tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
+        #         popt = [dspecDF.loc[idx_selected, :]['peak'], dspecDF.loc[idx_selected, :]['shape_longitude'],
+        #                 dspecDF.loc[idx_selected, :]['shape_latitude'], dspecDF.loc[idx_selected, :]['x_width'],
+        #                 dspecDF.loc[idx_selected, :]['y_width'], dspecDF.loc[idx_selected, :]['theta'],
+        #                 dspecDF.loc[idx_selected, :]['amp_offset']]
+        #         hdulist = fits.open(fits_LOCL_dir + dspecDF.loc[idx_selected, :]['fits_local'])
+        #         hdu = hdulist[0]
+        #         pfmap_local = PuffinMap(hdu.data[0, 0, :, :], hdu.header)
+        #         mapx, mapy = pfmap_local.meshgrid()
+        #         mapx, mapy = mapx.value, mapy.value
+        #         vlamap_fitted = twoD_Gaussian((mapx, mapy), *popt).reshape(pfmap_local.smap.data.shape)
+        #         SRC_contour = get_contour_data(mapx, mapy, vlamap_fitted)
+        #         tab2_r_vla_multi_line.data_source.data = SRC_contour.data
+        #         SRC_peak = ColumnDataSource(data={'dspec': [dspecDF.loc[idx_selected, :]['dspec']],
+        #                                           'shape_longitude': [dspecDF.loc[idx_selected, :]['shape_longitude']],
+        #                                           'shape_latitude': [dspecDF.loc[idx_selected, :]['shape_latitude']],
+        #                                           'peak': [dspecDF.loc[idx_selected, :]['peak']]})
 
 
-        tab2_BUT_LinkImg_replot = Button(label='replot',
-                                         width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-        tab2_BUT_LinkImg_replot.on_click(tab2_LinkImg_replot_update)
+        # tab2_BUT_LinkImg_replot = Button(label='replot',
+        #                                  width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+        # tab2_BUT_LinkImg_replot.on_click(tab2_LinkImg_replot_update)
 
 
         def tab2_panel_exit():
@@ -833,6 +931,123 @@ if os.path.exists(FS_dspecDF):
                                                               source=tab3_source_idx_line)
         tab2_dspec_selected = None
 
+
+        def tab2_dspec_selection_change(attrname, old, new):
+            global tab2_dspec_selected
+            tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
+            if tab2_dspec_selected:
+                global dspecDF
+                dspecDF = dspecDF0.iloc[tab2_dspec_selected, :]
+                idx_selected = dspecDF.index[len(dspecDF) / 2]
+                tidx = int(['{:.3f}'.format(ll) for ll in tab2_dtim].index(
+                    '{:.3f}'.format(dspecDF0.loc[idx_selected, :]['time'])))
+                fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
+                    '{:.3f}'.format(dspecDF0.loc[idx_selected, :]['freq'])))
+                tab2_Slider_time_LinkImg.value = tidx
+                tab2_Slider_freq_LinkImg.value = fidx
+
+
+        tab2_SRC_dspec_square.on_change('selected', tab2_dspec_selection_change)
+        tab2_vla_square_selected = None
+
+
+        def tab2_vla_square_selection_change(attrname, old, new):
+            global x0, x1, y0, y1
+            tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
+            if tab2_vla_square_selected:
+                ImgDF = ImgDF0.iloc[tab2_vla_square_selected, :]
+                x0, x1 = ImgDF['xx'].min(), ImgDF['xx'].max()
+                y0, y1 = ImgDF['yy'].min(), ImgDF['yy'].max()
+                tab2_r_vla_ImgRgn_patch.data_source.data = ColumnDataSource(
+                    pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
+                idxmax = max(tab2_vla_square_selected)
+                idxmin = min(tab2_vla_square_selected)
+                x0pix, x1pix = idxmin % mapvlasize[0], idxmax % mapvlasize[0]
+                y0pix, y1pix = idxmin / mapvlasize[0], idxmax / mapvlasize[0]
+                tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, y0pix, x1pix, y1pix)
+                tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
+                on an image region(s)</b></p>' + ' '.join(
+                    "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+                tab2_Div_tImfit.text = tab2_Div_tImfit_text
+            else:
+                tab2_r_vla_ImgRgn_patch.data_source.data = ColumnDataSource(
+                    pd.DataFrame({'xx': [], 'yy': []})).data
+
+
+        tab2_SRC_vla_square.on_change('selected', tab2_vla_square_selection_change)
+
+        # todo add AIA & HMI resolution selection
+        tab2_Select_MapRES = Select(title="Img resolution:", value='{}x{}'.format(MapRES, MapRES),
+                                    options=["32x32", "64x64", "128x128", "256x256", "512x512", "1024x1024",
+                                             "2048x2048"],
+                                    width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+
+
+        def tab2_update_MapRES(attrname, old, new):
+            start_timestamp = time.time()
+            select_MapRES = int(tab2_Select_MapRES.value.split('x')[0])
+            dimensions = u.Quantity([select_MapRES, select_MapRES], u.pixel)
+            aia_resampled_map = aiamap.resample(dimensions)
+            aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
+                                            plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
+                                            plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
+                                            webgl=config_plot['plot_config']['WebGL'])
+            SRC_AIA = aia_resampled_pfmap.ImageSource()
+            tab2_r_aia.data_source.data['data'] = SRC_AIA.data['data']
+            hmi_resampled_map = hmimap.resample(dimensions)
+            hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
+                                            plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
+                                            plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
+                                            webgl=config_plot['plot_config']['WebGL'])
+            SRC_HMI = hmi_resampled_pfmap.ImageSource()
+            tab2_r_hmi.data_source.data['data'] = SRC_HMI.data['data']
+            print("---tab2_update_MapRES -- %s seconds ---" % (time.time() - start_timestamp))
+
+
+        tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
+
+        # todo add the threshold selection (overplot another gylph)
+
+
+        rgnfitsfile = database_dir + event_id + struct_id + "CASA_imfit_region_fits.rgn"
+
+
+        def tab2_save_region():
+            tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
+            if tab2_vla_square_selected:
+                pangle = hdu.header['p_angle']
+                x0Deg, x1Deg, y0Deg, y1Deg = (x0 - hdu.header['CRVAL1']) / 3600., (
+                    x1 - hdu.header['CRVAL1']) / 3600., (
+                                                 y0 - hdu.header['CRVAL2']) / 3600., (
+                                                 y1 - hdu.header['CRVAL2']) / 3600.
+                p0 = -pangle
+                prad = radians(p0)
+                dx0 = (x0Deg) * cos(prad) - y0Deg * sin(prad)
+                dy0 = (x0Deg) * sin(prad) + y0Deg * cos(prad)
+                dx1 = (x1Deg) * cos(prad) - y1Deg * sin(prad)
+                dy1 = (x1Deg) * sin(prad) + y1Deg * cos(prad)
+                x0Deg, x1Deg, y0Deg, y1Deg = (dx0 + hdu.header['CRVAL1'] / 3600.), (
+                    dx1 + hdu.header['CRVAL1'] / 3600.), (dy0 + hdu.header['CRVAL2'] / 3600.), (
+                                                 dy1 + hdu.header['CRVAL2'] / 3600.)
+                c0fits = SkyCoord(ra=(x0Deg) * u.degree, dec=(y0Deg) * u.degree)
+                c1fits = SkyCoord(ra=(x1Deg) * u.degree, dec=(y1Deg) * u.degree)
+                rgnfits = '#CRTFv0 CASA Region Text Format version 0\n\
+                box [[{}], [{}]] coord=J2000, linewidth=1, \
+                linestyle=-, symsize=1, symthick=1, color=magenta, \
+                font="DejaVu Sans", fontsize=11, fontstyle=normal, \
+                usetex=false'.format(', '.join(c0fits.to_string('hmsdms').split(' ')),
+                                     ', '.join(c1fits.to_string('hmsdms').split(' ')))
+                with open(rgnfitsfile, "w") as fp:
+                    fp.write(rgnfits)
+                tab2_Div_LinkImg_plot.text = '<p>region saved to <b>{}</b>.</p>'.format(rgnfitsfile)
+            else:
+                tab2_Div_LinkImg_plot.text = '<p><b>Warning:</b> select a region first.</p>'
+
+
+        tab2_BUT_SavRgn = Button(label='Save Region',
+                                 width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                 button_type='primary')
+        tab2_BUT_SavRgn.on_click(tab2_save_region)
 
         def dspecDFtmp_init():
             global dspecDFtmp
@@ -1219,16 +1434,18 @@ if os.path.exists(FS_dspecDF):
         # todo add the threshold selection (overplot another gylph)
         # todo add the dmax dmin and reset
 
-        panel2 = column(
+
+        panel2 = row(column(
             row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
-                widgetbox(tab2_Select_MapRES, tab2_BUT_LinkImg_replot,
+                widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
+                          tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
                           width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])),
             row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
-                       row(tab2_p_dspec_xPro, tab2_p_dspec_thumb)),
+                       tab2_p_dspec_xPro),
                 widgetbox(tab2_Select_pol, tab2_Select_bl,
                           tab2_Select_colorspace,
                           tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
-                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])))
+                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))))
 
         panel3 = row(column(tab3_p_aia_submap, tab3_Slider_ANLYS_idx,
                             row(tab3_BUT_PlayCTRL, tab3_SPCR_LFT_BUT_Step, tab3_BUT_StepCTRL,
@@ -1634,6 +1851,7 @@ if os.path.exists(FS_dspecDF):
             colormap = cm.get_cmap("cubehelix")  # choose any matplotlib colormap here
             bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
             tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
+
             # import the aia image
             # from sunpy.net.helioviewer import HelioviewerClient
             #
@@ -1849,13 +2067,13 @@ if os.path.exists(FS_dspecDF):
             tab2_dspec_selected = None
 
 
-            def dspecDFtmp_init():
-                global dspecDFtmp
-                dspecDFtmp = pd.DataFrame()
-                nrows_dspecDF = len(dspecDF0.index)
-                dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-                dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-                dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+            # def dspecDFtmp_init():
+            #     global dspecDFtmp
+            #     dspecDFtmp = pd.DataFrame()
+            #     nrows_dspecDF = len(dspecDF0.index)
+            #     dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+            #     dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+            #     dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
 
 
             def tab2_dspec_selection_change(attrname, old, new):
@@ -2021,19 +2239,10 @@ if os.path.exists(FS_dspecDF):
                 global tab2_tImfit_Param_dict
                 tab2_tImfit_Param_dict = OrderedDict()
                 vlafileliststr = "'" + "','".join(vlafile) + "'"
-                # timeran_tmp = [file.split('/')[-1][0:-5] for file in vlafile]
-                # timestamps = ['{}-{}-{}T{}:{}:{}.{:03d}'.format(ll[0:4], ll[4:6], ll[6:8], ll[9:11], ll[11:13], ll[13:15],
-                #                                               int(ll[16:])) for ll in timeran_tmp]
                 tab2_tImfit_Param_dict['event_id'] = "'{}'".format(event_id.replace("/", ""))
                 tab2_tImfit_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
                 tab2_tImfit_Param_dict['ncpu'] = "10"
-                # tab2_tImfit_Param_dict['doreg'] = "True"
-                # tab2_tImfit_Param_dict['timestamps'] = "{}".format(timestamps)
-                # tab2_tImfit_Param_dict['ephemfile'] = "'horizons_sun_20141101.radecp'"
-                # tab2_tImfit_Param_dict['msinfofile'] = "'SUN01_20141101.T163940-164700.50ms.cal.msinfo.npz'"
-                # tab2_tImfit_Param_dict['region'] = "'{}'".format(rgnfitsfile)
                 tab2_tImfit_Param_dict['box'] = "''"
-                # tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, x1pix, y0pix, y1pix)
                 tab2_tImfit_Param_dict['stokes'] = "'{}'".format(tab2_Select_vla_pol.value)
                 tab2_tImfit_Param_dict['mask'] = "''"
                 tab2_tImfit_Param_dict['imagefiles'] = "[{}]".format(vlafileliststr)
@@ -2143,9 +2352,6 @@ if os.path.exists(FS_dspecDF):
 
             lout = panel2
 
-            # def timeout_callback():
-            #     print 'timeout'
-            #     raise SystemExit
 
 
             curdoc().add_root(lout)
