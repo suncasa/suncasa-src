@@ -110,7 +110,7 @@ if os.path.exists(FS_dspecDF):
     with open(FS_dspecDF, 'rb') as f:
         dspecDF0 = pickle.load(f)
         dspecDF = dspecDF0.copy()
-    itemset1 = set(['x_pos', 'y_pos'])
+    itemset1 = set(['shape_longitude', 'shape_latitude'])
     itemset2 = set(dspecDF.columns.tolist())
     if len(itemset2.intersection(itemset1)) == 2:
         '''
@@ -399,7 +399,7 @@ if os.path.exists(FS_dspecDF):
         # initial the VLA map contour source
         tab2_SRC_vlamap_contour = ColumnDataSource(
             data={'xs': [], 'ys': [], 'line_color': [], 'xt': [], 'yt': [], 'text': []})
-        tab2_SRC_vlamap_peak = ColumnDataSource(data={'dspec': [], 'x_pos': [], 'y_pos': [], 'amp_gaus': []})
+        tab2_SRC_vlamap_peak = ColumnDataSource(data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
 
 
         # initial the source of maxfit centroid
@@ -409,7 +409,7 @@ if os.path.exists(FS_dspecDF):
             SRC_maxfit_centroid = {}
             for ll in np.unique(dspecDF['time']):
                 df_tmp = pd.DataFrame(
-                    {'freq': [], 'x_pos': [], 'y_pos': [], 'x_width': [], 'y_width': [], 'amp_gaus': [],
+                    {'freq': [], 'shape_longitude': [], 'shape_latitude': [], 'x_width': [], 'y_width': [], 'peak': [],
                      'theta': [],
                      'amp_offset': []})
                 SRC_maxfit_centroid[np.where(abs(tab2_dtim - ll) < 0.02)[0].tolist()[0]] = ColumnDataSource(df_tmp)
@@ -430,7 +430,7 @@ if os.path.exists(FS_dspecDF):
             hdu = hdulist[0]
             vla_local_pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header)
             # plot the contour of vla image
-            popt = [dspecDF.loc[76, :]['amp_gaus'], dspecDF.loc[76, :]['x_pos'], dspecDF.loc[76, :]['y_pos'],
+            popt = [dspecDF.loc[76, :]['peak'], dspecDF.loc[76, :]['shape_longitude'], dspecDF.loc[76, :]['shape_latitude'],
                     dspecDF.loc[76, :]['x_width'], dspecDF.loc[76, :]['y_width'], dspecDF.loc[76, :]['theta'],
                     dspecDF.loc[76, :]['amp_offset']]
             mapx, mapy = vla_local_pfmap.meshgrid()
@@ -438,8 +438,8 @@ if os.path.exists(FS_dspecDF):
             vlamap_fitted = twoD_Gaussian((mapx, mapy), *popt).reshape(vla_local_pfmap.smap.data.shape)
             tab2_SRC_vlamap_contour = get_contour_data(mapx, mapy, vlamap_fitted)
             tab2_SRC_vlamap_peak = ColumnDataSource(
-                data={'dspec': [dspecDF.loc[76, :]['dspec']], 'x_pos': [dspecDF.loc[76, :]['x_pos']],
-                      'y_pos': [dspecDF.loc[76, :]['y_pos']], 'amp_gaus': [dspecDF.loc[76, :]['amp_gaus']]})
+                data={'dspec': [dspecDF.loc[76, :]['dspec']], 'shape_longitude': [dspecDF.loc[76, :]['shape_longitude']],
+                      'shape_latitude': [dspecDF.loc[76, :]['shape_latitude']], 'peak': [dspecDF.loc[76, :]['peak']]})
 
         # import the aia image
         # from sunpy.net.helioviewer import HelioviewerClient
@@ -475,7 +475,7 @@ if os.path.exists(FS_dspecDF):
                                                              palette=bokehpalette_sdoaia171)
         tab2_p_aia.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
                               line_width=2)
-        tab2_p_aia.circle(x='x_pos', y='y_pos',  # size=10.*dspecDF.loc[76,:]['amp_gaus']/50.,
+        tab2_p_aia.circle(x='shape_longitude', y='shape_latitude',  # size=10.*dspecDF.loc[76,:]['peak']/50.,
                           radius=3, radius_units='data', source=tab2_SRC_vlamap_peak, fill_alpha=0.8,
                           fill_color='#7c7e71',
                           line_color='#7c7e71')
@@ -513,11 +513,11 @@ if os.path.exists(FS_dspecDF):
         tab3_p_aia_submap.axis.minor_tick_line_color = "white"
         color_mapper = LinearColorMapper(Spectral11)
 
-        tab3_r_aia_submap_cross = tab3_p_aia_submap.cross(x='x_pos', y='y_pos', size=15,
+        tab3_r_aia_submap_cross = tab3_p_aia_submap.cross(x='shape_longitude', y='shape_latitude', size=15,
                                                           color={'field': 'freq', 'transform': color_mapper},
                                                           line_width=3,
                                                           source=SRC_maxfit_centroid[tab2_dtim[0]], line_alpha=0.8)
-        tab3_r_aia_submap_line = tab3_p_aia_submap.line(x='x_pos', y='y_pos', line_width=3, line_color='black',
+        tab3_r_aia_submap_line = tab3_p_aia_submap.line(x='shape_longitude', y='shape_latitude', line_width=3, line_color='black',
                                                         line_alpha=0.5,
                                                         source=SRC_maxfit_centroid[tab2_dtim[0]])
         tab3_r_aia_submap_line.visible = False
@@ -549,7 +549,7 @@ if os.path.exists(FS_dspecDF):
                                                              palette=bokehpalette_sdohmimag)
         tab2_p_hmi.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
                               line_width=2)
-        tab2_p_hmi.circle(x='x_pos', y='y_pos', radius=3, radius_units='data', source=tab2_SRC_vlamap_peak,
+        tab2_p_hmi.circle(x='shape_longitude', y='shape_latitude', radius=3, radius_units='data', source=tab2_SRC_vlamap_peak,
                           fill_alpha=0.8,
                           fill_color='#7c7e71', line_color='#7c7e71')
         tab2_p_hmi.yaxis.visible = False
@@ -585,8 +585,8 @@ if os.path.exists(FS_dspecDF):
 
             tab2_r_vla_multi_line = tab2_p_vla.multi_line(xs='xs', ys='ys', line_color='line_color',
                                                           source=tab2_SRC_vlamap_contour, alpha=0.7, line_width=2)
-            tab2_r_vla_circle = tab2_p_vla.circle(x='x_pos', y='y_pos',
-                                                  # size=10.*dspecDF.loc[76,:]['amp_gaus']/50.,
+            tab2_r_vla_circle = tab2_p_vla.circle(x='shape_longitude', y='shape_latitude',
+                                                  # size=10.*dspecDF.loc[76,:]['peak']/50.,
                                                   radius=3, radius_units='data', source=tab2_SRC_vlamap_peak,
                                                   fill_alpha=0.8, fill_color='#7c7e71',
                                                   line_color='#7c7e71')
@@ -601,8 +601,8 @@ if os.path.exists(FS_dspecDF):
                     dftmp = dspecDF[dspecDF.time == ll]
                     dftmp = dftmp.dropna(how='any')
                     df_tmp = pd.concat(
-                        [dftmp.loc[:, 'freq'], dftmp.loc[:, 'x_pos'], dftmp.loc[:, 'y_pos'], dftmp.loc[:, 'x_width'],
-                         dftmp.loc[:, 'y_width'], dftmp.loc[:, 'amp_gaus'], dftmp.loc[:, 'theta'] - np.pi / 2,
+                        [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'], dftmp.loc[:, 'x_width'],
+                         dftmp.loc[:, 'y_width'], dftmp.loc[:, 'peak'], dftmp.loc[:, 'theta'] - np.pi / 2,
                          dftmp.loc[:, 'amp_offset']], axis=1)
                     SRC_maxfit_centroid[np.where(abs(tab2_dtim - ll) < 0.02)[0].tolist()[0]] = ColumnDataSource(df_tmp)
             else:
@@ -622,14 +622,14 @@ if os.path.exists(FS_dspecDF):
                                                            ignore_index=True)
                     SRC_maxfit_centroid = ColumnDataSource(
                         dftmp_concat[
-                            ['freq', 'x_pos', 'y_pos', 'x_width', 'y_width', 'amp_gaus', 'theta', 'amp_offset']].dropna(
+                            ['freq', 'shape_longitude', 'shape_latitude', 'x_width', 'y_width', 'peak', 'theta', 'amp_offset']].dropna(
                             how='any'))
                 else:
                     dftmp = dspecDF.copy()
                     dftmp = dftmp.dropna(how='any')
                     df_tmp = pd.concat(
-                        [dftmp.loc[:, 'freq'], dftmp.loc[:, 'x_pos'], dftmp.loc[:, 'y_pos'], dftmp.loc[:, 'x_width'],
-                         dftmp.loc[:, 'y_width'], dftmp.loc[:, 'amp_gaus'], dftmp.loc[:, 'theta'] - np.pi / 2,
+                        [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'], dftmp.loc[:, 'x_width'],
+                         dftmp.loc[:, 'y_width'], dftmp.loc[:, 'peak'], dftmp.loc[:, 'theta'] - np.pi / 2,
                          dftmp.loc[:, 'amp_offset']], axis=1)
                     SRC_maxfit_centroid = ColumnDataSource(df_tmp)
             print("--- tab2_SRC_maxfit_centroid_update -- %s seconds ---" % (time.time() - start_timestamp))
@@ -648,8 +648,8 @@ if os.path.exists(FS_dspecDF):
                                   plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
                 SRC_Img = pfmap.ImageSource()
                 tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
-                popt = [dspecDF.loc[idx_selected, :]['amp_gaus'], dspecDF.loc[idx_selected, :]['x_pos'],
-                        dspecDF.loc[idx_selected, :]['y_pos'], dspecDF.loc[idx_selected, :]['x_width'],
+                popt = [dspecDF.loc[idx_selected, :]['peak'], dspecDF.loc[idx_selected, :]['shape_longitude'],
+                        dspecDF.loc[idx_selected, :]['shape_latitude'], dspecDF.loc[idx_selected, :]['x_width'],
                         dspecDF.loc[idx_selected, :]['y_width'], dspecDF.loc[idx_selected, :]['theta'],
                         dspecDF.loc[idx_selected, :]['amp_offset']]
                 hdulist = fits.open(fits_LOCL_dir + dspecDF.loc[idx_selected, :]['fits_local'])
@@ -661,9 +661,9 @@ if os.path.exists(FS_dspecDF):
                 SRC_contour = get_contour_data(mapx, mapy, vlamap_fitted)
                 tab2_r_vla_multi_line.data_source.data = SRC_contour.data
                 SRC_peak = ColumnDataSource(data={'dspec': [dspecDF.loc[idx_selected, :]['dspec']],
-                                                  'x_pos': [dspecDF.loc[idx_selected, :]['x_pos']],
-                                                  'y_pos': [dspecDF.loc[idx_selected, :]['y_pos']],
-                                                  'amp_gaus': [dspecDF.loc[idx_selected, :]['amp_gaus']]})
+                                                  'shape_longitude': [dspecDF.loc[idx_selected, :]['shape_longitude']],
+                                                  'shape_latitude': [dspecDF.loc[idx_selected, :]['shape_latitude']],
+                                                  'peak': [dspecDF.loc[idx_selected, :]['peak']]})
                 tab2_r_vla_circle.data_source.data = SRC_peak.data
 
 
@@ -741,12 +741,12 @@ if os.path.exists(FS_dspecDF):
 
         dspecDFtmp = pd.DataFrame()
         nrows_dspecDF = len(dspecDF0.index)
-        dspecDFtmp['x_pos'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-        dspecDFtmp['y_pos'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-        dspecDFtmp['amp_gaus'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-        dspecDFtmp.loc[:, 'x_pos'] = dspecDF0.loc[:, 'x_pos']
-        dspecDFtmp.loc[:, 'y_pos'] = dspecDF0.loc[:, 'y_pos']
-        dspecDFtmp.loc[:, 'amp_gaus'] = dspecDF0.loc[:, 'amp_gaus']
+        dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+        dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+        dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+        dspecDFtmp.loc[:, 'shape_longitude'] = dspecDF0.loc[:, 'shape_longitude']
+        dspecDFtmp.loc[:, 'shape_latitude'] = dspecDF0.loc[:, 'shape_latitude']
+        dspecDFtmp.loc[:, 'peak'] = dspecDF0.loc[:, 'peak']
 
 
         def tab3_SRC_dspec_small_init():
@@ -754,21 +754,21 @@ if os.path.exists(FS_dspecDF):
             global mean_amp_g, mean_vx, mean_vy, drange_amp_g, drange_vx, drange_vy
             global vmax_amp_g, vmax_vx, vmax_vy, vmin_amp_g, vmin_vx, vmin_vy
             start_timestamp = time.time()
-            amp_g = (dspecDF0['amp_gaus'].copy()).reshape(tab2_nfreq, tab2_ntim)
+            amp_g = (dspecDF0['peak'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_amp_g = np.nanmean(amp_g)
             drange_amp_g = 40.
             vmax_amp_g, vmin_amp_g = mean_amp_g + drange_amp_g * np.asarray([1., -1.])
             amp_g[amp_g > vmax_amp_g] = vmax_amp_g
             amp_g[amp_g < vmin_amp_g] = vmin_amp_g
             tab3_SRC_dspec_small = ColumnDataSource(data={'data': [amp_g], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
-            vx = (dspecDF0['x_pos'].copy()).reshape(tab2_nfreq, tab2_ntim)
+            vx = (dspecDF0['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_vx = np.nanmean(vx)
             drange_vx = 40.
             vmax_vx, vmin_vx = mean_vx + drange_vx * np.asarray([1., -1.])
             vx[vx > vmax_vx] = vmax_vx
             vx[vx < vmin_vx] = vmin_vx
             tab3_SRC_dspecvx_small = ColumnDataSource(data={'data': [vx], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
-            vy = (dspecDF0['y_pos'].copy()).reshape(tab2_nfreq, tab2_ntim)
+            vy = (dspecDF0['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_vy = np.nanmean(vy)
             drange_vy = 40.
             vmax_vy, vmin_vy = mean_vy + drange_vy * np.asarray([1., -1.])
@@ -787,21 +787,21 @@ if os.path.exists(FS_dspecDF):
             global mean_amp_g, mean_vx, mean_vy, drange_amp_g, drange_vx, drange_vy
             global vmax_amp_g, vmax_vx, vmax_vy, vmin_amp_g, vmin_vx, vmin_vy
             start_timestamp = time.time()
-            amp_g = (dspecDFtmp['amp_gaus'].copy()).reshape(tab2_nfreq, tab2_ntim)
+            amp_g = (dspecDFtmp['peak'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_amp_g = np.nanmean(amp_g)
             drange_amp_g = 40.
             vmax_amp_g, vmin_amp_g = mean_amp_g + drange_amp_g * np.asarray([1., -1.])
             amp_g[amp_g > vmax_amp_g] = vmax_amp_g
             amp_g[amp_g < vmin_amp_g] = vmin_amp_g
             tab3_SRC_dspec_small.data['data'] = [amp_g]
-            vx = (dspecDFtmp['x_pos'].copy()).reshape(tab2_nfreq, tab2_ntim)
+            vx = (dspecDFtmp['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_vx = np.nanmean(vx)
             drange_vx = 40.
             vmax_vx, vmin_vx = mean_vx + drange_vx * np.asarray([1., -1.])
             vx[vx > vmax_vx] = vmax_vx
             vx[vx < vmin_vx] = vmin_vx
             tab3_SRC_dspecvx_small.data['data'] = [vx]
-            vy = (dspecDFtmp['y_pos'].copy()).reshape(tab2_nfreq, tab2_ntim)
+            vy = (dspecDFtmp['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_vy = np.nanmean(vy)
             drange_vy = 40.
             vmax_vy, vmin_vy = mean_vy + drange_vy * np.asarray([1., -1.])
@@ -838,9 +838,9 @@ if os.path.exists(FS_dspecDF):
             global dspecDFtmp
             dspecDFtmp = pd.DataFrame()
             nrows_dspecDF = len(dspecDF0.index)
-            dspecDFtmp['amp_gaus'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-            dspecDFtmp['x_pos'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-            dspecDFtmp['y_pos'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+            dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+            dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+            dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
 
 
         def tab2_dspec_selection_change(attrname, old, new):
@@ -850,9 +850,9 @@ if os.path.exists(FS_dspecDF):
                 global dspecDF
                 dspecDF = dspecDF0.iloc[tab2_dspec_selected, :]
                 dspecDFtmp_init()
-                dspecDFtmp.loc[tab2_dspec_selected, 'x_pos'] = dspecDF0.loc[tab2_dspec_selected, 'x_pos']
-                dspecDFtmp.loc[tab2_dspec_selected, 'y_pos'] = dspecDF0.loc[tab2_dspec_selected, 'y_pos']
-                dspecDFtmp.loc[tab2_dspec_selected, 'amp_gaus'] = dspecDF0.loc[tab2_dspec_selected, 'amp_gaus']
+                dspecDFtmp.loc[tab2_dspec_selected, 'shape_longitude'] = dspecDF0.loc[tab2_dspec_selected, 'shape_longitude']
+                dspecDFtmp.loc[tab2_dspec_selected, 'shape_latitude'] = dspecDF0.loc[tab2_dspec_selected, 'shape_latitude']
+                dspecDFtmp.loc[tab2_dspec_selected, 'peak'] = dspecDF0.loc[tab2_dspec_selected, 'peak']
                 tab3_SRC_dspec_small_update(dspecDFtmp)
                 tab2_SRC_maxfit_centroid_update(dspecDF)
                 if tab3_BUT_animate_ONOFF.label == 'Animate OFF & Go':
@@ -872,7 +872,7 @@ if os.path.exists(FS_dspecDF):
                                           vmin_values=[vmin_amp_g, vmin_vx, vmin_vy],
                                           vmax_values_last=[vmax_amp_g, vmax_vx, vmax_vy],
                                           vmin_values_last=[vmin_amp_g, vmin_vx, vmin_vy],
-                                          items_dspec_small=['amp_gaus', 'x_pos', 'y_pos'],
+                                          items_dspec_small=['peak', 'shape_longitude', 'shape_latitude'],
                                           labels_dspec_small=["Flux", "X-pos", "Y-pos"], idx_p_dspec_small=0,
                                           radio_button_group_dspec_small_update_flag=False)
 
@@ -1615,7 +1615,7 @@ if os.path.exists(FS_dspecDF):
             # initial the VLA map contour source
             tab2_SRC_vlamap_contour = ColumnDataSource(
                 data={'xs': [], 'ys': [], 'line_color': [], 'xt': [], 'yt': [], 'text': []})
-            tab2_SRC_vlamap_peak = ColumnDataSource(data={'dspec': [], 'x_pos': [], 'y_pos': [], 'amp_gaus': []})
+            tab2_SRC_vlamap_peak = ColumnDataSource(data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
 
             # import the vla image
             hdulist = fits.open(vlafile[0])
@@ -1853,9 +1853,9 @@ if os.path.exists(FS_dspecDF):
                 global dspecDFtmp
                 dspecDFtmp = pd.DataFrame()
                 nrows_dspecDF = len(dspecDF0.index)
-                dspecDFtmp['amp_gaus'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-                dspecDFtmp['x_pos'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-                dspecDFtmp['y_pos'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+                dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+                dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+                dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
 
 
             def tab2_dspec_selection_change(attrname, old, new):

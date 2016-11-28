@@ -47,9 +47,9 @@ if os.path.exists('CASA_imfit_args.json'):
     beam_major = []
     beam_minor = []
     beam_positionangle = []
-    freq = []
+    # freq = []
     freqstrs = []
-    timestrs = []
+    fits_local = []
     ra2arcsec = 180. * 3600. / np.pi
     for ll in out['timestamps']:
         tidx = out['timestamps'].index(ll)
@@ -57,9 +57,9 @@ if os.path.exists('CASA_imfit_args.json'):
             for ff in xrange(out['outputs'][tidx]['results']['nelements']):
                 comp = 'component{}'.format(ff)
                 if out['outputs'][tidx]['results'][comp]['peak']['value'] != 0.0:
-                    shape_latitude.append(
-                        out['outputs'][tidx]['results'][comp]['shape']['direction']['m0']['value'] * ra2arcsec)
                     shape_longitude.append(
+                        out['outputs'][tidx]['results'][comp]['shape']['direction']['m0']['value'] * ra2arcsec)
+                    shape_latitude.append(
                         out['outputs'][tidx]['results'][comp]['shape']['direction']['m1']['value'] * ra2arcsec)
                     shape_latitude_err.append(
                         out['outputs'][tidx]['results'][comp]['shape']['direction']['error']['latitude']['value'])
@@ -75,9 +75,9 @@ if os.path.exists('CASA_imfit_args.json'):
                         out['outputs'][tidx]['results'][comp]['beam']['beamarcsec']['positionangle']['value'])
                     freqstrs.append(
                         '{:.3f}'.format(out['outputs'][tidx]['results'][comp]['spectrum']['frequency']['m0']['value']))
-                    freq.append(float(
-                        '{:.3f}'.format(out['outputs'][tidx]['results'][comp]['spectrum']['frequency']['m0']['value'])))
-                    timestrs.append(out['imagenames'][tidx].split('/')[-1].replace('.fits', ''))
+                    # freq.append(float(
+                    #     '{:.3f}'.format(out['outputs'][tidx]['results'][comp]['spectrum']['frequency']['m0']['value'])))
+                    fits_local.append(out['imagenames'][tidx].split('/')[-1])
     dspecDF2 = pd.DataFrame({
         'shape_latitude': shape_latitude,
         'shape_longitude': shape_longitude,
@@ -90,15 +90,17 @@ if os.path.exists('CASA_imfit_args.json'):
         'beam_major': beam_major,
         'beam_minor': beam_minor,
         'beam_positionangle': beam_positionangle,
-        'freq': freq,
-        'timestr': timestrs
+        'freqstr': freqstrs,
+        'fits_local': fits_local
     })
     with open(database_dir + event_id +'/'+ struct_id + '/dspecDF-save', 'rb') as fp:
         dspecDF1 = pickle.load(fp)
     for ll in dspecDF1.index:
         tmp = dspecDF1.loc[ll, 'freq']
         dspecDF1.loc[ll, 'freq'] = float('{:.3f}'.format(tmp))
-    dspecDF = pd.merge(dspecDF1, dspecDF2, how='inner', on=['freq', 'timestr'])
+    dspecDF = pd.merge(dspecDF1, dspecDF2, how='left', on=['freqstr', 'fits_local'])
+    with open(database_dir + event_id +'/'+ struct_id + '/dspecDF-save', 'wb') as fp:
+        pickle.dump(dspecDF,fp)
 
 else:
     print 'CASA arguments config file not found!!'
