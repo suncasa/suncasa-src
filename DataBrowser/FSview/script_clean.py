@@ -101,7 +101,7 @@ if os.path.exists('CASA_CLN_args.json'):
     imgdir = database_dir + event_id + '/' + struct_id + '/Synthesis_Image/'
     if not os.path.exists(imgdir):
         os.mkdir(imgdir)
-    with open(imgdir + 'CASA_CLN_out', 'r') as fp:
+    with open(imgdir + 'CASA_CLN_out', 'w') as fp:
         pickle.dump(out, fp)
     imgdir = imgdir + 'local/'
     if not os.path.exists(imgdir):
