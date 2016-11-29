@@ -916,19 +916,14 @@ if os.path.exists(FS_dspecDF):
         tab3_p_dspec_vector.select(BoxSelectTool).select_every_mousemove = False
         tab3_p_dspec_vector.select(LassoSelectTool).select_every_mousemove = False
 
-        def dspecDFtmp_init():
-            global dspecDFtmp
-            dspecDFtmp = pd.DataFrame()
-            nrows_dspecDF = len(dspecDF0.index)
-            dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-            dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-            dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-            dspecDFtmp.loc[:, 'shape_longitude'] = dspecDF0.loc[:, 'shape_longitude']
-            dspecDFtmp.loc[:, 'shape_latitude'] = dspecDF0.loc[:, 'shape_latitude']
-            dspecDFtmp.loc[:, 'peak'] = dspecDF0.loc[:, 'peak']
-
-
-        dspecDFtmp_init()
+        dspecDFtmp = pd.DataFrame()
+        nrows_dspecDF = len(dspecDF0.index)
+        dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+        dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+        dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+        dspecDFtmp.loc[:, 'shape_longitude'] = dspecDF0.loc[:, 'shape_longitude']
+        dspecDFtmp.loc[:, 'shape_latitude'] = dspecDF0.loc[:, 'shape_latitude']
+        dspecDFtmp.loc[:, 'peak'] = dspecDF0.loc[:, 'peak']
 
 
         def tab3_SRC_dspec_vector_init():
@@ -1150,6 +1145,15 @@ if os.path.exists(FS_dspecDF):
         tab2_BUT_SavRgn.on_click(tab2_save_region)
 
 
+        def dspecDFtmp_init():
+            global dspecDFtmp
+            dspecDFtmp = pd.DataFrame()
+            nrows_dspecDF = len(dspecDF0.index)
+            dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+            dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+            dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+
+
         tab2_dspec_vector_selected = None
 
 
@@ -1160,6 +1164,12 @@ if os.path.exists(FS_dspecDF):
                 global dspecDF
                 dspecDF = dspecDF0.iloc[tab2_dspec_vector_selected, :]
                 dspecDFtmp_init()
+                dspecDFtmp.loc[tab2_dspec_vector_selected, 'shape_longitude'] = dspecDF0.loc[
+                    tab2_dspec_vector_selected, 'shape_longitude']
+                dspecDFtmp.loc[tab2_dspec_vector_selected, 'shape_latitude'] = dspecDF0.loc[
+                    tab2_dspec_vector_selected, 'shape_latitude']
+                dspecDFtmp.loc[tab2_dspec_vector_selected, 'peak'] = dspecDF0.loc[tab2_dspec_vector_selected, 'peak']
+                # tab3_SRC_dspec_vector_update(dspecDFtmp)
                 tab2_SRC_maxfit_centroid_update(dspecDF)
                 if tab3_BUT_animate_ONOFF.label == 'Animate OFF & Go':
                     tab3_r_aia_submap_cross.visible = True
@@ -1255,7 +1265,9 @@ if os.path.exists(FS_dspecDF):
                                                width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
         def tab3_BUT_dspec_small_resetall_update():
-            dspecDFtmp_init()
+            dspecDFtmp.loc[:, 'shape_longitude'] = dspecDF0.loc[:, 'shape_longitude']
+            dspecDFtmp.loc[:, 'shape_latitude'] = dspecDF0.loc[:, 'shape_latitude']
+            dspecDFtmp.loc[:, 'peak'] = dspecDF0.loc[:, 'peak']
             tab3_BUT_dspec_small_reset_update()
             print 'reset all'
 
