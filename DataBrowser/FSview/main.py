@@ -1255,7 +1255,7 @@ if os.path.exists(FS_dspecDF):
                                                width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
 
-        def tab3_BUT_dspec_small_resetall():
+        def tab3_BUT_dspec_small_resetall_update():
             global dspecDFtmp, tab2_nfreq, tab2_ntim, tab3_dspec_small_CTRLs_OPT
             global tab3_SRC_dspec_vector, tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory
             items_dspec_small = tab3_dspec_small_CTRLs_OPT['items_dspec_small']
@@ -1288,8 +1288,7 @@ if os.path.exists(FS_dspecDF):
             tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
             tab3_r_aia_submap_rect.data_source.data['height'] = [(vmax_vy - vmin_vy)]
 
-
-        tab3_BUT_dspec_small_resetall.on_click(tab3_BUT_dspec_small_resetall)
+            tab3_BUT_dspec_small_resetall.on_click(tab3_BUT_dspec_small_resetall_update)
 
 
         def tab3_slider_dspec_small_update(attrname, old, new):
