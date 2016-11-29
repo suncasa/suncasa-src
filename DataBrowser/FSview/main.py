@@ -1265,7 +1265,9 @@ if os.path.exists(FS_dspecDF):
                                                width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
         def tab3_BUT_dspec_small_resetall_update():
-            dspecDFtmp_init()
+            dspecDFtmp.loc[:, 'shape_longitude'] = dspecDF0.loc[:, 'shape_longitude']
+            dspecDFtmp.loc[:, 'shape_latitude'] = dspecDF0.loc[:, 'shape_latitude']
+            dspecDFtmp.loc[:, 'peak'] = dspecDF0.loc[:, 'peak']
             tab3_BUT_dspec_small_reset_update()
             print 'reset all'
 
