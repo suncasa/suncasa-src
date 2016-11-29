@@ -1229,7 +1229,7 @@ if os.path.exists(FS_dspecDF):
             tab3_r_aia_submap_rect.data_source.data['y'] = [(vmax_vy + vmin_vy) / 2]
             tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
             tab3_r_aia_submap_rect.data_source.data['height'] = [(vmax_vy - vmin_vy)]
-
+            tab3_SRC_dspec_vector_init()
 
         tab3_BUT_dspec_small_reset.on_click(tab3_BUT_dspec_small_reset_update)
 
