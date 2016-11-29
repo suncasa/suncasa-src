@@ -926,15 +926,20 @@ if os.path.exists(FS_dspecDF):
             dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
 
 
-        def dspecDFtmp_reset():
+        def dspecDFtmp_update(selected=None):
             global dspecDFtmp
-            dspecDFtmp.loc[:, 'shape_longitude'] = dspecDF0.loc[:, 'shape_longitude']
-            dspecDFtmp.loc[:, 'shape_latitude'] = dspecDF0.loc[:, 'shape_latitude']
-            dspecDFtmp.loc[:, 'peak'] = dspecDF0.loc[:, 'peak']
+            if selected:
+                dspecDFtmp.loc[selected, 'shape_longitude'] = dspecDF0.loc[selected, 'shape_longitude']
+                dspecDFtmp.loc[selected, 'shape_latitude'] = dspecDF0.loc[selected, 'shape_latitude']
+                dspecDFtmp.loc[selected, 'peak'] = dspecDF0.loc[selected, 'peak']
+            else:
+                dspecDFtmp.loc[:, 'shape_longitude'] = dspecDF0.loc[:, 'shape_longitude']
+                dspecDFtmp.loc[:, 'shape_latitude'] = dspecDF0.loc[:, 'shape_latitude']
+                dspecDFtmp.loc[:, 'peak'] = dspecDF0.loc[:, 'peak']
 
 
         dspecDFtmp_init()
-        dspecDFtmp_reset()
+        dspecDFtmp_update()
 
 
         def tab3_SRC_dspec_vector_init():
@@ -1156,11 +1161,7 @@ if os.path.exists(FS_dspecDF):
                 global dspecDF
                 dspecDF = dspecDF0.iloc[tab2_dspec_vector_selected, :]
                 dspecDFtmp_init()
-                dspecDFtmp.loc[tab2_dspec_vector_selected, 'shape_longitude'] = dspecDF0.loc[
-                    tab2_dspec_vector_selected, 'shape_longitude']
-                dspecDFtmp.loc[tab2_dspec_vector_selected, 'shape_latitude'] = dspecDF0.loc[
-                    tab2_dspec_vector_selected, 'shape_latitude']
-                dspecDFtmp.loc[tab2_dspec_vector_selected, 'peak'] = dspecDF0.loc[tab2_dspec_vector_selected, 'peak']
+                dspecDFtmp_update(selected=tab2_dspec_vector_selected)
                 # tab3_SRC_dspec_vector_update(dspecDFtmp)
                 tab2_SRC_maxfit_centroid_update(dspecDF)
                 if tab3_BUT_animate_ONOFF.label == 'Animate OFF & Go':
@@ -1258,7 +1259,7 @@ if os.path.exists(FS_dspecDF):
 
 
         def tab3_BUT_dspec_small_resetall_update():
-            dspecDFtmp_reset()
+            dspecDFtmp_update()
             tab3_BUT_dspec_small_reset_update()
             print 'reset all'
 
