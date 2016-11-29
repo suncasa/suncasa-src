@@ -942,6 +942,10 @@ if os.path.exists(FS_dspecDF):
                 vy[vy > vmax_vy] = vmax_vy
                 vy[vy < vmin_vy] = vmin_vy
                 tab3_SRC_dspec_vectory.data['data'] = [vy]
+                tab3_dspec_small_CTRLs_OPT['vmax_values_last'][1] = xa1
+                tab3_dspec_small_CTRLs_OPT['vmax_values_last'][2] = ya1
+                tab3_dspec_small_CTRLs_OPT['vmin_values_last'][1] = xa0
+                tab3_dspec_small_CTRLs_OPT['vmin_values_last'][2] = ya0
             else:
                 tab3_r_aia_submap_rect.data_source.data['x'] = [(vmax_vx + vmin_vx) / 2]
                 tab3_r_aia_submap_rect.data_source.data['y'] = [(vmax_vy + vmin_vy) / 2]
