@@ -609,7 +609,7 @@ if os.path.exists(FS_dspecDF):
                                                             size=4)
         tab3_p_aia_submap.add_tools(BoxSelectTool(renderers=[tab2_r_aia_submap_square]))
 
-        tab2_SRC_aia_submap_square.on_change('selected', tab2_aia_submap_square_selection_change)
+
 
         tab3_p_aia_submap.border_fill_color = "silver"
         tab3_p_aia_submap.border_fill_alpha = 0.4
@@ -948,6 +948,7 @@ if os.path.exists(FS_dspecDF):
                 tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
                 tab3_r_aia_submap_rect.data_source.data['height'] = [(vmax_vy - vmin_vy)]
 
+        tab2_SRC_aia_submap_square.on_change('selected', tab2_aia_submap_square_selection_change)
 
         def dspecDFtmp_init():
             global dspecDFtmp
