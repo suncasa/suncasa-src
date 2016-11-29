@@ -594,10 +594,20 @@ if os.path.exists(FS_dspecDF):
                                      plot_width=config_plot['plot_config']['tab_FSview_FitANLYS']['aia_submap_wdth'],
                                      webgl=config_plot['plot_config']['WebGL'])
 
+        tab2_SRC_aia_submap_square = ColumnDataSource(ImgDF0)
         tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
                                                                         grid_spacing=20 * u.deg,
                                                                         title='EM sources centroid map',
                                                                         palette=bokehpalette_sdoaia171)
+        tab2_r_aia_submap_square = tab3_p_aia_submap.square('xx', 'yy', source=tab2_SRC_aia_submap_square,
+                                              fill_alpha=0.0, fill_color=None,
+                                              line_color=None, line_alpha=0.0, selection_fill_alpha=0.5,
+                                              selection_fill_color=None,
+                                              nonselection_fill_alpha=0.0,
+                                              selection_line_alpha=0.0, selection_line_color=None,
+                                              nonselection_line_alpha=0.0,
+                                              size=4)
+        tab3_p_aia_submap.add_tools(BoxSelectTool(renderers=[tab2_r_aia_submap_square]))
 
         # tab3_p_aia_submap.add_tools(ResizeTool())
         tab3_p_aia_submap.border_fill_color = "silver"
@@ -1259,7 +1269,7 @@ if os.path.exists(FS_dspecDF):
             tab3_BUT_dspec_small_reset_update()
             print 'reset all'
 
-            tab3_BUT_dspec_small_resetall.on_click(tab3_BUT_dspec_small_resetall_update)
+        tab3_BUT_dspec_small_resetall.on_click(tab3_BUT_dspec_small_resetall_update)
 
 
         def tab3_slider_dspec_small_update(attrname, old, new):
