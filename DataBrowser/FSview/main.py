@@ -1257,6 +1257,7 @@ if os.path.exists(FS_dspecDF):
         def tab3_BUT_dspec_small_resetall_update():
             dspecDFtmp_init()
             tab3_BUT_dspec_small_reset_update()
+            print 'reset all'
 
             tab3_BUT_dspec_small_resetall.on_click(tab3_BUT_dspec_small_resetall_update)
 
