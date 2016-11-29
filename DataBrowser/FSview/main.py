@@ -609,7 +609,8 @@ if os.path.exists(FS_dspecDF):
                                                             size=4)
         tab3_p_aia_submap.add_tools(BoxSelectTool(renderers=[tab2_r_aia_submap_square]))
 
-        # tab3_p_aia_submap.add_tools(ResizeTool())
+        tab2_SRC_aia_submap_square.on_change('selected', tab2_aia_submap_square_selection_change)
+
         tab3_p_aia_submap.border_fill_color = "silver"
         tab3_p_aia_submap.border_fill_alpha = 0.4
         tab3_p_aia_submap.axis.major_tick_out = 0
@@ -915,6 +916,37 @@ if os.path.exists(FS_dspecDF):
         tab3_p_dspec_vector.add_tools(LassoSelectTool())
         tab3_p_dspec_vector.select(BoxSelectTool).select_every_mousemove = False
         tab3_p_dspec_vector.select(LassoSelectTool).select_every_mousemove = False
+
+
+        def tab2_aia_submap_square_selection_change(attrname, old, new):
+            global tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory
+            global vmax_vx, vmax_vy, vmin_vx, vmin_vy, mean_vx, mean_vy
+            tab2_aia_submap_square_selected = tab2_SRC_aia_submap_square.selected['1d']['indices']
+            if tab2_aia_submap_square_selected:
+                ImgDF = ImgDF0.iloc[tab2_aia_submap_square_selected, :]
+                xa0, xa1 = ImgDF['xx'].min(), ImgDF['xx'].max()
+                ya0, ya1 = ImgDF['yy'].min(), ImgDF['yy'].max()
+                mean_vx = (xa0 + xa1) / 2
+                mean_vy = (ya0 + ya1) / 2
+                tab3_r_aia_submap_rect.data_source.data['x'] = [mean_vx]
+                tab3_r_aia_submap_rect.data_source.data['y'] = [mean_vy]
+                tab3_r_aia_submap_rect.data_source.data['width'] = [(xa1 - xa0)]
+                tab3_r_aia_submap_rect.data_source.data['height'] = [(ya1 - ya0)]
+                vx = (dspecDFtmp['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
+                vmax_vx, vmin_vx = xa1, xa0
+                vx[vx > vmax_vx] = vmax_vx
+                vx[vx < vmin_vx] = vmin_vx
+                tab3_SRC_dspec_vectorx.data['data'] = [vx]
+                vy = (dspecDFtmp['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
+                vmax_vy, vmin_vy = ya1, ya0
+                vy[vy > vmax_vy] = vmax_vy
+                vy[vy < vmin_vy] = vmin_vy
+                tab3_SRC_dspec_vectory.data['data'] = [vy]
+            else:
+                tab3_r_aia_submap_rect.data_source.data['x'] = [(vmax_vx + vmin_vx) / 2]
+                tab3_r_aia_submap_rect.data_source.data['y'] = [(vmax_vy + vmin_vy) / 2]
+                tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
+                tab3_r_aia_submap_rect.data_source.data['height'] = [(vmax_vy - vmin_vy)]
 
 
         def dspecDFtmp_init():
