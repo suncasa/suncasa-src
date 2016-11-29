@@ -600,13 +600,13 @@ if os.path.exists(FS_dspecDF):
                                                                         title='EM sources centroid map',
                                                                         palette=bokehpalette_sdoaia171)
         tab2_r_aia_submap_square = tab3_p_aia_submap.square('xx', 'yy', source=tab2_SRC_aia_submap_square,
-                                              fill_alpha=0.0, fill_color=None,
-                                              line_color=None, line_alpha=0.0, selection_fill_alpha=0.5,
-                                              selection_fill_color=None,
-                                              nonselection_fill_alpha=0.0,
-                                              selection_line_alpha=0.0, selection_line_color=None,
-                                              nonselection_line_alpha=0.0,
-                                              size=4)
+                                                            fill_alpha=0.0, fill_color=None,
+                                                            line_color=None, line_alpha=0.0, selection_fill_alpha=0.5,
+                                                            selection_fill_color=None,
+                                                            nonselection_fill_alpha=0.0,
+                                                            selection_line_alpha=0.0, selection_line_color=None,
+                                                            nonselection_line_alpha=0.0,
+                                                            size=4)
         tab3_p_aia_submap.add_tools(BoxSelectTool(renderers=[tab2_r_aia_submap_square]))
 
         # tab3_p_aia_submap.add_tools(ResizeTool())
@@ -916,14 +916,25 @@ if os.path.exists(FS_dspecDF):
         tab3_p_dspec_vector.select(BoxSelectTool).select_every_mousemove = False
         tab3_p_dspec_vector.select(LassoSelectTool).select_every_mousemove = False
 
-        dspecDFtmp = pd.DataFrame()
-        nrows_dspecDF = len(dspecDF0.index)
-        dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-        dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-        dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-        dspecDFtmp.loc[:, 'shape_longitude'] = dspecDF0.loc[:, 'shape_longitude']
-        dspecDFtmp.loc[:, 'shape_latitude'] = dspecDF0.loc[:, 'shape_latitude']
-        dspecDFtmp.loc[:, 'peak'] = dspecDF0.loc[:, 'peak']
+
+        def dspecDFtmp_init():
+            global dspecDFtmp
+            dspecDFtmp = pd.DataFrame()
+            nrows_dspecDF = len(dspecDF0.index)
+            dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+            dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+            dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+
+
+        def dspecDFtmp_reset():
+            global dspecDFtmp
+            dspecDFtmp.loc[:, 'shape_longitude'] = dspecDF0.loc[:, 'shape_longitude']
+            dspecDFtmp.loc[:, 'shape_latitude'] = dspecDF0.loc[:, 'shape_latitude']
+            dspecDFtmp.loc[:, 'peak'] = dspecDF0.loc[:, 'peak']
+
+
+        dspecDFtmp_init()
+        dspecDFtmp_reset()
 
 
         def tab3_SRC_dspec_vector_init():
@@ -1055,15 +1066,6 @@ if os.path.exists(FS_dspecDF):
                 y0, y1 = ImgDF['yy'].min(), ImgDF['yy'].max()
                 tab2_r_vla_ImgRgn_patch.data_source.data = ColumnDataSource(
                     pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
-                # idxmax = max(tab2_vla_square_selected)
-                # idxmin = min(tab2_vla_square_selected)
-                # x0pix, x1pix = idxmin % mapvlasize[0], idxmax % mapvlasize[0]
-                # y0pix, y1pix = idxmin / mapvlasize[0], idxmax / mapvlasize[0]
-                # tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, y0pix, x1pix, y1pix)
-                # tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
-                # on an image region(s)</b></p>' + ' '.join(
-                #     "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
-                # tab2_Div_tImfit.text = tab2_Div_tImfit_text
             else:
                 tab2_r_vla_ImgRgn_patch.data_source.data = ColumnDataSource(
                     pd.DataFrame({'xx': [], 'yy': []})).data
@@ -1143,16 +1145,6 @@ if os.path.exists(FS_dspecDF):
                                  width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                  button_type='primary')
         tab2_BUT_SavRgn.on_click(tab2_save_region)
-
-
-        def dspecDFtmp_init():
-            global dspecDFtmp
-            dspecDFtmp = pd.DataFrame()
-            nrows_dspecDF = len(dspecDF0.index)
-            dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-            dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-            dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-
 
         tab2_dspec_vector_selected = None
 
@@ -1264,12 +1256,12 @@ if os.path.exists(FS_dspecDF):
         tab3_BUT_dspec_small_resetall = Button(label='Reset All',
                                                width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
+
         def tab3_BUT_dspec_small_resetall_update():
-            dspecDFtmp.loc[:, 'shape_longitude'] = dspecDF0.loc[:, 'shape_longitude']
-            dspecDFtmp.loc[:, 'shape_latitude'] = dspecDF0.loc[:, 'shape_latitude']
-            dspecDFtmp.loc[:, 'peak'] = dspecDF0.loc[:, 'peak']
+            dspecDFtmp_reset()
             tab3_BUT_dspec_small_reset_update()
             print 'reset all'
+
 
         tab3_BUT_dspec_small_resetall.on_click(tab3_BUT_dspec_small_resetall_update)
 
@@ -1568,7 +1560,7 @@ if os.path.exists(FS_dspecDF):
                      column(gridplot([tab3_p_dspec_vector], [tab3_p_dspec_vectorx], [tab3_p_dspec_vectory],
                                      toolbar_location='right'), tab3_Div_Tb),
                      widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
-                               tab3_BUT_dspec_small_reset,tab3_BUT_dspec_small_resetall, tab2_panel3_BUT_exit,
+                               tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab2_panel3_BUT_exit,
                                tab2_panel3_Div_exit,
                                width=200))
         # tab2 = Panel(child=panel2, title="FS View")
