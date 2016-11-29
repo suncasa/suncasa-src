@@ -108,6 +108,7 @@
     "fits_GLOB_init": "QLook/static/Synthesis_Image_fits_GLOB_init.fits"
   },
   "core": {
-    "casapy": "${SUNCASAPY}"
+    "casapy46": "${SUNCASAPY46}",
+    "casapy47": "${SUNCASAPY47}"
   }
 }
