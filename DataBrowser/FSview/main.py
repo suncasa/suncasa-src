@@ -202,7 +202,6 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec.axis.major_tick_line_color = "white"
         tab2_p_dspec.axis.minor_tick_line_color = "white"
 
-
         tab2_Select_pol = Select(title="Polarization:", value='I', options=['RR', 'LL', 'I', 'V'],
                                  width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         tab2_Select_bl = Select(title="Baseline:", value=tab2_bl[0], options=tab2_bl,
@@ -495,7 +494,8 @@ if os.path.exists(FS_dspecDF):
         # initial the VLA map contour source
         tab2_SRC_vlamap_contour = ColumnDataSource(
             data={'xs': [], 'ys': [], 'line_color': [], 'xt': [], 'yt': [], 'text': []})
-        tab2_SRC_vlamap_peak = ColumnDataSource(data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
+        tab2_SRC_vlamap_peak = ColumnDataSource(
+            data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
 
 
         # initial the source of maxfit centroid
@@ -505,7 +505,8 @@ if os.path.exists(FS_dspecDF):
             SRC_maxfit_centroid = {}
             for ll in np.unique(dspecDF['time']):
                 df_tmp = pd.DataFrame(
-                    {'freq': [], 'shape_longitude': [], 'shape_latitude': [], 'shape_majoraxis': [], 'shape_minoraxis': [], 'peak': [],
+                    {'freq': [], 'shape_longitude': [], 'shape_latitude': [], 'shape_majoraxis': [],
+                     'shape_minoraxis': [], 'peak': [],
                      'shape_positionangle': []})
                 SRC_maxfit_centroid[np.where(abs(tab2_dtim - ll) < 0.02)[0].tolist()[0]] = ColumnDataSource(df_tmp)
             print("---tab2_SRC_maxfit_centroid_init -- %s seconds ---" % (time.time() - start_timestamp))
@@ -554,8 +555,8 @@ if os.path.exists(FS_dspecDF):
         lengthy = vla_local_pfmap.dh[0] * u.arcsec
         x0 = vla_local_pfmap.smap.center.x
         y0 = vla_local_pfmap.smap.center.y
-        aiamap_submap = aiamap.submap(u.Quantity([x0 - lengthx/2, x0 + lengthx/2]),
-                                      u.Quantity([y0 - lengthy/2, y0 + lengthy/2]))
+        aiamap_submap = aiamap.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
+                                      u.Quantity([y0 - lengthy / 2, y0 + lengthy / 2]))
         MapRES = 256
         dimensions = u.Quantity([MapRES, MapRES], u.pixel)
         aia_resampled_map = aiamap.resample(dimensions)
@@ -613,7 +614,8 @@ if os.path.exists(FS_dspecDF):
                                                           color={'field': 'freq', 'transform': color_mapper},
                                                           line_width=3,
                                                           source=SRC_maxfit_centroid[tab2_dtim[0]], line_alpha=0.8)
-        tab3_r_aia_submap_line = tab3_p_aia_submap.line(x='shape_longitude', y='shape_latitude', line_width=3, line_color='black',
+        tab3_r_aia_submap_line = tab3_p_aia_submap.line(x='shape_longitude', y='shape_latitude', line_width=3,
+                                                        line_color='black',
                                                         line_alpha=0.5,
                                                         source=SRC_maxfit_centroid[tab2_dtim[0]])
         tab3_r_aia_submap_line.visible = False
@@ -645,7 +647,8 @@ if os.path.exists(FS_dspecDF):
                                                              palette=bokehpalette_sdohmimag)
         tab2_p_hmi.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
                               line_width=2)
-        tab2_p_hmi.circle(x='shape_longitude', y='shape_latitude', radius=3, radius_units='data', source=tab2_SRC_vlamap_peak,
+        tab2_p_hmi.circle(x='shape_longitude', y='shape_latitude', radius=3, radius_units='data',
+                          source=tab2_SRC_vlamap_peak,
                           fill_alpha=0.8,
                           fill_color='#7c7e71', line_color='#7c7e71')
         tab2_p_hmi.yaxis.visible = False
@@ -791,8 +794,10 @@ if os.path.exists(FS_dspecDF):
                     dftmp = dspecDF[dspecDF.time == ll]
                     dftmp = dftmp.dropna(how='any')
                     df_tmp = pd.concat(
-                        [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'], dftmp.loc[:, 'shape_majoraxis'],
-                         dftmp.loc[:, 'shape_minoraxis'], dftmp.loc[:, 'peak'], dftmp.loc[:, 'shape_positionangle'] - np.pi / 2], axis=1)
+                        [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'],
+                         dftmp.loc[:, 'shape_majoraxis'],
+                         dftmp.loc[:, 'shape_minoraxis'], dftmp.loc[:, 'peak'],
+                         dftmp.loc[:, 'shape_positionangle'] - np.pi / 2], axis=1)
                     SRC_maxfit_centroid[np.where(abs(tab2_dtim - ll) < 0.02)[0].tolist()[0]] = ColumnDataSource(df_tmp)
             else:
                 time_dspec = np.unique(dspecDF['time'])
@@ -811,14 +816,17 @@ if os.path.exists(FS_dspecDF):
                                                            ignore_index=True)
                     SRC_maxfit_centroid = ColumnDataSource(
                         dftmp_concat[
-                            ['freq', 'shape_longitude', 'shape_latitude', 'shape_majoraxis', 'shape_minoraxis', 'peak', 'shape_positionangle']].dropna(
+                            ['freq', 'shape_longitude', 'shape_latitude', 'shape_majoraxis', 'shape_minoraxis', 'peak',
+                             'shape_positionangle']].dropna(
                             how='any'))
                 else:
                     dftmp = dspecDF.copy()
                     dftmp = dftmp.dropna(how='any')
                     df_tmp = pd.concat(
-                        [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'], dftmp.loc[:, 'shape_majoraxis'],
-                         dftmp.loc[:, 'shape_minoraxis'], dftmp.loc[:, 'peak'], dftmp.loc[:, 'shape_positionangle'] - np.pi / 2], axis=1)
+                        [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'],
+                         dftmp.loc[:, 'shape_majoraxis'],
+                         dftmp.loc[:, 'shape_minoraxis'], dftmp.loc[:, 'peak'],
+                         dftmp.loc[:, 'shape_positionangle'] - np.pi / 2], axis=1)
                     SRC_maxfit_centroid = ColumnDataSource(df_tmp)
             print("--- tab2_SRC_maxfit_centroid_update -- %s seconds ---" % (time.time() - start_timestamp))
 
@@ -991,17 +999,20 @@ if os.path.exists(FS_dspecDF):
                                                               line_color='white',
                                                               source=tab3_source_idx_line)
         tab2_SRC_dspec_vector_square = ColumnDataSource(dspecDF0)
-        tab2_r_dspec_vector_square = tab3_p_dspec_vector.square('time', 'freq', source=tab2_SRC_dspec_vector_square, fill_color=colors_dspec,
-                                            fill_alpha=0.0,
-                                            line_color=None, line_alpha=0.0, selection_fill_alpha=0.2,
-                                            selection_fill_color='black',
-                                            nonselection_fill_alpha=0.0,
-                                            selection_line_alpha=0.0, selection_line_color='white',
-                                            nonselection_line_alpha=0.0,
-                                            size=max(
-                                                config_plot['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'] / tab2_ntim,
-                                                config_plot['plot_config']['tab_FSview_FitANLYS']['dspec_small_hght'] / tab2_nfreq))
-
+        tab2_r_dspec_vector_square = tab3_p_dspec_vector.square('time', 'freq', source=tab2_SRC_dspec_vector_square,
+                                                                fill_color=colors_dspec,
+                                                                fill_alpha=0.0,
+                                                                line_color=None, line_alpha=0.0,
+                                                                selection_fill_alpha=0.2,
+                                                                selection_fill_color='black',
+                                                                nonselection_fill_alpha=0.0,
+                                                                selection_line_alpha=0.0, selection_line_color='white',
+                                                                nonselection_line_alpha=0.0,
+                                                                size=max(
+                                                                    config_plot['plot_config']['tab_FSview_FitANLYS'][
+                                                                        'dspec_small_wdth'] / tab2_ntim,
+                                                                    config_plot['plot_config']['tab_FSview_FitANLYS'][
+                                                                        'dspec_small_hght'] / tab2_nfreq))
 
         tab2_dspec_selected = None
 
@@ -1123,6 +1134,7 @@ if os.path.exists(FS_dspecDF):
                                  button_type='primary')
         tab2_BUT_SavRgn.on_click(tab2_save_region)
 
+
         def dspecDFtmp_init():
             global dspecDFtmp
             dspecDFtmp = pd.DataFrame()
@@ -1131,7 +1143,10 @@ if os.path.exists(FS_dspecDF):
             dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
             dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
 
+
         tab2_dspec_vector_selected = None
+
+
         def tab2_dspec_vector_selection_change(attrname, old, new):
             global tab2_dspec_vector_selected
             tab2_dspec_vector_selected = tab2_SRC_dspec_vector_square.selected['1d']['indices']
@@ -1139,8 +1154,10 @@ if os.path.exists(FS_dspecDF):
                 global dspecDF
                 dspecDF = dspecDF0.iloc[tab2_dspec_vector_selected, :]
                 dspecDFtmp_init()
-                dspecDFtmp.loc[tab2_dspec_vector_selected, 'shape_longitude'] = dspecDF0.loc[tab2_dspec_vector_selected, 'shape_longitude']
-                dspecDFtmp.loc[tab2_dspec_vector_selected, 'shape_latitude'] = dspecDF0.loc[tab2_dspec_vector_selected, 'shape_latitude']
+                dspecDFtmp.loc[tab2_dspec_vector_selected, 'shape_longitude'] = dspecDF0.loc[
+                    tab2_dspec_vector_selected, 'shape_longitude']
+                dspecDFtmp.loc[tab2_dspec_vector_selected, 'shape_latitude'] = dspecDF0.loc[
+                    tab2_dspec_vector_selected, 'shape_latitude']
                 dspecDFtmp.loc[tab2_dspec_vector_selected, 'peak'] = dspecDF0.loc[tab2_dspec_vector_selected, 'peak']
                 # tab3_SRC_dspec_vector_update(dspecDFtmp)
                 tab2_SRC_maxfit_centroid_update(dspecDF)
@@ -1151,6 +1168,7 @@ if os.path.exists(FS_dspecDF):
                     tab3_r_dspec_vectory_line.visible = False
                     tab2_SRC_maxfit_centroid_update(dspecDF)
                     tab3_r_aia_submap_cross.data_source.data = SRC_maxfit_centroid.data
+
 
         tab2_SRC_dspec_vector_square.on_change('selected', tab2_dspec_vector_selection_change)
 
@@ -1229,9 +1247,49 @@ if os.path.exists(FS_dspecDF):
             tab3_r_aia_submap_rect.data_source.data['y'] = [(vmax_vy + vmin_vy) / 2]
             tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
             tab3_r_aia_submap_rect.data_source.data['height'] = [(vmax_vy - vmin_vy)]
-            tab3_SRC_dspec_vector_init()
+
 
         tab3_BUT_dspec_small_reset.on_click(tab3_BUT_dspec_small_reset_update)
+
+        tab3_BUT_dspec_small_resetall = Button(label='Reset All',
+                                               width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+
+
+        def tab3_BUT_dspec_small_resetall():
+            global dspecDFtmp, tab2_nfreq, tab2_ntim, tab3_dspec_small_CTRLs_OPT
+            global tab3_SRC_dspec_vector, tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory
+            items_dspec_small = tab3_dspec_small_CTRLs_OPT['items_dspec_small']
+            mean_values = tab3_dspec_small_CTRLs_OPT['mean_values']
+            drange_values = tab3_dspec_small_CTRLs_OPT['drange_values']
+            vmax_values = tab3_dspec_small_CTRLs_OPT['vmax_values']
+            vmin_values = tab3_dspec_small_CTRLs_OPT['vmin_values']
+            source_list = [tab3_SRC_dspec_vector, tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory]
+            for ll, item in enumerate(items_dspec_small):
+                TmpData = (dspecDF0[item].copy()).reshape(tab2_nfreq, tab2_ntim)
+                TmpData[TmpData > vmax_values[ll]] = vmax_values[ll]
+                TmpData[TmpData < vmin_values[ll]] = vmin_values[ll]
+                source_list[ll].data['data'] = [TmpData]
+            idx_p_dspec_small = 0
+            tab3_dspec_small_CTRLs_OPT['idx_p_dspec_small'] = idx_p_dspec_small
+            tab3_RBG_dspec_small.active = idx_p_dspec_small
+            tab3_Slider_dspec_small_dmax.start = mean_values[idx_p_dspec_small] - drange_values[idx_p_dspec_small]
+            tab3_Slider_dspec_small_dmax.end = mean_values[idx_p_dspec_small] + 2 * drange_values[idx_p_dspec_small]
+            tab3_Slider_dspec_small_dmax.value = vmax_values[idx_p_dspec_small]
+            tab3_Slider_dspec_small_dmin.start = mean_values[idx_p_dspec_small] - 2 * drange_values[
+                idx_p_dspec_small]
+            tab3_Slider_dspec_small_dmin.end = mean_values[idx_p_dspec_small] + drange_values[idx_p_dspec_small]
+            tab3_Slider_dspec_small_dmin.value = vmin_values[idx_p_dspec_small]
+            tab3_dspec_small_CTRLs_OPT['vmax_values_last'] = [ll for ll in vmax_values]
+            tab3_dspec_small_CTRLs_OPT['vmin_values_last'] = [ll for ll in vmin_values]
+            vmax_vx, vmax_vy = tab3_dspec_small_CTRLs_OPT['vmax_values_last'][1:]
+            vmin_vx, vmin_vy = tab3_dspec_small_CTRLs_OPT['vmin_values_last'][1:]
+            tab3_r_aia_submap_rect.data_source.data['x'] = [(vmax_vx + vmin_vx) / 2]
+            tab3_r_aia_submap_rect.data_source.data['y'] = [(vmax_vy + vmin_vy) / 2]
+            tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
+            tab3_r_aia_submap_rect.data_source.data['height'] = [(vmax_vy - vmin_vy)]
+
+
+        tab3_BUT_dspec_small_resetall.on_click(tab3_BUT_dspec_small_resetall)
 
 
         def tab3_slider_dspec_small_update(attrname, old, new):
@@ -1528,7 +1586,8 @@ if os.path.exists(FS_dspecDF):
                      column(gridplot([tab3_p_dspec_vector], [tab3_p_dspec_vectorx], [tab3_p_dspec_vectory],
                                      toolbar_location='right'), tab3_Div_Tb),
                      widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
-                               tab3_BUT_dspec_small_reset, tab2_panel3_BUT_exit, tab2_panel3_Div_exit,
+                               tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab2_panel3_BUT_exit,
+                               tab2_panel3_Div_exit,
                                width=200))
         # tab2 = Panel(child=panel2, title="FS View")
         # tab3 = Panel(child=panel3, title="FitANLYS")
@@ -1905,7 +1964,8 @@ if os.path.exists(FS_dspecDF):
             # initial the VLA map contour source
             tab2_SRC_vlamap_contour = ColumnDataSource(
                 data={'xs': [], 'ys': [], 'line_color': [], 'xt': [], 'yt': [], 'text': []})
-            tab2_SRC_vlamap_peak = ColumnDataSource(data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
+            tab2_SRC_vlamap_peak = ColumnDataSource(
+                data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
 
             # import the vla image
             hdulist = fits.open(vlafile[0])
@@ -2373,7 +2433,8 @@ if os.path.exists(FS_dspecDF):
             def tab2_BUT_tImfit_update():
                 with open(database_dir + event_id + struct_id + 'CASA_imfit_args.json', 'w') as fp:
                     json.dump(tab2_tImfit_Param_dict, fp)
-                os.system('cp {}/DataBrowser/FSview/script_imfit.py {}'.format(suncasa_dir, database_dir + event_id + struct_id))
+                os.system('cp {}/DataBrowser/FSview/script_imfit.py {}'.format(suncasa_dir,
+                                                                               database_dir + event_id + struct_id))
                 tab2_Div_tImfit2.text = '<p>CASA pimfit script and arguments config\
                  file saved to <b>{}</b>.</p>'.format(database_dir + event_id + struct_id)
                 cwd = os.getcwd()
@@ -2424,8 +2485,6 @@ if os.path.exists(FS_dspecDF):
                        tab2_Div_tImfit))
 
             lout = panel2
-
-
 
             curdoc().add_root(lout)
             curdoc().title = "FSview"
@@ -2538,6 +2597,8 @@ else:
     tab2_dspec_selected = None
 
     timestart = xx[0]
+
+
     def tab2_dspec_selection_change(attrname, old, new):
         global tab2_dspec_selected
         tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
@@ -2552,10 +2613,10 @@ else:
                 pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
             time0, time1 = dspecDF['time'].min() + timestart, dspecDF['time'].max() + timestart
             t0_char = Time(time0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
-            date0_char = t0_char.split(' ')[0].replace('-','/')
+            date0_char = t0_char.split(' ')[0].replace('-', '/')
             time0_char = t0_char.split(' ')[1]
             t1_char = Time(time1 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
-            date1_char = t1_char.split(' ')[0].replace('-','/')
+            date1_char = t1_char.split(' ')[0].replace('-', '/')
             time1_char = t1_char.split(' ')[1]
             tab2_tCLN_Param_dict['timerange'] = "'{}/{}~{}/{}'".format(date0_char, time0_char, date1_char, time1_char)
             freq0, freq1 = dspecDF['freq'].min(), dspecDF['freq'].max()
@@ -2850,7 +2911,8 @@ else:
     def tab2_BUT_tCLN_clean():
         with open(database_dir + event_id + struct_id + 'CASA_CLN_args.json', 'w') as fp:
             json.dump(tab2_tCLN_Param_dict, fp)
-        os.system('cp {}/DataBrowser/FSview/script_clean.py {}'.format(suncasa_dir, database_dir + event_id + struct_id))
+        os.system(
+            'cp {}/DataBrowser/FSview/script_clean.py {}'.format(suncasa_dir, database_dir + event_id + struct_id))
         tab2_Div_tCLN2.text = '<p>CASA script and arguments config file saved to <b>{}</b>.</p>'.format(
             database_dir + event_id + struct_id)
         timestrs = []
@@ -2869,7 +2931,7 @@ else:
         dspecDF_tmp = pd.DataFrame({'time': xx - xx[0],
                                     'freq': yy,
                                     'timestr': timestrs,
-                                    'freqstr':freqstrs,
+                                    'freqstr': freqstrs,
                                     'dspec': tab2_spec_plt.flatten(),
                                     'fits_local': fits_local,
                                     'fits_global': fits_global})
