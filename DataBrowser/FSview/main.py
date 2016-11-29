@@ -1255,38 +1255,8 @@ if os.path.exists(FS_dspecDF):
                                                width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
         def tab3_BUT_dspec_small_resetall_update():
-            global dspecDFtmp, tab2_nfreq, tab2_ntim, tab3_dspec_small_CTRLs_OPT
-            global tab3_SRC_dspec_vector, tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory
             dspecDFtmp_init()
-            items_dspec_small = tab3_dspec_small_CTRLs_OPT['items_dspec_small']
-            mean_values = tab3_dspec_small_CTRLs_OPT['mean_values']
-            drange_values = tab3_dspec_small_CTRLs_OPT['drange_values']
-            vmax_values = tab3_dspec_small_CTRLs_OPT['vmax_values']
-            vmin_values = tab3_dspec_small_CTRLs_OPT['vmin_values']
-            source_list = [tab3_SRC_dspec_vector, tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory]
-            for ll, item in enumerate(items_dspec_small):
-                TmpData = (dspecDFtmp[item].copy()).reshape(tab2_nfreq, tab2_ntim)
-                TmpData[TmpData > vmax_values[ll]] = vmax_values[ll]
-                TmpData[TmpData < vmin_values[ll]] = vmin_values[ll]
-                source_list[ll].data['data'] = [TmpData]
-            idx_p_dspec_small = 0
-            tab3_dspec_small_CTRLs_OPT['idx_p_dspec_small'] = idx_p_dspec_small
-            tab3_RBG_dspec_small.active = idx_p_dspec_small
-            tab3_Slider_dspec_small_dmax.start = mean_values[idx_p_dspec_small] - drange_values[idx_p_dspec_small]
-            tab3_Slider_dspec_small_dmax.end = mean_values[idx_p_dspec_small] + 2 * drange_values[idx_p_dspec_small]
-            tab3_Slider_dspec_small_dmax.value = vmax_values[idx_p_dspec_small]
-            tab3_Slider_dspec_small_dmin.start = mean_values[idx_p_dspec_small] - 2 * drange_values[
-                idx_p_dspec_small]
-            tab3_Slider_dspec_small_dmin.end = mean_values[idx_p_dspec_small] + drange_values[idx_p_dspec_small]
-            tab3_Slider_dspec_small_dmin.value = vmin_values[idx_p_dspec_small]
-            tab3_dspec_small_CTRLs_OPT['vmax_values_last'] = [ll for ll in vmax_values]
-            tab3_dspec_small_CTRLs_OPT['vmin_values_last'] = [ll for ll in vmin_values]
-            vmax_vx, vmax_vy = tab3_dspec_small_CTRLs_OPT['vmax_values_last'][1:]
-            vmin_vx, vmin_vy = tab3_dspec_small_CTRLs_OPT['vmin_values_last'][1:]
-            tab3_r_aia_submap_rect.data_source.data['x'] = [(vmax_vx + vmin_vx) / 2]
-            tab3_r_aia_submap_rect.data_source.data['y'] = [(vmax_vy + vmin_vy) / 2]
-            tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
-            tab3_r_aia_submap_rect.data_source.data['height'] = [(vmax_vy - vmin_vy)]
+            tab3_BUT_dspec_small_reset_update()
 
             tab3_BUT_dspec_small_resetall.on_click(tab3_BUT_dspec_small_resetall_update)
 
@@ -1585,7 +1555,7 @@ if os.path.exists(FS_dspecDF):
                      column(gridplot([tab3_p_dspec_vector], [tab3_p_dspec_vectorx], [tab3_p_dspec_vectory],
                                      toolbar_location='right'), tab3_Div_Tb),
                      widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
-                               tab3_BUT_dspec_small_reset, tab2_panel3_BUT_exit,
+                               tab3_BUT_dspec_small_reset,tab3_BUT_dspec_small_resetall, tab2_panel3_BUT_exit,
                                tab2_panel3_Div_exit,
                                width=200))
         # tab2 = Panel(child=panel2, title="FS View")
