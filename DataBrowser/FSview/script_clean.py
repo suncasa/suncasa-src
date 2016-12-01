@@ -101,7 +101,7 @@ if os.path.exists('CASA_CLN_args.json'):
     imgdir = database_dir + event_id + '/' + struct_id + '/Synthesis_Image/'
     if not os.path.exists(imgdir):
         os.mkdir(imgdir)
-    with open(imgdir + 'CASA_CLN_out', 'r') as fp:
+    with open(imgdir + 'CASA_CLN_out', 'w') as fp:
         pickle.dump(out, fp)
     imgdir = imgdir + 'local/'
     if not os.path.exists(imgdir):
@@ -111,11 +111,87 @@ if os.path.exists('CASA_CLN_args.json'):
     for fits in fitsfile:
         idxmms = fits.index('fits')
         mms = fits[idxmms - 4:idxmms - 1]
-        fits1 = fits[0:idxmms - 4] + '{:03d}'.format(int(mms) + 25) + fits[idxmms - 1:]
+        fits1 = fits[0:idxmms - 4] + '{:03d}'.format(int(mms)) + fits[idxmms - 1:]
         fits1 = fits1.split('/')[-1]
         # print imgdir+fits1
         os.system('mv {} {}'.format(fits, imgdir + fits1))
 
+    if not doreg:
+        import suncasa.vla.vla_prep as vla_prep
+        ms.open(vis)
+        ms.selectinit()
+        timfreq = ms.getdata(['time', 'axis_info'], ifraxis=True)
+        tim = timfreq['time']
+        dt = tim[1] - tim[0]  # need to change to median of all time intervals
+        freq = timfreq['axis_info']['freq_axis']['chan_freq'].flatten()
+        ms.close()
+
+        if twidth < 1 or twidth > len(tim):
+            casalog.post('twidth not between 1 and # of time pixels in the dataset. Change to 1')
+            twidth = 1
+
+        # find out the start and end time index according to the parameter timerange
+        # if not defined (empty string), use start and end from the entire time of the ms
+        if not timerange:
+            btidx = 0
+            etidx = len(tim)
+        else:
+            try:
+                (tstart, tend) = timerange.split('~')
+                bt_s = qa.convert(qa.quantity(tstart, 's'), 's')['value']
+                et_s = qa.convert(qa.quantity(tend, 's'), 's')['value']
+                # only time is given but not date, add the date (at 0 UT) from the first record
+                if bt_s < 86400. or et_s < 86400.:
+                    bt_s += np.fix(qa.convert(qa.quantity(tim[0], 's'), 'd')['value']) * 86400.
+                    et_s += np.fix(qa.convert(qa.quantity(tim[0], 's'), 'd')['value']) * 86400.
+                btidx = np.argmin(np.abs(tim - bt_s))
+                etidx = np.argmin(np.abs(tim - et_s))
+                # make the indice back to those bracket by the timerange
+                if tim[btidx] < bt_s:
+                    btidx += 1
+                if tim[etidx] > et_s:
+                    etidx -= 1
+                if etidx <= btidx:
+                    print "ending time must be greater than starting time"
+                    print "reinitiating to the entire time range"
+                    btidx = 0
+                    etidx = len(tim)
+            except ValueError:
+                print "keyword 'timerange' has a wrong format"
+
+        btstr = qa.time(qa.quantity(tim[btidx], 's'), prec=9)[0]
+        etstr = qa.time(qa.quantity(tim[etidx], 's'), prec=9)[0]
+
+        iterable = range(btidx, etidx + 1, twidth)
+        print 'First time pixel: ' + btstr
+        print 'Last time pixel: ' + etstr
+        print str(len(iterable)) + ' images to clean...'
+        timeranges = [
+            qa.time(qa.quantity(tim[ll], 's'), prec=9)[0] + '~' + qa.time(qa.quantity(tim[ll + twidth], 's'), prec=9)[0] for
+            ll in iterable]
+        filestr = [qa.time(qa.quantity(tim[ll], 's'),form='fits', prec=9)[0].replace(':','').replace('-','') for ll in iterable]
+
+
+        if not os.path.exists(database_dir + event_id + struct_id + 'Synthesis_Image'):
+            os.system('mkdir {}'.format(database_dir + event_id + struct_id + 'Synthesis_Image/'))
+            os.system('mkdir {}'.format(database_dir + event_id + struct_id + 'Synthesis_Image/local/'))
+        # check if ephemfile and msinfofile exist
+        if not ephemfile:
+            print("ephemeris info does not exist!")
+            raise ValueError
+        for ll, timeran in enumerate(timeranges):
+            ephem = vla_prep.read_horizons(ephemfile=ephemfile)
+            reftime = [timeran]
+            helio = vla_prep.ephem_to_helio(msinfo=msinfofile, ephem=ephem, reftime=reftime)
+            imname = imgprefix+filestr[ll]
+            imagefile = [imname + '.image']
+            fitsfile = [imname + '.fits']
+            try:
+                vla_prep.imreg(imagefile=imagefile, fitsfile=fitsfile, helio=helio, toTb=False, scl100=True)
+                os.system('cp {} {}'.format(fitsfile[0], database_dir + event_id +'/'+ struct_id + '/Synthesis_Image/local/'))
+                print 'cp {} {}'.format(fitsfile[0], database_dir + event_id +'/'+ struct_id + '/Synthesis_Image/local/')
+            except:
+                '{} not found!'.format(imagefile)
 
 else:
     print 'CASA arguments config file not found!!'

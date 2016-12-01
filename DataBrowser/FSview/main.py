@@ -609,8 +609,6 @@ if os.path.exists(FS_dspecDF):
                                                             size=4)
         tab3_p_aia_submap.add_tools(BoxSelectTool(renderers=[tab2_r_aia_submap_square]))
 
-
-
         tab3_p_aia_submap.border_fill_color = "silver"
         tab3_p_aia_submap.border_fill_alpha = 0.4
         tab3_p_aia_submap.axis.major_tick_out = 0
@@ -952,7 +950,9 @@ if os.path.exists(FS_dspecDF):
                 tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
                 tab3_r_aia_submap_rect.data_source.data['height'] = [(vmax_vy - vmin_vy)]
 
+
         tab2_SRC_aia_submap_square.on_change('selected', tab2_aia_submap_square_selection_change)
+
 
         def dspecDFtmp_init():
             global dspecDFtmp
@@ -2904,6 +2904,7 @@ else:
     tab2_BUT_tCLN_param_Default.on_click(tab2_BUT_tCLN_param_default)
     tab2_SPCR_LFT_BUT_tCLN_param_DEL = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
     tab2_SPCR_LFT_BUT_tCLN_param_RELOAD = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
+    tab2_SPCR_LFT_BUT_tCLN_param_SAVE = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
     tab2_SPCR_LFT_BUT_tCLN_param_DEFAULT = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
     tab2_SPCR_LFT_BUT_tCLN_param_FSVIEW = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
     tab2_SPCR_LFT_Div_tCLN2 = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth50'],
@@ -2920,7 +2921,7 @@ else:
             database_dir + event_id + struct_id)
 
 
-    def tab2_BUT_tCLN_clean():
+    def tab2_BUT_tCLN_param_save():
         with open(database_dir + event_id + struct_id + 'CASA_CLN_args.json', 'w') as fp:
             json.dump(tab2_tCLN_Param_dict, fp)
         os.system(
@@ -2950,9 +2951,13 @@ else:
         with open(database_dir + event_id + struct_id + 'dspecDF-save', 'wb') as fp:
             pickle.dump(dspecDF_tmp, fp)
         tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}</b>. '.format(
-            database_dir + event_id + struct_id) + 'Go back to <b>QLook</b> window, select StrID <b>{}</b> and \
+            database_dir + event_id + struct_id) + 'Click the <b>clean</b> button to clean. When finished, \
+            go back to <b>QLook</b> window, select StrID <b>{}</b> and \
             click <b>FSview</b> button again.</p>'.format(
             database_dir + event_id + struct_id, struct_id[0:-1])
+
+
+    def tab2_BUT_tCLN_clean():
         cwd = os.getcwd()
         try:
             tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}.</b></p>\
@@ -2975,8 +2980,10 @@ else:
     tab2_BUT_tCLN_param_RELOAD = Button(label='reload Param',
                                         width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'])
     tab2_BUT_tCLN_param_RELOAD.on_click(tab2_BUT_tCLN_param_reload)
-    tab2_SPCR_LFT_BUT_tCLN_param_reload = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth20'],
-                                                 height=config_plot['plot_config']['tab_FSview2CASA']['space_hght10'])
+    tab2_BUT_tCLN_param_SAVE = Button(label='save Param',
+                                      width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'],
+                                      button_type='success')
+    tab2_BUT_tCLN_param_SAVE.on_click(tab2_BUT_tCLN_param_save)
     tab2_BUT_tCLN_CLEAN = Button(label='clean',
                                  width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'],
                                  button_type='success')
@@ -3003,7 +3010,8 @@ else:
                                               row(tab2_BUT_tCLN_param_ADD, tab2_SPCR_LFT_BUT_tCLN_param_DEL,
                                                   tab2_BUT_tCLN_param_DEL, tab2_SPCR_LFT_BUT_tCLN_param_DEFAULT,
                                                   tab2_BUT_tCLN_param_Default, tab2_SPCR_LFT_BUT_tCLN_param_RELOAD,
-                                                  tab2_BUT_tCLN_param_RELOAD, tab2_SPCR_LFT_BUT_CLEAN,
+                                                  tab2_BUT_tCLN_param_RELOAD, tab2_SPCR_LFT_BUT_tCLN_param_SAVE,
+                                                  tab2_BUT_tCLN_param_SAVE, tab2_SPCR_LFT_BUT_CLEAN,
                                                   tab2_BUT_tCLN_CLEAN)),
                                        widgetbox(tab2_Select_pol, tab2_Select_bl, tab2_Select_colorspace,
                                                  tab2_panel2_BUT_exit,
