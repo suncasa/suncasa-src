@@ -7,11 +7,78 @@ os.chdir(mspath)
 msfile = 'SUN01_20141101.T163940-164700.50ms.cal.ms'
 ephemfile = 'horizons_sun_20141101.radecp'
 msinfofile = 'SUN01_20141101.T163940-164700.50ms.cal.msinfo.npz'
+
+
+##################  ----------- U04-prep -----------------#########
 slfcalms_timeran = '16:46:12.375~16:46:32.475'
 slfcalms_s = ['0', '1', '2', '3']
 slfcalms_chan = ['0~63', '0~63', '0~63', '0~63']
-structure_id = 'U04-prep_test'
+structure_id = 'U04-prep'
+pol = 'LL'
 spwchan = ','.join('%s:%s' % t for t in zip(slfcalms_s, slfcalms_chan))
+phasecenter_local = 'slfj'
+##  ----------- spw 0 -----------------
+timerange = '2014/11/01/16:46:17.100~2014/11/01/16:46:17.600'
+freqrange = '1.086~1.106 GHz'
+CLNmask = 'slfcal/U04-prep/region_spw0.rgn'
+##  ----------- spw 1 -----------------
+# timerange = '2014/11/01/16:46:17.600~2014/11/01/16:46:18.400'
+# freqrange = '1.146~1.182 GHz'
+# CLNmask = 'slfcal/U04-prep/region_spw0.rgn'
+##  ----------- spw 2 -----------------
+# timerange = '2014/11/01/16:46:17.650~2014/11/01/16:46:18.250'
+# freqrange = '1.286~1.318 GHz'
+# CLNmask = 'slfcal/U04-prep/region_spw0.rgn'
+##  ----------- spw 4 -----------------
+# timerange = '2014/11/01/16:46:17.275~2014/11/01/16:46:19.450'
+# freqrange = '1.426~1.472 GHz'
+# CLNmask = 'slfcal/U04-prep/region_spw0.rgn'
+
+
+##################  ----------- typeIII01 -----------------#########
+slfcalms_timeran = '16:43:58.825~16:44:01.325'
+slfcalms_s = ['0', '1']
+slfcalms_chan = ['0~63', '0~63']
+structure_id = 'typeIII01-prep'
+pol = 'RR'
+spwchan = ','.join('%s:%s' % t for t in zip(slfcalms_s, slfcalms_chan))
+phasecenter_local = 'ljdfsldfj'
+# spwchan='0,1,2'
+##  ----------- spw 0 -----------------
+struct_timerange = '2014/11/01/16:44:00.975~2014/11/01/16:44:01.125'
+struct_freqrange = '1.040~1.072 GHz'
+CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
+##  ----------- spw 1 -----------------
+struct_timerange = '2014/11/01/16:44:00.475~2014/11/01/16:44:00.625'
+struct_freqrange = '1.160~1.208 GHz'
+CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
+##  ----------- spw 2 -----------------
+# struct_timerange = '2014/11/01/16:46:17.650~2014/11/01/16:46:18.250'
+# struct_freqrange = '1.286~1.318 GHz'
+# CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
+##  ----------- spw 4 -----------------
+# struct_timerange = '2014/11/01/16:46:17.275~2014/11/01/16:46:19.450'
+# struct_freqrange = '1.426~1.472 GHz'
+# CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
+
+
+##################  ----------- ZP01 -----------------#########
+slfcalms_timeran = '16:41:02~16:41:26'
+slfcalms_s = ['0', '1']
+slfcalms_chan = ['0~63', '0~63']
+structure_id = 'ZP01-prep'
+pol = 'RRLL'
+spwchan = ','.join('%s:%s' % t for t in zip(slfcalms_s, slfcalms_chan))
+phasecenter_local = 'J2000 14h26m43.082 -14d37m43.817'
+##  ----------- spw 0 -----------------
+struct_timerange = '2014/11/01/16:41:11.125~2014/11/01/16:41:12.325'
+struct_freqrange =  '1.044~1.066 GHz'
+CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
+##  ----------- spw 1 -----------------
+# struct_timerange = '2014/11/01/16:41:12.575~2014/11/01/16:41:14.175'
+# struct_freqrange = '1.166~1.184 GHz'
+# CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
+
 
 ''' ----- step 1 ----- '''
 
@@ -68,6 +135,7 @@ if prep:
 
 
 
+
 ms.open(slfcalms)
 
 axisInfo = ms.getdata(["axis_info"], ifraxis=True)
@@ -78,7 +146,7 @@ timeInfo = axisInfo["axis_info"]["time_axis"]['MJDseconds']
 timran = ms.range(["time"])
 
 
-pol = 'LL'
+
 refantenna = 'ea04'
 # antennas='0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26'
 antennas = '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26'
@@ -87,24 +155,8 @@ antennas = '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26'
 # ii=900#len(idx_selec[1])/2
 
 t_int = 0.05
-##  ----------- spw 0 -----------------
-timerange = '2014/11/01/16:46:17.100~2014/11/01/16:46:17.600'
-freqrange = '1.086~1.106 GHz'
-CLNmask = 'slfcal/U04-prep/region_spw0.rgn'
-##  ----------- spw 1 -----------------
-# timerange = '2014/11/01/16:46:17.600~2014/11/01/16:46:18.400'
-# freqrange = '1.146~1.182 GHz'
-# CLNmask = 'slfcal/U04-prep/region_spw0.rgn'
-##  ----------- spw 2 -----------------
-# timerange = '2014/11/01/16:46:17.650~2014/11/01/16:46:18.250'
-# freqrange = '1.286~1.318 GHz'
-# CLNmask = 'slfcal/U04-prep/region_spw0.rgn'
-##  ----------- spw 4 -----------------
-# timerange = '2014/11/01/16:46:17.275~2014/11/01/16:46:19.450'
-# freqrange = '1.426~1.472 GHz'
-# CLNmask = 'slfcal/U04-prep/region_spw0.rgn'
 
-tt = timerange.split('~')
+tt = struct_timerange.split('~')
 t0str = tt[0].split('/')[-1]
 t1str = tt[1].split('/')[-1]
 # timestr=qa.time(qa.quantity(tmid,'s'),prec=9)[0].translate(None, ':')
@@ -112,7 +164,7 @@ timestr = t0str.translate(None, ':')
 timeran = t0str + '~' + t1str
 f_int = 2.0  # MHz
 # if 'freqrange' in locals():
-freq0, freq1 = freqrange.split(' ')[0].split('~')
+freq0, freq1 = struct_freqrange.split(' ')[0].split('~')
 freq0, freq1 = float(freq0), float(freq1)
 for ll in [freq0, freq1]:
     if not freqInfo_ravel[0] <= ll <= freqInfo_ravel[-1]:
@@ -300,7 +352,7 @@ niter = 200
 npercycle = 10
 imsize = [128, 128]
 cell = ['5.0arcsec', '5.0arcsec']
-phasecenter = 'J2000 14h26m59.250 -14d35m44.681'
+phasecenter = phasecenter_local
 outertaper = ['50arcsec']
 interactive = False
 usescratch = False
