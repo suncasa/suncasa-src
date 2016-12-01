@@ -412,9 +412,9 @@ def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=Tr
             msfile.append(msname)
         casalog.post("finished in --- %s seconds ---" % (time.time() - time0))
 
-        if doconcat:
-            concat(vis=msfile, concatvis=msfile[0].replace('-10m.ms', '-{}m.ms'.format(10.0 * len(msfile))))
-            for ll in msfile:
-                os.system('rm -rf {}'.format(ll))
+    if doconcat:
+        concat(vis=msfile, concatvis=msfile[0].replace('-10m.ms', '-{}m.ms'.format(10.0 * len(msfile))))
+        for ll in msfile:
+            os.system('rm -rf {}'.format(ll))
 
         return True
