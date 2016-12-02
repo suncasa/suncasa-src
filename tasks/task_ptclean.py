@@ -35,9 +35,18 @@ def clean_iter(tim, freq, vis, imageprefix,
 
     #tim_d = tim/3600./24.-np.fix(tim/3600./24.) 
 
+    if bt == 0:
+        bt_d=tim[bt]-((tim[bt+1]-tim[bt])/2)
+    else:
+        bt_d=tim[bt]-((tim[bt]-tim[bt-1])/2)
+    if et == (len(tim)-1) or et == -1:
+        et_d=tim[et]+((tim[et]-tim[et-1])/2)
+    else:
+        et_d=tim[et]+((tim[et+1]-tim[et])/2)
 
-    bt_d=tim[bt]
-    et_d=tim[et]+0.005
+    #
+    # bt_d=tim[bt]
+    # et_d=tim[et]+0.005
 
     timerange = qa.time(qa.quantity(bt_d,'s'),prec=9)[0] + '~' + \
                 qa.time(qa.quantity(et_d,'s'),prec=9)[0]
