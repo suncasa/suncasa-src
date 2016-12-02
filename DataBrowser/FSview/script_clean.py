@@ -115,7 +115,7 @@ if os.path.exists('CASA_CLN_args.json'):
         ms.selectinit()
         timfreq = ms.getdata(['time', 'axis_info'], ifraxis=True)
         tim = timfreq['time']
-        dt = np.mediana(np.diff(tim))  # need to change to median of all time intervals
+        dt = np.median(np.diff(tim))  # need to change to median of all time intervals
         freq = timfreq['axis_info']['freq_axis']['chan_freq'].flatten()
         ms.close()
 
