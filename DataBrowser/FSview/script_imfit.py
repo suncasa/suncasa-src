@@ -36,6 +36,7 @@ if os.path.exists('CASA_imfit_args.json'):
     with open(imgdir + 'CASA_imfit_out', 'w') as fp:
         pickle.dump(out, fp)
 
+    # todo add RR LL check. if stokes='RRLL', do pimfit separately with RR and LL.
     shape_latitude = []
     shape_longitude = []
     shape_latitude_err = []

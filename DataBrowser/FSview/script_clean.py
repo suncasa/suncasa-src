@@ -107,14 +107,7 @@ if os.path.exists('CASA_CLN_args.json'):
     if not os.path.exists(imgdir):
         os.mkdir(imgdir)
     print 'imgdir: {}'.format(imgdir)
-    fitsfile = glob.glob('{}*.fits'.format(imageprefix))
-    for fits in fitsfile:
-        idxmms = fits.index('fits')
-        mms = fits[idxmms - 4:idxmms - 1]
-        fits1 = fits[0:idxmms - 4] + '{:03d}'.format(int(mms)+25) + fits[idxmms - 1:]
-        fits1 = fits1.split('/')[-1]
-        # print imgdir+fits1
-        os.system('mv {} {}'.format(fits, imgdir + fits1))
+
 
     if not doreg:
         import suncasa.vla.vla_prep as vla_prep
@@ -192,6 +185,15 @@ if os.path.exists('CASA_CLN_args.json'):
                 print 'cp {} {}'.format(fitsfile[0], database_dir + event_id +'/'+ struct_id + '/Synthesis_Image/local/')
             except:
                 '{} not found!'.format(imagefile)
+    else:
+        fitsfile = glob.glob('{}*.fits'.format(imageprefix))
+        for fits in fitsfile:
+            idxmms = fits.index('fits')
+            mms = fits[idxmms - 4:idxmms - 1]
+            fits1 = fits[0:idxmms - 4] + '{:03d}'.format(int(mms) + 25) + fits[idxmms - 1:]
+            fits1 = fits1.split('/')[-1]
+            # print imgdir+fits1
+            os.system('mv {} {}'.format(fits, imgdir + fits1))
 
 else:
     print 'CASA arguments config file not found!!'
