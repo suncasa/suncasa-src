@@ -115,7 +115,7 @@ if os.path.exists('CASA_CLN_args.json'):
         ms.selectinit()
         timfreq = ms.getdata(['time', 'axis_info'], ifraxis=True)
         tim = timfreq['time']
-        dt = tim[1] - tim[0]  # need to change to median of all time intervals
+        dt = np.mediana(np.diff(tim))  # need to change to median of all time intervals
         freq = timfreq['axis_info']['freq_axis']['chan_freq'].flatten()
         ms.close()
 
@@ -126,8 +126,8 @@ if os.path.exists('CASA_CLN_args.json'):
         # find out the start and end time index according to the parameter timerange
         # if not defined (empty string), use start and end from the entire time of the ms
         if not timerange:
-            btidx = 0
-            etidx = len(tim)
+            btidx = 1
+            etidx = len(tim)-1
         else:
             try:
                 (tstart, tend) = timerange.split('~')
@@ -150,7 +150,7 @@ if os.path.exists('CASA_CLN_args.json'):
                     btidx = 0
                     etidx = len(tim)
             except ValueError:
-                print "keyword 'timerange' has a wrong format"
+                print "keyword 'timerange' in wrong format"
 
         btstr = qa.time(qa.quantity(tim[btidx], 's'), prec=9)[0]
         etstr = qa.time(qa.quantity(tim[etidx], 's'), prec=9)[0]
@@ -160,9 +160,9 @@ if os.path.exists('CASA_CLN_args.json'):
         print 'Last time pixel: ' + etstr
         print str(len(iterable)) + ' images to clean...'
         timeranges = [
-            qa.time(qa.quantity(tim[ll], 's'), prec=9)[0] + '~' + qa.time(qa.quantity(tim[ll + twidth], 's'), prec=9)[0] for
+            qa.time(qa.quantity(tim[ll]-dt/2, 's'), prec=9)[0] + '~' + qa.time(qa.quantity(tim[ll + twidth]-dt/2, 's'), prec=9)[0] for
             ll in iterable]
-        filestr = [qa.time(qa.quantity(tim[ll], 's'),form='fits', prec=9)[0].replace(':','').replace('-','') for ll in iterable]
+        filestr = [qa.time(qa.quantity(tim[ll]-dt/2, 's'),form='fits', prec=9)[0].replace(':','').replace('-','') for ll in iterable]
 
 
         if not os.path.exists(database_dir + event_id + struct_id + 'Synthesis_Image'):
@@ -190,7 +190,7 @@ if os.path.exists('CASA_CLN_args.json'):
         for fits in fitsfile:
             idxmms = fits.index('fits')
             mms = fits[idxmms - 4:idxmms - 1]
-            fits1 = fits[0:idxmms - 4] + '{:03d}'.format(int(mms) + 25) + fits[idxmms - 1:]
+            fits1 = fits[0:idxmms - 4] + '{:03d}'.format(int(mms) - int(dt/2*1000)) + fits[idxmms - 1:]
             fits1 = fits1.split('/')[-1]
             # print imgdir+fits1
             os.system('mv {} {}'.format(fits, imgdir + fits1))
