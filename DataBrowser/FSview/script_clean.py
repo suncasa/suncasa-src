@@ -181,19 +181,19 @@ if os.path.exists('CASA_CLN_args.json'):
             fitsfile = [imname + '.fits']
             try:
                 vla_prep.imreg(imagefile=imagefile, fitsfile=fitsfile, helio=helio, toTb=False, scl100=True)
-                os.system('cp {} {}'.format(fitsfile[0], database_dir + event_id +'/'+ struct_id + '/Synthesis_Image/local/'))
-                print 'cp {} {}'.format(fitsfile[0], database_dir + event_id +'/'+ struct_id + '/Synthesis_Image/local/')
+                # os.system('cp {} {}'.format(fitsfile[0], database_dir + event_id +'/'+ struct_id + '/Synthesis_Image/local/'))
+                # print 'cp {} {}'.format(fitsfile[0], database_dir + event_id +'/'+ struct_id + '/Synthesis_Image/local/')
             except:
                 '{} not found!'.format(imagefile)
-    else:
-        fitsfile = glob.glob('{}*.fits'.format(imageprefix))
-        for fits in fitsfile:
-            idxmms = fits.index('fits')
-            mms = fits[idxmms - 4:idxmms - 1]
-            fits1 = fits[0:idxmms - 4] + '{:03d}'.format(int(mms) - int(dt/2*1000)) + fits[idxmms - 1:]
-            fits1 = fits1.split('/')[-1]
-            # print imgdir+fits1
-            os.system('mv {} {}'.format(fits, imgdir + fits1))
+    # else:
+    fitsfile = glob.glob('{}*.fits'.format(imageprefix))
+    for fits in fitsfile:
+        idxmms = fits.index('fits')
+        mms = fits[idxmms - 4:idxmms - 1]
+        fits1 = fits[0:idxmms - 4] + '{:03d}'.format(int(mms) - int(dt/2*1000)) + fits[idxmms - 1:]
+        fits1 = fits1.split('/')[-1]
+        # print imgdir+fits1
+        os.system('mv {} {}'.format(fits, imgdir + fits1))
 
 else:
     print 'CASA arguments config file not found!!'
