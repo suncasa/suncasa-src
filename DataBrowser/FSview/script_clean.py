@@ -108,9 +108,9 @@ if os.path.exists('CASA_CLN_args.json'):
         os.mkdir(imgdir)
     print 'imgdir: {}'.format(imgdir)
 
-
     if not doreg:
         import suncasa.vla.vla_prep as vla_prep
+
         ms.open(vis)
         ms.selectinit()
         timfreq = ms.getdata(['time', 'axis_info'], ifraxis=True)
@@ -160,10 +160,11 @@ if os.path.exists('CASA_CLN_args.json'):
         print 'Last time pixel: ' + etstr
         print str(len(iterable)) + ' images to clean...'
         timeranges = [
-            qa.time(qa.quantity(tim[ll], 's'), prec=9)[0] + '~' + qa.time(qa.quantity(tim[ll + twidth], 's'), prec=9)[0] for
+            qa.time(qa.quantity(tim[ll], 's'), prec=9)[0] + '~' + qa.time(qa.quantity(tim[ll + twidth], 's'), prec=9)[0]
+            for
             ll in iterable]
-        filestr = [qa.time(qa.quantity(tim[ll], 's'),form='fits', prec=9)[0].replace(':','').replace('-','') for ll in iterable]
-
+        filestr = [qa.time(qa.quantity(tim[ll], 's'), form='fits', prec=9)[0].replace(':', '').replace('-', '') for ll
+                   in iterable]
 
         if not os.path.exists(database_dir + event_id + struct_id + 'Synthesis_Image'):
             os.system('mkdir {}'.format(database_dir + event_id + struct_id + 'Synthesis_Image/'))
@@ -176,24 +177,26 @@ if os.path.exists('CASA_CLN_args.json'):
             ephem = vla_prep.read_horizons(ephemfile=ephemfile)
             reftime = [timeran]
             helio = vla_prep.ephem_to_helio(msinfo=msinfofile, ephem=ephem, reftime=reftime)
-            imname = imgprefix+filestr[ll]
+            imname = imgprefix + filestr[ll]
             imagefile = [imname + '.image']
             fitsfile = [imname + '.fits']
             try:
                 vla_prep.imreg(imagefile=imagefile, fitsfile=fitsfile, helio=helio, toTb=False, scl100=True)
-                os.system('cp {} {}'.format(fitsfile[0], database_dir + event_id +'/'+ struct_id + '/Synthesis_Image/local/'))
-                print 'cp {} {}'.format(fitsfile[0], database_dir + event_id +'/'+ struct_id + '/Synthesis_Image/local/')
+                os.system('cp {} {}'.format(fitsfile[0],
+                                            database_dir + event_id + '/' + struct_id + '/Synthesis_Image/local/'))
+                print 'cp {} {}'.format(fitsfile[0],
+                                        database_dir + event_id + '/' + struct_id + '/Synthesis_Image/local/')
             except:
                 '{} not found!'.format(imagefile)
-    else:
-        fitsfile = glob.glob('{}*.fits'.format(imageprefix))
-        for fits in fitsfile:
-            idxmms = fits.index('fits')
-            mms = fits[idxmms - 4:idxmms - 1]
-            fits1 = fits[0:idxmms - 4] + '{:03d}'.format(int(mms) + 25) + fits[idxmms - 1:]
-            fits1 = fits1.split('/')[-1]
-            # print imgdir+fits1
-            os.system('mv {} {}'.format(fits, imgdir + fits1))
+
+    fitsfile = glob.glob('{}*.fits'.format(imageprefix))
+    for fits in fitsfile:
+        idxmms = fits.index('fits')
+        mms = fits[idxmms - 4:idxmms - 1]
+        fits1 = fits[0:idxmms - 4] + '{:03d}'.format(int(mms) + 25) + fits[idxmms - 1:]
+        fits1 = fits1.split('/')[-1]
+        # print imgdir+fits1
+        os.system('mv {} {}'.format(fits, imgdir + fits1))
 
 else:
     print 'CASA arguments config file not found!!'
