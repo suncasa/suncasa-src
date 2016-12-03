@@ -42,7 +42,8 @@ colormap_jet = cm.get_cmap("jet")  # choose any matplotlib colormap here
 bokehpalette_jet = [colors.rgb2hex(m) for m in colormap_jet(np.arange(colormap_jet.N))]
 colormap = cm.get_cmap("cubehelix")  # choose any matplotlib colormap here
 bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-
+colormap_viridis = cm.get_cmap("viridis")  # choose any matplotlib colormap here
+bokehpalette_viridis = [colors.rgb2hex(m) for m in colormap_viridis(np.arange(colormap_viridis.N))]
 '''
 -------------------------- panel 2,3   --------------------------
 '''
@@ -1048,10 +1049,10 @@ if os.path.exists(FS_dspecDF):
                                   palette=bokehpalette_jet, source=tab3_SRC_dspec_vector)
         tab3_p_dspec_vectorx.image(image="data", x=tab2_dtim[0], y=tab2_freq[0], dw=tab2_dtim[-1] - tab2_dtim[0],
                                    dh=tab2_freq[-1] - tab2_freq[0],
-                                   palette=bokehpalette_jet, source=tab3_SRC_dspec_vectorx)
+                                   palette=bokehpalette_viridis, source=tab3_SRC_dspec_vectorx)
         tab3_p_dspec_vectory.image(image="data", x=tab2_dtim[0], y=tab2_freq[0], dw=tab2_dtim[-1] - tab2_dtim[0],
                                    dh=tab2_freq[-1] - tab2_freq[0],
-                                   palette=bokehpalette_jet, source=tab3_SRC_dspec_vectory)
+                                   palette=bokehpalette_viridis, source=tab3_SRC_dspec_vectory)
         tab3_source_idx_line = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
         tab3_r_dspec_vector_line = tab3_p_dspec_vector.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
                                                             line_color='white', source=tab3_source_idx_line)
