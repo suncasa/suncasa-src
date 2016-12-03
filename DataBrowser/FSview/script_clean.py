@@ -169,8 +169,8 @@ if os.path.exists('CASA_CLN_args.json'):
 
 
         if not os.path.exists(database_dir + event_id + struct_id + 'Synthesis_Image'):
-            os.system('mkdir {}'.format(database_dir + event_id + struct_id + 'Synthesis_Image/'))
-            os.system('mkdir {}'.format(database_dir + event_id + struct_id + 'Synthesis_Image/local/'))
+            os.system('mkdir {}'.format(database_dir + event_id + '/' + struct_id + '/' + 'Synthesis_Image/'))
+            os.system('mkdir {}'.format(database_dir + event_id + '/' + struct_id + '/' + 'Synthesis_Image/local/'))
         # check if ephemfile and msinfofile exist
         if not ephemfile:
             print("ephemeris info does not exist!")
