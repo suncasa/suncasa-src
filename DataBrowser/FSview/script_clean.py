@@ -13,8 +13,11 @@ if os.path.exists('CASA_CLN_args.json'):
     for key, val in CASA_CLN_args.items():
         exec (key + '= {}'.format(val))
 
-    # if 'mspath' in locals():
-    #     os.chdir(mspath)
+    cwd = os.getcwd()
+    if 'workdir' not in locals():
+        workdir = './'
+
+    os.chdir(workdir)
     if 'vis' in locals():
         ms.open(vis)
         axisInfo = ms.getdata(["axis_info"], ifraxis=True)
@@ -194,6 +197,8 @@ if os.path.exists('CASA_CLN_args.json'):
         fits1 = fits1.split('/')[-1]
         # print imgdir+fits1
         os.system('mv {} {}'.format(fits, imgdir + fits1))
+
+    os.chdir(cwd)
 
 else:
     print 'CASA arguments config file not found!!'

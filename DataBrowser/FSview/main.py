@@ -2856,6 +2856,7 @@ else:
     def tab2_BUT_tCLN_param_default():
         global tab2_tCLN_Param_dict
         tab2_tCLN_Param_dict = OrderedDict()
+        tab2_tCLN_Param_dict['workdir'] = "'./'"
         tab2_tCLN_Param_dict['vis'] = "''"
         tab2_tCLN_Param_dict['imageprefix'] = "'slfcal/{}'".format(struct_id)
         tab2_tCLN_Param_dict['ncpu'] = "10"
