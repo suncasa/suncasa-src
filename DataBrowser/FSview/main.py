@@ -2420,6 +2420,7 @@ if os.path.exists(FS_dspecDF):
 
 
             def tab2_BUT_timfit_param_reload():
+                global tab2_tImfit_Param_dict
                 try:
                     with open(database_dir + event_id + struct_id + 'CASA_imfit_args.json', 'r') as fp:
                         tab2_timfit_Param_dict = json.load(fp)
