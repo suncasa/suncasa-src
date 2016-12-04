@@ -339,7 +339,7 @@ npercycle = 10
 imsize = [512, 512]
 cell = ['5arcsec', '5arcsec']
 phasecenter = 'J2000 14h26m22.7351 -14d29m29.801'
-outertaper = ['50.0arcsec']
+outertaper = ['30.0arcsec']
 interactive = False
 usescratch = False
 # outertaper = ['50arcsec']
@@ -360,7 +360,7 @@ npercycle = 10
 imsize = [64, 64]
 cell = ['5.0arcsec', '5.0arcsec']
 phasecenter = phasecenter_local
-outertaper = ['50arcsec']
+outertaper = ['30.0arcsec']
 interactive = False
 usescratch = False
 clean()
