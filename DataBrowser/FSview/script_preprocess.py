@@ -15,23 +15,26 @@ slfcalms_chan = ['0~63', '0~63', '0~63', '0~63']
 structure_id = 'U04-prep'
 pol = 'LL'
 spwchan = ','.join('%s:%s' % t for t in zip(slfcalms_s, slfcalms_chan))
-phasecenter_local = 'J2000 14h26m59.500 -14d35m54.200'
 ##  ----------- spw 0 -----------------
 struct_timerange = '2014/11/01/16:46:17.100~2014/11/01/16:46:17.600'
 struct_freqrange = '1.086~1.106 GHz'
 CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
+phasecenter_local = 'J2000 14h26m59.300 -14d36m00.200'
 ##  ----------- spw 1 -----------------
-# struct_timerange = '2014/11/01/16:46:17.600~2014/11/01/16:46:18.400'
-# struct_freqrange = '1.146~1.182 GHz'
-# CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
+struct_timerange = '2014/11/01/16:46:17.600~2014/11/01/16:46:18.400'
+struct_freqrange = '1.146~1.182 GHz'
+CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
+phasecenter_local = 'J2000 14h26m59.500 -14d36m01.100'
 ##  ----------- spw 2 -----------------
-# struct_timerange = '2014/11/01/16:46:17.650~2014/11/01/16:46:18.250'
-# struct_freqrange = '1.286~1.318 GHz'
-# CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
+struct_timerange = '2014/11/01/16:46:17.650~2014/11/01/16:46:18.250'
+struct_freqrange = '1.286~1.318 GHz'
+CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
+phasecenter_local = 'J2000 14h27m00.100 -14d35m24.200'
 ##  ----------- spw 4 -----------------
-# struct_timerange = '2014/11/01/16:46:17.275~2014/11/01/16:46:19.450'
-# struct_freqrange = '1.426~1.472 GHz'
-# CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
+struct_timerange = '2014/11/01/16:46:17.150~2014/11/01/16:46:19.650'
+struct_freqrange = '1.426~1.472 GHz'
+CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
+phasecenter_local = 'J2000 14h26m56.300 -14d35m11.000'
 
 #
 # ##################  ----------- typeIII01 -----------------#########
@@ -158,9 +161,10 @@ freqInfo_ravel = freqInfo.ravel()
 timeInfo = axisInfo["axis_info"]["time_axis"]['MJDseconds']
 timran = ms.range(["time"])
 
-refantenna = 'ea07'
+refantenna = 'ea04'
 # antennas='0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26'
 antennas = '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26'
+# antennas = ''
 
 # t_int=tim[idx_tim[-1]]-tim[idx_tim[len(idx_selec[0])/2]]
 # ii=900#len(idx_selec[1])/2
@@ -253,8 +257,8 @@ phasecenter = 'J2000 14h26m22.7351 -14d29m29.801'
 # cell = ['3.0arcsec', '3.0arcsec']
 # phasecenter = 'J2000 14h26m59.250 -14d35m44.681'
 stokes = pol
-uvtaper = False
-# outertaper=['30.0arcsec']
+uvtaper = True
+outertaper=['30.0arcsec']
 interactive = True
 # interactive=False
 usescratch = True
@@ -339,6 +343,7 @@ npercycle = 10
 imsize = [512, 512]
 cell = ['5arcsec', '5arcsec']
 phasecenter = 'J2000 14h26m22.7351 -14d29m29.801'
+uvtaper = True
 outertaper = ['30.0arcsec']
 interactive = False
 usescratch = False
@@ -360,6 +365,7 @@ npercycle = 10
 imsize = [64, 64]
 cell = ['5.0arcsec', '5.0arcsec']
 phasecenter = phasecenter_local
+uvtaper = True
 outertaper = ['30.0arcsec']
 interactive = False
 usescratch = False
