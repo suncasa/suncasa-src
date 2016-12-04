@@ -213,9 +213,9 @@ slfcal_img_global = slfcal_img_global.replace(':', '-')
 slfcal_img_local = imgprefix + timestr + 'T.' + spwstr + '.local.slfcal'
 slfcal_img_local = slfcal_img_local.replace(':', '-')
 
-slfcal_img_list = [imgprefix + timestr + 'T.' + spwstr.replace(':', '-') + '.slfcal{:d}'.format(ll) for ll in range(4)]
-slfcal_table_list = [calprefix + '.slfcal.G{:d}'.format(ll) for ll in range(4)]
-uvrange_list = ['<3klambda', '<3klambda', '<6klambda', '']
+slfcal_img_list = [imgprefix + timestr + 'T.' + spwstr.replace(':', '-') + '.slfcal{:d}'.format(ll) for ll in range(6)]
+slfcal_table_list = [calprefix + '.slfcal.G{:d}'.format(ll) for ll in range(6)]
+uvrange_list = ['<3klambda', '<3klambda', '<3klambda', '<6klambda', '<6klambda', '']
 # uvrange_list = ['<1klambda', '<3klambda', '<6klambda', '<9klambda', '','']
 
 slfcal_iter = 0
