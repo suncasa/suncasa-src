@@ -213,9 +213,9 @@ slfcal_img_global = slfcal_img_global.replace(':', '-')
 slfcal_img_local = imgprefix + timestr + 'T.' + spwstr + '.local.slfcal'
 slfcal_img_local = slfcal_img_local.replace(':', '-')
 
-slfcal_img_list = [imgprefix + timestr + 'T.' + spwstr.replace(':', '-') + '.slfcal{:d}'.format(ll) for ll in range(6)]
-slfcal_table_list = [calprefix + '.slfcal.G{:d}'.format(ll) for ll in range(6)]
-uvrange_list = ['<3klambda', '<3klambda', '<3klambda', '<6klambda', '<6klambda', '']
+slfcal_img_list = [imgprefix + timestr + 'T.' + spwstr.replace(':', '-') + '.slfcal{:d}'.format(ll) for ll in range(4)]
+slfcal_table_list = [calprefix + '.slfcal.G{:d}'.format(ll) for ll in range(4)]
+uvrange_list = ['<3klambda', '<3klambda', '<6klambda', '']
 # uvrange_list = ['<1klambda', '<3klambda', '<6klambda', '<9klambda', '','']
 
 slfcal_iter = 0
@@ -274,7 +274,7 @@ clearcal(vis=slfcalms, spw=ms_spw[0])
 applycal(vis=slfcalms, gaintable=slfcal_table_list[slfcal_iter], spw=ms_spw[0], selectdata=True, \
          antenna=antennas, interp='linear', flagbackup=False, applymode='calonly')
 
-for slfcal_iter in range(1, 6):
+for slfcal_iter in range(1, 4):
     # slfcal_iter+=1
     tget('clean')
     vis = slfcalms
@@ -357,7 +357,7 @@ uvrange = ''
 mask = CLNmask
 niter = 200
 npercycle = 10
-imsize = [128, 128]
+imsize = [64, 64]
 cell = ['5.0arcsec', '5.0arcsec']
 phasecenter = phasecenter_local
 outertaper = ['50arcsec']
