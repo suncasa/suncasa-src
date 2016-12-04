@@ -4,7 +4,7 @@ import glob
 
 mspath = '/srg/sjyu/20141101/'
 os.chdir(mspath)
-msfile = 'SUN01_20141101.T163940-164700.50ms.cal.ms'
+msfile = 'SUN01_20141101T163940-164700.50ms.cal.ms'
 ephemfile = 'horizons_sun_20141101.radecp'
 msinfofile = 'SUN01_20141101.T163940-164700.50ms.cal.msinfo.npz'
 
@@ -15,7 +15,7 @@ slfcalms_chan = ['0~63', '0~63', '0~63', '0~63']
 structure_id = 'U04-prep'
 pol = 'LL'
 spwchan = ','.join('%s:%s' % t for t in zip(slfcalms_s, slfcalms_chan))
-phasecenter_local = 'J2000 14h26m58.891 -14d35m24.673'
+phasecenter_local = 'J2000 14h26m59.500 -14d35m54.200'
 ##  ----------- spw 0 -----------------
 struct_timerange = '2014/11/01/16:46:17.100~2014/11/01/16:46:17.600'
 struct_freqrange = '1.086~1.106 GHz'
