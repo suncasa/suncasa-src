@@ -158,7 +158,7 @@ freqInfo_ravel = freqInfo.ravel()
 timeInfo = axisInfo["axis_info"]["time_axis"]['MJDseconds']
 timran = ms.range(["time"])
 
-refantenna = 'ea04'
+refantenna = 'ea07'
 # antennas='0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26'
 antennas = '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26'
 
@@ -274,7 +274,7 @@ clearcal(vis=slfcalms, spw=ms_spw[0])
 applycal(vis=slfcalms, gaintable=slfcal_table_list[slfcal_iter], spw=ms_spw[0], selectdata=True, \
          antenna=antennas, interp='linear', flagbackup=False, applymode='calonly')
 
-for slfcal_iter in range(1, 4):
+for slfcal_iter in range(1, 6):
     # slfcal_iter+=1
     tget('clean')
     vis = slfcalms
