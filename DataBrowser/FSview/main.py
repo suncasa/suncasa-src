@@ -2619,7 +2619,7 @@ else:
         tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
 
         if tab2_dspec_selected:
-            global dspecDF
+            global dspecDF, tab2_tCLN_Param_dict
             dspecDF = dspecDF0.copy()
             dspecDF = dspecDF.iloc[tab2_dspec_selected, :]
             x0, x1 = dspecDF['time'].min(), dspecDF['time'].max()
@@ -2939,7 +2939,7 @@ else:
             val = tab2_tCLN_Param_dict['twidth']
             exec ('twidth = int({})'.format(val))
         else:
-            twidth=1
+            twidth = 1
         for ii in range(tab2_ntim):
             iit = int(ii) / twidth * twidth
             t0 = xx[iit] - tab2_dt / 2
@@ -2950,9 +2950,9 @@ else:
             timestrs.append(timestr0)
             fits_local.append(timestr + '.fits')
             fits_global.append(timestr + '.fits')
-        timestrs = timestrs*int(tab2_nfreq)
-        fits_local = fits_local*int(tab2_nfreq)
-        fits_global = fits_global*int(tab2_nfreq)
+        timestrs = timestrs * int(tab2_nfreq)
+        fits_local = fits_local * int(tab2_nfreq)
+        fits_global = fits_global * int(tab2_nfreq)
         freqstrs = ['{:.3f}'.format(ll) for ll in yy]
         dspecDF_tmp = pd.DataFrame({'time': xx - xx[0],
                                     'freq': yy,
