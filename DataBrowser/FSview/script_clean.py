@@ -191,10 +191,10 @@ if os.path.exists('CASA_CLN_args.json'):
     # else:
     fitsfile = glob.glob('{}*.fits'.format(imageprefix))
     for fits in fitsfile:
-        idxmms = fits.index('fits')
-        mms = fits[idxmms - 4:idxmms - 1]
-        fits1 = fits[0:idxmms - 4] + '{:03d}'.format(int(mms) + int(dt/2*1000)) + fits[idxmms - 1:]
-        fits1 = fits1.split('/')[-1]
+        # idxmms = fits.index('fits')
+        # mms = fits[idxmms - 4:idxmms - 1]
+        # fits1 = fits[0:idxmms - 4] + '{:03d}'.format(int(mms) + int(dt/2*1000)) + fits[idxmms - 1:]
+        fits1 = fits.split('/')[-1]
         # print imgdir+fits1
         os.system('mv {} {}'.format(fits, imgdir + fits1))
 

@@ -65,6 +65,7 @@ tab2_nbl = tab2_specdata['nbl']
 tab2_ntim = tab2_specdata['ntim']
 tab2_nfreq = tab2_specdata['nfreq']
 tab2_tim = tab2_specdata['tim']
+tab2_dt = np.median(np.diff(tab2_tim))
 tab2_freq = tab2_specdata['freq'] / 1e9
 tab2_freq = [float('{:.03f}'.format(ll)) for ll in tab2_freq]
 tab2_bl = tab2_specdata['bl'].item().split(';')
@@ -2934,8 +2935,14 @@ else:
         timestrs = []
         fits_local = []
         fits_global = []
-        for ii in range(len(xx)):
-            t0 = xx[ii]
+        if 'twidth' in tab2_tCLN_Param_dict.keys():
+            val = tab2_tCLN_Param_dict['twidth']
+            exec ('twidth = int({})'.format(val))
+        else:
+            twidth=1
+        for ii in range(tab2_ntim):
+            iit = int(ii) / twidth * twidth
+            t0 = xx[iit] - tab2_dt / 2
             datestr = Time(t0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date').iso
             timestr0 = Time(t0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
             timestr0 = timestr0.split(' ')[1]
@@ -2943,6 +2950,9 @@ else:
             timestrs.append(timestr0)
             fits_local.append(timestr + '.fits')
             fits_global.append(timestr + '.fits')
+        timestrs = timestrs*int(tab2_nfreq)
+        fits_local = fits_local*int(tab2_nfreq)
+        fits_global = fits_global*int(tab2_nfreq)
         freqstrs = ['{:.3f}'.format(ll) for ll in yy]
         dspecDF_tmp = pd.DataFrame({'time': xx - xx[0],
                                     'freq': yy,
