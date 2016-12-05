@@ -324,57 +324,65 @@ for slfcal_iter in range(1, 4):
                  antenna=antennas, interp='linear', flagbackup=False, applymode='calonly')
         break
 print 'self calibration finished within {:d} iterations'.format(slfcal_iter + 1)
-os.system('cp -r {} caltables/{}.spw{}.G'.format(slfcal_table_list[slfcal_iter], structure_id, ms_spw[0]))
+# os.system('cp -r {} caltables/{}.spw{}.G'.format(slfcal_table_list[slfcal_iter], structure_id, ms_spw[0]))
+
+for slfcal_iter in range(4):
+    try:
+        clearcal(vis=slfcalms, spw=ms_spw[0])
+        applycal(vis=slfcalms, gaintable=slfcal_table_list[slfcal_iter], spw=ms_spw[0], selectdata=True, \
+                 antenna=antennas, interp='linear', flagbackup=False, applymode='calonly')
+        # final imaging
+        tget('clean')
+        vis = slfcalms
+        imagename = slfcal_img_global[slfcal_iter]
+        uvrange = ''
+        # mask='rU01.mask2'
+        mask = CLNmask
+        niter = 200
+        npercycle = 10
+        imsize = [512, 512]
+        cell = ['5arcsec', '5arcsec']
+        phasecenter = 'J2000 14h26m22.7351 -14d29m29.801'
+        uvtaper = True
+        outertaper = ['30.0arcsec']
+        interactive = False
+        usescratch = False
+        # outertaper = ['50arcsec']
+        clean()
+        os.system('rm -fr ' + slfcal_img_global + '*.flux')
+        os.system('rm -fr ' + slfcal_img_global + '*.mask')
+        os.system('rm -fr ' + slfcal_img_global + '*.model')
+        os.system('rm -fr ' + slfcal_img_global + '*.psf')
+        os.system('rm -fr ' + slfcal_img_global + '*.residual')
+
+        tget('clean')
+        vis = slfcalms
+        imagename = slfcal_img_local[slfcal_iter]
+        uvrange = ''
+        mask = CLNmask
+        niter = 200
+        npercycle = 10
+        imsize = [64, 64]
+        cell = ['5.0arcsec', '5.0arcsec']
+        phasecenter = phasecenter_local
+        uvtaper = True
+        outertaper = ['30.0arcsec']
+        interactive = False
+        usescratch = False
+        clean()
+        os.system('rm -fr ' + slfcal_img_local + '.flux')
+        os.system('rm -fr ' + slfcal_img_local + '.mask')
+        os.system('rm -fr ' + slfcal_img_local + '.model')
+        os.system('rm -fr ' + slfcal_img_local + '.psf')
+        os.system('rm -fr ' + slfcal_img_local + '.residual')
+    except:
+        pass
 
 for ll in slfcal_table_list:
     os.system('rm -fr {}'.format(ll))
 for ll in slfcal_img_list:
     os.system('rm -fr {}.*'.format(ll))
 
-# final imaging
-tget('clean')
-vis = slfcalms
-imagename = slfcal_img_global
-uvrange = ''
-# mask='rU01.mask2'
-mask = CLNmask
-niter = 200
-npercycle = 10
-imsize = [512, 512]
-cell = ['5arcsec', '5arcsec']
-phasecenter = 'J2000 14h26m22.7351 -14d29m29.801'
-uvtaper = True
-outertaper = ['30.0arcsec']
-interactive = False
-usescratch = False
-# outertaper = ['50arcsec']
-clean()
-os.system('rm -fr ' + slfcal_img_global + '*.flux')
-os.system('rm -fr ' + slfcal_img_global + '*.mask')
-os.system('rm -fr ' + slfcal_img_global + '*.model')
-os.system('rm -fr ' + slfcal_img_global + '*.psf')
-os.system('rm -fr ' + slfcal_img_global + '*.residual')
-
-tget('clean')
-vis = slfcalms
-imagename = slfcal_img_local
-uvrange = ''
-mask = CLNmask
-niter = 200
-npercycle = 10
-imsize = [64, 64]
-cell = ['5.0arcsec', '5.0arcsec']
-phasecenter = phasecenter_local
-uvtaper = True
-outertaper = ['30.0arcsec']
-interactive = False
-usescratch = False
-clean()
-os.system('rm -fr ' + slfcal_img_local + '.flux')
-os.system('rm -fr ' + slfcal_img_local + '.mask')
-os.system('rm -fr ' + slfcal_img_local + '.model')
-os.system('rm -fr ' + slfcal_img_local + '.psf')
-os.system('rm -fr ' + slfcal_img_local + '.residual')
 
 clearcal(vis=slfcalms)
 caltabl = glob.glob('caltables/{}.spw?.G'.format(structure_id))
