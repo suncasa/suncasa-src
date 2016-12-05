@@ -2822,6 +2822,7 @@ else:
 
 
     def tab2_BUT_tCLN_param_add():
+        global tab2_tCLN_Param_dict
         tab2_Div_tCLN2.text = ' '
         txts = tab2_input_tCLN.value.strip()
         txts = txts.split(';')
@@ -2916,6 +2917,7 @@ else:
 
 
     def tab2_BUT_tCLN_param_reload():
+        global tab2_tCLN_Param_dict
         with open(database_dir + event_id + struct_id + 'CASA_CLN_args.json', 'r') as fp:
             tab2_tCLN_Param_dict = json.load(fp)
         tab2_Div_tCLN_text = '<p><b>#  ptclean :: Parallelized clean in consecutive time steps</b></p>' + ' '.join(
