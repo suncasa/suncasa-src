@@ -2948,6 +2948,7 @@ else:
         else:
             workdir = './'
         os.system('cp {} {}'.format(database_dir + event_id + struct_id + 'CASA_CLN_args.json', workdir))
+        os.system('cp {}/DataBrowser/FSview/script_clean.py {}'.format(suncasa_dir, workdir))
 
         for ii in range(tab2_ntim):
             iit = int(ii) / twidth * twidth
