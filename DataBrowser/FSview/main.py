@@ -985,6 +985,7 @@ if os.path.exists(FS_dspecDF):
             global tab3_SRC_dspec_vector, tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory
             global mean_amp_g, mean_vx, mean_vy, drange_amp_g, drange_vx, drange_vy
             global vmax_amp_g, vmax_vx, vmax_vy, vmin_amp_g, vmin_vx, vmin_vy
+            global dspecDFtmp
             start_timestamp = time.time()
             amp_g = (dspecDF0['peak'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_amp_g = np.nanmean(amp_g)
@@ -993,6 +994,7 @@ if os.path.exists(FS_dspecDF):
             amp_g[amp_g > vmax_amp_g] = vmax_amp_g
             amp_g[amp_g < vmin_amp_g] = vmin_amp_g
             tab3_SRC_dspec_vector = ColumnDataSource(data={'data': [amp_g], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
+            dspecDFtmp = dspecDF0.where(dspecDF0['peak']>vmin_amp_g)
             vx = (dspecDF0['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_vx = np.nanmean(vx)
             drange_vx = 40.
