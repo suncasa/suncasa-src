@@ -1050,10 +1050,10 @@ if os.path.exists(FS_dspecDF):
                                   palette=bokehpalette_jet, source=tab3_SRC_dspec_vector)
         tab3_p_dspec_vectorx.image(image="data", x=tab2_dtim[0], y=tab2_freq[0], dw=tab2_dtim[-1] - tab2_dtim[0],
                                    dh=tab2_freq[-1] - tab2_freq[0],
-                                   palette=bokehpalette_viridis, source=tab3_SRC_dspec_vectorx)
+                                   palette=bokehpalette_jet, source=tab3_SRC_dspec_vectorx)
         tab3_p_dspec_vectory.image(image="data", x=tab2_dtim[0], y=tab2_freq[0], dw=tab2_dtim[-1] - tab2_dtim[0],
                                    dh=tab2_freq[-1] - tab2_freq[0],
-                                   palette=bokehpalette_viridis, source=tab3_SRC_dspec_vectory)
+                                   palette=bokehpalette_jet, source=tab3_SRC_dspec_vectory)
         tab3_source_idx_line = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
         tab3_r_dspec_vector_line = tab3_p_dspec_vector.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
                                                             line_color='white', source=tab3_source_idx_line)
