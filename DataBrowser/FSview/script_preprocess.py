@@ -211,14 +211,13 @@ if not os.path.exists(imgprefix):
 calprefix = calprefix + 'cal_SUN_' + timestr + 'T.spw' + ms_spw[0]
 imgprefix = imgprefix + structure_id + '_'
 
+slfcal_list = range(4)
 # initial image and first slfcal table
-slfcal_img_global = imgprefix + timestr + 'T.' + spwstr + '.global.slfcal'
-slfcal_img_global = slfcal_img_global.replace(':', '-')
-slfcal_img_local = imgprefix + timestr + 'T.' + spwstr + '.local.slfcal'
-slfcal_img_local = slfcal_img_local.replace(':', '-')
+slfcal_img_global = [imgprefix + timestr + 'T.' + spwstr.replace(':', '-') + '.global.slfcal{:d}'.format(ll) for ll in slfcal_list]
+slfcal_img_local = [imgprefix + timestr + 'T.' + spwstr.replace(':', '-') + '.local.slfcal{:d}'.format(ll) for ll in slfcal_list]
 
-slfcal_img_list = [imgprefix + timestr + 'T.' + spwstr.replace(':', '-') + '.slfcal{:d}'.format(ll) for ll in range(4)]
-slfcal_table_list = [calprefix + '.slfcal.G{:d}'.format(ll) for ll in range(4)]
+slfcal_img_list = [imgprefix + timestr + 'T.' + spwstr.replace(':', '-') + '.slfcal{:d}'.format(ll) for ll in slfcal_list]
+slfcal_table_list = [calprefix + '.slfcal.G{:d}'.format(ll) for ll in slfcal_list]
 uvrange_list = ['<3klambda', '<3klambda', '<6klambda', '']
 # uvrange_list = ['<1klambda', '<3klambda', '<6klambda', '<9klambda', '','']
 
@@ -278,7 +277,7 @@ clearcal(vis=slfcalms, spw=ms_spw[0])
 applycal(vis=slfcalms, gaintable=slfcal_table_list[slfcal_iter], spw=ms_spw[0], selectdata=True, \
          antenna=antennas, interp='linear', flagbackup=False, applymode='calonly')
 
-for slfcal_iter in range(1, 4):
+for slfcal_iter in slfcal_list[1:]:
     # slfcal_iter+=1
     tget('clean')
     vis = slfcalms
@@ -326,7 +325,7 @@ for slfcal_iter in range(1, 4):
 print 'self calibration finished within {:d} iterations'.format(slfcal_iter + 1)
 # os.system('cp -r {} caltables/{}.spw{}.G'.format(slfcal_table_list[slfcal_iter], structure_id, ms_spw[0]))
 
-for slfcal_iter in range(4):
+for slfcal_iter in slfcal_list:
     try:
         clearcal(vis=slfcalms, spw=ms_spw[0])
         applycal(vis=slfcalms, gaintable=slfcal_table_list[slfcal_iter], spw=ms_spw[0], selectdata=True, \
