@@ -348,11 +348,11 @@ for slfcal_iter in slfcal_list:
         usescratch = False
         # outertaper = ['50arcsec']
         clean()
-        os.system('rm -fr ' + slfcal_img_global + '*.flux')
-        os.system('rm -fr ' + slfcal_img_global + '*.mask')
-        os.system('rm -fr ' + slfcal_img_global + '*.model')
-        os.system('rm -fr ' + slfcal_img_global + '*.psf')
-        os.system('rm -fr ' + slfcal_img_global + '*.residual')
+        os.system('rm -fr ' + slfcal_img_global[slfcal_iter] + '*.flux')
+        os.system('rm -fr ' + slfcal_img_global[slfcal_iter] + '*.mask')
+        os.system('rm -fr ' + slfcal_img_global[slfcal_iter] + '*.model')
+        os.system('rm -fr ' + slfcal_img_global[slfcal_iter] + '*.psf')
+        os.system('rm -fr ' + slfcal_img_global[slfcal_iter] + '*.residual')
 
         tget('clean')
         vis = slfcalms
@@ -369,11 +369,11 @@ for slfcal_iter in slfcal_list:
         interactive = False
         usescratch = False
         clean()
-        os.system('rm -fr ' + slfcal_img_local + '.flux')
-        os.system('rm -fr ' + slfcal_img_local + '.mask')
-        os.system('rm -fr ' + slfcal_img_local + '.model')
-        os.system('rm -fr ' + slfcal_img_local + '.psf')
-        os.system('rm -fr ' + slfcal_img_local + '.residual')
+        os.system('rm -fr ' + slfcal_img_local[slfcal_iter] + '.flux')
+        os.system('rm -fr ' + slfcal_img_local[slfcal_iter] + '.mask')
+        os.system('rm -fr ' + slfcal_img_local[slfcal_iter] + '.model')
+        os.system('rm -fr ' + slfcal_img_local[slfcal_iter] + '.psf')
+        os.system('rm -fr ' + slfcal_img_local[slfcal_iter] + '.residual')
     except:
         pass
 
