@@ -2942,6 +2942,13 @@ else:
             exec ('twidth = int({})'.format(val))
         else:
             twidth = 1
+        if 'workdir' in tab2_tCLN_Param_dict.keys():
+            val = tab2_tCLN_Param_dict['workdir']
+            exec ('workdir = {}'.format(val))
+        else:
+            workdir = './'
+        os.system('cp {} {}'.format(database_dir + event_id + struct_id + 'CASA_CLN_args.json', workdir))
+
         for ii in range(tab2_ntim):
             iit = int(ii) / twidth * twidth
             t0 = xx[iit] - tab2_dt / 2
