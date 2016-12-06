@@ -540,6 +540,7 @@ if os.path.exists(FS_dspecDF):
         bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
 
+
         # import the aia image
         # from sunpy.net.helioviewer import HelioviewerClient
         #
@@ -548,11 +549,27 @@ if os.path.exists(FS_dspecDF):
         #                            detector='AIA', measurement='171',
         #                            directory=database_dir + event_id + struct_id + config_EvtID['datadir']['J2000'],
         #                            overwrite=True)
-        filepath = database_dir + event_id + struct_id + config_EvtID['datadir'][
-            'J2000'] + '2014_11_01__16_45_59_34__SDO_AIA_AIA_171.jp2'
+
+        def aiamapfromlocalfile(wavelength=None, jdtime=None):
+            aiafitspath = glob.glob(database_dir + event_id + '/AIA/aia_lev1_{}a*.fits'.format(wavelnth))
+            aiafits = [ll.split('/')[-1] for ll in aiafitspath]
+            aiatimeline = [ll.replace('aia_lev1_{}a_'.format(wavelength), '').replace('z_image_lev1.fits.fits', '') for
+                           ll in aiafits]
+            aiatimeline = [ll.split('t')[0].replace('_', '-') + ' ' + ll.split('t')[1].replace('_', ':') for ll in
+                           aiatimeline]
+            aiatimeline = [ll[0:ll.rindex(':')] + '.' + ll[(ll.rindex(':') + 1):] for ll in aiatimeline]
+            aiatimeline = Time(aiatimeline, format='iso', scale='utc')
+            idxaia = np.argmin(np.abs(aiatimeline.jd - jdtime))
+            filepath = aiafitspath[idxaia]
+            aiamap = sunpy.map.Map(filepath)
+            return aiamap
+
+
+        aiamap = aiamapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
+        # database_dir + event_id + struct_id + config_EvtID['datadir'][
+        #     'J2000'] + '2014_11_01__16_45_59_34__SDO_AIA_AIA_171.jp2'
         colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
         bokehpalette_sdoaia171 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-        aiamap = sunpy.map.Map(filepath)
         lengthx = vla_local_pfmap.dw[0] * u.arcsec
         lengthy = vla_local_pfmap.dh[0] * u.arcsec
         x0 = vla_local_pfmap.smap.center.x
@@ -634,7 +651,30 @@ if os.path.exists(FS_dspecDF):
         tab3_r_aia_submap_rect = tab3_p_aia_submap.rect(x='x', y='y', width='width', height='height', fill_alpha=0.1,
                                                         line_color='black', fill_color='black',
                                                         source=tab3_SRC_aia_submap_rect)
+        tab2_Select_aia_wave = Select(title="Wavelenght:", value='171', options=['94', '131', '171'],
+                                      width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
 
+
+        def aia_submap_wavelength_selection(attrname, old, new):
+            # global tab3_r_aia_submap
+            select_wave = tab2_Select_aia_wave.value
+            aiamap = aiamapfromlocalfile(wavelength=select_wave, jdtime=xx[0] / 3600. / 24.)
+            lengthx = vla_local_pfmap.dw[0] * u.arcsec
+            lengthy = vla_local_pfmap.dh[0] * u.arcsec
+            x0 = vla_local_pfmap.smap.center.x
+            y0 = vla_local_pfmap.smap.center.y
+            aiamap_submap = aiamap.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
+                                          u.Quantity([y0 - lengthy / 2, y0 + lengthy / 2]))
+            aia_submap_pfmap = PuffinMap(smap=aiamap_submap,
+                                         plot_height=config_plot['plot_config']['tab_FSview_FitANLYS'][
+                                             'aia_submap_hght'],
+                                         plot_width=config_plot['plot_config']['tab_FSview_FitANLYS'][
+                                             'aia_submap_wdth'],
+                                         webgl=config_plot['plot_config']['WebGL'])
+            tab3_r_aia_submap.data_source = aia_submap_pfmap.ImageSource()
+
+
+        tab2_Select_aia_wave.on_change('value', aia_submap_wavelength_selection)
         # plot the global HMI image
         # filepath = hv.download_jp2(jdutil.jd_to_datetime(xx[0] / 3600. / 24.), observatory='SDO', instrument='HMI',
         #                            detector='HMI', measurement='magnetogram',
@@ -1150,7 +1190,6 @@ if os.path.exists(FS_dspecDF):
 
         tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
 
-
         rgnfitsfile = database_dir + event_id + struct_id + "CASA_imfit_region_fits.rgn"
 
 
@@ -1596,7 +1635,8 @@ if os.path.exists(FS_dspecDF):
                      column(gridplot([tab3_p_dspec_vector], [tab3_p_dspec_vectorx], [tab3_p_dspec_vectory],
                                      toolbar_location='right'), tab3_Div_Tb),
                      widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
-                               tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab2_panel3_BUT_exit,
+                               tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab2_Select_aia_wave,
+                               tab2_panel3_BUT_exit,
                                tab2_panel3_Div_exit,
                                width=200))
         # tab2 = Panel(child=panel2, title="FS View")
@@ -2291,7 +2331,6 @@ if os.path.exists(FS_dspecDF):
 
 
             tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
-
 
             rgnfitsfile = database_dir + event_id + struct_id + "CASA_imfit_region_fits.rgn"
 
