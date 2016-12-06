@@ -551,20 +551,21 @@ if os.path.exists(FS_dspecDF):
         #                            directory=database_dir + event_id + struct_id + config_EvtID['datadir']['J2000'],
         #                            overwrite=True)
 
-        def sdo_aia_scale(image=None,wavelength=None):
-            if wavelength =='94':
-                image[image<30]=30
-                image[image > 0.5] = 0.5
+        def sdo_aia_scale(image=None, wavelength=None):
+            if wavelength == '94':
+                image[image > 30] = 30
+                image[image < 0.5] = 0.5
                 image = np.log10(image)
-            elif wavelength =='131':
-                image[image<200]=200
-                image[image > 2] = 2
+            elif wavelength == '131':
+                image[image > 200] = 200
+                image[image < 2] = 2
                 image = np.log10(image)
             elif wavelength == '171':
-                image[image < 2000] = 2000
-                image[image > 30] = 30
+                image[image > 2000] = 2000
+                image[image < 30] = 30
                 image = np.log10(image)
             return bytescale(image)
+
 
         def aiamapfromlocalfile(wavelength=None, jdtime=None):
             aiafitspath = glob.glob(database_dir + event_id + '/AIA/aia_lev1_{}a*.fits'.format(wavelength))
@@ -578,7 +579,7 @@ if os.path.exists(FS_dspecDF):
             idxaia = np.argmin(np.abs(aiatimeline.jd - jdtime))
             filepath = aiafitspath[idxaia]
             aiamap = sunpy.map.Map(filepath)
-            aiamap.data = sdo_aia_scale(image=aiamap.data/aiamap.exposure_time.value,wavelength=wavelength)
+            aiamap.data = sdo_aia_scale(image=aiamap.data / aiamap.exposure_time.value, wavelength=wavelength)
             return aiamap
 
 
@@ -599,7 +600,7 @@ if os.path.exists(FS_dspecDF):
         x0 = vla_local_pfmap.smap.center.x
         y0 = vla_local_pfmap.smap.center.y
         aiamap_submap = aiamap2.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
-                                      u.Quantity([y0 - lengthy / 2, y0 + lengthy / 2]))
+                                       u.Quantity([y0 - lengthy / 2, y0 + lengthy / 2]))
         MapRES = 256
         dimensions = u.Quantity([MapRES, MapRES], u.pixel)
         aia_resampled_map = aiamap.resample(dimensions)
