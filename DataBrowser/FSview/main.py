@@ -562,7 +562,7 @@ if os.path.exists(FS_dspecDF):
                 image = np.log10(image)
             elif wavelength == '171':
                 image[image > 2000] = 2000
-                image[image < 30] = 30
+                image[image < 50] = 50
                 image = np.log10(image)
             return bytescale(image)
 
@@ -698,16 +698,6 @@ if os.path.exists(FS_dspecDF):
                                          plot_width=config_plot['plot_config']['tab_FSview_FitANLYS'][
                                              'aia_submap_wdth'],
                                          webgl=config_plot['plot_config']['WebGL'])
-            # if select_wave == '94':
-            #     bokehpalette_sdoaia = bokehpalette_sdoaia94
-            # elif select_wave == '171':
-            #     bokehpalette_sdoaia = bokehpalette_sdoaia171
-            # elif select_wave == '131':
-            #     bokehpalette_sdoaia = bokehpalette_sdoaia131
-            # tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
-            #                                                                 grid_spacing=20 * u.deg,
-            #                                                                 title='EM sources centroid map',
-            #                                                                 palette=bokehpalette_sdoaia)
             tab3_r_aia_submap.data_source.data['data'] = aia_submap_pfmap.ImageSource().data['data']
 
 
