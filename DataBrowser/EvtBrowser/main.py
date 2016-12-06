@@ -148,6 +148,14 @@ def tab0_EvtSel():
                                        out_subfmt='date_hms').iso
                         qr_aia94 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
                                                  vso.attrs.Wave(94 * u.AA, 94 * u.AA))
+                    if len(qr_aia131) == 0:
+                        cadence = 12
+                        tstrstart = Time((tab0_tim[0] - cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
+                                         out_subfmt='date_hms').iso
+                        tstrend = Time((tab0_tim[-1] + cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
+                                       out_subfmt='date_hms').iso
+                        qr_aia131 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
+                                                 vso.attrs.Wave(131 * u.AA, 131 * u.AA))
 
                     if len(qr_hmi_los) == 0:
                         cadence = 45
@@ -176,6 +184,16 @@ def tab0_EvtSel():
                             for ll in xrange(len(qr_aia94)):
                                 tab0_Div_Tb_txt = tab0_Div_Tb.text
                                 res = client.get(qr_aia94[ll:ll + 1],
+                                                 path=event_id_dir + '{instrument}/{file}.fits').wait()
+                                tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>{}</p>""".format(res)
+                    if len(qr_aia131) != 0:
+                        instrument = 'AIA'
+                        tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO/{} data downloading....</p>""".format(instrument)
+                        files = glob.glob(event_id_dir + '{}/*_131a_*.fits'.format(instrument))
+                        if len(files) == 0:
+                            for ll in xrange(len(qr_aia131)):
+                                tab0_Div_Tb_txt = tab0_Div_Tb.text
+                                res = client.get(qr_aia131[ll:ll + 1],
                                                  path=event_id_dir + '{instrument}/{file}.fits').wait()
                                 tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>{}</p>""".format(res)
                     if len(qr_hmi_los) != 0:
