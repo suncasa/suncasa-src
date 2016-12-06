@@ -129,6 +129,8 @@ def tab0_EvtSel():
                                              vso.attrs.Wave(171 * u.AA, 171 * u.AA))
                     qr_aia94 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
                                              vso.attrs.Wave(94 * u.AA, 94 * u.AA))
+                    qr_aia131 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
+                                             vso.attrs.Wave(131 * u.AA, 131 * u.AA))
                     qr_hmi_los = client.query_legacy(tstart=tstrstart, tend=tstrend, instrument='HMI',
                                                      physobs='los_magnetic_field')
                     if len(qr_aia171) == 0:
