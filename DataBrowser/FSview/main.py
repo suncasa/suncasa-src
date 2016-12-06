@@ -562,7 +562,7 @@ if os.path.exists(FS_dspecDF):
             idxaia = np.argmin(np.abs(aiatimeline.jd - jdtime))
             filepath = aiafitspath[idxaia]
             aiamap = sunpy.map.Map(filepath)
-            aiamap.data = np.log(aiamap.data)
+            aiamap.data = np.sqrt(aiamap.data>0)
             return aiamap
 
 
@@ -570,7 +570,8 @@ if os.path.exists(FS_dspecDF):
         filepath = database_dir + event_id + struct_id + config_EvtID['datadir'][
             'J2000'] + '2014_11_01__16_45_59_34__SDO_AIA_AIA_171.jp2'
         aiamap = sunpy.map.Map(filepath)
-        colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
+        # colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
+        colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
         bokehpalette_sdoaia171 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         lengthx = vla_local_pfmap.dw[0] * u.arcsec
         lengthy = vla_local_pfmap.dh[0] * u.arcsec
