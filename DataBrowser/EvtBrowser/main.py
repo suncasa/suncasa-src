@@ -127,6 +127,8 @@ def tab0_EvtSel():
 
                     qr_aia171 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
                                              vso.attrs.Wave(171 * u.AA, 171 * u.AA))
+                    qr_aia94 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
+                                             vso.attrs.Wave(94 * u.AA, 94 * u.AA))
                     qr_hmi_los = client.query_legacy(tstart=tstrstart, tend=tstrend, instrument='HMI',
                                                      physobs='los_magnetic_field')
                     if len(qr_aia171) == 0:
@@ -137,6 +139,16 @@ def tab0_EvtSel():
                                        out_subfmt='date_hms').iso
                         qr_aia171 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
                                                  vso.attrs.Wave(171 * u.AA, 171 * u.AA))
+
+                    if len(qr_aia94) == 0:
+                        cadence = 12
+                        tstrstart = Time((tab0_tim[0] - cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
+                                         out_subfmt='date_hms').iso
+                        tstrend = Time((tab0_tim[-1] + cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
+                                       out_subfmt='date_hms').iso
+                        qr_aia94 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
+                                                 vso.attrs.Wave(94 * u.AA, 94 * u.AA))
+
                     if len(qr_hmi_los) == 0:
                         cadence = 45
                         tstrstart = Time((tab0_tim[0] - cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
@@ -154,6 +166,16 @@ def tab0_EvtSel():
                             for ll in xrange(len(qr_aia171)):
                                 tab0_Div_Tb_txt = tab0_Div_Tb.text
                                 res = client.get(qr_aia171[ll:ll + 1],
+                                                 path=event_id_dir + '{instrument}/{file}.fits').wait()
+                                tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>{}</p>""".format(res)
+                    if len(qr_aia94) != 0:
+                        instrument = 'AIA'
+                        tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO/{} data downloading....</p>""".format(instrument)
+                        files = glob.glob(event_id_dir + '{}/*.fits'.format(instrument))
+                        if len(files) == 0:
+                            for ll in xrange(len(qr_aia94)):
+                                tab0_Div_Tb_txt = tab0_Div_Tb.text
+                                res = client.get(qr_aia94[ll:ll + 1],
                                                  path=event_id_dir + '{instrument}/{file}.fits').wait()
                                 tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>{}</p>""".format(res)
                     if len(qr_hmi_los) != 0:
@@ -214,15 +236,3 @@ lout = panel0
 
 curdoc().add_root(lout)
 curdoc().title = "Event Browser"
-# except:
-#     print 'error!'
-#     for ll in range(5006, 5010):
-#         if platform == "linux" or platform == "linux2":
-#             os.system('fuser -n tcp -k {}'.format(ll))
-#         elif platform == "darwin":
-#             os.system(
-#                 'port=($(lsof -i tcp:{}|grep python2.7 |cut -f2 -d" ")); [[ -n "$port" ]] && kill -9 $port'.format(ll))
-#             os.system(
-#                 'port=($(lsof -i tcp:{}|grep Google |cut -f2 -d" ")); [[ -n "$port" ]] && kill -9 $port'.format(ll))
-#         print 'port {} killed'.format(ll)
-#     raise SystemExit

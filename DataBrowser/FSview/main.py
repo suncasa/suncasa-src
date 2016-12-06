@@ -1027,8 +1027,9 @@ if os.path.exists(FS_dspecDF):
             amp_g[amp_g > vmax_amp_g] = vmax_amp_g
             amp_g[amp_g < vmin_amp_g] = vmin_amp_g
             tab3_SRC_dspec_vector.data['data'] = [amp_g]
-            dspecDF = dspecDF.where(dspecDF['peak']>vmin_amp_g)
-            tab2_SRC_maxfit_centroid_update(dspecDF)
+            # dspecDF = dspecDF.where(dspecDF['peak']>vmin_amp_g)
+            # tab2_SRC_maxfit_centroid_update(dspecDF)
+            # todo add threshold selection to the vector dynamic spectrum
             vx = (dspecDFtmp['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_vx = np.nanmean(vx)
             drange_vx = 40.
@@ -1120,7 +1121,6 @@ if os.path.exists(FS_dspecDF):
 
         tab2_SRC_vla_square.on_change('selected', tab2_vla_square_selection_change)
 
-        # todo add AIA & HMI resolution selection
         tab2_Select_MapRES = Select(title="Img resolution:", value='{}x{}'.format(MapRES, MapRES),
                                     options=["32x32", "64x64", "128x128", "256x256", "512x512", "1024x1024",
                                              "2048x2048"],
@@ -1149,8 +1149,6 @@ if os.path.exists(FS_dspecDF):
 
 
         tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
-
-        # todo add the threshold selection (overplot another gylph)
 
 
         rgnfitsfile = database_dir + event_id + struct_id + "CASA_imfit_region_fits.rgn"
@@ -1342,7 +1340,6 @@ if os.path.exists(FS_dspecDF):
         for ctrl in tab3_CTRLs_dspec_small:
             ctrl.on_change('value', tab3_slider_dspec_small_update)
 
-        # todo add the time/freq selection
         tab3_RBG_TimeFreq = RadioButtonGroup(labels=["time", "freq"], active=0)
         tab3_Slider_ANLYS_idx = Slider(start=0, end=tab2_ntim - 1, value=0, step=1, title="time idx", width=450)
 
@@ -1550,7 +1547,6 @@ if os.path.exists(FS_dspecDF):
         # todo add RCP LCP check box
         tab3_CheckboxGroup_pol = CheckboxGroup(labels=["RCP", "LCP"], active=[0, 1])
 
-        # todo add AIA & HMI resolution selection
         tab2_Select_MapRES = Select(title="Img resolution:", value='{}x{}'.format(MapRES, MapRES),
                                     options=["32x32", "64x64", "128x128", "256x256", "512x512", "1024x1024",
                                              "2048x2048"],
@@ -1579,9 +1575,6 @@ if os.path.exists(FS_dspecDF):
 
 
         tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
-        # todo add the threshold selection (overplot another gylph)
-        # todo add the dmax dmin and reset
-
 
         panel2 = row(column(
             row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
@@ -2270,7 +2263,6 @@ if os.path.exists(FS_dspecDF):
 
             tab2_SRC_vla_square.on_change('selected', tab2_vla_square_selection_change)
 
-            # todo add AIA & HMI resolution selection
             tab2_Select_MapRES = Select(title="Img resolution:", value='{}x{}'.format(MapRES, MapRES),
                                         options=["32x32", "64x64", "128x128", "256x256", "512x512", "1024x1024",
                                                  "2048x2048"],
@@ -2299,8 +2291,6 @@ if os.path.exists(FS_dspecDF):
 
 
             tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
-
-            # todo add the threshold selection (overplot another gylph)
 
 
             rgnfitsfile = database_dir + event_id + struct_id + "CASA_imfit_region_fits.rgn"
