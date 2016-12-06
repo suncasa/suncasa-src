@@ -562,6 +562,7 @@ if os.path.exists(FS_dspecDF):
             idxaia = np.argmin(np.abs(aiatimeline.jd - jdtime))
             filepath = aiafitspath[idxaia]
             aiamap = sunpy.map.Map(filepath)
+            aiamap.data = np.log(aiamap.data)
             return aiamap
 
 
@@ -651,13 +652,15 @@ if os.path.exists(FS_dspecDF):
         tab3_r_aia_submap_rect = tab3_p_aia_submap.rect(x='x', y='y', width='width', height='height', fill_alpha=0.1,
                                                         line_color='black', fill_color='black',
                                                         source=tab3_SRC_aia_submap_rect)
+
         tab2_Select_aia_wave = Select(title="Wavelenght:", value='171', options=['94', '131', '171'],
-                                      width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
+                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
 
         def aia_submap_wavelength_selection(attrname, old, new):
-            # global tab3_r_aia_submap
+            global tab3_r_aia_submap
             select_wave = tab2_Select_aia_wave.value
+            print 'wavelength {} selected'.format(select_wave)
             aiamap = aiamapfromlocalfile(wavelength=select_wave, jdtime=xx[0] / 3600. / 24.)
             lengthx = vla_local_pfmap.dw[0] * u.arcsec
             lengthy = vla_local_pfmap.dh[0] * u.arcsec
