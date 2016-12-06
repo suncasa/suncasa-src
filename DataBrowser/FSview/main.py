@@ -566,16 +566,17 @@ if os.path.exists(FS_dspecDF):
             return aiamap
 
 
-        aiamap = aiamapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
-        # database_dir + event_id + struct_id + config_EvtID['datadir'][
-        #     'J2000'] + '2014_11_01__16_45_59_34__SDO_AIA_AIA_171.jp2'
+        aiamap2 = aiamapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
+        filepath = database_dir + event_id + struct_id + config_EvtID['datadir'][
+            'J2000'] + '2014_11_01__16_45_59_34__SDO_AIA_AIA_171.jp2'
+        aiamap = sunpy.map.Map(filepath)
         colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
         bokehpalette_sdoaia171 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         lengthx = vla_local_pfmap.dw[0] * u.arcsec
         lengthy = vla_local_pfmap.dh[0] * u.arcsec
         x0 = vla_local_pfmap.smap.center.x
         y0 = vla_local_pfmap.smap.center.y
-        aiamap_submap = aiamap.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
+        aiamap_submap = aiamap2.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
                                       u.Quantity([y0 - lengthy / 2, y0 + lengthy / 2]))
         MapRES = 256
         dimensions = u.Quantity([MapRES, MapRES], u.pixel)
@@ -674,7 +675,7 @@ if os.path.exists(FS_dspecDF):
                                          plot_width=config_plot['plot_config']['tab_FSview_FitANLYS'][
                                              'aia_submap_wdth'],
                                          webgl=config_plot['plot_config']['WebGL'])
-            tab3_r_aia_submap.data_source = aia_submap_pfmap.ImageSource()
+            tab3_r_aia_submap.data_source.data['data'] = aia_submap_pfmap.ImageSource().data['data']
 
 
         tab2_Select_aia_wave.on_change('value', aia_submap_wavelength_selection)
