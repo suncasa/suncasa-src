@@ -551,7 +551,7 @@ if os.path.exists(FS_dspecDF):
         #                            overwrite=True)
 
         def aiamapfromlocalfile(wavelength=None, jdtime=None):
-            aiafitspath = glob.glob(database_dir + event_id + '/AIA/aia_lev1_{}a*.fits'.format(wavelnth))
+            aiafitspath = glob.glob(database_dir + event_id + '/AIA/aia_lev1_{}a*.fits'.format(wavelength))
             aiafits = [ll.split('/')[-1] for ll in aiafitspath]
             aiatimeline = [ll.replace('aia_lev1_{}a_'.format(wavelength), '').replace('z_image_lev1.fits.fits', '') for
                            ll in aiafits]
