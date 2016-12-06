@@ -6,6 +6,7 @@ from collections import OrderedDict
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
+from scipy.misc import bytescale
 import matplotlib.cm as cm
 import matplotlib.colors as colors
 import numpy as np
@@ -550,6 +551,21 @@ if os.path.exists(FS_dspecDF):
         #                            directory=database_dir + event_id + struct_id + config_EvtID['datadir']['J2000'],
         #                            overwrite=True)
 
+        def sdo_aia_scale(image=None,wavelength=None):
+            if wavelength =='94':
+                image[image<30]=30
+                image[image > 0.5] = 0.5
+                image = np.log10(image)
+            elif wavelength =='131':
+                image[image<200]=200
+                image[image > 2] = 2
+                image = np.log10(image)
+            elif wavelength == '171':
+                image[image < 2000] = 2000
+                image[image > 30] = 30
+                image = np.log10(image)
+            return bytescale(image)
+
         def aiamapfromlocalfile(wavelength=None, jdtime=None):
             aiafitspath = glob.glob(database_dir + event_id + '/AIA/aia_lev1_{}a*.fits'.format(wavelength))
             aiafits = [ll.split('/')[-1] for ll in aiafitspath]
@@ -562,8 +578,7 @@ if os.path.exists(FS_dspecDF):
             idxaia = np.argmin(np.abs(aiatimeline.jd - jdtime))
             filepath = aiafitspath[idxaia]
             aiamap = sunpy.map.Map(filepath)
-            aiamap.data[aiamap.data < 0] = 0
-            aiamap.data = np.log(aiamap.data)
+            aiamap.data = sdo_aia_scale(image=aiamap.data/aiamap.exposure_time.value,wavelength=wavelength)
             return aiamap
 
 
@@ -577,6 +592,8 @@ if os.path.exists(FS_dspecDF):
         bokehpalette_sdoaia94 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         colormap = cm.get_cmap("sdoaia131")  # choose any matplotlib colormap here
         bokehpalette_sdoaia131 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
+        colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
+        bokehpalette_gray = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         lengthx = vla_local_pfmap.dw[0] * u.arcsec
         lengthy = vla_local_pfmap.dh[0] * u.arcsec
         x0 = vla_local_pfmap.smap.center.x
@@ -624,7 +641,7 @@ if os.path.exists(FS_dspecDF):
         tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
                                                                         grid_spacing=20 * u.deg,
                                                                         title='EM sources centroid map',
-                                                                        palette=bokehpalette_sdoaia171)
+                                                                        palette=bokehpalette_gray)
         tab2_r_aia_submap_square = tab3_p_aia_submap.square('xx', 'yy', source=tab2_SRC_aia_submap_square,
                                                             fill_alpha=0.0, fill_color=None,
                                                             line_color=None, line_alpha=0.0, selection_fill_alpha=0.5,
@@ -680,17 +697,17 @@ if os.path.exists(FS_dspecDF):
                                          plot_width=config_plot['plot_config']['tab_FSview_FitANLYS'][
                                              'aia_submap_wdth'],
                                          webgl=config_plot['plot_config']['WebGL'])
-            if select_wave == '94':
-                bokehpalette_sdoaia = bokehpalette_sdoaia94
-            elif select_wave == '171':
-                bokehpalette_sdoaia = bokehpalette_sdoaia171
-            elif select_wave == '131':
-                bokehpalette_sdoaia = bokehpalette_sdoaia131
-            tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
-                                                                            grid_spacing=20 * u.deg,
-                                                                            title='EM sources centroid map',
-                                                                            palette=bokehpalette_sdoaia)
-            # tab3_r_aia_submap.data_source.data['data'] = aia_submap_pfmap.ImageSource().data['data']
+            # if select_wave == '94':
+            #     bokehpalette_sdoaia = bokehpalette_sdoaia94
+            # elif select_wave == '171':
+            #     bokehpalette_sdoaia = bokehpalette_sdoaia171
+            # elif select_wave == '131':
+            #     bokehpalette_sdoaia = bokehpalette_sdoaia131
+            # tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
+            #                                                                 grid_spacing=20 * u.deg,
+            #                                                                 title='EM sources centroid map',
+            #                                                                 palette=bokehpalette_sdoaia)
+            tab3_r_aia_submap.data_source.data['data'] = aia_submap_pfmap.ImageSource().data['data']
 
 
         tab2_Select_aia_wave.on_change('value', aia_submap_wavelength_selection)
