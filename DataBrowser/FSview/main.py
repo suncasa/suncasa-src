@@ -562,7 +562,7 @@ if os.path.exists(FS_dspecDF):
             idxaia = np.argmin(np.abs(aiatimeline.jd - jdtime))
             filepath = aiafitspath[idxaia]
             aiamap = sunpy.map.Map(filepath)
-            aiamap.data = np.sqrt(aiamap.data>0)
+            aiamap.data = np.log(aiamap.data>0)
             return aiamap
 
 
@@ -685,11 +685,11 @@ if os.path.exists(FS_dspecDF):
                 bokehpalette_sdoaia = bokehpalette_sdoaia171
             elif select_wave == '131':
                 bokehpalette_sdoaia = bokehpalette_sdoaia131
-            # tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
-            #                                                                 grid_spacing=20 * u.deg,
-            #                                                                 title='EM sources centroid map',
-            #                                                                 palette=bokehpalette_sdoaia)
-            tab3_r_aia_submap.data_source.data['data'] = aia_submap_pfmap.ImageSource().data['data']
+            tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
+                                                                            grid_spacing=20 * u.deg,
+                                                                            title='EM sources centroid map',
+                                                                            palette=bokehpalette_sdoaia)
+            # tab3_r_aia_submap.data_source.data['data'] = aia_submap_pfmap.ImageSource().data['data']
 
 
         tab2_Select_aia_wave.on_change('value', aia_submap_wavelength_selection)
