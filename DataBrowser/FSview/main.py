@@ -570,9 +570,10 @@ if os.path.exists(FS_dspecDF):
         filepath = database_dir + event_id + struct_id + config_EvtID['datadir'][
             'J2000'] + '2014_11_01__16_45_59_34__SDO_AIA_AIA_171.jp2'
         aiamap = sunpy.map.Map(filepath)
-        # colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
-        colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
+        colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
         bokehpalette_sdoaia171 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
+        colormap = cm.get_cmap("sdoaia94")  # choose any matplotlib colormap here
+        bokehpalette_sdoaia94 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         lengthx = vla_local_pfmap.dw[0] * u.arcsec
         lengthy = vla_local_pfmap.dh[0] * u.arcsec
         x0 = vla_local_pfmap.smap.center.x
@@ -676,7 +677,15 @@ if os.path.exists(FS_dspecDF):
                                          plot_width=config_plot['plot_config']['tab_FSview_FitANLYS'][
                                              'aia_submap_wdth'],
                                          webgl=config_plot['plot_config']['WebGL'])
-            tab3_r_aia_submap.data_source.data['data'] = aia_submap_pfmap.ImageSource().data['data']
+            if select_wave == '94':
+                bokehpalette_sdoaia = bokehpalette_sdoaia94
+            elif select_wave == '171':
+                bokehpalette_sdoaia = bokehpalette_sdoaia171
+            tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
+                                                                            grid_spacing=20 * u.deg,
+                                                                            title='EM sources centroid map',
+                                                                            palette=bokehpalette_sdoaia)
+            # tab3_r_aia_submap.data_source.data['data'] = aia_submap_pfmap.ImageSource().data['data']
 
 
         tab2_Select_aia_wave.on_change('value', aia_submap_wavelength_selection)
