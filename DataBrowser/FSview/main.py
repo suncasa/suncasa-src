@@ -562,7 +562,8 @@ if os.path.exists(FS_dspecDF):
             idxaia = np.argmin(np.abs(aiatimeline.jd - jdtime))
             filepath = aiafitspath[idxaia]
             aiamap = sunpy.map.Map(filepath)
-            aiamap.data = np.log(aiamap.data>0)
+            aiamap.data[aiamap.data < 0] = 0
+            aiamap.data = np.log(aiamap.data)
             return aiamap
 
 
