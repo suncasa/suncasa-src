@@ -161,7 +161,7 @@ def tab0_EvtSel():
                     if len(qr_aia171) != 0:
                         instrument = 'AIA'
                         tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO/{} data downloading....</p>""".format(instrument)
-                        files = glob.glob(event_id_dir + '{}/*.fits'.format(instrument))
+                        files = glob.glob(event_id_dir + '{}/*_171a_*.fits'.format(instrument))
                         if len(files) == 0:
                             for ll in xrange(len(qr_aia171)):
                                 tab0_Div_Tb_txt = tab0_Div_Tb.text
@@ -171,7 +171,7 @@ def tab0_EvtSel():
                     if len(qr_aia94) != 0:
                         instrument = 'AIA'
                         tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO/{} data downloading....</p>""".format(instrument)
-                        files = glob.glob(event_id_dir + '{}/*.fits'.format(instrument))
+                        files = glob.glob(event_id_dir + '{}/*_94a_*.fits'.format(instrument))
                         if len(files) == 0:
                             for ll in xrange(len(qr_aia94)):
                                 tab0_Div_Tb_txt = tab0_Div_Tb.text
