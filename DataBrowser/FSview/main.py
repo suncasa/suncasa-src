@@ -531,7 +531,7 @@ if os.path.exists(FS_dspecDF):
                                     plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
                                     webgl=config_plot['plot_config']['WebGL'])
         # plot the contour of vla image
-        mapx, mapy = vla_local_pfmap.meshgrid()
+        mapx, mapy = vla_local_pfmap.meshgrid(rescale=2.0)
         mapx, mapy = mapx.value, mapy.value
         mapvlasize = mapy.shape
         ImgDF0 = pd.DataFrame({'xx': mapx.ravel(), 'yy': mapy.ravel()})
