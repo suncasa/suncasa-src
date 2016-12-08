@@ -196,7 +196,7 @@ if os.path.exists(FS_dspecDF):
                                                 config_plot['plot_config']['tab_FSview_base'][
                                                     'dspec_hght'] / tab2_nfreq))
 
-        tab2_p_dspec.border_fill_color = "silver"
+        # tab2_p_dspec.border_fill_color = "silver"
         tab2_p_dspec.border_fill_alpha = 0.4
         tab2_p_dspec.axis.major_tick_out = 0
         tab2_p_dspec.axis.major_tick_in = 5
@@ -236,7 +236,7 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec_xPro.xaxis.axis_label = 'Seconds since ' + tim0_char
         tab2_p_dspec_xPro.yaxis.axis_label_text_font_size = '5px'
         tab2_p_dspec_xPro.yaxis.axis_label = 'Intensity [sfu]'
-        tab2_p_dspec_xPro.border_fill_color = "silver"
+        # tab2_p_dspec_xPro.border_fill_color = "silver"
         tab2_p_dspec_xPro.border_fill_alpha = 0.4
         tab2_p_dspec_xPro.axis.major_tick_out = 0
         tab2_p_dspec_xPro.axis.major_tick_in = 5
@@ -269,7 +269,7 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec_yPro.background_fill_alpha = 0.4
         tab2_p_dspec_yPro.xaxis.axis_label = 'Intensity [sfu]'
         tab2_p_dspec_yPro.yaxis.axis_label_text_font_size = '5px'
-        tab2_p_dspec_yPro.border_fill_color = "silver"
+        # tab2_p_dspec_yPro.border_fill_color = "silver"
         tab2_p_dspec_yPro.border_fill_alpha = 0.4
         tab2_p_dspec_yPro.min_border_bottom = 0
         tab2_p_dspec_yPro.min_border_left = 0
@@ -441,7 +441,7 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec_thumb.xaxis.visible = False
         tab2_p_dspec_thumb.yaxis.visible = False
         tab2_p_dspec_thumb.title.text_font_size = '6pt'
-        tab2_p_dspec_thumb.border_fill_color = "silver"
+        # tab2_p_dspec_thumb.border_fill_color = "silver"
         tab2_p_dspec_thumb.border_fill_alpha = 0.4
 
         # # Add a hover tool
@@ -621,7 +621,7 @@ if os.path.exists(FS_dspecDF):
                           fill_color='#7c7e71',
                           line_color='#7c7e71')
         tab2_p_aia.title.text_font_size = '6pt'
-        tab2_p_aia.border_fill_color = "silver"
+        # tab2_p_aia.border_fill_color = "silver"
         tab2_p_aia.border_fill_alpha = 0.4
         tab2_p_aia.axis.major_tick_out = 0
         tab2_p_aia.axis.major_tick_in = 5
@@ -653,7 +653,7 @@ if os.path.exists(FS_dspecDF):
                                                             size=4)
         tab3_p_aia_submap.add_tools(BoxSelectTool(renderers=[tab2_r_aia_submap_square]))
 
-        tab3_p_aia_submap.border_fill_color = "silver"
+        # tab3_p_aia_submap.border_fill_color = "silver"
         tab3_p_aia_submap.border_fill_alpha = 0.4
         tab3_p_aia_submap.axis.major_tick_out = 0
         tab3_p_aia_submap.axis.major_tick_in = 5
@@ -730,7 +730,7 @@ if os.path.exists(FS_dspecDF):
                           fill_alpha=0.8,
                           fill_color='#7c7e71', line_color='#7c7e71')
         tab2_p_hmi.yaxis.visible = False
-        tab2_p_hmi.border_fill_color = "silver"
+        # tab2_p_hmi.border_fill_color = "silver"
         tab2_p_hmi.border_fill_alpha = 0.4
         tab2_p_hmi.axis.major_tick_out = 0
         tab2_p_hmi.axis.major_tick_in = 5
@@ -748,7 +748,7 @@ if os.path.exists(FS_dspecDF):
                                                          y_range=tab2_p_aia.y_range)
         tab2_p_vla.title.text_font_size = '6pt'
         tab2_p_vla.yaxis.visible = False
-        tab2_p_vla.border_fill_color = "silver"
+        # tab2_p_vla.border_fill_color = "silver"
         tab2_p_vla.border_fill_alpha = 0.4
         tab2_p_vla.axis.major_tick_out = 0
         tab2_p_vla.axis.major_tick_in = 5
@@ -955,7 +955,7 @@ if os.path.exists(FS_dspecDF):
         tab3_p_dspec_vector.yaxis.axis_label = 'Frequency [GHz]'
         tab3_p_dspec_vectorx.yaxis.axis_label = 'Frequency [GHz]'
         tab3_p_dspec_vectory.yaxis.axis_label = 'Frequency [GHz]'
-        tab3_p_dspec_vector.border_fill_color = "silver"
+        # tab3_p_dspec_vector.border_fill_color = "silver"
         tab3_p_dspec_vector.border_fill_alpha = 0.4
         tab3_p_dspec_vector.axis.major_tick_out = 0
         tab3_p_dspec_vector.axis.major_tick_in = 5
@@ -963,7 +963,7 @@ if os.path.exists(FS_dspecDF):
         tab3_p_dspec_vector.axis.minor_tick_in = 3
         tab3_p_dspec_vector.axis.major_tick_line_color = "white"
         tab3_p_dspec_vector.axis.minor_tick_line_color = "white"
-        tab3_p_dspec_vectorx.border_fill_color = "silver"
+        # tab3_p_dspec_vectorx.border_fill_color = "silver"
         tab3_p_dspec_vectorx.border_fill_alpha = 0.4
         tab3_p_dspec_vectorx.axis.major_tick_out = 0
         tab3_p_dspec_vectorx.axis.major_tick_in = 5
@@ -971,7 +971,7 @@ if os.path.exists(FS_dspecDF):
         tab3_p_dspec_vectorx.axis.minor_tick_in = 3
         tab3_p_dspec_vectorx.axis.major_tick_line_color = "white"
         tab3_p_dspec_vectorx.axis.minor_tick_line_color = "white"
-        tab3_p_dspec_vectory.border_fill_color = "silver"
+        # tab3_p_dspec_vectory.border_fill_color = "silver"
         tab3_p_dspec_vectory.border_fill_alpha = 0.4
         tab3_p_dspec_vectory.axis.major_tick_out = 0
         tab3_p_dspec_vectory.axis.major_tick_in = 5
@@ -1762,7 +1762,7 @@ if os.path.exists(FS_dspecDF):
                                                     config_plot['plot_config']['tab_FSview_base'][
                                                         'dspec_hght'] / tab2_nfreq))
 
-            tab2_p_dspec.border_fill_color = "silver"
+            # tab2_p_dspec.border_fill_color = "silver"
             tab2_p_dspec.border_fill_alpha = 0.4
             tab2_p_dspec.axis.major_tick_out = 0
             tab2_p_dspec.axis.major_tick_in = 5
@@ -1802,7 +1802,7 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec_xPro.xaxis.axis_label = 'Seconds since ' + tim0_char
             tab2_p_dspec_xPro.yaxis.axis_label_text_font_size = '5px'
             tab2_p_dspec_xPro.yaxis.axis_label = 'Intensity [sfu]'
-            tab2_p_dspec_xPro.border_fill_color = "silver"
+            # tab2_p_dspec_xPro.border_fill_color = "silver"
             tab2_p_dspec_xPro.border_fill_alpha = 0.4
             tab2_p_dspec_xPro.axis.major_tick_out = 0
             tab2_p_dspec_xPro.axis.major_tick_in = 5
@@ -1835,7 +1835,7 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec_yPro.background_fill_alpha = 0.4
             tab2_p_dspec_yPro.xaxis.axis_label = 'Intensity [sfu]'
             tab2_p_dspec_yPro.yaxis.axis_label_text_font_size = '5px'
-            tab2_p_dspec_yPro.border_fill_color = "silver"
+            # tab2_p_dspec_yPro.border_fill_color = "silver"
             tab2_p_dspec_yPro.border_fill_alpha = 0.4
             tab2_p_dspec_yPro.min_border_bottom = 0
             tab2_p_dspec_yPro.min_border_left = 0
@@ -2091,7 +2091,7 @@ if os.path.exists(FS_dspecDF):
             tab2_p_aia.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
                                   line_width=2)
             tab2_p_aia.title.text_font_size = '6pt'
-            tab2_p_aia.border_fill_color = "silver"
+            # tab2_p_aia.border_fill_color = "silver"
             tab2_p_aia.border_fill_alpha = 0.4
             tab2_p_aia.axis.major_tick_out = 0
             tab2_p_aia.axis.major_tick_in = 5
@@ -2129,7 +2129,7 @@ if os.path.exists(FS_dspecDF):
             tab2_p_hmi.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
                                   line_width=2)
             tab2_p_hmi.yaxis.visible = False
-            tab2_p_hmi.border_fill_color = "silver"
+            # tab2_p_hmi.border_fill_color = "silver"
             tab2_p_hmi.border_fill_alpha = 0.4
             tab2_p_hmi.axis.major_tick_out = 0
             tab2_p_hmi.axis.major_tick_in = 5
@@ -2149,7 +2149,7 @@ if os.path.exists(FS_dspecDF):
                                                              y_range=tab2_p_aia.y_range)
             tab2_p_vla.title.text_font_size = '6pt'
             tab2_p_vla.yaxis.visible = False
-            tab2_p_vla.border_fill_color = "silver"
+            # tab2_p_vla.border_fill_color = "silver"
             tab2_p_vla.border_fill_alpha = 0.4
             tab2_p_vla.axis.major_tick_out = 0
             tab2_p_vla.axis.major_tick_in = 5
@@ -2659,7 +2659,7 @@ else:
                                             line_alpha=1.0, line_width=1)
     tab2_p_dspec.add_tools(BoxSelectTool())
     tab2_p_dspec.select(BoxSelectTool).select_every_mousemove = False
-    tab2_p_dspec.border_fill_color = "silver"
+    # tab2_p_dspec.border_fill_color = "silver"
     tab2_p_dspec.border_fill_alpha = 0.4
     tab2_p_dspec.axis.major_tick_out = 0
     tab2_p_dspec.axis.major_tick_in = 5
@@ -2737,7 +2737,7 @@ else:
     tab2_p_dspec_xPro.xaxis.axis_label = 'Seconds since ' + tim0_char
     tab2_p_dspec_xPro.yaxis.axis_label_text_font_size = '5px'
     tab2_p_dspec_xPro.yaxis.axis_label = 'Intensity [sfu]'
-    tab2_p_dspec_xPro.border_fill_color = "silver"
+    # tab2_p_dspec_xPro.border_fill_color = "silver"
     tab2_p_dspec_xPro.border_fill_alpha = 0.4
     tab2_p_dspec_xPro.axis.major_tick_out = 0
     tab2_p_dspec_xPro.axis.major_tick_in = 5
@@ -2771,7 +2771,7 @@ else:
     tab2_p_dspec_yPro.xaxis.axis_label_text_font_size = '5px'
     tab2_p_dspec_yPro.min_border_bottom = 0
     tab2_p_dspec_yPro.min_border_left = 0
-    tab2_p_dspec_yPro.border_fill_color = "silver"
+    # tab2_p_dspec_yPro.border_fill_color = "silver"
     tab2_p_dspec_yPro.border_fill_alpha = 0.4
     tab2_p_dspec_yPro.axis.major_tick_out = 0
     tab2_p_dspec_yPro.axis.major_tick_in = 5
