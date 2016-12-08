@@ -31,8 +31,8 @@ struct_freqrange = '1.286~1.318 GHz'
 CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
 phasecenter_local = 'J2000 14h27m00.100 -14d35m24.200'
 ##  ----------- spw 3 -----------------
-struct_timerange = '2014/11/01/16:46:17.150~2014/11/01/16:46:19.650'
-struct_freqrange = '1.426~1.472 GHz'
+struct_timerange = '2014/11/01/16:46:16.150~2014/11/01/16:46:19.650'
+struct_freqrange = '1.422~1.476 GHz'
 CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
 phasecenter_local = 'J2000 14h26m56.300 -14d35m11.000'
 
@@ -462,5 +462,8 @@ os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.residual')
 clearcal(vis=slfcalms)
 for ll in xrange(4):
     caltabl = glob.glob('caltables/cal_SUN*.spw{}.slfcal.G?'.format(ll))
-    applycal(vis=slfcalms, gaintable=caltabl, selectdata=True, \
+    if len(caltabl) >0:
+        applycal(vis=slfcalms, gaintable=caltabl, selectdata=True, \
              antenna=antennas, interp='linear', flagbackup=False, applymode='calonly')
+    else:
+        print 'caltable for spw {} not found'.format(ll)
