@@ -2942,7 +2942,7 @@ else:
         tab2_tCLN_Param_dict['mask'] = "''"
         tab2_tCLN_Param_dict['stokes'] = "'RRLL'"
         tab2_tCLN_Param_dict['uvtaper'] = 'True'
-        tab2_tCLN_Param_dict['outertaper'] = "[]"
+        tab2_tCLN_Param_dict['outertaper'] = "'15.0arcsec'"
         tab2_tCLN_Param_dict['uvrange'] = "''"
         tab2_tCLN_Param_dict['niter'] = "200"
         tab2_tCLN_Param_dict['usescratch'] = "False"
