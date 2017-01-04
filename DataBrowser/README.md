@@ -6,7 +6,7 @@ A interactive tool for solar radio imaging spectroscopy data analysis
 bokeh>=0.12.0
 sunpy>=0.7.4
 pandas>=0.19.2
-skimage>=0.12.3
+scikit-image>=0.12.3
 ```
 
 # Usage
