@@ -45,3 +45,7 @@ To launch the Databrowser, type in browser in your terminal.
 ### Co-Author
 - Bin Chen([@binchensun](https://github.com/binchensun))
 
+
+# Issues with web browser
+The gnome Epiphany browser presents a problem with rendering bokeh items.
+Using google Chrome or Firefox will solve the problem.
