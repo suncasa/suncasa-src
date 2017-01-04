@@ -66,8 +66,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
     source_id = uv['source']
     bandedge = get_band_edge(nband=34)
     msname = list(idbfile.split('/')[-1])
-    msname.insert(11, 'T')
-    msname = outpath + source_id.upper() + '_' + ''.join(msname[3:]) + '-10m.ms'
+    msname = outpath + ''.join(msname) + '-10m.ms'
 
     if os.path.exists(msname):
         os.system("rm -fr %s" % msname)
@@ -277,8 +276,7 @@ def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=Tr
         casalog.post('IDB File {0} is readed in --- {1:10.2f} seconds ---'.format(filename, (time.time() - time0)))
 
         msname = list(filename.split('/')[-1])
-        msname.insert(11, 'T')
-        msname = visprefix + source_id.upper() + '_' + ''.join(msname[3:]) + '-10m.ms'
+        msname = visprefix + ''.join(msname) + '-10m.ms'
 
         if not nocreatms:
             modelms = creatms(filename, visprefix)
@@ -414,8 +412,7 @@ def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=Tr
 
     if doconcat:
         msname = list(filelist[0].split('/')[-1])
-        msname.insert(11, 'T')
-        concatvis = visprefix + ''.join(msname[3:]) + '-{:d}m.ms'.format(10 * len(msfile))
+        concatvis = visprefix + ''.join(msname) + '-{:d}m.ms'.format(10 * len(msfile))
         concat(vis=msfile, concatvis=concatvis)
         for ll in msfile:
             os.system('rm -rf {}'.format(ll))
