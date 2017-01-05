@@ -409,7 +409,8 @@ def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=Tr
         gc.collect()  #
 
         if not (timebin == '0s' and width == 1):
-            split(vis=msname, outputvis=msname + '.split', datacolumn='data', timebin=timebin, width=width)
+            split(vis=msname, outputvis=msname + '.split', datacolumn='data', timebin=timebin, width=width,
+                  keepflags=False)
             os.system('rm -rf {}'.format(msname))
             msfile.append(msname + '.split')
         else:
