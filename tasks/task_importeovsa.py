@@ -165,7 +165,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
     return modelms
 
 
-def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=True, doconcat=False, modelms=None):
+def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=True, doconcat=False, modelms=''):
     casalog.origin('importeovsa')
 
     # # Initialize the helper class

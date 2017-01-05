@@ -13,7 +13,7 @@ importeovsa(idbfiles,
             visprefix=None,
             nocreatms=True,
             doconcat=False,
-            modelms=None):
+            modelms=''):
 
         <shortdescription>Import EOVSA idb file(s) to a measurement set or multiple measurement set</shortdescription>
 
