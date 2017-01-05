@@ -12,7 +12,8 @@ importeovsa(idbfiles,
             width=None,
             visprefix=None,
             nocreatms=True,
-            doconcat=False):
+            doconcat=False,
+            modelms=None):
 
         <shortdescription>Import EOVSA idb file(s) to a measurement set or multiple measurement set</shortdescription>
 
@@ -120,6 +121,12 @@ importeovsa(idbfiles,
             <param type="bool" name="doconcat">
                 <description>If concatenate multi casa measurement sets to one file.</description>
                 <value>False</value>
+            </param>
+
+            <param type="string" name="modelms">
+                <description>Name of input model measurement set file. If modelms is assigned, no simulation will start.</description>
+                <any type="variant" limittypes="string"/>
+                <value type="string"></value>
             </param>
 
             CONSTRAINTS

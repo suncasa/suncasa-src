@@ -165,7 +165,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
     return modelms
 
 
-def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=True, doconcat=False):
+def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=True, doconcat=False, modelms=None):
     casalog.origin('importeovsa')
 
     # # Initialize the helper class
@@ -199,9 +199,15 @@ def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=Tr
     if not width:
         width = 1
 
-    if nocreatms:
-        filename = filelist[0]
-        modelms = creatms(filename, visprefix)
+    if not modelms:
+        if nocreatms:
+            filename = filelist[0]
+            modelms = creatms(filename, visprefix)
+    else:
+        if not os.path.exists(modelms):
+            if nocreatms:
+                filename = filelist[0]
+                modelms = creatms(filename, visprefix)
 
     msfile = []
     for filename in filelist:
