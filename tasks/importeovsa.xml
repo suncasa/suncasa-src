@@ -125,7 +125,7 @@ importeovsa(idbfiles,
 
             <param type="string" name="modelms">
                 <description>Name of input model measurement set file. If modelms is assigned, no simulation will start.</description>
-                <any type="variant" limittypes="string"/>
+                <any type="variant" limittypes="string null"/>
                 <value type="string"></value>
             </param>
 
