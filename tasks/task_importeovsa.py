@@ -285,7 +285,10 @@ def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=Tr
     time_concat = []
     for filename in filelist:
         uv = aipy.miriad.UV(filename)
-        uv_str = uv_hex_rm(uv)
+        if filename.split('/')[-1][0:3] == 'UDB':
+            uv_str = uv_hex_rm(uv)
+        else:
+            uv_str = uv
         uv.select('antennae', 0, 1, include=True)
         uv.select('polarization', -5, -5, include=True)
         times = []
