@@ -1834,7 +1834,6 @@ if os.path.exists(FS_dspecDF):
             l_dspec_yPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
                                           source=tab2_SRC_dspec_yPro_hover,
                                           render_mode='canvas')
-            #todo
             l_dspec_yPro_hover.text_font_size = '5pt'
             tab2_p_dspec_yPro.add_layout(l_dspec_yPro_hover)
             tab2_p_dspec_yPro.title.text_font_size = '6pt'
@@ -1957,7 +1956,6 @@ if os.path.exists(FS_dspecDF):
                             spec_plt_L = spec_plt_R
                             spec_plt_I = spec_plt_R
                             spec_plt_V = spec_plt_R
-                            # print spec_plt_L
                         tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum calculated.</b></p>'
 
                         tab2_dspec_image_plt(select_pol)
