@@ -1834,6 +1834,7 @@ if os.path.exists(FS_dspecDF):
             l_dspec_yPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
                                           source=tab2_SRC_dspec_yPro_hover,
                                           render_mode='canvas')
+            #todo
             l_dspec_yPro_hover.text_font_size = '5pt'
             tab2_p_dspec_yPro.add_layout(l_dspec_yPro_hover)
             tab2_p_dspec_yPro.title.text_font_size = '6pt'
