@@ -498,6 +498,16 @@ def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=Tr
         msname = list(filelist[0].split('/')[-1])
         concatvis = visprefix + ''.join(msname) + '-{:d}m.ms'.format(int(sum(time_concat)))
         concat(vis=msfile, concatvis=concatvis, timesort=True)
+        # Change all observation ids to be the same (zero)
+        tb.open(concatvis+'/OBSERVATION',nomodify=False)
+        nobs=tb.nrows()
+        tb.removerows([i+1 for i in range(nobs-1)])
+        tb.close()
+        tb.open(concatvis,nomodify=False)
+        obsid=tb.getcol('OBSERVATION_ID')
+        newobsid=np.zeros(len(obsid),dtype='int')
+        tb.putcol('OBSERVATION_ID',newobsid)
+        tb.close()
         for ll in msfile:
             os.system('rm -rf {}'.format(ll))
 

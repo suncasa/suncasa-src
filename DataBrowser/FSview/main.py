@@ -49,6 +49,39 @@ bokehpalette_viridis = [colors.rgb2hex(m) for m in colormap_viridis(np.arange(co
 -------------------------- panel 2,3   --------------------------
 '''
 
+
+def sdo_aia_scale(image=None, wavelength=None):
+    if wavelength == '94':
+        image[image > 30] = 30
+        image[image < 0.5] = 0.5
+        image = np.log10(image)
+    elif wavelength == '131':
+        image[image > 200] = 200
+        image[image < 2] = 2
+        image = np.log10(image)
+    elif wavelength == '171':
+        image[image > 2000] = 2000
+        image[image < 50] = 50
+        image = np.log10(image)
+    return bytescale(image)
+
+
+def aiamapfromlocalfile(wavelength=None, jdtime=None):
+    aiafitspath = glob.glob(database_dir + event_id + '/AIA/aia_lev1_{}a*.fits'.format(wavelength))
+    aiafits = [ll.split('/')[-1] for ll in aiafitspath]
+    aiatimeline = [ll.replace('aia_lev1_{}a_'.format(wavelength), '').replace('z_image_lev1.fits.fits', '') for
+                   ll in aiafits]
+    aiatimeline = [ll.split('t')[0].replace('_', '-') + ' ' + ll.split('t')[1].replace('_', ':') for ll in
+                   aiatimeline]
+    aiatimeline = [ll[0:ll.rindex(':')] + '.' + ll[(ll.rindex(':') + 1):] for ll in aiatimeline]
+    aiatimeline = Time(aiatimeline, format='iso', scale='utc')
+    idxaia = np.argmin(np.abs(aiatimeline.jd - jdtime))
+    filepath = aiafitspath[idxaia]
+    aiamap = sunpy.map.Map(filepath)
+    aiamap.data = sdo_aia_scale(image=aiamap.data / aiamap.exposure_time.value, wavelength=wavelength)
+    return aiamap
+
+
 event_id = config_EvtID['datadir']['event_id']
 try:
     with open(database_dir + event_id + 'CurrFS.json', 'r') as fp:
@@ -526,7 +559,7 @@ if os.path.exists(FS_dspecDF):
         # import the vla image
         hdulist = fits.open(vlafile[0])
         hdu = hdulist[0]
-        vla_local_pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header,
+        vla_local_pfmap = PuffinMap(hdu.data[0, np.where(hdu.data[0, :, 256, 256])[0][0], :, :], hdu.header,
                                     plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
                                     plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
                                     webgl=config_plot['plot_config']['WebGL'])
@@ -551,42 +584,14 @@ if os.path.exists(FS_dspecDF):
         #                            directory=database_dir + event_id + struct_id + config_EvtID['datadir']['J2000'],
         #                            overwrite=True)
 
-        def sdo_aia_scale(image=None, wavelength=None):
-            if wavelength == '94':
-                image[image > 30] = 30
-                image[image < 0.5] = 0.5
-                image = np.log10(image)
-            elif wavelength == '131':
-                image[image > 200] = 200
-                image[image < 2] = 2
-                image = np.log10(image)
-            elif wavelength == '171':
-                image[image > 2000] = 2000
-                image[image < 50] = 50
-                image = np.log10(image)
-            return bytescale(image)
 
 
-        def aiamapfromlocalfile(wavelength=None, jdtime=None):
-            aiafitspath = glob.glob(database_dir + event_id + '/AIA/aia_lev1_{}a*.fits'.format(wavelength))
-            aiafits = [ll.split('/')[-1] for ll in aiafitspath]
-            aiatimeline = [ll.replace('aia_lev1_{}a_'.format(wavelength), '').replace('z_image_lev1.fits.fits', '') for
-                           ll in aiafits]
-            aiatimeline = [ll.split('t')[0].replace('_', '-') + ' ' + ll.split('t')[1].replace('_', ':') for ll in
-                           aiatimeline]
-            aiatimeline = [ll[0:ll.rindex(':')] + '.' + ll[(ll.rindex(':') + 1):] for ll in aiatimeline]
-            aiatimeline = Time(aiatimeline, format='iso', scale='utc')
-            idxaia = np.argmin(np.abs(aiatimeline.jd - jdtime))
-            filepath = aiafitspath[idxaia]
-            aiamap = sunpy.map.Map(filepath)
-            aiamap.data = sdo_aia_scale(image=aiamap.data / aiamap.exposure_time.value, wavelength=wavelength)
-            return aiamap
 
 
-        aiamap2 = aiamapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
-        filepath = database_dir + event_id + struct_id + config_EvtID['datadir'][
-            'J2000'] + '2014_11_01__16_45_59_34__SDO_AIA_AIA_171.jp2'
-        aiamap = sunpy.map.Map(filepath)
+        aiamap = aiamapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
+        # filepath = database_dir + event_id + struct_id + config_EvtID['datadir'][
+        #     'J2000'] + '2014_11_01__16_45_59_34__SDO_AIA_AIA_171.jp2'
+        # aiamap = sunpy.map.Map(filepath)
         colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
         bokehpalette_sdoaia171 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         colormap = cm.get_cmap("sdoaia94")  # choose any matplotlib colormap here
@@ -599,8 +604,8 @@ if os.path.exists(FS_dspecDF):
         lengthy = vla_local_pfmap.dh[0] * u.arcsec
         x0 = vla_local_pfmap.smap.center.x
         y0 = vla_local_pfmap.smap.center.y
-        aiamap_submap = aiamap2.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
-                                       u.Quantity([y0 - lengthy / 2, y0 + lengthy / 2]))
+        aiamap_submap = aiamap.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
+                                      u.Quantity([y0 - lengthy / 2, y0 + lengthy / 2]))
         MapRES = 256
         dimensions = u.Quantity([MapRES, MapRES], u.pixel)
         aia_resampled_map = aiamap.resample(dimensions)
@@ -707,11 +712,13 @@ if os.path.exists(FS_dspecDF):
         #                            detector='HMI', measurement='magnetogram',
         #                            directory=database_dir + event_id + struct_id + config_EvtID['datadir']['J2000'],
         #                            overwrite=True)
-        filepath = database_dir + event_id + struct_id + config_EvtID['datadir'][
-            'J2000'] + '2014_11_01__16_46_58_605__SDO_HMI_HMI_magnetogram.jp2'
+        # filepath = database_dir + event_id + struct_id + config_EvtID['datadir'][
+        # 'J2000'] + '2014_11_01__16_46_58_605__SDO_HMI_HMI_magnetogram.jp2'
         colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
         bokehpalette_sdohmimag = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-        hmimap = sunpy.map.Map(filepath)
+        hmimap = aiamap
+        # todo fix this bug
+        # hmimap = sunpy.map.Map(filepath)
         # plot the global HMI image
         hmi_resampled_map = hmimap.resample(dimensions)
         hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
@@ -2070,11 +2077,12 @@ if os.path.exists(FS_dspecDF):
             #                            detector='AIA', measurement='171',
             #                            directory=database_dir + event_id + struct_id + config_EvtID['datadir']['J2000'],
             #                            overwrite=True)
-            filepath = database_dir + event_id + struct_id + config_EvtID['datadir'][
-                'J2000'] + '2014_11_01__16_45_59_34__SDO_AIA_AIA_171.jp2'
+            # filepath = database_dir + event_id + struct_id + config_EvtID['datadir'][
+            #     'J2000'] + '2014_11_01__16_45_59_34__SDO_AIA_AIA_171.jp2'
             colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
             bokehpalette_sdoaia171 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-            aiamap = sunpy.map.Map(filepath)
+            # aiamap = sunpy.map.Map(filepath)
+            aiamap = aiamapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
             MapRES = 256
             dimensions = u.Quantity([MapRES, MapRES], u.pixel)
             aia_resampled_map = aiamap.resample(dimensions)
@@ -2110,11 +2118,13 @@ if os.path.exists(FS_dspecDF):
             #                            detector='HMI', measurement='magnetogram',
             #                            directory=database_dir + event_id + struct_id + config_EvtID['datadir']['J2000'],
             #                            overwrite=True)
-            filepath = database_dir + event_id + struct_id + config_EvtID['datadir'][
-                'J2000'] + '2014_11_01__16_46_58_605__SDO_HMI_HMI_magnetogram.jp2'
+            # filepath = database_dir + event_id + struct_id + config_EvtID['datadir'][
+            #     'J2000'] + '2014_11_01__16_46_58_605__SDO_HMI_HMI_magnetogram.jp2'
             colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
             bokehpalette_sdohmimag = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-            hmimap = sunpy.map.Map(filepath)
+            # hmimap = sunpy.map.Map(filepath)
+            #todo fix this bug
+            hmimap=aiamap
             # plot the global HMI image
             hmi_resampled_map = hmimap.resample(dimensions)
             hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
