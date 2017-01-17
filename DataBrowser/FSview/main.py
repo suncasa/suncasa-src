@@ -2053,10 +2053,10 @@ if os.path.exists(FS_dspecDF):
             # import the vla image
             hdulist = fits.open(vlafile[0])
             hdu = hdulist[0]
-            vla_local_pfmap = PuffinMap(hdu.data[0, 0, :, :], hdu.header,
-                                        plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                        plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
-                                        webgl=config_plot['plot_config']['WebGL'])
+            vla_local_pfmap = PuffinMap(hdu.data[0, np.where(hdu.data[0, :, 256, 256])[0][0], :, :], hdu.header,
+								plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
+							    plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
+							    webgl=config_plot['plot_config']['WebGL'])
             # plot the contour of vla image
             mapx, mapy = vla_local_pfmap.meshgrid()
             mapx, mapy = mapx.value, mapy.value
