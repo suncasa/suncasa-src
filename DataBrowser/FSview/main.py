@@ -6,6 +6,7 @@ from collections import OrderedDict
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
+from scipy.misc import bytescale
 import matplotlib.cm as cm
 import matplotlib.colors as colors
 import numpy as np
@@ -42,7 +43,8 @@ colormap_jet = cm.get_cmap("jet")  # choose any matplotlib colormap here
 bokehpalette_jet = [colors.rgb2hex(m) for m in colormap_jet(np.arange(colormap_jet.N))]
 colormap = cm.get_cmap("cubehelix")  # choose any matplotlib colormap here
 bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-
+colormap_viridis = cm.get_cmap("viridis")  # choose any matplotlib colormap here
+bokehpalette_viridis = [colors.rgb2hex(m) for m in colormap_viridis(np.arange(colormap_viridis.N))]
 '''
 -------------------------- panel 2,3   --------------------------
 '''
@@ -64,6 +66,7 @@ tab2_nbl = tab2_specdata['nbl']
 tab2_ntim = tab2_specdata['ntim']
 tab2_nfreq = tab2_specdata['nfreq']
 tab2_tim = tab2_specdata['tim']
+tab2_dt = np.median(np.diff(tab2_tim))
 tab2_freq = tab2_specdata['freq'] / 1e9
 tab2_freq = [float('{:.03f}'.format(ll)) for ll in tab2_freq]
 tab2_bl = tab2_specdata['bl'].item().split(';')
@@ -193,7 +196,7 @@ if os.path.exists(FS_dspecDF):
                                                 config_plot['plot_config']['tab_FSview_base'][
                                                     'dspec_hght'] / tab2_nfreq))
 
-        tab2_p_dspec.border_fill_color = "silver"
+        # tab2_p_dspec.border_fill_color = "silver"
         tab2_p_dspec.border_fill_alpha = 0.4
         tab2_p_dspec.axis.major_tick_out = 0
         tab2_p_dspec.axis.major_tick_in = 5
@@ -233,7 +236,7 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec_xPro.xaxis.axis_label = 'Seconds since ' + tim0_char
         tab2_p_dspec_xPro.yaxis.axis_label_text_font_size = '5px'
         tab2_p_dspec_xPro.yaxis.axis_label = 'Intensity [sfu]'
-        tab2_p_dspec_xPro.border_fill_color = "silver"
+        # tab2_p_dspec_xPro.border_fill_color = "silver"
         tab2_p_dspec_xPro.border_fill_alpha = 0.4
         tab2_p_dspec_xPro.axis.major_tick_out = 0
         tab2_p_dspec_xPro.axis.major_tick_in = 5
@@ -266,7 +269,7 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec_yPro.background_fill_alpha = 0.4
         tab2_p_dspec_yPro.xaxis.axis_label = 'Intensity [sfu]'
         tab2_p_dspec_yPro.yaxis.axis_label_text_font_size = '5px'
-        tab2_p_dspec_yPro.border_fill_color = "silver"
+        # tab2_p_dspec_yPro.border_fill_color = "silver"
         tab2_p_dspec_yPro.border_fill_alpha = 0.4
         tab2_p_dspec_yPro.min_border_bottom = 0
         tab2_p_dspec_yPro.min_border_left = 0
@@ -438,7 +441,7 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec_thumb.xaxis.visible = False
         tab2_p_dspec_thumb.yaxis.visible = False
         tab2_p_dspec_thumb.title.text_font_size = '6pt'
-        tab2_p_dspec_thumb.border_fill_color = "silver"
+        # tab2_p_dspec_thumb.border_fill_color = "silver"
         tab2_p_dspec_thumb.border_fill_alpha = 0.4
 
         # # Add a hover tool
@@ -538,6 +541,7 @@ if os.path.exists(FS_dspecDF):
         bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
 
+
         # import the aia image
         # from sunpy.net.helioviewer import HelioviewerClient
         #
@@ -546,17 +550,57 @@ if os.path.exists(FS_dspecDF):
         #                            detector='AIA', measurement='171',
         #                            directory=database_dir + event_id + struct_id + config_EvtID['datadir']['J2000'],
         #                            overwrite=True)
+
+        def sdo_aia_scale(image=None, wavelength=None):
+            if wavelength == '94':
+                image[image > 30] = 30
+                image[image < 0.5] = 0.5
+                image = np.log10(image)
+            elif wavelength == '131':
+                image[image > 200] = 200
+                image[image < 2] = 2
+                image = np.log10(image)
+            elif wavelength == '171':
+                image[image > 2000] = 2000
+                image[image < 50] = 50
+                image = np.log10(image)
+            return bytescale(image)
+
+
+        def aiamapfromlocalfile(wavelength=None, jdtime=None):
+            aiafitspath = glob.glob(database_dir + event_id + '/AIA/aia_lev1_{}a*.fits'.format(wavelength))
+            aiafits = [ll.split('/')[-1] for ll in aiafitspath]
+            aiatimeline = [ll.replace('aia_lev1_{}a_'.format(wavelength), '').replace('z_image_lev1.fits.fits', '') for
+                           ll in aiafits]
+            aiatimeline = [ll.split('t')[0].replace('_', '-') + ' ' + ll.split('t')[1].replace('_', ':') for ll in
+                           aiatimeline]
+            aiatimeline = [ll[0:ll.rindex(':')] + '.' + ll[(ll.rindex(':') + 1):] for ll in aiatimeline]
+            aiatimeline = Time(aiatimeline, format='iso', scale='utc')
+            idxaia = np.argmin(np.abs(aiatimeline.jd - jdtime))
+            filepath = aiafitspath[idxaia]
+            aiamap = sunpy.map.Map(filepath)
+            aiamap.data = sdo_aia_scale(image=aiamap.data / aiamap.exposure_time.value, wavelength=wavelength)
+            return aiamap
+
+
+        aiamap2 = aiamapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
         filepath = database_dir + event_id + struct_id + config_EvtID['datadir'][
             'J2000'] + '2014_11_01__16_45_59_34__SDO_AIA_AIA_171.jp2'
+        aiamap = sunpy.map.Map(filepath)
         colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
         bokehpalette_sdoaia171 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-        aiamap = sunpy.map.Map(filepath)
+        colormap = cm.get_cmap("sdoaia94")  # choose any matplotlib colormap here
+        bokehpalette_sdoaia94 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
+        colormap = cm.get_cmap("sdoaia131")  # choose any matplotlib colormap here
+        bokehpalette_sdoaia131 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
+        colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
+        bokehpalette_gray = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         lengthx = vla_local_pfmap.dw[0] * u.arcsec
         lengthy = vla_local_pfmap.dh[0] * u.arcsec
         x0 = vla_local_pfmap.smap.center.x
         y0 = vla_local_pfmap.smap.center.y
-        aiamap_submap = aiamap.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
-                                      u.Quantity([y0 - lengthy / 2, y0 + lengthy / 2]))
+        aiamap_submap = aiamap2.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
+                                       u.Quantity([y0 - lengthy / 2, y0 + lengthy / 2]))
         MapRES = 256
         dimensions = u.Quantity([MapRES, MapRES], u.pixel)
         aia_resampled_map = aiamap.resample(dimensions)
@@ -577,7 +621,7 @@ if os.path.exists(FS_dspecDF):
                           fill_color='#7c7e71',
                           line_color='#7c7e71')
         tab2_p_aia.title.text_font_size = '6pt'
-        tab2_p_aia.border_fill_color = "silver"
+        # tab2_p_aia.border_fill_color = "silver"
         tab2_p_aia.border_fill_alpha = 0.4
         tab2_p_aia.axis.major_tick_out = 0
         tab2_p_aia.axis.major_tick_in = 5
@@ -598,7 +642,7 @@ if os.path.exists(FS_dspecDF):
         tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
                                                                         grid_spacing=20 * u.deg,
                                                                         title='EM sources centroid map',
-                                                                        palette=bokehpalette_sdoaia171)
+                                                                        palette=bokehpalette_gray)
         tab2_r_aia_submap_square = tab3_p_aia_submap.square('xx', 'yy', source=tab2_SRC_aia_submap_square,
                                                             fill_alpha=0.0, fill_color=None,
                                                             line_color=None, line_alpha=0.0, selection_fill_alpha=0.5,
@@ -609,7 +653,7 @@ if os.path.exists(FS_dspecDF):
                                                             size=4)
         tab3_p_aia_submap.add_tools(BoxSelectTool(renderers=[tab2_r_aia_submap_square]))
 
-        tab3_p_aia_submap.border_fill_color = "silver"
+        # tab3_p_aia_submap.border_fill_color = "silver"
         tab3_p_aia_submap.border_fill_alpha = 0.4
         tab3_p_aia_submap.axis.major_tick_out = 0
         tab3_p_aia_submap.axis.major_tick_in = 5
@@ -633,6 +677,31 @@ if os.path.exists(FS_dspecDF):
                                                         line_color='black', fill_color='black',
                                                         source=tab3_SRC_aia_submap_rect)
 
+        tab2_Select_aia_wave = Select(title="Wavelenght:", value='171', options=['94', '131', '171'],
+                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+
+
+        def aia_submap_wavelength_selection(attrname, old, new):
+            global tab3_r_aia_submap
+            select_wave = tab2_Select_aia_wave.value
+            print 'wavelength {} selected'.format(select_wave)
+            aiamap = aiamapfromlocalfile(wavelength=select_wave, jdtime=xx[0] / 3600. / 24.)
+            lengthx = vla_local_pfmap.dw[0] * u.arcsec
+            lengthy = vla_local_pfmap.dh[0] * u.arcsec
+            x0 = vla_local_pfmap.smap.center.x
+            y0 = vla_local_pfmap.smap.center.y
+            aiamap_submap = aiamap.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
+                                          u.Quantity([y0 - lengthy / 2, y0 + lengthy / 2]))
+            aia_submap_pfmap = PuffinMap(smap=aiamap_submap,
+                                         plot_height=config_plot['plot_config']['tab_FSview_FitANLYS'][
+                                             'aia_submap_hght'],
+                                         plot_width=config_plot['plot_config']['tab_FSview_FitANLYS'][
+                                             'aia_submap_wdth'],
+                                         webgl=config_plot['plot_config']['WebGL'])
+            tab3_r_aia_submap.data_source.data['data'] = aia_submap_pfmap.ImageSource().data['data']
+
+
+        tab2_Select_aia_wave.on_change('value', aia_submap_wavelength_selection)
         # plot the global HMI image
         # filepath = hv.download_jp2(jdutil.jd_to_datetime(xx[0] / 3600. / 24.), observatory='SDO', instrument='HMI',
         #                            detector='HMI', measurement='magnetogram',
@@ -661,7 +730,7 @@ if os.path.exists(FS_dspecDF):
                           fill_alpha=0.8,
                           fill_color='#7c7e71', line_color='#7c7e71')
         tab2_p_hmi.yaxis.visible = False
-        tab2_p_hmi.border_fill_color = "silver"
+        # tab2_p_hmi.border_fill_color = "silver"
         tab2_p_hmi.border_fill_alpha = 0.4
         tab2_p_hmi.axis.major_tick_out = 0
         tab2_p_hmi.axis.major_tick_in = 5
@@ -679,7 +748,7 @@ if os.path.exists(FS_dspecDF):
                                                          y_range=tab2_p_aia.y_range)
         tab2_p_vla.title.text_font_size = '6pt'
         tab2_p_vla.yaxis.visible = False
-        tab2_p_vla.border_fill_color = "silver"
+        # tab2_p_vla.border_fill_color = "silver"
         tab2_p_vla.border_fill_alpha = 0.4
         tab2_p_vla.axis.major_tick_out = 0
         tab2_p_vla.axis.major_tick_in = 5
@@ -886,7 +955,7 @@ if os.path.exists(FS_dspecDF):
         tab3_p_dspec_vector.yaxis.axis_label = 'Frequency [GHz]'
         tab3_p_dspec_vectorx.yaxis.axis_label = 'Frequency [GHz]'
         tab3_p_dspec_vectory.yaxis.axis_label = 'Frequency [GHz]'
-        tab3_p_dspec_vector.border_fill_color = "silver"
+        # tab3_p_dspec_vector.border_fill_color = "silver"
         tab3_p_dspec_vector.border_fill_alpha = 0.4
         tab3_p_dspec_vector.axis.major_tick_out = 0
         tab3_p_dspec_vector.axis.major_tick_in = 5
@@ -894,7 +963,7 @@ if os.path.exists(FS_dspecDF):
         tab3_p_dspec_vector.axis.minor_tick_in = 3
         tab3_p_dspec_vector.axis.major_tick_line_color = "white"
         tab3_p_dspec_vector.axis.minor_tick_line_color = "white"
-        tab3_p_dspec_vectorx.border_fill_color = "silver"
+        # tab3_p_dspec_vectorx.border_fill_color = "silver"
         tab3_p_dspec_vectorx.border_fill_alpha = 0.4
         tab3_p_dspec_vectorx.axis.major_tick_out = 0
         tab3_p_dspec_vectorx.axis.major_tick_in = 5
@@ -902,7 +971,7 @@ if os.path.exists(FS_dspecDF):
         tab3_p_dspec_vectorx.axis.minor_tick_in = 3
         tab3_p_dspec_vectorx.axis.major_tick_line_color = "white"
         tab3_p_dspec_vectorx.axis.minor_tick_line_color = "white"
-        tab3_p_dspec_vectory.border_fill_color = "silver"
+        # tab3_p_dspec_vectory.border_fill_color = "silver"
         tab3_p_dspec_vectory.border_fill_alpha = 0.4
         tab3_p_dspec_vectory.axis.major_tick_out = 0
         tab3_p_dspec_vectory.axis.major_tick_in = 5
@@ -1016,6 +1085,7 @@ if os.path.exists(FS_dspecDF):
             global tab3_SRC_dspec_vector, tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory
             global mean_amp_g, mean_vx, mean_vy, drange_amp_g, drange_vx, drange_vy
             global vmax_amp_g, vmax_vx, vmax_vy, vmin_amp_g, vmin_vx, vmin_vy
+            global dspecDF
             start_timestamp = time.time()
             amp_g = (dspecDFtmp['peak'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_amp_g = np.nanmean(amp_g)
@@ -1024,6 +1094,9 @@ if os.path.exists(FS_dspecDF):
             amp_g[amp_g > vmax_amp_g] = vmax_amp_g
             amp_g[amp_g < vmin_amp_g] = vmin_amp_g
             tab3_SRC_dspec_vector.data['data'] = [amp_g]
+            # dspecDF = dspecDF.where(dspecDF['peak']>vmin_amp_g)
+            # tab2_SRC_maxfit_centroid_update(dspecDF)
+            # todo add threshold selection to the vector dynamic spectrum
             vx = (dspecDFtmp['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_vx = np.nanmean(vx)
             drange_vx = 40.
@@ -1115,7 +1188,6 @@ if os.path.exists(FS_dspecDF):
 
         tab2_SRC_vla_square.on_change('selected', tab2_vla_square_selection_change)
 
-        # todo add AIA & HMI resolution selection
         tab2_Select_MapRES = Select(title="Img resolution:", value='{}x{}'.format(MapRES, MapRES),
                                     options=["32x32", "64x64", "128x128", "256x256", "512x512", "1024x1024",
                                              "2048x2048"],
@@ -1144,9 +1216,6 @@ if os.path.exists(FS_dspecDF):
 
 
         tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
-
-        # todo add the threshold selection (overplot another gylph)
-
 
         rgnfitsfile = database_dir + event_id + struct_id + "CASA_imfit_region_fits.rgn"
 
@@ -1337,7 +1406,6 @@ if os.path.exists(FS_dspecDF):
         for ctrl in tab3_CTRLs_dspec_small:
             ctrl.on_change('value', tab3_slider_dspec_small_update)
 
-        # todo add the time/freq selection
         tab3_RBG_TimeFreq = RadioButtonGroup(labels=["time", "freq"], active=0)
         tab3_Slider_ANLYS_idx = Slider(start=0, end=tab2_ntim - 1, value=0, step=1, title="time idx", width=450)
 
@@ -1545,7 +1613,6 @@ if os.path.exists(FS_dspecDF):
         # todo add RCP LCP check box
         tab3_CheckboxGroup_pol = CheckboxGroup(labels=["RCP", "LCP"], active=[0, 1])
 
-        # todo add AIA & HMI resolution selection
         tab2_Select_MapRES = Select(title="Img resolution:", value='{}x{}'.format(MapRES, MapRES),
                                     options=["32x32", "64x64", "128x128", "256x256", "512x512", "1024x1024",
                                              "2048x2048"],
@@ -1574,9 +1641,6 @@ if os.path.exists(FS_dspecDF):
 
 
         tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
-        # todo add the threshold selection (overplot another gylph)
-        # todo add the dmax dmin and reset
-
 
         panel2 = row(column(
             row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
@@ -1598,7 +1662,8 @@ if os.path.exists(FS_dspecDF):
                      column(gridplot([tab3_p_dspec_vector], [tab3_p_dspec_vectorx], [tab3_p_dspec_vectory],
                                      toolbar_location='right'), tab3_Div_Tb),
                      widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
-                               tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab2_panel3_BUT_exit,
+                               tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab2_Select_aia_wave,
+                               tab2_panel3_BUT_exit,
                                tab2_panel3_Div_exit,
                                width=200))
         # tab2 = Panel(child=panel2, title="FS View")
@@ -1697,7 +1762,7 @@ if os.path.exists(FS_dspecDF):
                                                     config_plot['plot_config']['tab_FSview_base'][
                                                         'dspec_hght'] / tab2_nfreq))
 
-            tab2_p_dspec.border_fill_color = "silver"
+            # tab2_p_dspec.border_fill_color = "silver"
             tab2_p_dspec.border_fill_alpha = 0.4
             tab2_p_dspec.axis.major_tick_out = 0
             tab2_p_dspec.axis.major_tick_in = 5
@@ -1737,7 +1802,7 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec_xPro.xaxis.axis_label = 'Seconds since ' + tim0_char
             tab2_p_dspec_xPro.yaxis.axis_label_text_font_size = '5px'
             tab2_p_dspec_xPro.yaxis.axis_label = 'Intensity [sfu]'
-            tab2_p_dspec_xPro.border_fill_color = "silver"
+            # tab2_p_dspec_xPro.border_fill_color = "silver"
             tab2_p_dspec_xPro.border_fill_alpha = 0.4
             tab2_p_dspec_xPro.axis.major_tick_out = 0
             tab2_p_dspec_xPro.axis.major_tick_in = 5
@@ -1770,7 +1835,7 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec_yPro.background_fill_alpha = 0.4
             tab2_p_dspec_yPro.xaxis.axis_label = 'Intensity [sfu]'
             tab2_p_dspec_yPro.yaxis.axis_label_text_font_size = '5px'
-            tab2_p_dspec_yPro.border_fill_color = "silver"
+            # tab2_p_dspec_yPro.border_fill_color = "silver"
             tab2_p_dspec_yPro.border_fill_alpha = 0.4
             tab2_p_dspec_yPro.min_border_bottom = 0
             tab2_p_dspec_yPro.min_border_left = 0
@@ -2026,7 +2091,7 @@ if os.path.exists(FS_dspecDF):
             tab2_p_aia.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
                                   line_width=2)
             tab2_p_aia.title.text_font_size = '6pt'
-            tab2_p_aia.border_fill_color = "silver"
+            # tab2_p_aia.border_fill_color = "silver"
             tab2_p_aia.border_fill_alpha = 0.4
             tab2_p_aia.axis.major_tick_out = 0
             tab2_p_aia.axis.major_tick_in = 5
@@ -2064,7 +2129,7 @@ if os.path.exists(FS_dspecDF):
             tab2_p_hmi.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
                                   line_width=2)
             tab2_p_hmi.yaxis.visible = False
-            tab2_p_hmi.border_fill_color = "silver"
+            # tab2_p_hmi.border_fill_color = "silver"
             tab2_p_hmi.border_fill_alpha = 0.4
             tab2_p_hmi.axis.major_tick_out = 0
             tab2_p_hmi.axis.major_tick_in = 5
@@ -2084,7 +2149,7 @@ if os.path.exists(FS_dspecDF):
                                                              y_range=tab2_p_aia.y_range)
             tab2_p_vla.title.text_font_size = '6pt'
             tab2_p_vla.yaxis.visible = False
-            tab2_p_vla.border_fill_color = "silver"
+            # tab2_p_vla.border_fill_color = "silver"
             tab2_p_vla.border_fill_alpha = 0.4
             tab2_p_vla.axis.major_tick_out = 0
             tab2_p_vla.axis.major_tick_in = 5
@@ -2265,7 +2330,6 @@ if os.path.exists(FS_dspecDF):
 
             tab2_SRC_vla_square.on_change('selected', tab2_vla_square_selection_change)
 
-            # todo add AIA & HMI resolution selection
             tab2_Select_MapRES = Select(title="Img resolution:", value='{}x{}'.format(MapRES, MapRES),
                                         options=["32x32", "64x64", "128x128", "256x256", "512x512", "1024x1024",
                                                  "2048x2048"],
@@ -2294,9 +2358,6 @@ if os.path.exists(FS_dspecDF):
 
 
             tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
-
-            # todo add the threshold selection (overplot another gylph)
-
 
             rgnfitsfile = database_dir + event_id + struct_id + "CASA_imfit_region_fits.rgn"
 
@@ -2420,6 +2481,7 @@ if os.path.exists(FS_dspecDF):
 
 
             def tab2_BUT_timfit_param_reload():
+                global tab2_tImfit_Param_dict
                 try:
                     with open(database_dir + event_id + struct_id + 'CASA_imfit_args.json', 'r') as fp:
                         tab2_timfit_Param_dict = json.load(fp)
@@ -2597,7 +2659,7 @@ else:
                                             line_alpha=1.0, line_width=1)
     tab2_p_dspec.add_tools(BoxSelectTool())
     tab2_p_dspec.select(BoxSelectTool).select_every_mousemove = False
-    tab2_p_dspec.border_fill_color = "silver"
+    # tab2_p_dspec.border_fill_color = "silver"
     tab2_p_dspec.border_fill_alpha = 0.4
     tab2_p_dspec.axis.major_tick_out = 0
     tab2_p_dspec.axis.major_tick_in = 5
@@ -2616,7 +2678,7 @@ else:
         tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
 
         if tab2_dspec_selected:
-            global dspecDF
+            global dspecDF, tab2_tCLN_Param_dict
             dspecDF = dspecDF0.copy()
             dspecDF = dspecDF.iloc[tab2_dspec_selected, :]
             x0, x1 = dspecDF['time'].min(), dspecDF['time'].max()
@@ -2675,7 +2737,7 @@ else:
     tab2_p_dspec_xPro.xaxis.axis_label = 'Seconds since ' + tim0_char
     tab2_p_dspec_xPro.yaxis.axis_label_text_font_size = '5px'
     tab2_p_dspec_xPro.yaxis.axis_label = 'Intensity [sfu]'
-    tab2_p_dspec_xPro.border_fill_color = "silver"
+    # tab2_p_dspec_xPro.border_fill_color = "silver"
     tab2_p_dspec_xPro.border_fill_alpha = 0.4
     tab2_p_dspec_xPro.axis.major_tick_out = 0
     tab2_p_dspec_xPro.axis.major_tick_in = 5
@@ -2709,7 +2771,7 @@ else:
     tab2_p_dspec_yPro.xaxis.axis_label_text_font_size = '5px'
     tab2_p_dspec_yPro.min_border_bottom = 0
     tab2_p_dspec_yPro.min_border_left = 0
-    tab2_p_dspec_yPro.border_fill_color = "silver"
+    # tab2_p_dspec_yPro.border_fill_color = "silver"
     tab2_p_dspec_yPro.border_fill_alpha = 0.4
     tab2_p_dspec_yPro.axis.major_tick_out = 0
     tab2_p_dspec_yPro.axis.major_tick_in = 5
@@ -2819,6 +2881,7 @@ else:
 
 
     def tab2_BUT_tCLN_param_add():
+        global tab2_tCLN_Param_dict
         tab2_Div_tCLN2.text = ' '
         txts = tab2_input_tCLN.value.strip()
         txts = txts.split(';')
@@ -2855,6 +2918,7 @@ else:
     def tab2_BUT_tCLN_param_default():
         global tab2_tCLN_Param_dict
         tab2_tCLN_Param_dict = OrderedDict()
+        tab2_tCLN_Param_dict['workdir'] = "'./'"
         tab2_tCLN_Param_dict['vis'] = "''"
         tab2_tCLN_Param_dict['imageprefix'] = "'slfcal/{}'".format(struct_id)
         tab2_tCLN_Param_dict['ncpu'] = "10"
@@ -2878,7 +2942,7 @@ else:
         tab2_tCLN_Param_dict['mask'] = "''"
         tab2_tCLN_Param_dict['stokes'] = "'RRLL'"
         tab2_tCLN_Param_dict['uvtaper'] = 'True'
-        tab2_tCLN_Param_dict['outertaper'] = "[]"
+        tab2_tCLN_Param_dict['outertaper'] = "'15.0arcsec'"
         tab2_tCLN_Param_dict['uvrange'] = "''"
         tab2_tCLN_Param_dict['niter'] = "200"
         tab2_tCLN_Param_dict['usescratch'] = "False"
@@ -2912,6 +2976,7 @@ else:
 
 
     def tab2_BUT_tCLN_param_reload():
+        global tab2_tCLN_Param_dict
         with open(database_dir + event_id + struct_id + 'CASA_CLN_args.json', 'r') as fp:
             tab2_tCLN_Param_dict = json.load(fp)
         tab2_Div_tCLN_text = '<p><b>#  ptclean :: Parallelized clean in consecutive time steps</b></p>' + ' '.join(
@@ -2931,8 +2996,22 @@ else:
         timestrs = []
         fits_local = []
         fits_global = []
-        for ii in range(len(xx)):
-            t0 = xx[ii]
+        if 'twidth' in tab2_tCLN_Param_dict.keys():
+            val = tab2_tCLN_Param_dict['twidth']
+            exec ('twidth = int({})'.format(val))
+        else:
+            twidth = 1
+        if 'workdir' in tab2_tCLN_Param_dict.keys():
+            val = tab2_tCLN_Param_dict['workdir']
+            exec ('workdir = {}'.format(val))
+        else:
+            workdir = './'
+        os.system('cp {} {}'.format(database_dir + event_id + struct_id + 'CASA_CLN_args.json', workdir))
+        os.system('cp {}/DataBrowser/FSview/script_clean.py {}'.format(suncasa_dir, workdir))
+
+        for ii in range(tab2_ntim):
+            iit = int(ii) / twidth * twidth
+            t0 = xx[iit] - tab2_dt / 2
             datestr = Time(t0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date').iso
             timestr0 = Time(t0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
             timestr0 = timestr0.split(' ')[1]
@@ -2940,6 +3019,9 @@ else:
             timestrs.append(timestr0)
             fits_local.append(timestr + '.fits')
             fits_global.append(timestr + '.fits')
+        timestrs = timestrs * int(tab2_nfreq)
+        fits_local = fits_local * int(tab2_nfreq)
+        fits_global = fits_global * int(tab2_nfreq)
         freqstrs = ['{:.3f}'.format(ll) for ll in yy]
         dspecDF_tmp = pd.DataFrame({'time': xx - xx[0],
                                     'freq': yy,
