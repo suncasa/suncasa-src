@@ -561,7 +561,7 @@ if os.path.exists(FS_dspecDF):
             data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
 
         # import the vla image
-        hdu = read_fits(hdufile)
+        hdu = read_fits(vlafile[0])
         fidx = np.where(hdu.data[0, :, hdu.header["NAXIS2"] / 2, hdu.header["NAXIS1"] / 2])[0][0]
         vla_local_pfmap = PuffinMap(hdu.data[0, fidx, :, :], hdu.header,
                                     plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
@@ -2051,7 +2051,7 @@ if os.path.exists(FS_dspecDF):
                 data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
 
             # import the vla image
-            hdu = read_fits(hdufile)
+            hdu = read_fits(vlafile[0])
             fidx = np.where(hdu.data[0, :, hdu.header["NAXIS2"] / 2, hdu.header["NAXIS1"] / 2])[0][0]
             vla_local_pfmap = PuffinMap(hdu.data[0, fidx, :, :], hdu.header,
                                         plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
