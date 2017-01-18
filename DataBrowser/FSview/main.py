@@ -397,8 +397,7 @@ if os.path.exists(FS_dspecDF):
                             hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
                             if os.path.exists(hdufile):
                                 hdu = read_fits(hdufile)
-                                hdu_goodchan = \
-                                    goodchan(hdu)
+                                hdu_goodchan = goodchan(hdu)
                                 nfreq_hdu = hdu_goodchan[-1] - hdu_goodchan[0] + 1
                                 freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                                 freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
@@ -422,8 +421,7 @@ if os.path.exists(FS_dspecDF):
                             hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
                             if os.path.exists(hdufile):
                                 hdu = read_fits(hdufile)
-                                hdu_goodchan = \
-                                    goodchan(hdu)
+                                hdu_goodchan = goodchan(hdu)
                                 nfreq_hdu = hdu_goodchan[-1] - hdu_goodchan[0] + 1
                                 freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                                 freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
