@@ -11,7 +11,7 @@ import glob
 from astropy.time import Time
 import astropy.units as u
 import numpy as np
-
+from collections import OrderedDict
 
 def getfreeport():
     import socket
@@ -56,7 +56,7 @@ EvtID_list = EvtID_list.sort_values(['date'], ascending=[True])
 -------------------------- panel 0 --------------------------
 '''
 tab0_Div_title = Div(text="""
-<p><b>Welcome to Event Browser. Select one solar event to start. Have fun!</b></p>""",
+<p><b>Welcome to Event Browser. Select one solar flare event to start. Have fun!</b></p>""",
                      width=config['plot_config']['tab_EvtBrowser']['StrID_DataTb_wdth'])
 
 tab0_SRC_Tb_EvtID = ColumnDataSource(EvtID_list)
@@ -122,6 +122,10 @@ tab0_BUT_EvtSel.on_click(tab0_EvtSel)
 
 
 def tab0_DDownload():
+    # import drms
+    # c = drms.Client()
+    # c = drms.Client(email='sijie.yu@njit.edu', verbose=True)
+    # k = c.query('aia.lev1_euv_12s[2012-03-10T12:00:00_TAI/10m@5m][171,94]', key='T_REC,WAVELNTH',seg='image')
     if tab0_selected_EvtID_entry:
         EvtID = EvtID_list.iloc[tab0_selected_EvtID_entry[0]]['event_id'][0]
         event_id = EvtID + '/'
@@ -238,6 +242,21 @@ def tab0_DDownload():
 
 tab0_BUT_DDownload = Button(label='SDO image fetch', width=150, button_type='primary')
 tab0_BUT_DDownload.on_click(tab0_DDownload)
+
+
+# def tab2_BUT_tCLN_param_default():
+#     global tab2_tCLN_Param_dict
+#     tab2_tCLN_Param_dict = OrderedDict()
+#     tab2_tCLN_Param_dict['WAVELENGTH'] = "'171,193,hmi'"
+#     tab2_tCLN_Param_dict['cadence'] = "''"
+#     tab2_tCLN_Param_dict['email'] = "''"
+#     tab2_Div_tCLN_text = '<p><b>#  ptclean :: Parallelized clean in consecutive time steps</b></p>' + ' '.join(
+#         "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tCLN_Param_dict.items())
+#     tab2_Div_tCLN.text = tab2_Div_tCLN_text
+#     tab2_Div_tCLN2.text = '<p><b>Default parameter Restored.</b></p>'
+#
+#
+# tab2_BUT_tCLN_param_default()
 
 tab0_SPCR_LFT_Div_title = Spacer(width=200, height=10)
 tab0_SPCR_RGT_Div_title = Spacer(width=50, height=10)
