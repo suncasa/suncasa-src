@@ -67,8 +67,8 @@ def sdo_aia_scale(image=None, wavelength=None):
 
 
 def sdomapfromlocalfile(wavelength=None, jdtime=None):
-    aiafitspath = glob.glob(database_dir + event_id + '/AIA/aia_lev1_{}a*.fits'.format(wavelength))
-    aiafits = [ll.split('/')[-1] for ll in aiafitspath]
+    sdofitspath = glob.glob(database_dir + event_id + '/AIA/aia_lev1_{}a*.fits'.format(wavelength))
+    aiafits = [ll.split('/')[-1] for ll in sdofitspath]
     aiatimeline = [ll.replace('aia_lev1_{}a_'.format(wavelength), '').replace('z_image_lev1.fits.fits', '') for
                    ll in aiafits]
     aiatimeline = [ll.split('t')[0].replace('_', '-') + ' ' + ll.split('t')[1].replace('_', ':') for ll in
@@ -76,7 +76,7 @@ def sdomapfromlocalfile(wavelength=None, jdtime=None):
     aiatimeline = [ll[0:ll.rindex(':')] + '.' + ll[(ll.rindex(':') + 1):] for ll in aiatimeline]
     aiatimeline = Time(aiatimeline, format='iso', scale='utc')
     idxaia = np.argmin(np.abs(aiatimeline.jd - jdtime))
-    filepath = aiafitspath[idxaia]
+    filepath = sdofitspath[idxaia]
     aiamap = sunpy.map.Map(filepath)
     aiamap.data = sdo_aia_scale(image=aiamap.data / aiamap.exposure_time.value, wavelength=wavelength)
     return aiamap
