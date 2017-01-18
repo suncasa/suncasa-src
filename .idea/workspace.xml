@@ -2,11 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="06b12ae3-fcee-44b4-90bf-75d41dbe85f4" name="Default" comment="">
-      <change type="DELETED" beforePath="$PROJECT_DIR$/.idea/misc.xml" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/.idea/modules.xml" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/.idea/suncasa.iml" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/.idea/vcs.xml" afterPath="" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="" />
     </list>
     <ignored path="suncasa.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -29,48 +25,14 @@
       <file leaf-file-name="main.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/DataBrowser/FSview/main.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="180">
-              <caret line="71" column="99" lean-forward="true" selection-start-line="71" selection-start-column="99" selection-end-line="71" selection-end-column="99" />
+            <state relative-caret-position="225">
+              <caret line="74" column="31" lean-forward="true" selection-start-line="74" selection-start-column="31" selection-end-line="74" selection-end-column="31" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
     </leaf>
-  </component>
-  <component name="FindInProjectRecents">
-    <findStrings>
-      <find>iso</find>
-      <find>smap</find>
-      <find>Time</find>
-      <find>image =</find>
-      <find>image=</find>
-      <find>outerta</find>
-      <find>border_fill_color</find>
-      <find>imread</find>
-      <find>bokeh</find>
-      <find>edge</find>
-      <find>bandedge</find>
-      <find>bdedge</find>
-      <find>split</find>
-      <find>good_idx</find>
-      <find>uv[</find>
-      <find>-{:d}m.ms</find>
-      <find>-5</find>
-      <find>mjd</find>
-      <find>observation</find>
-      <find>fits</find>
-      <find>aiamap</find>
-      <find>aia</find>
-      <find>where</find>
-      <find>vla_local_pfmap</find>
-      <find>vla_local_pfmap =</find>
-      <find>QLook_util</find>
-      <find>event_specfile</find>
-      <find>dspecDF0</find>
-      <find>bl</find>
-      <find>sdomapfromlocalfile</find>
-    </findStrings>
   </component>
   <component name="Git.Settings">
     <option name="UPDATE_TYPE" value="REBASE" />
@@ -114,6 +76,7 @@
         <option value="$PROJECT_DIR$/tasks/task_importeovsa_udb2.py" />
         <option value="$PROJECT_DIR$/tasks/task_importeovsa.py" />
         <option value="$PROJECT_DIR$/DataBrowser/FSview/main.py" />
+        <option value="$PROJECT_DIR$/.idea/workspace.xml" />
       </list>
     </option>
   </component>
@@ -224,15 +187,6 @@
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="settings.editor.selected.configurable" value="vcs.Git" />
     <property name="ChangesBrowser.SHOW_FLATTEN" value="true" />
-  </component>
-  <component name="RecentsManager">
-    <key name="CopyFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/tasks" />
-      <recent name="$PROJECT_DIR$/DataBrowser" />
-    </key>
-    <key name="MoveFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/DataBrowser" />
-    </key>
   </component>
   <component name="RunManager" selected="Python.main">
     <configuration default="false" name="main" type="PythonConfigurationType" factoryName="Python" temporary="true">
@@ -409,9 +363,6 @@
   <component name="ShelveChangesManager" show_recycled="false">
     <option name="remove_strategy" value="false" />
   </component>
-  <component name="SvnConfiguration">
-    <configuration />
-  </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="06b12ae3-fcee-44b4-90bf-75d41dbe85f4" name="Default" comment="" />
@@ -419,13 +370,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1477931895720</updated>
-    </task>
-    <task id="LOCAL-00118" summary="dspec_vector colormap changed">
-      <created>1480963028201</created>
-      <option name="number" value="00118" />
-      <option name="presentableId" value="LOCAL-00118" />
-      <option name="project" value="LOCAL" />
-      <updated>1480963028201</updated>
     </task>
     <task id="LOCAL-00119" summary="add threshold selection to the Vector dynamic spectrum">
       <created>1480966293907</created>
@@ -763,17 +707,15 @@
       <option name="project" value="LOCAL" />
       <updated>1484738610563</updated>
     </task>
-    <option name="localTasksCounter" value="167" />
+    <task id="LOCAL-00167" summary="read SDO images from fits">
+      <created>1484738827698</created>
+      <option name="number" value="00167" />
+      <option name="presentableId" value="LOCAL-00167" />
+      <option name="project" value="LOCAL" />
+      <updated>1484738827698</updated>
+    </task>
+    <option name="localTasksCounter" value="168" />
     <servers />
-  </component>
-  <component name="TodoView" selected-index="4">
-    <todo-panel id="selected-file">
-      <is-autoscroll-to-source value="true" />
-    </todo-panel>
-    <todo-panel id="all">
-      <are-packages-shown value="true" />
-      <is-autoscroll-to-source value="true" />
-    </todo-panel>
   </component>
   <component name="ToolWindowManager">
     <frame x="0" y="23" width="1440" height="873" extended-state="6" />
@@ -816,14 +758,6 @@
       </map>
     </option>
   </component>
-  <component name="Vcs.Log.UiProperties">
-    <option name="RECENTLY_FILTERED_USER_GROUPS">
-      <collection />
-    </option>
-    <option name="RECENTLY_FILTERED_BRANCH_GROUPS">
-      <collection />
-    </option>
-  </component>
   <component name="VcsContentAnnotationSettings">
     <option name="myLimit" value="2678400000" />
   </component>
@@ -863,7 +797,6 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/DataBrowser/QLook/EvtID_list.json" />
     <entry file="file://$PROJECT_DIR$/vla/vla_prep.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="6750">
@@ -1180,28 +1113,21 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/DataBrowser/FSview/main.py">
+    <entry file="file://$PROJECT_DIR$/.idea/workspace.xml">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="180">
-          <caret line="71" column="99" lean-forward="true" selection-start-line="71" selection-start-column="99" selection-end-line="71" selection-end-column="99" />
+        <state relative-caret-position="234">
+          <caret line="1204" column="34" lean-forward="true" selection-start-line="1204" selection-start-column="34" selection-end-line="1204" selection-end-column="34" />
           <folding />
         </state>
       </provider>
     </entry>
-  </component>
-  <component name="masterDetails">
-    <states>
-      <state key="ScopeChooserConfigurable.UI">
-        <settings>
-          <splitter-proportions>
-            <option name="proportions">
-              <list>
-                <option value="0.2" />
-              </list>
-            </option>
-          </splitter-proportions>
-        </settings>
-      </state>
-    </states>
+    <entry file="file://$PROJECT_DIR$/DataBrowser/FSview/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="225">
+          <caret line="74" column="31" lean-forward="true" selection-start-line="74" selection-start-column="31" selection-end-line="74" selection-end-column="31" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
   </component>
 </project>
