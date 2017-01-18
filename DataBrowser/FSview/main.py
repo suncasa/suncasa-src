@@ -405,16 +405,16 @@ if os.path.exists(FS_dspecDF):
                                 vla_l = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                                 vla_r = hdu.data[1, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                                 spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                    np.nanmean(vla_l, axis=(-1, -2))
+                                    np.nanmean(vla_l, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                 spec_plt_R[spec_plt_R < 0] = 0
                                 spec_plt_L[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                    np.nanmean(vla_r, axis=(-1, -2))
+                                    np.nanmean(vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                 spec_plt_L[spec_plt_L < 0] = 0
                                 spec_plt_I[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                    np.nanmean(vla_l + vla_r, axis=(-1, -2))
+                                    np.nanmean(vla_l + vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                 spec_plt_I[spec_plt_I < 0] = 0
                                 spec_plt_V[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                    np.nanmean(vla_l - vla_r, axis=(-1, -2))
+                                    np.nanmean(vla_l - vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                 spec_plt_V[spec_plt_V < 0] = 0
                     elif len(pols) == 1:
                         for ll in xrange(tab2_ntim):
@@ -427,7 +427,7 @@ if os.path.exists(FS_dspecDF):
                                 freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
                                 idxfreq = freq.index(freq_ref)
                                 vladata = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
-                                vlaflux = np.nanmean(vladata, axis=(-1, -2))
+                                vlaflux = np.nanmean(vladata, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                 spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = vlaflux
                                 spec_plt_R[spec_plt_R < 0] = 0
                         spec_plt_L = spec_plt_R
@@ -1951,16 +1951,16 @@ if os.path.exists(FS_dspecDF):
                                     vla_l = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                                     vla_r = hdu.data[1, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                                     spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                        np.nanmean(vla_l, axis=(-1, -2))
+                                        np.nanmean(vla_l, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                     spec_plt_R[spec_plt_R < 0] = 0
                                     spec_plt_L[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                        np.nanmean(vla_r, axis=(-1, -2))
+                                        np.nanmean(vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                     spec_plt_L[spec_plt_L < 0] = 0
                                     spec_plt_I[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                        np.nanmean(vla_l + vla_r, axis=(-1, -2))
+                                        np.nanmean(vla_l + vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                     spec_plt_I[spec_plt_I < 0] = 0
                                     spec_plt_V[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                        np.nanmean(vla_l - vla_r, axis=(-1, -2))
+                                        np.nanmean(vla_l - vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                     spec_plt_V[spec_plt_V < 0] = 0
                         elif len(pols) == 1:
                             for ll in xrange(tab2_ntim):
@@ -1973,7 +1973,7 @@ if os.path.exists(FS_dspecDF):
                                     freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
                                     idxfreq = freq.index(freq_ref)
                                     vladata = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
-                                    vlaflux = np.nanmean(vladata, axis=(-1, -2))
+                                    vlaflux = np.nanmean(vladata, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                     spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = vlaflux
                                     spec_plt_R[spec_plt_R < 0] = 0
                             spec_plt_L = spec_plt_R
