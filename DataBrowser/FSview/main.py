@@ -49,6 +49,11 @@ bokehpalette_viridis = [colors.rgb2hex(m) for m in colormap_viridis(np.arange(co
 -------------------------- panel 2,3   --------------------------
 '''
 
+def read_fits(fname):
+    hdulist = fits.open(fname)
+    hdu = hdulist[0]
+    return hdu
+
 
 def sdo_aia_scale(image=None, wavelength=None):
     if wavelength == '94':
@@ -380,8 +385,7 @@ if os.path.exists(FS_dspecDF):
                         for ll in xrange(tab2_ntim):
                             hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
                             if os.path.exists(hdufile):
-                                hdulist = fits.open(hdufile)
-                                hdu = hdulist[0]
+                                hdu = read_fits(hdufile)
                                 nfreq_hdu = hdu.header['NAXIS3']
                                 freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                                 freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
@@ -404,8 +408,7 @@ if os.path.exists(FS_dspecDF):
                         for ll in xrange(tab2_ntim):
                             hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
                             if os.path.exists(hdufile):
-                                hdulist = fits.open(hdufile)
-                                hdu = hdulist[0]
+                                hdu = read_fits(hdufile)
                                 nfreq_hdu = hdu.header['NAXIS3']
                                 freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                                 freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
@@ -558,8 +561,7 @@ if os.path.exists(FS_dspecDF):
             data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
 
         # import the vla image
-        hdulist = fits.open(vlafile[0])
-        hdu = hdulist[0]
+        hdu = read_fits(hdufile)
         fidx = np.where(hdu.data[0, :, hdu.header["NAXIS2"] / 2, hdu.header["NAXIS1"] / 2])[0][0]
         vla_local_pfmap = PuffinMap(hdu.data[0, fidx, :, :], hdu.header,
                                     plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
@@ -841,8 +843,7 @@ if os.path.exists(FS_dspecDF):
                               'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
             hdufile = fits_LOCL_dir + dspecDF0.loc[tidx, :]['fits_local']
             if os.path.exists(hdufile):
-                hdulist = fits.open(hdufile)
-                hdu = hdulist[0]
+                hdu = read_fits(hdufile)
                 if select_vla_pol == 'RR':
                     vladata = hdu.data[pols.index('RR'), fidx, :, :]
                 elif select_vla_pol == 'LL':
@@ -1920,8 +1921,7 @@ if os.path.exists(FS_dspecDF):
                             for ll in xrange(tab2_ntim):
                                 hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
                                 if os.path.exists(hdufile):
-                                    hdulist = fits.open(hdufile)
-                                    hdu = hdulist[0]
+                                    hdu = read_fits(hdufile)
                                     nfreq_hdu = hdu.header['NAXIS3']
                                     freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                                     freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
@@ -1944,8 +1944,7 @@ if os.path.exists(FS_dspecDF):
                             for ll in xrange(tab2_ntim):
                                 hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
                                 if os.path.exists(hdufile):
-                                    hdulist = fits.open(hdufile)
-                                    hdu = hdulist[0]
+                                    hdu = read_fits(hdufile)
                                     nfreq_hdu = hdu.header['NAXIS3']
                                     freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                                     freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
@@ -2052,8 +2051,7 @@ if os.path.exists(FS_dspecDF):
                 data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
 
             # import the vla image
-            hdulist = fits.open(vlafile[0])
-            hdu = hdulist[0]
+            hdu = read_fits(hdufile)
             fidx = np.where(hdu.data[0, :, hdu.header["NAXIS2"] / 2, hdu.header["NAXIS1"] / 2])[0][0]
             vla_local_pfmap = PuffinMap(hdu.data[0, fidx, :, :], hdu.header,
                                         plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
@@ -2245,8 +2243,7 @@ if os.path.exists(FS_dspecDF):
                                   'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
                 hdufile = fits_LOCL_dir + dspecDF0.loc[tidx, :]['fits_local']
                 if os.path.exists(hdufile):
-                    hdulist = fits.open(hdufile)
-                    hdu = hdulist[0]
+                    hdu = read_fits(hdufile)
                     if select_vla_pol == 'RR':
                         vladata = hdu.data[pols.index('RR'), fidx, :, :]
                     elif select_vla_pol == 'LL':
@@ -2934,7 +2931,7 @@ else:
         tab2_tCLN_Param_dict['imageprefix'] = "'slfcal/{}'".format(struct_id)
         tab2_tCLN_Param_dict['ncpu'] = "10"
         tab2_tCLN_Param_dict['twidth'] = "1"
-        tab2_tCLN_Param_dict['doreg'] = "True"
+        tab2_tCLN_Param_dict['doreg'] = "False"
         tab2_tCLN_Param_dict['timerange'] = "''"
         tab2_tCLN_Param_dict['uvrange'] = "''"
         tab2_tCLN_Param_dict['antenna'] = "''"
