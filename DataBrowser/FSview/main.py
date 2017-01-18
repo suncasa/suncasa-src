@@ -66,7 +66,7 @@ def sdo_aia_scale(image=None, wavelength=None):
     return bytescale(image)
 
 
-def aiamapfromlocalfile(wavelength=None, jdtime=None):
+def sdomapfromlocalfile(wavelength=None, jdtime=None):
     aiafitspath = glob.glob(database_dir + event_id + '/AIA/aia_lev1_{}a*.fits'.format(wavelength))
     aiafits = [ll.split('/')[-1] for ll in aiafitspath]
     aiatimeline = [ll.replace('aia_lev1_{}a_'.format(wavelength), '').replace('z_image_lev1.fits.fits', '') for
@@ -588,7 +588,7 @@ if os.path.exists(FS_dspecDF):
 
 
 
-        aiamap = aiamapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
+        aiamap = sdomapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
         # filepath = database_dir + event_id + struct_id + config_EvtID['datadir'][
         #     'J2000'] + '2014_11_01__16_45_59_34__SDO_AIA_AIA_171.jp2'
         # aiamap = sunpy.map.Map(filepath)
@@ -690,7 +690,7 @@ if os.path.exists(FS_dspecDF):
             global tab3_r_aia_submap
             select_wave = tab2_Select_aia_wave.value
             print 'wavelength {} selected'.format(select_wave)
-            aiamap = aiamapfromlocalfile(wavelength=select_wave, jdtime=xx[0] / 3600. / 24.)
+            aiamap = sdomapfromlocalfile(wavelength=select_wave, jdtime=xx[0] / 3600. / 24.)
             lengthx = vla_local_pfmap.dw[0] * u.arcsec
             lengthy = vla_local_pfmap.dh[0] * u.arcsec
             x0 = vla_local_pfmap.smap.center.x
@@ -2081,7 +2081,7 @@ if os.path.exists(FS_dspecDF):
             colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
             bokehpalette_sdoaia171 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
             # aiamap = sunpy.map.Map(filepath)
-            aiamap = aiamapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
+            aiamap = sdomapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
             MapRES = 256
             dimensions = u.Quantity([MapRES, MapRES], u.pixel)
             aia_resampled_map = aiamap.resample(dimensions)
