@@ -26,9 +26,11 @@
           <file leaf-file-name="main.py" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/DataBrowser/FSview/main.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="270">
-                  <caret line="562" column="72" lean-forward="false" selection-start-line="562" selection-start-column="72" selection-end-line="562" selection-end-column="72" />
-                  <folding />
+                <state relative-caret-position="165">
+                  <caret line="2085" column="12" lean-forward="false" selection-start-line="2085" selection-start-column="12" selection-end-line="2085" selection-end-column="86" />
+                  <folding>
+                    <element signature="e#0#11#0" expanded="true" />
+                  </folding>
                 </state>
               </provider>
             </entry>
@@ -40,8 +42,8 @@
           <file leaf-file-name="main.py" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/DataBrowser/FSview/main.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="318">
-                  <caret line="562" column="72" lean-forward="false" selection-start-line="562" selection-start-column="72" selection-end-line="562" selection-end-column="72" />
+                <state relative-caret-position="555">
+                  <caret line="77" column="57" lean-forward="false" selection-start-line="77" selection-start-column="57" selection-end-line="77" selection-end-column="57" />
                   <folding>
                     <element signature="e#0#11#0" expanded="true" />
                   </folding>
@@ -184,6 +186,14 @@
       <option name="presentableId" value="Default" />
       <updated>1484743780069</updated>
     </task>
+    <task id="LOCAL-00001" summary="read sdo images from fits files">
+      <created>1484744885877</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1484744885877</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="ToolWindowManager">
@@ -229,6 +239,10 @@
   </component>
   <component name="VcsContentAnnotationSettings">
     <option name="myLimit" value="2678400000" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="read sdo images from fits files" />
+    <option name="LAST_COMMIT_MESSAGE" value="read sdo images from fits files" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -563,9 +577,11 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/DataBrowser/FSview/main.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="270">
-          <caret line="562" column="72" lean-forward="false" selection-start-line="562" selection-start-column="72" selection-end-line="562" selection-end-column="72" />
-          <folding />
+        <state relative-caret-position="555">
+          <caret line="77" column="57" lean-forward="false" selection-start-line="77" selection-start-column="57" selection-end-line="77" selection-end-column="57" />
+          <folding>
+            <element signature="e#0#11#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

@@ -69,7 +69,8 @@ def sdo_aia_scale(image=None, wavelength=None):
 def sdomapfromlocalfile(wavelength=None, jdtime=None):
     aiafitspath = glob.glob(database_dir + event_id + '/AIA/aia_lev1_{}a*.fits'.format(wavelength))
     aiafits = [ll.split('/')[-1] for ll in aiafitspath]
-    aiatimeline = [ll.replace('aia_lev1_{}a_'.format(wavelength), '').replace('z_image_lev1.fits.fits', '') for
+    aiatimeline = [ll.replace('aia_lev1_{}a_'.format(wavelength), '').replace('.fits', '').replace('z_image_lev1', '')
+                   for
                    ll in aiafits]
     aiatimeline = [ll.split('t')[0].replace('_', '-') + ' ' + ll.split('t')[1].replace('_', ':') for ll in
                    aiatimeline]
