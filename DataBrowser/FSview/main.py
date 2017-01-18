@@ -559,7 +559,8 @@ if os.path.exists(FS_dspecDF):
         # import the vla image
         hdulist = fits.open(vlafile[0])
         hdu = hdulist[0]
-        vla_local_pfmap = PuffinMap(hdu.data[0, np.where(hdu.data[0, :, 256, 256])[0][0], :, :], hdu.header,
+        fidx = np.where(hdu.data[0, :, hdu.header["NAXIS2"] / 2, hdu.header["NAXIS1"] / 2])[0][0]
+        vla_local_pfmap = PuffinMap(hdu.data[0, fidx, :, :], hdu.header,
                                     plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
                                     plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
                                     webgl=config_plot['plot_config']['WebGL'])
@@ -573,7 +574,6 @@ if os.path.exists(FS_dspecDF):
         colormap = cm.get_cmap("cubehelix")  # choose any matplotlib colormap here
         bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
-
 
         # import the aia image
         # from sunpy.net.helioviewer import HelioviewerClient
@@ -2053,7 +2053,8 @@ if os.path.exists(FS_dspecDF):
             # import the vla image
             hdulist = fits.open(vlafile[0])
             hdu = hdulist[0]
-            vla_local_pfmap = PuffinMap(hdu.data[0, np.where(hdu.data[0, :, 256, 256])[0][0], :, :], hdu.header,
+            fidx = np.where(hdu.data[0, :, hdu.header["NAXIS2"] / 2, hdu.header["NAXIS1"] / 2])[0][0]
+            vla_local_pfmap = PuffinMap(hdu.data[0, fidx, :, :], hdu.header,
                                         plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
                                         plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
                                         webgl=config_plot['plot_config']['WebGL'])
@@ -2122,8 +2123,8 @@ if os.path.exists(FS_dspecDF):
             colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
             bokehpalette_sdohmimag = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
             # hmimap = sunpy.map.Map(filepath)
-            #todo fix this bug
-            hmimap=aiamap
+            # todo fix this bug
+            hmimap = aiamap
             # plot the global HMI image
             hmi_resampled_map = hmimap.resample(dimensions)
             hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
