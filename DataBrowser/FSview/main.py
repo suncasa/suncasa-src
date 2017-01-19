@@ -50,6 +50,22 @@ bokehpalette_viridis = [colors.rgb2hex(m) for m in colormap_viridis(np.arange(co
 '''
 
 
+def read_fits(fname):
+    hdulist = fits.open(fname)
+    hdu = hdulist[0]
+    return hdu
+
+
+def goodchan(hdu):
+    ndx = hdu.header["NAXIS1"]
+    ndy = hdu.header["NAXIS2"]
+    xc = ndx / 2
+    yc = ndy / 2
+    hdu_goodchan = \
+    np.where(np.nanmean(hdu.data[0, :, yc - ndy / 16:yc + ndy / 16, xc - ndx / 16:xc + ndx / 16], axis=(-1, -2)))[0]
+    return hdu_goodchan
+
+
 def sdo_aia_scale(image=None, wavelength=None):
     if wavelength == '94':
         image[image > 30] = 30
@@ -66,10 +82,11 @@ def sdo_aia_scale(image=None, wavelength=None):
     return bytescale(image)
 
 
-def aiamapfromlocalfile(wavelength=None, jdtime=None):
+def sdomapfromlocalfile(wavelength=None, jdtime=None):
     aiafitspath = glob.glob(database_dir + event_id + '/AIA/aia_lev1_{}a*.fits'.format(wavelength))
     aiafits = [ll.split('/')[-1] for ll in aiafitspath]
-    aiatimeline = [ll.replace('aia_lev1_{}a_'.format(wavelength), '').replace('z_image_lev1.fits.fits', '') for
+    aiatimeline = [ll.replace('aia_lev1_{}a_'.format(wavelength), '').replace('.fits', '').replace('z_image_lev1', '')
+                   for
                    ll in aiafits]
     aiatimeline = [ll.split('t')[0].replace('_', '-') + ' ' + ll.split('t')[1].replace('_', ':') for ll in
                    aiatimeline]
@@ -379,38 +396,38 @@ if os.path.exists(FS_dspecDF):
                         for ll in xrange(tab2_ntim):
                             hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
                             if os.path.exists(hdufile):
-                                hdulist = fits.open(hdufile)
-                                hdu = hdulist[0]
-                                nfreq_hdu = hdu.header['NAXIS3']
+                                hdu = read_fits(hdufile)
+                                hdu_goodchan = goodchan(hdu)
+                                nfreq_hdu = hdu_goodchan[-1] - hdu_goodchan[0] + 1
                                 freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                                 freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
                                 idxfreq = freq.index(freq_ref)
                                 vla_l = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                                 vla_r = hdu.data[1, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                                 spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                    np.nanmean(vla_l, axis=(-1, -2))
+                                    np.nanmean(vla_l, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                 spec_plt_R[spec_plt_R < 0] = 0
                                 spec_plt_L[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                    np.nanmean(vla_r, axis=(-1, -2))
+                                    np.nanmean(vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                 spec_plt_L[spec_plt_L < 0] = 0
                                 spec_plt_I[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                    np.nanmean(vla_l + vla_r, axis=(-1, -2))
+                                    np.nanmean(vla_l + vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                 spec_plt_I[spec_plt_I < 0] = 0
                                 spec_plt_V[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                    np.nanmean(vla_l - vla_r, axis=(-1, -2))
+                                    np.nanmean(vla_l - vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                 spec_plt_V[spec_plt_V < 0] = 0
                     elif len(pols) == 1:
                         for ll in xrange(tab2_ntim):
                             hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
                             if os.path.exists(hdufile):
-                                hdulist = fits.open(hdufile)
-                                hdu = hdulist[0]
-                                nfreq_hdu = hdu.header['NAXIS3']
+                                hdu = read_fits(hdufile)
+                                hdu_goodchan = goodchan(hdu)
+                                nfreq_hdu = hdu_goodchan[-1] - hdu_goodchan[0] + 1
                                 freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                                 freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
                                 idxfreq = freq.index(freq_ref)
                                 vladata = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
-                                vlaflux = np.nanmean(vladata, axis=(-1, -2))
+                                vlaflux = np.nanmean(vladata, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                 spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = vlaflux
                                 spec_plt_R[spec_plt_R < 0] = 0
                         spec_plt_L = spec_plt_R
@@ -557,9 +574,9 @@ if os.path.exists(FS_dspecDF):
             data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
 
         # import the vla image
-        hdulist = fits.open(vlafile[0])
-        hdu = hdulist[0]
-        vla_local_pfmap = PuffinMap(hdu.data[0, np.where(hdu.data[0, :, 256, 256])[0][0], :, :], hdu.header,
+        hdu = read_fits(vlafile[0])
+        hdu_goodchan = goodchan(hdu)
+        vla_local_pfmap = PuffinMap(hdu.data[0, hdu_goodchan[0], :, :], hdu.header,
                                     plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
                                     plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
                                     webgl=config_plot['plot_config']['WebGL'])
@@ -574,7 +591,6 @@ if os.path.exists(FS_dspecDF):
         bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
 
-
         # import the aia image
         # from sunpy.net.helioviewer import HelioviewerClient
         #
@@ -588,7 +604,7 @@ if os.path.exists(FS_dspecDF):
 
 
 
-        aiamap = aiamapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
+        aiamap = sdomapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
         # filepath = database_dir + event_id + struct_id + config_EvtID['datadir'][
         #     'J2000'] + '2014_11_01__16_45_59_34__SDO_AIA_AIA_171.jp2'
         # aiamap = sunpy.map.Map(filepath)
@@ -690,7 +706,7 @@ if os.path.exists(FS_dspecDF):
             global tab3_r_aia_submap
             select_wave = tab2_Select_aia_wave.value
             print 'wavelength {} selected'.format(select_wave)
-            aiamap = aiamapfromlocalfile(wavelength=select_wave, jdtime=xx[0] / 3600. / 24.)
+            aiamap = sdomapfromlocalfile(wavelength=select_wave, jdtime=xx[0] / 3600. / 24.)
             lengthx = vla_local_pfmap.dw[0] * u.arcsec
             lengthy = vla_local_pfmap.dh[0] * u.arcsec
             x0 = vla_local_pfmap.smap.center.x
@@ -840,26 +856,33 @@ if os.path.exists(FS_dspecDF):
                               'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
             hdufile = fits_LOCL_dir + dspecDF0.loc[tidx, :]['fits_local']
             if os.path.exists(hdufile):
-                hdulist = fits.open(hdufile)
-                hdu = hdulist[0]
-                if select_vla_pol == 'RR':
-                    vladata = hdu.data[pols.index('RR'), fidx, :, :]
-                elif select_vla_pol == 'LL':
-                    vladata = hdu.data[pols.index('LL'), fidx, :, :]
-                elif select_vla_pol == 'I':
-                    vladata = hdu.data[pols.index('RR'), fidx, :, :] + hdu.data[pols.index('1'), fidx, :, :]
-                elif select_vla_pol == 'V':
-                    vladata = hdu.data[pols.index('RR'), fidx, :, :] - hdu.data[pols.index('1'), fidx, :, :]
-                pfmap = PuffinMap(vladata, hdu.header, plot_height=tab2_LinkImg_HGHT,
-                                  plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
-                SRC_Img = pfmap.ImageSource()
-                tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
-                mapx, mapy = pfmap.meshgrid()
-                mapx, mapy = mapx.value, mapy.value
-                SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
-                tab2_r_vla_multi_line.data_source.data = SRC_contour.data
-                tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
-                    dspecDF0.loc[tidx, :]['fits_local'])
+                hdu = read_fits(hdufile)
+                hdu_goodchan = goodchan(hdu)
+                freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
+                freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
+                idxfreq = freq.index(freq_ref)
+                fidx_hdu = fidx - idxfreq
+                if hdu_goodchan[0] <= fidx_hdu <= hdu_goodchan[-1]:
+                    if select_vla_pol == 'RR':
+                        vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :]
+                    elif select_vla_pol == 'LL':
+                        vladata = hdu.data[pols.index('LL'), fidx_hdu, :, :]
+                    elif select_vla_pol == 'I':
+                        vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :] + hdu.data[pols.index('1'), fidx_hdu, :, :]
+                    elif select_vla_pol == 'V':
+                        vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :] - hdu.data[pols.index('1'), fidx_hdu, :, :]
+                    pfmap = PuffinMap(vladata, hdu.header, plot_height=tab2_LinkImg_HGHT,
+                                      plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
+                    SRC_Img = pfmap.ImageSource()
+                    tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
+                    mapx, mapy = pfmap.meshgrid()
+                    mapx, mapy = mapx.value, mapy.value
+                    SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
+                    tab2_r_vla_multi_line.data_source.data = SRC_contour.data
+                    tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
+                        dspecDF0.loc[tidx, :]['fits_local'])
+                else:
+                    tab2_Div_LinkImg_plot.text = '<p><b>freq idx</b> out of range.</p>'
             else:
                 tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
                     dspecDF0.loc[tidx, :]['fits_local'])
@@ -1919,38 +1942,38 @@ if os.path.exists(FS_dspecDF):
                             for ll in xrange(tab2_ntim):
                                 hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
                                 if os.path.exists(hdufile):
-                                    hdulist = fits.open(hdufile)
-                                    hdu = hdulist[0]
-                                    nfreq_hdu = hdu.header['NAXIS3']
+                                    hdu = read_fits(hdufile)
+                                    hdu_goodchan = goodchan(hdu)
+                                    nfreq_hdu = hdu_goodchan[-1] - hdu_goodchan[0] + 1
                                     freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                                     freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
                                     idxfreq = freq.index(freq_ref)
                                     vla_l = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                                     vla_r = hdu.data[1, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                                     spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                        np.nanmean(vla_l, axis=(-1, -2))
+                                        np.nanmean(vla_l, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                     spec_plt_R[spec_plt_R < 0] = 0
                                     spec_plt_L[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                        np.nanmean(vla_r, axis=(-1, -2))
+                                        np.nanmean(vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                     spec_plt_L[spec_plt_L < 0] = 0
                                     spec_plt_I[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                        np.nanmean(vla_l + vla_r, axis=(-1, -2))
+                                        np.nanmean(vla_l + vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                     spec_plt_I[spec_plt_I < 0] = 0
                                     spec_plt_V[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                        np.nanmean(vla_l - vla_r, axis=(-1, -2))
+                                        np.nanmean(vla_l - vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                     spec_plt_V[spec_plt_V < 0] = 0
                         elif len(pols) == 1:
                             for ll in xrange(tab2_ntim):
                                 hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
                                 if os.path.exists(hdufile):
-                                    hdulist = fits.open(hdufile)
-                                    hdu = hdulist[0]
-                                    nfreq_hdu = hdu.header['NAXIS3']
+                                    hdu = read_fits(hdufile)
+                                    hdu_goodchan = goodchan(hdu)
+                                    nfreq_hdu = hdu_goodchan[-1] - hdu_goodchan[0] + 1
                                     freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                                     freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
                                     idxfreq = freq.index(freq_ref)
                                     vladata = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
-                                    vlaflux = np.nanmean(vladata, axis=(-1, -2))
+                                    vlaflux = np.nanmean(vladata, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
                                     spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = vlaflux
                                     spec_plt_R[spec_plt_R < 0] = 0
                             spec_plt_L = spec_plt_R
@@ -2051,9 +2074,9 @@ if os.path.exists(FS_dspecDF):
                 data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
 
             # import the vla image
-            hdulist = fits.open(vlafile[0])
-            hdu = hdulist[0]
-            vla_local_pfmap = PuffinMap(hdu.data[0, np.where(hdu.data[0, :, 256, 256])[0][0], :, :], hdu.header,
+            hdu = read_fits(vlafile[0])
+            hdu_goodchan = goodchan(hdu)
+            vla_local_pfmap = PuffinMap(hdu.data[0, hdu_goodchan[0], :, :], hdu.header,
                                         plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
                                         plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
                                         webgl=config_plot['plot_config']['WebGL'])
@@ -2081,7 +2104,7 @@ if os.path.exists(FS_dspecDF):
             colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
             bokehpalette_sdoaia171 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
             # aiamap = sunpy.map.Map(filepath)
-            aiamap = aiamapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
+            aiamap = sdomapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
             MapRES = 256
             dimensions = u.Quantity([MapRES, MapRES], u.pixel)
             aia_resampled_map = aiamap.resample(dimensions)
@@ -2122,8 +2145,8 @@ if os.path.exists(FS_dspecDF):
             colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
             bokehpalette_sdohmimag = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
             # hmimap = sunpy.map.Map(filepath)
-            #todo fix this bug
-            hmimap=aiamap
+            # todo fix this bug
+            hmimap = aiamap
             # plot the global HMI image
             hmi_resampled_map = hmimap.resample(dimensions)
             hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
@@ -2243,26 +2266,35 @@ if os.path.exists(FS_dspecDF):
                                   'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
                 hdufile = fits_LOCL_dir + dspecDF0.loc[tidx, :]['fits_local']
                 if os.path.exists(hdufile):
-                    hdulist = fits.open(hdufile)
-                    hdu = hdulist[0]
-                    if select_vla_pol == 'RR':
-                        vladata = hdu.data[pols.index('RR'), fidx, :, :]
-                    elif select_vla_pol == 'LL':
-                        vladata = hdu.data[pols.index('LL'), fidx, :, :]
-                    elif select_vla_pol == 'I':
-                        vladata = hdu.data[pols.index('RR'), fidx, :, :] + hdu.data[pols.index('1'), fidx, :, :]
-                    elif select_vla_pol == 'V':
-                        vladata = hdu.data[pols.index('RR'), fidx, :, :] - hdu.data[pols.index('1'), fidx, :, :]
-                    pfmap = PuffinMap(vladata, hdu.header, plot_height=tab2_LinkImg_HGHT,
-                                      plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
-                    SRC_Img = pfmap.ImageSource()
-                    tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
-                    mapx, mapy = pfmap.meshgrid()
-                    mapx, mapy = mapx.value, mapy.value
-                    SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
-                    tab2_r_vla_multi_line.data_source.data = SRC_contour.data
-                    tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
-                        dspecDF0.loc[tidx, :]['fits_local'])
+                    hdu = read_fits(hdufile)
+                    hdu_goodchan = goodchan(hdu)
+                    freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
+                    freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
+                    idxfreq = freq.index(freq_ref)
+                    fidx_hdu = fidx - idxfreq
+                    if hdu_goodchan[0] <= fidx_hdu <= hdu_goodchan[-1]:
+                        if select_vla_pol == 'RR':
+                            vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :]
+                        elif select_vla_pol == 'LL':
+                            vladata = hdu.data[pols.index('LL'), fidx_hdu, :, :]
+                        elif select_vla_pol == 'I':
+                            vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :] + hdu.data[pols.index('1'), fidx_hdu,
+                                                                                   :, :]
+                        elif select_vla_pol == 'V':
+                            vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :] - hdu.data[pols.index('1'), fidx_hdu,
+                                                                                   :, :]
+                        pfmap = PuffinMap(vladata, hdu.header, plot_height=tab2_LinkImg_HGHT,
+                                          plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
+                        SRC_Img = pfmap.ImageSource()
+                        tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
+                        mapx, mapy = pfmap.meshgrid()
+                        mapx, mapy = mapx.value, mapy.value
+                        SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
+                        tab2_r_vla_multi_line.data_source.data = SRC_contour.data
+                        tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
+                            dspecDF0.loc[tidx, :]['fits_local'])
+                    else:
+                        tab2_Div_LinkImg_plot.text = '<p><b>freq idx</b> out of range.</p>'
                 else:
                     tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
                         dspecDF0.loc[tidx, :]['fits_local'])
@@ -2932,7 +2964,7 @@ else:
         tab2_tCLN_Param_dict['imageprefix'] = "'slfcal/{}'".format(struct_id)
         tab2_tCLN_Param_dict['ncpu'] = "10"
         tab2_tCLN_Param_dict['twidth'] = "1"
-        tab2_tCLN_Param_dict['doreg'] = "True"
+        tab2_tCLN_Param_dict['doreg'] = "False"
         tab2_tCLN_Param_dict['timerange'] = "''"
         tab2_tCLN_Param_dict['uvrange'] = "''"
         tab2_tCLN_Param_dict['antenna'] = "''"

@@ -11,7 +11,7 @@ import glob
 from astropy.time import Time
 import astropy.units as u
 import numpy as np
-
+from collections import OrderedDict
 
 def getfreeport():
     import socket
@@ -56,7 +56,7 @@ EvtID_list = EvtID_list.sort_values(['date'], ascending=[True])
 -------------------------- panel 0 --------------------------
 '''
 tab0_Div_title = Div(text="""
-<p><b>Welcome to Event Browser. Select one solar event to start. Have fun!</b></p>""",
+<p><b>Welcome to Event Browser. Select one solar flare event to start. Have fun!</b></p>""",
                      width=config['plot_config']['tab_EvtBrowser']['StrID_DataTb_wdth'])
 
 tab0_SRC_Tb_EvtID = ColumnDataSource(EvtID_list)
@@ -113,7 +113,31 @@ def tab0_EvtSel():
                 os.system('bokeh serve {}DataBrowser/QLook --show --port {} &'.format(suncasa_dir, port))
                 ports.append(port)
                 tab0_Div_Tb.text = """<p>Event <b>""" + EvtID + """</b> selected. <p>Check the <b>QLook</b> in the <b>new tab</b>.</p>"""
+    else:
+        tab0_Div_Tb.text = """<p><b>Warning:</b> select a event first!!!</p>"""
 
+
+tab0_BUT_EvtSel = Button(label='Select', width=150, button_type='success')
+tab0_BUT_EvtSel.on_click(tab0_EvtSel)
+
+
+def tab0_DDownload():
+    # import drms
+    # c = drms.Client()
+    # c = drms.Client(email='sijie.yu@njit.edu', verbose=True)
+    # k = c.query('aia.lev1_euv_12s[2012-03-10T12:00:00_TAI/10m@5m][171,94]', key='T_REC,WAVELNTH',seg='image')
+    if tab0_selected_EvtID_entry:
+        EvtID = EvtID_list.iloc[tab0_selected_EvtID_entry[0]]['event_id'][0]
+        event_id = EvtID + '/'
+        event_id_dir = database_dir + event_id
+        if not os.path.exists(event_id_dir):
+            os.system('mkdir {}'.format(event_id_dir))
+            tab0_Div_Tb.text = """<p>Warning: No <b>dynamic spectrum</b> data found! Create a <b>dynamic spectrum</b> first.</p>"""
+        else:
+            event_specfile = glob.glob(event_id_dir + '*.spec.npz')
+            if len(event_specfile) == 0:
+                tab0_Div_Tb.text = """<p>Warning: No <b>dynamic spectrum</b> data found! Create a <b>dynamic spectrum</b> first.</p>"""
+            else:
                 try:
                     from sunpy.net import vso
                     client = vso.VSOClient()
@@ -128,7 +152,7 @@ def tab0_EvtSel():
                     qr_aia171 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
                                              vso.attrs.Wave(171 * u.AA, 171 * u.AA))
                     qr_aia94 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
-                                             vso.attrs.Wave(94 * u.AA, 94 * u.AA))
+                                            vso.attrs.Wave(94 * u.AA, 94 * u.AA))
                     qr_aia131 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
                                              vso.attrs.Wave(131 * u.AA, 131 * u.AA))
                     qr_hmi_los = client.query_legacy(tstart=tstrstart, tend=tstrend, instrument='HMI',
@@ -149,7 +173,7 @@ def tab0_EvtSel():
                         tstrend = Time((tab0_tim[-1] + cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
                                        out_subfmt='date_hms').iso
                         qr_aia94 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
-                                                 vso.attrs.Wave(94 * u.AA, 94 * u.AA))
+                                                vso.attrs.Wave(94 * u.AA, 94 * u.AA))
                     if len(qr_aia131) == 0:
                         cadence = 12
                         tstrstart = Time((tab0_tim[0] - cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
@@ -215,8 +239,24 @@ def tab0_EvtSel():
     else:
         tab0_Div_Tb.text = """<p><b>Warning:</b> select a event first!!!</p>"""
 
-tab0_BUT_EvtSel = Button(label='Evt Select', width=150, button_type='success')
-tab0_BUT_EvtSel.on_click(tab0_EvtSel)
+
+tab0_BUT_DDownload = Button(label='SDO image fetch', width=150, button_type='primary')
+tab0_BUT_DDownload.on_click(tab0_DDownload)
+
+
+# def tab2_BUT_tCLN_param_default():
+#     global tab2_tCLN_Param_dict
+#     tab2_tCLN_Param_dict = OrderedDict()
+#     tab2_tCLN_Param_dict['WAVELENGTH'] = "'171,193,hmi'"
+#     tab2_tCLN_Param_dict['cadence'] = "''"
+#     tab2_tCLN_Param_dict['email'] = "''"
+#     tab2_Div_tCLN_text = '<p><b>#  ptclean :: Parallelized clean in consecutive time steps</b></p>' + ' '.join(
+#         "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tCLN_Param_dict.items())
+#     tab2_Div_tCLN.text = tab2_Div_tCLN_text
+#     tab2_Div_tCLN2.text = '<p><b>Default parameter Restored.</b></p>'
+#
+#
+# tab2_BUT_tCLN_param_default()
 
 tab0_SPCR_LFT_Div_title = Spacer(width=200, height=10)
 tab0_SPCR_RGT_Div_title = Spacer(width=50, height=10)
@@ -250,7 +290,7 @@ tab0_BUT_exit.on_click(tab0_exit)
 panel0 = column(row(tab0_SPCR_LFT_Div_title, tab0_Div_title),
                 row(tab0_SPCR_LFT_DataTb_dspec,
                     column(tab0_DataTb_evt, tab0_Div_Tb), tab0_SPCR_RGT_DataTb_dspec,
-                    widgetbox(tab0_BUT_EvtSel, tab0_BUT_exit, tab0_Div_exit, width=150)))
+                    widgetbox(tab0_BUT_EvtSel, tab0_BUT_DDownload, tab0_BUT_exit, tab0_Div_exit, width=150)))
 
 lout = panel0
 
