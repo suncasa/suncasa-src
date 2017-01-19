@@ -450,8 +450,8 @@ def imreg(imagefile=None, fitsfile=None, beamfile=None, helio=None, \
         header['ctype1']='HPLN-TAN'
         header['ctype2']='HPLT-TAN'
         header['date-obs']=hel['date-obs']
-        header['exptime']=hel['exptime']
-        header['p_angle']=hel['p0']
+        header.update('exptime',hel['exptime'])
+        header.update('p_angle',hel['p0'])
         #header.update('comment', 'Fits header updated to heliocentric coordinates by Bin Chen')
         # update intensity units, i.e. to brightness temperature?
         if toTb:

@@ -1,7 +1,7 @@
 import os
 from taskinit import * 
 import numpy as np
-import suncasa.vla.vla_prep as vla_prep
+from suncasa.vla import vla_prep
 import shutil
 import multiprocessing as mp
 from functools import partial
