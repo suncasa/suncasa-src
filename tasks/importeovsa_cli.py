@@ -26,7 +26,7 @@ class importeovsa_cli_:
        self.__bases__ = (importeovsa_cli_,)
        self.__doc__ = self.__call__.__doc__
 
-       self.parameters={'idbfiles':None, 'timebin':None, 'width':None, 'visprefix':None, 'nocreatms':None, 'doconcat':None, }
+       self.parameters={'idbfiles':None, 'timebin':None, 'width':None, 'visprefix':None, 'nocreatms':None, 'doconcat':None, 'modelms':None, }
 
 
     def result(self, key=None):
@@ -34,7 +34,7 @@ class importeovsa_cli_:
 	    return None
 
 
-    def __call__(self, idbfiles=None, timebin=None, width=None, visprefix=None, nocreatms=None, doconcat=None, ):
+    def __call__(self, idbfiles=None, timebin=None, width=None, visprefix=None, nocreatms=None, doconcat=None, modelms=None, ):
 
         """Import EOVSA idb file(s) to a measurement set or multiple measurement set
 
@@ -63,6 +63,9 @@ class importeovsa_cli_:
 
 		doconcat:	If concatenate multi casa measurement sets to one file.
 		   Default Value: False
+
+		modelms:	Name of input model measurement set file. If modelms is assigned, no simulation will start.
+		   Default Value: 
 
 
 	Example :
@@ -183,6 +186,7 @@ class importeovsa_cli_:
             myparams['visprefix'] = visprefix = self.parameters['visprefix']
             myparams['nocreatms'] = nocreatms = self.parameters['nocreatms']
             myparams['doconcat'] = doconcat = self.parameters['doconcat']
+            myparams['modelms'] = modelms = self.parameters['modelms']
 
 
 	result = None
@@ -198,6 +202,7 @@ class importeovsa_cli_:
         mytmp['visprefix'] = visprefix
         mytmp['nocreatms'] = nocreatms
         mytmp['doconcat'] = doconcat
+        mytmp['modelms'] = modelms
 	pathname="file:///local/software/suncasa/tasks/"
 	trec = casac.casac.utils().torecord(pathname+'importeovsa.xml')
 
@@ -221,7 +226,7 @@ class importeovsa_cli_:
               casalog.post(scriptstr[0]+'\n', 'INFO')
           else :
               casalog.post(scriptstr[1][1:]+'\n', 'INFO')
-          result = importeovsa(idbfiles, timebin, width, visprefix, nocreatms, doconcat)
+          result = importeovsa(idbfiles, timebin, width, visprefix, nocreatms, doconcat, modelms)
           casalog.post('##### End Task: ' + tname + '  ' + spaces + ' #####'+
                        '\n##########################################')
 
@@ -278,6 +283,7 @@ class importeovsa_cli_:
         a['visprefix']  = ''
         a['nocreatms']  = True
         a['doconcat']  = False
+        a['modelms']  = ''
 
 
 ### This function sets the default values but also will return the list of
@@ -353,6 +359,7 @@ class importeovsa_cli_:
                'visprefix': 'Prefix of vis names (may include the path).',
                'nocreatms': 'If setting nocreatms True, will simulate a model measurement set for the first idb file and copy the model for the rest of idl files in list. If False, will simulate a new measurement set for every idbfile in list.',
                'doconcat': 'If concatenate multi casa measurement sets to one file.',
+               'modelms': 'Name of input model measurement set file. If modelms is assigned, no simulation will start.',
 
               }
 
@@ -371,6 +378,7 @@ class importeovsa_cli_:
         a['visprefix']  = ''
         a['nocreatms']  = True
         a['doconcat']  = False
+        a['modelms']  = ''
 
         #a = sys._getframe(len(inspect.stack())-1).f_globals
 

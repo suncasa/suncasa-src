@@ -11,7 +11,7 @@ from taskinit import casalog
 from taskinit import xmlpath
 #from taskmanager import tm
 import task_importeovsa
-def importeovsa(idbfiles='', timebin='0s', width=1, visprefix='', nocreatms=True, doconcat=False):
+def importeovsa(idbfiles='', timebin='0s', width=1, visprefix='', nocreatms=True, doconcat=False, modelms=''):
 
         """Import EOVSA idb file(s) to a measurement set or multiple measurement set
 
@@ -86,12 +86,13 @@ def importeovsa(idbfiles='', timebin='0s', width=1, visprefix='', nocreatms=True
         mytmp['visprefix'] = visprefix
         mytmp['nocreatms'] = nocreatms
         mytmp['doconcat'] = doconcat
+        mytmp['modelms'] = modelms
 	pathname="file:///local/software/suncasa/tasks/"
 	trec = casac.utils().torecord(pathname+'importeovsa.xml')
 
         casalog.origin('importeovsa')
         if trec.has_key('importeovsa') and casac.utils().verify(mytmp, trec['importeovsa']) :
-	    result = task_importeovsa.importeovsa(idbfiles, timebin, width, visprefix, nocreatms, doconcat)
+	    result = task_importeovsa.importeovsa(idbfiles, timebin, width, visprefix, nocreatms, doconcat, modelms)
 
 	else :
 	  result = False
