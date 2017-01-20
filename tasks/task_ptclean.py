@@ -10,7 +10,7 @@ import pdb
 
 
 def clean_iter(tim, freq, vis, imageprefix,
-               ncpu, twidth, doreg, ephemfile, ephem, msinfofile,
+               ncpu, twidth, doreg, overwrite, ephemfile, ephem, msinfofile,
                outlierfile, field, spw, selectdata,
                uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
                wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
@@ -57,8 +57,10 @@ def clean_iter(tim, freq, vis, imageprefix,
     try:
         image0 = btstr.replace(':', '').replace('-', '')
         imname = imageprefix + image0
-        if not os.path.exists(imname):
+        if overwrite or not os.path.exists(imname + '*'):
             # inp(taskname = 'clean')
+            if os.path.exists(imname + '*'):
+                shutil.rmtree(imname + '*')
             clean(vis=vis, imagename=imname, outlierfile=outlierfile, field=field,
                   spw=spw, selectdata=selectdata, timerange=timerange, uvrange=uvrange,
                   antenna=antenna, scan=scan, observation=str(observation), intent=intent,
@@ -85,32 +87,31 @@ def clean_iter(tim, freq, vis, imageprefix,
             for clnjunk in clnjunks:
                 if os.path.exists(imname + clnjunk):
                     shutil.rmtree(imname + clnjunk)
-
-        if doreg:
-            # check if ephemfile and msinfofile exist
-            if not ephem:
-                print("ephemeris info does not exist!")
-                return
-            reftime = [timerange]
-            helio = vla_prep.ephem_to_helio(msinfo=msinfofile, ephem=ephem, reftime=reftime)
-            imagefile = [imname + '.image']
-            fitsfile = [imname + '.fits']
-            vla_prep.imreg(imagefile=imagefile, fitsfile=fitsfile, helio=helio, toTb=False, scl100=True)
-            if os.path.exists(imname + '.fits'):
-                return [True, btstr, imname + '.fits']
+            if doreg:
+                # check if ephemfile and msinfofile exist
+                if not ephem:
+                    print("ephemeris info does not exist!")
+                    return
+                reftime = [timerange]
+                helio = vla_prep.ephem_to_helio(msinfo=msinfofile, ephem=ephem, reftime=reftime)
+                imagefile = [imname + '.image']
+                fitsfile = [imname + '.fits']
+                vla_prep.imreg(imagefile=imagefile, fitsfile=fitsfile, helio=helio, toTb=False, scl100=True)
+                if os.path.exists(imname + '.fits'):
+                    return [True, btstr, imname + '.fits']
+                else:
+                    return [False, btstr, '']
             else:
-                return [False, btstr, '']
-        else:
-            if os.path.exists(imname + '.image'):
-                return [True, btstr, imname + '.image']
-            else:
-                return [False, btstr, '']
+                if os.path.exists(imname + '.image'):
+                    return [True, btstr, imname + '.image']
+                else:
+                    return [False, btstr, '']
     except:
         print('error in processing image: ' + btstr)
         return [False, btstr, '']
 
 
-def ptclean(vis, imageprefix, ncpu, twidth, doreg, ephemfile, msinfofile,
+def ptclean(vis, imageprefix, ncpu, twidth, doreg, overwrite, ephemfile, msinfofile,
             outlierfile, field, spw, selectdata, timerange,
             uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
             wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
@@ -191,7 +192,7 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, ephemfile, msinfofile,
     res = []
     # partition
     clnpart = partial(clean_iter, tim, freq, vis,
-                      imageprefix, ncpu, twidth, doreg, ephemfile, ephem, msinfofile,
+                      imageprefix, ncpu, twidth, doreg, overwrite, ephemfile, ephem, msinfofile,
                       outlierfile, field, spw, selectdata,
                       uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
                       wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
