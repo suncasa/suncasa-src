@@ -87,27 +87,29 @@ def clean_iter(tim, freq, vis, imageprefix,
             for clnjunk in clnjunks:
                 if os.path.exists(imname + clnjunk):
                     shutil.rmtree(imname + clnjunk)
-            if doreg:
-                # check if ephemfile and msinfofile exist
-                if not ephem:
-                    print("ephemeris info does not exist!")
-                    return
-                reftime = [timerange]
-                helio = vla_prep.ephem_to_helio(msinfo=msinfofile, ephem=ephem, reftime=reftime)
-                imagefile = [imname + '.image']
-                fitsfile = [imname + '.fits']
-                vla_prep.imreg(imagefile=imagefile, fitsfile=fitsfile, helio=helio, toTb=False, scl100=True)
-                if os.path.exists(imname + '.fits'):
-                    return [True, btstr, imname + '.fits']
-                else:
-                    return [False, btstr, '']
-            else:
-                if os.path.exists(imname + '.image'):
-                    return [True, btstr, imname + '.image']
-                else:
-                    return [False, btstr, '']
         else:
-            print imname+' existed.'
+            print imname+' existed. Clean task aborted.'
+
+        if doreg and not os.path.isfile(imname+'.fits'):
+            # check if ephemfile and msinfofile exist
+            if not ephem:
+                print("ephemeris info does not exist!")
+                return
+            reftime = [timerange]
+            helio = vla_prep.ephem_to_helio(msinfo=msinfofile, ephem=ephem, reftime=reftime)
+            imagefile = [imname + '.image']
+            fitsfile = [imname + '.fits']
+            vla_prep.imreg(imagefile=imagefile, fitsfile=fitsfile, helio=helio, toTb=False, scl100=True)
+            if os.path.exists(imname + '.fits'):
+                return [True, btstr, imname + '.fits']
+            else:
+                return [False, btstr, '']
+        else:
+            if os.path.exists(imname + '.image'):
+                return [True, btstr, imname + '.image']
+            else:
+                return [False, btstr, '']
+
     except:
         print('error in processing image: ' + btstr)
         return [False, btstr, '']
