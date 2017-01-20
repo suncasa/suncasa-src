@@ -6,6 +6,7 @@ import shutil
 import multiprocessing as mp
 from functools import partial
 from time import time
+import glob
 import pdb
 
 
@@ -57,10 +58,9 @@ def clean_iter(tim, freq, vis, imageprefix,
     try:
         image0 = btstr.replace(':', '').replace('-', '')
         imname = imageprefix + image0
-        if overwrite or not os.path.exists(imname + '*'):
+        if overwrite or (len(glob.glob(imname + '*'))==0):
             # inp(taskname = 'clean')
-            if os.path.exists(imname + '*'):
-                shutil.rmtree(imname + '*')
+            os.system('rm -rf {}*'.format(imname))
             clean(vis=vis, imagename=imname, outlierfile=outlierfile, field=field,
                   spw=spw, selectdata=selectdata, timerange=timerange, uvrange=uvrange,
                   antenna=antenna, scan=scan, observation=str(observation), intent=intent,
@@ -106,6 +106,8 @@ def clean_iter(tim, freq, vis, imageprefix,
                     return [True, btstr, imname + '.image']
                 else:
                     return [False, btstr, '']
+        else:
+            print imname+' existed.'
     except:
         print('error in processing image: ' + btstr)
         return [False, btstr, '']
