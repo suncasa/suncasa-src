@@ -1036,6 +1036,7 @@ if os.path.exists(FS_dspecDF):
         def tab2_aia_submap_square_selection_change(attrname, old, new):
             global tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory
             global vmax_vx, vmax_vy, vmin_vx, vmin_vy, mean_vx, mean_vy
+            global VdspecDF
             tab2_aia_submap_square_selected = tab2_SRC_aia_submap_square.selected['1d']['indices']
             if tab2_aia_submap_square_selected:
                 ImgDF = ImgDF0.iloc[tab2_aia_submap_square_selected, :]
@@ -1047,12 +1048,12 @@ if os.path.exists(FS_dspecDF):
                 tab3_r_aia_submap_rect.data_source.data['y'] = [mean_vy]
                 tab3_r_aia_submap_rect.data_source.data['width'] = [(xa1 - xa0)]
                 tab3_r_aia_submap_rect.data_source.data['height'] = [(ya1 - ya0)]
-                vx = (dspecDFtmp['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
+                vx = (VdspecDF['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
                 vmax_vx, vmin_vx = xa1, xa0
                 vx[vx > vmax_vx] = vmax_vx
                 vx[vx < vmin_vx] = vmin_vx
                 tab3_SRC_dspec_vectorx.data['data'] = [vx]
-                vy = (dspecDFtmp['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
+                vy = (VdspecDF['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
                 vmax_vy, vmin_vy = ya1, ya0
                 vy[vy > vmax_vy] = vmax_vy
                 vy[vy < vmin_vy] = vmin_vy
@@ -1071,29 +1072,29 @@ if os.path.exists(FS_dspecDF):
         tab2_SRC_aia_submap_square.on_change('selected', tab2_aia_submap_square_selection_change)
 
 
-        def dspecDFtmp_init():
-            global dspecDFtmp
-            dspecDFtmp = pd.DataFrame()
+        def VdspecDF_init():
+            global VdspecDF
+            VdspecDF = pd.DataFrame()
             nrows_dspecDF = len(dspecDF_frac.index)
-            dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
-            dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
-            dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
+            VdspecDF['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
+            VdspecDF['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
+            VdspecDF['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
 
 
-        def dspecDFtmp_update(selected=None):
-            global dspecDFtmp
+        def VdspecDF_update(selected=None):
+            global VdspecDF
             if selected:
-                dspecDFtmp.loc[selected, 'shape_longitude'] = dspecDF_frac.loc[selected, 'shape_longitude']
-                dspecDFtmp.loc[selected, 'shape_latitude'] = dspecDF_frac.loc[selected, 'shape_latitude']
-                dspecDFtmp.loc[selected, 'peak'] = dspecDF_frac.loc[selected, 'peak']
+                VdspecDF.loc[selected, 'shape_longitude'] = dspecDF_frac.loc[selected, 'shape_longitude']
+                VdspecDF.loc[selected, 'shape_latitude'] = dspecDF_frac.loc[selected, 'shape_latitude']
+                VdspecDF.loc[selected, 'peak'] = dspecDF_frac.loc[selected, 'peak']
             else:
-                dspecDFtmp.loc[:, 'shape_longitude'] = dspecDF_frac.loc[:, 'shape_longitude']
-                dspecDFtmp.loc[:, 'shape_latitude'] = dspecDF_frac.loc[:, 'shape_latitude']
-                dspecDFtmp.loc[:, 'peak'] = dspecDF_frac.loc[:, 'peak']
+                VdspecDF.loc[:, 'shape_longitude'] = dspecDF_frac.loc[:, 'shape_longitude']
+                VdspecDF.loc[:, 'shape_latitude'] = dspecDF_frac.loc[:, 'shape_latitude']
+                VdspecDF.loc[:, 'peak'] = dspecDF_frac.loc[:, 'peak']
 
 
-        dspecDFtmp_init()
-        dspecDFtmp_update()
+        VdspecDF_init()
+        VdspecDF_update()
 
 
         def tab3_SRC_dspec_vector_init():
@@ -1129,13 +1130,13 @@ if os.path.exists(FS_dspecDF):
             print("--- tab3_SRC_dspec_small_init -- %s seconds ---" % (time.time() - start_timestamp))
 
 
-        def tab3_SRC_dspec_vector_update(dspecDFtmp):
+        def tab3_SRC_dspec_vector_update():
             global tab3_SRC_dspec_vector, tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory
             global mean_amp_g, mean_vx, mean_vy, drange_amp_g, drange_vx, drange_vy
             global vmax_amp_g, vmax_vx, vmax_vy, vmin_amp_g, vmin_vx, vmin_vy
-            global dspecDF
+            global VdspecDF
             start_timestamp = time.time()
-            amp_g = (dspecDFtmp['peak'].copy()).reshape(tab2_nfreq, tab2_ntim)
+            amp_g = (VdspecDF['peak'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_amp_g = np.nanmean(amp_g)
             drange_amp_g = 40.
             vmax_amp_g, vmin_amp_g = mean_amp_g + drange_amp_g * np.asarray([1., -1.])
@@ -1145,14 +1146,14 @@ if os.path.exists(FS_dspecDF):
             # dspecDF = dspecDF.where(dspecDF['peak']>vmin_amp_g)
             # tab2_SRC_maxfit_centroid_update(dspecDF)
             # todo add threshold selection to the vector dynamic spectrum
-            vx = (dspecDFtmp['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
+            vx = (VdspecDF['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_vx = np.nanmean(vx)
             drange_vx = 40.
             vmax_vx, vmin_vx = mean_vx + drange_vx * np.asarray([1., -1.])
             vx[vx > vmax_vx] = vmax_vx
             vx[vx < vmin_vx] = vmin_vx
             tab3_SRC_dspec_vectorx.data['data'] = [vx]
-            vy = (dspecDFtmp['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
+            vy = (VdspecDF['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_vy = np.nanmean(vy)
             drange_vy = 40.
             vmax_vy, vmin_vy = mean_vy + drange_vy * np.asarray([1., -1.])
@@ -1314,9 +1315,9 @@ if os.path.exists(FS_dspecDF):
             if tab2_dspec_vector_selected:
                 global dspecDF
                 dspecDF = dspecDF_frac.iloc[tab2_dspec_vector_selected, :]
-                dspecDFtmp_init()
-                dspecDFtmp_update(selected=tab2_dspec_vector_selected)
-                # tab3_SRC_dspec_vector_update(dspecDFtmp)
+                VdspecDF_init()
+                VdspecDF_update(selected=tab2_dspec_vector_selected)
+                # tab3_SRC_dspec_vector_update(VdspecDF)
                 tab2_SRC_maxfit_centroid_update(dspecDF)
                 if tab3_BUT_animate_ONOFF.label == 'Animate OFF & Go':
                     tab3_r_aia_submap_cross.visible = True
@@ -1324,6 +1325,7 @@ if os.path.exists(FS_dspecDF):
                     tab3_r_dspec_vectorx_line.visible = False
                     tab3_r_dspec_vectory_line.visible = False
                     tab2_SRC_maxfit_centroid_update(dspecDF)
+                    # todo check why running tab2_SRC_maxfit_centroid_update twice
                     tab3_r_aia_submap_cross.data_source.data = SRC_maxfit_centroid.data
 
 
@@ -1373,7 +1375,7 @@ if os.path.exists(FS_dspecDF):
 
 
         def tab3_BUT_dspec_small_reset_update():
-            global dspecDFtmp, tab2_nfreq, tab2_ntim, tab3_dspec_small_CTRLs_OPT
+            global VdspecDF, tab2_nfreq, tab2_ntim, tab3_dspec_small_CTRLs_OPT
             global tab3_SRC_dspec_vector, tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory
             items_dspec_small = tab3_dspec_small_CTRLs_OPT['items_dspec_small']
             mean_values = tab3_dspec_small_CTRLs_OPT['mean_values']
@@ -1382,7 +1384,7 @@ if os.path.exists(FS_dspecDF):
             vmin_values = tab3_dspec_small_CTRLs_OPT['vmin_values']
             source_list = [tab3_SRC_dspec_vector, tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory]
             for ll, item in enumerate(items_dspec_small):
-                TmpData = (dspecDFtmp[item].copy()).reshape(tab2_nfreq, tab2_ntim)
+                TmpData = (VdspecDF[item].copy()).reshape(tab2_nfreq, tab2_ntim)
                 TmpData[TmpData > vmax_values[ll]] = vmax_values[ll]
                 TmpData[TmpData < vmin_values[ll]] = vmin_values[ll]
                 source_list[ll].data['data'] = [TmpData]
@@ -1413,7 +1415,7 @@ if os.path.exists(FS_dspecDF):
 
 
         def tab3_BUT_dspec_small_resetall_update():
-            dspecDFtmp_update()
+            VdspecDF_update()
             tab3_BUT_dspec_small_reset_update()
             print 'reset all'
 
@@ -1422,7 +1424,7 @@ if os.path.exists(FS_dspecDF):
 
 
         def tab3_slider_dspec_small_update(attrname, old, new):
-            global dspecDFtmp, tab2_nfreq, tab2_ntim, tab3_dspec_small_CTRLs_OPT
+            global VdspecDF, tab2_nfreq, tab2_ntim, tab3_dspec_small_CTRLs_OPT
             items_dspec_small = tab3_dspec_small_CTRLs_OPT['items_dspec_small']
             idx_p_dspec_small = tab3_dspec_small_CTRLs_OPT['idx_p_dspec_small']
             dmax = tab3_Slider_dspec_small_dmax.value
@@ -1430,7 +1432,7 @@ if os.path.exists(FS_dspecDF):
             if not tab3_dspec_small_CTRLs_OPT['radio_button_group_dspec_small_update_flag']:
                 tab3_dspec_small_CTRLs_OPT['vmax_values_last'][idx_p_dspec_small] = dmax
                 tab3_dspec_small_CTRLs_OPT['vmin_values_last'][idx_p_dspec_small] = dmin
-            TmpData = (dspecDFtmp[items_dspec_small[idx_p_dspec_small]].copy()).reshape(tab2_nfreq, tab2_ntim)
+            TmpData = (VdspecDF[items_dspec_small[idx_p_dspec_small]].copy()).reshape(tab2_nfreq, tab2_ntim)
             TmpData[TmpData > dmax] = dmax
             TmpData[TmpData < dmin] = dmin
             if idx_p_dspec_small == 0:
@@ -2408,13 +2410,13 @@ if os.path.exists(FS_dspecDF):
             tab2_dspec_selected = None
 
 
-            # def dspecDFtmp_init():
-            #     global dspecDFtmp
-            #     dspecDFtmp = pd.DataFrame()
+            # def VdspecDF_init():
+            #     global VdspecDF
+            #     VdspecDF = pd.DataFrame()
             #     nrows_dspecDF = len(dspecDF_frac.index)
-            #     dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
-            #     dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
-            #     dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
+            #     VdspecDF['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
+            #     VdspecDF['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
+            #     VdspecDF['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
 
 
             def tab2_dspec_selection_change(attrname, old, new):
@@ -3161,7 +3163,7 @@ else:
         fits_local = fits_local * int(tab2_nfreq)
         fits_global = fits_global * int(tab2_nfreq)
         freqstrs = ['{:.3f}'.format(ll) for ll in yy]
-        dspecDF_tmp = pd.DataFrame({'time': xx - xx[0],
+        dspecDFout = pd.DataFrame({'time': xx - xx[0],
                                     'freq': yy,
                                     'timestr': timestrs,
                                     'freqstr': freqstrs,
@@ -3169,7 +3171,7 @@ else:
                                     'fits_local': fits_local,
                                     'fits_global': fits_global})
         with open(database_dir + event_id + struct_id + 'dspecDF-save', 'wb') as fp:
-            pickle.dump(dspecDF_tmp, fp)
+            pickle.dump(dspecDFout, fp)
         tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}</b>. '.format(
             database_dir + event_id + struct_id) + 'Click the <b>clean</b> button to clean. When finished, \
             go back to <b>QLook</b> window, select StrID <b>{}</b> and \
