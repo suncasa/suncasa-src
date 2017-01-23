@@ -11,6 +11,7 @@ import matplotlib.cm as cm
 import matplotlib.colors as colors
 import numpy as np
 import pandas as pd
+import scipy.ndimage as sn
 import sunpy.map
 from math import radians, cos, sin
 from bokeh.layouts import row, column, widgetbox, gridplot
@@ -38,6 +39,8 @@ database_dir = os.path.expandvars(database_dir) + '/'
 with open('{}config_EvtID_curr.json'.format(database_dir), 'r') as fp:
     config_EvtID = json.load(fp)
 
+do_spec_regrid = False
+
 '''define the colormaps'''
 colormap_jet = cm.get_cmap("jet")  # choose any matplotlib colormap here
 bokehpalette_jet = [colors.rgb2hex(m) for m in colormap_jet(np.arange(colormap_jet.N))]
@@ -62,7 +65,7 @@ def goodchan(hdu):
     xc = ndx / 2
     yc = ndy / 2
     hdu_goodchan = \
-    np.where(np.nanmean(hdu.data[0, :, yc - ndy / 16:yc + ndy / 16, xc - ndx / 16:xc + ndx / 16], axis=(-1, -2)))[0]
+        np.where(np.nanmean(hdu.data[0, :, yc - ndy / 16:yc + ndy / 16, xc - ndx / 16:xc + ndx / 16], axis=(-1, -2)))[0]
     return hdu_goodchan
 
 
@@ -99,6 +102,30 @@ def sdomapfromlocalfile(wavelength=None, jdtime=None):
     return aiamap
 
 
+def rebin_specdata(tab2_spec, bl_index, select_pol):
+    global tab2_spec_rs, tab2_tim_rs, tab2_freq_rs, tab2_spec_plt_rs, tab2_dtim_rs
+    tab2_spec_sz = tab2_spec.shape
+    spec_sz2, spec_sz1 = 10, 10
+    if tab2_spec_sz[3] > 800:
+        spec_sz2 = next(i for i in xrange(1, 10) if i / 10. * tab2_spec_sz[3] > 1750)
+    if tab2_spec_sz[2] > 250:
+        spec_sz1 = next(i for i in xrange(1, 10) if i / 10. * tab2_spec_sz[2] > 250)
+    spec_sz1_rs, spec_sz2_rs = spec_sz1 / 10.0, spec_sz2 / 10.0
+    tab2_spec_rs = sn.interpolation.zoom(tab2_spec, [1, 1, spec_sz1_rs, spec_sz2_rs], order=1)
+    tab2_tim_rs = sn.interpolation.zoom(tab2_tim, spec_sz2_rs, order=1)
+    tab2_freq_rs = sn.interpolation.zoom(tab2_freq, spec_sz1_rs, order=1)
+
+    if select_pol == 'RR':
+        tab2_spec_plt_rs = tab2_spec[0, bl_index, :, :]
+    elif select_pol == 'LL':
+        tab2_spec_plt_rs = tab2_spec[1, bl_index, :, :]
+    elif select_pol == 'I':
+        tab2_spec_plt_rs = (tab2_spec[0, bl_index, :, :] + tab2_spec[1, bl_index, :, :]) / 2.
+    elif select_pol == 'V':
+        tab2_spec_plt_rs = (tab2_spec[0, bl_index, :, :] - tab2_spec[1, bl_index, :, :]) / 2.
+    tab2_dtim_rs = tab2_tim - tab2_tim[0]
+
+
 event_id = config_EvtID['datadir']['event_id']
 try:
     with open(database_dir + event_id + 'CurrFS.json', 'r') as fp:
@@ -108,7 +135,6 @@ except:
     raise SystemExit
 struct_id = FS_config['datadir']['struct_id']
 FS_specfile = FS_config['datadir']['FS_specfile']
-# try:
 tab2_specdata = np.load(FS_specfile)
 tab2_spec = tab2_specdata['spec']
 tab2_npol = tab2_specdata['npol']
@@ -215,6 +241,27 @@ if os.path.exists(FS_dspecDF):
         TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
 
         tab2_SRC_dspec_square = ColumnDataSource(dspecDF)
+
+
+        '''create the regridded dynamic spectrum plot'''
+        if tab2_ntim>800 or tab2_freq>250:
+            do_spec_regrid = True
+            rebin_specdata(tab2_spec, bl_index, tab2_pol)
+            tab2_p_dspec_rs = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
+                                  plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
+                                  plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
+                                  x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
+                                  toolbar_location="above")
+            tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+            tab2_p_dspec_rs.axis.visible = True
+            tab2_p_dspec_rs.title.text = "Dynamic spectrum"
+            tab2_p_dspec_rs.xaxis.axis_label = 'Seconds since ' + tim0_char
+            tab2_p_dspec_rs.yaxis.axis_label = 'Frequency [GHz]'
+            tab2_SRC_dspec_image_rs = ColumnDataSource(
+                data={'data': [tab2_spec_plt_rs], 'xx': [tab2_dtim_rs], 'yy': [tab2_freq_rs]})
+            tab2_p_dspec_rs.image(image="data", x=tab2_dtim_rs[0], y=tab2_freq_rs[0], dw=tab2_dtim_rs[-1] - tab2_dtim_rs[0],
+                               dh=tab2_freq_rs[-1] - tab2_freq_rs[0],
+                               source=tab2_SRC_dspec_image_rs, palette=bokehpalette_jet)
 
         '''create the dynamic spectrum plot'''
         tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
@@ -405,16 +452,16 @@ if os.path.exists(FS_dspecDF):
                                 vla_l = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                                 vla_r = hdu.data[1, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                                 spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                    np.nanmean(vla_l, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
+                                    np.nanmean(vla_l, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
                                 spec_plt_R[spec_plt_R < 0] = 0
                                 spec_plt_L[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                    np.nanmean(vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
+                                    np.nanmean(vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
                                 spec_plt_L[spec_plt_L < 0] = 0
                                 spec_plt_I[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                    np.nanmean(vla_l + vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
+                                    np.nanmean(vla_l + vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
                                 spec_plt_I[spec_plt_I < 0] = 0
                                 spec_plt_V[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                    np.nanmean(vla_l - vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
+                                    np.nanmean(vla_l - vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
                                 spec_plt_V[spec_plt_V < 0] = 0
                     elif len(pols) == 1:
                         for ll in xrange(tab2_ntim):
@@ -427,7 +474,7 @@ if os.path.exists(FS_dspecDF):
                                 freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
                                 idxfreq = freq.index(freq_ref)
                                 vladata = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
-                                vlaflux = np.nanmean(vladata, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
+                                vlaflux = np.nanmean(vladata, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
                                 spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = vlaflux
                                 spec_plt_R[spec_plt_R < 0] = 0
                         spec_plt_L = spec_plt_R
@@ -475,25 +522,6 @@ if os.path.exists(FS_dspecDF):
         for ctrl in tab2_ctrls:
             ctrl.on_change('value', tab2_update_dspec_image)
 
-        url = ""
-        tab2_SRC_p_dspec_thumb = ColumnDataSource(
-            dict(url=[url], x1=[0], y1=[0], w1=[config_plot['plot_config']['tab_FSview_base']['dspec_thumb_wdth']],
-                 h1=[config_plot['plot_config']['tab_FSview_base']['dspec_thumb_hght']], ))
-        tab2_p_dspec_thumb = figure(tools='',
-                                    plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_thumb_wdth'],
-                                    plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_thumb_hght'],
-                                    x_range=(0, config_plot['plot_config']['tab_FSview_base']['dspec_thumb_wdth']),
-                                    y_range=(0, config_plot['plot_config']['tab_FSview_base']['dspec_thumb_hght']),
-                                    title="EVLA thumbnail",
-                                    toolbar_location=None)
-        r_dspec_thumb = tab2_p_dspec_thumb.image_url(url="url", x="x1", y="y1", w="w1", h="h1",
-                                                     source=tab2_SRC_p_dspec_thumb, anchor='bottom_left')
-        tab2_p_dspec_thumb.xaxis.visible = False
-        tab2_p_dspec_thumb.yaxis.visible = False
-        tab2_p_dspec_thumb.title.text_font_size = '6pt'
-        # tab2_p_dspec_thumb.border_fill_color = "silver"
-        tab2_p_dspec_thumb.border_fill_alpha = 0.4
-
         # # Add a hover tool
         tooltips = None
 
@@ -531,14 +559,11 @@ if os.path.exists(FS_dspecDF):
             data['y'].push(cdata.freq[indices[0]]);
             data['tooltips'].push(tooltips);
             rdy_hover.set('data', data);
-            rdt.data['url'] = []
-            rdt.data['url'].push(cdata.thumbnail[indices[0]])
-            rdt.trigger('change');
             """ % (tab2_ntim, tab2_nfreq)
 
         tab2_p_dspec_hover_callback = CustomJS(
             args={'rs': tab2_r_square.data_source, 'rdx': r_dspec_xPro.data_source, 'rdy': r_dspec_yPro.data_source,
-                  'rdt': r_dspec_thumb.data_source, 'rdx_hover': r_dspec_xPro_hover.data_source,
+                  'rdx_hover': r_dspec_xPro_hover.data_source,
                   'rdy_hover': r_dspec_yPro_hover.data_source}, code=hover_JScode)
         tab2_p_dspec_hover = HoverTool(tooltips=tooltips, callback=tab2_p_dspec_hover_callback,
                                        renderers=[tab2_r_square])
@@ -1672,7 +1697,9 @@ if os.path.exists(FS_dspecDF):
 
         tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
 
-        panel2 = row(column(
+
+        
+        panel2 = column(
             row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
                 widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
                           tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
@@ -1682,7 +1709,7 @@ if os.path.exists(FS_dspecDF):
                 widgetbox(tab2_Select_pol, tab2_Select_bl,
                           tab2_Select_colorspace,
                           tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
-                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))))
+                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])))
 
         panel3 = row(column(tab3_p_aia_submap, tab3_Slider_ANLYS_idx,
                             row(tab3_BUT_PlayCTRL, tab3_SPCR_LFT_BUT_Step, tab3_BUT_StepCTRL,
@@ -1951,16 +1978,16 @@ if os.path.exists(FS_dspecDF):
                                     vla_l = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                                     vla_r = hdu.data[1, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                                     spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                        np.nanmean(vla_l, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
+                                        np.nanmean(vla_l, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
                                     spec_plt_R[spec_plt_R < 0] = 0
                                     spec_plt_L[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                        np.nanmean(vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
+                                        np.nanmean(vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
                                     spec_plt_L[spec_plt_L < 0] = 0
                                     spec_plt_I[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                        np.nanmean(vla_l + vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
+                                        np.nanmean(vla_l + vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
                                     spec_plt_I[spec_plt_I < 0] = 0
                                     spec_plt_V[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                        np.nanmean(vla_l - vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
+                                        np.nanmean(vla_l - vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
                                     spec_plt_V[spec_plt_V < 0] = 0
                         elif len(pols) == 1:
                             for ll in xrange(tab2_ntim):
@@ -1973,7 +2000,7 @@ if os.path.exists(FS_dspecDF):
                                     freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
                                     idxfreq = freq.index(freq_ref)
                                     vladata = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
-                                    vlaflux = np.nanmean(vladata, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
+                                    vlaflux = np.nanmean(vladata, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
                                     spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = vlaflux
                                     spec_plt_R[spec_plt_R < 0] = 0
                             spec_plt_L = spec_plt_R
