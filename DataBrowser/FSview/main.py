@@ -206,7 +206,7 @@ if os.path.exists(FS_dspecDF):
         dspecDF_frac = dspecDF0.copy()
         dspecDF = dspecDF0.copy()
     itemset1 = set(['shape_longitude', 'shape_latitude'])
-    itemset2 = set(dspecDF.columns.tolist())
+    itemset2 = set(dspecDF0.columns.tolist())
     if len(itemset2.intersection(itemset1)) == 2:
         '''
         ########################################################################################
@@ -1324,8 +1324,6 @@ if os.path.exists(FS_dspecDF):
                     tab3_r_dspec_vector_line.visible = False
                     tab3_r_dspec_vectorx_line.visible = False
                     tab3_r_dspec_vectory_line.visible = False
-                    # tab2_SRC_maxfit_centroid_update(dspecDF)
-                    # todo check why running tab2_SRC_maxfit_centroid_update twice
                     tab3_r_aia_submap_cross.data_source.data = SRC_maxfit_centroid.data
 
 
@@ -1787,7 +1785,7 @@ if os.path.exists(FS_dspecDF):
                 do_spec_regrid = True
                 rebin_specdata(tab2_spec, bl_index, tab2_pol)
                 tab2_p_dspec_rs = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
-                                         plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
+                                         plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_rs_wdth'],
                                          plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
                                          x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
                                          toolbar_location="above")
@@ -1833,15 +1831,12 @@ if os.path.exists(FS_dspecDF):
                     tab2_r_square_rs_selected = tab2_SRC_dspec_square_rs.selected['1d']['indices']
                     if tab2_r_square_rs_selected:
                         dspecDF_rs = dspecDF_rs0.iloc[tab2_r_square_rs_selected, :]
-                        # trs0, trs1 = dspecDF_rs['xx'].min(), dspecDF_rs['xx'].max()
-                        # frs0, frs1 = dspecDF_rs['yy'].min(), dspecDF_rs['yy'].max()
                         trs0, trs1 = dspecDF_rs['xx'].min(), dspecDF_rs['xx'].max()
                         frs0, frs1 = dspecDF_rs['yy'].min(), dspecDF_rs['yy'].max()
                         if trs1>trs0+dspec_fs_tmax*tab2_dt:
                             trs1 = trs0+dspec_fs_tmax*tab2_dt
                         if frs1>frs0+dspec_fs_fmax*tab2_df:
                             frs1 = frs0+dspec_fs_fmax*tab2_df
-
                         tab2_r_square_rs_patch.data_source.data = ColumnDataSource(
                             pd.DataFrame({'xx': [trs0, trs1, trs1, trs0], 'yy': [frs0, frs0, frs1, frs1]})).data
                     else:
