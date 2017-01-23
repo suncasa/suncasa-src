@@ -1324,7 +1324,7 @@ if os.path.exists(FS_dspecDF):
                     tab3_r_dspec_vector_line.visible = False
                     tab3_r_dspec_vectorx_line.visible = False
                     tab3_r_dspec_vectory_line.visible = False
-                    tab2_SRC_maxfit_centroid_update(dspecDF)
+                    # tab2_SRC_maxfit_centroid_update(dspecDF)
                     # todo check why running tab2_SRC_maxfit_centroid_update twice
                     tab3_r_aia_submap_cross.data_source.data = SRC_maxfit_centroid.data
 
