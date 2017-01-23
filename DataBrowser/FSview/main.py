@@ -36,6 +36,11 @@ with open(suncasa_dir + 'DataBrowser/config.json', 'r') as fp:
     config_plot = json.load(fp)
 database_dir = config_plot['datadir']['database']
 database_dir = os.path.expandvars(database_dir) + '/'
+spec_rs_tmax = config_plot['plot_config']['tab_FSview_base']['spec_rs_tmax']
+spec_rs_fmax = config_plot['plot_config']['tab_FSview_base']['spec_rs_fmax']
+spec_square_rs_ratio = config_plot['plot_config']['tab_FSview_base']['spec_square_rs_ratio']
+dspec_fs_tmax = config_plot['plot_config']['tab_FSview_base']['dspec_fs_tmax']
+dspec_fs_fmax = config_plot['plot_config']['tab_FSview_base']['dspec_fs_fmax']
 with open('{}config_EvtID_curr.json'.format(database_dir), 'r') as fp:
     config_EvtID = json.load(fp)
 
@@ -103,27 +108,35 @@ def sdomapfromlocalfile(wavelength=None, jdtime=None):
 
 
 def rebin_specdata(tab2_spec, bl_index, select_pol):
-    global tab2_spec_rs, tab2_tim_rs, tab2_freq_rs, tab2_spec_plt_rs, tab2_dtim_rs
+    global tab2_spec_rs, tab2_tim_rs, tab2_freq_rs, tab2_spec_plt_rs, tab2_ntim_rs, tab2_nfreq_rs, tab2_dtim_rs
+    global tab2_tim_square_rs, tab2_freq_square_rs, tab2_ntim_square_rs, tab2_nfreq_square_rs
     tab2_spec_sz = tab2_spec.shape
     spec_sz2, spec_sz1 = 10, 10
-    if tab2_spec_sz[3] > 800:
-        spec_sz2 = next(i for i in xrange(1, 10) if i / 10. * tab2_spec_sz[3] > 1750)
-    if tab2_spec_sz[2] > 250:
-        spec_sz1 = next(i for i in xrange(1, 10) if i / 10. * tab2_spec_sz[2] > 250)
+    if tab2_spec_sz[3] > spec_rs_tmax:
+        spec_sz2 = next(i for i in xrange(1, 11) if i / 10. * tab2_spec_sz[3] > spec_rs_tmax)
+    if tab2_spec_sz[2] > spec_rs_fmax:
+        spec_sz1 = next(i for i in xrange(1, 11) if i / 10. * tab2_spec_sz[2] > spec_rs_fmax)
     spec_sz1_rs, spec_sz2_rs = spec_sz1 / 10.0, spec_sz2 / 10.0
+
     tab2_spec_rs = sn.interpolation.zoom(tab2_spec, [1, 1, spec_sz1_rs, spec_sz2_rs], order=1)
     tab2_tim_rs = sn.interpolation.zoom(tab2_tim, spec_sz2_rs, order=1)
     tab2_freq_rs = sn.interpolation.zoom(tab2_freq, spec_sz1_rs, order=1)
+    tab2_tim_square_rs = sn.interpolation.zoom(tab2_tim, spec_sz2_rs / spec_square_rs_ratio, order=1)
+    tab2_freq_square_rs = sn.interpolation.zoom(tab2_freq, spec_sz1_rs / spec_square_rs_ratio, order=1)
+    tab2_ntim_rs = len(tab2_tim_rs)
+    tab2_nfreq_rs = len(tab2_freq_rs)
+    tab2_ntim_square_rs = len(tab2_tim_square_rs)
+    tab2_nfreq_square_rs = len(tab2_freq_square_rs)
 
     if select_pol == 'RR':
-        tab2_spec_plt_rs = tab2_spec[0, bl_index, :, :]
+        tab2_spec_plt_rs = tab2_spec_rs[0, bl_index, :, :]
     elif select_pol == 'LL':
-        tab2_spec_plt_rs = tab2_spec[1, bl_index, :, :]
+        tab2_spec_plt_rs = tab2_spec_rs[1, bl_index, :, :]
     elif select_pol == 'I':
-        tab2_spec_plt_rs = (tab2_spec[0, bl_index, :, :] + tab2_spec[1, bl_index, :, :]) / 2.
+        tab2_spec_plt_rs = (tab2_spec_rs[0, bl_index, :, :] + tab2_spec_rs[1, bl_index, :, :]) / 2.
     elif select_pol == 'V':
-        tab2_spec_plt_rs = (tab2_spec[0, bl_index, :, :] - tab2_spec[1, bl_index, :, :]) / 2.
-    tab2_dtim_rs = tab2_tim - tab2_tim[0]
+        tab2_spec_plt_rs = (tab2_spec_rs[0, bl_index, :, :] - tab2_spec_rs[1, bl_index, :, :]) / 2.
+    tab2_dtim_rs = tab2_tim_rs - tab2_tim[0]
 
 
 event_id = config_EvtID['datadir']['event_id']
@@ -145,6 +158,8 @@ tab2_tim = tab2_specdata['tim']
 tab2_dt = np.median(np.diff(tab2_tim))
 tab2_freq = tab2_specdata['freq'] / 1e9
 tab2_freq = [float('{:.03f}'.format(ll)) for ll in tab2_freq]
+tab2_df = np.median(np.diff(tab2_freq))
+
 tab2_bl = tab2_specdata['bl'].item().split(';')
 bl_index = 0
 tab2_pol = 'I'
@@ -188,6 +203,7 @@ FS_dspecDF = database_dir + event_id + struct_id + config_EvtID['datadir']['dspe
 if os.path.exists(FS_dspecDF):
     with open(FS_dspecDF, 'rb') as f:
         dspecDF0 = pickle.load(f)
+        dspecDF_frac = dspecDF0.copy()
         dspecDF = dspecDF0.copy()
     itemset1 = set(['shape_longitude', 'shape_latitude'])
     itemset2 = set(dspecDF.columns.tolist())
@@ -238,32 +254,9 @@ if os.path.exists(FS_dspecDF):
         rmax, rmin = tab2_spec_plt.max(), tab2_spec_plt.min()
         colors_dspec = [colors.rgb2hex(m) for m in colormap_jet((tab2_spec_plt.flatten() - rmin) / (rmax - rmin))]
 
-        TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
-
-        tab2_SRC_dspec_square = ColumnDataSource(dspecDF)
-
-
-        '''create the regridded dynamic spectrum plot'''
-        if tab2_ntim>800 or tab2_freq>250:
-            do_spec_regrid = True
-            rebin_specdata(tab2_spec, bl_index, tab2_pol)
-            tab2_p_dspec_rs = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
-                                  plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
-                                  plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
-                                  x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
-                                  toolbar_location="above")
-            tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
-            tab2_p_dspec_rs.axis.visible = True
-            tab2_p_dspec_rs.title.text = "Dynamic spectrum"
-            tab2_p_dspec_rs.xaxis.axis_label = 'Seconds since ' + tim0_char
-            tab2_p_dspec_rs.yaxis.axis_label = 'Frequency [GHz]'
-            tab2_SRC_dspec_image_rs = ColumnDataSource(
-                data={'data': [tab2_spec_plt_rs], 'xx': [tab2_dtim_rs], 'yy': [tab2_freq_rs]})
-            tab2_p_dspec_rs.image(image="data", x=tab2_dtim_rs[0], y=tab2_freq_rs[0], dw=tab2_dtim_rs[-1] - tab2_dtim_rs[0],
-                               dh=tab2_freq_rs[-1] - tab2_freq_rs[0],
-                               source=tab2_SRC_dspec_image_rs, palette=bokehpalette_jet)
-
         '''create the dynamic spectrum plot'''
+        TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
+        tab2_SRC_dspec_square = ColumnDataSource(dspecDF)
         tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
                               plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
                               plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
@@ -441,7 +434,7 @@ if os.path.exists(FS_dspecDF):
                     spec_plt_V = np.zeros((tab2_nfreq, tab2_ntim))
                     if len(pols) > 1:
                         for ll in xrange(tab2_ntim):
-                            hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
+                            hdufile = fits_LOCL_dir + dspecDF_frac.loc[ll, :]['fits_local']
                             if os.path.exists(hdufile):
                                 hdu = read_fits(hdufile)
                                 hdu_goodchan = goodchan(hdu)
@@ -465,7 +458,7 @@ if os.path.exists(FS_dspecDF):
                                 spec_plt_V[spec_plt_V < 0] = 0
                     elif len(pols) == 1:
                         for ll in xrange(tab2_ntim):
-                            hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
+                            hdufile = fits_LOCL_dir + dspecDF_frac.loc[ll, :]['fits_local']
                             if os.path.exists(hdufile):
                                 hdu = read_fits(hdufile)
                                 hdu_goodchan = goodchan(hdu)
@@ -879,7 +872,7 @@ if os.path.exists(FS_dspecDF):
             tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
                 pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
                               'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
-            hdufile = fits_LOCL_dir + dspecDF0.loc[tidx, :]['fits_local']
+            hdufile = fits_LOCL_dir + dspecDF_frac.loc[tidx, :]['fits_local']
             if os.path.exists(hdufile):
                 hdu = read_fits(hdufile)
                 hdu_goodchan = goodchan(hdu)
@@ -905,12 +898,12 @@ if os.path.exists(FS_dspecDF):
                     SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
                     tab2_r_vla_multi_line.data_source.data = SRC_contour.data
                     tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
-                        dspecDF0.loc[tidx, :]['fits_local'])
+                        dspecDF_frac.loc[tidx, :]['fits_local'])
                 else:
                     tab2_Div_LinkImg_plot.text = '<p><b>freq idx</b> out of range.</p>'
             else:
                 tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
-                    dspecDF0.loc[tidx, :]['fits_local'])
+                    dspecDF_frac.loc[tidx, :]['fits_local'])
 
 
         tab2_CTRLs_LinkImg = [tab2_Slider_time_LinkImg, tab2_Slider_freq_LinkImg, tab2_Select_vla_pol]
@@ -1081,22 +1074,22 @@ if os.path.exists(FS_dspecDF):
         def dspecDFtmp_init():
             global dspecDFtmp
             dspecDFtmp = pd.DataFrame()
-            nrows_dspecDF = len(dspecDF0.index)
-            dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-            dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-            dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+            nrows_dspecDF = len(dspecDF_frac.index)
+            dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
+            dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
+            dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
 
 
         def dspecDFtmp_update(selected=None):
             global dspecDFtmp
             if selected:
-                dspecDFtmp.loc[selected, 'shape_longitude'] = dspecDF0.loc[selected, 'shape_longitude']
-                dspecDFtmp.loc[selected, 'shape_latitude'] = dspecDF0.loc[selected, 'shape_latitude']
-                dspecDFtmp.loc[selected, 'peak'] = dspecDF0.loc[selected, 'peak']
+                dspecDFtmp.loc[selected, 'shape_longitude'] = dspecDF_frac.loc[selected, 'shape_longitude']
+                dspecDFtmp.loc[selected, 'shape_latitude'] = dspecDF_frac.loc[selected, 'shape_latitude']
+                dspecDFtmp.loc[selected, 'peak'] = dspecDF_frac.loc[selected, 'peak']
             else:
-                dspecDFtmp.loc[:, 'shape_longitude'] = dspecDF0.loc[:, 'shape_longitude']
-                dspecDFtmp.loc[:, 'shape_latitude'] = dspecDF0.loc[:, 'shape_latitude']
-                dspecDFtmp.loc[:, 'peak'] = dspecDF0.loc[:, 'peak']
+                dspecDFtmp.loc[:, 'shape_longitude'] = dspecDF_frac.loc[:, 'shape_longitude']
+                dspecDFtmp.loc[:, 'shape_latitude'] = dspecDF_frac.loc[:, 'shape_latitude']
+                dspecDFtmp.loc[:, 'peak'] = dspecDF_frac.loc[:, 'peak']
 
 
         dspecDFtmp_init()
@@ -1108,21 +1101,21 @@ if os.path.exists(FS_dspecDF):
             global mean_amp_g, mean_vx, mean_vy, drange_amp_g, drange_vx, drange_vy
             global vmax_amp_g, vmax_vx, vmax_vy, vmin_amp_g, vmin_vx, vmin_vy
             start_timestamp = time.time()
-            amp_g = (dspecDF0['peak'].copy()).reshape(tab2_nfreq, tab2_ntim)
+            amp_g = (dspecDF_frac['peak'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_amp_g = np.nanmean(amp_g)
             drange_amp_g = 40.
             vmax_amp_g, vmin_amp_g = mean_amp_g + drange_amp_g * np.asarray([1., -1.])
             amp_g[amp_g > vmax_amp_g] = vmax_amp_g
             amp_g[amp_g < vmin_amp_g] = vmin_amp_g
             tab3_SRC_dspec_vector = ColumnDataSource(data={'data': [amp_g], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
-            vx = (dspecDF0['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
+            vx = (dspecDF_frac['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_vx = np.nanmean(vx)
             drange_vx = 40.
             vmax_vx, vmin_vx = mean_vx + drange_vx * np.asarray([1., -1.])
             vx[vx > vmax_vx] = vmax_vx
             vx[vx < vmin_vx] = vmin_vx
             tab3_SRC_dspec_vectorx = ColumnDataSource(data={'data': [vx], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
-            vy = (dspecDF0['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
+            vy = (dspecDF_frac['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
             mean_vy = np.nanmean(vy)
             drange_vy = 40.
             vmax_vy, vmin_vy = mean_vy + drange_vy * np.asarray([1., -1.])
@@ -1189,7 +1182,7 @@ if os.path.exists(FS_dspecDF):
         tab3_r_dspec_vectory_line = tab3_p_dspec_vectory.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
                                                               line_color='white',
                                                               source=tab3_source_idx_line)
-        tab2_SRC_dspec_vector_square = ColumnDataSource(dspecDF0)
+        tab2_SRC_dspec_vector_square = ColumnDataSource(dspecDF_frac)
         tab2_r_dspec_vector_square = tab3_p_dspec_vector.square('time', 'freq', source=tab2_SRC_dspec_vector_square,
                                                                 fill_color=colors_dspec,
                                                                 fill_alpha=0.0,
@@ -1213,12 +1206,12 @@ if os.path.exists(FS_dspecDF):
             tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
             if tab2_dspec_selected:
                 # global dspecDF
-                dspecDF4vla = dspecDF0.iloc[tab2_dspec_selected, :]
+                dspecDF4vla = dspecDF_frac.iloc[tab2_dspec_selected, :]
                 idx_selected = dspecDF4vla.index[len(dspecDF4vla) / 2]
                 tidx = int(['{:.3f}'.format(ll) for ll in tab2_dtim].index(
-                    '{:.3f}'.format(dspecDF0.loc[idx_selected, :]['time'])))
+                    '{:.3f}'.format(dspecDF_frac.loc[idx_selected, :]['time'])))
                 fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
-                    '{:.3f}'.format(dspecDF0.loc[idx_selected, :]['freq'])))
+                    '{:.3f}'.format(dspecDF_frac.loc[idx_selected, :]['freq'])))
                 tab2_Slider_time_LinkImg.value = tidx
                 tab2_Slider_freq_LinkImg.value = fidx
 
@@ -1320,7 +1313,7 @@ if os.path.exists(FS_dspecDF):
             tab2_dspec_vector_selected = tab2_SRC_dspec_vector_square.selected['1d']['indices']
             if tab2_dspec_vector_selected:
                 global dspecDF
-                dspecDF = dspecDF0.iloc[tab2_dspec_vector_selected, :]
+                dspecDF = dspecDF_frac.iloc[tab2_dspec_vector_selected, :]
                 dspecDFtmp_init()
                 dspecDFtmp_update(selected=tab2_dspec_vector_selected)
                 # tab3_SRC_dspec_vector_update(dspecDFtmp)
@@ -1697,32 +1690,34 @@ if os.path.exists(FS_dspecDF):
 
         tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
 
+        lout2_1 = row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
+                      widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
+                                tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
+                                width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
+        if do_spec_regrid:
+            lout2_2_1 = column(tab2_p_dspec_rs, row(tab2_p_dspec, tab2_p_dspec_yPro), tab2_p_dspec_xPro)
+        else:
+            lout2_2_1 = column(row(tab2_p_dspec, tab2_p_dspec_yPro), tab2_p_dspec_xPro)
+        lout2_2_2 = widgetbox(tab2_Select_pol, tab2_Select_bl,
+                              tab2_Select_colorspace,
+                              tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
+                              width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+        lout2_2 = row(lout2_2_1, lout2_2_2)
+        panel2 = column(lout2_1, lout2_2)
 
-        
-        panel2 = column(
-            row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
-                widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
-                          tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
-                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])),
-            row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
-                       tab2_p_dspec_xPro),
-                widgetbox(tab2_Select_pol, tab2_Select_bl,
-                          tab2_Select_colorspace,
-                          tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
-                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])))
-
-        panel3 = row(column(tab3_p_aia_submap, tab3_Slider_ANLYS_idx,
-                            row(tab3_BUT_PlayCTRL, tab3_SPCR_LFT_BUT_Step, tab3_BUT_StepCTRL,
-                                tab3_SPCR_LFT_BUT_REVS_CTRL,
-                                tab3_BUT_FRWD_REVS_CTRL, tab3_SPCR_LFT_BUT_animate_ONOFF,
-                                tab3_BUT_animate_ONOFF), tab3_input_plot_xargs, tab3_Div_plot_xargs),
-                     column(gridplot([tab3_p_dspec_vector], [tab3_p_dspec_vectorx], [tab3_p_dspec_vectory],
-                                     toolbar_location='right'), tab3_Div_Tb),
-                     widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
-                               tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab2_Select_aia_wave,
-                               tab2_panel3_BUT_exit,
-                               tab2_panel3_Div_exit,
-                               width=200))
+        lout3_1 = column(tab3_p_aia_submap, tab3_Slider_ANLYS_idx,
+                         row(tab3_BUT_PlayCTRL, tab3_SPCR_LFT_BUT_Step, tab3_BUT_StepCTRL,
+                             tab3_SPCR_LFT_BUT_REVS_CTRL,
+                             tab3_BUT_FRWD_REVS_CTRL, tab3_SPCR_LFT_BUT_animate_ONOFF,
+                             tab3_BUT_animate_ONOFF), tab3_input_plot_xargs, tab3_Div_plot_xargs)
+        lout3_2 = column(gridplot([tab3_p_dspec_vector], [tab3_p_dspec_vectorx], [tab3_p_dspec_vectory],
+                                  toolbar_location='right'), tab3_Div_Tb)
+        lout3_3 = widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
+                            tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab2_Select_aia_wave,
+                            tab2_panel3_BUT_exit,
+                            tab2_panel3_Div_exit,
+                            width=200)
+        panel3 = row(lout3_1, lout3_2, lout3_3)
         # tab2 = Panel(child=panel2, title="FS View")
         # tab3 = Panel(child=panel3, title="FitANLYS")
         #
@@ -1784,11 +1779,79 @@ if os.path.exists(FS_dspecDF):
             rmax, rmin = tab2_spec_plt.max(), tab2_spec_plt.min()
             colors_dspec = [colors.rgb2hex(m) for m in colormap_jet((tab2_spec_plt.flatten() - rmin) / (rmax - rmin))]
 
-            TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
+            '''create the regridded dynamic spectrum plot'''
+            TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
+            if tab2_ntim > spec_rs_tmax or tab2_freq > spec_rs_fmax:
+                do_spec_regrid = True
+                rebin_specdata(tab2_spec, bl_index, tab2_pol)
+                tab2_p_dspec_rs = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
+                                         plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
+                                         plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
+                                         x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
+                                         toolbar_location="above")
+                tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+                tab2_p_dspec_rs.axis.visible = True
+                tab2_p_dspec_rs.title.text = "Dynamic spectrum"
+                tab2_p_dspec_rs.xaxis.axis_label = 'Seconds since ' + tim0_char
+                tab2_p_dspec_rs.yaxis.axis_label = 'Frequency [GHz]'
+                tab2_SRC_dspec_image_rs = ColumnDataSource(
+                    data={'data': [tab2_spec_plt_rs], 'xx': [tab2_dtim_rs], 'yy': [tab2_freq_rs]})
+                tab2_p_dspec_rs.image(image="data", x=tab2_dtim_rs[0], y=tab2_freq_rs[0],
+                                      dw=tab2_dtim_rs[-1] - tab2_dtim_rs[0],
+                                      dh=tab2_freq_rs[-1] - tab2_freq_rs[0],
+                                      source=tab2_SRC_dspec_image_rs, palette=bokehpalette_jet)
+                tim_map_square_rs = (np.tile(tab2_tim_square_rs, tab2_nfreq_square_rs).reshape(tab2_nfreq_square_rs, \
+                                                                                               tab2_ntim_square_rs) / 3600. / 24. + 2400000.5) * 86400.
+                freq_map_square_rs = np.tile(tab2_freq_square_rs, tab2_ntim_square_rs).reshape(tab2_ntim_square_rs, \
+                                                                                               tab2_nfreq_square_rs).swapaxes(
+                    0, 1)
+                dspecDF_rs0 = pd.DataFrame({'xx': tim_map_square_rs.ravel() - xx[0], 'yy': freq_map_square_rs.ravel()})
+                tab2_SRC_dspec_square_rs = ColumnDataSource(dspecDF_rs0)
+                tab2_r_square_rs = tab2_p_dspec_rs.square('xx', 'yy', source=tab2_SRC_dspec_square_rs, fill_color=None,
+                                                          fill_alpha=0.0,
+                                                          line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
+                                                          selection_fill_color='black',
+                                                          nonselection_fill_alpha=0.0,
+                                                          selection_line_alpha=0.0, selection_line_color='white',
+                                                          nonselection_line_alpha=0.0,
+                                                          size=min(
+                                                              config_plot['plot_config']['tab_FSview_base'][
+                                                                  'dspec_wdth'] / tab2_ntim_square_rs,
+                                                              config_plot['plot_config']['tab_FSview_base'][
+                                                                  'dspec_hght'] / tab2_nfreq_square_rs))
+                tab2_SRC_r_square_rs_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
+                tab2_r_square_rs_patch = tab2_p_dspec_rs.patch('xx', 'yy', source=tab2_SRC_r_square_rs_Patch,
+                                                               fill_color=None, fill_alpha=0.5, line_color="white",
+                                                               line_alpha=1, line_width=1)
+                tab2_p_dspec_rs.add_tools(BoxSelectTool(renderers=[tab2_r_square_rs]))
 
-            tab2_SRC_dspec_square = ColumnDataSource(dspecDF0)
+
+                def tab2_r_square_rs_selection_change(attrname, old, new):
+                    global trs0, trs1, frs0, frs1
+                    tab2_r_square_rs_selected = tab2_SRC_dspec_square_rs.selected['1d']['indices']
+                    if tab2_r_square_rs_selected:
+                        dspecDF_rs = dspecDF_rs0.iloc[tab2_r_square_rs_selected, :]
+                        # trs0, trs1 = dspecDF_rs['xx'].min(), dspecDF_rs['xx'].max()
+                        # frs0, frs1 = dspecDF_rs['yy'].min(), dspecDF_rs['yy'].max()
+                        trs0, trs1 = dspecDF_rs['xx'].min(), dspecDF_rs['xx'].max()
+                        frs0, frs1 = dspecDF_rs['yy'].min(), dspecDF_rs['yy'].max()
+                        if trs1>trs0+dspec_fs_tmax*tab2_dt:
+                            trs1 = trs0+dspec_fs_tmax*tab2_dt
+                        if frs1>frs0+dspec_fs_fmax*tab2_df:
+                            frs1 = frs0+dspec_fs_fmax*tab2_df
+
+                        tab2_r_square_rs_patch.data_source.data = ColumnDataSource(
+                            pd.DataFrame({'xx': [trs0, trs1, trs1, trs0], 'yy': [frs0, frs0, frs1, frs1]})).data
+                    else:
+                        tab2_r_square_rs_patch.data_source.data = ColumnDataSource(
+                            pd.DataFrame({'xx': [], 'yy': []})).data
+
+
+                tab2_SRC_dspec_square_rs.on_change('selected', tab2_r_square_rs_selection_change)
 
             '''create the dynamic spectrum plot'''
+            TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
+            tab2_SRC_dspec_square = ColumnDataSource(dspecDF_frac)
             tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
                                   plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
                                   plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
@@ -1967,7 +2030,7 @@ if os.path.exists(FS_dspecDF):
                         spec_plt_V = np.zeros((tab2_nfreq, tab2_ntim))
                         if len(pols) > 1:
                             for ll in xrange(tab2_ntim):
-                                hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
+                                hdufile = fits_LOCL_dir + dspecDF_frac.loc[ll, :]['fits_local']
                                 if os.path.exists(hdufile):
                                     hdu = read_fits(hdufile)
                                     hdu_goodchan = goodchan(hdu)
@@ -1991,7 +2054,7 @@ if os.path.exists(FS_dspecDF):
                                     spec_plt_V[spec_plt_V < 0] = 0
                         elif len(pols) == 1:
                             for ll in xrange(tab2_ntim):
-                                hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
+                                hdufile = fits_LOCL_dir + dspecDF_frac.loc[ll, :]['fits_local']
                                 if os.path.exists(hdufile):
                                     hdu = read_fits(hdufile)
                                     hdu_goodchan = goodchan(hdu)
@@ -2291,7 +2354,7 @@ if os.path.exists(FS_dspecDF):
                 tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
                     pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
                                   'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
-                hdufile = fits_LOCL_dir + dspecDF0.loc[tidx, :]['fits_local']
+                hdufile = fits_LOCL_dir + dspecDF_frac.loc[tidx, :]['fits_local']
                 if os.path.exists(hdufile):
                     hdu = read_fits(hdufile)
                     hdu_goodchan = goodchan(hdu)
@@ -2319,12 +2382,12 @@ if os.path.exists(FS_dspecDF):
                         SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
                         tab2_r_vla_multi_line.data_source.data = SRC_contour.data
                         tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
-                            dspecDF0.loc[tidx, :]['fits_local'])
+                            dspecDF_frac.loc[tidx, :]['fits_local'])
                     else:
                         tab2_Div_LinkImg_plot.text = '<p><b>freq idx</b> out of range.</p>'
                 else:
                     tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
-                        dspecDF0.loc[tidx, :]['fits_local'])
+                        dspecDF_frac.loc[tidx, :]['fits_local'])
 
 
             tab2_CTRLs_LinkImg = [tab2_Slider_time_LinkImg, tab2_Slider_freq_LinkImg, tab2_Select_vla_pol]
@@ -2348,10 +2411,10 @@ if os.path.exists(FS_dspecDF):
             # def dspecDFtmp_init():
             #     global dspecDFtmp
             #     dspecDFtmp = pd.DataFrame()
-            #     nrows_dspecDF = len(dspecDF0.index)
-            #     dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-            #     dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-            #     dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+            #     nrows_dspecDF = len(dspecDF_frac.index)
+            #     dspecDFtmp['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
+            #     dspecDFtmp['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
+            #     dspecDFtmp['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
 
 
             def tab2_dspec_selection_change(attrname, old, new):
@@ -2359,12 +2422,12 @@ if os.path.exists(FS_dspecDF):
                 tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
                 if tab2_dspec_selected:
                     global dspecDF
-                    dspecDF = dspecDF0.iloc[tab2_dspec_selected, :]
+                    dspecDF = dspecDF_frac.iloc[tab2_dspec_selected, :]
                     idx_selected = dspecDF.index[len(dspecDF) / 2]
                     tidx = int(['{:.3f}'.format(ll) for ll in tab2_dtim].index(
-                        '{:.3f}'.format(dspecDF0.loc[idx_selected, :]['time'])))
+                        '{:.3f}'.format(dspecDF_frac.loc[idx_selected, :]['time'])))
                     fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
-                        '{:.3f}'.format(dspecDF0.loc[idx_selected, :]['freq'])))
+                        '{:.3f}'.format(dspecDF_frac.loc[idx_selected, :]['freq'])))
                     tab2_Slider_time_LinkImg.value = tidx
                     tab2_Slider_freq_LinkImg.value = fidx
 
@@ -2607,26 +2670,33 @@ if os.path.exists(FS_dspecDF):
 
             tab2_SPCR_LFT_Div_tImfit = Spacer(width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth10'])
 
-            panel2 = row(column(
-                row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
-                    widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
-                              tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
-                              width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])),
-                row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
-                           tab2_p_dspec_xPro),
-                    widgetbox(tab2_Select_pol, tab2_Select_bl,
-                              tab2_Select_colorspace,
-                              tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
-                              width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))),
-                tab2_SPCR_LFT_Div_tImfit,
-                column(tab2_input_tImfit, tab2_Div_tImfit2,
-                       row(tab2_BUT_tImfit_param_ADD, tab2_SPCR_LFT_BUT_tImfit_param_DEL,
-                           tab2_BUT_tImfit_param_DEL, tab2_SPCR_LFT_BUT_tImfit_param_DEFAULT,
-                           tab2_BUT_tImfit_param_Default, tab2_SPCR_LFT_BUT_tImfit_param_RELOAD,
-                           tab2_BUT_tImfit_param_RELOAD, tab2_SPCR_ABV_BUT_timfit, tab2_BUT_tImfit),
-                       tab2_Div_tImfit))
-
-            lout = panel2
+            lout2_1_1 = row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
+                            widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
+                                      tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
+                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
+            if do_spec_regrid:
+                lout2_1_2 = row(column(tab2_p_dspec_rs,row(tab2_p_dspec, tab2_p_dspec_yPro),
+                                       tab2_p_dspec_xPro),
+                                widgetbox(tab2_Select_pol, tab2_Select_bl,
+                                          tab2_Select_colorspace,
+                                          tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
+                                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
+            else:
+                lout2_1_2 = row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
+                                       tab2_p_dspec_xPro),
+                                widgetbox(tab2_Select_pol, tab2_Select_bl,
+                                          tab2_Select_colorspace,
+                                          tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
+                                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
+            lout2_1 = column(lout2_1_1, lout2_1_2)
+            lout2_2 = tab2_SPCR_LFT_Div_tImfit
+            lout2_3 = column(tab2_input_tImfit, tab2_Div_tImfit2,
+                             row(tab2_BUT_tImfit_param_ADD, tab2_SPCR_LFT_BUT_tImfit_param_DEL,
+                                 tab2_BUT_tImfit_param_DEL, tab2_SPCR_LFT_BUT_tImfit_param_DEFAULT,
+                                 tab2_BUT_tImfit_param_Default, tab2_SPCR_LFT_BUT_tImfit_param_RELOAD,
+                                 tab2_BUT_tImfit_param_RELOAD, tab2_SPCR_ABV_BUT_timfit, tab2_BUT_tImfit),
+                             tab2_Div_tImfit)
+            lout = row(lout2_1, lout2_2, lout2_3)
 
             curdoc().add_root(lout)
             curdoc().title = "FSview"
