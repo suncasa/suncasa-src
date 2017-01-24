@@ -2104,7 +2104,7 @@ if os.path.exists(FS_dspecDF):
                 dspecDF_frac = \
                     dspecDF0[dspecDF0.time < tab2_dtim[0] + tab2_dspec_fs_ntim * tab2_dt][
                         dspecDF0.time >= tab2_dtim[0]][
-                        dspecDF0.freq >= frs0][dspecDF0.freq < tab2_freq[0] + tab2_dspec_fs_nfreq * tab2_df]
+                        dspecDF0.freq >= tab2_freq[0]][dspecDF0.freq < tab2_freq[0] + tab2_dspec_fs_nfreq * tab2_df]
                 rebin_specdata(tab2_spec, bl_index, tab2_pol)
                 tab2_p_dspec_rs = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
                                          plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_rs_wdth'],
