@@ -157,7 +157,7 @@ def tab2_vdspec_update():
             print len(pols)
             if len(pols) > 1:
                 for ll in xrange(tab2_ntim):
-                    hdufile = fits_LOCL_dir + dspecDF_frac.loc[ll, :]['fits_local']
+                    hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
                     if os.path.exists(hdufile):
                         hdu = read_fits(hdufile)
                         hdu_goodchan = goodchan(hdu)
@@ -181,7 +181,7 @@ def tab2_vdspec_update():
                         spec_plt_V[spec_plt_V < 0] = 0
             elif len(pols) == 1:
                 for ll in xrange(tab2_ntim):
-                    hdufile = fits_LOCL_dir + dspecDF_frac.loc[ll, :]['fits_local']
+                    hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
                     if os.path.exists(hdufile):
                         hdu = read_fits(hdufile)
                         hdu_goodchan = goodchan(hdu)
