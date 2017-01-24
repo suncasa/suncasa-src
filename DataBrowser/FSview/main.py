@@ -972,10 +972,10 @@ def tab2_r_square_rs_selection_change(attrname, old, new):
             dspecDF0.freq < frs1]
         tab2_dtim_fs = pd.Series.unique(dspecDF_frac['time'])
         tab2_freq_fs = pd.Series.unique(dspecDF_frac['freq'])
-        tab2_tim_ind0 = np.where(abs(tab2_dtim - tab2_dtim_fs[0]) < tab2_dt / 2.0)
-        tab2_tim_ind1 = np.where(abs(tab2_dtim - tab2_dtim_fs[-1]) < tab2_dt / 2.0)
-        tab2_freq_ind0 = np.where(abs(tab2_freq - tab2_freq_fs[0]) < tab2_df / 2.0)
-        tab2_freq_ind1 = np.where(abs(tab2_freq - tab2_freq_fs[-1]) < tab2_df / 2.0)
+        tab2_tim_ind0 = np.where(abs(tab2_dtim - tab2_dtim_fs[0]) < tab2_dt / 2.0)[0][0]
+        tab2_tim_ind1 = np.where(abs(tab2_dtim - tab2_dtim_fs[-1]) < tab2_dt / 2.0)[0][0]
+        tab2_freq_ind0 = np.where(abs(tab2_freq - tab2_freq_fs[0]) < tab2_df / 2.0)[0][0]
+        tab2_freq_ind1 = np.where(abs(tab2_freq - tab2_freq_fs[-1]) < tab2_df / 2.0)[0][0]
         tab2_update_dspec_image()
     else:
         tab2_r_square_rs_patch.data_source.data = ColumnDataSource(
@@ -2150,10 +2150,10 @@ if os.path.exists(FS_dspecDF):
 
             tab2_dtim_fs = pd.Series.unique(dspecDF_frac['time'])
             tab2_freq_fs = pd.Series.unique(dspecDF_frac['freq'])
-            tab2_tim_ind0 = np.where(abs(tab2_dtim - tab2_dtim_fs[0]) < tab2_dt / 2.0)
-            tab2_tim_ind1 = np.where(abs(tab2_dtim - tab2_dtim_fs[-1]) < tab2_dt / 2.0)
-            tab2_freq_ind0 = np.where(abs(tab2_freq - tab2_freq_fs[0]) < tab2_df / 2.0)
-            tab2_freq_ind1 = np.where(abs(tab2_freq - tab2_freq_fs[-1]) < tab2_df / 2.0)
+            tab2_tim_ind0 = np.where(abs(tab2_dtim - tab2_dtim_fs[0]) < tab2_dt / 2.0)[0][0]
+            tab2_tim_ind1 = np.where(abs(tab2_dtim - tab2_dtim_fs[-1]) < tab2_dt / 2.0)[0][0]
+            tab2_freq_ind0 = np.where(abs(tab2_freq - tab2_freq_fs[0]) < tab2_df / 2.0)[0][0]
+            tab2_freq_ind1 = np.where(abs(tab2_freq - tab2_freq_fs[-1]) < tab2_df / 2.0)[0][0]
             '''create the dynamic spectrum plot'''
             TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
             tab2_SRC_dspec_square = ColumnDataSource(dspecDF_frac)
