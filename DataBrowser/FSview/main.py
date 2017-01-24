@@ -972,11 +972,49 @@ def tab2_r_square_rs_selection_change(attrname, old, new):
             dspecDF0.freq < frs1]
         tab2_dtim_fs = pd.Series.unique(dspecDF_frac['time'])
         tab2_freq_fs = pd.Series.unique(dspecDF_frac['freq'])
+        tab2_ntim_fs = len(tab2_dtim_fs)
+        tab2_nfreq_fs = len(tab2_freq_fs)
         tab2_tim_ind0 = np.where(abs(tab2_dtim - tab2_dtim_fs[0]) < tab2_dt / 2.0)[0][0]
         tab2_tim_ind1 = np.where(abs(tab2_dtim - tab2_dtim_fs[-1]) < tab2_dt / 2.0)[0][0]
         tab2_freq_ind0 = np.where(abs(tab2_freq - tab2_freq_fs[0]) < tab2_df / 2.0)[0][0]
         tab2_freq_ind1 = np.where(abs(tab2_freq - tab2_freq_fs[-1]) < tab2_df / 2.0)[0][0]
-        tab2_update_dspec_image()
+        global spec_plt_R, spec_plt_L, spec_plt_I, spec_plt_V
+        global tab2_spec, tab2_dtim, tab2_freq, tab2_bl
+        select_pol = tab2_Select_pol.value
+        select_bl = tab2_Select_bl.value
+        bl_index = tab2_bl.index(select_bl)
+        if tab2_BUT_vdspec.label == "VEC Dyn Spec":
+            spec_plt_R = tab2_spec[0, bl_index, tab2_freq_ind0:(tab2_freq_ind1 + 1), tab2_tim_ind0:(tab2_tim_ind1 + 1)]
+            spec_plt_L = tab2_spec[1, bl_index, tab2_freq_ind0:(tab2_freq_ind1 + 1), tab2_tim_ind0:(tab2_tim_ind1 + 1)]
+            spec_plt_I = (spec_plt_R + spec_plt_L) / 2.
+            spec_plt_V = (spec_plt_R - spec_plt_L) / 2.
+        tab2_dspec_image_plt(select_pol)
+        tab2_SRC_dspec_square = ColumnDataSource(dspecDF_frac)
+        tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
+                              plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
+                              plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
+                              x_range=(dspecDF_frac['time'].min(), dspecDF_frac['time'].max()),
+                              y_range=(dspecDF_frac['freq'].min(), dspecDF_frac['freq'].max()),
+                              toolbar_location="above")
+        tab2_SRC_dspec_image = ColumnDataSource(
+            data={'data': [tab2_spec_plt[tab2_freq_ind0:tab2_freq_ind1 + 1, tab2_tim_ind0:tab2_tim_ind1 + 1]],
+                  'xx': [tab2_dtim_fs], 'yy': [tab2_freq_fs]})
+        tab2_p_dspec.image(image="data", x=tab2_dtim_fs[0], y=tab2_freq_fs[0],
+                           dw=tab2_dtim_fs[-1] - tab2_dtim_fs[0],
+                           dh=tab2_freq_fs[-1] - tab2_freq_fs[0],
+                           source=tab2_SRC_dspec_image, palette=bokehpalette_jet)
+        tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=colors_dspec,
+                                            fill_alpha=0.0,
+                                            line_color=None, line_alpha=0.0, selection_fill_alpha=0.1,
+                                            selection_fill_color='black',
+                                            nonselection_fill_alpha=0.0,
+                                            selection_line_alpha=0.2, selection_line_color='white',
+                                            nonselection_line_alpha=0.0,
+                                            size=max(
+                                                config_plot['plot_config']['tab_FSview_base'][
+                                                    'dspec_wdth'] / tab2_ntim_fs,
+                                                config_plot['plot_config']['tab_FSview_base'][
+                                                    'dspec_hght'] / tab2_nfreq_fs))
     else:
         tab2_r_square_rs_patch.data_source.data = ColumnDataSource(
             pd.DataFrame({'xx': [], 'yy': []})).data
@@ -2150,6 +2188,8 @@ if os.path.exists(FS_dspecDF):
 
             tab2_dtim_fs = pd.Series.unique(dspecDF_frac['time'])
             tab2_freq_fs = pd.Series.unique(dspecDF_frac['freq'])
+            tab2_ntim_fs = len(tab2_dtim_fs)
+            tab2_nfreq_fs = len(tab2_freq_fs)
             tab2_tim_ind0 = np.where(abs(tab2_dtim - tab2_dtim_fs[0]) < tab2_dt / 2.0)[0][0]
             tab2_tim_ind1 = np.where(abs(tab2_dtim - tab2_dtim_fs[-1]) < tab2_dt / 2.0)[0][0]
             tab2_freq_ind0 = np.where(abs(tab2_freq - tab2_freq_fs[0]) < tab2_df / 2.0)[0][0]
@@ -2186,9 +2226,9 @@ if os.path.exists(FS_dspecDF):
                                                 nonselection_line_alpha=0.0,
                                                 size=max(
                                                     config_plot['plot_config']['tab_FSview_base'][
-                                                        'dspec_wdth'] / tab2_ntim,
+                                                        'dspec_wdth'] / tab2_ntim_fs,
                                                     config_plot['plot_config']['tab_FSview_base'][
-                                                        'dspec_hght'] / tab2_nfreq))
+                                                        'dspec_hght'] / tab2_nfreq_fs))
 
             # tab2_p_dspec.border_fill_color = "silver"
             tab2_p_dspec.border_fill_alpha = 0.4
