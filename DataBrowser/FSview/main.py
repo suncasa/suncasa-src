@@ -153,6 +153,8 @@ def tab2_vdspec_update():
             spec_plt_L = np.zeros((tab2_nfreq, tab2_ntim))
             spec_plt_I = np.zeros((tab2_nfreq, tab2_ntim))
             spec_plt_V = np.zeros((tab2_nfreq, tab2_ntim))
+            print 'pols:',pols
+            print len(pols)
             if len(pols) > 1:
                 for ll in xrange(tab2_ntim):
                     hdufile = fits_LOCL_dir + dspecDF_frac.loc[ll, :]['fits_local']
