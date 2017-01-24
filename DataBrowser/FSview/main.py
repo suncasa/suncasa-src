@@ -178,23 +178,19 @@ def tab2_vdspec_update():
                             np.nanmean(vla_l - vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
                         spec_plt_V[spec_plt_V < 0] = 0
             elif len(pols) == 1:
-                print 'pols:'
-                print pols
                 for ll in xrange(tab2_ntim):
                     hdufile = fits_LOCL_dir + dspecDF_frac.loc[ll, :]['fits_local']
-                    print hdufile
-                    print os.path.exists(hdufile)
                     if os.path.exists(hdufile):
-                        print x0pix, x1pix, y0pix, y1pix
                         hdu = read_fits(hdufile)
                         hdu_goodchan = goodchan(hdu)
                         nfreq_hdu = hdu_goodchan[-1] - hdu_goodchan[0] + 1
                         freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                         freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
                         print x0pix, x1pix, y0pix, y1pix
-                        print freq_ref
                         idxfreq = freq.index(freq_ref)
+                        print freq_ref
                         vladata = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
+                        print ll
                         vlaflux = np.nanmean(vladata, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
                         spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = vlaflux
                         spec_plt_R[spec_plt_R < 0] = 0
