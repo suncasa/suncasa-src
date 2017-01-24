@@ -185,7 +185,7 @@ def tab2_vdspec_update():
         spec_plt_R = tab2_spec[0, bl_index, :, :]
         spec_plt_L = tab2_spec[1, bl_index, :, :]
         spec_pol_dict = make_spec_plt(spec_plt_R, spec_plt_L)
-        spec_plt_pol = spec_pol_dict['dspec']
+        spec_plt_pol = spec_pol_dict['spec']
         tab2_r_square_rs_selection_change(bl_index, select_pol)
         tab2_p_dspec.title.text = "Dynamic spectrum"
         tab2_Div_LinkImg_plot.text = ''
@@ -256,9 +256,9 @@ def tab2_r_square_rs_selection_change(bl_index, select_pol):
             spec_plt_L_frac = tab2_spec[1, bl_index, tab2_freq_ind0:(tab2_freq_ind1 + 1),
                               tab2_tim_ind0:(tab2_tim_ind1 + 1)]
         else:
-            spec_plt_R_frac = spec_pol_dict['dspec'][select_pol][tab2_freq_ind0:(tab2_freq_ind1 + 1),
+            spec_plt_R_frac = spec_pol_dict['spec'][select_pol][tab2_freq_ind0:(tab2_freq_ind1 + 1),
                               tab2_tim_ind0:(tab2_tim_ind1 + 1)]
-            spec_plt_L_frac = spec_pol_dict['dspec'][select_pol][tab2_freq_ind0:(tab2_freq_ind1 + 1),
+            spec_plt_L_frac = spec_pol_dict['spec'][select_pol][tab2_freq_ind0:(tab2_freq_ind1 + 1),
                               tab2_tim_ind0:(tab2_tim_ind1 + 1)]
 
         spec_pol_dict_frac = make_spec_plt(spec_plt_R_frac, spec_plt_L_frac)
@@ -301,7 +301,7 @@ def tab2_r_square_rs_selection_change(bl_index, select_pol):
                                                     'dspec_wdth'] / tab2_ntim_fs,
                                                 config_plot['plot_config']['tab_FSview_base'][
                                                     'dspec_hght'] / tab2_nfreq_fs))
-        tab2_SRC_dspec_image_rs.data = {'data': [spec_pol_dict['dspec'][select_pol]], 'xx': [tab2_dtim],
+        tab2_SRC_dspec_image_rs.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim],
                                         'yy': [tab2_freq]}
     else:
         tab2_r_square_rs_patch.data_source.data = ColumnDataSource(
@@ -1205,10 +1205,10 @@ tab2_pol = 'I'
 sz_spec = tab2_spec.shape
 tab2_spec_plt_R = tab2_spec[0, bl_index, :, :]
 tab2_spec_plt_L = tab2_spec[1, bl_index, :, :]
-tab2_spec_dict = make_spec_plt(tab2_spec_plt_R, tab2_spec_plt_L)
-tab2_spec_plt_pol = tab2_spec_dict['dspec']
-spec_plt_max_pol = tab2_spec_dict['max']
-spec_plt_min_pol = tab2_spec_dict['min']
+tab2_spec_pol_dict = make_spec_plt(tab2_spec_plt_R, tab2_spec_plt_L)
+tab2_spec_plt_pol = tab2_spec_pol_dict['spec']
+spec_plt_max_pol = tab2_spec_pol_dict['max']
+spec_plt_min_pol = tab2_spec_pol_dict['min']
 tab2_spec_plt = tab2_spec_plt_pol[tab2_pol]
 spec_plt_max = spec_plt_max_pol[tab2_pol]
 spec_plt_min = spec_plt_min_pol[tab2_pol]
