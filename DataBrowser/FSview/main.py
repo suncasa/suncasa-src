@@ -108,8 +108,7 @@ def sdomapfromlocalfile(wavelength=None, jdtime=None):
 
 
 def rebin_specdata(tab2_spec, bl_index, select_pol):
-    global tab2_spec_rs, tab2_tim_rs, tab2_freq_rs, tab2_spec_plt_rs, tab2_ntim_rs, tab2_nfreq_rs, tab2_dtim_rs
-    global tab2_tim_square_rs, tab2_freq_square_rs, tab2_ntim_square_rs, tab2_nfreq_square_rs, tab2_spec_plt_rs_pol
+    global tab2_tim_square_rs, tab2_freq_square_rs, tab2_ntim_square_rs, tab2_nfreq_square_rs
     tab2_spec_sz = tab2_spec.shape
     spec_sz2, spec_sz1 = 10, 10
     if tab2_spec_sz[3] > spec_rs_tmax:
@@ -117,26 +116,14 @@ def rebin_specdata(tab2_spec, bl_index, select_pol):
     if tab2_spec_sz[2] > spec_rs_fmax:
         spec_sz1 = next(i for i in xrange(1, 11) if i / 10. * tab2_spec_sz[2] > spec_rs_fmax)
     spec_sz1_rs, spec_sz2_rs = spec_sz1 / 10.0, spec_sz2 / 10.0
-
-    tab2_spec_rs = sn.interpolation.zoom(tab2_spec, [1, 1, spec_sz1_rs, spec_sz2_rs], order=1)
-    tab2_tim_rs = sn.interpolation.zoom(tab2_tim, spec_sz2_rs, order=1)
-    tab2_freq_rs = sn.interpolation.zoom(tab2_freq, spec_sz1_rs, order=1)
     tab2_tim_square_rs = sn.interpolation.zoom(tab2_tim, spec_sz2_rs / spec_square_rs_ratio, order=1)
     tab2_freq_square_rs = sn.interpolation.zoom(tab2_freq, spec_sz1_rs / spec_square_rs_ratio, order=1)
-    tab2_ntim_rs = len(tab2_tim_rs)
-    tab2_nfreq_rs = len(tab2_freq_rs)
     tab2_ntim_square_rs = len(tab2_tim_square_rs)
     tab2_nfreq_square_rs = len(tab2_freq_square_rs)
 
-    tab2_spec_plt_rs_pol = {'RR': tab2_spec_rs[0, bl_index, :, :], 'LL': tab2_spec_rs[1, bl_index, :, :]}
-    tab2_spec_plt_rs_pol['I'] = (tab2_spec_plt_rs_pol['RR'] + tab2_spec_plt_rs_pol['LL']) / 2
-    tab2_spec_plt_rs_pol['V'] = (tab2_spec_plt_rs_pol['RR'] - tab2_spec_plt_rs_pol['LL']) / 2
-    tab2_spec_plt_rs = tab2_spec_plt_rs_pol[select_pol]
-    tab2_dtim_rs = tab2_tim_rs - tab2_tim[0]
-
 
 def tab2_vdspec_update():
-    global spec_plt_R, spec_plt_L, spec_plt_I, spec_plt_V, tab2_Select_pol_opt, spec_plt_pol
+    global tab2_Select_pol_opt, spec_pol_dict
     select_pol = tab2_Select_pol.value
     tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
     if tab2_BUT_vdspec.label == "VEC Dyn Spec":
@@ -151,10 +138,6 @@ def tab2_vdspec_update():
             y0pix, y1pix = idxmin / mapvlasize[0], idxmax / mapvlasize[0]
             spec_plt_R = np.zeros((tab2_nfreq, tab2_ntim))
             spec_plt_L = np.zeros((tab2_nfreq, tab2_ntim))
-            spec_plt_I = np.zeros((tab2_nfreq, tab2_ntim))
-            spec_plt_V = np.zeros((tab2_nfreq, tab2_ntim))
-            print 'pols:',pols
-            print len(pols)
             if len(pols) > 1:
                 for ll in xrange(tab2_ntim):
                     hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
@@ -169,16 +152,10 @@ def tab2_vdspec_update():
                         vla_r = hdu.data[1, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                         spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = \
                             np.nanmean(vla_l, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
-                        spec_plt_R[spec_plt_R < 0] = 0
                         spec_plt_L[idxfreq:idxfreq + nfreq_hdu, ll] = \
                             np.nanmean(vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
-                        spec_plt_L[spec_plt_L < 0] = 0
-                        spec_plt_I[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                            np.nanmean(vla_l + vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
-                        spec_plt_I[spec_plt_I < 0] = 0
-                        spec_plt_V[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                            np.nanmean(vla_l - vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
-                        spec_plt_V[spec_plt_V < 0] = 0
+                spec_plt_R[spec_plt_R < 0] = 0
+                spec_plt_L[spec_plt_L < 0] = 0
             elif len(pols) == 1:
                 for ll in xrange(tab2_ntim):
                     hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
@@ -188,23 +165,15 @@ def tab2_vdspec_update():
                         nfreq_hdu = hdu_goodchan[-1] - hdu_goodchan[0] + 1
                         freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                         freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
-                        print x0pix, x1pix, y0pix, y1pix
                         idxfreq = freq.index(freq_ref)
-                        print freq_ref
                         vladata = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
-                        print ll
                         vlaflux = np.nanmean(vladata, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
                         spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = vlaflux
-                        spec_plt_R[spec_plt_R < 0] = 0
+                spec_plt_R[spec_plt_R < 0] = 0
                 spec_plt_L = spec_plt_R
-                spec_plt_I = spec_plt_R
-                spec_plt_V = spec_plt_R
-                # print spec_plt_L
             tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum calculated.</b></p>'
-            spec_plt_pol = {'RR': spec_plt_R, 'LL': spec_plt_L}
-            spec_plt_pol['I'] = (spec_plt_pol['RR'] + spec_plt_pol['LL']) / 2
-            spec_plt_pol['V'] = (spec_plt_pol['RR'] - spec_plt_pol['LL']) / 2
-            tab2_dspec_image_plt(select_pol)
+            spec_pol_dict = make_spec_plt(spec_plt_R, spec_plt_L)
+            tab2_r_square_rs_selection_change(None, select_pol)
             tab2_p_dspec.title.text = "Vector Dynamic spectrum"
         else:
             tab2_Div_LinkImg_plot.text = '<p><b>Warning:</b> select a region first.</p>'
@@ -215,52 +184,128 @@ def tab2_vdspec_update():
         bl_index = tab2_bl.index(select_bl)
         spec_plt_R = tab2_spec[0, bl_index, :, :]
         spec_plt_L = tab2_spec[1, bl_index, :, :]
-        spec_plt_I = (tab2_spec[0, bl_index, :, :] + tab2_spec[1, bl_index, :, :]) / 2.
-        spec_plt_V = (tab2_spec[0, bl_index, :, :] - tab2_spec[1, bl_index, :, :]) / 2.
-        spec_plt_pol = {'RR': spec_plt_R, 'LL': spec_plt_L}
-        spec_plt_pol['I'] = (spec_plt_pol['RR'] + spec_plt_pol['LL']) / 2
-        spec_plt_pol['V'] = (spec_plt_pol['RR'] - spec_plt_pol['LL']) / 2
-        tab2_dspec_image_plt(select_pol)
+        spec_pol_dict = make_spec_plt(spec_plt_R, spec_plt_L)
+        spec_plt_pol = spec_pol_dict['dspec']
+        tab2_r_square_rs_selection_change(bl_index, select_pol)
         tab2_p_dspec.title.text = "Dynamic spectrum"
         tab2_Div_LinkImg_plot.text = ''
 
 
-def tab2_dspec_image_plt(select_pol=None):
-    global spec_plt_R, spec_plt_L, spec_plt_I, spec_plt_V, spec_plt, spec_plt_pol
-    spec_plt_max_IRL = int(
-        max(spec_plt_R.max(), spec_plt_L.max(), spec_plt_I.max())) * 1.2
-    spec_plt_min_IRL = (int(min(spec_plt_R.min(), spec_plt_L.min(), spec_plt_I.min())) / 10) * 10
-    spec_plt_max_V = max(abs(int(spec_plt_V.max())), abs(int(spec_plt_V.min()))) * 1.2
-    spec_plt_min_V = -spec_plt_max_V
-    spec_plt_max_pol = {'RR': spec_plt_max_IRL, 'LL': spec_plt_max_IRL, 'I': spec_plt_max_IRL, 'V': spec_plt_max_V}
-    spec_plt_min_pol = {'RR': spec_plt_min_IRL, 'LL': spec_plt_min_IRL, 'I': spec_plt_min_IRL, 'V': spec_plt_min_V}
-    if select_pol == 'V':
-        tab2_Select_colorspace.value = 'linear'
-    spec_plt_pol = {'RR': spec_plt_R, 'LL': spec_plt_L}
-    spec_plt_pol['I'] = (spec_plt_pol['RR'] + spec_plt_pol['LL']) / 2
-    spec_plt_pol['V'] = (spec_plt_pol['RR'] - spec_plt_pol['LL']) / 2
-    spec_plt = spec_plt_pol[select_pol]
-    spec_plt_max = spec_plt_max_pol[select_pol]
-    spec_plt_min = spec_plt_min_pol[select_pol]
-    if tab2_Select_colorspace.value == 'log' and select_pol != 'V':
-        tab2_SRC_dspec_image.data = {'data': [np.log(spec_plt)], 'xx': [tab2_dtim], 'yy': [tab2_freq]}
-    else:
-        tab2_SRC_dspec_image.data = {'data': [spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]}
-    tab2_SRC_dspec_square.data['dspec'] = spec_plt.flatten()
-    tab2_p_dspec_xPro.y_range.start = spec_plt_min
-    tab2_p_dspec_xPro.y_range.end = spec_plt_max
-    tab2_p_dspec_yPro.x_range.start = spec_plt_min
-    tab2_p_dspec_yPro.x_range.end = spec_plt_max
+def make_spec_plt(spec_plt_R, spec_plt_L):
+    spec_I = (spec_plt_R + spec_plt_L) / 2
+    spec_V = (spec_plt_R - spec_plt_L) / 2
+    spec_max_IRL = int(
+        max(spec_plt_R.max(), spec_plt_L.max(), spec_I.max())) * 1.2
+    spec_min_IRL = (int(min(spec_plt_R.min(), spec_plt_L.min(), spec_I.min())) / 10) * 10
+    spec_max_V = max(abs(int(spec_V.max())), abs(int(spec_V.min()))) * 1.2
+    spec_min_V = -spec_max_V
+    spec_max_pol = {'RR': spec_max_IRL, 'LL': spec_max_IRL, 'I': spec_max_IRL, 'V': spec_max_V}
+    spec_min_pol = {'RR': spec_min_IRL, 'LL': spec_min_IRL, 'I': spec_min_IRL, 'V': spec_min_V}
+    spec_pol = {'RR': spec_plt_R, 'LL': spec_plt_L}
+    spec_pol['I'] = (spec_pol['RR'] + spec_pol['LL']) / 2
+    spec_pol['V'] = (spec_pol['RR'] - spec_pol['LL']) / 2
+    return {'spec': spec_pol, 'max': spec_max_pol, 'min': spec_min_pol}
+
 
 
 def tab2_update_dspec_image(attrname, old, new):
-    global spec_plt_R, spec_plt_L, spec_plt_I, spec_plt_V
     global tab2_spec, tab2_dtim, tab2_freq, tab2_bl
     select_pol = tab2_Select_pol.value
     select_bl = tab2_Select_bl.value
     bl_index = tab2_bl.index(select_bl)
     if tab2_BUT_vdspec.label == "VEC Dyn Spec":
         tab2_r_square_rs_selection_change(bl_index, select_pol)
+
+
+def tab2_update_dspec_rs_image(attrname, old, new):
+    select_pol = tab2_Select_pol.value
+    select_bl = tab2_Select_bl.value
+    bl_index = tab2_bl.index(select_bl)
+    tab2_r_square_rs_selection_change(bl_index, select_pol)
+
+
+def tab2_r_square_rs_selection_change(bl_index, select_pol):
+    global trs0, trs1, frs0, frs1, dspecDF_frac, spec_plt_R_frac, spec_plt_L_frac
+    global tab2_dtim_fs, tab2_freq_fs, tab2_tim_ind0, tab2_tim_ind1, tab2_freq_ind0, tab2_freq_ind1
+    global tab2_SRC_dspec_image, tab2_SRC_dspec_square
+    tab2_r_square_rs_selected = tab2_SRC_dspec_square_rs.selected['1d']['indices']
+    if tab2_r_square_rs_selected:
+        dspecDF_rs = dspecDF_rs0.iloc[tab2_r_square_rs_selected, :]
+        trs0, trs1 = dspecDF_rs['xx'].min(), dspecDF_rs['xx'].max()
+        frs0, frs1 = dspecDF_rs['yy'].min(), dspecDF_rs['yy'].max()
+        if trs1 > trs0 + dspec_fs_tmax * tab2_dt:
+            trs1 = trs0 + dspec_fs_tmax * tab2_dt
+        if frs1 > frs0 + dspec_fs_fmax * tab2_df:
+            frs1 = frs0 + dspec_fs_fmax * tab2_df
+        tab2_r_square_rs_patch.data_source.data = ColumnDataSource(
+            pd.DataFrame({'xx': [trs0, trs1, trs1, trs0], 'yy': [frs0, frs0, frs1, frs1]})).data
+        dspecDF_frac = dspecDF0[dspecDF0.time < trs1][dspecDF0.time >= trs0][dspecDF0.freq >= frs0][
+            dspecDF0.freq < frs1]
+        tab2_dtim_fs = pd.Series.unique(dspecDF_frac['time'])
+        tab2_freq_fs = pd.Series.unique(dspecDF_frac['freq'])
+        tab2_ntim_fs = len(tab2_dtim_fs)
+        tab2_nfreq_fs = len(tab2_freq_fs)
+        tab2_tim_ind0 = np.where(abs(tab2_dtim - tab2_dtim_fs[0]) < tab2_dt / 2.0)[0][0]
+        tab2_tim_ind1 = np.where(abs(tab2_dtim - tab2_dtim_fs[-1]) < tab2_dt / 2.0)[0][0]
+        tab2_freq_ind0 = np.where(abs(tab2_freq - tab2_freq_fs[0]) < tab2_df / 2.0)[0][0]
+        tab2_freq_ind1 = np.where(abs(tab2_freq - tab2_freq_fs[-1]) < tab2_df / 2.0)[0][0]
+        global tab2_spec, tab2_dtim, tab2_freq, tab2_bl
+        if tab2_BUT_vdspec.label == "VEC Dyn Spec":
+            spec_plt_R_frac = tab2_spec[0, bl_index, tab2_freq_ind0:(tab2_freq_ind1 + 1),
+                              tab2_tim_ind0:(tab2_tim_ind1 + 1)]
+            spec_plt_L_frac = tab2_spec[1, bl_index, tab2_freq_ind0:(tab2_freq_ind1 + 1),
+                              tab2_tim_ind0:(tab2_tim_ind1 + 1)]
+        else:
+            spec_plt_R_frac = spec_pol_dict['dspec'][select_pol][tab2_freq_ind0:(tab2_freq_ind1 + 1),
+                              tab2_tim_ind0:(tab2_tim_ind1 + 1)]
+            spec_plt_L_frac = spec_pol_dict['dspec'][select_pol][tab2_freq_ind0:(tab2_freq_ind1 + 1),
+                              tab2_tim_ind0:(tab2_tim_ind1 + 1)]
+
+        spec_pol_dict_frac = make_spec_plt(spec_plt_R_frac, spec_plt_L_frac)
+        if select_pol == 'V':
+            tab2_Select_colorspace.value = 'linear'
+        if tab2_Select_colorspace.value == 'log' and select_pol != 'V':
+            tab2_SRC_dspec_image.data = {'data': [np.log(spec_pol_dict_frac['spec'][select_pol])], 'xx': [tab2_dtim],
+                                         'yy': [tab2_freq]}
+        else:
+            tab2_SRC_dspec_image.data = {'data': [spec_pol_dict_frac['spec'][select_pol]], 'xx': [tab2_dtim],
+                                         'yy': [tab2_freq]}
+        tab2_SRC_dspec_square.data['dspec'] = spec_pol_dict_frac['spec'][select_pol].flatten()
+        tab2_p_dspec_xPro.y_range.start = spec_pol_dict_frac['min'][select_pol]
+        tab2_p_dspec_xPro.y_range.end = spec_pol_dict_frac['max'][select_pol]
+        tab2_p_dspec_yPro.x_range.start = spec_pol_dict_frac['min'][select_pol]
+        tab2_p_dspec_yPro.x_range.end = spec_pol_dict_frac['max'][select_pol]
+        tab2_SRC_dspec_square = ColumnDataSource(dspecDF_frac)
+        tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
+                              plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
+                              plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
+                              x_range=(dspecDF_frac['time'].min(), dspecDF_frac['time'].max()),
+                              y_range=(dspecDF_frac['freq'].min(), dspecDF_frac['freq'].max()),
+                              toolbar_location="above")
+        tab2_SRC_dspec_image = ColumnDataSource(
+            data={'data': [spec_pol_dict['spec'][select_pol][tab2_freq_ind0:(tab2_freq_ind1 + 1),
+                           tab2_tim_ind0:(tab2_tim_ind1 + 1)]], 'xx': [tab2_dtim_fs], 'yy': [tab2_freq_fs]})
+        tab2_p_dspec.image(image="data", x=tab2_dtim_fs[0], y=tab2_freq_fs[0],
+                           dw=tab2_dtim_fs[-1] - tab2_dtim_fs[0],
+                           dh=tab2_freq_fs[-1] - tab2_freq_fs[0],
+                           source=tab2_SRC_dspec_image, palette=bokehpalette_jet)
+        tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=colors_dspec,
+                                            fill_alpha=0.0,
+                                            line_color=None, line_alpha=0.0, selection_fill_alpha=0.1,
+                                            selection_fill_color='black',
+                                            nonselection_fill_alpha=0.0,
+                                            selection_line_alpha=0.2, selection_line_color='white',
+                                            nonselection_line_alpha=0.0,
+                                            size=max(
+                                                config_plot['plot_config']['tab_FSview_base'][
+                                                    'dspec_wdth'] / tab2_ntim_fs,
+                                                config_plot['plot_config']['tab_FSview_base'][
+                                                    'dspec_hght'] / tab2_nfreq_fs))
+        tab2_SRC_dspec_image_rs.data = {'data': [spec_pol_dict['dspec'][select_pol]], 'xx': [tab2_dtim],
+                                        'yy': [tab2_freq]}
+    else:
+        tab2_r_square_rs_patch.data_source.data = ColumnDataSource(
+            pd.DataFrame({'xx': [], 'yy': []})).data
 
 
 # initial the source of maxfit centroid
@@ -899,80 +944,6 @@ def tab2_update_MapRES(attrname, old, new):
     print("---tab2_update_MapRES -- %s seconds ---" % (time.time() - start_timestamp))
 
 
-def tab2_update_dspec_rs_image(attrname, old, new):
-    select_pol = tab2_Select_pol.value
-    select_bl = tab2_Select_bl.value
-    bl_index = tab2_bl.index(select_bl)
-    tab2_r_square_rs_selection_change(bl_index, select_pol)
-
-
-def tab2_r_square_rs_selection_change(bl_index, select_pol):
-    global trs0, trs1, frs0, frs1, dspecDF_frac
-    global tab2_dtim_fs, tab2_freq_fs, tab2_tim_ind0, tab2_tim_ind1, tab2_freq_ind0, tab2_freq_ind1
-    tab2_r_square_rs_selected = tab2_SRC_dspec_square_rs.selected['1d']['indices']
-    if tab2_r_square_rs_selected:
-        dspecDF_rs = dspecDF_rs0.iloc[tab2_r_square_rs_selected, :]
-        trs0, trs1 = dspecDF_rs['xx'].min(), dspecDF_rs['xx'].max()
-        frs0, frs1 = dspecDF_rs['yy'].min(), dspecDF_rs['yy'].max()
-        if trs1 > trs0 + dspec_fs_tmax * tab2_dt:
-            trs1 = trs0 + dspec_fs_tmax * tab2_dt
-        if frs1 > frs0 + dspec_fs_fmax * tab2_df:
-            frs1 = frs0 + dspec_fs_fmax * tab2_df
-        tab2_r_square_rs_patch.data_source.data = ColumnDataSource(
-            pd.DataFrame({'xx': [trs0, trs1, trs1, trs0], 'yy': [frs0, frs0, frs1, frs1]})).data
-        dspecDF_frac = dspecDF0[dspecDF0.time < trs1][dspecDF0.time >= trs0][dspecDF0.freq >= frs0][
-            dspecDF0.freq < frs1]
-        tab2_dtim_fs = pd.Series.unique(dspecDF_frac['time'])
-        tab2_freq_fs = pd.Series.unique(dspecDF_frac['freq'])
-        tab2_ntim_fs = len(tab2_dtim_fs)
-        tab2_nfreq_fs = len(tab2_freq_fs)
-        tab2_tim_ind0 = np.where(abs(tab2_dtim - tab2_dtim_fs[0]) < tab2_dt / 2.0)[0][0]
-        tab2_tim_ind1 = np.where(abs(tab2_dtim - tab2_dtim_fs[-1]) < tab2_dt / 2.0)[0][0]
-        tab2_freq_ind0 = np.where(abs(tab2_freq - tab2_freq_fs[0]) < tab2_df / 2.0)[0][0]
-        tab2_freq_ind1 = np.where(abs(tab2_freq - tab2_freq_fs[-1]) < tab2_df / 2.0)[0][0]
-        global spec_plt_R, spec_plt_L, spec_plt_I, spec_plt_V, tab2_spec_plt_rs_pol
-        global tab2_spec, tab2_dtim, tab2_freq, tab2_bl
-        # select_pol = tab2_Select_pol.value
-        # select_bl = tab2_Select_bl.value
-        # bl_index = tab2_bl.index(select_bl)
-        if tab2_BUT_vdspec.label == "VEC Dyn Spec":
-            spec_plt_R = tab2_spec[0, bl_index, tab2_freq_ind0:(tab2_freq_ind1 + 1), tab2_tim_ind0:(tab2_tim_ind1 + 1)]
-            spec_plt_L = tab2_spec[1, bl_index, tab2_freq_ind0:(tab2_freq_ind1 + 1), tab2_tim_ind0:(tab2_tim_ind1 + 1)]
-            spec_plt_I = (spec_plt_R + spec_plt_L) / 2.
-            spec_plt_V = (spec_plt_R - spec_plt_L) / 2.
-        tab2_dspec_image_plt(select_pol)
-        tab2_SRC_dspec_square = ColumnDataSource(dspecDF_frac)
-        tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
-                              plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
-                              plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
-                              x_range=(dspecDF_frac['time'].min(), dspecDF_frac['time'].max()),
-                              y_range=(dspecDF_frac['freq'].min(), dspecDF_frac['freq'].max()),
-                              toolbar_location="above")
-        tab2_SRC_dspec_image = ColumnDataSource(
-            data={'data': [spec_plt], 'xx': [tab2_dtim_fs], 'yy': [tab2_freq_fs]})
-        tab2_p_dspec.image(image="data", x=tab2_dtim_fs[0], y=tab2_freq_fs[0],
-                           dw=tab2_dtim_fs[-1] - tab2_dtim_fs[0],
-                           dh=tab2_freq_fs[-1] - tab2_freq_fs[0],
-                           source=tab2_SRC_dspec_image, palette=bokehpalette_jet)
-        tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=colors_dspec,
-                                            fill_alpha=0.0,
-                                            line_color=None, line_alpha=0.0, selection_fill_alpha=0.1,
-                                            selection_fill_color='black',
-                                            nonselection_fill_alpha=0.0,
-                                            selection_line_alpha=0.2, selection_line_color='white',
-                                            nonselection_line_alpha=0.0,
-                                            size=max(
-                                                config_plot['plot_config']['tab_FSview_base'][
-                                                    'dspec_wdth'] / tab2_ntim_fs,
-                                                config_plot['plot_config']['tab_FSview_base'][
-                                                    'dspec_hght'] / tab2_nfreq_fs))
-        tab2_SRC_dspec_image_rs.data = {'data': [tab2_spec_plt_rs_pol[select_pol]], 'xx': [tab2_dtim_rs],
-                                        'yy': [tab2_freq_rs]}
-    else:
-        tab2_r_square_rs_patch.data_source.data = ColumnDataSource(
-            pd.DataFrame({'xx': [], 'yy': []})).data
-
-
 def tab3_slider_LinkImg_update(attrname, old, new):
     global hdu
     select_vla_pol = tab2_Select_vla_pol.value
@@ -1234,18 +1205,10 @@ tab2_pol = 'I'
 sz_spec = tab2_spec.shape
 tab2_spec_plt_R = tab2_spec[0, bl_index, :, :]
 tab2_spec_plt_L = tab2_spec[1, bl_index, :, :]
-tab2_spec_plt_I = (tab2_spec_plt_R + tab2_spec_plt_L) / 2.
-tab2_spec_plt_V = (tab2_spec_plt_R - tab2_spec_plt_L) / 2.
-spec_plt_max_IRL = (int(max(tab2_spec_plt_R.max(), tab2_spec_plt_L.max(), tab2_spec_plt_I.max())) / 100 + 1) * 100
-spec_plt_min_IRL = (int(min(tab2_spec_plt_R.min(), tab2_spec_plt_L.min(), tab2_spec_plt_I.min())) / 100) * 100
-spec_plt_max_V = (max(abs(int(tab2_spec_plt_V.max())), abs(int(tab2_spec_plt_V.min()))) / 100 + 1) * 100
-spec_plt_min_V = -spec_plt_max_V
-
-spec_plt_max_pol = {'RR': spec_plt_max_IRL, 'LL': spec_plt_max_IRL, 'I': spec_plt_max_IRL, 'V': spec_plt_max_V}
-spec_plt_min_pol = {'RR': spec_plt_min_IRL, 'LL': spec_plt_min_IRL, 'I': spec_plt_min_IRL, 'V': spec_plt_min_V}
-tab2_spec_plt_pol = {'RR': tab2_spec_plt_R, 'LL': tab2_spec_plt_L}
-tab2_spec_plt_pol['I'] = (tab2_spec_plt_pol['RR'] + tab2_spec_plt_pol['LL']) / 2
-tab2_spec_plt_pol['V'] = (tab2_spec_plt_pol['RR'] - tab2_spec_plt_pol['LL']) / 2
+tab2_spec_dict = make_spec_plt(tab2_spec_plt_R, tab2_spec_plt_L)
+tab2_spec_plt_pol = tab2_spec_dict['dspec']
+spec_plt_max_pol = tab2_spec_dict['max']
+spec_plt_min_pol = tab2_spec_dict['min']
 tab2_spec_plt = tab2_spec_plt_pol[tab2_pol]
 spec_plt_max = spec_plt_max_pol[tab2_pol]
 spec_plt_min = spec_plt_min_pol[tab2_pol]
@@ -2021,10 +1984,10 @@ if os.path.exists(FS_dspecDF):
                 tab2_p_dspec_rs.xaxis.axis_label = 'Seconds since ' + tim0_char
                 tab2_p_dspec_rs.yaxis.axis_label = 'Frequency [GHz]'
                 tab2_SRC_dspec_image_rs = ColumnDataSource(
-                    data={'data': [tab2_spec_plt_rs], 'xx': [tab2_dtim_rs], 'yy': [tab2_freq_rs]})
-                tab2_p_dspec_rs.image(image="data", x=tab2_dtim_rs[0], y=tab2_freq_rs[0],
-                                      dw=tab2_dtim_rs[-1] - tab2_dtim_rs[0],
-                                      dh=tab2_freq_rs[-1] - tab2_freq_rs[0],
+                    data={'data': [tab2_spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
+                tab2_p_dspec_rs.image(image="data", x=tab2_dtim[0], y=tab2_freq[0],
+                                      dw=tab2_dtim[-1] - tab2_dtim[0],
+                                      dh=tab2_freq[-1] - tab2_freq[0],
                                       source=tab2_SRC_dspec_image_rs, palette=bokehpalette_jet)
                 tim_map_square_rs = (np.tile(tab2_tim_square_rs, tab2_nfreq_square_rs).reshape(tab2_nfreq_square_rs, \
                                                                                                tab2_ntim_square_rs) / 3600. / 24. + 2400000.5) * 86400.
