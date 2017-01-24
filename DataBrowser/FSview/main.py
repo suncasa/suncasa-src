@@ -2169,7 +2169,7 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
             tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
             tab2_SRC_dspec_image = ColumnDataSource(
-                data={'data': [tab2_spec_plt[tab2_freq_ind0:(tab2_freq_ind1 + 1), tab2_tim_ind0:(tab2_tim_ind1 + 1)]],
+                data={'data': [tab2_spec_plt[tab2_freq_ind0:tab2_freq_ind1 + 1, tab2_tim_ind0:tab2_tim_ind1 + 1]],
                       'xx': [tab2_dtim_fs], 'yy': [tab2_freq_fs]})
             tab2_p_dspec.image(image="data", x=tab2_dtim_fs[0], y=tab2_freq_fs[0],
                                dw=tab2_dtim_fs[-1] - tab2_dtim_fs[0],
