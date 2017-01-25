@@ -207,7 +207,6 @@ def make_spec_plt(spec_plt_R, spec_plt_L):
     return {'spec': spec_pol, 'max': spec_max_pol, 'min': spec_min_pol}
 
 
-
 def tab2_update_dspec_image(attrname, old, new):
     global tab2_spec, tab2_dtim, tab2_freq, tab2_bl
     select_pol = tab2_Select_pol.value
@@ -1205,10 +1204,10 @@ tab2_pol = 'I'
 sz_spec = tab2_spec.shape
 tab2_spec_plt_R = tab2_spec[0, bl_index, :, :]
 tab2_spec_plt_L = tab2_spec[1, bl_index, :, :]
-tab2_spec_pol_dict = make_spec_plt(tab2_spec_plt_R, tab2_spec_plt_L)
-tab2_spec_plt_pol = tab2_spec_pol_dict['spec']
-spec_plt_max_pol = tab2_spec_pol_dict['max']
-spec_plt_min_pol = tab2_spec_pol_dict['min']
+spec_pol_dict = make_spec_plt(tab2_spec_plt_R, tab2_spec_plt_L)
+tab2_spec_plt_pol = spec_pol_dict['spec']
+spec_plt_max_pol = spec_pol_dict['max']
+spec_plt_min_pol = spec_pol_dict['min']
 tab2_spec_plt = tab2_spec_plt_pol[tab2_pol]
 spec_plt_max = spec_plt_max_pol[tab2_pol]
 spec_plt_min = spec_plt_min_pol[tab2_pol]
