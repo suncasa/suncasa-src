@@ -250,7 +250,7 @@ def tab2_r_square_rs_selection_change(bl_index, select_pol):
         tab2_tim_ind1 = np.where(abs(tab2_dtim - tab2_dtim_fs[-1]) < tab2_dt / 2.0)[0][0]
         tab2_freq_ind0 = np.where(abs(tab2_freq - tab2_freq_fs[0]) < tab2_df / 2.0)[0][0]
         tab2_freq_ind1 = np.where(abs(tab2_freq - tab2_freq_fs[-1]) < tab2_df / 2.0)[0][0]
-        print tab2_tim_ind0, tab2_tim_ind1, tab2_freq_ind0, tab2_freq_ind1
+        # print tab2_tim_ind0, tab2_tim_ind1, tab2_freq_ind0, tab2_freq_ind1
         global tab2_spec, tab2_dtim, tab2_freq, tab2_bl
         if tab2_BUT_vdspec.label == "VEC Dyn Spec":
             spec_plt_R_frac = tab2_spec[0, bl_index, tab2_freq_ind0:(tab2_freq_ind1 + 1),
@@ -267,11 +267,11 @@ def tab2_r_square_rs_selection_change(bl_index, select_pol):
         if select_pol == 'V':
             tab2_Select_colorspace.value = 'linear'
         if tab2_Select_colorspace.value == 'log' and select_pol != 'V':
-            tab2_SRC_dspec_image.data = {'data': [np.log(spec_pol_dict_frac['spec'][select_pol])], 'xx': [tab2_dtim],
-                                         'yy': [tab2_freq]}
+            tab2_SRC_dspec_image.data = {'data': [np.log(spec_pol_dict_frac['spec'][select_pol])], 'xx': [tab2_dtim_fs],
+                                         'yy': [tab2_freq_fs]}
         else:
-            tab2_SRC_dspec_image.data = {'data': [spec_pol_dict_frac['spec'][select_pol]], 'xx': [tab2_dtim],
-                                         'yy': [tab2_freq]}
+            tab2_SRC_dspec_image.data = {'data': [spec_pol_dict_frac['spec'][select_pol]], 'xx': [tab2_dtim_fs],
+                                         'yy': [tab2_freq_fs]}
         tab2_SRC_dspec_square.data['dspec'] = spec_pol_dict_frac['spec'][select_pol].flatten()
         tab2_p_dspec_xPro.y_range.start = spec_pol_dict_frac['min'][select_pol]
         tab2_p_dspec_xPro.y_range.end = spec_pol_dict_frac['max'][select_pol]
@@ -288,7 +288,7 @@ def tab2_r_square_rs_selection_change(bl_index, select_pol):
         tab2_p_dspec.x_range.end = tab2_dtim_fs[-1]
         tab2_p_dspec.y_range.start = tab2_freq_fs[0]
         tab2_p_dspec.y_range.end = tab2_freq_fs[-1]
-        print tab2_dtim_fs[0], tab2_freq_fs[0]
+        # print tab2_dtim_fs[0], tab2_freq_fs[0]
         # tab2_SRC_dspec_image = ColumnDataSource(
         #     data={'data': [spec_pol_dict['spec'][select_pol][tab2_freq_ind0:(tab2_freq_ind1 + 1),
         #                    tab2_tim_ind0:(tab2_tim_ind1 + 1)]], 'xx': [tab2_dtim_fs], 'yy': [tab2_freq_fs]})
