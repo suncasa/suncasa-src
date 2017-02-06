@@ -250,6 +250,7 @@ def tab2_r_square_rs_selection_change(bl_index, select_pol):
         tab2_tim_ind1 = np.where(abs(tab2_dtim - tab2_dtim_fs[-1]) < tab2_dt / 2.0)[0][0]
         tab2_freq_ind0 = np.where(abs(tab2_freq - tab2_freq_fs[0]) < tab2_df / 2.0)[0][0]
         tab2_freq_ind1 = np.where(abs(tab2_freq - tab2_freq_fs[-1]) < tab2_df / 2.0)[0][0]
+        print tab2_tim_ind0, tab2_tim_ind1, tab2_freq_ind0, tab2_freq_ind1
         global tab2_spec, tab2_dtim, tab2_freq, tab2_bl
         if tab2_BUT_vdspec.label == "VEC Dyn Spec":
             spec_plt_R_frac = tab2_spec[0, bl_index, tab2_freq_ind0:(tab2_freq_ind1 + 1),
@@ -283,9 +284,9 @@ def tab2_r_square_rs_selection_change(bl_index, select_pol):
                               x_range=(dspecDF_frac['time'].min(), dspecDF_frac['time'].max()),
                               y_range=(dspecDF_frac['freq'].min(), dspecDF_frac['freq'].max()),
                               toolbar_location="above")
-        tab2_SRC_dspec_image = ColumnDataSource(
-            data={'data': [spec_pol_dict['spec'][select_pol][tab2_freq_ind0:(tab2_freq_ind1 + 1),
-                           tab2_tim_ind0:(tab2_tim_ind1 + 1)]], 'xx': [tab2_dtim_fs], 'yy': [tab2_freq_fs]})
+        # tab2_SRC_dspec_image = ColumnDataSource(
+        #     data={'data': [spec_pol_dict['spec'][select_pol][tab2_freq_ind0:(tab2_freq_ind1 + 1),
+        #                    tab2_tim_ind0:(tab2_tim_ind1 + 1)]], 'xx': [tab2_dtim_fs], 'yy': [tab2_freq_fs]})
         tab2_p_dspec.image(image="data", x=tab2_dtim_fs[0], y=tab2_freq_fs[0],
                            dw=tab2_dtim_fs[-1] - tab2_dtim_fs[0],
                            dh=tab2_freq_fs[-1] - tab2_freq_fs[0],
