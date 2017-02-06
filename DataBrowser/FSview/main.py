@@ -271,8 +271,8 @@ def tab2_r_square_rs_selection_change(bl_index, select_pol):
             tab2_SRC_dspec_image.data = {'data': [np.log(spec_pol_dict_frac['spec'][select_pol])], 'xx': [xx_fs],
                                          'yy': [yy_fs]}
         else:
-            tab2_SRC_dspec_image.data = {'data': [spec_pol_dict_frac['spec'][select_pol]], 'xx': [tab2_dtim_fs],
-                                         'yy': [tab2_freq_fs]}
+            tab2_SRC_dspec_image.data = {'data': [spec_pol_dict_frac['spec'][select_pol]], 'xx': [xx_fs],
+                                         'yy': [yy_fs]}
         tab2_SRC_dspec_square.data['dspec'] = spec_pol_dict_frac['spec'][select_pol].flatten()
         tab2_p_dspec_xPro.y_range.start = spec_pol_dict_frac['min'][select_pol]
         tab2_p_dspec_xPro.y_range.end = spec_pol_dict_frac['max'][select_pol]
