@@ -226,7 +226,7 @@ def tab2_update_dspec_rs_image(attrname, old, new):
 def tab2_r_square_rs_selection_change(bl_index, select_pol):
     global dspecDF_frac, spec_pol_dict, dspecDF_rs0
     global tab2_dtim_fs, tab2_freq_fs, tab2_tim_ind0, tab2_tim_ind1, tab2_freq_ind0, tab2_freq_ind1
-    global tab2_SRC_dspec_image, tab2_SRC_dspec_square
+    global tab2_SRC_dspec_image, tab2_SRC_dspec_square, tab2_p_dspec
     tab2_SRC_dspec_image_rs.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim],
                                     'yy': [tab2_freq]}
     tab2_r_square_rs_selected = tab2_SRC_dspec_square_rs.selected['1d']['indices']
@@ -278,17 +278,18 @@ def tab2_r_square_rs_selection_change(bl_index, select_pol):
         tab2_p_dspec_yPro.x_range.start = spec_pol_dict_frac['min'][select_pol]
         tab2_p_dspec_yPro.x_range.end = spec_pol_dict_frac['max'][select_pol]
         tab2_SRC_dspec_square = ColumnDataSource(dspecDF_frac)
-        tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
-                              plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
-                              plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
-                              x_range=(dspecDF_frac['time'].min(), dspecDF_frac['time'].max()),
-                              y_range=(dspecDF_frac['freq'].min(), dspecDF_frac['freq'].max()),
-                              toolbar_location="above")
+        # tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
+        #                       plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
+        #                       plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
+        #                       x_range=(dspecDF_frac['time'].min(), dspecDF_frac['time'].max()),
+        #                       y_range=(dspecDF_frac['freq'].min(), dspecDF_frac['freq'].max()),
+        #                       toolbar_location="above")
         tab2_p_dspec.x_range.start = dspecDF_frac['time'].min()
         tab2_p_dspec.x_range.end = dspecDF_frac['time'].max()
         tab2_p_dspec.y_range.start = dspecDF_frac['freq'].min()
         tab2_p_dspec.y_range.end = dspecDF_frac['freq'].max()
-        print dspecDF_frac['time'].min(),dspecDF_frac['time'].max(),dspecDF_frac['freq'].min(),dspecDF_frac['freq'].max()
+        print dspecDF_frac['time'].min(), dspecDF_frac['time'].max(), dspecDF_frac['freq'].min(), dspecDF_frac[
+            'freq'].max()
         # tab2_SRC_dspec_image = ColumnDataSource(
         #     data={'data': [spec_pol_dict['spec'][select_pol][tab2_freq_ind0:(tab2_freq_ind1 + 1),
         #                    tab2_tim_ind0:(tab2_tim_ind1 + 1)]], 'xx': [tab2_dtim_fs], 'yy': [tab2_freq_fs]})
