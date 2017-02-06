@@ -284,10 +284,11 @@ def tab2_r_square_rs_selection_change(bl_index, select_pol):
                               x_range=(dspecDF_frac['time'].min(), dspecDF_frac['time'].max()),
                               y_range=(dspecDF_frac['freq'].min(), dspecDF_frac['freq'].max()),
                               toolbar_location="above")
-        tab2_p_dspec.x_range.start =dspecDF_frac['time'].min()
+        tab2_p_dspec.x_range.start = dspecDF_frac['time'].min()
         tab2_p_dspec.x_range.end = dspecDF_frac['time'].max()
-        tab2_p_dspec.y_range.start =dspecDF_frac['freq'].min()
+        tab2_p_dspec.y_range.start = dspecDF_frac['freq'].min()
         tab2_p_dspec.y_range.end = dspecDF_frac['freq'].max()
+        print dspecDF_frac['time'].min(),dspecDF_frac['time'].max(),dspecDF_frac['freq'].min(),dspecDF_frac['freq'].max()
         # tab2_SRC_dspec_image = ColumnDataSource(
         #     data={'data': [spec_pol_dict['spec'][select_pol][tab2_freq_ind0:(tab2_freq_ind1 + 1),
         #                    tab2_tim_ind0:(tab2_tim_ind1 + 1)]], 'xx': [tab2_dtim_fs], 'yy': [tab2_freq_fs]})
