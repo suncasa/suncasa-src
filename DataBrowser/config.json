@@ -34,8 +34,8 @@
       "space_hght10": 10,
       "dspec_fs_tmax":300,
       "dspec_fs_fmax":150,
-      "spec_rs_tmax":100,
-      "spec_rs_fmax":100,
+      "spec_rs_tmax":1000,
+      "spec_rs_fmax":1000,
       "spec_square_rs_ratio":3.0
     },
     "tab_FSviewPrep": {
