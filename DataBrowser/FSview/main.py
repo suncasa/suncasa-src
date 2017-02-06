@@ -224,7 +224,7 @@ def tab2_update_dspec_rs_image(attrname, old, new):
 
 
 def tab2_r_square_rs_selection_change(bl_index, select_pol):
-    global dspecDF_frac
+    global dspecDF_frac, spec_pol_dict, dspecDF_rs0
     global tab2_dtim_fs, tab2_freq_fs, tab2_tim_ind0, tab2_tim_ind1, tab2_freq_ind0, tab2_freq_ind1
     global tab2_SRC_dspec_image, tab2_SRC_dspec_square
     tab2_SRC_dspec_image_rs.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim],
