@@ -224,7 +224,7 @@ def tab2_update_dspec_rs_image(attrname, old, new):
 
 
 def tab2_r_square_rs_selection_change(bl_index, select_pol):
-    global trs0, trs1, frs0, frs1, dspecDF_frac, spec_plt_R_frac, spec_plt_L_frac
+    global dspecDF_frac
     global tab2_dtim_fs, tab2_freq_fs, tab2_tim_ind0, tab2_tim_ind1, tab2_freq_ind0, tab2_freq_ind1
     global tab2_SRC_dspec_image, tab2_SRC_dspec_square
     tab2_SRC_dspec_image_rs.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim],
@@ -1974,7 +1974,7 @@ if os.path.exists(FS_dspecDF):
                 rebin_specdata(tab2_spec, bl_index, tab2_pol)
                 tab2_p_dspec_rs = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
                                          plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_rs_wdth'],
-                                         plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
+                                         plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_rs_hght'],
                                          x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
                                          toolbar_location="above")
                 tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
