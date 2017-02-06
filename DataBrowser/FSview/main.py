@@ -227,6 +227,8 @@ def tab2_r_square_rs_selection_change(bl_index, select_pol):
     global trs0, trs1, frs0, frs1, dspecDF_frac, spec_plt_R_frac, spec_plt_L_frac
     global tab2_dtim_fs, tab2_freq_fs, tab2_tim_ind0, tab2_tim_ind1, tab2_freq_ind0, tab2_freq_ind1
     global tab2_SRC_dspec_image, tab2_SRC_dspec_square
+    tab2_SRC_dspec_image_rs.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim],
+                                    'yy': [tab2_freq]}
     tab2_r_square_rs_selected = tab2_SRC_dspec_square_rs.selected['1d']['indices']
     if tab2_r_square_rs_selected:
         dspecDF_rs = dspecDF_rs0.iloc[tab2_r_square_rs_selected, :]
@@ -300,19 +302,17 @@ def tab2_r_square_rs_selection_change(bl_index, select_pol):
                                                     'dspec_wdth'] / tab2_ntim_fs,
                                                 config_plot['plot_config']['tab_FSview_base'][
                                                     'dspec_hght'] / tab2_nfreq_fs))
-        tab2_SRC_dspec_image_rs.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim],
-                                        'yy': [tab2_freq]}
     else:
         tab2_r_square_rs_patch.data_source.data = ColumnDataSource(
             pd.DataFrame({'xx': [], 'yy': []})).data
 
 
 # initial the source of maxfit centroid
-def tab2_SRC_maxfit_centroid_init(dspecDFselect):
+def tab2_SRC_maxfit_centroid_init(dspecDFsel):
     start_timestamp = time.time()
     global SRC_maxfit_centroid
     SRC_maxfit_centroid = {}
-    for ll in np.unique(dspecDFselect['time']):
+    for ll in np.unique(dspecDFsel['time']):
         df_tmp = pd.DataFrame(
             {'freq': [], 'shape_longitude': [], 'shape_latitude': [], 'shape_majoraxis': [],
              'shape_minoraxis': [], 'peak': [],
@@ -394,13 +394,13 @@ def tab3_slider_LinkImg_update(attrname, old, new):
             dspecDF_frac.loc[tidx, :]['fits_local'])
 
 
-def tab2_SRC_maxfit_centroid_update(dspecDFselect):
+def tab2_SRC_maxfit_centroid_update(dspecDFsel):
     start_timestamp = time.time()
     global SRC_maxfit_centroid, timebin
     if tab3_BUT_animate_ONOFF.label == 'Animate ON & Go':
         SRC_maxfit_centroid = {}
-        for ll in np.unique(dspecDFselect['time']):
-            dftmp = dspecDFselect[dspecDFselect.time == ll]
+        for ll in np.unique(dspecDFsel['time']):
+            dftmp = dspecDFsel[dspecDFsel.time == ll]
             dftmp = dftmp.dropna(how='any')
             df_tmp = pd.concat(
                 [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'],
@@ -409,17 +409,17 @@ def tab2_SRC_maxfit_centroid_update(dspecDFselect):
                  dftmp.loc[:, 'shape_positionangle'] - np.pi / 2], axis=1)
             SRC_maxfit_centroid[np.where(abs(tab2_dtim - ll) < 0.02)[0].tolist()[0]] = ColumnDataSource(df_tmp)
     else:
-        time_dspec = np.unique(dspecDFselect['time'])
+        time_dspec = np.unique(dspecDFsel['time'])
         ntime_dspec = len(time_dspec)
         if timebin != 1:
             tidx = np.arange(0, ntime_dspec + 1, timebin)
             time_seq = time_dspec[0:0 + timebin]
-            dftmp = dspecDFselect[dspecDFselect['time'].isin(time_seq)]
+            dftmp = dspecDFsel[dspecDFsel['time'].isin(time_seq)]
             dftmp = dftmp.dropna(how='any')
             dftmp_concat = pd.DataFrame(dict(dftmp.mean()), index=[0, ])
             for ll in tidx[1:]:
                 time_seq = time_dspec[ll:ll + timebin]
-                dftmp = dspecDFselect[dspecDFselect['time'].isin(time_seq)]
+                dftmp = dspecDFsel[dspecDFsel['time'].isin(time_seq)]
                 dftmp = dftmp.dropna(how='any')
                 dftmp_concat = dftmp_concat.append(pd.DataFrame(dict(dftmp.mean()), index=[0, ]),
                                                    ignore_index=True)
@@ -429,7 +429,7 @@ def tab2_SRC_maxfit_centroid_update(dspecDFselect):
                      'shape_positionangle']].dropna(
                     how='any'))
         else:
-            dftmp = dspecDFselect.copy()
+            dftmp = dspecDFsel.copy()
             dftmp = dftmp.dropna(how='any')
             df_tmp = pd.concat(
                 [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'],
@@ -573,9 +573,9 @@ def tab2_dspec_selection_change(attrname, old, new):
     global tab2_dspec_selected
     tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
     if tab2_dspec_selected:
-        global dspecDFselect
-        dspecDFselect = dspecDF_frac.iloc[tab2_dspec_selected, :]
-        idx_selected = dspecDFselect.index[len(dspecDFselect) / 2]
+        global dspecDF_select
+        dspecDF_select = dspecDF_frac.iloc[tab2_dspec_selected, :]
+        idx_selected = dspecDF_select.index[len(dspecDF_select) / 2]
         tidx = int(['{:.3f}'.format(ll) for ll in tab2_dtim].index(
             '{:.3f}'.format(dspecDF_frac.loc[idx_selected, :]['time'])))
         fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
@@ -655,12 +655,12 @@ def tab2_dspec_vector_selection_change(attrname, old, new):
     global tab2_dspec_vector_selected
     tab2_dspec_vector_selected = tab2_SRC_dspec_vector_square.selected['1d']['indices']
     if tab2_dspec_vector_selected:
-        global dspecDFselect
-        dspecDFselect = dspecDF_frac.iloc[tab2_dspec_vector_selected, :]
+        global dspecDF_select
+        dspecDF_select = dspecDF_frac.iloc[tab2_dspec_vector_selected, :]
         VdspecDF_init()
         VdspecDF_update(selected=tab2_dspec_vector_selected)
         # tab3_SRC_dspec_vector_update(VdspecDF)
-        tab2_SRC_maxfit_centroid_update(dspecDFselect)
+        tab2_SRC_maxfit_centroid_update(dspecDF_select)
         if tab3_BUT_animate_ONOFF.label == 'Animate OFF & Go':
             tab3_r_aia_submap_cross.visible = True
             tab3_r_dspec_vector_line.visible = False
@@ -905,7 +905,7 @@ def tab3_animate_onoff():
             tab3_r_dspec_vector_line.visible = False
             tab3_r_dspec_vectorx_line.visible = False
             tab3_r_dspec_vectory_line.visible = False
-            tab2_SRC_maxfit_centroid_update(dspecDFselect)
+            tab2_SRC_maxfit_centroid_update(dspecDF_select)
             tab3_r_aia_submap_cross.data_source.data = SRC_maxfit_centroid.data
         else:
             tab3_BUT_animate_ONOFF.label = 'Animate ON & Go'
@@ -914,7 +914,7 @@ def tab3_animate_onoff():
             tab3_r_dspec_vector_line.visible = True
             tab3_r_dspec_vectorx_line.visible = True
             tab3_r_dspec_vectory_line.visible = True
-            tab2_SRC_maxfit_centroid_update(dspecDFselect)
+            tab2_SRC_maxfit_centroid_update(dspecDF_select)
             indices_time = tab3_Slider_ANLYS_idx.value
             tab3_r_aia_submap_cross.data_source.data = SRC_maxfit_centroid[indices_time].data
             tab3_Div_Tb.text = """ """
@@ -1232,7 +1232,7 @@ if os.path.exists(FS_dspecDF):
     #      'dspecL': tab2_spec_plt_L.ravel(),
     #      'dspecV': tab2_spec_plt_V.ravel()}), how='outer', on=['time', 'freq'])
     dspecDF_frac = dspecDF0.copy()
-    dspecDFselect = dspecDF0.copy()
+    dspecDF_select = dspecDF0.copy()
     itemset1 = set(['shape_longitude', 'shape_latitude'])
     itemset2 = set(dspecDF0.columns.tolist())
     if len(itemset2.intersection(itemset1)) == 2:
@@ -1284,7 +1284,7 @@ if os.path.exists(FS_dspecDF):
 
         '''create the dynamic spectrum plot'''
         TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
-        tab2_SRC_dspec_square = ColumnDataSource(dspecDFselect)
+        tab2_SRC_dspec_square = ColumnDataSource(dspecDF_select)
         tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
                               plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
                               plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
@@ -1462,7 +1462,7 @@ if os.path.exists(FS_dspecDF):
             data={'xs': [], 'ys': [], 'line_color': [], 'xt': [], 'yt': [], 'text': []})
         tab2_SRC_vlamap_peak = ColumnDataSource(
             data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
-        tab2_SRC_maxfit_centroid_init(dspecDFselect)
+        tab2_SRC_maxfit_centroid_init(dspecDF_select)
 
         # initial the VLA map contour source
         tab2_SRC_vlamap_contour = ColumnDataSource(
@@ -2565,14 +2565,14 @@ else:
         tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
 
         if tab2_dspec_selected:
-            global dspecDFselect, tab2_tCLN_Param_dict
-            dspecDFselect = dspecDF0.copy()
-            dspecDFselect = dspecDFselect.iloc[tab2_dspec_selected, :]
-            x0, x1 = dspecDFselect['time'].min(), dspecDFselect['time'].max()
-            y0, y1 = dspecDFselect['freq'].min(), dspecDFselect['freq'].max()
+            global dspecDF_select, tab2_tCLN_Param_dict
+            dspecDF_select = dspecDF0.copy()
+            dspecDF_select = dspecDF_select.iloc[tab2_dspec_selected, :]
+            x0, x1 = dspecDF_select['time'].min(), dspecDF_select['time'].max()
+            y0, y1 = dspecDF_select['freq'].min(), dspecDF_select['freq'].max()
             tab2_r_dspec_patch.data_source.data = ColumnDataSource(
                 pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
-            time0, time1 = dspecDFselect['time'].min() + timestart, dspecDFselect['time'].max() + timestart
+            time0, time1 = dspecDF_select['time'].min() + timestart, dspecDF_select['time'].max() + timestart
             t0_char = Time(time0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
             date0_char = t0_char.split(' ')[0].replace('-', '/')
             time0_char = t0_char.split(' ')[1]
@@ -2580,7 +2580,7 @@ else:
             date1_char = t1_char.split(' ')[0].replace('-', '/')
             time1_char = t1_char.split(' ')[1]
             tab2_tCLN_Param_dict['timerange'] = "'{}/{}~{}/{}'".format(date0_char, time0_char, date1_char, time1_char)
-            freq0, freq1 = dspecDFselect['freq'].min(), dspecDFselect['freq'].max()
+            freq0, freq1 = dspecDF_select['freq'].min(), dspecDF_select['freq'].max()
             freqrange = "'{:.3f}~{:.3f} GHz'".format(freq0, freq1)
             tab2_tCLN_Param_dict['freqrange'] = freqrange
             tab2_Div_tCLN_text = ' '.join(
