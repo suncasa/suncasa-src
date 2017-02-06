@@ -264,11 +264,12 @@ def tab2_r_square_rs_selection_change(bl_index, select_pol):
                               tab2_tim_ind0:(tab2_tim_ind1 + 1)]
 
         spec_pol_dict_frac = make_spec_plt(spec_plt_R_frac, spec_plt_L_frac)
+        xx_fs, yy_fs = np.meshgrid(tab2_dtim_fs, tab2_freq_fs)
         if select_pol == 'V':
             tab2_Select_colorspace.value = 'linear'
         if tab2_Select_colorspace.value == 'log' and select_pol != 'V':
-            tab2_SRC_dspec_image.data = {'data': [np.log(spec_pol_dict_frac['spec'][select_pol])], 'xx': [tab2_dtim_fs],
-                                         'yy': [tab2_freq_fs]}
+            tab2_SRC_dspec_image.data = {'data': [np.log(spec_pol_dict_frac['spec'][select_pol])], 'xx': [xx_fs],
+                                         'yy': [yy_fs]}
         else:
             tab2_SRC_dspec_image.data = {'data': [spec_pol_dict_frac['spec'][select_pol]], 'xx': [tab2_dtim_fs],
                                          'yy': [tab2_freq_fs]}
@@ -2042,9 +2043,10 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec.title.text = "Dynamic spectrum"
             tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
             tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
+            xx_fs, yy_fs = np.meshgrid(tab2_dtim_fs, tab2_freq_fs)
             tab2_SRC_dspec_image = ColumnDataSource(
                 data={'data': [tab2_spec_plt[tab2_freq_ind0:tab2_freq_ind1 + 1, tab2_tim_ind0:tab2_tim_ind1 + 1]],
-                      'xx': [tab2_dtim_fs], 'yy': [tab2_freq_fs]})
+                      'xx': [xx_fs], 'yy': [yy_fs]})
             tab2_p_dspec.image(image="data", x=tab2_dtim_fs[0], y=tab2_freq_fs[0],
                                dw=tab2_dtim_fs[-1] - tab2_dtim_fs[0],
                                dh=tab2_freq_fs[-1] - tab2_freq_fs[0],
