@@ -39,8 +39,8 @@ database_dir = os.path.expandvars(database_dir) + '/'
 spec_rs_tmax = config_plot['plot_config']['tab_FSview_base']['spec_rs_tmax']
 spec_rs_fmax = config_plot['plot_config']['tab_FSview_base']['spec_rs_fmax']
 spec_square_rs_ratio = config_plot['plot_config']['tab_FSview_base']['spec_square_rs_ratio']
-dspec_fs_tmax = config_plot['plot_config']['tab_FSview_base']['dspec_fs_tmax']
-dspec_fs_fmax = config_plot['plot_config']['tab_FSview_base']['dspec_fs_fmax']
+# dspec_fs_tmax = config_plot['plot_config']['tab_FSview_base']['dspec_fs_tmax']
+# dspec_fs_fmax = config_plot['plot_config']['tab_FSview_base']['dspec_fs_fmax']
 with open('{}config_EvtID_curr.json'.format(database_dir), 'r') as fp:
     config_EvtID = json.load(fp)
 
