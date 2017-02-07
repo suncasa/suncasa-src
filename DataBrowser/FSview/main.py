@@ -2071,6 +2071,7 @@ if os.path.exists(FS_dspecDF):
                                                         'dspec_wdth'] / tab2_ntim / spec_rs_step,
                                                     config_plot['plot_config']['tab_FSview_base'][
                                                         'dspec_hght'] / tab2_nfreq / spec_rs_step))
+            tab2_p_dspec.add_tools(BoxSelectTool(renderers=[tab2_r_square]))
 
             # tab2_p_dspec.border_fill_color = "silver"
             tab2_p_dspec.border_fill_alpha = 0.4
