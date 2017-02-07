@@ -2069,9 +2069,9 @@ if os.path.exists(FS_dspecDF):
                                                 nonselection_line_alpha=0.0,
                                                 size=max(
                                                     config_plot['plot_config']['tab_FSview_base'][
-                                                        'dspec_wdth'] / tab2_ntim / spec_rs_step,
+                                                        'dspec_wdth'] / tab2_ntim * spec_rs_step,
                                                     config_plot['plot_config']['tab_FSview_base'][
-                                                        'dspec_hght'] / tab2_nfreq / spec_rs_step))
+                                                        'dspec_hght'] / tab2_nfreq * spec_rs_step))
             tab2_p_dspec.add_tools(BoxSelectTool(renderers=[tab2_r_square]))
 
             # tab2_p_dspec.border_fill_color = "silver"
