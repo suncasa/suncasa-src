@@ -1996,7 +1996,7 @@ if os.path.exists(FS_dspecDF):
             freq_map_square_rs = np.tile(tab2_freq_square_rs, tab2_ntim_square_rs).reshape(tab2_ntim_square_rs, \
                                                                                            tab2_nfreq_square_rs).swapaxes(
                 0, 1)
-            dspecDF0_rs = pd.DataFrame({'xx': tim_map_square_rs.ravel() - xx[0], 'yy': freq_map_square_rs.ravel()})
+            dspecDF0_rs = pd.DataFrame({'time': tim_map_square_rs.ravel() - xx[0], 'freq': freq_map_square_rs.ravel()})
             # tab2_SRC_dspec_square_rs = ColumnDataSource(dspecDF0_rs)
             # tab2_r_square_rs = tab2_p_dspec_rs.square('xx', 'yy', source=tab2_SRC_dspec_square_rs, fill_color=None,
             #                                           fill_alpha=0.0,
