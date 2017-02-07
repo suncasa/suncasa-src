@@ -227,7 +227,7 @@ def tab2_r_square_selection_change(bl_index, select_pol):
     global dspecDF_frac, spec_pol_dict, dspecDF0_rs
     global tab2_dtim_fs, tab2_freq_fs, tab2_tim_ind0, tab2_tim_ind1, tab2_freq_ind0, tab2_freq_ind1
     global tab2_SRC_dspec_image, tab2_SRC_dspec_square, tab2_p_dspec
-    # tab2_SRC_dspec_image_rs.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim],
+    # tab2_SRC_dspec_image.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim],
     #                                 'yy': [tab2_freq]}
     # tab2_r_square_rs_selected = tab2_SRC_dspec_square_rs.selected['1d']['indices']
     # if tab2_r_square_rs_selected:
@@ -1975,22 +1975,22 @@ if os.path.exists(FS_dspecDF):
             #         dspecDF0.time >= tab2_dtim[0]][
             #         dspecDF0.freq >= tab2_freq[0]][dspecDF0.freq < tab2_freq[0] + tab2_dspec_fs_nfreq * tab2_df]
             rebin_specdata(tab2_spec, spec_rs_tmax=spec_rs_tmax, spec_rs_fmax=spec_rs_fmax)
-            tab2_p_dspec_rs = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
-                                     plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_rs_wdth'],
-                                     plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_rs_hght'],
-                                     x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
-                                     toolbar_location="above")
-            tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
-            tab2_p_dspec_rs.axis.visible = True
-            tab2_p_dspec_rs.title.text = "Dynamic spectrum"
-            tab2_p_dspec_rs.xaxis.axis_label = 'Seconds since ' + tim0_char
-            tab2_p_dspec_rs.yaxis.axis_label = 'Frequency [GHz]'
-            tab2_SRC_dspec_image_rs = ColumnDataSource(
-                data={'data': [tab2_spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
-            tab2_p_dspec_rs.image(image="data", x=tab2_dtim[0], y=tab2_freq[0],
-                                  dw=tab2_dtim[-1] - tab2_dtim[0],
-                                  dh=tab2_freq[-1] - tab2_freq[0],
-                                  source=tab2_SRC_dspec_image_rs, palette=bokehpalette_jet)
+            # tab2_p_dspec_rs = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
+            #                          plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_rs_wdth'],
+            #                          plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_rs_hght'],
+            #                          x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
+            #                          toolbar_location="above")
+            # tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+            # tab2_p_dspec_rs.axis.visible = True
+            # tab2_p_dspec_rs.title.text = "Dynamic spectrum"
+            # tab2_p_dspec_rs.xaxis.axis_label = 'Seconds since ' + tim0_char
+            # tab2_p_dspec_rs.yaxis.axis_label = 'Frequency [GHz]'
+            # tab2_SRC_dspec_image = ColumnDataSource(
+            #     data={'data': [tab2_spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
+            # tab2_p_dspec_rs.image(image="data", x=tab2_dtim[0], y=tab2_freq[0],
+            #                       dw=tab2_dtim[-1] - tab2_dtim[0],
+            #                       dh=tab2_freq[-1] - tab2_freq[0],
+            #                       source=tab2_SRC_dspec_image, palette=bokehpalette_jet)
             tim_map_square_rs = (np.tile(tab2_tim_square_rs, tab2_nfreq_square_rs).reshape(tab2_nfreq_square_rs, \
                                                                                            tab2_ntim_square_rs) / 3600. / 24. + 2400000.5) * 86400.
             freq_map_square_rs = np.tile(tab2_freq_square_rs, tab2_ntim_square_rs).reshape(tab2_ntim_square_rs, \
