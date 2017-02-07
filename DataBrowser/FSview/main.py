@@ -44,7 +44,7 @@ dspec_fs_fmax = config_plot['plot_config']['tab_FSview_base']['dspec_fs_fmax']
 with open('{}config_EvtID_curr.json'.format(database_dir), 'r') as fp:
     config_EvtID = json.load(fp)
 
-do_spec_regrid = False
+# do_spec_regrid = False
 
 '''define the colormaps'''
 colormap_jet = cm.get_cmap("jet")  # choose any matplotlib colormap here
@@ -107,7 +107,7 @@ def sdomapfromlocalfile(wavelength=None, jdtime=None):
     return aiamap
 
 
-def rebin_specdata(tab2_spec, bl_index, select_pol,spec_rs_tmax=None,spec_rs_fmax=None):
+def rebin_specdata(tab2_spec, spec_rs_tmax=None, spec_rs_fmax=None):
     global tab2_tim_square_rs, tab2_freq_square_rs, tab2_ntim_square_rs, tab2_nfreq_square_rs
     tab2_spec_sz = tab2_spec.shape
     spec_sz2, spec_sz1 = 10, 10
@@ -173,7 +173,7 @@ def tab2_vdspec_update():
                 spec_plt_L = spec_plt_R
             tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum calculated.</b></p>'
             spec_pol_dict = make_spec_plt(spec_plt_R, spec_plt_L)
-            tab2_r_square_rs_selection_change(None, select_pol)
+            tab2_r_square_selection_change(None, select_pol)
             tab2_p_dspec.title.text = "Vector Dynamic spectrum"
         else:
             tab2_Div_LinkImg_plot.text = '<p><b>Warning:</b> select a region first.</p>'
@@ -185,8 +185,8 @@ def tab2_vdspec_update():
         spec_plt_R = tab2_spec[0, bl_index, :, :]
         spec_plt_L = tab2_spec[1, bl_index, :, :]
         spec_pol_dict = make_spec_plt(spec_plt_R, spec_plt_L)
-        spec_plt_pol = spec_pol_dict['spec']
-        tab2_r_square_rs_selection_change(bl_index, select_pol)
+        # spec_plt_pol = spec_pol_dict['spec']
+        tab2_r_square_selection_change(bl_index, select_pol)
         tab2_p_dspec.title.text = "Dynamic spectrum"
         tab2_Div_LinkImg_plot.text = ''
 
@@ -213,105 +213,101 @@ def tab2_update_dspec_image(attrname, old, new):
     select_bl = tab2_Select_bl.value
     bl_index = tab2_bl.index(select_bl)
     if tab2_BUT_vdspec.label == "VEC Dyn Spec":
-        tab2_r_square_rs_selection_change(bl_index, select_pol)
+        tab2_r_square_selection_change(bl_index, select_pol)
 
 
-def tab2_update_dspec_rs_image(attrname, old, new):
-    select_pol = tab2_Select_pol.value
-    select_bl = tab2_Select_bl.value
-    bl_index = tab2_bl.index(select_bl)
-    tab2_r_square_rs_selection_change(bl_index, select_pol)
+# def tab2_update_dspec_rs_image(attrname, old, new):
+#     select_pol = tab2_Select_pol.value
+#     select_bl = tab2_Select_bl.value
+#     bl_index = tab2_bl.index(select_bl)
+#     tab2_r_square_selection_change(bl_index, select_pol)
 
 
-def tab2_r_square_rs_selection_change(bl_index, select_pol):
-    global dspecDF_frac, spec_pol_dict, dspecDF_rs0
+def tab2_r_square_selection_change(bl_index, select_pol):
+    global dspecDF_frac, spec_pol_dict, dspecDF0_rs
     global tab2_dtim_fs, tab2_freq_fs, tab2_tim_ind0, tab2_tim_ind1, tab2_freq_ind0, tab2_freq_ind1
     global tab2_SRC_dspec_image, tab2_SRC_dspec_square, tab2_p_dspec
-    tab2_SRC_dspec_image_rs.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim],
-                                    'yy': [tab2_freq]}
-    tab2_r_square_rs_selected = tab2_SRC_dspec_square_rs.selected['1d']['indices']
-    if tab2_r_square_rs_selected:
-        dspecDF_rs = dspecDF_rs0.iloc[tab2_r_square_rs_selected, :]
-        trs0, trs1 = dspecDF_rs['xx'].min(), dspecDF_rs['xx'].max()
-        frs0, frs1 = dspecDF_rs['yy'].min(), dspecDF_rs['yy'].max()
-        if trs1 > trs0 + dspec_fs_tmax * tab2_dt:
-            trs1 = trs0 + dspec_fs_tmax * tab2_dt
-        if frs1 > frs0 + dspec_fs_fmax * tab2_df:
-            frs1 = frs0 + dspec_fs_fmax * tab2_df
-        tab2_r_square_rs_patch.data_source.data = ColumnDataSource(
-            pd.DataFrame({'xx': [trs0, trs1, trs1, trs0], 'yy': [frs0, frs0, frs1, frs1]})).data
-        dspecDF_frac = dspecDF0[dspecDF0.time < trs1][dspecDF0.time >= trs0][dspecDF0.freq >= frs0][
-            dspecDF0.freq < frs1]
-        tab2_dtim_fs = pd.Series.unique(dspecDF_frac['time'])
-        tab2_freq_fs = pd.Series.unique(dspecDF_frac['freq'])
-        tab2_ntim_fs = len(tab2_dtim_fs)
-        tab2_nfreq_fs = len(tab2_freq_fs)
-        tab2_tim_ind0 = np.where(abs(tab2_dtim - tab2_dtim_fs[0]) < tab2_dt / 2.0)[0][0]
-        tab2_tim_ind1 = np.where(abs(tab2_dtim - tab2_dtim_fs[-1]) < tab2_dt / 2.0)[0][0]
-        tab2_freq_ind0 = np.where(abs(tab2_freq - tab2_freq_fs[0]) < tab2_df / 2.0)[0][0]
-        tab2_freq_ind1 = np.where(abs(tab2_freq - tab2_freq_fs[-1]) < tab2_df / 2.0)[0][0]
-        # print tab2_tim_ind0, tab2_tim_ind1, tab2_freq_ind0, tab2_freq_ind1
-        global tab2_spec, tab2_dtim, tab2_freq, tab2_bl
-        if tab2_BUT_vdspec.label == "VEC Dyn Spec":
-            spec_plt_R_frac = tab2_spec[0, bl_index, tab2_freq_ind0:(tab2_freq_ind1 + 1),
-                              tab2_tim_ind0:(tab2_tim_ind1 + 1)]
-            spec_plt_L_frac = tab2_spec[1, bl_index, tab2_freq_ind0:(tab2_freq_ind1 + 1),
-                              tab2_tim_ind0:(tab2_tim_ind1 + 1)]
-        else:
-            spec_plt_R_frac = spec_pol_dict['spec'][select_pol][tab2_freq_ind0:(tab2_freq_ind1 + 1),
-                              tab2_tim_ind0:(tab2_tim_ind1 + 1)]
-            spec_plt_L_frac = spec_pol_dict['spec'][select_pol][tab2_freq_ind0:(tab2_freq_ind1 + 1),
-                              tab2_tim_ind0:(tab2_tim_ind1 + 1)]
-
-        spec_pol_dict_frac = make_spec_plt(spec_plt_R_frac, spec_plt_L_frac)
-        xx_fs, yy_fs = np.meshgrid(tab2_dtim_fs, tab2_freq_fs)
-        if select_pol == 'V':
-            tab2_Select_colorspace.value = 'linear'
-        if tab2_Select_colorspace.value == 'log' and select_pol != 'V':
-            tab2_SRC_dspec_image.data = {'data': [np.log(spec_pol_dict_frac['spec'][select_pol])], 'xx': [xx_fs],
-                                         'yy': [yy_fs]}
-        else:
-            tab2_SRC_dspec_image.data = {'data': [spec_pol_dict_frac['spec'][select_pol]], 'xx': [xx_fs],
-                                         'yy': [yy_fs]}
-        tab2_SRC_dspec_square.data['dspec'] = spec_pol_dict_frac['spec'][select_pol].flatten()
-        tab2_p_dspec_xPro.y_range.start = spec_pol_dict_frac['min'][select_pol]
-        tab2_p_dspec_xPro.y_range.end = spec_pol_dict_frac['max'][select_pol]
-        tab2_p_dspec_yPro.x_range.start = spec_pol_dict_frac['min'][select_pol]
-        tab2_p_dspec_yPro.x_range.end = spec_pol_dict_frac['max'][select_pol]
-        tab2_SRC_dspec_square = ColumnDataSource(dspecDF_frac)
-        tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
-                              plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
-                              plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
-                              x_range=(dspecDF_frac['time'].min(), dspecDF_frac['time'].max()),
-                              y_range=(dspecDF_frac['freq'].min(), dspecDF_frac['freq'].max()),
-                              toolbar_location="above")
-        # tab2_p_dspec.x_range.start = tab2_dtim_fs[0]
-        # tab2_p_dspec.x_range.end = tab2_dtim_fs[-1]
-        # tab2_p_dspec.y_range.start = tab2_freq_fs[0]
-        # tab2_p_dspec.y_range.end = tab2_freq_fs[-1]
-        # print tab2_dtim_fs[0], tab2_freq_fs[0]
-        # tab2_SRC_dspec_image = ColumnDataSource(
-        #     data={'data': [spec_pol_dict['spec'][select_pol][tab2_freq_ind0:(tab2_freq_ind1 + 1),
-        #                    tab2_tim_ind0:(tab2_tim_ind1 + 1)]], 'xx': [tab2_dtim_fs], 'yy': [tab2_freq_fs]})
-        tab2_p_dspec.image(image="data", x=tab2_dtim_fs[0], y=tab2_freq_fs[0],
-                           dw=tab2_dtim_fs[-1] - tab2_dtim_fs[0],
-                           dh=tab2_freq_fs[-1] - tab2_freq_fs[0],
-                           source=tab2_SRC_dspec_image, palette=bokehpalette_jet)
-        tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=colors_dspec,
-                                            fill_alpha=0.0,
-                                            line_color=None, line_alpha=0.0, selection_fill_alpha=0.1,
-                                            selection_fill_color='black',
-                                            nonselection_fill_alpha=0.0,
-                                            selection_line_alpha=0.2, selection_line_color='white',
-                                            nonselection_line_alpha=0.0,
-                                            size=max(
-                                                config_plot['plot_config']['tab_FSview_base'][
-                                                    'dspec_wdth'] / tab2_ntim_fs,
-                                                config_plot['plot_config']['tab_FSview_base'][
-                                                    'dspec_hght'] / tab2_nfreq_fs))
+    # tab2_SRC_dspec_image_rs.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim],
+    #                                 'yy': [tab2_freq]}
+    # tab2_r_square_rs_selected = tab2_SRC_dspec_square_rs.selected['1d']['indices']
+    # if tab2_r_square_rs_selected:
+    # dspecDF_rs = dspecDF0_rs.iloc[tab2_r_square_rs_selected, :]
+    # trs0, trs1 = dspecDF_rs['xx'].min(), dspecDF_rs['xx'].max()
+    # frs0, frs1 = dspecDF_rs['yy'].min(), dspecDF_rs['yy'].max()
+    # if trs1 > trs0 + dspec_fs_tmax * tab2_dt:
+    #     trs1 = trs0 + dspec_fs_tmax * tab2_dt
+    # if frs1 > frs0 + dspec_fs_fmax * tab2_df:
+    #     frs1 = frs0 + dspec_fs_fmax * tab2_df
+    # tab2_r_square_rs_patch.data_source.data = ColumnDataSource(
+    #     pd.DataFrame({'xx': [trs0, trs1, trs1, trs0], 'yy': [frs0, frs0, frs1, frs1]})).data
+    # dspecDF_frac = dspecDF0[dspecDF0.time < trs1][dspecDF0.time >= trs0][dspecDF0.freq >= frs0][
+    #     dspecDF0.freq < frs1]
+    # tab2_dtim_fs = pd.Series.unique(dspecDF_frac['time'])
+    # tab2_freq_fs = pd.Series.unique(dspecDF_frac['freq'])
+    # tab2_ntim_fs = len(tab2_dtim_fs)
+    # tab2_nfreq_fs = len(tab2_freq_fs)
+    # tab2_tim_ind0 = np.where(abs(tab2_dtim - tab2_dtim_fs[0]) < tab2_dt / 2.0)[0][0]
+    # tab2_tim_ind1 = np.where(abs(tab2_dtim - tab2_dtim_fs[-1]) < tab2_dt / 2.0)[0][0]
+    # tab2_freq_ind0 = np.where(abs(tab2_freq - tab2_freq_fs[0]) < tab2_df / 2.0)[0][0]
+    # tab2_freq_ind1 = np.where(abs(tab2_freq - tab2_freq_fs[-1]) < tab2_df / 2.0)[0][0]
+    # print tab2_tim_ind0, tab2_tim_ind1, tab2_freq_ind0, tab2_freq_ind1
+    global tab2_spec, tab2_dtim, tab2_freq, tab2_bl
+    if tab2_BUT_vdspec.label == "VEC Dyn Spec":
+        spec_plt_R = tab2_spec[0, bl_index,:,:]
+        spec_plt_L = tab2_spec[1, bl_index,:,:]
     else:
-        tab2_r_square_rs_patch.data_source.data = ColumnDataSource(
-            pd.DataFrame({'xx': [], 'yy': []})).data
+        spec_plt_R = spec_pol_dict['spec'][select_pol]
+        spec_plt_L = spec_pol_dict['spec'][select_pol]
+
+    spec_pol_dict = make_spec_plt(spec_plt_R, spec_plt_L)
+    # tab2_dtim_fs, tab2_freq_fs = np.meshgrid(tab2_dtim_fs, tab2_freq_fs)
+    if select_pol == 'V':
+        tab2_Select_colorspace.value = 'linear'
+    if tab2_Select_colorspace.value == 'log' and select_pol != 'V':
+        tab2_SRC_dspec_image.data = {'data': [np.log(spec_pol_dict['spec'][select_pol])], 'xx': [tab2_dtim_fs],
+                                     'yy': [tab2_freq_fs]}
+    else:
+        tab2_SRC_dspec_image.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim_fs],
+                                     'yy': [tab2_freq_fs]}
+    tab2_SRC_dspec_square.data['dspec'] = spec_pol_dict['spec'][select_pol].flatten()
+    tab2_p_dspec_xPro.y_range.start = spec_pol_dict['min'][select_pol]
+    tab2_p_dspec_xPro.y_range.end = spec_pol_dict['max'][select_pol]
+    tab2_p_dspec_yPro.x_range.start = spec_pol_dict['min'][select_pol]
+    tab2_p_dspec_yPro.x_range.end = spec_pol_dict['max'][select_pol]
+    # tab2_SRC_dspec_square = ColumnDataSource(dspecDF0_rs)
+    # tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
+    #                       plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
+    #                       plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
+    #                       x_range=(dspecDF_frac['time'].min(), dspecDF_frac['time'].max()),
+    #                       y_range=(dspecDF_frac['freq'].min(), dspecDF_frac['freq'].max()),
+    #                       toolbar_location="above")
+    # tab2_p_dspec.x_range.start = tab2_dtim_fs[0]
+    # tab2_p_dspec.x_range.end = tab2_dtim_fs[-1]
+    # tab2_p_dspec.y_range.start = tab2_freq_fs[0]
+    # tab2_p_dspec.y_range.end = tab2_freq_fs[-1]
+    # print tab2_dtim_fs[0], tab2_freq_fs[0]
+    # tab2_SRC_dspec_image = ColumnDataSource(
+    #     data={'data': [spec_pol_dict['spec'][select_pol][tab2_freq_ind0:(tab2_freq_ind1 + 1),
+    #                    tab2_tim_ind0:(tab2_tim_ind1 + 1)]], 'xx': [tab2_dtim_fs], 'yy': [tab2_freq_fs]})
+    # tab2_p_dspec.image(image="data", x=tab2_dtim_fs[0], y=tab2_freq_fs[0],
+    #                    dw=tab2_dtim_fs[-1] - tab2_dtim_fs[0],
+    #                    dh=tab2_freq_fs[-1] - tab2_freq_fs[0],
+    #                    source=tab2_SRC_dspec_image, palette=bokehpalette_jet)
+    # tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=colors_dspec,
+    #                                     fill_alpha=0.0,
+    #                                     line_color=None, line_alpha=0.0, selection_fill_alpha=0.1,
+    #                                     selection_fill_color='black',
+    #                                     nonselection_fill_alpha=0.0,
+    #                                     selection_line_alpha=0.2, selection_line_color='white',
+    #                                     nonselection_line_alpha=0.0,
+    #                                     size=max(
+    #                                         config_plot['plot_config']['tab_FSview_base'][
+    #                                             'dspec_wdth'] / tab2_ntim_fs,
+    #                                         config_plot['plot_config']['tab_FSview_base'][
+    #                                             'dspec_hght'] / tab2_nfreq_fs))
+    # else:
+    #     tab2_r_square_rs_patch.data_source.data = ColumnDataSource(
+    #         pd.DataFrame({'xx': [], 'yy': []})).data
 
 
 # initial the source of maxfit centroid
@@ -1882,11 +1878,11 @@ if os.path.exists(FS_dspecDF):
                       widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
                                 tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
                                 width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
-        if do_spec_regrid:
-            # lout2_2_1 = column(tab2_p_dspec_rs, row(tab2_p_dspec, tab2_p_dspec_yPro), tab2_p_dspec_xPro)
-            pass
-        else:
-            lout2_2_1 = column(row(tab2_p_dspec, tab2_p_dspec_yPro), tab2_p_dspec_xPro)
+        # if do_spec_regrid:
+        #     # lout2_2_1 = column(tab2_p_dspec_rs, row(tab2_p_dspec, tab2_p_dspec_yPro), tab2_p_dspec_xPro)
+        #     pass
+        # else:
+        lout2_2_1 = column(row(tab2_p_dspec, tab2_p_dspec_yPro), tab2_p_dspec_xPro)
         lout2_2_2 = widgetbox(tab2_Select_pol, tab2_Select_bl,
                               tab2_Select_colorspace,
                               tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
@@ -1970,83 +1966,82 @@ if os.path.exists(FS_dspecDF):
 
             '''create the regridded dynamic spectrum plot'''
             TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
-            if tab2_ntim > spec_rs_tmax or tab2_nfreq > spec_rs_fmax:
-                do_spec_regrid = True
-                tab2_dspec_fs_ntim = spec_rs_tmax if spec_rs_tmax < tab2_ntim else tab2_ntim
-                tab2_dspec_fs_nfreq = spec_rs_fmax if spec_rs_fmax < tab2_nfreq else tab2_nfreq
-                dspecDF_frac = \
-                    dspecDF0[dspecDF0.time < tab2_dtim[0] + tab2_dspec_fs_ntim * tab2_dt][
-                        dspecDF0.time >= tab2_dtim[0]][
-                        dspecDF0.freq >= tab2_freq[0]][dspecDF0.freq < tab2_freq[0] + tab2_dspec_fs_nfreq * tab2_df]
-                rebin_specdata(tab2_spec, bl_index, tab2_pol,spec_rs_tmax=spec_rs_tmax,spec_rs_fmax=spec_rs_fmax)
-                tab2_p_dspec_rs = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
-                                         plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_rs_wdth'],
-                                         plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_rs_hght'],
-                                         x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
-                                         toolbar_location="above")
-                tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
-                tab2_p_dspec_rs.axis.visible = True
-                tab2_p_dspec_rs.title.text = "Dynamic spectrum"
-                tab2_p_dspec_rs.xaxis.axis_label = 'Seconds since ' + tim0_char
-                tab2_p_dspec_rs.yaxis.axis_label = 'Frequency [GHz]'
-                tab2_SRC_dspec_image_rs = ColumnDataSource(
-                    data={'data': [tab2_spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
-                tab2_p_dspec_rs.image(image="data", x=tab2_dtim[0], y=tab2_freq[0],
-                                      dw=tab2_dtim[-1] - tab2_dtim[0],
-                                      dh=tab2_freq[-1] - tab2_freq[0],
-                                      source=tab2_SRC_dspec_image_rs, palette=bokehpalette_jet)
-                tim_map_square_rs = (np.tile(tab2_tim_square_rs, tab2_nfreq_square_rs).reshape(tab2_nfreq_square_rs, \
-                                                                                               tab2_ntim_square_rs) / 3600. / 24. + 2400000.5) * 86400.
-                freq_map_square_rs = np.tile(tab2_freq_square_rs, tab2_ntim_square_rs).reshape(tab2_ntim_square_rs, \
-                                                                                               tab2_nfreq_square_rs).swapaxes(
-                    0, 1)
-                dspecDF_rs0 = pd.DataFrame({'xx': tim_map_square_rs.ravel() - xx[0], 'yy': freq_map_square_rs.ravel()})
-                tab2_SRC_dspec_square_rs = ColumnDataSource(dspecDF_rs0)
-                tab2_r_square_rs = tab2_p_dspec_rs.square('xx', 'yy', source=tab2_SRC_dspec_square_rs, fill_color=None,
-                                                          fill_alpha=0.0,
-                                                          line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
-                                                          selection_fill_color='black',
-                                                          nonselection_fill_alpha=0.0,
-                                                          selection_line_alpha=0.0, selection_line_color='white',
-                                                          nonselection_line_alpha=0.0,
-                                                          size=min(
-                                                              config_plot['plot_config']['tab_FSview_base'][
-                                                                  'dspec_wdth'] / tab2_ntim_square_rs,
-                                                              config_plot['plot_config']['tab_FSview_base'][
-                                                                  'dspec_hght'] / tab2_nfreq_square_rs))
-                tab2_SRC_r_square_rs_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
-                tab2_r_square_rs_patch = tab2_p_dspec_rs.patch('xx', 'yy', source=tab2_SRC_r_square_rs_Patch,
-                                                               fill_color=None, fill_alpha=0.5, line_color="white",
-                                                               line_alpha=1, line_width=1)
-                tab2_p_dspec_rs.add_tools(BoxSelectTool(renderers=[tab2_r_square_rs]))
-                tab2_SRC_dspec_square_rs.on_change('selected', tab2_update_dspec_rs_image)
+            # if tab2_ntim > spec_rs_tmax or tab2_nfreq > spec_rs_fmax:
+            # do_spec_regrid = True
+            # tab2_dspec_fs_ntim = spec_rs_tmax if spec_rs_tmax < tab2_ntim else tab2_ntim
+            # tab2_dspec_fs_nfreq = spec_rs_fmax if spec_rs_fmax < tab2_nfreq else tab2_nfreq
+            # dspecDF_frac = \
+            #     dspecDF0[dspecDF0.time < tab2_dtim[0] + tab2_dspec_fs_ntim * tab2_dt][
+            #         dspecDF0.time >= tab2_dtim[0]][
+            #         dspecDF0.freq >= tab2_freq[0]][dspecDF0.freq < tab2_freq[0] + tab2_dspec_fs_nfreq * tab2_df]
+            rebin_specdata(tab2_spec, spec_rs_tmax=spec_rs_tmax, spec_rs_fmax=spec_rs_fmax)
+            tab2_p_dspec_rs = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
+                                     plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_rs_wdth'],
+                                     plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_rs_hght'],
+                                     x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
+                                     toolbar_location="above")
+            tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+            tab2_p_dspec_rs.axis.visible = True
+            tab2_p_dspec_rs.title.text = "Dynamic spectrum"
+            tab2_p_dspec_rs.xaxis.axis_label = 'Seconds since ' + tim0_char
+            tab2_p_dspec_rs.yaxis.axis_label = 'Frequency [GHz]'
+            tab2_SRC_dspec_image_rs = ColumnDataSource(
+                data={'data': [tab2_spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
+            tab2_p_dspec_rs.image(image="data", x=tab2_dtim[0], y=tab2_freq[0],
+                                  dw=tab2_dtim[-1] - tab2_dtim[0],
+                                  dh=tab2_freq[-1] - tab2_freq[0],
+                                  source=tab2_SRC_dspec_image_rs, palette=bokehpalette_jet)
+            tim_map_square_rs = (np.tile(tab2_tim_square_rs, tab2_nfreq_square_rs).reshape(tab2_nfreq_square_rs, \
+                                                                                           tab2_ntim_square_rs) / 3600. / 24. + 2400000.5) * 86400.
+            freq_map_square_rs = np.tile(tab2_freq_square_rs, tab2_ntim_square_rs).reshape(tab2_ntim_square_rs, \
+                                                                                           tab2_nfreq_square_rs).swapaxes(
+                0, 1)
+            dspecDF0_rs = pd.DataFrame({'xx': tim_map_square_rs.ravel() - xx[0], 'yy': freq_map_square_rs.ravel()})
+            # tab2_SRC_dspec_square_rs = ColumnDataSource(dspecDF0_rs)
+            # tab2_r_square_rs = tab2_p_dspec_rs.square('xx', 'yy', source=tab2_SRC_dspec_square_rs, fill_color=None,
+            #                                           fill_alpha=0.0,
+            #                                           line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
+            #                                           selection_fill_color='black',
+            #                                           nonselection_fill_alpha=0.0,
+            #                                           selection_line_alpha=0.0, selection_line_color='white',
+            #                                           nonselection_line_alpha=0.0,
+            #                                           size=min(
+            #                                               config_plot['plot_config']['tab_FSview_base'][
+            #                                                   'dspec_wdth'] / tab2_ntim_square_rs,
+            #                                               config_plot['plot_config']['tab_FSview_base'][
+            #                                                   'dspec_hght'] / tab2_nfreq_square_rs))
+            # tab2_SRC_r_square_rs_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
+            # tab2_r_square_rs_patch = tab2_p_dspec_rs.patch('xx', 'yy', source=tab2_SRC_r_square_rs_Patch,
+            #                                                fill_color=None, fill_alpha=0.5, line_color="white",
+            #                                                line_alpha=1, line_width=1)
+            # tab2_p_dspec_rs.add_tools(BoxSelectTool(renderers=[tab2_r_square_rs]))
+            # tab2_SRC_dspec_square_rs.on_change('selected', tab2_update_dspec_rs_image)
 
-            tab2_dtim_fs = pd.Series.unique(dspecDF_frac['time'])
-            tab2_freq_fs = pd.Series.unique(dspecDF_frac['freq'])
-            tab2_ntim_fs = len(tab2_dtim_fs)
-            tab2_nfreq_fs = len(tab2_freq_fs)
-            tab2_tim_ind0 = np.where(abs(tab2_dtim - tab2_dtim_fs[0]) < tab2_dt / 2.0)[0][0]
-            tab2_tim_ind1 = np.where(abs(tab2_dtim - tab2_dtim_fs[-1]) < tab2_dt / 2.0)[0][0]
-            tab2_freq_ind0 = np.where(abs(tab2_freq - tab2_freq_fs[0]) < tab2_df / 2.0)[0][0]
-            tab2_freq_ind1 = np.where(abs(tab2_freq - tab2_freq_fs[-1]) < tab2_df / 2.0)[0][0]
+            # tab2_dtim_fs = pd.Series.unique(dspecDF_frac['time'])
+            # tab2_freq_fs = pd.Series.unique(dspecDF_frac['freq'])
+            # tab2_ntim_fs = len(tab2_dtim_fs)
+            # tab2_nfreq_fs = len(tab2_freq_fs)
+            # tab2_tim_ind0 = np.where(abs(tab2_dtim - tab2_dtim_fs[0]) < tab2_dt / 2.0)[0][0]
+            # tab2_tim_ind1 = np.where(abs(tab2_dtim - tab2_dtim_fs[-1]) < tab2_dt / 2.0)[0][0]
+            # tab2_freq_ind0 = np.where(abs(tab2_freq - tab2_freq_fs[0]) < tab2_df / 2.0)[0][0]
+            # tab2_freq_ind1 = np.where(abs(tab2_freq - tab2_freq_fs[-1]) < tab2_df / 2.0)[0][0]
             '''create the dynamic spectrum plot'''
             TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
-            tab2_SRC_dspec_square = ColumnDataSource(dspecDF_frac)
+            tab2_SRC_dspec_square = ColumnDataSource(dspecDF0_rs)
             tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
                                   plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
                                   plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
-                                  x_range=(dspecDF_frac['time'].min(), dspecDF_frac['time'].max()),
-                                  y_range=(dspecDF_frac['freq'].min(), dspecDF_frac['freq'].max()),
+                                  x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
                                   toolbar_location="above")
             tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
             tab2_p_dspec.axis.visible = True
             tab2_p_dspec.title.text = "Dynamic spectrum"
             tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
             tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
-            xx_fs, yy_fs = np.meshgrid(tab2_dtim_fs, tab2_freq_fs)
+            # tab2_dtim_fs, tab2_freq_fs = np.meshgrid(tab2_dtim_fs, tab2_freq_fs)
             tab2_SRC_dspec_image = ColumnDataSource(
-                data={'data': [tab2_spec_plt[tab2_freq_ind0:tab2_freq_ind1 + 1, tab2_tim_ind0:tab2_tim_ind1 + 1]],
-                      'xx': [xx_fs], 'yy': [yy_fs]})
+                data={'data': [tab2_spec_plt],
+                      'xx': [tab2_dtim_fs], 'yy': [tab2_freq_fs]})
             tab2_p_dspec.image(image="data", x=tab2_dtim_fs[0], y=tab2_freq_fs[0],
                                dw=tab2_dtim_fs[-1] - tab2_dtim_fs[0],
                                dh=tab2_freq_fs[-1] - tab2_freq_fs[0],
@@ -2062,9 +2057,9 @@ if os.path.exists(FS_dspecDF):
                                                 nonselection_line_alpha=0.0,
                                                 size=max(
                                                     config_plot['plot_config']['tab_FSview_base'][
-                                                        'dspec_wdth'] / tab2_ntim_fs,
+                                                        'dspec_wdth'] / tab2_ntim_square_rs,
                                                     config_plot['plot_config']['tab_FSview_base'][
-                                                        'dspec_hght'] / tab2_nfreq_fs))
+                                                        'dspec_hght'] / tab2_nfreq_square_rs))
 
             # tab2_p_dspec.border_fill_color = "silver"
             tab2_p_dspec.border_fill_alpha = 0.4
@@ -2431,20 +2426,20 @@ if os.path.exists(FS_dspecDF):
                             widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
                                       tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
                                       width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
-            if do_spec_regrid:
-                lout2_1_2 = row(column(tab2_p_dspec_rs, row(tab2_p_dspec, tab2_p_dspec_yPro),
-                                       tab2_p_dspec_xPro),
-                                widgetbox(tab2_Select_pol, tab2_Select_bl,
-                                          tab2_Select_colorspace,
-                                          tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
-                                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
-            else:
-                lout2_1_2 = row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
-                                       tab2_p_dspec_xPro),
-                                widgetbox(tab2_Select_pol, tab2_Select_bl,
-                                          tab2_Select_colorspace,
-                                          tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
-                                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
+            # if do_spec_regrid:
+            #     lout2_1_2 = row(column(tab2_p_dspec_rs, row(tab2_p_dspec, tab2_p_dspec_yPro),
+            #                            tab2_p_dspec_xPro),
+            #                     widgetbox(tab2_Select_pol, tab2_Select_bl,
+            #                               tab2_Select_colorspace,
+            #                               tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
+            #                               width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
+            # else:
+            lout2_1_2 = row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
+                                   tab2_p_dspec_xPro),
+                            widgetbox(tab2_Select_pol, tab2_Select_bl,
+                                      tab2_Select_colorspace,
+                                      tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
+                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
             lout2_1 = column(lout2_1_1, lout2_1_2)
             lout2_2 = tab2_SPCR_LFT_Div_tImfit
             lout2_3 = column(tab2_input_tImfit, tab2_Div_tImfit2,
