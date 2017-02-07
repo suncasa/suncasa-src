@@ -589,6 +589,7 @@ def tab2_dspec_selection_change(attrname, old, new):
         global dspecDF_select
         dspecDF_select = dspecDF0_rs.iloc[tab2_dspec_selected, :]
         idx_selected = dspecDF_select.index[len(dspecDF_select) / 2]
+        print dspecDF0_rs.loc[idx_selected, :]['time'],dspecDF0_rs.loc[idx_selected, :]['freq']
         tidx = int(['{:.3f}'.format(ll) for ll in tab2_dtim].index(
             '{:.3f}'.format(dspecDF0_rs.loc[idx_selected, :]['time'])))
         fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
