@@ -2041,10 +2041,10 @@ if os.path.exists(FS_dspecDF):
             # tab2_dtim_fs, tab2_freq_fs = np.meshgrid(tab2_dtim_fs, tab2_freq_fs)
             tab2_SRC_dspec_image = ColumnDataSource(
                 data={'data': [tab2_spec_plt],
-                      'xx': [tab2_dtim_fs], 'yy': [tab2_freq_fs]})
-            tab2_p_dspec.image(image="data", x=tab2_dtim_fs[0], y=tab2_freq_fs[0],
-                               dw=tab2_dtim_fs[-1] - tab2_dtim_fs[0],
-                               dh=tab2_freq_fs[-1] - tab2_freq_fs[0],
+                      'xx': [tab2_dtim], 'yy': [tab2_freq]})
+            tab2_p_dspec.image(image="data", x=tab2_dtim[0], y=tab2_freq[0],
+                               dw=tab2_dtim[-1] - tab2_dtim[0],
+                               dh=tab2_freq[-1] - tab2_freq[0],
                                source=tab2_SRC_dspec_image, palette=bokehpalette_jet)
 
             # make the dspec data source selectable
