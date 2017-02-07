@@ -121,15 +121,16 @@ def rebin_specdata(tab2_spec, spec_rs_tmax=None, spec_rs_fmax=None):
     tab2_ntim_square_rs = len(tab2_tim_square_rs)
     tab2_nfreq_square_rs = len(tab2_freq_square_rs)
 
+
 def downsample_dspecDF(spec_rs_tmax=None, spec_rs_fmax=None):
-    global dspecDF0_rs,dspecDF0
+    global dspecDF0_rs, dspecDF0, spec_rs_step
     spec_sz = len(dspecDF0.index)
-    spec_sz_max = spec_rs_tmax*spec_rs_fmax
+    spec_sz_max = spec_rs_tmax * spec_rs_fmax
     if spec_sz > spec_sz_max:
         spec_rs_step = next(i for i in xrange(1, 11) if spec_sz / i < spec_sz_max)
     else:
         spec_rs_step = 1
-    dspecDF0_rs = dspecDF0.loc[::spec_rs_step,:]
+    dspecDF0_rs = dspecDF0.loc[::spec_rs_step, :]
 
 
 def tab2_vdspec_update():
@@ -262,8 +263,8 @@ def tab2_r_square_selection_change(bl_index, select_pol):
     # print tab2_tim_ind0, tab2_tim_ind1, tab2_freq_ind0, tab2_freq_ind1
     global tab2_spec, tab2_dtim, tab2_freq, tab2_bl
     if tab2_BUT_vdspec.label == "VEC Dyn Spec":
-        spec_plt_R = tab2_spec[0, bl_index,:,:]
-        spec_plt_L = tab2_spec[1, bl_index,:,:]
+        spec_plt_R = tab2_spec[0, bl_index, :, :]
+        spec_plt_L = tab2_spec[1, bl_index, :, :]
     else:
         spec_plt_R = spec_pol_dict['spec'][select_pol]
         spec_plt_L = spec_pol_dict['spec'][select_pol]
@@ -2067,9 +2068,9 @@ if os.path.exists(FS_dspecDF):
                                                 nonselection_line_alpha=0.0,
                                                 size=max(
                                                     config_plot['plot_config']['tab_FSview_base'][
-                                                        'dspec_wdth'] / tab2_ntim,
+                                                        'dspec_wdth'] / tab2_ntim / spec_rs_step,
                                                     config_plot['plot_config']['tab_FSview_base'][
-                                                        'dspec_hght'] / tab2_nfreq))
+                                                        'dspec_hght'] / tab2_nfreq / spec_rs_step))
 
             # tab2_p_dspec.border_fill_color = "silver"
             tab2_p_dspec.border_fill_alpha = 0.4
