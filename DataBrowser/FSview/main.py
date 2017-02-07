@@ -235,7 +235,6 @@ def tab2_update_dspec_image(attrname, old, new):
 
 def tab2_r_square_selection_change(bl_index, select_pol):
     global spec_pol_dict, dspecDF0_rs
-    global tab2_dtim_fs, tab2_freq_fs, tab2_tim_ind0, tab2_tim_ind1, tab2_freq_ind0, tab2_freq_ind1
     global tab2_SRC_dspec_image, tab2_SRC_dspec_square, tab2_p_dspec
     # tab2_SRC_dspec_image.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim],
     #                                 'yy': [tab2_freq]}
@@ -274,11 +273,11 @@ def tab2_r_square_selection_change(bl_index, select_pol):
     if select_pol == 'V':
         tab2_Select_colorspace.value = 'linear'
     if tab2_Select_colorspace.value == 'log' and select_pol != 'V':
-        tab2_SRC_dspec_image.data = {'data': [np.log(spec_pol_dict['spec'][select_pol])], 'xx': [tab2_dtim_fs],
-                                     'yy': [tab2_freq_fs]}
+        tab2_SRC_dspec_image.data = {'data': [np.log(spec_pol_dict['spec'][select_pol])], 'xx': [tab2_dtim],
+                                     'yy': [tab2_freq]}
     else:
-        tab2_SRC_dspec_image.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim_fs],
-                                     'yy': [tab2_freq_fs]}
+        tab2_SRC_dspec_image.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim],
+                                     'yy': [tab2_freq]}
     tab2_SRC_dspec_square.data['dspec'] = spec_pol_dict['spec'][select_pol].flatten()
     tab2_p_dspec_xPro.y_range.start = spec_pol_dict['min'][select_pol]
     tab2_p_dspec_xPro.y_range.end = spec_pol_dict['max'][select_pol]
