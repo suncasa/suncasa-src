@@ -107,7 +107,7 @@ def sdomapfromlocalfile(wavelength=None, jdtime=None):
     return aiamap
 
 
-def rebin_specdata(tab2_spec, bl_index, select_pol):
+def rebin_specdata(tab2_spec, bl_index, select_pol,spec_rs_tmax=None,spec_rs_fmax=None):
     global tab2_tim_square_rs, tab2_freq_square_rs, tab2_ntim_square_rs, tab2_nfreq_square_rs
     tab2_spec_sz = tab2_spec.shape
     spec_sz2, spec_sz1 = 10, 10
@@ -1978,7 +1978,7 @@ if os.path.exists(FS_dspecDF):
                     dspecDF0[dspecDF0.time < tab2_dtim[0] + tab2_dspec_fs_ntim * tab2_dt][
                         dspecDF0.time >= tab2_dtim[0]][
                         dspecDF0.freq >= tab2_freq[0]][dspecDF0.freq < tab2_freq[0] + tab2_dspec_fs_nfreq * tab2_df]
-                rebin_specdata(tab2_spec, bl_index, tab2_pol)
+                rebin_specdata(tab2_spec, bl_index, tab2_pol,spec_rs_tmax=spec_rs_tmax,spec_rs_fmax=spec_rs_fmax)
                 tab2_p_dspec_rs = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
                                          plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_rs_wdth'],
                                          plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_rs_hght'],
