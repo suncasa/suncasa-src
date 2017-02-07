@@ -121,6 +121,16 @@ def rebin_specdata(tab2_spec, spec_rs_tmax=None, spec_rs_fmax=None):
     tab2_ntim_square_rs = len(tab2_tim_square_rs)
     tab2_nfreq_square_rs = len(tab2_freq_square_rs)
 
+def downsample_dspecDF(spec_rs_tmax=None, spec_rs_fmax=None):
+    global dspecDF0_rs,dspecDF0
+    spec_sz = len(dspecDF0.index)
+    spec_sz_max = spec_rs_tmax*spec_rs_fmax
+    if spec_sz > spec_sz_max:
+        spec_rs_step = next(i for i in xrange(1, 11) if spec_sz / i < spec_sz_max)
+    else:
+        spec_rs_step = 1
+    dspecDF0_rs = dspecDF0.loc[::spec_rs_step,:]
+
 
 def tab2_vdspec_update():
     global tab2_Select_pol_opt, spec_pol_dict
@@ -224,7 +234,7 @@ def tab2_update_dspec_image(attrname, old, new):
 
 
 def tab2_r_square_selection_change(bl_index, select_pol):
-    global dspecDF_frac, spec_pol_dict, dspecDF0_rs
+    global spec_pol_dict, dspecDF0_rs
     global tab2_dtim_fs, tab2_freq_fs, tab2_tim_ind0, tab2_tim_ind1, tab2_freq_ind0, tab2_freq_ind1
     global tab2_SRC_dspec_image, tab2_SRC_dspec_square, tab2_p_dspec
     # tab2_SRC_dspec_image.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim],
@@ -363,7 +373,7 @@ def tab3_slider_LinkImg_update(attrname, old, new):
     tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
         pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
                       'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
-    hdufile = fits_LOCL_dir + dspecDF_frac.loc[tidx, :]['fits_local']
+    hdufile = fits_LOCL_dir + dspecDF0_rs.loc[tidx, :]['fits_local']
     if os.path.exists(hdufile):
         hdu = read_fits(hdufile)
         hdu_goodchan = goodchan(hdu)
@@ -389,12 +399,12 @@ def tab3_slider_LinkImg_update(attrname, old, new):
             SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
             tab2_r_vla_multi_line.data_source.data = SRC_contour.data
             tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
-                dspecDF_frac.loc[tidx, :]['fits_local'])
+                dspecDF0_rs.loc[tidx, :]['fits_local'])
         else:
             tab2_Div_LinkImg_plot.text = '<p><b>freq idx</b> out of range.</p>'
     else:
         tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
-            dspecDF_frac.loc[tidx, :]['fits_local'])
+            dspecDF0_rs.loc[tidx, :]['fits_local'])
 
 
 def tab2_SRC_maxfit_centroid_update(dspecDFsel):
@@ -486,24 +496,24 @@ def tab2_aia_submap_square_selection_change(attrname, old, new):
 
 
 def VdspecDF_init():
-    global VdspecDF, dspecDF_frac
+    global VdspecDF, dspecDF0_rs
     VdspecDF = pd.DataFrame()
-    nrows_dspecDF = len(dspecDF_frac.index)
-    VdspecDF['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
-    VdspecDF['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
-    VdspecDF['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF_frac.index)
+    nrows_dspecDF = len(dspecDF0_rs.index)
+    VdspecDF['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0_rs.index)
+    VdspecDF['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0_rs.index)
+    VdspecDF['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0_rs.index)
 
 
 def VdspecDF_update(selected=None):
     global VdspecDF
     if selected:
-        VdspecDF.loc[selected, 'shape_longitude'] = dspecDF_frac.loc[selected, 'shape_longitude']
-        VdspecDF.loc[selected, 'shape_latitude'] = dspecDF_frac.loc[selected, 'shape_latitude']
-        VdspecDF.loc[selected, 'peak'] = dspecDF_frac.loc[selected, 'peak']
+        VdspecDF.loc[selected, 'shape_longitude'] = dspecDF0_rs.loc[selected, 'shape_longitude']
+        VdspecDF.loc[selected, 'shape_latitude'] = dspecDF0_rs.loc[selected, 'shape_latitude']
+        VdspecDF.loc[selected, 'peak'] = dspecDF0_rs.loc[selected, 'peak']
     else:
-        VdspecDF.loc[:, 'shape_longitude'] = dspecDF_frac.loc[:, 'shape_longitude']
-        VdspecDF.loc[:, 'shape_latitude'] = dspecDF_frac.loc[:, 'shape_latitude']
-        VdspecDF.loc[:, 'peak'] = dspecDF_frac.loc[:, 'peak']
+        VdspecDF.loc[:, 'shape_longitude'] = dspecDF0_rs.loc[:, 'shape_longitude']
+        VdspecDF.loc[:, 'shape_latitude'] = dspecDF0_rs.loc[:, 'shape_latitude']
+        VdspecDF.loc[:, 'peak'] = dspecDF0_rs.loc[:, 'peak']
 
 
 def tab3_SRC_dspec_vector_init():
@@ -511,21 +521,21 @@ def tab3_SRC_dspec_vector_init():
     global mean_amp_g, mean_vx, mean_vy, drange_amp_g, drange_vx, drange_vy
     global vmax_amp_g, vmax_vx, vmax_vy, vmin_amp_g, vmin_vx, vmin_vy
     start_timestamp = time.time()
-    amp_g = (dspecDF_frac['peak'].copy()).reshape(tab2_nfreq, tab2_ntim)
+    amp_g = (dspecDF0_rs['peak'].copy()).reshape(tab2_nfreq, tab2_ntim)
     mean_amp_g = np.nanmean(amp_g)
     drange_amp_g = 40.
     vmax_amp_g, vmin_amp_g = mean_amp_g + drange_amp_g * np.asarray([1., -1.])
     amp_g[amp_g > vmax_amp_g] = vmax_amp_g
     amp_g[amp_g < vmin_amp_g] = vmin_amp_g
     tab3_SRC_dspec_vector = ColumnDataSource(data={'data': [amp_g], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
-    vx = (dspecDF_frac['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
+    vx = (dspecDF0_rs['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
     mean_vx = np.nanmean(vx)
     drange_vx = 40.
     vmax_vx, vmin_vx = mean_vx + drange_vx * np.asarray([1., -1.])
     vx[vx > vmax_vx] = vmax_vx
     vx[vx < vmin_vx] = vmin_vx
     tab3_SRC_dspec_vectorx = ColumnDataSource(data={'data': [vx], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
-    vy = (dspecDF_frac['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
+    vy = (dspecDF0_rs['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
     mean_vy = np.nanmean(vy)
     drange_vy = 40.
     vmax_vy, vmin_vy = mean_vy + drange_vy * np.asarray([1., -1.])
@@ -577,12 +587,12 @@ def tab2_dspec_selection_change(attrname, old, new):
     tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
     if tab2_dspec_selected:
         global dspecDF_select
-        dspecDF_select = dspecDF_frac.iloc[tab2_dspec_selected, :]
+        dspecDF_select = dspecDF0_rs.iloc[tab2_dspec_selected, :]
         idx_selected = dspecDF_select.index[len(dspecDF_select) / 2]
         tidx = int(['{:.3f}'.format(ll) for ll in tab2_dtim].index(
-            '{:.3f}'.format(dspecDF_frac.loc[idx_selected, :]['time'])))
+            '{:.3f}'.format(dspecDF0_rs.loc[idx_selected, :]['time'])))
         fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
-            '{:.3f}'.format(dspecDF_frac.loc[idx_selected, :]['freq'])))
+            '{:.3f}'.format(dspecDF0_rs.loc[idx_selected, :]['freq'])))
         tab2_Slider_time_LinkImg.value = tidx
         tab2_Slider_freq_LinkImg.value = fidx
 
@@ -659,7 +669,7 @@ def tab2_dspec_vector_selection_change(attrname, old, new):
     tab2_dspec_vector_selected = tab2_SRC_dspec_vector_square.selected['1d']['indices']
     if tab2_dspec_vector_selected:
         global dspecDF_select
-        dspecDF_select = dspecDF_frac.iloc[tab2_dspec_vector_selected, :]
+        dspecDF_select = dspecDF0_rs.iloc[tab2_dspec_vector_selected, :]
         VdspecDF_init()
         VdspecDF_update(selected=tab2_dspec_vector_selected)
         # tab3_SRC_dspec_vector_update(VdspecDF)
@@ -965,7 +975,7 @@ def tab3_slider_LinkImg_update(attrname, old, new):
     tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
         pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
                       'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
-    hdufile = fits_LOCL_dir + dspecDF_frac.loc[tidx, :]['fits_local']
+    hdufile = fits_LOCL_dir + dspecDF0_rs.loc[tidx, :]['fits_local']
     if os.path.exists(hdufile):
         hdu = read_fits(hdufile)
         hdu_goodchan = goodchan(hdu)
@@ -993,12 +1003,12 @@ def tab3_slider_LinkImg_update(attrname, old, new):
             SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
             tab2_r_vla_multi_line.data_source.data = SRC_contour.data
             tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
-                dspecDF_frac.loc[tidx, :]['fits_local'])
+                dspecDF0_rs.loc[tidx, :]['fits_local'])
         else:
             tab2_Div_LinkImg_plot.text = '<p><b>freq idx</b> out of range.</p>'
     else:
         tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
-            dspecDF_frac.loc[tidx, :]['fits_local'])
+            dspecDF0_rs.loc[tidx, :]['fits_local'])
 
 
 def tab2_panel_exit():
@@ -1234,7 +1244,7 @@ if os.path.exists(FS_dspecDF):
     #      'dspecR': tab2_spec_plt_R.ravel(),
     #      'dspecL': tab2_spec_plt_L.ravel(),
     #      'dspecV': tab2_spec_plt_V.ravel()}), how='outer', on=['time', 'freq'])
-    dspecDF_frac = dspecDF0.copy()
+    # dspecDF0_rs = dspecDF0.copy()
     dspecDF_select = dspecDF0.copy()
     itemset1 = set(['shape_longitude', 'shape_latitude'])
     itemset2 = set(dspecDF0.columns.tolist())
@@ -1782,7 +1792,7 @@ if os.path.exists(FS_dspecDF):
         tab3_r_dspec_vectory_line = tab3_p_dspec_vectory.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
                                                               line_color='white',
                                                               source=tab3_source_idx_line)
-        tab2_SRC_dspec_vector_square = ColumnDataSource(dspecDF_frac)
+        tab2_SRC_dspec_vector_square = ColumnDataSource(dspecDF0_rs)
         tab2_r_dspec_vector_square = tab3_p_dspec_vector.square('time', 'freq', source=tab2_SRC_dspec_vector_square,
                                                                 fill_color=colors_dspec,
                                                                 fill_alpha=0.0,
@@ -1974,7 +1984,8 @@ if os.path.exists(FS_dspecDF):
             #     dspecDF0[dspecDF0.time < tab2_dtim[0] + tab2_dspec_fs_ntim * tab2_dt][
             #         dspecDF0.time >= tab2_dtim[0]][
             #         dspecDF0.freq >= tab2_freq[0]][dspecDF0.freq < tab2_freq[0] + tab2_dspec_fs_nfreq * tab2_df]
-            rebin_specdata(tab2_spec, spec_rs_tmax=spec_rs_tmax, spec_rs_fmax=spec_rs_fmax)
+            # rebin_specdata(tab2_spec, spec_rs_tmax=spec_rs_tmax, spec_rs_fmax=spec_rs_fmax)
+            downsample_dspecDF(spec_rs_tmax=spec_rs_tmax, spec_rs_fmax=spec_rs_fmax)
             # tab2_p_dspec_rs = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
             #                          plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_rs_wdth'],
             #                          plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_rs_hght'],
@@ -1991,12 +2002,12 @@ if os.path.exists(FS_dspecDF):
             #                       dw=tab2_dtim[-1] - tab2_dtim[0],
             #                       dh=tab2_freq[-1] - tab2_freq[0],
             #                       source=tab2_SRC_dspec_image, palette=bokehpalette_jet)
-            tim_map_square_rs = (np.tile(tab2_tim_square_rs, tab2_nfreq_square_rs).reshape(tab2_nfreq_square_rs, \
-                                                                                           tab2_ntim_square_rs) / 3600. / 24. + 2400000.5) * 86400.
-            freq_map_square_rs = np.tile(tab2_freq_square_rs, tab2_ntim_square_rs).reshape(tab2_ntim_square_rs, \
-                                                                                           tab2_nfreq_square_rs).swapaxes(
-                0, 1)
-            dspecDF0_rs = pd.DataFrame({'time': tim_map_square_rs.ravel() - xx[0], 'freq': freq_map_square_rs.ravel()})
+            # tim_map_square_rs = (np.tile(tab2_tim_square_rs, tab2_nfreq_square_rs).reshape(tab2_nfreq_square_rs, \
+            #                                                                                tab2_ntim_square_rs) / 3600. / 24. + 2400000.5) * 86400.
+            # freq_map_square_rs = np.tile(tab2_freq_square_rs, tab2_ntim_square_rs).reshape(tab2_ntim_square_rs, \
+            #                                                                                tab2_nfreq_square_rs).swapaxes(
+            #     0, 1)
+            # dspecDF0_rs = pd.DataFrame({'time': tim_map_square_rs.ravel() - xx[0], 'freq': freq_map_square_rs.ravel()})
             # tab2_SRC_dspec_square_rs = ColumnDataSource(dspecDF0_rs)
             # tab2_r_square_rs = tab2_p_dspec_rs.square('xx', 'yy', source=tab2_SRC_dspec_square_rs, fill_color=None,
             #                                           fill_alpha=0.0,
