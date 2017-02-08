@@ -37,11 +37,12 @@ if os.path.exists('CASA_CLN_args.json'):
     print ''
     if (not ('timerange' in locals())) or timerange == '':
         timeran = [qa.time(qa.quantity(ll, 's'), prec=9)[0] for ll in mstimran['time']]
+        [tstart, tend] = timeran
     else:
         timeran = timerange
+        (tstart, tend) = timeran.split('~')
     if not 'ncpu' in locals():
         ncpu = 10
-    (tstart, tend) = timeran.split('~')
     bt_s = qa.convert(qa.quantity(tstart, 's'), 's')['value']
     et_s = qa.convert(qa.quantity(tend, 's'), 's')['value']
     # btidx = np.argmin(np.abs(timeInfo - bt_s))
