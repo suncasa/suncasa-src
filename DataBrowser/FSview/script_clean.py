@@ -37,10 +37,11 @@ if os.path.exists('CASA_CLN_args.json'):
     print ''
     if (not ('timerange' in locals())) or timerange == '':
         timeran = [qa.time(qa.quantity(ll, 's'), prec=9)[0] for ll in mstimran['time']]
-        [tstart, tend] = timeran
+        timeran = '~'.join(timeran)
+        # [tstart, tend] = timeran
     else:
         timeran = timerange
-        (tstart, tend) = timeran.split('~')
+    (tstart, tend) = timeran.split('~')
     if not 'ncpu' in locals():
         ncpu = 10
     bt_s = qa.convert(qa.quantity(tstart, 's'), 's')['value']
@@ -75,6 +76,8 @@ if os.path.exists('CASA_CLN_args.json'):
     # for TRang in timerans:
     # TRang=timerans[0]
     os.system('rm -rf {}'.format('cgrid_ft.im'))
+    if not os.path.exists(imageprefix):
+        os.mkdir(imageprefix)
     default('ptclean')
     with open('CASA_CLN_args.json', 'r') as fp:
         CASA_CLN_args = json.load(fp)
@@ -192,6 +195,8 @@ if os.path.exists('CASA_CLN_args.json'):
             except:
                 '{} not found!'.format(imagefile)
     # else:
+    # if not os.path.exists(imageprefix):
+    #     os.mkdir(imageprefix)
     fitsfile = glob.glob('{}*.fits'.format(imageprefix))
     for fits in fitsfile:
         # idxmms = fits.index('fits')
