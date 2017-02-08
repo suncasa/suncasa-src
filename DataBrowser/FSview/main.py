@@ -1798,7 +1798,7 @@ if os.path.exists(FS_dspecDF):
                                                                 nonselection_fill_alpha=0.0,
                                                                 selection_line_alpha=0.0, selection_line_color='white',
                                                                 nonselection_line_alpha=0.0,
-                                                                size=max(
+                                                                size=min(
                                                                     config_plot['plot_config']['tab_FSview_FitANLYS'][
                                                                         'dspec_small_wdth'] / tab2_ntim,
                                                                     config_plot['plot_config']['tab_FSview_FitANLYS'][
