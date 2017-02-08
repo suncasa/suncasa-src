@@ -399,12 +399,12 @@ def tab3_slider_LinkImg_update(attrname, old, new):
             SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
             tab2_r_vla_multi_line.data_source.data = SRC_contour.data
             tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
-                dspecDF0_rs.loc[tidx, :]['fits_local'])
+                dspecDF0_rs.loc[idx_selected, :]['fits_local'])
         else:
             tab2_Div_LinkImg_plot.text = '<p><b>freq idx</b> out of range.</p>'
     else:
         tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
-            dspecDF0_rs.loc[tidx, :]['fits_local'])
+            dspecDF0_rs.loc[idx_selected, :]['fits_local'])
 
 
 def tab2_SRC_maxfit_centroid_update(dspecDFsel):
