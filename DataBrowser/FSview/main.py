@@ -592,6 +592,7 @@ def tab2_dspec_selection_change(attrname, old, new):
         global dspecDF_select, idx_selected
         dspecDF_select = dspecDF0_rs.iloc[tab2_dspec_selected, :]
         idx_selected = dspecDF_select.index[len(dspecDF_select) / 2]
+        print idx_selected
         print dspecDF0_rs.loc[idx_selected, :]['time'], dspecDF0_rs.loc[idx_selected, :]['freq']
         tidx = int(['{:.3f}'.format(ll) for ll in tab2_dtim].index(
             '{:.3f}'.format(dspecDF0_rs.loc[idx_selected, :]['time'])))
@@ -600,7 +601,6 @@ def tab2_dspec_selection_change(attrname, old, new):
         tab2_Slider_time_LinkImg.value = tidx
         tab2_Slider_freq_LinkImg.value = fidx
         print tidx, fidx
-        print idx_selected
 
 
 def tab2_vla_square_selection_change(attrname, old, new):
