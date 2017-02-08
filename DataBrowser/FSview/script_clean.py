@@ -35,7 +35,7 @@ if os.path.exists('CASA_CLN_args.json'):
         raise ValueError('define a struct_id!!!')
     print 'Script for clean --- {} in {}'.format(structure_id, event_id)
     print ''
-    if not ('timerange' in locals()):
+    if (not ('timerange' in locals())) or timerange == '':
         timeran = [qa.time(qa.quantity(ll, 's'), prec=9)[0] for ll in mstimran['time']]
     else:
         timeran = timerange
@@ -44,9 +44,9 @@ if os.path.exists('CASA_CLN_args.json'):
     (tstart, tend) = timeran.split('~')
     bt_s = qa.convert(qa.quantity(tstart, 's'), 's')['value']
     et_s = qa.convert(qa.quantity(tend, 's'), 's')['value']
-    btidx = np.argmin(np.abs(timeInfo - bt_s))
-    etidx = np.argmin(np.abs(timeInfo - et_s))
-    dt = float('{:.3f}'.format(np.median(np.diff(timeInfo))))
+    # btidx = np.argmin(np.abs(timeInfo - bt_s))
+    # etidx = np.argmin(np.abs(timeInfo - et_s))
+    # dt = float('{:.3f}'.format(np.median(np.diff(timeInfo))))
     if not 'twidth' in locals():
         twidth = 1
     # chunksize = ncpu
@@ -111,9 +111,9 @@ if os.path.exists('CASA_CLN_args.json'):
         os.mkdir(imgdir)
     print 'imgdir: {}'.format(imgdir)
 
-
     if not doreg:
         import suncasa.vla.vla_prep as vla_prep
+
         ms.open(vis)
         ms.selectinit()
         timfreq = ms.getdata(['time', 'axis_info'], ifraxis=True)
@@ -130,7 +130,7 @@ if os.path.exists('CASA_CLN_args.json'):
         # if not defined (empty string), use start and end from the entire time of the ms
         if not timerange:
             btidx = 1
-            etidx = len(tim)-1
+            etidx = len(tim) - 1
         else:
             try:
                 (tstart, tend) = timerange.split('~')
@@ -163,10 +163,11 @@ if os.path.exists('CASA_CLN_args.json'):
         print 'Last time pixel: ' + etstr
         print str(len(iterable)) + ' images to clean...'
         timeranges = [
-            qa.time(qa.quantity(tim[ll]-dt/2, 's'), prec=9)[0] + '~' + qa.time(qa.quantity(tim[ll + twidth]-dt/2, 's'), prec=9)[0] for
+            qa.time(qa.quantity(tim[ll] - dt / 2, 's'), prec=9)[0] + '~' +
+            qa.time(qa.quantity(tim[ll + twidth] - dt / 2, 's'), prec=9)[0] for
             ll in iterable]
-        filestr = [qa.time(qa.quantity(tim[ll]-dt/2, 's'),form='fits', prec=9)[0].replace(':','').replace('-','') for ll in iterable]
-
+        filestr = [qa.time(qa.quantity(tim[ll] - dt / 2, 's'), form='fits', prec=9)[0].replace(':', '').replace('-', '')
+                   for ll in iterable]
 
         if not os.path.exists(database_dir + event_id + struct_id + 'Synthesis_Image'):
             os.system('mkdir {}'.format(database_dir + event_id + '/' + struct_id + '/' + 'Synthesis_Image/'))
@@ -179,7 +180,7 @@ if os.path.exists('CASA_CLN_args.json'):
             ephem = vla_prep.read_horizons(ephemfile=ephemfile)
             reftime = [timeran]
             helio = vla_prep.ephem_to_helio(msinfo=msinfofile, ephem=ephem, reftime=reftime)
-            imname = imgprefix+filestr[ll]
+            imname = imgprefix + filestr[ll]
             imagefile = [imname + '.image']
             fitsfile = [imname + '.fits']
             try:
