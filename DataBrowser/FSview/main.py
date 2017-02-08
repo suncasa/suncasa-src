@@ -594,6 +594,7 @@ def tab2_dspec_selection_change(attrname, old, new):
             '{:.3f}'.format(dspecDF0_rs.loc[idx_selected, :]['time'])))
         fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
             '{:.3f}'.format(dspecDF0_rs.loc[idx_selected, :]['freq'])))
+        print tidx,fidx
         tab2_Slider_time_LinkImg.value = tidx
         tab2_Slider_freq_LinkImg.value = fidx
 
@@ -2062,10 +2063,10 @@ if os.path.exists(FS_dspecDF):
             # make the dspec data source selectable
             tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=colors_dspec,
                                                 fill_alpha=0.0,
-                                                line_color=None, line_alpha=0.0, selection_fill_alpha=1,
+                                                line_color=None, line_alpha=0.0, selection_fill_alpha=0.1,
                                                 selection_fill_color='black',
                                                 nonselection_fill_alpha=0.0,
-                                                selection_line_alpha=1, selection_line_color='white',
+                                                selection_line_alpha=0.2, selection_line_color='white',
                                                 nonselection_line_alpha=0.0,
                                                 size=max(
                                                     config_plot['plot_config']['tab_FSview_base'][
