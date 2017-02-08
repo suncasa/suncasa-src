@@ -367,18 +367,13 @@ def tab3_slider_LinkImg_update(attrname, old, new):
         i for i in xrange(tab2_nfreq - 1, -1, -1) if tab2_freq[i] <= tab2_p_dspec.y_range.end) + 1
     tidx = int(tab2_Slider_time_LinkImg.value)
     fidx = int(tab2_Slider_freq_LinkImg.value)
-    print  '1: ', tidx, fidx
-    print 'len(tab2_dtim): ',len(tab2_dtim)
     tab2_r_dspec_line_x.data_source.data = ColumnDataSource(
         pd.DataFrame({'time': [tab2_dtim[tidx], tab2_dtim[tidx]],
                       'freq': [tab2_freq[0], tab2_freq[-1]]})).data
     tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
         pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
                       'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
-    print '2: ', tidx, fidx
-    print idx_selected
     hdufile = fits_LOCL_dir + dspecDF0_rs.loc[idx_selected, :]['fits_local']
-    print hdufile
     if os.path.exists(hdufile):
         hdu = read_fits(hdufile)
         hdu_goodchan = goodchan(hdu)
@@ -457,11 +452,6 @@ def tab2_SRC_maxfit_centroid_update(dspecDFsel):
             SRC_maxfit_centroid = ColumnDataSource(df_tmp)
     print("--- tab2_SRC_maxfit_centroid_update -- %s seconds ---" % (time.time() - start_timestamp))
 
-
-def tab2_panel_exit():
-    tab2_panel2_Div_exit.text = """<p><b>You may close the tab anytime you like.</b></p>"""
-    tab2_panel3_Div_exit.text = """<p><b>You may close the tab anytime you like.</b></p>"""
-    raise SystemExit
 
 
 def tab2_aia_submap_square_selection_change(attrname, old, new):
@@ -945,80 +935,80 @@ def tab3_animate_onoff():
         tab3_Div_Tb.text = """<p><b>Warning: Select time and frequency from the Dynamic Spectrum first!!!</b></p>"""
 
 
-def tab2_update_MapRES(attrname, old, new):
-    start_timestamp = time.time()
-    select_MapRES = int(tab2_Select_MapRES.value.split('x')[0])
-    dimensions = u.Quantity([select_MapRES, select_MapRES], u.pixel)
-    aia_resampled_map = aiamap.resample(dimensions)
-    aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
-                                    plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                    plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
-                                    webgl=config_plot['plot_config']['WebGL'])
-    SRC_AIA = aia_resampled_pfmap.ImageSource()
-    tab2_r_aia.data_source.data['data'] = SRC_AIA.data['data']
-    hmi_resampled_map = hmimap.resample(dimensions)
-    hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
-                                    plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                    plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
-                                    webgl=config_plot['plot_config']['WebGL'])
-    SRC_HMI = hmi_resampled_pfmap.ImageSource()
-    tab2_r_hmi.data_source.data['data'] = SRC_HMI.data['data']
-    print("---tab2_update_MapRES -- %s seconds ---" % (time.time() - start_timestamp))
+# def tab2_update_MapRES(attrname, old, new):
+#     start_timestamp = time.time()
+#     select_MapRES = int(tab2_Select_MapRES.value.split('x')[0])
+#     dimensions = u.Quantity([select_MapRES, select_MapRES], u.pixel)
+#     aia_resampled_map = aiamap.resample(dimensions)
+#     aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
+#                                     plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
+#                                     plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
+#                                     webgl=config_plot['plot_config']['WebGL'])
+#     SRC_AIA = aia_resampled_pfmap.ImageSource()
+#     tab2_r_aia.data_source.data['data'] = SRC_AIA.data['data']
+#     hmi_resampled_map = hmimap.resample(dimensions)
+#     hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
+#                                     plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
+#                                     plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
+#                                     webgl=config_plot['plot_config']['WebGL'])
+#     SRC_HMI = hmi_resampled_pfmap.ImageSource()
+#     tab2_r_hmi.data_source.data['data'] = SRC_HMI.data['data']
+#     print("---tab2_update_MapRES -- %s seconds ---" % (time.time() - start_timestamp))
 
 
-def tab3_slider_LinkImg_update(attrname, old, new):
-    global hdu
-    select_vla_pol = tab2_Select_vla_pol.value
-    tab2_Slider_time_LinkImg.start = next(
-        i for i in xrange(tab2_ntim) if tab2_dtim[i] >= tab2_p_dspec.x_range.start)
-    tab2_Slider_time_LinkImg.end = next(
-        i for i in xrange(tab2_ntim - 1, -1, -1) if tab2_dtim[i] <= tab2_p_dspec.x_range.end) + 1
-    tab2_Slider_freq_LinkImg.start = next(
-        i for i in xrange(tab2_nfreq) if tab2_freq[i] >= tab2_p_dspec.y_range.start)
-    tab2_Slider_freq_LinkImg.end = next(
-        i for i in xrange(tab2_nfreq - 1, -1, -1) if tab2_freq[i] <= tab2_p_dspec.y_range.end) + 1
-    tidx = int(tab2_Slider_time_LinkImg.value)
-    fidx = int(tab2_Slider_freq_LinkImg.value)
-    tab2_r_dspec_line_x.data_source.data = ColumnDataSource(
-        pd.DataFrame({'time': [tab2_dtim[tidx], tab2_dtim[tidx]],
-                      'freq': [tab2_freq[0], tab2_freq[-1]]})).data
-    tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
-        pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
-                      'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
-    hdufile = fits_LOCL_dir + dspecDF0_rs.loc[tidx, :]['fits_local']
-    if os.path.exists(hdufile):
-        hdu = read_fits(hdufile)
-        hdu_goodchan = goodchan(hdu)
-        freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
-        freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
-        idxfreq = freq.index(freq_ref)
-        fidx_hdu = fidx - idxfreq
-        if hdu_goodchan[0] <= fidx_hdu <= hdu_goodchan[-1]:
-            if select_vla_pol == 'RR':
-                vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :]
-            elif select_vla_pol == 'LL':
-                vladata = hdu.data[pols.index('LL'), fidx_hdu, :, :]
-            elif select_vla_pol == 'I':
-                vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :] + hdu.data[pols.index('1'), fidx_hdu,
-                                                                       :, :]
-            elif select_vla_pol == 'V':
-                vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :] - hdu.data[pols.index('1'), fidx_hdu,
-                                                                       :, :]
-            pfmap = PuffinMap(vladata, hdu.header, plot_height=tab2_LinkImg_HGHT,
-                              plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
-            SRC_Img = pfmap.ImageSource()
-            tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
-            mapx, mapy = pfmap.meshgrid()
-            mapx, mapy = mapx.value, mapy.value
-            SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
-            tab2_r_vla_multi_line.data_source.data = SRC_contour.data
-            tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
-                dspecDF0_rs.loc[tidx, :]['fits_local'])
-        else:
-            tab2_Div_LinkImg_plot.text = '<p><b>freq idx</b> out of range.</p>'
-    else:
-        tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
-            dspecDF0_rs.loc[tidx, :]['fits_local'])
+# def tab3_slider_LinkImg_update(attrname, old, new):
+#     global hdu
+#     select_vla_pol = tab2_Select_vla_pol.value
+#     tab2_Slider_time_LinkImg.start = next(
+#         i for i in xrange(tab2_ntim) if tab2_dtim[i] >= tab2_p_dspec.x_range.start)
+#     tab2_Slider_time_LinkImg.end = next(
+#         i for i in xrange(tab2_ntim - 1, -1, -1) if tab2_dtim[i] <= tab2_p_dspec.x_range.end) + 1
+#     tab2_Slider_freq_LinkImg.start = next(
+#         i for i in xrange(tab2_nfreq) if tab2_freq[i] >= tab2_p_dspec.y_range.start)
+#     tab2_Slider_freq_LinkImg.end = next(
+#         i for i in xrange(tab2_nfreq - 1, -1, -1) if tab2_freq[i] <= tab2_p_dspec.y_range.end) + 1
+#     tidx = int(tab2_Slider_time_LinkImg.value)
+#     fidx = int(tab2_Slider_freq_LinkImg.value)
+#     tab2_r_dspec_line_x.data_source.data = ColumnDataSource(
+#         pd.DataFrame({'time': [tab2_dtim[tidx], tab2_dtim[tidx]],
+#                       'freq': [tab2_freq[0], tab2_freq[-1]]})).data
+#     tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
+#         pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
+#                       'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
+#     hdufile = fits_LOCL_dir + dspecDF0_rs.loc[tidx, :]['fits_local']
+#     if os.path.exists(hdufile):
+#         hdu = read_fits(hdufile)
+#         hdu_goodchan = goodchan(hdu)
+#         freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
+#         freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
+#         idxfreq = freq.index(freq_ref)
+#         fidx_hdu = fidx - idxfreq
+#         if hdu_goodchan[0] <= fidx_hdu <= hdu_goodchan[-1]:
+#             if select_vla_pol == 'RR':
+#                 vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :]
+#             elif select_vla_pol == 'LL':
+#                 vladata = hdu.data[pols.index('LL'), fidx_hdu, :, :]
+#             elif select_vla_pol == 'I':
+#                 vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :] + hdu.data[pols.index('1'), fidx_hdu,
+#                                                                        :, :]
+#             elif select_vla_pol == 'V':
+#                 vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :] - hdu.data[pols.index('1'), fidx_hdu,
+#                                                                        :, :]
+#             pfmap = PuffinMap(vladata, hdu.header, plot_height=tab2_LinkImg_HGHT,
+#                               plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
+#             SRC_Img = pfmap.ImageSource()
+#             tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
+#             mapx, mapy = pfmap.meshgrid()
+#             mapx, mapy = mapx.value, mapy.value
+#             SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
+#             tab2_r_vla_multi_line.data_source.data = SRC_contour.data
+#             tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
+#                 dspecDF0_rs.loc[tidx, :]['fits_local'])
+#         else:
+#             tab2_Div_LinkImg_plot.text = '<p><b>freq idx</b> out of range.</p>'
+#     else:
+#         tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
+#             dspecDF0_rs.loc[tidx, :]['fits_local'])
 
 
 def tab2_panel_exit():
@@ -1026,7 +1016,7 @@ def tab2_panel_exit():
     raise SystemExit
 
 
-def tab2_vla_square_selection_change(attrname, old, new):
+def tab2_prep_vla_square_selection_change(attrname, old, new):
     global x0, x1, y0, y1
     tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
     if tab2_vla_square_selected:
@@ -1049,57 +1039,57 @@ def tab2_vla_square_selection_change(attrname, old, new):
             pd.DataFrame({'xx': [], 'yy': []})).data
 
 
-def tab2_update_MapRES(attrname, old, new):
-    start_timestamp = time.time()
-    select_MapRES = int(tab2_Select_MapRES.value.split('x')[0])
-    dimensions = u.Quantity([select_MapRES, select_MapRES], u.pixel)
-    aia_resampled_map = aiamap.resample(dimensions)
-    aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
-                                    plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                    plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
-                                    webgl=config_plot['plot_config']['WebGL'])
-    SRC_AIA = aia_resampled_pfmap.ImageSource()
-    tab2_r_aia.data_source.data['data'] = SRC_AIA.data['data']
-    hmi_resampled_map = hmimap.resample(dimensions)
-    hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
-                                    plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                    plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
-                                    webgl=config_plot['plot_config']['WebGL'])
-    SRC_HMI = hmi_resampled_pfmap.ImageSource()
-    tab2_r_hmi.data_source.data['data'] = SRC_HMI.data['data']
-    print("---tab2_update_MapRES -- %s seconds ---" % (time.time() - start_timestamp))
+# def tab2_update_MapRES(attrname, old, new):
+#     start_timestamp = time.time()
+#     select_MapRES = int(tab2_Select_MapRES.value.split('x')[0])
+#     dimensions = u.Quantity([select_MapRES, select_MapRES], u.pixel)
+#     aia_resampled_map = aiamap.resample(dimensions)
+#     aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
+#                                     plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
+#                                     plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
+#                                     webgl=config_plot['plot_config']['WebGL'])
+#     SRC_AIA = aia_resampled_pfmap.ImageSource()
+#     tab2_r_aia.data_source.data['data'] = SRC_AIA.data['data']
+#     hmi_resampled_map = hmimap.resample(dimensions)
+#     hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
+#                                     plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
+#                                     plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
+#                                     webgl=config_plot['plot_config']['WebGL'])
+#     SRC_HMI = hmi_resampled_pfmap.ImageSource()
+#     tab2_r_hmi.data_source.data['data'] = SRC_HMI.data['data']
+#     print("---tab2_update_MapRES -- %s seconds ---" % (time.time() - start_timestamp))
 
 
-def tab2_save_region():
-    tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
-    if tab2_vla_square_selected:
-        pangle = hdu.header['p_angle']
-        x0Deg, x1Deg, y0Deg, y1Deg = (x0 - hdu.header['CRVAL1']) / 3600., (
-            x1 - hdu.header['CRVAL1']) / 3600., (
-                                         y0 - hdu.header['CRVAL2']) / 3600., (
-                                         y1 - hdu.header['CRVAL2']) / 3600.
-        p0 = -pangle
-        prad = radians(p0)
-        dx0 = (x0Deg) * cos(prad) - y0Deg * sin(prad)
-        dy0 = (x0Deg) * sin(prad) + y0Deg * cos(prad)
-        dx1 = (x1Deg) * cos(prad) - y1Deg * sin(prad)
-        dy1 = (x1Deg) * sin(prad) + y1Deg * cos(prad)
-        x0Deg, x1Deg, y0Deg, y1Deg = (dx0 + hdu.header['CRVAL1'] / 3600.), (
-            dx1 + hdu.header['CRVAL1'] / 3600.), (dy0 + hdu.header['CRVAL2'] / 3600.), (
-                                         dy1 + hdu.header['CRVAL2'] / 3600.)
-        c0fits = SkyCoord(ra=(x0Deg) * u.degree, dec=(y0Deg) * u.degree)
-        c1fits = SkyCoord(ra=(x1Deg) * u.degree, dec=(y1Deg) * u.degree)
-        rgnfits = '#CRTFv0 CASA Region Text Format version 0\n\
-        box [[{}], [{}]] coord=J2000, linewidth=1, \
-        linestyle=-, symsize=1, symthick=1, color=magenta, \
-        font="DejaVu Sans", fontsize=11, fontstyle=normal, \
-        usetex=false'.format(', '.join(c0fits.to_string('hmsdms').split(' ')),
-                             ', '.join(c1fits.to_string('hmsdms').split(' ')))
-        with open(rgnfitsfile, "w") as fp:
-            fp.write(rgnfits)
-        tab2_Div_LinkImg_plot.text = '<p>region saved to <b>{}</b>.</p>'.format(rgnfitsfile)
-    else:
-        tab2_Div_LinkImg_plot.text = '<p><b>Warning:</b> select a region first.</p>'
+# def tab2_save_region():
+#     tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
+#     if tab2_vla_square_selected:
+#         pangle = hdu.header['p_angle']
+#         x0Deg, x1Deg, y0Deg, y1Deg = (x0 - hdu.header['CRVAL1']) / 3600., (
+#             x1 - hdu.header['CRVAL1']) / 3600., (
+#                                          y0 - hdu.header['CRVAL2']) / 3600., (
+#                                          y1 - hdu.header['CRVAL2']) / 3600.
+#         p0 = -pangle
+#         prad = radians(p0)
+#         dx0 = (x0Deg) * cos(prad) - y0Deg * sin(prad)
+#         dy0 = (x0Deg) * sin(prad) + y0Deg * cos(prad)
+#         dx1 = (x1Deg) * cos(prad) - y1Deg * sin(prad)
+#         dy1 = (x1Deg) * sin(prad) + y1Deg * cos(prad)
+#         x0Deg, x1Deg, y0Deg, y1Deg = (dx0 + hdu.header['CRVAL1'] / 3600.), (
+#             dx1 + hdu.header['CRVAL1'] / 3600.), (dy0 + hdu.header['CRVAL2'] / 3600.), (
+#                                          dy1 + hdu.header['CRVAL2'] / 3600.)
+#         c0fits = SkyCoord(ra=(x0Deg) * u.degree, dec=(y0Deg) * u.degree)
+#         c1fits = SkyCoord(ra=(x1Deg) * u.degree, dec=(y1Deg) * u.degree)
+#         rgnfits = '#CRTFv0 CASA Region Text Format version 0\n\
+#         box [[{}], [{}]] coord=J2000, linewidth=1, \
+#         linestyle=-, symsize=1, symthick=1, color=magenta, \
+#         font="DejaVu Sans", fontsize=11, fontstyle=normal, \
+#         usetex=false'.format(', '.join(c0fits.to_string('hmsdms').split(' ')),
+#                              ', '.join(c1fits.to_string('hmsdms').split(' ')))
+#         with open(rgnfitsfile, "w") as fp:
+#             fp.write(rgnfits)
+#         tab2_Div_LinkImg_plot.text = '<p>region saved to <b>{}</b>.</p>'.format(rgnfitsfile)
+#     else:
+#         tab2_Div_LinkImg_plot.text = '<p><b>Warning:</b> select a region first.</p>'
 
 
 def tab2_BUT_tImfit_param_add():
@@ -1299,9 +1289,9 @@ if os.path.exists(FS_dspecDF):
         tab2_panel2_Div_exit = Div(text="""<p><b>Warning</b>: Click the <b>Exit FSview</b>
                                 first before closing the tab</p></b>""",
                                    width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-        tab2_panel3_Div_exit = Div(text="""<p><b>Warning</b>: Click the <b>Exit FSview</b>
-                                first before closing the tab</p></b>""",
-                                   width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+        # tab2_panel3_Div_exit = Div(text="""<p><b>Warning</b>: Click the <b>Exit FSview</b>
+        #                         first before closing the tab</p></b>""",
+        #                            width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         rmax, rmin = tab2_spec_plt.max(), tab2_spec_plt.min()
         colors_dspec = [colors.rgb2hex(m) for m in colormap_jet((tab2_spec_plt.flatten() - rmin) / (rmax - rmin))]
 
@@ -1920,7 +1910,7 @@ if os.path.exists(FS_dspecDF):
         lout3_3 = widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
                             tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab2_Select_aia_wave,
                             tab2_panel3_BUT_exit,
-                            tab2_panel3_Div_exit,
+                            # tab2_panel3_Div_exit,
                             width=200)
         panel3 = row(lout3_1, lout3_2, lout3_3)
         # tab2 = Panel(child=panel2, title="FS View")
@@ -2394,7 +2384,7 @@ if os.path.exists(FS_dspecDF):
 
             tab2_SRC_dspec_square.on_change('selected', tab2_dspec_selection_change)
             tab2_vla_square_selected = None
-            tab2_SRC_vla_square.on_change('selected', tab2_vla_square_selection_change)
+            tab2_SRC_vla_square.on_change('selected', tab2_prep_vla_square_selection_change)
             tab2_Select_MapRES = Select(title="Img resolution:", value='{}x{}'.format(MapRES, MapRES),
                                         options=["32x32", "64x64", "128x128", "256x256", "512x512", "1024x1024",
                                                  "2048x2048"],
