@@ -373,7 +373,10 @@ def tab3_slider_LinkImg_update(attrname, old, new):
     tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
         pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
                       'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
+    print tidx, fidx
+    print idx_selected
     hdufile = fits_LOCL_dir + dspecDF0_rs.loc[idx_selected, :]['fits_local']
+    print hdufile
     if os.path.exists(hdufile):
         hdu = read_fits(hdufile)
         hdu_goodchan = goodchan(hdu)
@@ -594,9 +597,10 @@ def tab2_dspec_selection_change(attrname, old, new):
             '{:.3f}'.format(dspecDF0_rs.loc[idx_selected, :]['time'])))
         fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
             '{:.3f}'.format(dspecDF0_rs.loc[idx_selected, :]['freq'])))
-        print tidx, fidx
         tab2_Slider_time_LinkImg.value = tidx
         tab2_Slider_freq_LinkImg.value = fidx
+        print tidx, fidx
+        print idx_selected
 
 
 def tab2_vla_square_selection_change(attrname, old, new):
