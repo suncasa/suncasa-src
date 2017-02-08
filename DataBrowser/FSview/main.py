@@ -2808,6 +2808,7 @@ else:
 
     def tab2_BUT_tCLN_param_default():
         global tab2_tCLN_Param_dict, dspecDF0
+        tab2_tCLN_Param_dict = OrderedDict()
         time0, time1 = dspecDF0['time'].min() + timestart, dspecDF0['time'].max() + timestart
         t0_char = Time(time0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
         date0_char = t0_char.split(' ')[0].replace('-', '/')
@@ -2818,7 +2819,6 @@ else:
         freq0, freq1 = dspecDF0['freq'].min(), dspecDF0['freq'].max()
         freqrange = "'{:.3f}~{:.3f} GHz'".format(freq0, freq1)
         tab2_tCLN_Param_dict['freqrange'] = freqrange
-        tab2_tCLN_Param_dict = OrderedDict()
         tab2_tCLN_Param_dict['workdir'] = "'./'"
         tab2_tCLN_Param_dict['vis'] = "''"
         tab2_tCLN_Param_dict['imageprefix'] = "'slfcal/{}'".format(struct_id)
