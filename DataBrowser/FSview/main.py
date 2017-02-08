@@ -600,9 +600,9 @@ def tab2_dspec_selection_change(attrname, old, new):
             '{:.3f}'.format(dspecDF0_rs.loc[idx_selected, :]['time'])))
         fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
             '{:.3f}'.format(dspecDF0_rs.loc[idx_selected, :]['freq'])))
+        print tidx, fidx
         tab2_Slider_time_LinkImg.value = tidx
         tab2_Slider_freq_LinkImg.value = fidx
-        print tidx, fidx
 
 
 def tab2_vla_square_selection_change(attrname, old, new):
