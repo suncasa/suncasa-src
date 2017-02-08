@@ -2062,10 +2062,10 @@ if os.path.exists(FS_dspecDF):
             # make the dspec data source selectable
             tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=colors_dspec,
                                                 fill_alpha=0.0,
-                                                line_color=None, line_alpha=0.0, selection_fill_alpha=0.1,
+                                                line_color=None, line_alpha=0.0, selection_fill_alpha=1,
                                                 selection_fill_color='black',
                                                 nonselection_fill_alpha=0.0,
-                                                selection_line_alpha=0.2, selection_line_color='white',
+                                                selection_line_alpha=1, selection_line_color='white',
                                                 nonselection_line_alpha=0.0,
                                                 size=max(
                                                     config_plot['plot_config']['tab_FSview_base'][
