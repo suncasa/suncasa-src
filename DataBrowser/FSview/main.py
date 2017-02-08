@@ -410,11 +410,13 @@ def tab3_slider_LinkImg_update(attrname, old, new):
 def tab2_SRC_maxfit_centroid_update(dspecDFsel):
     start_timestamp = time.time()
     global SRC_maxfit_centroid, timebin
+    subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'shape_majoraxis', 'shape_minoraxis', 'peak',
+                    'shape_positionangle']
     if tab3_BUT_animate_ONOFF.label == 'Animate ON & Go':
         SRC_maxfit_centroid = {}
         for ll in np.unique(dspecDFsel['time']):
             dftmp = dspecDFsel[dspecDFsel.time == ll]
-            dftmp = dftmp.dropna(how='any')
+            dftmp = dftmp.dropna(how='any', subset=subset_label)
             df_tmp = pd.concat(
                 [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'],
                  dftmp.loc[:, 'shape_majoraxis'],
@@ -428,22 +430,20 @@ def tab2_SRC_maxfit_centroid_update(dspecDFsel):
             tidx = np.arange(0, ntime_dspec + 1, timebin)
             time_seq = time_dspec[0:0 + timebin]
             dftmp = dspecDFsel[dspecDFsel['time'].isin(time_seq)]
-            dftmp = dftmp.dropna(how='any')
+            dftmp = dftmp.dropna(how='any', subset=subset_label)
             dftmp_concat = pd.DataFrame(dict(dftmp.mean()), index=[0, ])
             for ll in tidx[1:]:
                 time_seq = time_dspec[ll:ll + timebin]
                 dftmp = dspecDFsel[dspecDFsel['time'].isin(time_seq)]
-                dftmp = dftmp.dropna(how='any')
+                dftmp = dftmp.dropna(how='any', subset=subset_label)
                 dftmp_concat = dftmp_concat.append(pd.DataFrame(dict(dftmp.mean()), index=[0, ]),
                                                    ignore_index=True)
             SRC_maxfit_centroid = ColumnDataSource(
-                dftmp_concat[
-                    ['freq', 'shape_longitude', 'shape_latitude', 'shape_majoraxis', 'shape_minoraxis', 'peak',
-                     'shape_positionangle']].dropna(
+                dftmp_concat[subset_label].dropna(
                     how='any'))
         else:
             dftmp = dspecDFsel.copy()
-            dftmp = dftmp.dropna(how='any')
+            dftmp = dftmp.dropna(how='any', subset=subset_label)
             df_tmp = pd.concat(
                 [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'],
                  dftmp.loc[:, 'shape_majoraxis'],
