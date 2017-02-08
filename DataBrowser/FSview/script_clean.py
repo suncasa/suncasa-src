@@ -83,22 +83,23 @@ if os.path.exists('CASA_CLN_args.json'):
     timerange = timeran
     # width = 32
     if 'freqrange' in locals() and spw == '':
-        freq0, freq1 = freqrange.split(' ')[0].split('~')
-        freq0, freq1 = float(freq0), float(freq1)
-        for ll in [freq0, freq1]:
-            if not freqInfo_ravel[0] <= ll <= freqInfo_ravel[-1]:
-                raise ValueError('Selected frequency out of range!!!')
-        freqIdx0 = np.where(freqInfo == freq0)
-        freqIdx1 = np.where(freqInfo == freq1)
-        sz_freqInfo = freqInfo.shape
-        ms_spw = ['{}'.format(ll) for ll in xrange(freqIdx0[0], freqIdx1[0] + 1)]
-        if len(ms_spw) == 1:
-            ms_chan = ['{}~{}'.format(freqIdx0[1][0], freqIdx1[1][0])]
-        else:
-            ms_chan = ['{}~{}'.format(freqIdx0[1][0], sz_freqInfo[1] - 1)] \
-                      + ['0~{}'.format(sz_freqInfo[1] - 1) for ll in xrange(freqIdx0[0] + 1, freqIdx1[0])]
-            ms_chan.append('0~{}'.format(freqIdx1[1][0]))
-        spw = ','.join('{}:{}'.format(t[0], t[1]) for t in zip(ms_spw, ms_chan))
+        if freqrange != '':
+            freq0, freq1 = freqrange.split(' ')[0].split('~')
+            freq0, freq1 = float(freq0), float(freq1)
+            for ll in [freq0, freq1]:
+                if not freqInfo_ravel[0] <= ll <= freqInfo_ravel[-1]:
+                    raise ValueError('Selected frequency out of range!!!')
+            freqIdx0 = np.where(freqInfo == freq0)
+            freqIdx1 = np.where(freqInfo == freq1)
+            sz_freqInfo = freqInfo.shape
+            ms_spw = ['{}'.format(ll) for ll in xrange(freqIdx0[0], freqIdx1[0] + 1)]
+            if len(ms_spw) == 1:
+                ms_chan = ['{}~{}'.format(freqIdx0[1][0], freqIdx1[1][0])]
+            else:
+                ms_chan = ['{}~{}'.format(freqIdx0[1][0], sz_freqInfo[1] - 1)] \
+                          + ['0~{}'.format(sz_freqInfo[1] - 1) for ll in xrange(freqIdx0[0] + 1, freqIdx1[0])]
+                ms_chan.append('0~{}'.format(freqIdx1[1][0]))
+            spw = ','.join('{}:{}'.format(t[0], t[1]) for t in zip(ms_spw, ms_chan))
     # inp(ptclean)
     out = ptclean()
 
