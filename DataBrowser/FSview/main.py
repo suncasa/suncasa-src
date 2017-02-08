@@ -367,13 +367,15 @@ def tab3_slider_LinkImg_update(attrname, old, new):
         i for i in xrange(tab2_nfreq - 1, -1, -1) if tab2_freq[i] <= tab2_p_dspec.y_range.end) + 1
     tidx = int(tab2_Slider_time_LinkImg.value)
     fidx = int(tab2_Slider_freq_LinkImg.value)
+    print  '1:', tidx, fidx
+    print len(tab2_dtim)
     tab2_r_dspec_line_x.data_source.data = ColumnDataSource(
         pd.DataFrame({'time': [tab2_dtim[tidx], tab2_dtim[tidx]],
                       'freq': [tab2_freq[0], tab2_freq[-1]]})).data
     tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
         pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
                       'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
-    print tidx, fidx
+    print '2:', tidx, fidx
     print idx_selected
     hdufile = fits_LOCL_dir + dspecDF0_rs.loc[idx_selected, :]['fits_local']
     print hdufile
