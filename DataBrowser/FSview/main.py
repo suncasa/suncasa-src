@@ -373,7 +373,7 @@ def tab3_slider_LinkImg_update(attrname, old, new):
     tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
         pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
                       'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
-    hdufile = fits_LOCL_dir + dspecDF0_rs.loc[tidx, :]['fits_local']
+    hdufile = fits_LOCL_dir + dspecDF0_rs.loc[idx_selected, :]['fits_local']
     if os.path.exists(hdufile):
         hdu = read_fits(hdufile)
         hdu_goodchan = goodchan(hdu)
@@ -586,15 +586,15 @@ def tab2_dspec_selection_change(attrname, old, new):
     global tab2_dspec_selected
     tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
     if tab2_dspec_selected:
-        global dspecDF_select
+        global dspecDF_select, idx_selected
         dspecDF_select = dspecDF0_rs.iloc[tab2_dspec_selected, :]
         idx_selected = dspecDF_select.index[len(dspecDF_select) / 2]
-        print dspecDF0_rs.loc[idx_selected, :]['time'],dspecDF0_rs.loc[idx_selected, :]['freq']
+        print dspecDF0_rs.loc[idx_selected, :]['time'], dspecDF0_rs.loc[idx_selected, :]['freq']
         tidx = int(['{:.3f}'.format(ll) for ll in tab2_dtim].index(
             '{:.3f}'.format(dspecDF0_rs.loc[idx_selected, :]['time'])))
         fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
             '{:.3f}'.format(dspecDF0_rs.loc[idx_selected, :]['freq'])))
-        print tidx,fidx
+        print tidx, fidx
         tab2_Slider_time_LinkImg.value = tidx
         tab2_Slider_freq_LinkImg.value = fidx
 
