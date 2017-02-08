@@ -453,7 +453,6 @@ def tab2_SRC_maxfit_centroid_update(dspecDFsel):
     print("--- tab2_SRC_maxfit_centroid_update -- %s seconds ---" % (time.time() - start_timestamp))
 
 
-
 def tab2_aia_submap_square_selection_change(attrname, old, new):
     global tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory
     global vmax_vx, vmax_vy, vmin_vx, vmin_vy, mean_vx, mean_vy
@@ -1292,7 +1291,8 @@ if os.path.exists(FS_dspecDF):
 
         '''create the dynamic spectrum plot'''
         TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
-        tab2_SRC_dspec_square = ColumnDataSource(dspecDF_select)
+        downsample_dspecDF(spec_rs_tmax=spec_rs_tmax, spec_rs_fmax=spec_rs_fmax)
+        tab2_SRC_dspec_square = ColumnDataSource(dspecDF0_rs)
         tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
                               plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
                               plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
@@ -1318,9 +1318,10 @@ if os.path.exists(FS_dspecDF):
                                             selection_line_alpha=0.0, selection_line_color='white',
                                             nonselection_line_alpha=0.0,
                                             size=max(
-                                                config_plot['plot_config']['tab_FSview_base']['dspec_wdth'] / tab2_ntim,
                                                 config_plot['plot_config']['tab_FSview_base'][
-                                                    'dspec_hght'] / tab2_nfreq))
+                                                    'dspec_wdth'] / tab2_ntim * spec_rs_step,
+                                                config_plot['plot_config']['tab_FSview_base'][
+                                                    'dspec_hght'] / tab2_nfreq * spec_rs_step))
 
         # tab2_p_dspec.border_fill_color = "silver"
         tab2_p_dspec.border_fill_alpha = 0.4
