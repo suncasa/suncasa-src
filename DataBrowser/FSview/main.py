@@ -2807,7 +2807,17 @@ else:
 
 
     def tab2_BUT_tCLN_param_default():
-        global tab2_tCLN_Param_dict
+        global tab2_tCLN_Param_dict, dspecDF0
+        time0, time1 = dspecDF0['time'].min() + timestart, dspecDF0['time'].max() + timestart
+        t0_char = Time(time0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+        date0_char = t0_char.split(' ')[0].replace('-', '/')
+        time0_char = t0_char.split(' ')[1]
+        t1_char = Time(time1 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+        date1_char = t1_char.split(' ')[0].replace('-', '/')
+        time1_char = t1_char.split(' ')[1]
+        freq0, freq1 = dspecDF0['freq'].min(), dspecDF0['freq'].max()
+        freqrange = "'{:.3f}~{:.3f} GHz'".format(freq0, freq1)
+        tab2_tCLN_Param_dict['freqrange'] = freqrange
         tab2_tCLN_Param_dict = OrderedDict()
         tab2_tCLN_Param_dict['workdir'] = "'./'"
         tab2_tCLN_Param_dict['vis'] = "''"
@@ -2815,7 +2825,7 @@ else:
         tab2_tCLN_Param_dict['ncpu'] = "10"
         tab2_tCLN_Param_dict['twidth'] = "1"
         tab2_tCLN_Param_dict['doreg'] = "False"
-        tab2_tCLN_Param_dict['timerange'] = "''"
+        tab2_tCLN_Param_dict['timerange'] = "'{}/{}~{}/{}'".format(date0_char, time0_char, date1_char, time1_char)
         tab2_tCLN_Param_dict['uvrange'] = "''"
         tab2_tCLN_Param_dict['antenna'] = "''"
         tab2_tCLN_Param_dict['ephemfile'] = "'horizons_sun_20141101.radecp'"
