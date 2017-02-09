@@ -236,7 +236,7 @@ def tab2_update_dspec_image(attrname, old, new):
 
 def tab2_r_square_selection_change(bl_index, select_pol):
     global spec_pol_dict, dspecDF0_rs
-    global tab2_SRC_dspec_image, tab2_SRC_dspec_square, tab2_p_dspec
+    global tab2_SRC_dspec_square, tab2_p_dspec
     # tab2_SRC_dspec_image.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim],
     #                                 'yy': [tab2_freq]}
     # tab2_r_square_rs_selected = tab2_SRC_dspec_square_rs.selected['1d']['indices']
@@ -274,11 +274,9 @@ def tab2_r_square_selection_change(bl_index, select_pol):
     if select_pol == 'V':
         tab2_Select_colorspace.value = 'linear'
     if tab2_Select_colorspace.value == 'log' and select_pol != 'V':
-        tab2_SRC_dspec_image.data = {'data': [np.log(spec_pol_dict['spec'][select_pol])], 'xx': [tab2_dtim],
-                                     'yy': [tab2_freq]}
+        tab2_r_dspec.data_source.data['image'] = [np.log(spec_pol_dict['spec'][select_pol])]
     else:
-        tab2_SRC_dspec_image.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim],
-                                     'yy': [tab2_freq]}
+        tab2_r_dspec.data_source.data['image'] = [spec_pol_dict['spec'][select_pol]]
     tab2_SRC_dspec_square.data['dspec'] = spec_pol_dict['spec'][select_pol].flatten()
     tab2_p_dspec_xPro.y_range.start = spec_pol_dict['min'][select_pol]
     tab2_p_dspec_xPro.y_range.end = spec_pol_dict['max'][select_pol]
@@ -452,15 +450,16 @@ def tab2_SRC_maxfit_centroid_update(dspecDFsel):
     print("--- tab2_SRC_maxfit_centroid_update -- %s seconds ---" % (time.time() - start_timestamp))
 
 
-def tab2_aia_submap_square_selection_change(attrname, old, new):
+def tab3_aia_submap_cross_selection_change(attrname, old, new):
     global tab3_dspec_vectorx_img, tab3_dspec_vectory_img
     global vmax_vx, vmax_vy, vmin_vx, vmin_vy, mean_vx, mean_vy
     global VdspecDF
-    tab2_aia_submap_square_selected = tab2_SRC_aia_submap_square.selected['1d']['indices']
-    if tab2_aia_submap_square_selected:
-        ImgDF = ImgDF0.iloc[tab2_aia_submap_square_selected, :]
-        xa0, xa1 = ImgDF['xx'].min(), ImgDF['xx'].max()
-        ya0, ya1 = ImgDF['yy'].min(), ImgDF['yy'].max()
+    tab3_aia_submap_cross_selected = tab3_r_aia_submap_cross.data_source.selected['1d']['indices']
+    if tab3_aia_submap_cross_selected:
+        tmpDF = tab3_r_aia_submap_cross.data_source.to_df().iloc[tab3_aia_submap_cross_selected, :]
+        xa0, xa1 = tmpDF['shape_longitude'].min(), tmpDF['shape_longitude'].max()
+        ya0, ya1 = tmpDF['shape_latitude'].min(), tmpDF['shape_latitude'].max()
+        print xa0, xa1, ya0, ya1
         mean_vx = (xa0 + xa1) / 2
         mean_vy = (ya0 + ya1) / 2
         tab3_r_aia_submap_rect.data_source.data['x'] = [mean_vx]
@@ -471,12 +470,12 @@ def tab2_aia_submap_square_selection_change(attrname, old, new):
         vmax_vx, vmin_vx = xa1, xa0
         vx[vx > vmax_vx] = vmax_vx
         vx[vx < vmin_vx] = vmin_vx
-        tab3_dspec_vectorx_img.data['data'] = [vx]
+        tab3_r_dspec_vectorx.data_source.data['image'] = [vx]
         vy = (VdspecDF['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
         vmax_vy, vmin_vy = ya1, ya0
         vy[vy > vmax_vy] = vmax_vy
         vy[vy < vmin_vy] = vmin_vy
-        tab3_dspec_vectory_img.data['data'] = [vy]
+        tab3_r_dspec_vectory.data_source.data['image'] = [vy]
         tab3_dspec_small_CTRLs_OPT['vmax_values_last'][1] = xa1
         tab3_dspec_small_CTRLs_OPT['vmax_values_last'][2] = ya1
         tab3_dspec_small_CTRLs_OPT['vmin_values_last'][1] = xa0
@@ -1297,8 +1296,8 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec.title.text = "Dynamic spectrum"
         tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
         tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
-        tab2_SRC_dspec_image = ColumnDataSource(
-            data={'data': [tab2_spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
+        # tab2_SRC_dspec_image = ColumnDataSource(
+        #     data={'data': [tab2_spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
         tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0], y=tab2_freq[0],
                                           dw=tab2_dtim[-1] - tab2_dtim[0],
                                           dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
@@ -1543,20 +1542,20 @@ if os.path.exists(FS_dspecDF):
                                      plot_width=config_plot['plot_config']['tab_FSview_FitANLYS']['aia_submap_wdth'],
                                      webgl=config_plot['plot_config']['WebGL'])
 
-        tab2_SRC_aia_submap_square = ColumnDataSource(ImgDF0)
+        # tab2_SRC_aia_submap_square = ColumnDataSource(ImgDF0)
         tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
                                                                         grid_spacing=20 * u.deg,
                                                                         title='EM sources centroid map',
                                                                         palette=bokehpalette_gray)
-        tab2_r_aia_submap_square = tab3_p_aia_submap.square('xx', 'yy', source=tab2_SRC_aia_submap_square,
-                                                            fill_alpha=0.0, fill_color=None,
-                                                            line_color=None, line_alpha=0.0, selection_fill_alpha=0.5,
-                                                            selection_fill_color=None,
-                                                            nonselection_fill_alpha=0.0,
-                                                            selection_line_alpha=0.0, selection_line_color=None,
-                                                            nonselection_line_alpha=0.0,
-                                                            size=4)
-        tab3_p_aia_submap.add_tools(BoxSelectTool(renderers=[tab2_r_aia_submap_square]))
+        # tab2_r_aia_submap_square = tab3_p_aia_submap.square('xx', 'yy', source=tab2_SRC_aia_submap_square,
+        #                                                     fill_alpha=0.0, fill_color=None,
+        #                                                     line_color=None, line_alpha=0.0, selection_fill_alpha=0.5,
+        #                                                     selection_fill_color=None,
+        #                                                     nonselection_fill_alpha=0.0,
+        #                                                     selection_line_alpha=0.0, selection_line_color=None,
+        #                                                     nonselection_line_alpha=0.0,
+        #                                                     size=4)
+        # tab3_p_aia_submap.add_tools(BoxSelectTool(renderers=[tab2_r_aia_submap_square]))
 
         # tab3_p_aia_submap.border_fill_color = "silver"
         tab3_p_aia_submap.border_fill_alpha = 0.4
@@ -1576,6 +1575,7 @@ if os.path.exists(FS_dspecDF):
                                                         line_color='black',
                                                         line_alpha=0.5,
                                                         source=SRC_maxfit_centroid[tab2_dtim[0]])
+        tab3_p_aia_submap.add_tools(BoxSelectTool(renderers=[tab3_r_aia_submap_cross]))
         tab3_r_aia_submap_line.visible = False
         tab3_SRC_aia_submap_rect = ColumnDataSource({'x': [], 'y': [], 'width': [], 'height': []})
         tab3_r_aia_submap_rect = tab3_p_aia_submap.rect(x='x', y='y', width='width', height='height', fill_alpha=0.1,
@@ -1759,7 +1759,7 @@ if os.path.exists(FS_dspecDF):
         tab3_p_dspec_vector.add_tools(LassoSelectTool())
         tab3_p_dspec_vector.select(BoxSelectTool).select_every_mousemove = False
         tab3_p_dspec_vector.select(LassoSelectTool).select_every_mousemove = False
-        tab2_SRC_aia_submap_square.on_change('selected', tab2_aia_submap_square_selection_change)
+        tab3_r_aia_submap_cross.data_source.on_change('selected', tab3_aia_submap_cross_selection_change)
 
         VdspecDF_init()
         VdspecDF_update()
@@ -2040,9 +2040,9 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
             tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
             # tab2_dtim_fs, tab2_freq_fs = np.meshgrid(tab2_dtim_fs, tab2_freq_fs)
-            tab2_SRC_dspec_image = ColumnDataSource(
-                data={'data': [tab2_spec_plt],
-                      'xx': [tab2_dtim], 'yy': [tab2_freq]})
+            # tab2_SRC_dspec_image = ColumnDataSource(
+            #     data={'data': [tab2_spec_plt],
+            #           'xx': [tab2_dtim], 'yy': [tab2_freq]})
             tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0], y=tab2_freq[0],
                                               dw=tab2_dtim[-1] - tab2_dtim[0],
                                               dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
@@ -2529,7 +2529,7 @@ else:
     tab2_p_dspec.title.text = "Dynamic spectrum"
     tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
     tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
-    tab2_SRC_dspec_image = ColumnDataSource(data={'data': [tab2_spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
+    # tab2_SRC_dspec_image = ColumnDataSource(data={'data': [tab2_spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
     tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0], y=tab2_freq[0],
                                       dw=tab2_dtim[-1] - tab2_dtim[0],
                                       dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
@@ -2697,9 +2697,9 @@ else:
         if select_pol == 'V':
             tab2_Select_colorspace.value = 'linear'
         if tab2_Select_colorspace.value == 'log' and select_pol != 'V':
-            tab2_SRC_dspec_image.data = {'data': [np.log(spec_plt)], 'xx': [tab2_dtim], 'yy': [tab2_freq]}
+            tab2_r_dspec.data_source.data['image'] = [np.log(spec_plt)]
         else:
-            tab2_SRC_dspec_image.data = {'data': [spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]}
+            tab2_r_dspec.data_source.data['image'] = [spec_plt]
         tab2_SRC_dspec_square.data['dspec'] = spec_plt.flatten()
         tab2_p_dspec_xPro.y_range.start = spec_plt_min
         tab2_p_dspec_xPro.y_range.end = spec_plt_max
