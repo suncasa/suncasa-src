@@ -351,7 +351,7 @@ def aia_submap_wavelength_selection(attrname, old, new):
                                  plot_width=config_plot['plot_config']['tab_FSview_FitANLYS'][
                                      'aia_submap_wdth'],
                                  webgl=config_plot['plot_config']['WebGL'])
-    tab3_r_aia_submap.data_source.data['data'] = aia_submap_pfmap.ImageSource().data['data']
+    tab3_r_aia_submap.data_source.data['image'] = aia_submap_pfmap.ImageSource()['data']
 
 
 def tab3_slider_LinkImg_update(attrname, old, new):
@@ -392,8 +392,7 @@ def tab3_slider_LinkImg_update(attrname, old, new):
                 vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :] - hdu.data[pols.index('1'), fidx_hdu, :, :]
             pfmap = PuffinMap(vladata, hdu.header, plot_height=tab2_LinkImg_HGHT,
                               plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
-            SRC_Img = pfmap.ImageSource()
-            tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
+            tab2_r_vla.data_source.data['image'] = pfmap.ImageSource()['data']
             mapx, mapy = pfmap.meshgrid()
             mapx, mapy = mapx.value, mapy.value
             SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
@@ -454,7 +453,7 @@ def tab2_SRC_maxfit_centroid_update(dspecDFsel):
 
 
 def tab2_aia_submap_square_selection_change(attrname, old, new):
-    global tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory
+    global tab3_dspec_vectorx_img, tab3_dspec_vectory_img
     global vmax_vx, vmax_vy, vmin_vx, vmin_vy, mean_vx, mean_vy
     global VdspecDF
     tab2_aia_submap_square_selected = tab2_SRC_aia_submap_square.selected['1d']['indices']
@@ -472,12 +471,12 @@ def tab2_aia_submap_square_selection_change(attrname, old, new):
         vmax_vx, vmin_vx = xa1, xa0
         vx[vx > vmax_vx] = vmax_vx
         vx[vx < vmin_vx] = vmin_vx
-        tab3_SRC_dspec_vectorx.data['data'] = [vx]
+        tab3_dspec_vectorx_img.data['data'] = [vx]
         vy = (VdspecDF['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
         vmax_vy, vmin_vy = ya1, ya0
         vy[vy > vmax_vy] = vmax_vy
         vy[vy < vmin_vy] = vmin_vy
-        tab3_SRC_dspec_vectory.data['data'] = [vy]
+        tab3_dspec_vectory_img.data['data'] = [vy]
         tab3_dspec_small_CTRLs_OPT['vmax_values_last'][1] = xa1
         tab3_dspec_small_CTRLs_OPT['vmax_values_last'][2] = ya1
         tab3_dspec_small_CTRLs_OPT['vmin_values_last'][1] = xa0
@@ -511,7 +510,7 @@ def VdspecDF_update(selected=None):
 
 
 def tab3_SRC_dspec_vector_init():
-    global tab3_SRC_dspec_vector, tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory
+    global tab3_dspec_vector_img, tab3_dspec_vectorx_img, tab3_dspec_vectory_img
     global mean_amp_g, mean_vx, mean_vy, drange_amp_g, drange_vx, drange_vy
     global vmax_amp_g, vmax_vx, vmax_vy, vmin_amp_g, vmin_vx, vmin_vy
     start_timestamp = time.time()
@@ -521,21 +520,21 @@ def tab3_SRC_dspec_vector_init():
     vmax_amp_g, vmin_amp_g = mean_amp_g + drange_amp_g * np.asarray([1., -1.])
     amp_g[amp_g > vmax_amp_g] = vmax_amp_g
     amp_g[amp_g < vmin_amp_g] = vmin_amp_g
-    tab3_SRC_dspec_vector = ColumnDataSource(data={'data': [amp_g], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
+    tab3_dspec_vector_img = [amp_g]
     vx = (dspecDF0_rs['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
     mean_vx = np.nanmean(vx)
     drange_vx = 40.
     vmax_vx, vmin_vx = mean_vx + drange_vx * np.asarray([1., -1.])
     vx[vx > vmax_vx] = vmax_vx
     vx[vx < vmin_vx] = vmin_vx
-    tab3_SRC_dspec_vectorx = ColumnDataSource(data={'data': [vx], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
+    tab3_dspec_vectorx_img = [vx]
     vy = (dspecDF0_rs['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
     mean_vy = np.nanmean(vy)
     drange_vy = 40.
     vmax_vy, vmin_vy = mean_vy + drange_vy * np.asarray([1., -1.])
     vy[vy > vmax_vy] = vmax_vy
     vy[vy < vmin_vy] = vmin_vy
-    tab3_SRC_dspec_vectory = ColumnDataSource(data={'data': [vy], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
+    tab3_dspec_vectory_img = [vy]
     tab3_r_aia_submap_rect.data_source.data['x'] = [(vmax_vx + vmin_vx) / 2]
     tab3_r_aia_submap_rect.data_source.data['y'] = [(vmax_vy + vmin_vy) / 2]
     tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
@@ -544,7 +543,7 @@ def tab3_SRC_dspec_vector_init():
 
 
 def tab3_SRC_dspec_vector_update():
-    global tab3_SRC_dspec_vector, tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory
+    global tab3_r_dspec_vector, tab3_r_dspec_vectorx, tab3_r_dspec_vectory
     global mean_amp_g, mean_vx, mean_vy, drange_amp_g, drange_vx, drange_vy
     global vmax_amp_g, vmax_vx, vmax_vy, vmin_amp_g, vmin_vx, vmin_vy
     global VdspecDF
@@ -555,7 +554,7 @@ def tab3_SRC_dspec_vector_update():
     vmax_amp_g, vmin_amp_g = mean_amp_g + drange_amp_g * np.asarray([1., -1.])
     amp_g[amp_g > vmax_amp_g] = vmax_amp_g
     amp_g[amp_g < vmin_amp_g] = vmin_amp_g
-    tab3_SRC_dspec_vector.data['data'] = [amp_g]
+    tab3_r_dspec_vector.data_source.data['image'] = [amp_g]
     # dspecDFselect = dspecDFselect.where(dspecDFselect['peak']>vmin_amp_g)
     # tab2_SRC_maxfit_centroid_update(dspecDFselect)
     # todo add threshold selection to the vector dynamic spectrum
@@ -565,14 +564,14 @@ def tab3_SRC_dspec_vector_update():
     vmax_vx, vmin_vx = mean_vx + drange_vx * np.asarray([1., -1.])
     vx[vx > vmax_vx] = vmax_vx
     vx[vx < vmin_vx] = vmin_vx
-    tab3_SRC_dspec_vectorx.data['data'] = [vx]
+    tab3_r_dspec_vectorx.data_source.data['image'] = [vx]
     vy = (VdspecDF['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
     mean_vy = np.nanmean(vy)
     drange_vy = 40.
     vmax_vy, vmin_vy = mean_vy + drange_vy * np.asarray([1., -1.])
     vy[vy > vmax_vy] = vmax_vy
     vy[vy < vmin_vy] = vmin_vy
-    tab3_SRC_dspec_vectory.data['data'] = [vy]
+    tab3_r_dspec_vectory.data_source.data['image'] = [vy]
     print("--- tab3_SRC_dspec_small_update -- %s seconds ---" % (time.time() - start_timestamp))
 
 
@@ -614,15 +613,14 @@ def tab2_update_MapRES(attrname, old, new):
                                     plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
                                     plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
                                     webgl=config_plot['plot_config']['WebGL'])
-    SRC_AIA = aia_resampled_pfmap.ImageSource()
-    tab2_r_aia.data_source.data['data'] = SRC_AIA.data['data']
+    tab2_r_aia.data_source.data['image'] = aia_resampled_pfmap.ImageSource()['data']
     hmi_resampled_map = hmimap.resample(dimensions)
     hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
                                     plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
                                     plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
                                     webgl=config_plot['plot_config']['WebGL'])
-    SRC_HMI = hmi_resampled_pfmap.ImageSource()
-    tab2_r_hmi.data_source.data['data'] = SRC_HMI.data['data']
+    # SRC_HMI = hmi_resampled_pfmap.ImageSource()
+    tab2_r_hmi.data_source.data['image'] = hmi_resampled_pfmap.ImageSource()['data']
     print("---tab2_update_MapRES -- %s seconds ---" % (time.time() - start_timestamp))
 
 
@@ -697,18 +695,17 @@ def tab3_RBG_dspec_small_update(attrname, old, new):
 
 def tab3_BUT_dspec_small_reset_update():
     global VdspecDF, tab2_nfreq, tab2_ntim, tab3_dspec_small_CTRLs_OPT
-    global tab3_SRC_dspec_vector, tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory
     items_dspec_small = tab3_dspec_small_CTRLs_OPT['items_dspec_small']
     mean_values = tab3_dspec_small_CTRLs_OPT['mean_values']
     drange_values = tab3_dspec_small_CTRLs_OPT['drange_values']
     vmax_values = tab3_dspec_small_CTRLs_OPT['vmax_values']
     vmin_values = tab3_dspec_small_CTRLs_OPT['vmin_values']
-    source_list = [tab3_SRC_dspec_vector, tab3_SRC_dspec_vectorx, tab3_SRC_dspec_vectory]
+    source_list = [tab3_r_dspec_vector, tab3_r_dspec_vectorx, tab3_r_dspec_vectory]
     for ll, item in enumerate(items_dspec_small):
         TmpData = (VdspecDF[item].copy()).reshape(tab2_nfreq, tab2_ntim)
         TmpData[TmpData > vmax_values[ll]] = vmax_values[ll]
         TmpData[TmpData < vmin_values[ll]] = vmin_values[ll]
-        source_list[ll].data['data'] = [TmpData]
+        source_list[ll].data_source.data['image'] = [TmpData]
     idx_p_dspec_small = 0
     tab3_dspec_small_CTRLs_OPT['idx_p_dspec_small'] = idx_p_dspec_small
     tab3_RBG_dspec_small.active = idx_p_dspec_small
@@ -748,14 +745,11 @@ def tab3_slider_dspec_small_update(attrname, old, new):
     TmpData[TmpData > dmax] = dmax
     TmpData[TmpData < dmin] = dmin
     if idx_p_dspec_small == 0:
-        global tab3_SRC_dspec_vector
-        tab3_SRC_dspec_vector.data['data'] = [TmpData]
+        tab3_r_dspec_vector.data_source.data['image'] = [TmpData]
     elif idx_p_dspec_small == 1:
-        global tab3_SRC_dspec_vectorx
-        tab3_SRC_dspec_vectorx.data['data'] = [TmpData]
+        tab3_r_dspec_vectorx.data_source.data['image'] = [TmpData]
     elif idx_p_dspec_small == 2:
-        global tab3_SRC_dspec_vectory
-        tab3_SRC_dspec_vectory.data['data'] = [TmpData]
+        tab3_r_dspec_vectory.data_source.data['image'] = [TmpData]
     vmax_vx, vmax_vy = tab3_dspec_small_CTRLs_OPT['vmax_values_last'][1:]
     vmin_vx, vmin_vy = tab3_dspec_small_CTRLs_OPT['vmin_values_last'][1:]
     tab3_r_aia_submap_rect.data_source.data['x'] = [(vmax_vx + vmin_vx) / 2]
@@ -1305,9 +1299,9 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
         tab2_SRC_dspec_image = ColumnDataSource(
             data={'data': [tab2_spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
-        tab2_p_dspec.image(image="data", x=tab2_dtim[0], y=tab2_freq[0], dw=tab2_dtim[-1] - tab2_dtim[0],
-                           dh=tab2_freq[-1] - tab2_freq[0],
-                           source=tab2_SRC_dspec_image, palette=bokehpalette_jet)
+        tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0], y=tab2_freq[0],
+                                          dw=tab2_dtim[-1] - tab2_dtim[0],
+                                          dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
 
         # make the dspec data source selectable
         tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=colors_dspec,
@@ -1770,15 +1764,15 @@ if os.path.exists(FS_dspecDF):
         VdspecDF_init()
         VdspecDF_update()
         tab3_SRC_dspec_vector_init()
-        tab3_p_dspec_vector.image(image="data", x=tab2_dtim[0], y=tab2_freq[0], dw=tab2_dtim[-1] - tab2_dtim[0],
-                                  dh=tab2_freq[-1] - tab2_freq[0],
-                                  palette=bokehpalette_jet, source=tab3_SRC_dspec_vector)
-        tab3_p_dspec_vectorx.image(image="data", x=tab2_dtim[0], y=tab2_freq[0], dw=tab2_dtim[-1] - tab2_dtim[0],
-                                   dh=tab2_freq[-1] - tab2_freq[0],
-                                   palette=bokehpalette_jet, source=tab3_SRC_dspec_vectorx)
-        tab3_p_dspec_vectory.image(image="data", x=tab2_dtim[0], y=tab2_freq[0], dw=tab2_dtim[-1] - tab2_dtim[0],
-                                   dh=tab2_freq[-1] - tab2_freq[0],
-                                   palette=bokehpalette_jet, source=tab3_SRC_dspec_vectory)
+        tab3_r_dspec_vector = tab3_p_dspec_vector.image(image=tab3_dspec_vector_img, x=tab2_dtim[0], y=tab2_freq[0],
+                                                        dw=tab2_dtim[-1] - tab2_dtim[0],
+                                                        dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
+        tab3_r_dspec_vectorx = tab3_p_dspec_vectorx.image(image=tab3_dspec_vectorx_img, x=tab2_dtim[0], y=tab2_freq[0],
+                                                          dw=tab2_dtim[-1] - tab2_dtim[0],
+                                                          dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
+        tab3_r_dspec_vectory = tab3_p_dspec_vectory.image(image=tab3_dspec_vectory_img, x=tab2_dtim[0], y=tab2_freq[0],
+                                                          dw=tab2_dtim[-1] - tab2_dtim[0],
+                                                          dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
         tab3_source_idx_line = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
         tab3_r_dspec_vector_line = tab3_p_dspec_vector.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
                                                             line_color='white', source=tab3_source_idx_line)
@@ -2049,18 +2043,17 @@ if os.path.exists(FS_dspecDF):
             tab2_SRC_dspec_image = ColumnDataSource(
                 data={'data': [tab2_spec_plt],
                       'xx': [tab2_dtim], 'yy': [tab2_freq]})
-            tab2_p_dspec.image(image="data", x=tab2_dtim[0], y=tab2_freq[0],
-                               dw=tab2_dtim[-1] - tab2_dtim[0],
-                               dh=tab2_freq[-1] - tab2_freq[0],
-                               source=tab2_SRC_dspec_image, palette=bokehpalette_jet)
+            tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0], y=tab2_freq[0],
+                                              dw=tab2_dtim[-1] - tab2_dtim[0],
+                                              dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
 
             # make the dspec data source selectable
             tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=colors_dspec,
                                                 fill_alpha=0.0,
-                                                line_color=None, line_alpha=0.0, selection_fill_alpha=0.1,
+                                                line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
                                                 selection_fill_color='black',
                                                 nonselection_fill_alpha=0.0,
-                                                selection_line_alpha=0.2, selection_line_color='white',
+                                                selection_line_alpha=0.0, selection_line_color='white',
                                                 nonselection_line_alpha=0.0,
                                                 size=max(
                                                     config_plot['plot_config']['tab_FSview_base'][
@@ -2537,9 +2530,9 @@ else:
     tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
     tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
     tab2_SRC_dspec_image = ColumnDataSource(data={'data': [tab2_spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
-    tab2_p_dspec.image(image="data", x=tab2_dtim[0], y=tab2_freq[0], dw=tab2_dtim[-1] - tab2_dtim[0],
-                       dh=tab2_freq[-1] - tab2_freq[0],
-                       source=tab2_SRC_dspec_image, palette=bokehpalette_jet)
+    tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0], y=tab2_freq[0],
+                                      dw=tab2_dtim[-1] - tab2_dtim[0],
+                                      dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
 
     # make the dspec data source selectable
     tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=None, fill_alpha=0.0,
