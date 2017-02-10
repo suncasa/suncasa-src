@@ -1106,9 +1106,9 @@ if os.path.exists(FS_dspecDF):
         tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=None,
                                             fill_alpha=0.0,
                                             line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
-                                            selection_fill_color='black',
+                                            selection_fill_color=None,
                                             nonselection_fill_alpha=0.0,
-                                            selection_line_alpha=0.0, selection_line_color='white',
+                                            selection_line_alpha=0.0, selection_line_color=None,
                                             nonselection_line_alpha=0.0,
                                             size=max(
                                                 config_plot['plot_config']['tab_FSview_base'][
@@ -1789,7 +1789,7 @@ if os.path.exists(FS_dspecDF):
                                                 line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
                                                 selection_fill_color='black',
                                                 nonselection_fill_alpha=0.0,
-                                                selection_line_alpha=0.1, selection_line_color='black',
+                                                selection_line_alpha=0.0, selection_line_color=None,
                                                 nonselection_line_alpha=0.0,
                                                 size=max(
                                                     config_plot['plot_config']['tab_FSview_base'][
