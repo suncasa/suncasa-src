@@ -30,9 +30,9 @@
       "space_hght18": 18,
       "space_wdth20": 20,
       "space_hght10": 10,
-      "spec_rs_tmax":400,
-      "spec_rs_fmax":256,
-      "spec_square_rs_ratio":3.0
+      "spec_square_rs_tmax":400,
+      "spec_square_rs_fmax":256,
+      "spec_image_rs_ratio":3.0
     },
     "tab_FSviewPrep": {
       "tab2_Div_tImfit_wdth": 600,
