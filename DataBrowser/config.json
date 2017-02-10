@@ -30,7 +30,7 @@
       "space_hght18": 18,
       "space_wdth20": 20,
       "space_hght10": 10,
-      "spec_square_rs_tmax":400,
+      "spec_square_rs_tmax":300,
       "spec_square_rs_fmax":256,
       "spec_image_rs_ratio":3.0
     },
