@@ -1286,9 +1286,11 @@ if os.path.exists(FS_dspecDF):
         mapx, mapy = vla_local_pfmap.meshgrid()
         mapx, mapy = mapx.value, mapy.value
         mapvlasize = mapy.shape
-        ImgDF0 = pd.DataFrame({'xx': mapx.ravel(), 'yy': mapy.ravel()})
-        tab2_SRC_vla_square = ColumnDataSource(ImgDF0)
         tab2_SRC_vlamap_contour = get_contour_data(mapx, mapy, vla_local_pfmap.smap.data)
+        mapx2, mapy2 = vla_local_pfmap.meshgrid(rescale=0.5)
+        mapx2, mapy2 = mapx2.value, mapy2.value
+        ImgDF0 = pd.DataFrame({'xx': mapx2.ravel(), 'yy': mapy2.ravel()})
+        tab2_SRC_vla_square = ColumnDataSource(ImgDF0)
         colormap = cm.get_cmap("cubehelix")  # choose any matplotlib colormap here
         bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
@@ -1961,9 +1963,11 @@ if os.path.exists(FS_dspecDF):
             mapx, mapy = vla_local_pfmap.meshgrid()
             mapx, mapy = mapx.value, mapy.value
             mapvlasize = mapy.shape
-            ImgDF0 = pd.DataFrame({'xx': mapx.ravel(), 'yy': mapy.ravel()})
-            tab2_SRC_vla_square = ColumnDataSource(ImgDF0)
             tab2_SRC_vlamap_contour = get_contour_data(mapx, mapy, vla_local_pfmap.smap.data)
+            mapx2, mapy2 = vla_local_pfmap.meshgrid(rescale=0.5)
+            mapx2, mapy2 = mapx2.value, mapy2.value
+            ImgDF0 = pd.DataFrame({'xx': mapx2.ravel(), 'yy': mapy2.ravel()})
+            tab2_SRC_vla_square = ColumnDataSource(ImgDF0)
             colormap = cm.get_cmap("cubehelix")  # choose any matplotlib colormap here
             bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
             tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
