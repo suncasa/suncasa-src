@@ -595,7 +595,7 @@ def tab2_dspec_vector_selection_change(attrname, old, new):
     tab2_dspec_vector_selected = tab2_SRC_dspec_vector_square.selected['1d']['indices']
     if tab2_dspec_vector_selected:
         global dspecDF_select
-        dspecDF_select = dspecDF0_rs.iloc[tab2_dspec_vector_selected, :]
+        dspecDF_select = dspecDF0.iloc[tab2_dspec_vector_selected, :]
         VdspecDF_init()
         VdspecDF_update(selected=tab2_dspec_vector_selected)
         # tab3_SRC_dspec_vector_update(VdspecDF)
