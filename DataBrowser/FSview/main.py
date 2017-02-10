@@ -1587,7 +1587,7 @@ if os.path.exists(FS_dspecDF):
         tab3_r_dspec_vectory_line = tab3_p_dspec_vectory.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
                                                               line_color='white',
                                                               source=tab3_source_idx_line)
-        tab2_SRC_dspec_vector_square = ColumnDataSource(dspecDF0_rs)
+        tab2_SRC_dspec_vector_square = ColumnDataSource(dspecDF0)
         tab2_r_dspec_vector_square = tab3_p_dspec_vector.square('time', 'freq', source=tab2_SRC_dspec_vector_square,
                                                                 fill_color=None,
                                                                 fill_alpha=0.0,
