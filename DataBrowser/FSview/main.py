@@ -184,7 +184,7 @@ def tab2_vdspec_update():
                 spec_plt_L = spec_plt_R
             tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum calculated.</b></p>'
             spec_pol_dict = make_spec_plt(spec_plt_R, spec_plt_L)
-            tab2_r_square_selection_change(None, select_pol)
+            tab2_bl_pol_cls_change(None, select_pol)
             tab2_p_dspec.title.text = "Vector Dynamic spectrum"
         else:
             tab2_Div_LinkImg_plot.text = '<p><b>Warning:</b> select a region first.</p>'
@@ -197,7 +197,7 @@ def tab2_vdspec_update():
         spec_plt_L = tab2_spec[1, bl_index, :, :]
         spec_pol_dict = make_spec_plt(spec_plt_R, spec_plt_L)
         # spec_plt_pol = spec_pol_dict['spec']
-        tab2_r_square_selection_change(bl_index, select_pol)
+        tab2_bl_pol_cls_change(bl_index, select_pol)
         tab2_p_dspec.title.text = "Dynamic spectrum"
         tab2_Div_LinkImg_plot.text = ''
 
@@ -224,7 +224,7 @@ def tab2_update_dspec_image(attrname, old, new):
     select_bl = tab2_Select_bl.value
     bl_index = tab2_bl.index(select_bl)
     if tab2_BUT_vdspec.label == "VEC Dyn Spec":
-        tab2_r_square_selection_change(bl_index, select_pol)
+        tab2_bl_pol_cls_change(bl_index, select_pol)
 
 
 # def tab2_update_dspec_rs_image(attrname, old, new):
@@ -234,7 +234,7 @@ def tab2_update_dspec_image(attrname, old, new):
 #     tab2_r_square_selection_change(bl_index, select_pol)
 
 
-def tab2_r_square_selection_change(bl_index, select_pol):
+def tab2_bl_pol_cls_change(bl_index, select_pol):
     global spec_pol_dict, dspecDF0_rs
     global tab2_SRC_dspec_square, tab2_p_dspec
     # tab2_SRC_dspec_image.data = {'data': [spec_pol_dict['spec'][select_pol]], 'xx': [tab2_dtim],
@@ -371,7 +371,7 @@ def tab3_slider_LinkImg_update(attrname, old, new):
     tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
         pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
                       'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
-    hdufile = fits_LOCL_dir + dspecDF0_rs.loc[idx_selected, :]['fits_local']
+    hdufile = fits_LOCL_dir + dspecDF0.loc[DFidx_selected, :]['fits_local']
     if os.path.exists(hdufile):
         hdu = read_fits(hdufile)
         hdu_goodchan = goodchan(hdu)
@@ -396,12 +396,12 @@ def tab3_slider_LinkImg_update(attrname, old, new):
             SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
             tab2_r_vla_multi_line.data_source.data = SRC_contour.data
             tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
-                dspecDF0_rs.loc[idx_selected, :]['fits_local'])
+                dspecDF0.loc[DFidx_selected, :]['fits_local'])
         else:
             tab2_Div_LinkImg_plot.text = '<p><b>freq idx</b> out of range.</p>'
     else:
         tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
-            dspecDF0_rs.loc[idx_selected, :]['fits_local'])
+            dspecDF0.loc[DFidx_selected, :]['fits_local'])
 
 
 def tab2_SRC_maxfit_centroid_update(dspecDFsel):
@@ -578,13 +578,15 @@ def tab2_dspec_selection_change(attrname, old, new):
     global tab2_dspec_selected
     tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
     if tab2_dspec_selected:
-        global dspecDF_select, idx_selected
+        global dspecDF_select, DFidx_selected
         dspecDF_select = dspecDF0_rs.iloc[tab2_dspec_selected, :]
-        idx_selected = dspecDF_select.index[len(dspecDF_select) / 2]
+        # print len(dspecDF0_rs.index)
+        DFidx_selected = dspecDF_select.index[len(dspecDF_select) / 2]
+        # DFidx_selected = dspecDF_select.index[0]
         tidx = int(['{:.3f}'.format(ll) for ll in tab2_dtim].index(
-            '{:.3f}'.format(dspecDF0_rs.loc[idx_selected, :]['time'])))
+            '{:.3f}'.format(dspecDF0.loc[DFidx_selected, :]['time'])))
         fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
-            '{:.3f}'.format(dspecDF0_rs.loc[idx_selected, :]['freq'])))
+            '{:.3f}'.format(dspecDF0.loc[DFidx_selected, :]['freq'])))
         tab2_Slider_time_LinkImg.value = tidx
         tab2_Slider_freq_LinkImg.value = fidx
 
@@ -2053,7 +2055,7 @@ if os.path.exists(FS_dspecDF):
                                                 line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
                                                 selection_fill_color='black',
                                                 nonselection_fill_alpha=0.0,
-                                                selection_line_alpha=0.0, selection_line_color='white',
+                                                selection_line_alpha=0.1, selection_line_color='black',
                                                 nonselection_line_alpha=0.0,
                                                 size=max(
                                                     config_plot['plot_config']['tab_FSview_base'][
@@ -2163,40 +2165,40 @@ if os.path.exists(FS_dspecDF):
                 var ny = %d;
                 var data = {'x': [], 'y': []};
                 var cdata = rs.get('data');
-                var rsstep = spec_rs_step.get('data')
-                var indices = cb_data.index['1d'].indices * rsstep;
-                var idx_offset = indices[0] - (indices[0] %% nx);
+                var rsstep = spec_rs_step.get('data').data[0]
+                var indices = cb_data.index['1d'].indices;
+                var idx_offset = indices[0]*rsstep - (indices[0]*rsstep %% nx);
                 for (i=0; i < nx; i++) {
                     data['x'].push(cdata.time[i+idx_offset]);
                     data['y'].push(cdata.dspec[i+idx_offset]);
                 }
                 rdx.set('data', data);
-                idx_offset = indices[0] %% nx;
+                idx_offset = indices[0]*rsstep %% nx;
                 data = {'x': [], 'y': []};
                 for (i=0; i < ny; i++) {
                     data['x'].push(cdata.dspec[i*nx+idx_offset]);
                     data['y'].push(cdata.freq[i*nx+idx_offset]);
                 }
                 rdy.set('data', data);
-                var time = cdata.timestr[indices[0]]+' '
-                var freq = cdata.freq[indices[0]].toFixed(3)+'[GHz] '
-                var dspec = cdata.dspec[indices[0]].toFixed(3)+ '[sfu]'
+                var time = cdata.timestr[indices[0]*rsstep]+' '
+                var freq = cdata.freq[indices[0]*rsstep].toFixed(3)+'[GHz] '
+                var dspec = cdata.dspec[indices[0]*rsstep].toFixed(3)+ '[sfu]'
                 var tooltips = freq + time + dspec
                 data = {'x': [], 'y': [], 'tooltips': []};
-                data['x'].push(cdata.time[indices[0]]);
-                data['y'].push(cdata.dspec[indices[0]]);
+                data['x'].push(cdata.time[indices[0]*rsstep]);
+                data['y'].push(cdata.dspec[indices[0]*rsstep]);
                 data['tooltips'].push(tooltips);
                 rdx_hover.set('data', data);
                 tooltips = time + freq + dspec
                 data = {'x': [], 'y': [], 'tooltips': []};
-                data['x'].push(cdata.dspec[indices[0]]);
-                data['y'].push(cdata.freq[indices[0]]);
+                data['x'].push(cdata.dspec[indices[0]*rsstep]);
+                data['y'].push(cdata.freq[indices[0]*rsstep]);
                 data['tooltips'].push(tooltips);
                 rdy_hover.set('data', data);
                 """ % (tab2_ntim, tab2_nfreq)
 
             tab2_p_dspec_hover_callback = CustomJS(
-                args={'rs': tab2_r_square.data_source, 'rdx': r_dspec_xPro.data_source, 'rdy': r_dspec_yPro.data_source,
+                args={'rs': ColumnDataSource(dspecDF0), 'rdx': r_dspec_xPro.data_source, 'rdy': r_dspec_yPro.data_source,
                       'rdx_hover': r_dspec_xPro_hover.data_source,
                       'rdy_hover': r_dspec_yPro_hover.data_source,
                       'spec_rs_step': ColumnDataSource({'data': [spec_rs_step]})}, code=hover_JScode)
