@@ -126,7 +126,7 @@ def downsample_dspecDF(spec_square_rs_tmax=None, spec_square_rs_fmax=None):
     spec_sz = len(dspecDF0.index)
     spec_sz_max = spec_square_rs_tmax * spec_square_rs_fmax
     if spec_sz > spec_sz_max:
-        spec_rs_step = next(i for i in xrange(1, 31) if spec_sz / i < spec_sz_max)
+        spec_rs_step = next(i for i in xrange(1, 100) if spec_sz / i < spec_sz_max)
     else:
         spec_rs_step = 1
     dspecDF0_rs = dspecDF0.loc[::spec_rs_step, :]
