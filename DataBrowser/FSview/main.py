@@ -1220,41 +1220,44 @@ if os.path.exists(FS_dspecDF):
             var ny = %d;
             var data = {'x': [], 'y': []};
             var cdata = rs.get('data');
+            var rsstep = spec_rs_step.get('data').data[0]
             var indices = cb_data.index['1d'].indices;
-            var idx_offset = indices[0] - (indices[0] %% nx);
+            var idx_offset = indices[0]*rsstep - (indices[0]*rsstep %% nx);
             for (i=0; i < nx; i++) {
                 data['x'].push(cdata.time[i+idx_offset]);
                 data['y'].push(cdata.dspec[i+idx_offset]);
             }
             rdx.set('data', data);
-            idx_offset = indices[0] %% nx;
+            idx_offset = indices[0]*rsstep %% nx;
             data = {'x': [], 'y': []};
             for (i=0; i < ny; i++) {
                 data['x'].push(cdata.dspec[i*nx+idx_offset]);
                 data['y'].push(cdata.freq[i*nx+idx_offset]);
             }
             rdy.set('data', data);
-            var time = cdata.timestr[indices[0]]+' '
-            var freq = cdata.freq[indices[0]].toFixed(3)+'[GHz] '
-            var dspec = cdata.dspec[indices[0]].toFixed(3)+ '[sfu]'
+            var time = cdata.timestr[indices[0]*rsstep]+' '
+            var freq = cdata.freq[indices[0]*rsstep].toFixed(3)+'[GHz] '
+            var dspec = cdata.dspec[indices[0]*rsstep].toFixed(3)+ '[sfu]'
             var tooltips = freq + time + dspec
             data = {'x': [], 'y': [], 'tooltips': []};
-            data['x'].push(cdata.time[indices[0]]);
-            data['y'].push(cdata.dspec[indices[0]]);
+            data['x'].push(cdata.time[indices[0]*rsstep]);
+            data['y'].push(cdata.dspec[indices[0]*rsstep]);
             data['tooltips'].push(tooltips);
             rdx_hover.set('data', data);
             tooltips = time + freq + dspec
             data = {'x': [], 'y': [], 'tooltips': []};
-            data['x'].push(cdata.dspec[indices[0]]);
-            data['y'].push(cdata.freq[indices[0]]);
+            data['x'].push(cdata.dspec[indices[0]*rsstep]);
+            data['y'].push(cdata.freq[indices[0]*rsstep]);
             data['tooltips'].push(tooltips);
             rdy_hover.set('data', data);
             """ % (tab2_ntim, tab2_nfreq)
 
         tab2_p_dspec_hover_callback = CustomJS(
-            args={'rs': tab2_r_square.data_source, 'rdx': r_dspec_xPro.data_source, 'rdy': r_dspec_yPro.data_source,
+            args={'rs': ColumnDataSource(dspecDF0), 'rdx': r_dspec_xPro.data_source,
+                  'rdy': r_dspec_yPro.data_source,
                   'rdx_hover': r_dspec_xPro_hover.data_source,
-                  'rdy_hover': r_dspec_yPro_hover.data_source}, code=hover_JScode)
+                  'rdy_hover': r_dspec_yPro_hover.data_source,
+                  'spec_rs_step': ColumnDataSource({'data': [spec_rs_step]})}, code=hover_JScode)
         tab2_p_dspec_hover = HoverTool(tooltips=tooltips, callback=tab2_p_dspec_hover_callback,
                                        renderers=[tab2_r_square])
         tab2_p_dspec.add_tools(tab2_p_dspec_hover)
