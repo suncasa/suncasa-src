@@ -2163,7 +2163,8 @@ if os.path.exists(FS_dspecDF):
                 var ny = %d;
                 var data = {'x': [], 'y': []};
                 var cdata = rs.get('data');
-                var indices = cb_data.index['1d'].indices;
+                var rsstep = spec_rs_step.get('data')
+                var indices = cb_data.index['1d'].indices * rsstep;
                 var idx_offset = indices[0] - (indices[0] %% nx);
                 for (i=0; i < nx; i++) {
                     data['x'].push(cdata.time[i+idx_offset]);
@@ -2197,7 +2198,8 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec_hover_callback = CustomJS(
                 args={'rs': tab2_r_square.data_source, 'rdx': r_dspec_xPro.data_source, 'rdy': r_dspec_yPro.data_source,
                       'rdx_hover': r_dspec_xPro_hover.data_source,
-                      'rdy_hover': r_dspec_yPro_hover.data_source}, code=hover_JScode)
+                      'rdy_hover': r_dspec_yPro_hover.data_source,
+                      'spec_rs_step': ColumnDataSource({'data': [spec_rs_step]})}, code=hover_JScode)
             tab2_p_dspec_hover = HoverTool(tooltips=tooltips, callback=tab2_p_dspec_hover_callback,
                                            renderers=[tab2_r_square])
             tab2_p_dspec.add_tools(tab2_p_dspec_hover)
