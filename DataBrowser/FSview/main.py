@@ -423,24 +423,24 @@ def tab3_aia_submap_cross_selection_change(attrname, old, new):
 
 
 def VdspecDF_init():
-    global VdspecDF, dspecDF0_rs
+    global VdspecDF, dspecDF0
     VdspecDF = pd.DataFrame()
-    nrows_dspecDF = len(dspecDF0_rs.index)
-    VdspecDF['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0_rs.index)
-    VdspecDF['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0_rs.index)
-    VdspecDF['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0_rs.index)
+    nrows_dspecDF = len(dspecDF0.index)
+    VdspecDF['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+    VdspecDF['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+    VdspecDF['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
 
 
 def VdspecDF_update(selected=None):
     global VdspecDF
     if selected:
-        VdspecDF.loc[selected, 'shape_longitude'] = dspecDF0_rs.loc[selected, 'shape_longitude']
-        VdspecDF.loc[selected, 'shape_latitude'] = dspecDF0_rs.loc[selected, 'shape_latitude']
-        VdspecDF.loc[selected, 'peak'] = dspecDF0_rs.loc[selected, 'peak']
+        VdspecDF.loc[selected, 'shape_longitude'] = dspecDF0.loc[selected, 'shape_longitude']
+        VdspecDF.loc[selected, 'shape_latitude'] = dspecDF0.loc[selected, 'shape_latitude']
+        VdspecDF.loc[selected, 'peak'] = dspecDF0.loc[selected, 'peak']
     else:
-        VdspecDF.loc[:, 'shape_longitude'] = dspecDF0_rs.loc[:, 'shape_longitude']
-        VdspecDF.loc[:, 'shape_latitude'] = dspecDF0_rs.loc[:, 'shape_latitude']
-        VdspecDF.loc[:, 'peak'] = dspecDF0_rs.loc[:, 'peak']
+        VdspecDF.loc[:, 'shape_longitude'] = dspecDF0.loc[:, 'shape_longitude']
+        VdspecDF.loc[:, 'shape_latitude'] = dspecDF0.loc[:, 'shape_latitude']
+        VdspecDF.loc[:, 'peak'] = dspecDF0.loc[:, 'peak']
 
 
 def tab3_SRC_dspec_vector_init():
