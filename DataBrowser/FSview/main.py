@@ -997,13 +997,13 @@ tab2_specdata = np.load(FS_specfile)
 tab2_spec = tab2_specdata['spec']
 tab2_npol = tab2_specdata['npol']
 tab2_nbl = tab2_specdata['nbl']
-tab2_ntim = tab2_specdata['ntim']
-tab2_nfreq = tab2_specdata['nfreq']
 tab2_tim = tab2_specdata['tim']
 tab2_dt = np.median(np.diff(tab2_tim))
 tab2_freq = tab2_specdata['freq'] / 1e9
 tab2_freq = [float('{:.03f}'.format(ll)) for ll in tab2_freq]
 tab2_df = np.median(np.diff(tab2_freq))
+tab2_ntim = len(tab2_tim)
+tab2_nfreq = len(tab2_freq)
 
 tab2_bl = tab2_specdata['bl'].item().split(';')
 bl_index = 0
@@ -1081,7 +1081,6 @@ if os.path.exists(FS_dspecDF):
         #                         first before closing the tab</p></b>""",
         #                            width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         rmax, rmin = tab2_spec_plt.max(), tab2_spec_plt.min()
-        colors_dspec = [colors.rgb2hex(m) for m in colormap_jet((tab2_spec_plt.flatten() - rmin) / (rmax - rmin))]
 
         '''create the dynamic spectrum plot'''
         TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
@@ -1104,7 +1103,7 @@ if os.path.exists(FS_dspecDF):
                                           dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
 
         # make the dspec data source selectable
-        tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=colors_dspec,
+        tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=None,
                                             fill_alpha=0.0,
                                             line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
                                             selection_fill_color='black',
@@ -1585,7 +1584,7 @@ if os.path.exists(FS_dspecDF):
                                                               source=tab3_source_idx_line)
         tab2_SRC_dspec_vector_square = ColumnDataSource(dspecDF0_rs)
         tab2_r_dspec_vector_square = tab3_p_dspec_vector.square('time', 'freq', source=tab2_SRC_dspec_vector_square,
-                                                                fill_color=colors_dspec,
+                                                                fill_color=None,
                                                                 fill_alpha=0.0,
                                                                 line_color=None, line_alpha=0.0,
                                                                 selection_fill_alpha=0.2,
@@ -1763,7 +1762,6 @@ if os.path.exists(FS_dspecDF):
                                     first before closing the tab</p></b>""",
                                        width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
             rmax, rmin = tab2_spec_plt.max(), tab2_spec_plt.min()
-            colors_dspec = [colors.rgb2hex(m) for m in colormap_jet((tab2_spec_plt.flatten() - rmin) / (rmax - rmin))]
 
             '''create the regridded dynamic spectrum plot'''
             TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
@@ -1786,7 +1784,7 @@ if os.path.exists(FS_dspecDF):
                                               dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
 
             # make the dspec data source selectable
-            tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=colors_dspec,
+            tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=None,
                                                 fill_alpha=0.0,
                                                 line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
                                                 selection_fill_color='black',
@@ -2235,17 +2233,16 @@ else:
                 first before closing the tab</p></b>""",
         width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
     timestrs = []
-    for ii in range(len(xx)):
-        t0 = xx[ii]  # -0.5*t_int
-        timestr0 = Time(t0 / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
-        timestrs.append(timestr0.split(' ')[1])
+    for ll in tab2_tim:
+        timestr = Time(ll / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+        timestrs.append(timestr.split(' ')[1])
+    timestrs = timestrs * tab2_nfreq
     dspecDF0 = pd.DataFrame({'time': xx - xx[0],
                              'freq': yy,
                              'dspec': tab2_spec_plt.flatten(),
                              'timestr': timestrs})
 
     rmax, rmin = tab2_spec_plt.max(), tab2_spec_plt.min()
-    colors_dspec = [colors.rgb2hex(m) for m in colormap_jet((tab2_spec_plt.flatten() - rmin) / (rmax - rmin))]
 
     TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
     downsample_dspecDF(spec_square_rs_tmax=spec_square_rs_tmax, spec_square_rs_fmax=spec_square_rs_fmax)
