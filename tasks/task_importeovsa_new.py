@@ -17,11 +17,6 @@ from concat_cli import concat_cli as concat
 
 # from parallel.parallel_data_helper import ParallelDataHelper
 
-def jd2mjds(tjd=None):
-    tmjds = (tjd - 2400000.5) * 24. * 3600.
-    return tmjds
-
-
 def bl_list2(nant=16):
     ''' Returns a two-dimensional array bl2ord that will translate
         a pair of antenna indexes (antenna number - 1) to the ordinal
@@ -89,42 +84,16 @@ def get_band(sfreq=None, sdf=None):
     return bandlist
 
 
-# def uv_hex_rm(uv=None):
-#     # import re
-#     uvs = {}
-#     for ll in uv.vartable:
-#         if type(uv[ll]) == str:
-#             uvs[ll] = re.sub(r'[^\x20-\x7E].*', '', uv[ll])
-#     return uvs
-
-
 def creatms(idbfile, outpath, timebin=None, width=None):
     uv = aipy.miriad.UV(idbfile)
     uv.rewind()
-    # if idbfile.split('/')[-1][0:3] == 'UDB':
-    #     uv_str = uv_hex_rm(uv)
-    # else:
-    #     uv_str = uv
-
-    uv.select('antennae', 0, 1, include=True)
-    uv.select('polarization', -5, -5, include=True)
-    times = []
-    for preamble, data in uv.all():
-        uvw, t, (i, j) = preamble
-        times.append(t)
-
-    uv.select('clear', -1, -1, include=True)
-    times = jd2mjds(np.asarray(times))
-    inttime = np.median((times - np.roll(times, 1))[1:])
 
     start_time = 0  # The start and stop times are referenced to ref_time_jd in second
-    # todo ask Jim to add a variable describing the delta time
-    end_time = times[-1] - times[0] + inttime
-
+    end_time = 600
     time0 = time.time()
 
     if 'antlist' in uv.vartable:
-        ants = uv['antlist'].replace('\x00','')
+        ants = uv['antlist']
         antlist = map(int, ants.split())
     else:
         antlist = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
@@ -134,8 +103,8 @@ def creatms(idbfile, outpath, timebin=None, width=None):
     ref_time_jd = uv['time']
     sfreq = uv['sfreq'][good_idx]
     sdf = uv['sdf'][good_idx]
-    project = uv['proj'].replace('\x00','')
-    source_id = uv['source'].replace('\x00','')
+    project = uv['proj']
+    source_id = uv['source']
     chan_band = get_band(sfreq=sfreq, sdf=sdf)
     msname = list(idbfile.split('/')[-1])
     msname = outpath + ''.join(msname) + '-10m.ms'
@@ -173,7 +142,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
     dishdiam = np.asarray([2.1] * uv['nants'])
     dishdiam[-3:-1] = 27
     dishdiam[-1] = 2.1
-    station = uv['telescop'].replace('\x00','')
+    station = uv['telescop']
     mount = ['ALT-AZ'] * uv['nants']
     for l in [8, 9, 10, 12, 13, 14]:
         mount[l] = 'EQUATORIAL'
@@ -196,7 +165,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
     ref_time = me.epoch('tai',
                         '{:20.13f}'.format(ref_time_jd - 2400000.5) + 'd')
 
-    sm.settimes(integrationtime='{:.3f}s'.format(inttime),
+    sm.settimes(integrationtime='1s',
                 usehourangle=False,
                 referencetime=ref_time)
 
@@ -279,41 +248,38 @@ def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=Tr
                 modelms = creatms(filename, visprefix)
 
     msfile = []
-    time_concat = []
     for filename in filelist:
         uv = aipy.miriad.UV(filename)
-        # if filename.split('/')[-1][0:3] == 'UDB':
-        #     uv_str = uv_hex_rm(uv)
+        # if uv['source'].lower() == 'sun':
+        #     visprefix = visprefix + 'sun/'
+        #     if not os.path.exists(visprefix):
+        #         os.mkdir(visprefix)
         # else:
-        #     uv_str = uv
-        uv.select('antennae', 0, 1, include=True)
-        uv.select('polarization', -5, -5, include=True)
-        times = []
-        uv.rewind()
-        for preamble, data in uv.all():
-            uvw, t, (i, j) = preamble
-            times.append(t)
+        #     visprefix = visprefix + 'calibrator/'
+        #     if not os.path.exists(visprefix):
+        #         os.mkdir(visprefix)
+        # uv.rewind()
 
-        uv.select('clear', -1, -1, include=True)
-        times = jd2mjds(np.asarray(times))
-        inttime = np.median((times - np.roll(times, 1))[1:]) / 60
-
-        time_steps = len(times)
-        time_concat.append(int((times[-1] - times[0]) / 60 + inttime))
+        start_time = 0  # The start and stop times are referenced to ref_time_jd in second
+        end_time = 600
+        delta_time = 1
+        time_steps = (end_time - start_time) / delta_time
         time0 = time.time()
 
         if 'antlist' in uv.vartable:
-            ants = uv['antlist'].replace('\x00','')
+            ants = uv['antlist']
             antlist = map(int, ants.split())
         else:
             antlist = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 
         good_idx = np.where(uv['sfreq'] > 0)[0]
 
+        ref_time_jd = uv['time']
+        ref_time_mjd = (ref_time_jd - 2400000.5) * 24. * 3600. + 0.5 * delta_time
         nf = len(good_idx)
         npol = uv['npol']
         nants = uv['nants']
-        source_id = uv['source'].replace('\x00','')
+        source_id = uv['source']
         sfreq = uv['sfreq'][good_idx]
         sdf = uv['sdf'][good_idx]
         ra, dec = uv['ra'], uv['dec']
@@ -356,7 +322,7 @@ def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=Tr
         casalog.post('IDB File {0} is readed in --- {1:10.2f} seconds ---'.format(filename, (time.time() - time0)))
 
         msname = list(filename.split('/')[-1])
-        msname = visprefix + ''.join(msname) + '-{:d}m.ms'.format(int((times[-1] - times[0]) / 60 + inttime))
+        msname = visprefix + ''.join(msname) + '-10m.ms'
 
         if not nocreatms:
             modelms = creatms(filename, visprefix)
@@ -384,10 +350,10 @@ def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=Tr
         tb.putcol('UVW', uvwarray)
         tb.putcol('SIGMA', sigma)
         tb.putcol('WEIGHT', 1.0 / sigma ** 2)
-        timearr = times
+        timearr = np.arange((time_steps), dtype=np.float)
         timearr = timearr.reshape(1, time_steps, 1)
         timearr = np.tile(timearr, (nband, 1, npairs))
-        timearr = timearr.reshape(nband * npairs * time_steps)
+        timearr = timearr.reshape(nband * npairs * time_steps) + ref_time_mjd
         tb.putcol('TIME', timearr)
         tb.putcol('TIME_CENTROID', timearr)
         scan_id = tb.getcol('SCAN_NUMBER')
@@ -405,7 +371,7 @@ def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=Tr
         casalog.post('----------------------------------------')
         tb.open(msname + '/OBSERVATION', nomodify=False)
         tb.putcol('TIME_RANGE',
-                  np.asarray([times[0] - 0.5 * inttime, times[-1] + 0.5 * inttime]).reshape(
+                  np.asarray([ref_time_mjd - 0.5 * delta_time, ref_time_mjd + end_time - 0.5 * delta_time]).reshape(
                       2, 1))
         tb.putcol('OBSERVER', ['EOVSA team'])
         tb.close()
@@ -414,11 +380,11 @@ def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=Tr
         casalog.post("Updating the POINTING table of" '%s' % msname)
         casalog.post('----------------------------------------')
         tb.open(msname + '/POINTING', nomodify=False)
-        timearr = times.reshape(1, time_steps, 1)
+        timearr = np.arange((time_steps), dtype=np.float).reshape(1, time_steps, 1)
         timearr = np.tile(timearr, (nband, 1, nants))
-        timearr = timearr.reshape(nband * time_steps * nants)
+        timearr = timearr.reshape(nband * time_steps * nants) + ref_time_mjd
         tb.putcol('TIME', timearr)
-        tb.putcol('TIME_ORIGIN', timearr)  # - 0.5 * delta_time)
+        tb.putcol('TIME_ORIGIN', timearr - 0.5 * delta_time)
         direction = tb.getcol('DIRECTION')
         direction[0, 0, :] = ra
         direction[1, 0, :] = dec
@@ -493,18 +459,8 @@ def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=Tr
 
     if doconcat:
         msname = list(filelist[0].split('/')[-1])
-        concatvis = visprefix + ''.join(msname) + '-{:d}m.ms'.format(int(sum(time_concat)))
-        concat(vis=msfile, concatvis=concatvis, timesort=True)
-        # Change all observation ids to be the same (zero)
-        tb.open(concatvis+'/OBSERVATION',nomodify=False)
-        nobs=tb.nrows()
-        tb.removerows([i+1 for i in range(nobs-1)])
-        tb.close()
-        tb.open(concatvis,nomodify=False)
-        obsid=tb.getcol('OBSERVATION_ID')
-        newobsid=np.zeros(len(obsid),dtype='int')
-        tb.putcol('OBSERVATION_ID',newobsid)
-        tb.close()
+        concatvis = visprefix + ''.join(msname) + '-{:d}m.ms'.format(10 * len(msfile))
+        concat(vis=msfile, concatvis=concatvis)
         for ll in msfile:
             os.system('rm -rf {}'.format(ll))
 

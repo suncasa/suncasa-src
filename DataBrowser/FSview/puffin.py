@@ -55,9 +55,9 @@ class PuffinMap:
         self.x_range = [x0, x1]
         self.y_range = [y0, y0 + (y1 - y0) * float(self.plot_height) / float(self.plot_width)]
 
-    def meshgrid(self, rescale = 1.0, *args, **kwargs):
-        XX, YY = np.meshgrid(np.arange(self.smap.data.shape[0]*rescale), np.arange(self.smap.data.shape[1]*rescale))
-        x, y = self.smap.pixel_to_data(XX/rescale * u.pix, YY/rescale * u.pix)
+    def meshgrid(self, rescale=1.0, *args, **kwargs):
+        XX, YY = np.meshgrid(np.arange(self.smap.data.shape[0] * rescale), np.arange(self.smap.data.shape[1] * rescale))
+        x, y = self.smap.pixel_to_data(XX / rescale * u.pix, YY / rescale * u.pix)
         return x, y
 
     def meshgridpix(self, *args, **kwargs):
@@ -72,7 +72,7 @@ class PuffinMap:
         x = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)[0]
         XX, YY = (np.zeros(self.smap.data.shape[1]), np.arange(self.smap.data.shape[1]))
         y = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)[1]
-        return ColumnDataSource(data={'data': [self.smap.data], 'xx': [x], 'yy': [y]})
+        return {'data': [self.smap.data], 'xx': [x], 'yy': [y]}
 
     def DrawGridSource(self, grid_spacing=15 * u.deg, *args, **kwargs):
         """maps the Longitude and Latitude grids to Bokeh DataSource
@@ -150,8 +150,7 @@ class PuffinMap:
                          plot_width=self.plot_width, *args, **kwargs)
         p_image.xaxis.axis_label = 'X-position [arcsec]'
         p_image.yaxis.axis_label = 'Y-position [arcsec]'
-        r_img = p_image.image(image="data", x=self.x, y=self.y, dw=self.dw, dh=self.dh, source=source_image,
-                              palette=palette)
+        r_img = p_image.image(image=source_image['data'], x=self.x, y=self.y, dw=self.dw, dh=self.dh, palette=palette)
         if DrawLimb:
             p_image.line(x='x', y='y', line_color='white', line_dash='solid', source=self.DrawLimbSource())
             if DrawGrid:
