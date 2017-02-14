@@ -35,18 +35,20 @@ if os.path.exists('CASA_CLN_args.json'):
         raise ValueError('define a struct_id!!!')
     print 'Script for clean --- {} in {}'.format(structure_id, event_id)
     print ''
-    if not ('timerange' in locals()):
+    if (not ('timerange' in locals())) or timerange == '':
         timeran = [qa.time(qa.quantity(ll, 's'), prec=9)[0] for ll in mstimran['time']]
+        timeran = '~'.join(timeran)
+        # [tstart, tend] = timeran
     else:
         timeran = timerange
+    (tstart, tend) = timeran.split('~')
     if not 'ncpu' in locals():
         ncpu = 10
-    (tstart, tend) = timeran.split('~')
     bt_s = qa.convert(qa.quantity(tstart, 's'), 's')['value']
     et_s = qa.convert(qa.quantity(tend, 's'), 's')['value']
-    btidx = np.argmin(np.abs(timeInfo - bt_s))
-    etidx = np.argmin(np.abs(timeInfo - et_s))
-    dt = float('{:.3f}'.format(np.median(np.diff(timeInfo))))
+    # btidx = np.argmin(np.abs(timeInfo - bt_s))
+    # etidx = np.argmin(np.abs(timeInfo - et_s))
+    # dt = float('{:.3f}'.format(np.median(np.diff(timeInfo))))
     if not 'twidth' in locals():
         twidth = 1
     # chunksize = ncpu
@@ -74,6 +76,8 @@ if os.path.exists('CASA_CLN_args.json'):
     # for TRang in timerans:
     # TRang=timerans[0]
     os.system('rm -rf {}'.format('cgrid_ft.im'))
+    if not os.path.exists(imageprefix):
+        os.mkdir(imageprefix)
     default('ptclean')
     with open('CASA_CLN_args.json', 'r') as fp:
         CASA_CLN_args = json.load(fp)
@@ -82,22 +86,23 @@ if os.path.exists('CASA_CLN_args.json'):
     timerange = timeran
     # width = 32
     if 'freqrange' in locals() and spw == '':
-        freq0, freq1 = freqrange.split(' ')[0].split('~')
-        freq0, freq1 = float(freq0), float(freq1)
-        for ll in [freq0, freq1]:
-            if not freqInfo_ravel[0] <= ll <= freqInfo_ravel[-1]:
-                raise ValueError('Selected frequency out of range!!!')
-        freqIdx0 = np.where(freqInfo == freq0)
-        freqIdx1 = np.where(freqInfo == freq1)
-        sz_freqInfo = freqInfo.shape
-        ms_spw = ['{}'.format(ll) for ll in xrange(freqIdx0[0], freqIdx1[0] + 1)]
-        if len(ms_spw) == 1:
-            ms_chan = ['{}~{}'.format(freqIdx0[1][0], freqIdx1[1][0])]
-        else:
-            ms_chan = ['{}~{}'.format(freqIdx0[1][0], sz_freqInfo[1] - 1)] \
-                      + ['0~{}'.format(sz_freqInfo[1] - 1) for ll in xrange(freqIdx0[0] + 1, freqIdx1[0])]
-            ms_chan.append('0~{}'.format(freqIdx1[1][0]))
-        spw = ','.join('{}:{}'.format(t[0], t[1]) for t in zip(ms_spw, ms_chan))
+        if freqrange != '':
+            freq0, freq1 = freqrange.split(' ')[0].split('~')
+            freq0, freq1 = float(freq0), float(freq1)
+            for ll in [freq0, freq1]:
+                if not freqInfo_ravel[0] <= ll <= freqInfo_ravel[-1]:
+                    raise ValueError('Selected frequency out of range!!!')
+            freqIdx0 = np.where(freqInfo == freq0)
+            freqIdx1 = np.where(freqInfo == freq1)
+            sz_freqInfo = freqInfo.shape
+            ms_spw = ['{}'.format(ll) for ll in xrange(freqIdx0[0], freqIdx1[0] + 1)]
+            if len(ms_spw) == 1:
+                ms_chan = ['{}~{}'.format(freqIdx0[1][0], freqIdx1[1][0])]
+            else:
+                ms_chan = ['{}~{}'.format(freqIdx0[1][0], sz_freqInfo[1] - 1)] \
+                          + ['0~{}'.format(sz_freqInfo[1] - 1) for ll in xrange(freqIdx0[0] + 1, freqIdx1[0])]
+                ms_chan.append('0~{}'.format(freqIdx1[1][0]))
+            spw = ','.join('{}:{}'.format(t[0], t[1]) for t in zip(ms_spw, ms_chan))
     # inp(ptclean)
     out = ptclean()
 
@@ -111,9 +116,9 @@ if os.path.exists('CASA_CLN_args.json'):
         os.mkdir(imgdir)
     print 'imgdir: {}'.format(imgdir)
 
-
     if not doreg:
         import suncasa.vla.vla_prep as vla_prep
+
         ms.open(vis)
         ms.selectinit()
         timfreq = ms.getdata(['time', 'axis_info'], ifraxis=True)
@@ -130,7 +135,7 @@ if os.path.exists('CASA_CLN_args.json'):
         # if not defined (empty string), use start and end from the entire time of the ms
         if not timerange:
             btidx = 1
-            etidx = len(tim)-1
+            etidx = len(tim) - 1
         else:
             try:
                 (tstart, tend) = timerange.split('~')
@@ -163,10 +168,11 @@ if os.path.exists('CASA_CLN_args.json'):
         print 'Last time pixel: ' + etstr
         print str(len(iterable)) + ' images to clean...'
         timeranges = [
-            qa.time(qa.quantity(tim[ll]-dt/2, 's'), prec=9)[0] + '~' + qa.time(qa.quantity(tim[ll + twidth]-dt/2, 's'), prec=9)[0] for
+            qa.time(qa.quantity(tim[ll] - dt / 2, 's'), prec=9)[0] + '~' +
+            qa.time(qa.quantity(tim[ll + twidth] - dt / 2, 's'), prec=9)[0] for
             ll in iterable]
-        filestr = [qa.time(qa.quantity(tim[ll]-dt/2, 's'),form='fits', prec=9)[0].replace(':','').replace('-','') for ll in iterable]
-
+        filestr = [qa.time(qa.quantity(tim[ll] - dt / 2, 's'), form='fits', prec=9)[0].replace(':', '').replace('-', '')
+                   for ll in iterable]
 
         if not os.path.exists(database_dir + event_id + struct_id + 'Synthesis_Image'):
             os.system('mkdir {}'.format(database_dir + event_id + '/' + struct_id + '/' + 'Synthesis_Image/'))
@@ -179,7 +185,7 @@ if os.path.exists('CASA_CLN_args.json'):
             ephem = vla_prep.read_horizons(ephemfile=ephemfile)
             reftime = [timeran]
             helio = vla_prep.ephem_to_helio(msinfo=msinfofile, ephem=ephem, reftime=reftime)
-            imname = imgprefix+filestr[ll]
+            imname = imgprefix + filestr[ll]
             imagefile = [imname + '.image']
             fitsfile = [imname + '.fits']
             try:
@@ -189,6 +195,8 @@ if os.path.exists('CASA_CLN_args.json'):
             except:
                 '{} not found!'.format(imagefile)
     # else:
+    # if not os.path.exists(imageprefix):
+    #     os.mkdir(imageprefix)
     fitsfile = glob.glob('{}*.fits'.format(imageprefix))
     for fits in fitsfile:
         # idxmms = fits.index('fits')

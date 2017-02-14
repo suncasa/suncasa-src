@@ -121,9 +121,8 @@ tab1_p_dspec.axis.minor_tick_in = 3
 tab1_p_dspec.axis.major_tick_line_color = "white"
 tab1_p_dspec.axis.minor_tick_line_color = "white"
 
-tab1_SRC_dspec = ColumnDataSource(data={'data': [tab1_spec_plt], 'xx': [tab1_dtim], 'yy': [tab1_freq]})
-tab1_r_dspec = tab1_p_dspec.image(image="data", x=tab1_dtim[0], y=tab1_freq[0], dw=tab1_dtim[-1] - tab1_dtim[0],
-                                  dh=tab1_freq[-1] - tab1_freq[0], source=tab1_SRC_dspec, palette=bokehpalette_jet)
+tab1_r_dspec = tab1_p_dspec.image(image=[tab1_spec_plt], x=tab1_dtim[0], y=tab1_freq[0], dw=tab1_dtim[-1] - tab1_dtim[0],
+                                  dh=tab1_freq[-1] - tab1_freq[0], palette=bokehpalette_jet)
 
 tab1_spec_sz = tab1_spec.shape
 ratio_spec_sz2, ratio_spec_sz1 = 10, 10
@@ -173,7 +172,7 @@ def tab1_update_dspec(attrname, old, new):
         tab1_Select_colorspace.value = 'linear'
     if tab1_Select_colorspace.value == 'log' and select_pol != 'V':
         spec_plt = np.log(spec_plt)
-    tab1_SRC_dspec.data = {'data': [spec_plt], 'xx': [tab1_dtim], 'yy': [tab1_freq]}
+    tab1_r_dspec.data_source.data['image'] = [spec_plt]
 
 
 tab1_ctrls = [tab1_Select_bl, tab1_Select_pol, tab1_Select_colorspace]

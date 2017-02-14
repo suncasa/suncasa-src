@@ -3,7 +3,7 @@ A interactive tool for solar radio imaging spectroscopy data analysis
 
 #Build Requirements
 ```
-bokeh>=0.12.0
+bokeh=0.12.3
 sunpy>=0.7.4
 pandas>=0.19.2
 scikit-image>=0.12.3
