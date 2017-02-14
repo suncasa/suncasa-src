@@ -102,6 +102,7 @@ if os.path.exists('CASA_imfit_args.json'):
     dspecDF = pd.merge(dspecDF1, dspecDF2, how='left', on=['freqstr', 'fits_local'])
     with open(database_dir + event_id +'/'+ struct_id + '/dspecDF-save', 'wb') as fp:
         pickle.dump(dspecDF,fp)
+    print 'imfit results saved to '+database_dir + event_id +'/'+ struct_id + '/dspecDF-save'
 
 else:
     print 'CASA arguments config file not found!!'

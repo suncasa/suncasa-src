@@ -51,6 +51,11 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 	    <value>False</value>
     </param>
 
+    <param type="bool" name="overwrite">
+	    <description>True if overwrite the image</description>
+	    <value>False</value>
+    </param>
+
     <param type="string" name="ephemfile" subparam="true">
 	    <description>emphemeris file generated from vla_prep.read_horizons()</description>
 	    <value type="string"></value>
