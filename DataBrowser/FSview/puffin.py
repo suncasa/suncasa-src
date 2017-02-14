@@ -53,7 +53,8 @@ class PuffinMap:
         self.x, self.y = [x0], [y0]
         self.dw, self.dh = [x1 - x0], [y1 - y0]
         self.x_range = [x0, x1]
-        self.y_range = [y0, y0 + (y1 - y0) * float(self.plot_height) / float(self.plot_width)]
+        # self.y_range = [y0, y0 + (y1 - y0) * float(self.plot_height) / float(self.plot_width)]
+        self.y_range = [y0, y1]
 
     def meshgrid(self, rescale=1.0, *args, **kwargs):
         XX, YY = np.meshgrid(np.arange(self.smap.data.shape[0] * rescale), np.arange(self.smap.data.shape[1] * rescale))

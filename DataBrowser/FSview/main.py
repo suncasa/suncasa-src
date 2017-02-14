@@ -130,8 +130,23 @@ def downsample_dspecDF(spec_square_rs_tmax=None, spec_square_rs_fmax=None):
     else:
         spec_rs_step = 1
     dspecDF0_rs = dspecDF0.loc[::spec_rs_step, :]
-    print 'spec_rs_step', spec_rs_step
-    print 'len(dspecDF0_rs): ', len(dspecDF0_rs)
+
+
+def make_spec_plt(spec_plt_R, spec_plt_L):
+    spec_I = (spec_plt_R + spec_plt_L) / 2
+    spec_V = (spec_plt_R - spec_plt_L) / 2
+    spec_max_IRL = int(
+        max(spec_plt_R.max(), spec_plt_L.max(), spec_I.max())) * 1.2
+    spec_min_IRL = (int(min(spec_plt_R.min(), spec_plt_L.min(), spec_I.min())) / 10) * 10
+    spec_max_V = max(abs(int(spec_V.max())), abs(int(spec_V.min()))) * 1.2
+    spec_min_V = -spec_max_V
+    spec_max_pol = {'RR': spec_max_IRL, 'LL': spec_max_IRL, 'I': spec_max_IRL, 'V': spec_max_V}
+    spec_min_pol = {'RR': spec_min_IRL, 'LL': spec_min_IRL, 'I': spec_min_IRL, 'V': spec_min_V}
+    spec_pol = {'RR': spec_plt_R, 'LL': spec_plt_L}
+    spec_pol['I'] = (spec_pol['RR'] + spec_pol['LL']) / 2
+    spec_pol['V'] = (spec_pol['RR'] - spec_pol['LL']) / 2
+    return {'spec': spec_pol, 'max': spec_max_pol, 'min': spec_min_pol}
+
 
 
 def tab2_vdspec_update():
@@ -201,22 +216,6 @@ def tab2_vdspec_update():
         tab2_bl_pol_cls_change(bl_index, select_pol)
         tab2_p_dspec.title.text = "Dynamic spectrum"
         tab2_Div_LinkImg_plot.text = ''
-
-
-def make_spec_plt(spec_plt_R, spec_plt_L):
-    spec_I = (spec_plt_R + spec_plt_L) / 2
-    spec_V = (spec_plt_R - spec_plt_L) / 2
-    spec_max_IRL = int(
-        max(spec_plt_R.max(), spec_plt_L.max(), spec_I.max())) * 1.2
-    spec_min_IRL = (int(min(spec_plt_R.min(), spec_plt_L.min(), spec_I.min())) / 10) * 10
-    spec_max_V = max(abs(int(spec_V.max())), abs(int(spec_V.min()))) * 1.2
-    spec_min_V = -spec_max_V
-    spec_max_pol = {'RR': spec_max_IRL, 'LL': spec_max_IRL, 'I': spec_max_IRL, 'V': spec_max_V}
-    spec_min_pol = {'RR': spec_min_IRL, 'LL': spec_min_IRL, 'I': spec_min_IRL, 'V': spec_min_V}
-    spec_pol = {'RR': spec_plt_R, 'LL': spec_plt_L}
-    spec_pol['I'] = (spec_pol['RR'] + spec_pol['LL']) / 2
-    spec_pol['V'] = (spec_pol['RR'] - spec_pol['LL']) / 2
-    return {'spec': spec_pol, 'max': spec_max_pol, 'min': spec_min_pol}
 
 
 def tab2_update_dspec_image(attrname, old, new):
