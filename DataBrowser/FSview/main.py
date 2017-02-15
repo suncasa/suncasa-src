@@ -225,7 +225,8 @@ def tab2_update_dspec_image(attrname, old, new):
     bl_index = tab2_bl.index(select_bl)
     if tab2_BUT_vdspec.label == "VEC Dyn Spec":
         tab2_bl_pol_cls_change(bl_index, select_pol)
-
+    else:
+        tab2_bl_pol_cls_change(None, select_pol)
 
 def tab2_bl_pol_cls_change(bl_index, select_pol):
     global spec_pol_dict, dspecDF0_rs
@@ -400,12 +401,12 @@ def tab3_aia_submap_cross_selection_change(attrname, old, new):
         tab3_r_aia_submap_rect.data_source.data['y'] = [mean_vy]
         tab3_r_aia_submap_rect.data_source.data['width'] = [(xa1 - xa0)]
         tab3_r_aia_submap_rect.data_source.data['height'] = [(ya1 - ya0)]
-        vx = (VdspecDF['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
+        vx = (VdspecDF['shape_longitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
         vmax_vx, vmin_vx = xa1, xa0
         vx[vx > vmax_vx] = vmax_vx
         vx[vx < vmin_vx] = vmin_vx
         tab3_r_dspec_vectorx.data_source.data['image'] = [vx]
-        vy = (VdspecDF['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
+        vy = (VdspecDF['shape_latitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
         vmax_vy, vmin_vy = ya1, ya0
         vy[vy > vmax_vy] = vmax_vy
         vy[vy < vmin_vy] = vmin_vy
@@ -447,21 +448,21 @@ def tab3_SRC_dspec_vector_init():
     global mean_amp_g, mean_vx, mean_vy, drange_amp_g, drange_vx, drange_vy
     global vmax_amp_g, vmax_vx, vmax_vy, vmin_amp_g, vmin_vx, vmin_vy
     start_timestamp = time.time()
-    amp_g = (dspecDF0['peak'].copy()).reshape(tab2_nfreq, tab2_ntim)
+    amp_g = (dspecDF0['peak'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
     mean_amp_g = np.nanmean(amp_g)
     drange_amp_g = 40.
     vmax_amp_g, vmin_amp_g = mean_amp_g + drange_amp_g * np.asarray([1., -1.])
     amp_g[amp_g > vmax_amp_g] = vmax_amp_g
     amp_g[amp_g < vmin_amp_g] = vmin_amp_g
     tab3_dspec_vector_img = [amp_g]
-    vx = (dspecDF0['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
+    vx = (dspecDF0['shape_longitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
     mean_vx = np.nanmean(vx)
     drange_vx = 40.
     vmax_vx, vmin_vx = mean_vx + drange_vx * np.asarray([1., -1.])
     vx[vx > vmax_vx] = vmax_vx
     vx[vx < vmin_vx] = vmin_vx
     tab3_dspec_vectorx_img = [vx]
-    vy = (dspecDF0['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
+    vy = (dspecDF0['shape_latitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
     mean_vy = np.nanmean(vy)
     drange_vy = 40.
     vmax_vy, vmin_vy = mean_vy + drange_vy * np.asarray([1., -1.])
@@ -481,7 +482,7 @@ def tab3_SRC_dspec_vector_update():
     global vmax_amp_g, vmax_vx, vmax_vy, vmin_amp_g, vmin_vx, vmin_vy
     global VdspecDF
     start_timestamp = time.time()
-    amp_g = (VdspecDF['peak'].copy()).reshape(tab2_nfreq, tab2_ntim)
+    amp_g = (VdspecDF['peak'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
     mean_amp_g = np.nanmean(amp_g)
     drange_amp_g = 40.
     vmax_amp_g, vmin_amp_g = mean_amp_g + drange_amp_g * np.asarray([1., -1.])
@@ -489,14 +490,14 @@ def tab3_SRC_dspec_vector_update():
     amp_g[amp_g < vmin_amp_g] = vmin_amp_g
     tab3_r_dspec_vector.data_source.data['image'] = [amp_g]
     # todo add threshold selection to the vector dynamic spectrum
-    vx = (VdspecDF['shape_longitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
+    vx = (VdspecDF['shape_longitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
     mean_vx = np.nanmean(vx)
     drange_vx = 40.
     vmax_vx, vmin_vx = mean_vx + drange_vx * np.asarray([1., -1.])
     vx[vx > vmax_vx] = vmax_vx
     vx[vx < vmin_vx] = vmin_vx
     tab3_r_dspec_vectorx.data_source.data['image'] = [vx]
-    vy = (VdspecDF['shape_latitude'].copy()).reshape(tab2_nfreq, tab2_ntim)
+    vy = (VdspecDF['shape_latitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
     mean_vy = np.nanmean(vy)
     drange_vy = 40.
     vmax_vy, vmin_vy = mean_vy + drange_vy * np.asarray([1., -1.])
@@ -635,7 +636,7 @@ def tab3_BUT_dspec_small_reset_update():
     vmin_values = tab3_dspec_small_CTRLs_OPT['vmin_values']
     source_list = [tab3_r_dspec_vector, tab3_r_dspec_vectorx, tab3_r_dspec_vectory]
     for ll, item in enumerate(items_dspec_small):
-        TmpData = (VdspecDF[item].copy()).reshape(tab2_nfreq, tab2_ntim)
+        TmpData = (VdspecDF[item].copy()).values.reshape(tab2_nfreq, tab2_ntim)
         TmpData[TmpData > vmax_values[ll]] = vmax_values[ll]
         TmpData[TmpData < vmin_values[ll]] = vmin_values[ll]
         source_list[ll].data_source.data['image'] = [TmpData]
@@ -674,7 +675,7 @@ def tab3_slider_dspec_small_update(attrname, old, new):
     if not tab3_dspec_small_CTRLs_OPT['radio_button_group_dspec_small_update_flag']:
         tab3_dspec_small_CTRLs_OPT['vmax_values_last'][idx_p_dspec_small] = dmax
         tab3_dspec_small_CTRLs_OPT['vmin_values_last'][idx_p_dspec_small] = dmin
-    TmpData = (VdspecDF[items_dspec_small[idx_p_dspec_small]].copy()).reshape(tab2_nfreq, tab2_ntim)
+    TmpData = (VdspecDF[items_dspec_small[idx_p_dspec_small]].copy()).values.reshape(tab2_nfreq, tab2_ntim)
     TmpData[TmpData > dmax] = dmax
     TmpData[TmpData < dmin] = dmin
     if idx_p_dspec_small == 0:
