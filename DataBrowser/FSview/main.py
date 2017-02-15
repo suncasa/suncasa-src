@@ -111,9 +111,9 @@ def rebin_specdata(tab2_spec, spec_square_rs_tmax=None, spec_square_rs_fmax=None
     # global tab2_spec_rs, tab2_tim_image_rs, tab2_freq_image_rs, tab2_ntim_image_rs, tab2_nfreq_image_rs
     tab2_spec_sz = tab2_spec.shape
     if tab2_spec_sz[3] > spec_square_rs_tmax * spec_image_rs_ratio:
-        spec_sz2 = float(spec_square_rs_tmax * spec_image_rs_ratio)/float(tab2_spec_sz[3])
+        spec_sz2 = float(spec_square_rs_tmax * spec_image_rs_ratio) / float(tab2_spec_sz[3])
     if tab2_spec_sz[2] > spec_square_rs_fmax * spec_image_rs_ratio:
-        spec_sz1 = float(spec_square_rs_fmax * spec_image_rs_ratio)/float(tab2_spec_sz[2])
+        spec_sz1 = float(spec_square_rs_fmax * spec_image_rs_ratio) / float(tab2_spec_sz[2])
     tab2_spec_rs = sn.interpolation.zoom(tab2_spec, [1, 1, spec_sz1, spec_sz2], order=1)
     tab2_tim_image_rs = sn.interpolation.zoom(tab2_tim, spec_sz2, order=1)
     tab2_freq_image_rs = sn.interpolation.zoom(tab2_freq, spec_sz1, order=1)
@@ -146,7 +146,6 @@ def make_spec_plt(spec_plt_R, spec_plt_L):
     spec_pol['I'] = (spec_pol['RR'] + spec_pol['LL']) / 2
     spec_pol['V'] = (spec_pol['RR'] - spec_pol['LL']) / 2
     return {'spec': spec_pol, 'max': spec_max_pol, 'min': spec_min_pol}
-
 
 
 def tab2_vdspec_update():
@@ -228,6 +227,7 @@ def tab2_update_dspec_image(attrname, old, new):
     else:
         tab2_bl_pol_cls_change(None, select_pol)
 
+
 def tab2_bl_pol_cls_change(bl_index, select_pol):
     global spec_pol_dict, dspecDF0_rs
     global tab2_SRC_dspec_square, tab2_p_dspec
@@ -235,15 +235,17 @@ def tab2_bl_pol_cls_change(bl_index, select_pol):
     if tab2_BUT_vdspec.label == "VEC Dyn Spec":
         spec_plt_R = tab2_spec[0, bl_index, :, :]
         spec_plt_L = tab2_spec[1, bl_index, :, :]
-    else:
-        spec_plt_R = spec_pol_dict['spec'][select_pol]
-        spec_plt_L = spec_pol_dict['spec'][select_pol]
+        spec_pol_dict = make_spec_plt(spec_plt_R, spec_plt_L)
+    # else:
+    #     spec_plt_R = spec_pol_dict['spec']['RR']
+    #     spec_plt_L = spec_pol_dict['spec']['LL']
 
-    spec_pol_dict = make_spec_plt(spec_plt_R, spec_plt_L)
     if select_pol == 'V':
         tab2_Select_colorspace.value = 'linear'
     if tab2_Select_colorspace.value == 'log' and select_pol != 'V':
-        tab2_r_dspec.data_source.data['image'] = [np.log(spec_pol_dict['spec'][select_pol])]
+        tmp = spec_pol_dict['spec'][select_pol]
+        tmp[tmp < 1.0] = 1.0
+        tab2_r_dspec.data_source.data['image'] = [np.log(tmp)]
     else:
         tab2_r_dspec.data_source.data['image'] = [spec_pol_dict['spec'][select_pol]]
     tab2_SRC_dspec_square.data['dspec'] = spec_pol_dict['spec'][select_pol].flatten()
@@ -883,7 +885,6 @@ def tab2_prep_vla_square_selection_change(attrname, old, new):
     else:
         tab2_r_vla_ImgRgn_patch.data_source.data = ColumnDataSource(
             pd.DataFrame({'xx': [], 'yy': []})).data
-
 
 
 def tab2_BUT_tImfit_param_add():
@@ -2486,7 +2487,7 @@ else:
         data['y'].push(cdata.freq[indices[0]]);
         data['tooltips'].push(tooltips);
         rdy_hover.set('data', data);
-        """ % (tab2_ntim/spec_rs_step, tab2_nfreq-1)
+        """ % (tab2_ntim / spec_rs_step, tab2_nfreq - 1)
 
     tab2_p_dspec_hover_callback = CustomJS(
         args={'rs': ColumnDataSource(dspecDF0_rs), 'rdx': r_dspec_xPro.data_source,
