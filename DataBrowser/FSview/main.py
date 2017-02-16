@@ -267,19 +267,34 @@ def tab2_panel_XrsCorr_update():
         ccpeak = np.empty((nfreqSel - 1, nfreqSel - 1))
         ccpeak[:] = np.nan
         ccmax = ccpeak.copy()
-        fidx1, fidx2 = [], []
+        freqa = ccpeak.copy()
+        freqv = ccpeak.copy()
+        fidxa = ccpeak.copy()
+        fidxv = ccpeak.copy()
         for idx1 in xrange(1, nfreqSel):
             for idx2 in xrange(0, idx1):
                 lightcurve1 = dspecSel[idx1, :]
                 lightcurve2 = dspecSel[idx2, :]
                 ccval = c_correlate(lightcurve1, lightcurve2)
-                ccmax[idx2, idx1 - 1] = np.amax(ccval)
-                ccpeak[idx2, idx1 - 1] = np.argmax(ccval)
-                fidx1.append(freqSel[idx1 - 1])
-                fidx2.append(freqSel[idx2])
+                cmax = np.amax(ccval)
+                cpeak = np.argmax(ccval)-ntimSel/2
+                ccmax[idx2, idx1 - 1] = cmax
+                ccpeak[idx2, idx1 - 1] = cpeak
+                freqa[idx2, idx1 - 1] = freqSel[idx1 - 1]
+                freqv[idx2, idx1 - 1] = freqSel[idx2]
+                fidxa[idx2, idx1 - 1] = idx1 - 1
+                fidxv[idx2, idx1 - 1] = idx2
+                if idx1 - 1 != idx2:
+                    ccmax[idx1 - 1, idx2] = cmax
+                    ccpeak[idx1 - 1, idx2] = cpeak
+                    freqa[idx1 - 1, idx2] = freqSel[idx2]
+                    freqv[idx1 - 1, idx2] = freqSel[idx1 - 1]
+                    fidxa[idx1 - 1, idx2] = idx2
+                    fidxv[idx1 - 1, idx2] = idx1 - 1
+
         CC_save = database_dir + event_id + struct_id + 'CC_save.npz'
         np.savez(CC_save, spec=dspecSel, ccmax=ccmax, ccpeak=ccpeak, tim=timSel, freq=freqSel, nfreq=nfreqSel,
-                 ntim=ntimSel, fidx1=np.array(fidx1), fidx2=np.array(fidx2))
+                 ntim=ntimSel, freqv=freqv, freqa=freqa, fidxv=fidxv, fidxa=fidxa)
         tab2_Div_LinkImg_plot.text = '<p><b>{}</b> saved.</p>'.format(CC_save)
         port = getfreeport()
         print 'bokeh serve {}DataBrowser/XrsCorr --show --port {} &'.format(suncasa_dir, port)
@@ -1219,7 +1234,6 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec.axis.major_tick_line_color = "white"
         tab2_p_dspec.axis.minor_tick_line_color = "white"
 
-
         tab2_Select_pol = Select(title="Polarization:", value='I', options=['RR', 'LL', 'I', 'V'],
                                  width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         tab2_Select_bl = Select(title="Baseline:", value=tab2_bl[0], options=tab2_bl,
@@ -1315,7 +1329,7 @@ if os.path.exists(FS_dspecDF):
             var ny = %d;
             var data = {'x': [], 'y': []};
             var cdata = rs.get('data');
-            var rsstep = spec_rs_step.get('data').data[0]
+            var rsstep = spec_rs_step.get('data').data[0];
             var indices = cb_data.index['1d'].indices;
             var idx_offset = indices[0] - (indices[0] %% nx);
             for (i=0; i < nx; i++) {
