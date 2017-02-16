@@ -11,6 +11,10 @@
       "space_wdth20": 20,
       "space_hght10": 10
     },
+    "tab_XrsCorr": {
+      "dspec_hght": 400,
+      "dspec_wdth": 800
+    },
     "tab_FSview_base": {
       "dspec_thumb_wdth": 200,
       "dspec_yPro_hght": 400,
@@ -30,9 +34,9 @@
       "space_hght18": 18,
       "space_wdth20": 20,
       "space_hght10": 10,
-      "spec_square_rs_tmax":300,
-      "spec_square_rs_fmax":256,
-      "spec_image_rs_ratio":3.0
+      "spec_square_rs_tmax": 300,
+      "spec_square_rs_fmax": 256,
+      "spec_image_rs_ratio": 3.0
     },
     "tab_FSviewPrep": {
       "tab2_Div_tImfit_wdth": 600,
