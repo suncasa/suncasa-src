@@ -252,7 +252,7 @@ ports = []
 
 def tab2_panel_XrsCorr_update():
     global tab2_dspec_selected, dspecDF_select
-    if tab2_dspec_selected and len(tab2_dspec_selected) > 100:
+    if tab2_dspec_selected and len(tab2_dspec_selected) > 50:
         time0, time1 = Time((dspecDF_select['time'].min() + timestart) / 3600. / 24., format='jd'), Time(
             (dspecDF_select['time'].max() + timestart) / 3600. / 24., format='jd')
         freq0, freq1 = dspecDF_select['freq'].min(), dspecDF_select['freq'].max()
