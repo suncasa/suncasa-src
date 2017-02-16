@@ -1205,6 +1205,11 @@ if os.path.exists(FS_dspecDF):
                                                 config_plot['plot_config']['tab_FSview_base'][
                                                     'dspec_hght'] / tab2_nfreq * spec_rs_step))
 
+        tab2_p_dspec.add_tools(BoxSelectTool(renderers=[tab2_r_square]))
+        tab2_SRC_dspec_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
+        tab2_r_dspec_patch = tab2_p_dspec.patch('xx', 'yy', source=tab2_SRC_dspec_Patch,
+                                                fill_color=None, fill_alpha=0.5, line_color="Magenta",
+                                                line_alpha=1.0, line_width=1)
         # tab2_p_dspec.border_fill_color = "silver"
         tab2_p_dspec.border_fill_alpha = 0.4
         tab2_p_dspec.axis.major_tick_out = 0
@@ -1213,7 +1218,7 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec.axis.minor_tick_in = 3
         tab2_p_dspec.axis.major_tick_line_color = "white"
         tab2_p_dspec.axis.minor_tick_line_color = "white"
-        tab2_p_dspec.add_tools(BoxSelectTool(renderers=[tab2_r_square]))
+
 
         tab2_Select_pol = Select(title="Polarization:", value='I', options=['RR', 'LL', 'I', 'V'],
                                  width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
