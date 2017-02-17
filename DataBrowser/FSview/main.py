@@ -277,7 +277,7 @@ def tab2_panel_XrsCorr_update():
                 lightcurve2 = dspecSel[idx2, :]
                 ccval = c_correlate(lightcurve1, lightcurve2)
                 cmax = np.amax(ccval)
-                cpeak = np.argmax(ccval)-ntimSel/2
+                cpeak = np.argmax(ccval) - ntimSel / 2
                 ccmax[idx2, idx1 - 1] = cmax
                 ccpeak[idx2, idx1 - 1] = cpeak
                 freqa[idx2, idx1 - 1] = freqSel[idx1 - 1]
@@ -295,7 +295,10 @@ def tab2_panel_XrsCorr_update():
         CC_save = database_dir + event_id + struct_id + 'CC_save.npz'
         np.savez(CC_save, spec=dspecSel, ccmax=ccmax, ccpeak=ccpeak, tim=timSel, freq=freqSel, nfreq=nfreqSel,
                  ntim=ntimSel, freqv=freqv, freqa=freqa, fidxv=fidxv, fidxa=fidxa)
-        tab2_Div_LinkImg_plot.text = '<p><b>{}</b> saved.</p>'.format(CC_save)
+        try:
+            tab2_Div_LinkImg_plot.text = '<p><b>{}</b> saved.</p>'.format(CC_save)
+        except:
+            pass
         port = getfreeport()
         print 'bokeh serve {}DataBrowser/XrsCorr --show --port {} &'.format(suncasa_dir, port)
         os.system('bokeh serve {}DataBrowser/XrsCorr --show --port {} &'.format(suncasa_dir, port))
@@ -1609,10 +1612,10 @@ if os.path.exists(FS_dspecDF):
         tab2_LinkImg_HGHT = config_plot['plot_config']['tab_FSview_base']['vla_hght']
         tab2_LinkImg_WDTH = config_plot['plot_config']['tab_FSview_base']['vla_wdth']
 
-        tab2_panel2_BUT_XrsCorr = Button(label='Xcros Corr',
-                                         width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
-                                         button_type='warning')
-        tab2_panel2_BUT_XrsCorr.on_click(tab2_panel_XrsCorr_update)
+        tab2_BUT_XrsCorr = Button(label='Xcros Corr',
+                                  width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                  button_type='warning')
+        tab2_BUT_XrsCorr.on_click(tab2_panel_XrsCorr_update)
 
         tab2_panel2_BUT_exit = Button(label='Exit FSview',
                                       width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
@@ -1803,7 +1806,7 @@ if os.path.exists(FS_dspecDF):
         # else:
         lout2_2_1 = column(row(tab2_p_dspec, tab2_p_dspec_yPro), tab2_p_dspec_xPro)
         lout2_2_2 = widgetbox(tab2_Select_pol, tab2_Select_bl,
-                              tab2_Select_colorspace,
+                              tab2_Select_colorspace, tab2_BUT_XrsCorr,
                               tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
                               width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         lout2_2 = row(lout2_2_1, lout2_2_2)
@@ -1818,7 +1821,7 @@ if os.path.exists(FS_dspecDF):
                                   toolbar_location='right'), tab3_Div_Tb)
         lout3_3 = widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
                             tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab2_Select_aia_wave,
-                            tab2_panel2_BUT_XrsCorr, tab2_panel3_BUT_exit,
+                            tab2_panel3_BUT_exit,
                             # tab2_panel3_Div_exit,
                             width=200)
         panel3 = row(lout3_1, lout3_2, lout3_3)
@@ -2230,10 +2233,10 @@ if os.path.exists(FS_dspecDF):
             for ctrl in tab2_CTRLs_LinkImg:
                 ctrl.on_change('value', tab3_slider_LinkImg_update)
 
-            tab2_panel2_BUT_XrsCorr = Button(label='Xcros Corr',
-                                             width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
-                                             button_type='warning')
-            tab2_panel2_BUT_XrsCorr.on_click(tab2_panel_XrsCorr_update)
+            tab2_BUT_XrsCorr = Button(label='Xcros Corr',
+                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                      button_type='warning')
+            tab2_BUT_XrsCorr.on_click(tab2_panel_XrsCorr_update)
 
             tab2_panel2_BUT_exit = Button(label='Exit FSview',
                                           width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
@@ -2300,7 +2303,7 @@ if os.path.exists(FS_dspecDF):
             lout2_1_2 = row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
                                    tab2_p_dspec_xPro),
                             widgetbox(tab2_Select_pol, tab2_Select_bl,
-                                      tab2_Select_colorspace, tab2_panel2_BUT_XrsCorr,
+                                      tab2_Select_colorspace, tab2_BUT_XrsCorr,
                                       tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
                                       width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
             lout2_1 = column(lout2_1_1, lout2_1_2)
@@ -2832,6 +2835,11 @@ else:
     tab2_BUT_FS_view = Button(label='FS view', width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'],
                               button_type='primary')
 
+    tab2_BUT_XrsCorr = Button(label='Xcros Corr',
+                              width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'],
+                              button_type='warning')
+    tab2_BUT_XrsCorr.on_click(tab2_panel_XrsCorr_update)
+
 
     def tab2_panel2_exit():
         tab2_panel_Div_exit.text = """<p><b>You may close the tab anytime you like.</b></p>"""
@@ -2852,6 +2860,7 @@ else:
                                                   tab2_BUT_tCLN_param_SAVE, tab2_SPCR_LFT_BUT_CLEAN,
                                                   tab2_BUT_tCLN_CLEAN)),
                                        widgetbox(tab2_Select_pol, tab2_Select_bl, tab2_Select_colorspace,
+                                                 tab2_BUT_XrsCorr,
                                                  tab2_panel2_BUT_exit,
                                                  tab2_panel_Div_exit,
                                                  width=config_plot['plot_config']['tab_FSview2CASA'][
