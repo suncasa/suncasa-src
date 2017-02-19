@@ -455,7 +455,7 @@ def importeovsa_iter(timebin, width, visprefix, nocreatms, modelms, filename):
         return [False, '', 0]
 
 
-def importeovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, nocreatms=True, doconcat=False, modelms=''):
+def pimporteovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, nocreatms=True, doconcat=False, modelms=''):
     casalog.origin('importeovsa')
 
     # # Initialize the helper class
