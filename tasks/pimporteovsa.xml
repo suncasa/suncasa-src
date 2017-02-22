@@ -7,7 +7,7 @@
 
 
     <task type="function" name="pimporteovsa" category="Import/export">
-        pimporteovsa(idbfiles,
+pimporteovsa(idbfiles,
         ncpu=8,
         timebin=None,
         width=None,
@@ -16,8 +16,7 @@
         doconcat=False,
         modelms=''):
 
-        <shortdescription>Parallelized import EOVSA idb file(s) to a measurement set or multiple measurement set
-        </shortdescription>
+        <shortdescription>Parallelized import EOVSA idb file(s) to a measurement set or multiple measurement set</shortdescription>
 
         <description>
             Parallelized imports an arbitrary number of EOVSA idb-format data sets into
