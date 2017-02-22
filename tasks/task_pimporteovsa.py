@@ -1,14 +1,10 @@
 import os
-# import sys
 import gc
 import numpy as np
-# import matplotlib.pyplot as plt
 import pandas as pd
 import scipy.constants as constants
 import time
-# import glob
 import aipy
-import eovsapy.chan_util_bc as chan_util_bc
 import eovsapy.read_idb as ri
 from eovsapy.util import Time
 from taskinit import *
@@ -16,228 +12,15 @@ from split_cli import split_cli as split
 from concat_cli import concat_cli as concat
 import multiprocessing as mp
 from functools import partial
+from suncasa.utils import impteovsa as ipe
 
 
 # from parallel.parallel_data_helper import ParallelDataHelper
 
-def jd2mjds(tjd=None):
-    tmjds = (tjd - 2400000.5) * 24. * 3600.
-    return tmjds
 
 
-def bl_list2(nant=16):
-    ''' Returns a two-dimensional array bl2ord that will translate
-        a pair of antenna indexes (antenna number - 1) to the ordinal
-        number of the baseline in the 'x' key.  Note bl2ord(i,j) = bl2ord(j,i),
-        and bl2ord(i,i) = -1.
-    '''
-    bl2ord = np.ones((nant, nant), dtype='int') * (-1)
-    k = 0
-    for i in range(nant):
-        for j in range(i, nant):
-            bl2ord[i, j] = k
-            # bl2ord[j,i] = k
-            k += 1
-    return bl2ord
-
-
-def get_band_edge(nband=34):
-    # Input the frequencies from UV, returen the indices frequency edges of all bands
-    idx_start_freq = [0]
-    ntmp = 0
-    for i in range(1, nband + 1):
-        ntmp += len(chan_util_bc.start_freq(i))
-        idx_start_freq.append(ntmp)
-
-    return np.asarray(idx_start_freq)
-
-
-def get_band(sfreq=None, sdf=None):
-    # Input the frequencies from UV
-    # return a dictionary contains the band information:
-    # freq, df
-    # list of channel index 'cidx': the length of the list is the number of channels in this band
-    # list of channel index in a band with filled gap 'cidxstd': the index of channels in this band
-    # and the grouped index list cidxstd_group
-    from operator import itemgetter
-    from itertools import groupby
-    nband = 34
-    bandlist = []
-    for i in xrange(1, nband + 1):
-        bandse = np.array([1.0, 1.5]) + (i - 1) * 0.5
-        chans = []
-        for ll, item in enumerate(sfreq):
-            if bandse[0] <= item < bandse[1]:
-                chans.append(item)
-                sdf2 = sdf[ll]
-        if not chans:
-            pass
-        else:
-            nchan = int(round((chans[-1] - chans[0]) / sdf2) + 1)
-            chans_std = (chans[0] + np.linspace(0, nchan - 1, nchan) * sdf2).astype('float32').tolist()
-            chanidx = range(0, len(chans))
-            chanidxstd = [chans_std.index(ll) for ll in np.asarray(chans, dtype='float32')]
-            bandlist.append({'band': i, 'freq': chans, 'df': sdf2, 'cidx': chanidx, 'cidxstd': chanidxstd})
-    for i in xrange(0, len(bandlist)):
-        if i == 0:
-            pass
-        else:
-            bandlist[i]['cidx'] = [ll + bandlist[i - 1]['cidx'][-1] + 1 for ll in bandlist[i]['cidx']]
-            bandlist[i]['cidxstd'] = [ll + bandlist[i - 1]['cidxstd'][-1] + 1 for ll in bandlist[i]['cidxstd']]
-        data = bandlist[i]['cidxstd']
-        ranges = []
-        for k, g in groupby(enumerate(data), lambda (i, x): i - x):
-            ranges.append(map(itemgetter(1), g))
-        bandlist[i]['cidxstd_group'] = ranges
-    return bandlist
-
-
-# def uv_hex_rm(uv=None):
-#     # import re
-#     uvs = {}
-#     for ll in uv.vartable:
-#         if type(uv[ll]) == str:
-#             uvs[ll] = re.sub(r'[^\x20-\x7E].*', '', uv[ll])
-#     return uvs
-
-
-def creatms(idbfile, outpath, timebin=None, width=None):
-    uv = aipy.miriad.UV(idbfile)
-    uv.rewind()
-    # if idbfile.split('/')[-1][0:3] == 'UDB':
-    #     uv_str = uv_hex_rm(uv)
-    # else:
-    #     uv_str = uv
-
-    uv.select('antennae', 0, 1, include=True)
-    uv.select('polarization', -5, -5, include=True)
-    times = []
-    for preamble, data in uv.all():
-        uvw, t, (i, j) = preamble
-        times.append(t)
-
-    uv.select('clear', -1, -1, include=True)
-    times = jd2mjds(np.asarray(times))
-    inttime = np.median((times - np.roll(times, 1))[1:])
-
-    start_time = 0  # The start and stop times are referenced to ref_time_jd in second
-    # todo ask Jim to add a variable describing the delta time
-    end_time = times[-1] - times[0] + inttime
-
-    time0 = time.time()
-
-    if 'antlist' in uv.vartable:
-        ants = uv['antlist'].replace('\x00', '')
-        antlist = map(int, ants.split())
-    else:
-        antlist = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-
-    good_idx = np.where(uv['sfreq'] > 0)[0]
-
-    ref_time_jd = uv['time']
-    sfreq = uv['sfreq'][good_idx]
-    sdf = uv['sdf'][good_idx]
-    project = uv['proj'].replace('\x00', '')
-    source_id = uv['source'].replace('\x00', '')
-    chan_band = get_band(sfreq=sfreq, sdf=sdf)
-    msname = list(idbfile.split('/')[-1])
-    msname = outpath + ''.join(msname) + '-10m.ms'
-
-    if os.path.exists(msname):
-        os.system("rm -fr %s" % msname)
-
-    """ Creates an empty measurement set using CASA simulate (sm) tool. """
-    sm.open(msname)
-
-    enu = np.reshape(uv['antpos'], (16, 3)) * constants.speed_of_light / 1e9
-    refpos_wgs84 = me.position('wgs84',
-                               '-118.286952892965deg',
-                               '37.2331698901026deg',
-                               '1207.1339m')
-    lon, lat, rad = [me.measure(refpos_wgs84, 'itrf')[x]['value'] for x in 'm0', 'm1', 'm2']
-    # 3x3 transform matrix. Each row is a normal vector, i.e. the rows are (dE,dN,dU)
-    # ----------- local xyz ------------
-    xform = np.array([
-        [0, -np.sin(lat), np.cos(lat)],
-        [1, 0, 0],
-        [0, np.cos(lat), np.sin(lat)]])
-    xyz = enu.dot(xform)  # + xyz0[np.newaxis,:]
-
-    # ----------- global xyz ------------
-    # xyz0 = rad*np.array([np.cos(lat)*np.cos(lon),np.cos(lat)*np.sin(lon),np.sin(lat)])
-    # # 3x3 transform matrix. Each row is a normal vector, i.e. the rows are (dE,dN,dU)
-    # xform = np.array([
-    #     [-np.sin(lon),np.cos(lon),0],
-    #     [-np.cos(lon)*np.sin(lat),-np.sin(lon)*np.sin(lat),np.cos(lat)],
-    #     [np.cos(lat)*np.cos(lon),np.cos(lat)*np.sin(lon),np.sin(lat)]
-    # ])
-    # xyz = xyz0[np.newaxis,:] + enu.dot(xform)
-
-    dishdiam = np.asarray([2.1] * uv['nants'])
-    dishdiam[-3:-1] = 27
-    dishdiam[-1] = 2.1
-    station = uv['telescop'].replace('\x00', '')
-    mount = ['ALT-AZ'] * uv['nants']
-    for l in [8, 9, 10, 12, 13, 14]:
-        mount[l] = 'EQUATORIAL'
-    sm.setconfig(telescopename=station,
-                 x=np.asarray(xyz)[:, 0],
-                 y=np.asarray(xyz)[:, 1],
-                 z=np.asarray(xyz)[:, 2],
-                 dishdiameter=dishdiam,
-                 mount=mount,
-                 antname=['eo' + "{0:02d}".format(l) for l in antlist],
-                 padname=station,
-                 coordsystem='local', referencelocation=refpos_wgs84)
-
-    sm.setfield(sourcename=source_id,
-                sourcedirection=me.direction('J2000',
-                                             '{:22.19f}'.format(uv['obsra']) + 'rad',
-                                             '{:22.19f}'.format(uv['obsdec']) + 'rad'))
-    sm.setfeed(mode='perfect X Y')
-
-    ref_time = me.epoch('tai',
-                        '{:20.13f}'.format(ref_time_jd - 2400000.5) + 'd')
-
-    sm.settimes(integrationtime='{:.3f}s'.format(inttime),
-                usehourangle=False,
-                referencetime=ref_time)
-
-    for l, cband in enumerate(chan_band):
-        nchannels = len(cband['cidx'])
-        stokes = 'XX YY XY YX'
-
-        sm.setspwindow(spwname='band{:02d}'.format(cband['band']),
-                       freq='{:22.19f}'.format(cband['freq'][0]) + 'GHz',
-                       deltafreq='{:22.19f}'.format(cband['df']) + 'GHz',
-                       freqresolution='{:22.19f}'.format(cband['df']) + 'GHz',
-                       nchannels=nchannels,
-                       stokes=stokes)
-
-    for l, cband in enumerate(chan_band):
-        sm.observe(source_id, 'band{:02d}'.format(cband['band']),
-                   starttime=start_time, stoptime=end_time,
-                   project=project,
-                   state_obs_mode='')
-
-    if sm.done():
-        casalog.post('Empty MS {0} created in --- {1:10.2f} seconds ---'.format(msname, (time.time() - time0)))
-    else:
-        raise RuntimeError('Failed to create MS. Look at the log file. '
-                           'Double check you settings.')
-
-    modelms = msname + '.MSmodel'
-    os.system('mv {} {}'.format(msname, modelms))
-
-    # if timebin != '0s' or width != 1:
-    #     modelms = msname + '.MSmodel'
-    #     split(vis=msname, outputvis=modelms, datacolumn='data', timebin=timebin, width=width)
-    #     os.system('rm -rf {}'.format(msname))
-
-    return modelms
-
-
-def importeovsa_iter(timebin, width, visprefix, nocreatms, modelms, filename):
+def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, fileidx):
+    filename = filelist[fileidx]
     uv = aipy.miriad.UV(filename)
     # if filename.split('/')[-1][0:3] == 'UDB':
     #     uv_str = uv_hex_rm(uv)
@@ -253,7 +36,7 @@ def importeovsa_iter(timebin, width, visprefix, nocreatms, modelms, filename):
             times.append(t)
 
         uv.select('clear', -1, -1, include=True)
-        times = jd2mjds(np.asarray(times))
+        times = ipe.jd2mjds(np.asarray(times))
         inttime = np.median((times - np.roll(times, 1))[1:]) / 60
 
         time_steps = len(times)
@@ -276,12 +59,12 @@ def importeovsa_iter(timebin, width, visprefix, nocreatms, modelms, filename):
         sdf = uv['sdf'][good_idx]
         ra, dec = uv['ra'], uv['dec']
         nbl = nants * (nants - 1) / 2
-        bl2ord = bl_list2(nants)
+        bl2ord = ipe.bl_list2(nants)
         npairs = nbl + nants
         flag = np.ones((npol, nf, time_steps, npairs), dtype=bool)
         out = np.zeros((npol, nf, time_steps, npairs), dtype=np.complex64)  # Cross-correlations
         uvwarray = np.zeros((3, time_steps, npairs), dtype=np.float)
-        chan_band = get_band(sfreq=sfreq, sdf=sdf)
+        chan_band = ipe.get_band(sfreq=sfreq, sdf=sdf)
         nband = len(chan_band)
 
         uv.rewind()
@@ -317,7 +100,7 @@ def importeovsa_iter(timebin, width, visprefix, nocreatms, modelms, filename):
         msname = visprefix + ''.join(msname) + '-{:d}m.ms'.format(int((times[-1] - times[0]) / 60 + inttime))
 
         if not nocreatms:
-            modelms = creatms(filename, visprefix)
+            modelms = ipe.creatms(filename, visprefix)
             os.system('mv {} {}'.format(modelms, msname))
         else:
             casalog.post('----------------------------------------')
@@ -437,8 +220,8 @@ def importeovsa_iter(timebin, width, visprefix, nocreatms, modelms, filename):
         # FIELD: DELAY_DIR, PHASE_DIR, REFERENCE_DIR, NAME
 
 
-        del out, flag, uvwarray, uv, timearr, sigma
-        gc.collect()  #
+        # del out, flag, uvwarray, uv, timearr, sigma
+        # gc.collect()  #
 
         if not (timebin == '0s' and width == 1):
             split(vis=msname, outputvis=msname + '.split', datacolumn='data', timebin=timebin, width=width,
@@ -455,8 +238,9 @@ def importeovsa_iter(timebin, width, visprefix, nocreatms, modelms, filename):
         return [False, '', 0]
 
 
-def pimporteovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, nocreatms=True, doconcat=False, modelms=''):
-    casalog.origin('importeovsa')
+def pimporteovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, nocreatms=True, doconcat=False,
+                 modelms=''):
+    casalog.origin('pimporteovsa')
 
     # # Initialize the helper class
     # pdh = ParallelDataHelper("importeovsa", locals())
@@ -467,7 +251,15 @@ def pimporteovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, noc
     # except Exception, instance:
     #     casalog.post('%s' % instance, 'ERROR')
     #     return False
-
+    import glob
+    idbfiles = glob.glob('IDB*_unrot')
+    ncpu = 6
+    timebin = None
+    width = None
+    visprefix = None
+    nocreatms = False
+    doconcat = False
+    modelms = ''
     if not (type(ncpu) is int):
         casalog.post('ncpu should be an integer')
         ncpu = 8
@@ -484,7 +276,7 @@ def pimporteovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, noc
     for f in filelist:
         if not os.path.exists(f):
             casalog.post("Some files in filelist are invalid. Aborting...")
-            return False
+            # return False
     if not visprefix:
         visprefix = './'
     if not timebin:
@@ -495,26 +287,24 @@ def pimporteovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, noc
     if not modelms:
         if nocreatms:
             filename = filelist[0]
-            modelms = creatms(filename, visprefix)
+            modelms = ipe.creatms(filename, visprefix)
     else:
         if not os.path.exists(modelms):
             if nocreatms:
                 filename = filelist[0]
-                modelms = creatms(filename, visprefix)
+                modelms = ipe.creatms(filename, visprefix)
 
-    iterable = filelist
-    imppart = partial(importeovsa_iter, timebin, width, visprefix, nocreatms, modelms)
+    iterable = range(len(filelist))
+    imppart = partial(importeovsa_iter, filelist, timebin, width, visprefix, nocreatms, modelms)
 
-    timelapse = 0
-    t0 = time()
+    t0 = time.time()
     casalog.post('Perform importeovsa in parallel ...')
     pool = mp.Pool(ncpu)
-    # res = pool.map_async(clnpart, iterable)
     res = pool.map(imppart, iterable)
     pool.close()
     pool.join()
 
-    t1 = time()
+    t1 = time.time()
     timelapse = t1 - t0
     print 'It took %f secs to complete' % timelapse
 
@@ -525,7 +315,7 @@ def pimporteovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, noc
     if doconcat:
         msname = list(os.path.basename(filelist[0]))
         concatvis = visprefix + ''.join(msname) + '-{:d}m.ms'.format(int(results['durtim'].sum()))
-        msfile=results.loc[results['succeeded']==True,:].msfile.tolist()
+        msfile = results.loc[results['succeeded'] == True, :].msfile.tolist()
         concat(vis=msfile, concatvis=concatvis, timesort=True)
         # Change all observation ids to be the same (zero)
         tb.open(concatvis + '/OBSERVATION', nomodify=False)

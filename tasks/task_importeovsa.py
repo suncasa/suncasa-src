@@ -1,11 +1,8 @@
 import os
-# import sys
 import gc
 import numpy as np
-# import matplotlib.pyplot as plt
 import scipy.constants as constants
 import time
-# import glob
 import aipy
 import eovsapy.chan_util_bc as chan_util_bc
 import eovsapy.read_idb as ri
@@ -118,7 +115,6 @@ def creatms(idbfile, outpath, timebin=None, width=None):
     inttime = np.median((times - np.roll(times, 1))[1:])
 
     start_time = 0  # The start and stop times are referenced to ref_time_jd in second
-    # todo ask Jim to add a variable describing the delta time
     end_time = times[-1] - times[0] + inttime
 
     time0 = time.time()
