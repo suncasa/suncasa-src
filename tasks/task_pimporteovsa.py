@@ -11,7 +11,7 @@ from eovsapy.util import Time
 from taskinit import tb, casalog
 from split_cli import split_cli as split
 from concat_cli import concat_cli as concat
-from pathos.multiprocessing import ProcessingPool as Pool
+import multiprocessing as mp
 from functools import partial
 from suncasa.utils import impteovsa as ipe
 
@@ -301,7 +301,7 @@ def pimporteovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, noc
 
     t0 = time.time()
     casalog.post('Perform importeovsa in parallel ...')
-    pool = Pool(ncpu)
+    pool = mp.Pool(ncpu)
     res = pool.map(imppart, iterable)
     pool.close()
     pool.join()
