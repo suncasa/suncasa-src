@@ -1,19 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?xml-stylesheet type="text/xsl" ?>
+
 <casaxml xmlns="http://casa.nrao.edu/schema/psetTypes.html"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://casa.nrao.edu/schema/casa.xsd
-    file:///opt/casa/code/xmlcasa/xml/casa.xsd">
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://casa.nrao.edu/schema/casa.xsd
+file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 
 
     <task type="function" name="importeovsa" category="Import/export">
-importeovsa(idbfiles,
-            timebin=None,
-            width=None,
-            visprefix=None,
-            nocreatms=True,
-            doconcat=False,
-            modelms=''):
+        importeovsa(idbfiles,
+        timebin=None,
+        width=None,
+        visprefix=None,
+        nocreatms=False,
+        doconcat=False,
+        modelms=''):
 
         <shortdescription>Import EOVSA idb file(s) to a measurement set or multiple measurement set</shortdescription>
 
@@ -115,7 +116,7 @@ importeovsa(idbfiles,
 
             <param type="bool" name="nocreatms">
                 <description>If setting nocreatms True, will simulate a model measurement set for the first idb file and copy the model for the rest of idl files in list. If False, will simulate a new measurement set for every idbfile in list.</description>
-                <value>True</value>
+                <value>False</value>
             </param>
 
             <param type="bool" name="doconcat">
