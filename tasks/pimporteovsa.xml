@@ -133,9 +133,7 @@ pimporteovsa(idbfiles,
         </param>
 
         <param type="string" name="modelms">
-            <description>Name of input model measurement set file. If modelms is assigned, no simulation will
-                start.
-            </description>
+            <description>Name of input model measurement set file. If modelms is assigned, no simulation will start.</description>
             <any type="variant" limittypes="string"/>
             <value type="string"></value>
         </param>
