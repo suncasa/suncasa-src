@@ -4,7 +4,7 @@ import aipy
 import time
 import os
 import scipy.constants as constants
-from taskinit import *
+from taskinit import sm, me, casalog
 
 
 def jd2mjds(tjd=None):

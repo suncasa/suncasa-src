@@ -1,5 +1,5 @@
 import os
-import gc
+# import gc
 import numpy as np
 import pandas as pd
 import scipy.constants as constants
@@ -7,10 +7,11 @@ import time
 import aipy
 import eovsapy.read_idb as ri
 from eovsapy.util import Time
-from taskinit import *
+# from taskinit import *
+from taskinit import tb, casalog
 from split_cli import split_cli as split
 from concat_cli import concat_cli as concat
-import multiprocessing as mp
+from pathos.multiprocessing import ProcessingPool as Pool
 from functools import partial
 from suncasa.utils import impteovsa as ipe
 
@@ -20,6 +21,7 @@ from suncasa.utils import impteovsa as ipe
 
 
 def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, fileidx):
+    from taskinit import tb, casalog
     filename = filelist[fileidx]
     uv = aipy.miriad.UV(filename)
     # if filename.split('/')[-1][0:3] == 'UDB':
@@ -251,18 +253,18 @@ def pimporteovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, noc
     # except Exception, instance:
     #     casalog.post('%s' % instance, 'ERROR')
     #     return False
-    import glob
-    idbfiles = glob.glob('IDB*_unrot')
-    ncpu = 6
-    timebin = None
-    width = None
-    visprefix = None
-    nocreatms = False
-    doconcat = False
-    modelms = ''
-    if not (type(ncpu) is int):
-        casalog.post('ncpu should be an integer')
-        ncpu = 8
+    # import glob
+    # idbfiles = glob.glob('IDB*_unrot')[:4]
+    # ncpu = 4
+    # timebin = None
+    # width = None
+    # visprefix = None
+    # nocreatms = False
+    # doconcat = False
+    # modelms = ''
+    # if not (type(ncpu) is int):
+    #     casalog.post('ncpu should be an integer')
+    #     ncpu = 8
 
     if type(idbfiles) == Time:
         filelist = ri.get_trange_files(idbfiles)
@@ -299,7 +301,7 @@ def pimporteovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, noc
 
     t0 = time.time()
     casalog.post('Perform importeovsa in parallel ...')
-    pool = mp.Pool(ncpu)
+    pool = Pool(ncpu)
     res = pool.map(imppart, iterable)
     pool.close()
     pool.join()
