@@ -8,13 +8,13 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 
 
     <task type="function" name="importeovsa" category="Import/export">
-    <!--importeovsa(idbfiles,-->
-                <!--timebin=None,-->
-                <!--width=None,-->
-                <!--visprefix=None,-->
-                <!--nocreatms=True,-->
-                <!--doconcat=False,-->
-                <!--modelms=''):-->
+        importeovsa(idbfiles,
+        timebin=None,
+        width=None,
+        visprefix=None,
+        nocreatms=True,
+        doconcat=False,
+        modelms=''):
 
         <shortdescription>Import EOVSA idb file(s) to a measurement set or multiple measurement set</shortdescription>
 

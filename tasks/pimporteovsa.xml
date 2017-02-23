@@ -8,14 +8,14 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 
 
 <task type="function" name="pimporteovsa" category="Import/export">
-<!--pimporteovsa(idbfiles,-->
-        <!--ncpu=8,-->
-        <!--timebin=None,-->
-        <!--width=None,-->
-        <!--visprefix=None,-->
-        <!--nocreatms=True,-->
-        <!--doconcat=False,-->
-        <!--modelms=''):-->
+pimporteovsa(idbfiles,
+        ncpu=8,
+        timebin=None,
+        width=None,
+        visprefix=None,
+        nocreatms=True,
+        doconcat=False,
+        modelms=''):
 
     <shortdescription>Parallelized import EOVSA idb file(s) to a measurement set or multiple measurement set</shortdescription>
 
@@ -123,9 +123,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
         </param>
 
         <param type="bool" name="nocreatms">
-            <description>If setting nocreatms True, will simulate a model measurement set for the first idb file and
-                copy the model for the rest of idl files in list. If False, will simulate a new measurement set for
-                every idbfile in list.
+            <description>If setting nocreatms True, will simulate a model measurement set for the first idb file and copy the model for the rest of idl files in list. If False, will simulate a new measurement set for every idbfile in list.
             </description>
             <value>True</value>
         </param>
