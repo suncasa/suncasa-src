@@ -240,7 +240,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, fi
         return [False, '', 0]
 
 
-def pimporteovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, nocreatms=True, doconcat=False,
+def pimporteovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, nocreatms=False, doconcat=False,
                  modelms=''):
     casalog.origin('pimporteovsa')
 
