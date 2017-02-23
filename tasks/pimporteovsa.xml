@@ -123,8 +123,7 @@ pimporteovsa(idbfiles,
         </param>
 
         <param type="bool" name="nocreatms">
-            <description>If setting nocreatms True, will simulate a model measurement set for the first idb file and copy the model for the rest of idl files in list. If False, will simulate a new measurement set for every idbfile in list.
-            </description>
+            <description>If setting nocreatms True, will simulate a model measurement set for the first idb file and copy the model for the rest of idl files in list. If False, will simulate a new measurement set for every idbfile in list.</description>
             <value>True</value>
         </param>
 
