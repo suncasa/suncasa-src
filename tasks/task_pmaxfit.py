@@ -16,17 +16,21 @@ def maxfit_iter(imgfiles, box, imidx):
             raise ImportError('Neither astropy nor pyfits exists in this CASA installation')
     img = imgfiles[imidx]
 
-    ndx, ndy, nchans, npols = ia.shape()
-    if box in globals():
-        blc, trc = [0, 0], [ndx, ndy]
-        if box != '':
-            blc[0], blc[1], trc[0], trc[1] = [int(ll) for ll in box.split(',')]
+
 
     try:
-        results = {}
         if (not ia.open(img)):
             raise Exception, "Cannot create image analysis tool using " + img
-        print('Processing image: ' + img)
+        print('Processing image: '+img)
+        ndx, ndy, nchans, npols = ia.shape()
+        blc, trc = [0, 0], [ndx, ndy]
+        if 'box' in locals():
+            if box != '':
+                blc[0], blc[1], trc[0], trc[1] = [int(ll) for ll in box.split(',')]
+        results = {}
+        for pp in range(npols):
+            pol = 'pol{}'.format(pp)
+            results[pol] = {}
         for ll in range(nchans):
             for pp in range(npols):
                 comp = 'component{}'.format(ll)
