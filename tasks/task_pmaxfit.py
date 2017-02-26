@@ -16,8 +16,6 @@ def maxfit_iter(imgfiles, box, imidx):
             raise ImportError('Neither astropy nor pyfits exists in this CASA installation')
     img = imgfiles[imidx]
 
-
-
     try:
         if (not ia.open(img)):
             raise Exception, "Cannot create image analysis tool using " + img
