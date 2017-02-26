@@ -37,6 +37,7 @@ if os.path.exists('CASA_imfit_args.json'):
         pickle.dump(out, fp)
 
     # todo add RR LL check. if stokes='RRLL', do pimfit separately with RR and LL.
+    # todo add deconvolved results
     shape_latitude = []
     shape_longitude = []
     shape_latitude_err = []
@@ -57,7 +58,7 @@ if os.path.exists('CASA_imfit_args.json'):
         if out['succeeded'][tidx]:
             for ff in xrange(out['outputs'][tidx]['results']['nelements']):
                 comp = 'component{}'.format(ff)
-                if out['outputs'][tidx]['results'][comp]['peak']['value'] != 0.0:
+                if out['outputs'][tidx]['results'][comp]['peak']['value'] > 0.0:
                     shape_longitude.append(
                         out['outputs'][tidx]['results'][comp]['shape']['direction']['m0']['value'] * ra2arcsec)
                     shape_latitude.append(

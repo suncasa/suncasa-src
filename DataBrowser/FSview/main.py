@@ -983,13 +983,39 @@ def tab2_prep_vla_square_selection_change(attrname, old, new):
         x0pix, x1pix = idxmin % mapvlasize[0], idxmax % mapvlasize[0]
         y0pix, y1pix = idxmin / mapvlasize[0], idxmax / mapvlasize[0]
         tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, y0pix, x1pix, y1pix)
-        tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
-        on an image region(s)</b></p>' + ' '.join(
-            "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+        if tab2_tImfit_Param_dict['2Dgaussfit']:
+            tab2_BUT_tImfit.label = 'pimfit'
+            tab2_maxfit_checkbox.active = []
+            tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
+            on an image region(s)</b></p>' + ' '.join(
+                "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+        else:
+            tab2_BUT_tImfit.label = 'pmaxfit'
+            tab2_maxfit_checkbox.active = [0]
+            tab2_Div_tImfit_text = '<p><b>#  maxfit :: do one parabolic fit components \
+            on an image region(s)</b></p>' + ' '.join(
+                "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
         tab2_Div_tImfit.text = tab2_Div_tImfit_text
     else:
         tab2_r_vla_ImgRgn_patch.data_source.data = ColumnDataSource(
             pd.DataFrame({'xx': [], 'yy': []})).data
+
+
+def Domaxfit(new):
+    global tab2_tImfit_Param_dict
+    if len(tab2_maxfit_checkbox.active) == 0:
+        tab2_tImfit_Param_dict['2Dgaussfit'] = True
+        tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
+        on an image region(s)</b></p>' + ' '.join(
+            "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+        tab2_BUT_tImfit.label = 'pimfit'
+    else:
+        tab2_tImfit_Param_dict['2Dgaussfit'] = False
+        tab2_Div_tImfit_text = '<p><b>#  maxfit :: do one parabolic fit components \
+        on an image region(s)</b></p>' + ' '.join(
+            "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+        tab2_BUT_tImfit.label = 'pmaxfit'
+    tab2_Div_tImfit.text = tab2_Div_tImfit_text
 
 
 def tab2_BUT_tImfit_param_add():
@@ -1005,9 +1031,18 @@ def tab2_BUT_tImfit_param_add():
         else:
             tab2_Div_tImfit2.text = '<p>Input syntax: <b>stokes</b>="LL"; \
             <b>ncpu</b>=10; Any spaces will be ignored.</p>'
-    tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
-    on an image region(s)</b></p>' + ' '.join(
-        "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+    if tab2_tImfit_Param_dict['2Dgaussfit']:
+        tab2_BUT_tImfit.label = 'pimfit'
+        tab2_maxfit_checkbox.active = []
+        tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
+        on an image region(s)</b></p>' + ' '.join(
+            "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+    else:
+        tab2_BUT_tImfit.label = 'pmaxfit'
+        tab2_maxfit_checkbox.active = [0]
+        tab2_Div_tImfit_text = '<p><b>#  maxfit :: do one parabolic fit components \
+        on an image region(s)</b></p>' + ' '.join(
+            "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
     tab2_Div_tImfit.text = tab2_Div_tImfit_text
 
 
@@ -1018,11 +1053,14 @@ def tab2_BUT_tImfit_param_delete():
     txts = txts.split(';')
     for key in txts:
         try:
-            tab2_tImfit_Param_dict.pop(key)
+            if key == '2Dgaussfit':
+                pass
+            else:
+                tab2_tImfit_Param_dict.pop(key)
         except:
             tab2_Div_tImfit2.text = '<p>Input syntax: <b>stokes</b>; <b>ncpu</b>; ' \
                                     '<b>region</b>. Any spaces will be ignored.</p>'
-    tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
+    tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
     on an image region(s)</b></p>' + ' '.join(
         "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
     tab2_Div_tImfit.text = tab2_Div_tImfit_text
@@ -1032,6 +1070,7 @@ def tab2_BUT_tImfit_param_default():
     global tab2_tImfit_Param_dict
     tab2_tImfit_Param_dict = OrderedDict()
     vlafileliststr = "'" + "','".join(vlafile) + "'"
+    tab2_tImfit_Param_dict['2Dgaussfit'] = "True"
     tab2_tImfit_Param_dict['event_id'] = "'{}'".format(event_id.replace("/", ""))
     tab2_tImfit_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
     tab2_tImfit_Param_dict['ncpu'] = "10"
@@ -1039,7 +1078,8 @@ def tab2_BUT_tImfit_param_default():
     tab2_tImfit_Param_dict['stokes'] = "'{}'".format(tab2_Select_vla_pol.value)
     tab2_tImfit_Param_dict['mask'] = "''"
     tab2_tImfit_Param_dict['imagefiles'] = "[{}]".format(vlafileliststr)
-    tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
+    tab2_maxfit_checkbox.active = []
+    tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
     on an image region(s)</b></p>' + ' '.join(
         "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
     tab2_Div_tImfit.text = tab2_Div_tImfit_text
@@ -1050,11 +1090,20 @@ def tab2_BUT_timfit_param_reload():
     global tab2_tImfit_Param_dict
     try:
         with open(database_dir + event_id + struct_id + 'CASA_imfit_args.json', 'r') as fp:
-            tab2_timfit_Param_dict = json.load(fp)
-        tab2_Div_timfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
-        on an image region(s)</b></p>' + ' '.join(
-            "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_timfit_Param_dict.items())
-        tab2_Div_tImfit.text = tab2_Div_timfit_text
+            tab2_tImfit_Param_dict = json.load(fp)
+        if tab2_tImfit_Param_dict['2Dgaussfit']:
+            tab2_BUT_tImfit.label = 'pimfit'
+            tab2_maxfit_checkbox.active = []
+            tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
+            on an image region(s)</b></p>' + ' '.join(
+                "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+        else:
+            tab2_BUT_tImfit.label = 'pmaxfit'
+            tab2_maxfit_checkbox.active = [0]
+            tab2_Div_tImfit_text = '<p><b>#  maxfit :: do one parabolic fit components \
+            on an image region(s)</b></p>' + ' '.join(
+                "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+        tab2_Div_tImfit.text = tab2_Div_tImfit_text
         tab2_Div_tImfit2.text = '<p>CASA pimfit arguments reload from config file in <b>{}</b>.</p>'.format(
             database_dir + event_id + struct_id)
     except:
@@ -2258,6 +2307,9 @@ if os.path.exists(FS_dspecDF):
                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                      button_type='primary')
             tab2_BUT_SavRgn.on_click(tab2_save_region)
+
+            tab2_maxfit_checkbox = CheckboxGroup(labels=["parabolic fit"], active=[])
+            tab2_maxfit_checkbox.on_click(Domaxfit)
             tab2_input_tImfit = TextInput(value="Input the param here", title="pimfit task parameters:",
                                           width=config_plot['plot_config']['tab_FSviewPrep']['input_tCLN_wdth'])
             tab2_Div_tImfit = Div(text='', width=config_plot['plot_config']['tab_FSviewPrep']['tab2_Div_tImfit_wdth'])
@@ -2308,7 +2360,7 @@ if os.path.exists(FS_dspecDF):
                                       width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
             lout2_1 = column(lout2_1_1, lout2_1_2)
             lout2_2 = tab2_SPCR_LFT_Div_tImfit
-            lout2_3 = column(tab2_input_tImfit, tab2_Div_tImfit2,
+            lout2_3 = column(row(tab2_input_tImfit, tab2_maxfit_checkbox), tab2_Div_tImfit2,
                              row(tab2_BUT_tImfit_param_ADD, tab2_SPCR_LFT_BUT_tImfit_param_DEL,
                                  tab2_BUT_tImfit_param_DEL, tab2_SPCR_LFT_BUT_tImfit_param_DEFAULT,
                                  tab2_BUT_tImfit_param_Default, tab2_SPCR_LFT_BUT_tImfit_param_RELOAD,
