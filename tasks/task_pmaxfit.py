@@ -7,6 +7,7 @@ import multiprocessing as mp
 
 
 def maxfit_iter(imgfiles, box, imidx):
+    from taskinit import ia,rg
     try:
         from astropy.io import fits as pyfits
     except:
