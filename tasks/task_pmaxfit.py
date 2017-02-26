@@ -65,7 +65,6 @@ def pmaxfit(imagefiles, ncpu, box):
 
     # check file existence
     imgfiles = []
-    tims = []
     for i, img in enumerate(imagefiles):
         if os.path.exists(img):
             imgfiles.append(img)
