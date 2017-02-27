@@ -31,7 +31,7 @@ def maxfit_iter(imgfiles, box, imidx):
                 blc[0], blc[1], trc[0], trc[1] = [int(ll) for ll in box.split(',')]
         results = {}
         for itpp in pols:
-            results[itpp] = {}
+            results[itpp] = {'results':{},'converged':[]}
         for ll in range(nchans):
             for pp,itpp in enumerate(pols):
                 comp = 'component{}'.format(ll)
@@ -41,9 +41,10 @@ def maxfit_iter(imgfiles, box, imidx):
                     result_dict = iachan.maxfit(point=True,negfind=False)
                     result_dict['component0']['converged'] = True
                     result_dict['component0']['flux']['polarisation'] = itpp
-                    results[itpp][comp] = result_dict['component0']
+                    results[itpp]['results'][comp] = result_dict['component0']
+                    results[itpp]['converged'].append(True)
                 except:
-                    results[itpp][comp] = {'converged':False}
+                    results[itpp]['converged'].append(False)
         # update timestamp
         timstr = hdr['date-obs']
         return [True, timstr, img, results]

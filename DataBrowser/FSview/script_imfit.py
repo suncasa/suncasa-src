@@ -22,13 +22,20 @@ if os.path.exists('CASA_imfit_args.json'):
     if not 'ncpu' in locals():
         ncpu = 10
 
-    default('pimfit')
-    with open('CASA_imfit_args.json', 'r') as fp:
-        CASA_imfit_args = json.load(fp)
-    for key, val in CASA_imfit_args.items():
-        exec (key + '= {}'.format(val))
-    # inp(pimfit)
-    out = pimfit()
+    if Dgaussfit:
+        default('pimfit')
+        with open('CASA_imfit_args.json', 'r') as fp:
+            CASA_imfit_args = json.load(fp)
+        for key, val in CASA_imfit_args.items():
+            exec (key + '= {}'.format(val))
+        out = pimfit()
+    else:
+        default('pmaxfit')
+        with open('CASA_imfit_args.json', 'r') as fp:
+            CASA_imfit_args = json.load(fp)
+        for key, val in CASA_imfit_args.items():
+            exec (key + '= {}'.format(val))
+        out = pmaxfit()
 
     imgdir = database_dir + event_id + '/' + struct_id + '/Synthesis_Image/'
     if not os.path.exists(imgdir):
@@ -107,107 +114,3 @@ if os.path.exists('CASA_imfit_args.json'):
 
 else:
     print 'CASA arguments config file not found!!'
-
-    # CASA <43>: out.keys()
-    #   Out[43]: ['timestamps', 'imagenames', 'succeeded', 'outputs']
-
-    # CASA <44>: out['outputs'][0].keys()
-    #   Out[44]: ['converged', 'deconvolved', 'results']
-
-    # CASA <63>: out['outputs'][0]['deconvolved']['nelements']
-    #   Out[63]: 256
-
-    # CASA <45>: out['outputs'][0]['deconvolved'].keys()
-    #   Out[45]:
-    # ['component66',
-    #  'component39',
-    #  'component38',
-    #  'component37',
-    #  'component36',
-    #  .............]
-
-    # CASA <42>: out['outputs'][0]['deconvolved']['component50']
-    #   Out[42]:
-    # {'beam': {'beamarcsec': {'major': {'unit': 'arcsec',
-    #                                    'value': 80.77617645263672},
-    #                          'minor': {'unit': 'arcsec',
-    #                                    'value': 54.635799407958984},
-    #                          'positionangle': {'unit': 'deg',
-    #                                            'value': -20.626220703125}},
-    #           'beampixels': 200.02533455860916,
-    #           'beamster': 1.175370395548373e-07},
-    #  'flux': {'error': array([ 3.29035864,  0.        ,  0.        ,  0.        ]),
-    #           'polarisation': 'Stokes',
-    #           'unit': 'Jy',
-    #           'value': array([ 22.37381579,   0.        ,   0.        ,   0.        ])},
-    #  'ispoint': False,
-    #  'label': '',
-    #  'peak': {'error': 2.2380235668176343,
-    #           'unit': 'Jy/beam',
-    #           'value': 20.558514700697245},
-    #  'shape': {'direction': {'error': {'latitude': {'unit': 'arcsec',
-    #                                                 'value': 4.268624648944596},
-    #                                    'longitude': {'unit': 'arcsec',
-    #                                                  'value': 5.503895283292848}},
-    #                          'm0': {'unit': 'rad',
-    #                                 'value': -0.003066262239961642}, * 180/pi*3600
-    #                          'm1': {'unit': 'rad',
-    #                                 'value': -0.0006359638389362692}, * 180/pi*3600
-    #                          'refer': 'J2000',
-    #                          'type': 'direction'},
-    #            'majoraxis': {'unit': 'arcsec', 'value': 101.22624749838064},
-    #            'majoraxiserror': {'unit': 'arcsec', 'value': 16.8409753696521},
-    #            'minoraxis': {'unit': 'arcsec', 'value': 47.44776658169024},
-    #            'minoraxiserror': {'unit': 'arcsec', 'value': 20.731554584768958},
-    #            'positionangle': {'unit': 'deg', 'value': 70.38611353707329},
-    #            'positionangleerror': {'unit': 'deg', 'value': 20.07539719062812},
-    #            'type': 'Gaussian'},
-    #  'spectrum': {'channel': 50,
-    #               'frequency': {'m0': {'unit': 'GHz', 'value': 1.096},
-    #                             'refer': 'TOPO',
-    #                             'type': 'frequency'},
-    #               'type': 'Constant'},
-    #  'sum': {'unit': 'Jy/beam', 'value': 2194.9042081832886}}
-
-    # CASA <69>: out['outputs'][0]['results']['component50']
-    #   Out[69]:
-    # {'beam': {'beamarcsec': {'major': {'unit': 'arcsec',
-    #                                    'value': 80.77617645263672},
-    #                          'minor': {'unit': 'arcsec',
-    #                                    'value': 54.635799407958984},
-    #                          'positionangle': {'unit': 'deg',
-    #                                            'value': -20.626220703125}},
-    #           'beampixels': 200.02533455860916,
-    #           'beamster': 1.175370395548373e-07},
-    #  'flux': {'error': array([ 3.29035864,  0.        ,  0.        ,  0.        ]),
-    #           'polarisation': 'Stokes',
-    #           'unit': 'Jy',
-    #           'value': array([ 22.37381579,   0.        ,   0.        ,   0.        ])},
-    #  'ispoint': False,
-    #  'label': '',
-    #  'peak': {'error': 0.9975390755164335,
-    #           'unit': 'Jy/beam',
-    #           'value': 9.163407415626928},
-    #  'shape': {'direction': {'error': {'latitude': {'unit': 'arcsec',
-    #                                                 'value': 4.268624648944596},
-    #                                    'longitude': {'unit': 'arcsec',
-    #                                                  'value': 5.503895283292848}},
-    #                          'm0': {'unit': 'rad',
-    #                                 'value': -0.003066262239961642},
-    #                          'm1': {'unit': 'rad',
-    #                                 'value': -0.0006359638389362692},
-    #                          'refer': 'J2000',
-    #                          'type': 'direction'},
-    #            'majoraxis': {'unit': 'arcsec', 'value': 115.03827860906479},
-    #            'majoraxiserror': {'unit': 'arcsec', 'value': 13.29532969982013},
-    #            'minoraxis': {'unit': 'arcsec', 'value': 93.67016307294118},
-    #            'minoraxiserror': {'unit': 'arcsec', 'value': 9.604845436573132},
-    #            'positionangle': {'unit': 'deg', 'value': 71.18955299149792},
-    #            'positionangleerror': {'unit': 'deg', 'value': 20.07539719062812},
-    #            'type': 'Gaussian'},
-    #  'spectrum': {'channel': 50,
-    #               'frequency': {'m0': {'unit': 'GHz', 'value': 1.096},
-    #                             'refer': 'TOPO',
-    #                             'type': 'frequency'},
-    #               'type': 'Constant'},
-    #  'sum': {'unit': 'Jy/beam', 'value': 2194.9042081832886}}
