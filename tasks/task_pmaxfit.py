@@ -40,6 +40,7 @@ def maxfit_iter(imgfiles, box, imidx):
                 try:
                     result_dict = iachan.maxfit(point=True,negfind=False)
                     result_dict['component0']['converged'] = True
+                    result_dict['component0']['flux']['polarisation'] = itpp
                     results[itpp][comp] = result_dict['component0']
                 except:
                     results[itpp][comp] = {'converged':False}
