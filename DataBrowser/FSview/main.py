@@ -197,7 +197,7 @@ def tab2_vdspec_update():
             spec_plt_L = np.zeros((tab2_nfreq, tab2_ntim))
             if len(pols) > 1:
                 for ll in xrange(tab2_ntim):
-                    hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
+                    hdufile = fits_LOCL_dir + dspecDF0POL.loc[ll, :]['fits_local']
                     if os.path.exists(hdufile):
                         hdu = read_fits(hdufile)
                         hdu_goodchan = goodchan(hdu)
@@ -215,7 +215,7 @@ def tab2_vdspec_update():
                 spec_plt_L[spec_plt_L < 0] = 0
             elif len(pols) == 1:
                 for ll in xrange(tab2_ntim):
-                    hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
+                    hdufile = fits_LOCL_dir + dspecDF0POL.loc[ll, :]['fits_local']
                     if os.path.exists(hdufile):
                         hdu = read_fits(hdufile)
                         hdu_goodchan = goodchan(hdu)
@@ -379,8 +379,9 @@ def aia_submap_wavelength_selection(attrname, old, new):
 
 
 def tab3_slider_LinkImg_update(attrname, old, new):
-    global hdu
+    global hdu, select_vla_pol, dspecDF0POL
     select_vla_pol = tab2_Select_vla_pol.value
+    dspecDF0POL = DButil.dspecDFfilter(dspecDF0, select_vla_pol)
     tab2_Slider_time_LinkImg.start = next(
         i for i in xrange(tab2_ntim) if tab2_dtim[i] >= tab2_p_dspec.x_range.start)
     tab2_Slider_time_LinkImg.end = next(
@@ -397,7 +398,7 @@ def tab3_slider_LinkImg_update(attrname, old, new):
     tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
         pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
                       'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
-    hdufile = fits_LOCL_dir + dspecDF0.loc[DFidx_selected, :]['fits_local']
+    hdufile = fits_LOCL_dir + dspecDF0POL.loc[DFidx_selected, :]['fits_local']
     if os.path.exists(hdufile):
         hdu = read_fits(hdufile)
         hdu_goodchan = goodchan(hdu)
@@ -422,12 +423,12 @@ def tab3_slider_LinkImg_update(attrname, old, new):
             SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
             tab2_r_vla_multi_line.data_source.data = SRC_contour.data
             tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
-                dspecDF0.loc[DFidx_selected, :]['fits_local'])
+                dspecDF0POL.loc[DFidx_selected, :]['fits_local'])
         else:
             tab2_Div_LinkImg_plot.text = '<p><b>freq idx</b> out of range.</p>'
     else:
         tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
-            dspecDF0.loc[DFidx_selected, :]['fits_local'])
+            dspecDF0POL.loc[DFidx_selected, :]['fits_local'])
 
 
 def tab2_SRC_maxfit_centroid_update(dspecDFsel):
@@ -514,24 +515,24 @@ def tab3_aia_submap_cross_selection_change(attrname, old, new):
 
 
 def VdspecDF_init():
-    global VdspecDF, dspecDF0
+    global VdspecDF, dspecDF0, dspecDF0POL
     VdspecDF = pd.DataFrame()
-    nrows_dspecDF = len(dspecDF0.index)
-    VdspecDF['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-    VdspecDF['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-    VdspecDF['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+    nrows_dspecDF = len(dspecDF0POL.index)
+    VdspecDF['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0POL.index)
+    VdspecDF['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0POL.index)
+    VdspecDF['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0POL.index)
 
 
 def VdspecDF_update(selected=None):
     global VdspecDF
     if selected:
-        VdspecDF.loc[selected, 'shape_longitude'] = dspecDF0.loc[selected, 'shape_longitude']
-        VdspecDF.loc[selected, 'shape_latitude'] = dspecDF0.loc[selected, 'shape_latitude']
-        VdspecDF.loc[selected, 'peak'] = dspecDF0.loc[selected, 'peak']
+        VdspecDF.loc[selected, 'shape_longitude'] = dspecDF0POL.loc[selected, 'shape_longitude']
+        VdspecDF.loc[selected, 'shape_latitude'] = dspecDF0POL.loc[selected, 'shape_latitude']
+        VdspecDF.loc[selected, 'peak'] = dspecDF0POL.loc[selected, 'peak']
     else:
-        VdspecDF.loc[:, 'shape_longitude'] = dspecDF0.loc[:, 'shape_longitude']
-        VdspecDF.loc[:, 'shape_latitude'] = dspecDF0.loc[:, 'shape_latitude']
-        VdspecDF.loc[:, 'peak'] = dspecDF0.loc[:, 'peak']
+        VdspecDF.loc[:, 'shape_longitude'] = dspecDF0POL.loc[:, 'shape_longitude']
+        VdspecDF.loc[:, 'shape_latitude'] = dspecDF0POL.loc[:, 'shape_latitude']
+        VdspecDF.loc[:, 'peak'] = dspecDF0POL.loc[:, 'peak']
 
 
 def tab3_SRC_dspec_vector_init():
@@ -539,21 +540,21 @@ def tab3_SRC_dspec_vector_init():
     global mean_amp_g, mean_vx, mean_vy, drange_amp_g, drange_vx, drange_vy
     global vmax_amp_g, vmax_vx, vmax_vy, vmin_amp_g, vmin_vx, vmin_vy
     start_timestamp = time.time()
-    amp_g = (dspecDF0['peak'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
+    amp_g = (dspecDF0POL['peak'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
     mean_amp_g = np.nanmean(amp_g)
     drange_amp_g = 40.
     vmax_amp_g, vmin_amp_g = mean_amp_g + drange_amp_g * np.asarray([1., -1.])
     amp_g[amp_g > vmax_amp_g] = vmax_amp_g
     amp_g[amp_g < vmin_amp_g] = vmin_amp_g
     tab3_dspec_vector_img = [amp_g]
-    vx = (dspecDF0['shape_longitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
+    vx = (dspecDF0POL['shape_longitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
     mean_vx = np.nanmean(vx)
     drange_vx = 40.
     vmax_vx, vmin_vx = mean_vx + drange_vx * np.asarray([1., -1.])
     vx[vx > vmax_vx] = vmax_vx
     vx[vx < vmin_vx] = vmin_vx
     tab3_dspec_vectorx_img = [vx]
-    vy = (dspecDF0['shape_latitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
+    vy = (dspecDF0POL['shape_latitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
     mean_vy = np.nanmean(vy)
     drange_vy = 40.
     vmax_vy, vmin_vy = mean_vy + drange_vy * np.asarray([1., -1.])
@@ -694,7 +695,7 @@ def tab2_dspec_vector_selection_change(attrname, old, new):
     tab2_dspec_vector_selected = tab2_SRC_dspec_vector_square.selected['1d']['indices']
     if tab2_dspec_vector_selected:
         global dspecDF_select
-        dspecDF_select = dspecDF0.iloc[tab2_dspec_vector_selected, :]
+        dspecDF_select = dspecDF0POL.iloc[tab2_dspec_vector_selected, :]
         VdspecDF_init()
         VdspecDF_update(selected=tab2_dspec_vector_selected)
         # tab3_SRC_dspec_vector_update(VdspecDF)
@@ -1190,10 +1191,7 @@ FS_dspecDF = database_dir + event_id + struct_id + config_EvtID['datadir']['dspe
 if os.path.exists(FS_dspecDF):
     with open(FS_dspecDF, 'rb') as f:
         dspecDF0 = pickle.load(f)
-    dspecDF_select = dspecDF0.copy()
-    itemset1 = set(['shape_longitude', 'shape_latitude'])
-    itemset2 = set(dspecDF0.columns.tolist())
-    if len(itemset2.intersection(itemset1)) == 2:
+    if DButil.getcolctinDF(dspecDF0, 'peak')[0] > 0:
         '''
         ########################################################################################
         ########################################################################################
@@ -1424,6 +1422,13 @@ if os.path.exists(FS_dspecDF):
                                        renderers=[tab2_r_square])
         tab2_p_dspec.add_tools(tab2_p_dspec_hover)
 
+        # import the vla image
+        hdu = read_fits(vlafile[0])
+        pols = DButil.polsfromfitsheader(hdu.header)
+        # initial dspecDF_select and dspecDF0POL
+        dspecDF_select = DButil.dspecDFfilter(dspecDF0, pols[0])
+        dspecDF0POL = DButil.dspecDFfilter(dspecDF0, pols[0])
+
         # initial the VLA map contour source
         tab2_SRC_vlamap_contour = ColumnDataSource(
             data={'xs': [], 'ys': [], 'line_color': [], 'xt': [], 'yt': [], 'text': []})
@@ -1437,8 +1442,6 @@ if os.path.exists(FS_dspecDF):
         tab2_SRC_vlamap_peak = ColumnDataSource(
             data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
 
-        # import the vla image
-        hdu = read_fits(vlafile[0])
         hdu_goodchan = goodchan(hdu)
         vla_local_pfmap = PuffinMap(hdu.data[0, hdu_goodchan[0], :, :], hdu.header,
                                     plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
@@ -1631,7 +1634,6 @@ if os.path.exists(FS_dspecDF):
                                           width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                           callback_policy='mouseup')
 
-        pols = DButil.polsfromfitsheader(hdu.header)
         # pols = ['RR', 'LL', 'I', 'V']
         SRL = set(['RR', 'LL'])
         SXY = set(['XX', 'YY', 'XY', 'YX'])
@@ -1643,6 +1645,9 @@ if os.path.exists(FS_dspecDF):
 
         tab2_Select_vla_pol = Select(title="Polarization:", value=pols[0], options=pols,
                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+        select_vla_pol = tab2_Select_vla_pol.value
+        tab2_Select_vla_pol2 = Select(title="Polarization:", value=tab2_Select_vla_pol.value, options=pols,
+                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
         tab2_source_idx_line_x = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
         tab2_r_dspec_line_x = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
@@ -1651,7 +1656,8 @@ if os.path.exists(FS_dspecDF):
         tab2_r_dspec_line_y = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
                                                 line_color='white', source=tab2_source_idx_line_y)
 
-        tab2_CTRLs_LinkImg = [tab2_Slider_time_LinkImg, tab2_Slider_freq_LinkImg, tab2_Select_vla_pol]
+        tab2_CTRLs_LinkImg = [tab2_Slider_time_LinkImg, tab2_Slider_freq_LinkImg, tab2_Select_vla_pol,
+                              tab2_Select_vla_pol2]
         for ctrl in tab2_CTRLs_LinkImg:
             ctrl.on_change('value', tab3_slider_LinkImg_update)
 
@@ -1750,7 +1756,7 @@ if os.path.exists(FS_dspecDF):
         tab3_r_dspec_vectory_line = tab3_p_dspec_vectory.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
                                                               line_color='white',
                                                               source=tab3_source_idx_line)
-        tab2_SRC_dspec_vector_square = ColumnDataSource(dspecDF0)
+        tab2_SRC_dspec_vector_square = ColumnDataSource(dspecDF0POL)
         tab2_r_dspec_vector_square = tab3_p_dspec_vector.square('time', 'freq', source=tab2_SRC_dspec_vector_square,
                                                                 fill_color=None,
                                                                 fill_alpha=0.0,
@@ -1866,7 +1872,8 @@ if os.path.exists(FS_dspecDF):
         lout3_2 = column(gridplot([tab3_p_dspec_vector], [tab3_p_dspec_vectorx], [tab3_p_dspec_vectory],
                                   toolbar_location='right'), tab3_Div_Tb)
         lout3_3 = widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
-                            tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab2_Select_aia_wave,
+                            tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab2_Select_vla_pol2,
+                            tab2_Select_aia_wave,
                             tab2_panel3_BUT_exit,
                             # tab2_panel3_Div_exit,
                             width=200)

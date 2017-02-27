@@ -45,6 +45,7 @@ def maxfit_iter(imgfiles, box, imidx):
                     results[itpp]['converged'].append(True)
                 except:
                     results[itpp]['converged'].append(False)
+        results[itpp]['results']['nelements'] = results[itpp]['results'].keys()
         # update timestamp
         timstr = hdr['date-obs']
         return [True, timstr, img, results]
