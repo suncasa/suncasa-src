@@ -32,7 +32,7 @@ def maxfit_iter(imgfiles, box, imidx):
         results = {}
         for itpp in pols:
             results[itpp] = {}
-        for ll in nchans:
+        for ll in range(nchans):
             for pp,itpp in enumerate(pols):
                 comp = 'component{}'.format(ll)
                 r = rg.box(blc=[blc[0], blc[1], ll, pp], trc=[trc[0], trc[1], ll, pp])
@@ -82,7 +82,7 @@ def pmaxfit(imagefiles, ncpu, box):
     maxfit_part = partial(maxfit_iter, imgfiles, box)
 
     # parallelization
-    para = 0
+    para = 1
     timelapse = 0
     t0 = time()
     if para:
