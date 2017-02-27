@@ -82,7 +82,7 @@ def pmaxfit(imagefiles, ncpu, box):
     maxfit_part = partial(maxfit_iter, imgfiles, box)
 
     # parallelization
-    para = 1
+    para = 0
     timelapse = 0
     t0 = time()
     if para:
