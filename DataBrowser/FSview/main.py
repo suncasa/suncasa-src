@@ -24,7 +24,6 @@ from bokeh.palettes import Spectral11
 from bokeh.plotting import figure, curdoc
 import glob
 from astropy.time import Time
-from QLook_util import get_contour_data
 from puffin import PuffinMap
 from suncasa.utils import DButil
 
@@ -420,7 +419,7 @@ def tab3_slider_LinkImg_update(attrname, old, new):
             tab2_r_vla.data_source.data['image'] = pfmap.ImageSource()['data']
             mapx, mapy = pfmap.meshgrid()
             mapx, mapy = mapx.value, mapy.value
-            SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
+            SRC_contour = DButil.get_contour_data(mapx, mapy, pfmap.smap.data)
             tab2_r_vla_multi_line.data_source.data = SRC_contour.data
             tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
                 dspecDF0POL.loc[DFidx_selected, :]['fits_local'])
@@ -1451,7 +1450,7 @@ if os.path.exists(FS_dspecDF):
         mapx, mapy = vla_local_pfmap.meshgrid()
         mapx, mapy = mapx.value, mapy.value
         mapvlasize = mapy.shape
-        tab2_SRC_vlamap_contour = get_contour_data(mapx, mapy, vla_local_pfmap.smap.data)
+        tab2_SRC_vlamap_contour = DButil.get_contour_data(mapx, mapy, vla_local_pfmap.smap.data)
         # mapx2, mapy2 = vla_local_pfmap.meshgrid(rescale=0.5)
         # mapx2, mapy2 = mapx2.value, mapy2.value
         ImgDF0 = pd.DataFrame({'xx': mapx.ravel(), 'yy': mapy.ravel()})
@@ -2138,7 +2137,7 @@ if os.path.exists(FS_dspecDF):
             mapx, mapy = vla_local_pfmap.meshgrid()
             mapx, mapy = mapx.value, mapy.value
             mapvlasize = mapy.shape
-            tab2_SRC_vlamap_contour = get_contour_data(mapx, mapy, vla_local_pfmap.smap.data)
+            tab2_SRC_vlamap_contour = DButil.get_contour_data(mapx, mapy, vla_local_pfmap.smap.data)
             # mapx2, mapy2 = vla_local_pfmap.meshgrid(rescale=0.5)
             # mapx2, mapy2 = mapx2.value, mapy2.value
             ImgDF0 = pd.DataFrame({'xx': mapx.ravel(), 'yy': mapy.ravel()})
