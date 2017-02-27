@@ -1076,7 +1076,7 @@ def tab2_BUT_tImfit_param_default():
     tab2_tImfit_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
     tab2_tImfit_Param_dict['ncpu'] = "10"
     tab2_tImfit_Param_dict['box'] = "''"
-    tab2_tImfit_Param_dict['stokes'] = "'{}'".format(tab2_Select_vla_pol.value)
+    # tab2_tImfit_Param_dict['stokes'] = "'{}'".format(tab2_Select_vla_pol.value)
     tab2_tImfit_Param_dict['mask'] = "''"
     tab2_tImfit_Param_dict['imagefiles'] = "[{}]".format(vlafileliststr)
     tab2_maxfit_checkbox.active = []
