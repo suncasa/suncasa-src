@@ -23,7 +23,7 @@ if os.path.exists('CASA_imfit_args.json'):
     if not 'ncpu' in locals():
         ncpu = 10
 
-    if Dgaussfit:
+    if gaussfit:
         default('pimfit')
         with open('CASA_imfit_args.json', 'r') as fp:
             CASA_imfit_args = json.load(fp)
@@ -45,7 +45,7 @@ if os.path.exists('CASA_imfit_args.json'):
         pickle.dump(out, fp)
 
     # todo add deconvolved results
-    dspecDF2 = DButil.fitcltodf(out, gauss=Dgaussfit)
+    dspecDF2 = DButil.fitcltodf(out, gauss=gaussfit)
     with open(database_dir + event_id + '/' + struct_id + '/dspecDF-save', 'rb') as fp:
         dspecDF1 = pickle.load(fp)
     for ll in dspecDF1.index:

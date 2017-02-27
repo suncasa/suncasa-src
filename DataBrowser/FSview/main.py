@@ -984,7 +984,7 @@ def tab2_prep_vla_square_selection_change(attrname, old, new):
         x0pix, x1pix = idxmin % mapvlasize[0], idxmax % mapvlasize[0]
         y0pix, y1pix = idxmin / mapvlasize[0], idxmax / mapvlasize[0]
         tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, y0pix, x1pix, y1pix)
-        if tab2_tImfit_Param_dict['2Dgaussfit']:
+        if tab2_tImfit_Param_dict['gaussfit']:
             tab2_BUT_tImfit.label = 'pimfit'
             tab2_maxfit_checkbox.active = []
             tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
@@ -1005,13 +1005,13 @@ def tab2_prep_vla_square_selection_change(attrname, old, new):
 def Domaxfit(new):
     global tab2_tImfit_Param_dict
     if len(tab2_maxfit_checkbox.active) == 0:
-        tab2_tImfit_Param_dict['2Dgaussfit'] = True
+        tab2_tImfit_Param_dict['gaussfit'] = True
         tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
         on an image region(s)</b></p>' + ' '.join(
             "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
         tab2_BUT_tImfit.label = 'pimfit'
     else:
-        tab2_tImfit_Param_dict['2Dgaussfit'] = False
+        tab2_tImfit_Param_dict['gaussfit'] = False
         tab2_Div_tImfit_text = '<p><b>#  maxfit :: do one parabolic fit components \
         on an image region(s)</b></p>' + ' '.join(
             "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
@@ -1032,7 +1032,7 @@ def tab2_BUT_tImfit_param_add():
         else:
             tab2_Div_tImfit2.text = '<p>Input syntax: <b>stokes</b>="LL"; \
             <b>ncpu</b>=10; Any spaces will be ignored.</p>'
-    if tab2_tImfit_Param_dict['2Dgaussfit']:
+    if tab2_tImfit_Param_dict['gaussfit']:
         tab2_BUT_tImfit.label = 'pimfit'
         tab2_maxfit_checkbox.active = []
         tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
@@ -1054,7 +1054,7 @@ def tab2_BUT_tImfit_param_delete():
     txts = txts.split(';')
     for key in txts:
         try:
-            if key == '2Dgaussfit':
+            if key == 'gaussfit':
                 pass
             else:
                 tab2_tImfit_Param_dict.pop(key)
@@ -1071,7 +1071,7 @@ def tab2_BUT_tImfit_param_default():
     global tab2_tImfit_Param_dict
     tab2_tImfit_Param_dict = OrderedDict()
     vlafileliststr = "'" + "','".join(vlafile) + "'"
-    tab2_tImfit_Param_dict['2Dgaussfit'] = "True"
+    tab2_tImfit_Param_dict['gaussfit'] = "True"
     tab2_tImfit_Param_dict['event_id'] = "'{}'".format(event_id.replace("/", ""))
     tab2_tImfit_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
     tab2_tImfit_Param_dict['ncpu'] = "10"
@@ -1092,7 +1092,7 @@ def tab2_BUT_timfit_param_reload():
     try:
         with open(database_dir + event_id + struct_id + 'CASA_imfit_args.json', 'r') as fp:
             tab2_tImfit_Param_dict = json.load(fp)
-        if tab2_tImfit_Param_dict['2Dgaussfit']:
+        if tab2_tImfit_Param_dict['gaussfit']:
             tab2_BUT_tImfit.label = 'pimfit'
             tab2_maxfit_checkbox.active = []
             tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
