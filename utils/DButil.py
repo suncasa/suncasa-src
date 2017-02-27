@@ -54,7 +54,7 @@ def fitcltodf(datain, gauss=True):
                 beam_major = []
                 beam_minor = []
                 beam_positionangle = []
-                for comp in datain['outputs'][tidx][pols[0]]['results'].keys():
+                for comp in datain['outputs'][tidx][ppit]['results'].keys():
                     if comp.startswith('component'):
                         if gauss:
                             majoraxis = datain['outputs'][tidx][ppit]['results'][comp]['shape']['majoraxis']['value']
