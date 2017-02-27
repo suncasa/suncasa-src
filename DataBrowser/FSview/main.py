@@ -26,6 +26,7 @@ import glob
 from astropy.time import Time
 from QLook_util import get_contour_data
 from puffin import PuffinMap
+from suncasa.utils import DButil
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -1630,11 +1631,7 @@ if os.path.exists(FS_dspecDF):
                                           width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                           callback_policy='mouseup')
 
-        stokeslist = ['{}'.format(int(ll)) for ll in
-                      (hdu.header["CRVAL4"] + np.arange(hdu.header["NAXIS4"]) * hdu.header["CDELT4"])]
-        stokesdict = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3': 'RL', '-4': 'LR',
-                      '-5': 'XX', '-6': 'YY', '-7': 'XY', '-8': 'YX'}
-        pols = map(lambda x: stokesdict[x], stokeslist)
+        pols = DButil.polsfromfitsheader(hdu.header)
         # pols = ['RR', 'LL', 'I', 'V']
         SRL = set(['RR', 'LL'])
         SXY = set(['XX', 'YY', 'XY', 'YX'])
@@ -2254,11 +2251,7 @@ if os.path.exists(FS_dspecDF):
                                               width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                               callback_policy='mouseup')
 
-            stokeslist = ['{}'.format(int(ll)) for ll in
-                          (hdu.header["CRVAL4"] + np.arange(hdu.header["NAXIS4"]) * hdu.header["CDELT4"])]
-            stokesdict = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3': 'RL', '-4': 'LR',
-                          '-5': 'XX', '-6': 'YY', '-7': 'XY', '-8': 'YX'}
-            pols = map(lambda x: stokesdict[x], stokeslist)
+            pols = DButil.polsfromfitsheader(hdu.header)
             # pols = ['RR', 'LL', 'I', 'V']
             SRL = set(['RR', 'LL'])
             SXY = set(['XX', 'YY', 'XY', 'YX'])

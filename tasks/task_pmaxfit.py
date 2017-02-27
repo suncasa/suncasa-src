@@ -4,6 +4,7 @@ import os, struct
 from time import time
 from taskinit import casalog
 import multiprocessing as mp
+from suncasa.utils import DButil
 
 
 def maxfit_iter(imgfiles, box, imidx):
@@ -21,30 +22,28 @@ def maxfit_iter(imgfiles, box, imidx):
         if (not ia.open(img)):
             raise Exception, "Cannot create image analysis tool using " + img
         print('Processing image: '+img)
+        hdr = pyfits.getheader(img)
+        pols = DButil.polsfromfitsheader(hdr)
         ndx, ndy, nchans, npols = ia.shape()
         blc, trc = [0, 0], [ndx, ndy]
         if 'box' in locals():
             if box != '':
                 blc[0], blc[1], trc[0], trc[1] = [int(ll) for ll in box.split(',')]
         results = {}
-        for pp in range(npols):
-            pol = 'pol{}'.format(pp)
-            results[pol] = {}
-        for ll in range(nchans):
-            for pp in range(npols):
+        for itpp in pols:
+            results[itpp] = {}
+        for ll in nchans:
+            for pp,itpp in enumerate(pols):
                 comp = 'component{}'.format(ll)
-                pol = 'pol{}'.format(pp)
                 r = rg.box(blc=[blc[0], blc[1], ll, pp], trc=[trc[0], trc[1], ll, pp])
                 iachan = ia.subimage(region=r, dropdeg=True)
                 try:
                     result_dict = iachan.maxfit(point=True,negfind=False)
                     result_dict['component0']['converged'] = True
-                    results[pol][comp] = result_dict['component0']
+                    results[itpp][comp] = result_dict['component0']
                 except:
-                    results[pol][comp] = {'converged':False}
-
+                    results[itpp][comp] = {'converged':False}
         # update timestamp
-        hdr = pyfits.getheader(img)
         timstr = hdr['date-obs']
         return [True, timstr, img, results]
     except Exception, instance:
@@ -83,7 +82,7 @@ def pmaxfit(imagefiles, ncpu, box):
     maxfit_part = partial(maxfit_iter, imgfiles, box)
 
     # parallelization
-    para = 0
+    para = 1
     timelapse = 0
     t0 = time()
     if para:
