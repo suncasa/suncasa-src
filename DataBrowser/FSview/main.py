@@ -24,8 +24,8 @@ from bokeh.palettes import Spectral11
 from bokeh.plotting import figure, curdoc
 import glob
 from astropy.time import Time
-from QLook_util import get_contour_data
 from puffin import PuffinMap
+from suncasa.utils import DButil
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -196,7 +196,7 @@ def tab2_vdspec_update():
             spec_plt_L = np.zeros((tab2_nfreq, tab2_ntim))
             if len(pols) > 1:
                 for ll in xrange(tab2_ntim):
-                    hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
+                    hdufile = fits_LOCL_dir + dspecDF0POL.loc[ll, :]['fits_local']
                     if os.path.exists(hdufile):
                         hdu = read_fits(hdufile)
                         hdu_goodchan = goodchan(hdu)
@@ -214,7 +214,7 @@ def tab2_vdspec_update():
                 spec_plt_L[spec_plt_L < 0] = 0
             elif len(pols) == 1:
                 for ll in xrange(tab2_ntim):
-                    hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
+                    hdufile = fits_LOCL_dir + dspecDF0POL.loc[ll, :]['fits_local']
                     if os.path.exists(hdufile):
                         hdu = read_fits(hdufile)
                         hdu_goodchan = goodchan(hdu)
@@ -350,9 +350,7 @@ def tab2_SRC_maxfit_centroid_init(dspecDFsel):
     SRC_maxfit_centroid = {}
     for ll in np.unique(dspecDFsel['time']):
         df_tmp = pd.DataFrame(
-            {'freq': [], 'shape_longitude': [], 'shape_latitude': [], 'shape_majoraxis': [],
-             'shape_minoraxis': [], 'peak': [],
-             'shape_positionangle': []})
+            {'freq': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
         SRC_maxfit_centroid[np.where(abs(tab2_dtim - ll) < 0.02)[0].tolist()[0]] = ColumnDataSource(df_tmp)
     print("---tab2_SRC_maxfit_centroid_init -- %s seconds ---" % (time.time() - start_timestamp))
 
@@ -378,8 +376,9 @@ def aia_submap_wavelength_selection(attrname, old, new):
 
 
 def tab3_slider_LinkImg_update(attrname, old, new):
-    global hdu
+    global hdu, select_vla_pol, dspecDF0POL
     select_vla_pol = tab2_Select_vla_pol.value
+    dspecDF0POL = DButil.dspecDFfilter(dspecDF0, select_vla_pol)
     tab2_Slider_time_LinkImg.start = next(
         i for i in xrange(tab2_ntim) if tab2_dtim[i] >= tab2_p_dspec.x_range.start)
     tab2_Slider_time_LinkImg.end = next(
@@ -396,7 +395,7 @@ def tab3_slider_LinkImg_update(attrname, old, new):
     tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
         pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
                       'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
-    hdufile = fits_LOCL_dir + dspecDF0.loc[DFidx_selected, :]['fits_local']
+    hdufile = fits_LOCL_dir + dspecDF0POL.loc[DFidx_selected, :]['fits_local']
     if os.path.exists(hdufile):
         hdu = read_fits(hdufile)
         hdu_goodchan = goodchan(hdu)
@@ -418,22 +417,21 @@ def tab3_slider_LinkImg_update(attrname, old, new):
             tab2_r_vla.data_source.data['image'] = pfmap.ImageSource()['data']
             mapx, mapy = pfmap.meshgrid()
             mapx, mapy = mapx.value, mapy.value
-            SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
+            SRC_contour = DButil.get_contour_data(mapx, mapy, pfmap.smap.data)
             tab2_r_vla_multi_line.data_source.data = SRC_contour.data
             tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
-                dspecDF0.loc[DFidx_selected, :]['fits_local'])
+                dspecDF0POL.loc[DFidx_selected, :]['fits_local'])
         else:
             tab2_Div_LinkImg_plot.text = '<p><b>freq idx</b> out of range.</p>'
     else:
         tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
-            dspecDF0.loc[DFidx_selected, :]['fits_local'])
+            dspecDF0POL.loc[DFidx_selected, :]['fits_local'])
 
 
 def tab2_SRC_maxfit_centroid_update(dspecDFsel):
     start_timestamp = time.time()
     global SRC_maxfit_centroid, timebin
-    subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'shape_majoraxis', 'shape_minoraxis', 'peak',
-                    'shape_positionangle']
+    subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'peak']
     if tab3_BUT_animate_ONOFF.label == 'Animate ON & Go':
         SRC_maxfit_centroid = {}
         for ll in np.unique(dspecDFsel['time']):
@@ -441,9 +439,7 @@ def tab2_SRC_maxfit_centroid_update(dspecDFsel):
             dftmp = dftmp.dropna(how='any', subset=subset_label)
             df_tmp = pd.concat(
                 [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'],
-                 dftmp.loc[:, 'shape_majoraxis'],
-                 dftmp.loc[:, 'shape_minoraxis'], dftmp.loc[:, 'peak'],
-                 dftmp.loc[:, 'shape_positionangle'] - np.pi / 2], axis=1)
+                 dftmp.loc[:, 'peak']], axis=1)
             SRC_maxfit_centroid[np.where(abs(tab2_dtim - ll) < 0.02)[0].tolist()[0]] = ColumnDataSource(df_tmp)
     else:
         time_dspec = np.unique(dspecDFsel['time'])
@@ -468,9 +464,7 @@ def tab2_SRC_maxfit_centroid_update(dspecDFsel):
             dftmp = dftmp.dropna(how='any', subset=subset_label)
             df_tmp = pd.concat(
                 [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'],
-                 dftmp.loc[:, 'shape_majoraxis'],
-                 dftmp.loc[:, 'shape_minoraxis'], dftmp.loc[:, 'peak'],
-                 dftmp.loc[:, 'shape_positionangle'] - np.pi / 2], axis=1)
+                 dftmp.loc[:, 'peak']], axis=1)
             SRC_maxfit_centroid = ColumnDataSource(df_tmp)
     print("--- tab2_SRC_maxfit_centroid_update -- %s seconds ---" % (time.time() - start_timestamp))
 
@@ -513,24 +507,24 @@ def tab3_aia_submap_cross_selection_change(attrname, old, new):
 
 
 def VdspecDF_init():
-    global VdspecDF, dspecDF0
+    global VdspecDF, dspecDF0, dspecDF0POL
     VdspecDF = pd.DataFrame()
-    nrows_dspecDF = len(dspecDF0.index)
-    VdspecDF['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-    VdspecDF['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
-    VdspecDF['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0.index)
+    nrows_dspecDF = len(dspecDF0POL.index)
+    VdspecDF['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0POL.index)
+    VdspecDF['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0POL.index)
+    VdspecDF['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0POL.index)
 
 
 def VdspecDF_update(selected=None):
     global VdspecDF
     if selected:
-        VdspecDF.loc[selected, 'shape_longitude'] = dspecDF0.loc[selected, 'shape_longitude']
-        VdspecDF.loc[selected, 'shape_latitude'] = dspecDF0.loc[selected, 'shape_latitude']
-        VdspecDF.loc[selected, 'peak'] = dspecDF0.loc[selected, 'peak']
+        VdspecDF.loc[selected, 'shape_longitude'] = dspecDF0POL.loc[selected, 'shape_longitude']
+        VdspecDF.loc[selected, 'shape_latitude'] = dspecDF0POL.loc[selected, 'shape_latitude']
+        VdspecDF.loc[selected, 'peak'] = dspecDF0POL.loc[selected, 'peak']
     else:
-        VdspecDF.loc[:, 'shape_longitude'] = dspecDF0.loc[:, 'shape_longitude']
-        VdspecDF.loc[:, 'shape_latitude'] = dspecDF0.loc[:, 'shape_latitude']
-        VdspecDF.loc[:, 'peak'] = dspecDF0.loc[:, 'peak']
+        VdspecDF.loc[:, 'shape_longitude'] = dspecDF0POL.loc[:, 'shape_longitude']
+        VdspecDF.loc[:, 'shape_latitude'] = dspecDF0POL.loc[:, 'shape_latitude']
+        VdspecDF.loc[:, 'peak'] = dspecDF0POL.loc[:, 'peak']
 
 
 def tab3_SRC_dspec_vector_init():
@@ -538,21 +532,21 @@ def tab3_SRC_dspec_vector_init():
     global mean_amp_g, mean_vx, mean_vy, drange_amp_g, drange_vx, drange_vy
     global vmax_amp_g, vmax_vx, vmax_vy, vmin_amp_g, vmin_vx, vmin_vy
     start_timestamp = time.time()
-    amp_g = (dspecDF0['peak'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
+    amp_g = (dspecDF0POL['peak'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
     mean_amp_g = np.nanmean(amp_g)
     drange_amp_g = 40.
     vmax_amp_g, vmin_amp_g = mean_amp_g + drange_amp_g * np.asarray([1., -1.])
     amp_g[amp_g > vmax_amp_g] = vmax_amp_g
     amp_g[amp_g < vmin_amp_g] = vmin_amp_g
     tab3_dspec_vector_img = [amp_g]
-    vx = (dspecDF0['shape_longitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
+    vx = (dspecDF0POL['shape_longitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
     mean_vx = np.nanmean(vx)
     drange_vx = 40.
     vmax_vx, vmin_vx = mean_vx + drange_vx * np.asarray([1., -1.])
     vx[vx > vmax_vx] = vmax_vx
     vx[vx < vmin_vx] = vmin_vx
     tab3_dspec_vectorx_img = [vx]
-    vy = (dspecDF0['shape_latitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
+    vy = (dspecDF0POL['shape_latitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
     mean_vy = np.nanmean(vy)
     drange_vy = 40.
     vmax_vy, vmin_vy = mean_vy + drange_vy * np.asarray([1., -1.])
@@ -693,7 +687,7 @@ def tab2_dspec_vector_selection_change(attrname, old, new):
     tab2_dspec_vector_selected = tab2_SRC_dspec_vector_square.selected['1d']['indices']
     if tab2_dspec_vector_selected:
         global dspecDF_select
-        dspecDF_select = dspecDF0.iloc[tab2_dspec_vector_selected, :]
+        dspecDF_select = dspecDF0POL.iloc[tab2_dspec_vector_selected, :]
         VdspecDF_init()
         VdspecDF_update(selected=tab2_dspec_vector_selected)
         # tab3_SRC_dspec_vector_update(VdspecDF)
@@ -983,13 +977,39 @@ def tab2_prep_vla_square_selection_change(attrname, old, new):
         x0pix, x1pix = idxmin % mapvlasize[0], idxmax % mapvlasize[0]
         y0pix, y1pix = idxmin / mapvlasize[0], idxmax / mapvlasize[0]
         tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, y0pix, x1pix, y1pix)
-        tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
-        on an image region(s)</b></p>' + ' '.join(
-            "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+        if tab2_tImfit_Param_dict['gaussfit']:
+            tab2_BUT_tImfit.label = 'pimfit'
+            tab2_maxfit_checkbox.active = []
+            tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
+            on an image region(s)</b></p>' + ' '.join(
+                "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+        else:
+            tab2_BUT_tImfit.label = 'pmaxfit'
+            tab2_maxfit_checkbox.active = [0]
+            tab2_Div_tImfit_text = '<p><b>#  maxfit :: do one parabolic fit components \
+            on an image region(s)</b></p>' + ' '.join(
+                "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
         tab2_Div_tImfit.text = tab2_Div_tImfit_text
     else:
         tab2_r_vla_ImgRgn_patch.data_source.data = ColumnDataSource(
             pd.DataFrame({'xx': [], 'yy': []})).data
+
+
+def Domaxfit(new):
+    global tab2_tImfit_Param_dict
+    if len(tab2_maxfit_checkbox.active) == 0:
+        tab2_tImfit_Param_dict['gaussfit'] = True
+        tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
+        on an image region(s)</b></p>' + ' '.join(
+            "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+        tab2_BUT_tImfit.label = 'pimfit'
+    else:
+        tab2_tImfit_Param_dict['gaussfit'] = False
+        tab2_Div_tImfit_text = '<p><b>#  maxfit :: do one parabolic fit components \
+        on an image region(s)</b></p>' + ' '.join(
+            "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+        tab2_BUT_tImfit.label = 'pmaxfit'
+    tab2_Div_tImfit.text = tab2_Div_tImfit_text
 
 
 def tab2_BUT_tImfit_param_add():
@@ -1005,9 +1025,18 @@ def tab2_BUT_tImfit_param_add():
         else:
             tab2_Div_tImfit2.text = '<p>Input syntax: <b>stokes</b>="LL"; \
             <b>ncpu</b>=10; Any spaces will be ignored.</p>'
-    tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
-    on an image region(s)</b></p>' + ' '.join(
-        "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+    if tab2_tImfit_Param_dict['gaussfit']:
+        tab2_BUT_tImfit.label = 'pimfit'
+        tab2_maxfit_checkbox.active = []
+        tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
+        on an image region(s)</b></p>' + ' '.join(
+            "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+    else:
+        tab2_BUT_tImfit.label = 'pmaxfit'
+        tab2_maxfit_checkbox.active = [0]
+        tab2_Div_tImfit_text = '<p><b>#  maxfit :: do one parabolic fit components \
+        on an image region(s)</b></p>' + ' '.join(
+            "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
     tab2_Div_tImfit.text = tab2_Div_tImfit_text
 
 
@@ -1018,11 +1047,14 @@ def tab2_BUT_tImfit_param_delete():
     txts = txts.split(';')
     for key in txts:
         try:
-            tab2_tImfit_Param_dict.pop(key)
+            if key == 'gaussfit':
+                pass
+            else:
+                tab2_tImfit_Param_dict.pop(key)
         except:
             tab2_Div_tImfit2.text = '<p>Input syntax: <b>stokes</b>; <b>ncpu</b>; ' \
                                     '<b>region</b>. Any spaces will be ignored.</p>'
-    tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
+    tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
     on an image region(s)</b></p>' + ' '.join(
         "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
     tab2_Div_tImfit.text = tab2_Div_tImfit_text
@@ -1032,14 +1064,16 @@ def tab2_BUT_tImfit_param_default():
     global tab2_tImfit_Param_dict
     tab2_tImfit_Param_dict = OrderedDict()
     vlafileliststr = "'" + "','".join(vlafile) + "'"
+    tab2_tImfit_Param_dict['gaussfit'] = "True"
     tab2_tImfit_Param_dict['event_id'] = "'{}'".format(event_id.replace("/", ""))
     tab2_tImfit_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
     tab2_tImfit_Param_dict['ncpu'] = "10"
     tab2_tImfit_Param_dict['box'] = "''"
-    tab2_tImfit_Param_dict['stokes'] = "'{}'".format(tab2_Select_vla_pol.value)
+    # tab2_tImfit_Param_dict['stokes'] = "'{}'".format(tab2_Select_vla_pol.value)
     tab2_tImfit_Param_dict['mask'] = "''"
     tab2_tImfit_Param_dict['imagefiles'] = "[{}]".format(vlafileliststr)
-    tab2_Div_tImfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
+    tab2_maxfit_checkbox.active = []
+    tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
     on an image region(s)</b></p>' + ' '.join(
         "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
     tab2_Div_tImfit.text = tab2_Div_tImfit_text
@@ -1050,11 +1084,20 @@ def tab2_BUT_timfit_param_reload():
     global tab2_tImfit_Param_dict
     try:
         with open(database_dir + event_id + struct_id + 'CASA_imfit_args.json', 'r') as fp:
-            tab2_timfit_Param_dict = json.load(fp)
-        tab2_Div_timfit_text = '<p><b>#  pimfit :: Fit one or more elliptical Gaussian components \
-        on an image region(s)</b></p>' + ' '.join(
-            "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_timfit_Param_dict.items())
-        tab2_Div_tImfit.text = tab2_Div_timfit_text
+            tab2_tImfit_Param_dict = json.load(fp)
+        if tab2_tImfit_Param_dict['gaussfit']:
+            tab2_BUT_tImfit.label = 'pimfit'
+            tab2_maxfit_checkbox.active = []
+            tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
+            on an image region(s)</b></p>' + ' '.join(
+                "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+        else:
+            tab2_BUT_tImfit.label = 'pmaxfit'
+            tab2_maxfit_checkbox.active = [0]
+            tab2_Div_tImfit_text = '<p><b>#  maxfit :: do one parabolic fit components \
+            on an image region(s)</b></p>' + ' '.join(
+                "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+        tab2_Div_tImfit.text = tab2_Div_tImfit_text
         tab2_Div_tImfit2.text = '<p>CASA pimfit arguments reload from config file in <b>{}</b>.</p>'.format(
             database_dir + event_id + struct_id)
     except:
@@ -1140,10 +1183,7 @@ FS_dspecDF = database_dir + event_id + struct_id + config_EvtID['datadir']['dspe
 if os.path.exists(FS_dspecDF):
     with open(FS_dspecDF, 'rb') as f:
         dspecDF0 = pickle.load(f)
-    dspecDF_select = dspecDF0.copy()
-    itemset1 = set(['shape_longitude', 'shape_latitude'])
-    itemset2 = set(dspecDF0.columns.tolist())
-    if len(itemset2.intersection(itemset1)) == 2:
+    if DButil.getcolctinDF(dspecDF0, 'peak')[0] > 0:
         '''
         ########################################################################################
         ########################################################################################
@@ -1455,6 +1495,13 @@ if os.path.exists(FS_dspecDF):
                                        renderers=[tab2_r_square])
         tab2_p_dspec.add_tools(tab2_p_dspec_hover)
 
+        # import the vla image
+        hdu = read_fits(vlafile[0])
+        pols = DButil.polsfromfitsheader(hdu.header)
+        # initial dspecDF_select and dspecDF0POL
+        dspecDF_select = DButil.dspecDFfilter(dspecDF0, pols[0])
+        dspecDF0POL = DButil.dspecDFfilter(dspecDF0, pols[0])
+
         # initial the VLA map contour source
         tab2_SRC_vlamap_contour = ColumnDataSource(
             data={'xs': [], 'ys': [], 'line_color': [], 'xt': [], 'yt': [], 'text': []})
@@ -1468,8 +1515,6 @@ if os.path.exists(FS_dspecDF):
         tab2_SRC_vlamap_peak = ColumnDataSource(
             data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
 
-        # import the vla image
-        hdu = read_fits(vlafile[0])
         hdu_goodchan = goodchan(hdu)
         vla_local_pfmap = PuffinMap(hdu.data[0, hdu_goodchan[0], :, :], hdu.header,
                                     plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
@@ -1479,7 +1524,7 @@ if os.path.exists(FS_dspecDF):
         mapx, mapy = vla_local_pfmap.meshgrid()
         mapx, mapy = mapx.value, mapy.value
         mapvlasize = mapy.shape
-        tab2_SRC_vlamap_contour = get_contour_data(mapx, mapy, vla_local_pfmap.smap.data)
+        tab2_SRC_vlamap_contour = DButil.get_contour_data(mapx, mapy, vla_local_pfmap.smap.data)
         # mapx2, mapy2 = vla_local_pfmap.meshgrid(rescale=0.5)
         # mapx2, mapy2 = mapx2.value, mapy2.value
         ImgDF0 = pd.DataFrame({'xx': mapx.ravel(), 'yy': mapy.ravel()})
@@ -1697,11 +1742,6 @@ if os.path.exists(FS_dspecDF):
                                           width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                           callback_policy='mouseup')
 
-        stokeslist = ['{}'.format(int(ll)) for ll in
-                      (hdu.header["CRVAL4"] + np.arange(hdu.header["NAXIS4"]) * hdu.header["CDELT4"])]
-        stokesdict = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3': 'RL', '-4': 'LR',
-                      '-5': 'XX', '-6': 'YY', '-7': 'XY', '-8': 'YX'}
-        pols = map(lambda x: stokesdict[x], stokeslist)
         # pols = ['RR', 'LL', 'I', 'V']
         SRL = set(['RR', 'LL'])
         SXY = set(['XX', 'YY', 'XY', 'YX'])
@@ -1713,6 +1753,9 @@ if os.path.exists(FS_dspecDF):
 
         tab2_Select_vla_pol = Select(title="Polarization:", value=pols[0], options=pols,
                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+        select_vla_pol = tab2_Select_vla_pol.value
+        tab2_Select_vla_pol2 = Select(title="Polarization:", value=tab2_Select_vla_pol.value, options=pols,
+                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
         tab2_source_idx_line_x = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
         tab2_r_dspec_line_x = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
@@ -1873,7 +1916,7 @@ if os.path.exists(FS_dspecDF):
         tab3_r_dspec_vectory_line = tab3_p_dspec_vectory.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
                                                               line_color='white',
                                                               source=tab3_source_idx_line)
-        tab2_SRC_dspec_vector_square = ColumnDataSource(dspecDF0)
+        tab2_SRC_dspec_vector_square = ColumnDataSource(dspecDF0POL)
         tab2_r_dspec_vector_square = tab3_p_dspec_vector.square('time', 'freq', source=tab2_SRC_dspec_vector_square,
                                                                 fill_color=None,
                                                                 fill_alpha=0.0,
@@ -1989,7 +2032,8 @@ if os.path.exists(FS_dspecDF):
         lout3_2 = column(gridplot([tab3_p_dspec_vector], [tab3_p_dspec_vectorx], [tab3_p_dspec_vectory],
                                   toolbar_location='right'), tab3_Div_Tb)
         lout3_3 = widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
-                            tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab2_Select_aia_wave,
+                            tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab2_Select_vla_pol2,
+                            tab2_Select_aia_wave,
                             tab2_panel3_BUT_exit,
                             # tab2_panel3_Div_exit,
                             width=200)
@@ -2335,7 +2379,7 @@ if os.path.exists(FS_dspecDF):
             mapx, mapy = vla_local_pfmap.meshgrid()
             mapx, mapy = mapx.value, mapy.value
             mapvlasize = mapy.shape
-            tab2_SRC_vlamap_contour = get_contour_data(mapx, mapy, vla_local_pfmap.smap.data)
+            tab2_SRC_vlamap_contour = DButil.get_contour_data(mapx, mapy, vla_local_pfmap.smap.data)
             # mapx2, mapy2 = vla_local_pfmap.meshgrid(rescale=0.5)
             # mapx2, mapy2 = mapx2.value, mapy2.value
             ImgDF0 = pd.DataFrame({'xx': mapx.ravel(), 'yy': mapy.ravel()})
@@ -2455,11 +2499,7 @@ if os.path.exists(FS_dspecDF):
                                               width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                               callback_policy='mouseup')
 
-            stokeslist = ['{}'.format(int(ll)) for ll in
-                          (hdu.header["CRVAL4"] + np.arange(hdu.header["NAXIS4"]) * hdu.header["CDELT4"])]
-            stokesdict = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3': 'RL', '-4': 'LR',
-                          '-5': 'XX', '-6': 'YY', '-7': 'XY', '-8': 'YX'}
-            pols = map(lambda x: stokesdict[x], stokeslist)
+            pols = DButil.polsfromfitsheader(hdu.header)
             # pols = ['RR', 'LL', 'I', 'V']
             SRL = set(['RR', 'LL'])
             SXY = set(['XX', 'YY', 'XY', 'YX'])
@@ -2564,6 +2604,9 @@ if os.path.exists(FS_dspecDF):
                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                      button_type='primary')
             tab2_BUT_SavRgn.on_click(tab2_save_region)
+
+            tab2_maxfit_checkbox = CheckboxGroup(labels=["parabolic fit"], active=[])
+            tab2_maxfit_checkbox.on_click(Domaxfit)
             tab2_input_tImfit = TextInput(value="Input the param here", title="pimfit task parameters:",
                                           width=config_plot['plot_config']['tab_FSviewPrep']['input_tCLN_wdth'])
             tab2_Div_tImfit = Div(text='', width=config_plot['plot_config']['tab_FSviewPrep']['tab2_Div_tImfit_wdth'])
@@ -2614,7 +2657,7 @@ if os.path.exists(FS_dspecDF):
                                       width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
             lout2_1 = column(lout2_1_1, lout2_1_2)
             lout2_2 = tab2_SPCR_LFT_Div_tImfit
-            lout2_3 = column(tab2_input_tImfit, tab2_Div_tImfit2,
+            lout2_3 = column(row(tab2_input_tImfit, tab2_maxfit_checkbox), tab2_Div_tImfit2,
                              row(tab2_BUT_tImfit_param_ADD, tab2_SPCR_LFT_BUT_tImfit_param_DEL,
                                  tab2_BUT_tImfit_param_DEL, tab2_SPCR_LFT_BUT_tImfit_param_DEFAULT,
                                  tab2_BUT_tImfit_param_Default, tab2_SPCR_LFT_BUT_tImfit_param_RELOAD,
