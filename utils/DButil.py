@@ -1,6 +1,8 @@
 import numpy as np
+
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
+
 
 def polsfromfitsheader(header):
     '''
@@ -19,30 +21,39 @@ def polsfromfitsheader(header):
     return pols
 
 
-def fitcltodf(datain, gauss=True):
+def freqsfromfitsheader(header):
+    '''
+    get frequency in GHz from fits header
+    :param header: fits header
+    :return pols: polarisation stokes
+    '''
+    try:
+        freqs = ['{:.3f}'.format(ll/1e9) for ll in (header["CRVAL3"] + np.arange(header["NAXIS3"]) * header["CDELT3"])]
+        return freqs
+    except:
+        print("error in fits header!")
+        raise ValueError
+
+
+def transfitdict2DF(datain, gaussfit=True):
     '''
     convert the results from pimfit or pmaxfit tasks to pandas DataFrame structure.
     :param datain: The component list from pimfit or pmaxfit tasks
-    :param gauss: True if the results is from pimfit, otherwise False.
+    :param gaussfit: True if the results is from pimfit, otherwise False.
     :return: the pandas DataFrame structure.
     '''
     import pandas as pd
 
     ra2arcsec = 180. * 3600. / np.pi
-
+    dspecDF0 = pd.DataFrame()
     for ll in datain['timestamps']:
         tidx = datain['timestamps'].index(ll)
         if datain['succeeded'][tidx]:
             pols = datain['outputs'][tidx].keys()
-            freqstrs = []
-            fits_local = []
-            for comp in datain['outputs'][tidx][pols[0]]['results'].keys():
-                if comp.startswith('component'):
-                    freqstrs.append('{:.3f}'.format(
-                        datain['outputs'][tidx][pols[0]]['results'][comp]['spectrum']['frequency']['m0']['value']))
-                    fits_local.append(datain['imagenames'][tidx].split('/')[-1])
-            dspecDF = pd.DataFrame({'freqstr': freqstrs, 'fits_local': fits_local})
+            dspecDFlist = []
+            dspecDF = pd.DataFrame()
             for ppit in pols:
+                dspecDFtmp = pd.DataFrame()
                 shape_latitude = []
                 shape_longitude = []
                 shape_latitude_err = []
@@ -54,9 +65,11 @@ def fitcltodf(datain, gauss=True):
                 beam_major = []
                 beam_minor = []
                 beam_positionangle = []
+                freqstrs = []
+                fits_local = []
                 for comp in datain['outputs'][tidx][ppit]['results'].keys():
                     if comp.startswith('component'):
-                        if gauss:
+                        if gaussfit:
                             majoraxis = datain['outputs'][tidx][ppit]['results'][comp]['shape']['majoraxis']['value']
                             minoraxis = datain['outputs'][tidx][ppit]['results'][comp]['shape']['minoraxis']['value']
                             positionangle = datain['outputs'][tidx][ppit]['results'][comp]['shape']['positionangle'][
@@ -92,26 +105,38 @@ def fitcltodf(datain, gauss=True):
                         shape_longitude_err.append(longitude_err)
                         shape_latitude_err.append(latitude_err)
                         peak.append(fluxpeak)
-                if gauss:
-                    dspecDF['shape_latitude{}'.format(ppit)] = shape_latitude
-                    dspecDF['shape_longitude{}'.format(ppit)] = shape_longitude
-                    dspecDF['shape_latitude_err{}'.format(ppit)] = shape_latitude_err
-                    dspecDF['shape_longitude_err{}'.format(ppit)] = shape_longitude_err
-                    dspecDF['peak{}'.format(ppit)] = peak
-                    dspecDF['shape_majoraxis{}'.format(ppit)] = shape_majoraxis
-                    dspecDF['shape_minoraxis{}'.format(ppit)] = shape_minoraxis
-                    dspecDF['shape_positionangle{}'.format(ppit)] = shape_positionangle
-                    dspecDF['beam_major{}'.format(ppit)] = beam_major
-                    dspecDF['beam_minor{}'.format(ppit)] = beam_minor
-                    dspecDF['beam_positionangle{}'.format(ppit)] = beam_positionangle
+                        freqstrs.append('{:.3f}'.format(
+                            datain['outputs'][tidx][ppit]['results'][comp]['spectrum']['frequency']['m0']['value']))
+                        fits_local.append(datain['imagenames'][tidx].split('/')[-1])
+                if gaussfit:
+                    dspecDFtmp['shape_latitude{}'.format(ppit)] = pd.Series(shape_latitude)
+                    dspecDFtmp['shape_longitude{}'.format(ppit)] = pd.Series(shape_longitude)
+                    dspecDFtmp['shape_latitude_err{}'.format(ppit)] = pd.Series(shape_latitude_err)
+                    dspecDFtmp['shape_longitude_err{}'.format(ppit)] = pd.Series(shape_longitude_err)
+                    dspecDFtmp['peak{}'.format(ppit)] = pd.Series(peak)
+                    dspecDFtmp['shape_majoraxis{}'.format(ppit)] = pd.Series(shape_majoraxis)
+                    dspecDFtmp['shape_minoraxis{}'.format(ppit)] = pd.Series(shape_minoraxis)
+                    dspecDFtmp['shape_positionangle{}'.format(ppit)] = pd.Series(shape_positionangle)
+                    dspecDFtmp['beam_major{}'.format(ppit)] = pd.Series(beam_major)
+                    dspecDFtmp['beam_minor{}'.format(ppit)] = pd.Series(beam_minor)
+                    dspecDFtmp['beam_positionangle{}'.format(ppit)] = pd.Series(beam_positionangle)
                 else:
-                    dspecDF['shape_latitude{}'.format(ppit)] = shape_latitude
-                    dspecDF['shape_longitude{}'.format(ppit)] = shape_longitude
-                    dspecDF['shape_latitude_err{}'.format(ppit)] = shape_latitude_err
-                    dspecDF['shape_longitude_err{}'.format(ppit)] = shape_longitude_err
-                    dspecDF['peak{}'.format(ppit)] = peak
+                    dspecDFtmp['shape_latitude{}'.format(ppit)] = pd.Series(shape_latitude)
+                    dspecDFtmp['shape_longitude{}'.format(ppit)] = pd.Series(shape_longitude)
+                    dspecDFtmp['shape_latitude_err{}'.format(ppit)] = pd.Series(shape_latitude_err)
+                    dspecDFtmp['shape_longitude_err{}'.format(ppit)] = pd.Series(shape_longitude_err)
+                    dspecDFtmp['peak{}'.format(ppit)] = pd.Series(peak)
+                dspecDFtmp['freqstr'.format(ppit)] = pd.Series(freqstrs)
+                dspecDFtmp['fits_local'.format(ppit)] = pd.Series(fits_local)
+                dspecDFlist.append(dspecDFtmp)
+            for DFidx, DFit in enumerate(dspecDFlist):
+                if DFidx == 0:
+                    dspecDF = dspecDFlist[0]
+                else:
+                    dspecDF = pd.merge(dspecDF.copy(), DFit, how='outer', on=['freqstr', 'fits_local'])
+            dspecDF0 = dspecDF0.append(dspecDF, ignore_index=True)
 
-    return dspecDF
+    return dspecDF0
 
 
 def getcolctinDF(dspecDF, col):
@@ -139,7 +164,7 @@ def dspecDFfilter(dspecDF, pol):
     :param pol: selected polarisation, dtype = string
     :return: the output dspecDF
     '''
-    colnlistcom = ['shape_latitude', 'shape_longitude', 'peak','shape_latitude_err','shape_longitude_err']
+    colnlistcom = ['shape_latitude', 'shape_longitude', 'peak', 'shape_latitude_err', 'shape_longitude_err']
     colnlistgaus = ['shape_majoraxis', 'shape_minoraxis', 'shape_positionangle', 'beam_major', 'beam_minor',
                     'beam_positionangle']
     ## above are the columns to filter
@@ -160,11 +185,6 @@ def dspecDFfilter(dspecDF, pol):
         return dspecDF1
     else:
         return dspecDF
-
-
-
-
-
 
 
 def get_contour_data(X, Y, Z):
@@ -213,7 +233,6 @@ def twoD_Gaussian((x, y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     g = offset + amplitude * np.exp(- (a * ((x - xo) ** 2) + 2 * b * (x - xo) * (y - yo) + c * ((y - yo) ** 2)))
     return g.ravel()
 
-
 # def maxfit(image):
 #     # NAME:
 #     #    maxfit
@@ -244,4 +263,3 @@ def twoD_Gaussian((x, y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
 #         popt[:] = np.nan
 #
 #     return popt
-

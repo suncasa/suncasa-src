@@ -24,6 +24,7 @@ def maxfit_iter(imgfiles, box, imidx):
         print('Processing image: '+img)
         hdr = pyfits.getheader(img)
         pols = DButil.polsfromfitsheader(hdr)
+        freqs = DButil.freqsfromfitsheader(hdr)
         ndx, ndy, nchans, npols = ia.shape()
         blc, trc = [0, 0], [ndx, ndy]
         if 'box' in locals():
@@ -41,6 +42,7 @@ def maxfit_iter(imgfiles, box, imidx):
                     result_dict = iachan.maxfit(point=True,negfind=False)
                     result_dict['component0']['converged'] = True
                     result_dict['component0']['flux']['polarisation'] = itpp
+                    result_dict['component0']['spectrum']['frequency']['m0']['value'] = float(freqs[ll])
                     results[itpp]['results'][comp] = result_dict['component0']
                     results[itpp]['converged'].append(True)
                 except:

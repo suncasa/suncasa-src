@@ -45,7 +45,7 @@ if os.path.exists('CASA_imfit_args.json'):
         pickle.dump(out, fp)
 
     # todo add deconvolved results
-    dspecDF2 = DButil.fitcltodf(out, gauss=gaussfit)
+    dspecDF2 = DButil.transfitdict2DF(out, gaussfit=gaussfit)
     with open(database_dir + event_id + '/' + struct_id + '/dspecDF-save', 'rb') as fp:
         dspecDF1 = pickle.load(fp)
     for ll in dspecDF1.index:
