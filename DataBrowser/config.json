@@ -13,9 +13,11 @@
     },
     "tab_XrsCorr": {
       "dspec_hght": 400,
-      "dspec_wdth": 860,
+      "dspec_wdth": 430,
+      "dspec_wdth_offset": 0,
       "CCmap_hght": 400,
-      "CCmap_wdth": 430
+      "CCmap_wdth": 430,
+      "widgetbox_wdth":300
     },
     "tab_FSview_base": {
       "dspec_thumb_wdth": 200,

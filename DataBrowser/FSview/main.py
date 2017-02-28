@@ -82,12 +82,6 @@ bokehpalette_viridis = [colors.rgb2hex(m) for m in colormap_viridis(np.arange(co
 '''
 
 
-def c_correlate(a, v):
-    a = (a - np.mean(a)) / (np.std(a) * len(a))
-    v = (v - np.mean(v)) / np.std(v)
-    return np.correlate(a, v, mode='same')
-
-
 def read_fits(fname):
     hdulist = fits.open(fname)
     hdu = hdulist[0]
@@ -264,49 +258,12 @@ def tab2_panel_XrsCorr_update():
         dspecSel = tab2_r_dspec.data_source.data['image'][0][freqidx0:(freqidx1 + 1), timeidx0:(timeidx1 + 1)]
         freqSel = tab2_freq[freqidx0:(freqidx1 + 1)]
         timSel = tab2_tim[timeidx0:(timeidx1 + 1)]
-        timSelfit = np.linspace(timSel[0],
-                                timSel[-1], 5 * len(timSel))
-        dspecSelfit = np.zeros((len(freqSel), len(timSelfit)))
-        for fidx1, fq in enumerate(freqSel):
-            xx = timSel
-            yy = dspecSel[fidx1, :]
-            s = np.var(yy) * (len(yy)) * 3
-            tck = splrep(xx, yy, s=s)
-            ys = splev(timSelfit, tck)
-            dspecSelfit[fidx1, :] = ys
-        nfreqSel, ntimSelfit = dspecSelfit.shape
-        ccpeak = np.empty((nfreqSel - 1, nfreqSel - 1))
-        ccpeak[:] = np.nan
-        ccmax = ccpeak.copy()
-        freqa = ccpeak.copy()
-        freqv = ccpeak.copy()
-        fidxa = ccpeak.copy()
-        fidxv = ccpeak.copy()
-        for idx1 in xrange(1, nfreqSel):
-            for idx2 in xrange(0, idx1):
-                lightcurve1 = dspecSelfit[idx1, :]
-                lightcurve2 = dspecSelfit[idx2, :]
-                ccval = c_correlate(lightcurve1, lightcurve2)
-                cmax = np.amax(ccval)
-                cpeak = np.argmax(ccval) - ntimSelfit / 2
-                ccmax[idx2, idx1 - 1] = cmax
-                ccpeak[idx2, idx1 - 1] = cpeak
-                freqa[idx2, idx1 - 1] = freqSel[idx1 - 1]
-                freqv[idx2, idx1 - 1] = freqSel[idx2]
-                fidxa[idx2, idx1 - 1] = idx1 - 1
-                fidxv[idx2, idx1 - 1] = idx2
-                if idx1 - 1 != idx2:
-                    ccmax[idx1 - 1, idx2] = cmax
-                    ccpeak[idx1 - 1, idx2] = cpeak
-                    freqa[idx1 - 1, idx2] = freqSel[idx2]
-                    freqv[idx1 - 1, idx2] = freqSel[idx1 - 1]
-                    fidxa[idx1 - 1, idx2] = idx2
-                    fidxv[idx1 - 1, idx2] = idx1 - 1
-
+        CC_dict = DButil.XrsCorrMap(dspecSel, timSel, freqSel)
         CC_save = database_dir + event_id + struct_id + 'CC_save.npz'
-        np.savez(CC_save, spec=dspecSel, specfit=dspecSelfit, ccmax=ccmax, ccpeak=ccpeak, tim=timSel, ntim=len(timSel),
-                 timfit=timSelfit, ntimfit=ntimSelfit, freq=freqSel, nfreq=nfreqSel, freqv=freqv, freqa=freqa,
-                 fidxv=fidxv, fidxa=fidxa)
+        np.savez(CC_save, spec=dspecSel, specfit=CC_dict['zfit'], ccmax=CC_dict['ccmax'], ccpeak=CC_dict['ccpeak'],
+                 tim=CC_dict['x'], ntim=CC_dict['nx'], timfit=CC_dict['xfit'], ntimfit=CC_dict['nxfit'],
+                 freq=CC_dict['y'], nfreq=CC_dict['ny'], freqv=CC_dict['yv'], freqa=CC_dict['ya'],
+                 fidxv=CC_dict['yidxv'], fidxa=CC_dict['yidxa'])
         try:
             tab2_Div_LinkImg_plot.text = '<p><b>{}</b> saved.</p>'.format(CC_save)
         except:
