@@ -350,9 +350,7 @@ def tab2_SRC_maxfit_centroid_init(dspecDFsel):
     SRC_maxfit_centroid = {}
     for ll in np.unique(dspecDFsel['time']):
         df_tmp = pd.DataFrame(
-            {'freq': [], 'shape_longitude': [], 'shape_latitude': [], 'shape_majoraxis': [],
-             'shape_minoraxis': [], 'peak': [],
-             'shape_positionangle': []})
+            {'freq': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
         SRC_maxfit_centroid[np.where(abs(tab2_dtim - ll) < 0.02)[0].tolist()[0]] = ColumnDataSource(df_tmp)
     print("---tab2_SRC_maxfit_centroid_init -- %s seconds ---" % (time.time() - start_timestamp))
 
@@ -433,8 +431,7 @@ def tab3_slider_LinkImg_update(attrname, old, new):
 def tab2_SRC_maxfit_centroid_update(dspecDFsel):
     start_timestamp = time.time()
     global SRC_maxfit_centroid, timebin
-    subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'shape_majoraxis', 'shape_minoraxis', 'peak',
-                    'shape_positionangle']
+    subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'peak']
     if tab3_BUT_animate_ONOFF.label == 'Animate ON & Go':
         SRC_maxfit_centroid = {}
         for ll in np.unique(dspecDFsel['time']):
@@ -442,9 +439,7 @@ def tab2_SRC_maxfit_centroid_update(dspecDFsel):
             dftmp = dftmp.dropna(how='any', subset=subset_label)
             df_tmp = pd.concat(
                 [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'],
-                 dftmp.loc[:, 'shape_majoraxis'],
-                 dftmp.loc[:, 'shape_minoraxis'], dftmp.loc[:, 'peak'],
-                 dftmp.loc[:, 'shape_positionangle'] - np.pi / 2], axis=1)
+                 dftmp.loc[:, 'peak']], axis=1)
             SRC_maxfit_centroid[np.where(abs(tab2_dtim - ll) < 0.02)[0].tolist()[0]] = ColumnDataSource(df_tmp)
     else:
         time_dspec = np.unique(dspecDFsel['time'])
@@ -469,9 +464,7 @@ def tab2_SRC_maxfit_centroid_update(dspecDFsel):
             dftmp = dftmp.dropna(how='any', subset=subset_label)
             df_tmp = pd.concat(
                 [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'],
-                 dftmp.loc[:, 'shape_majoraxis'],
-                 dftmp.loc[:, 'shape_minoraxis'], dftmp.loc[:, 'peak'],
-                 dftmp.loc[:, 'shape_positionangle'] - np.pi / 2], axis=1)
+                 dftmp.loc[:, 'peak']], axis=1)
             SRC_maxfit_centroid = ColumnDataSource(df_tmp)
     print("--- tab2_SRC_maxfit_centroid_update -- %s seconds ---" % (time.time() - start_timestamp))
 
