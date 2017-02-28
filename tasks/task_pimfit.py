@@ -11,25 +11,27 @@ import matplotlib.gridspec as gs
 from fnmatch import fnmatch
 from time import sleep
 from time import time
-from taskinit import *
+from taskinit import casalog
 import multiprocessing as mp
+from suncasa.utils import DButil
 
-def imfit_iter(imgfiles, doreg, tims, msinfofile, ephem, box, region, chans, stokes, mask, includepix, excludepix, 
-               residual, model, estimates, logfile, append, newestimates, complist, 
-               overwrite, dooff, offset, fixoffset, stretch, rms, noisefwhm, summary, 
+
+def imfit_iter(imgfiles, doreg, tims, msinfofile, ephem, box, region, chans, stokes, mask, includepix, excludepix,
+               residual, model, estimates, logfile, append, newestimates, complist,
+               overwrite, dooff, offset, fixoffset, stretch, rms, noisefwhm, summary,
                imidx):
-    from taskinit import iatool
+    from taskinit import iatool,rg
     import pdb
     try:
         from astropy.io import fits as pyfits
     except:
-        try: 
+        try:
             import pyfits
         except ImportError:
             raise ImportError('Neither astropy nor pyfits exists in this CASA installation')
-    img=imgfiles[imidx]
+    img = imgfiles[imidx]
 
-    if doreg: 
+    if doreg:
         # check if ephemfile and msinfofile exist
         if not ephem:
             print("ephemeris info does not exist!")
@@ -38,90 +40,101 @@ def imfit_iter(imgfiles, doreg, tims, msinfofile, ephem, box, region, chans, sto
             print("timestamp of the image does not exist!")
             return
         try:
-            tim=tims[imidx]
-            helio=vla_prep.ephem_to_helio(msinfo = msinfofile, ephem = ephem, reftime = tim)
-            fitsfile=[img.replace('.image','.fits')]
-            vla_prep.imreg(imagefile = [img], fitsfile = fitsfile, helio = helio, toTb = False, scl100 = True)
-            img=img.replace('.image','.fits')
+            tim = tims[imidx]
+            helio = vla_prep.ephem_to_helio(msinfo=msinfofile, ephem=ephem, reftime=tim)
+            fitsfile = [img.replace('.image', '.fits')]
+            vla_prep.imreg(imagefile=[img], fitsfile=fitsfile, helio=helio, toTb=False, scl100=True)
+            img = img.replace('.image', '.fits')
         except:
-            print 'Failure in vla_prep. Skipping this image file: '+img    
+            print 'Failure in vla_prep. Skipping this image file: ' + img
 
     myia = iatool()
     try:
         if (not myia.open(img)):
             raise Exception, "Cannot create image analysis tool using " + img
-        print('Processing image: '+img)
-        result_dict = myia.fitcomponents(
-            box=box, region=region, chans=chans, stokes=stokes,
-            mask=mask, includepix=includepix,
-            excludepix=excludepix, residual=residual,
-            model=model, estimates=estimates, logfile=logfile,
-            append=append, newestimates=newestimates,
-            complist=complist, overwrite=overwrite, dooff=dooff,
-            offset=offset, fixoffset=fixoffset, stretch=stretch,
-            rms=rms, noisefwhm=noisefwhm, summary=summary
-        )
+        print('Processing image: ' + img)
+        hdr = pyfits.getheader(img)
+        pols = DButil.polsfromfitsheader(hdr)
+        ndx, ndy, nchans, npols = myia.shape()
+        results = {}
+        for itpp in pols:
+            results[itpp] = {}
+        for pp, itpp in enumerate(pols):
+            r = rg.box(blc=[0, 0, 0, pp], trc=[ndx, ndy, nchans, pp])
+            myiapol = myia.subimage(region=r, dropdeg=True)
+            results[itpp] = myiapol.fitcomponents(
+                box=box, region=region, chans=chans, stokes=stokes,
+                mask=mask, includepix=includepix,
+                excludepix=excludepix, residual=residual,
+                model=model, estimates=estimates, logfile=logfile,
+                append=append, newestimates=newestimates,
+                complist=complist, overwrite=overwrite, dooff=dooff,
+                offset=offset, fixoffset=fixoffset, stretch=stretch,
+                rms=rms, noisefwhm=noisefwhm, summary=summary
+            )
         # update timestamp
-        hdr=pyfits.getheader(img)
-        timstr=hdr['date-obs']
-        return [True, timstr, img, result_dict]
+
+        timstr = hdr['date-obs']
+        return [True, timstr, img, results]
     except Exception, instance:
-        casalog.post( str( '*** Error in imfit ***') + str(instance) )
-        #raise instance
+        casalog.post(str('*** Error in imfit ***') + str(instance))
+        # raise instance
         return [False, timstr, img, {}]
     finally:
         myia.done()
 
-def pimfit(imagefiles, ncpu, doreg, timestamps, msinfofile, ephemfile, box, region, chans, stokes, mask, includepix, excludepix, 
-           residual, model, estimates, logfile, append, newestimates, complist, 
+
+def pimfit(imagefiles, ncpu, doreg, timestamps, msinfofile, ephemfile, box, region, chans, stokes, mask, includepix,
+           excludepix,
+           residual, model, estimates, logfile, append, newestimates, complist,
            overwrite, dooff, offset, fixoffset, stretch, rms, noisefwhm, summary):
     from functools import partial
     import pdb
     # check if imagefiles is a single file or a list of files
 
-    if isinstance(imagefiles,str):
-        imagefiles=[imagefiles]
-    if (not isinstance(imagefiles,list)):
+    if isinstance(imagefiles, str):
+        imagefiles = [imagefiles]
+    if (not isinstance(imagefiles, list)):
         print 'input "imagefiles" is not a list. Abort...'
 
-    if doreg: 
+    if doreg:
         # check if ephemfile and msinfofile exist
         try:
-            ephem=vla_prep.read_horizons(ephemfile = ephemfile)
+            ephem = vla_prep.read_horizons(ephemfile=ephemfile)
         except ValueError:
             print("error in reading ephemeris file")
         if not os.path.isfile(msinfofile):
             print("msinfofile does not exist!")
         # check if timestamps exist 
-        if (not isinstance(timestamps,list)):
+        if (not isinstance(timestamps, list)):
             print('input "timestamps" is not a list. Abort...')
         if (len(timestamps) != len(imagefiles)):
-            print('imagefiles and timestamps should have the same length! Abort...') 
+            print('imagefiles and timestamps should have the same length! Abort...')
     else:
-        ephem=None
+        ephem = None
 
-
-    # check file existence 
-    imgfiles=[]
-    tims=[]
-    for i,img in enumerate(imagefiles):
+    # check file existence
+    imgfiles = []
+    tims = []
+    for i, img in enumerate(imagefiles):
         if os.path.exists(img):
             imgfiles.append(img)
             if doreg:
                 tims.append(timestamps[i])
         else:
-            casalog.post(img+ 'does not exist. Skipping this one...')
+            casalog.post(img + 'does not exist. Skipping this one...')
 
-    iterable=range(len(imgfiles))
-    res=[]
+    iterable = range(len(imgfiles))
+    res = []
 
     if not (type(ncpu) is int):
         casalog.post('ncpu should be an integer')
         ncpu = 8
 
     # partition
-    imfit_part = partial(imfit_iter, imgfiles, doreg, tims, msinfofile, ephem, box, region, chans, stokes, mask, includepix, excludepix,\
-                         residual, model, estimates, logfile, append, newestimates, complist,\
+    imfit_part = partial(imfit_iter, imgfiles, doreg, tims, msinfofile, ephem, box, region, chans, stokes, mask,
+                         includepix, excludepix, \
+                         residual, model, estimates, logfile, append, newestimates, complist, \
                          overwrite, dooff, offset, fixoffset, stretch, rms, noisefwhm, summary)
 
     # parallelization
@@ -131,7 +144,7 @@ def pimfit(imagefiles, ncpu, doreg, timestamps, msinfofile, ephemfile, box, regi
     if para:
         casalog.post('Perform imfit in parallel ...')
         pool = mp.Pool(ncpu)
-        #res = pool.map_async(imfit_part, iterable)
+        # res = pool.map_async(imfit_part, iterable)
         res = pool.map(imfit_part, iterable)
         pool.close()
         pool.join()
@@ -143,7 +156,7 @@ def pimfit(imagefiles, ncpu, doreg, timestamps, msinfofile, ephemfile, box, regi
     timelapse = t1 - t0
     print 'It took %f secs to complete' % timelapse
     # repackage this into a single dictionary
-    results={'succeeded':[], 'timestamps':[], 'imagenames':[], 'outputs':[]}
+    results = {'succeeded': [], 'timestamps': [], 'imagenames': [], 'outputs': []}
     for r in res:
         results['succeeded'].append(r[0])
         results['timestamps'].append(r[1])
@@ -151,4 +164,3 @@ def pimfit(imagefiles, ncpu, doreg, timestamps, msinfofile, ephemfile, box, regi
         results['outputs'].append(r[3])
 
     return results
-
