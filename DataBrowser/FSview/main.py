@@ -251,6 +251,7 @@ ports = []
 
 
 def tab2_panel_XrsCorr_update():
+    from scipy.interpolate import splev, splrep
     global tab2_dspec_selected, dspecDF_select
     if tab2_dspec_selected and len(tab2_dspec_selected) > 50:
         time0, time1 = Time((dspecDF_select['time'].min() + timestart) / 3600. / 24., format='jd'), Time(
@@ -263,7 +264,17 @@ def tab2_panel_XrsCorr_update():
         dspecSel = tab2_r_dspec.data_source.data['image'][0][freqidx0:(freqidx1 + 1), timeidx0:(timeidx1 + 1)]
         freqSel = tab2_freq[freqidx0:(freqidx1 + 1)]
         timSel = tab2_tim[timeidx0:(timeidx1 + 1)]
-        nfreqSel, ntimSel = dspecSel.shape
+        timSelfit = np.linspace(timSel[0],
+                                timSel[-1], 5 * len(timSel))
+        dspecSelfit = np.zeros((len(freqSel), len(timSelfit)))
+        for fidx1, fq in enumerate(freqSel):
+            xx = timSel
+            yy = dspecSel[fidx1, :]
+            s = np.var(yy) * (len(yy)) * 3
+            tck = splrep(xx, yy, s=s)
+            ys = splev(timSelfit, tck)
+            dspecSelfit[fidx1, :] = ys
+        nfreqSel, ntimSelfit = dspecSelfit.shape
         ccpeak = np.empty((nfreqSel - 1, nfreqSel - 1))
         ccpeak[:] = np.nan
         ccmax = ccpeak.copy()
@@ -273,11 +284,11 @@ def tab2_panel_XrsCorr_update():
         fidxv = ccpeak.copy()
         for idx1 in xrange(1, nfreqSel):
             for idx2 in xrange(0, idx1):
-                lightcurve1 = dspecSel[idx1, :]
-                lightcurve2 = dspecSel[idx2, :]
+                lightcurve1 = dspecSelfit[idx1, :]
+                lightcurve2 = dspecSelfit[idx2, :]
                 ccval = c_correlate(lightcurve1, lightcurve2)
                 cmax = np.amax(ccval)
-                cpeak = np.argmax(ccval) - ntimSel / 2
+                cpeak = np.argmax(ccval) - ntimSelfit / 2
                 ccmax[idx2, idx1 - 1] = cmax
                 ccpeak[idx2, idx1 - 1] = cpeak
                 freqa[idx2, idx1 - 1] = freqSel[idx1 - 1]
@@ -293,8 +304,9 @@ def tab2_panel_XrsCorr_update():
                     fidxv[idx1 - 1, idx2] = idx1 - 1
 
         CC_save = database_dir + event_id + struct_id + 'CC_save.npz'
-        np.savez(CC_save, spec=dspecSel, ccmax=ccmax, ccpeak=ccpeak, tim=timSel, freq=freqSel, nfreq=nfreqSel,
-                 ntim=ntimSel, freqv=freqv, freqa=freqa, fidxv=fidxv, fidxa=fidxa)
+        np.savez(CC_save, spec=dspecSel, specfit=dspecSelfit, ccmax=ccmax, ccpeak=ccpeak, tim=timSel, ntim=len(timSel),
+                 timfit=timSelfit, ntimfit=ntimSelfit, freq=freqSel, nfreq=nfreqSel, freqv=freqv, freqa=freqa,
+                 fidxv=fidxv, fidxa=fidxa)
         try:
             tab2_Div_LinkImg_plot.text = '<p><b>{}</b> saved.</p>'.format(CC_save)
         except:

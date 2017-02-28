@@ -37,6 +37,7 @@ bokehpalette_RdBu = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
 colormap = cm.get_cmap("Blues")  # choose any matplotlib colormap here
 bokehpalette_Blues = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
 
+
 def exit():
     raise SystemExit
 
@@ -75,9 +76,13 @@ freqa = CC_savedata['freqa']
 freqv = CC_savedata['freqv']
 fidxa = CC_savedata['fidxa']
 fidxv = CC_savedata['fidxv']
+timfit = CC_savedata['timfit']
+ntimfit = CC_savedata['ntimfit']
+specfit = CC_savedata['specfit']
+dtfit = np.median(np.diff(timfit))
 
 CCmaxDF = pd.DataFrame(
-    {'ccmax': ccmax.ravel(), 'ccpeak': ccpeak.ravel(), 'freqa': freqa.ravel(), 'freqv': freqv.ravel(),
+    {'ccmax': ccmax.ravel(), 'ccpeak': ccpeak.ravel() * dtfit, 'freqa': freqa.ravel(), 'freqv': freqv.ravel(),
      'fidxa': fidxa.ravel(), 'fidxv': fidxv.ravel()})
 TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
 p_dspec = figure(tools=TOOLS,
@@ -128,7 +133,6 @@ r_CCmax_line1 = p_CCmax.line(x='x', y='y', alpha=0.6, line_width=2, line_color='
 SRC_CCmax_line2 = ColumnDataSource({'x': [], 'y': []})
 r_CCmax_line2 = p_CCmax.line(x='x', y='y', alpha=0.6, line_width=2, line_color='red', source=SRC_CCmax_line2)
 
-
 cm_CCmax = LinearColorMapper(palette=bokehpalette_Blues, low=0, high=1.0)
 cb_CCmax = ColorBar(color_mapper=cm_CCmax, label_standoff=5, width=5, border_line_color=None, location=(0, 0))
 p_CCmax.add_layout(cb_CCmax, 'right')
@@ -138,7 +142,7 @@ p_CCpeak = figure(tools=TOOLS,
                   plot_height=config_plot['plot_config']['tab_XrsCorr']['CCmap_hght'],
                   x_range=p_CCmax.x_range, y_range=p_CCmax.y_range)
 p_CCpeak.axis.visible = True
-p_CCpeak.title.text = "Xross Correlation lag"
+p_CCpeak.title.text = "Xross Correlation lag [sec]"
 p_CCpeak.xaxis.axis_label = 'Frequency [GHz]'
 p_CCpeak.yaxis.axis_label = 'Frequency [GHz]'
 r_CCpeak = p_CCpeak.image(image=[ccpeak], x=freq[0], y=freq[0],
@@ -159,7 +163,7 @@ r_CCpeak_line1 = p_CCpeak.line(x='x', y='y', alpha=0.6, line_width=2, line_color
 SRC_CCpeak_line2 = ColumnDataSource({'x': [], 'y': []})
 r_CCpeak_line2 = p_CCpeak.line(x='x', y='y', alpha=0.6, line_width=2, line_color='red', source=SRC_CCmax_line2)
 
-lagmax = ntim / 2
+lagmax = ntim / 2 * dt
 cm_CCpeak = LinearColorMapper(palette=bokehpalette_RdBu, low=-lagmax, high=lagmax)
 cb_CCpeak = ColorBar(color_mapper=cm_CCpeak, label_standoff=5, width=5, border_line_color=None, location=(0, 0))
 p_CCpeak.add_layout(cb_CCpeak, 'right')
@@ -192,7 +196,7 @@ r_dspec_prof1 = p_dspec_lines.line(x='x', y='y', alpha=0.6, line_width=2, line_c
 SRC_dspec_prof2 = ColumnDataSource({'x': [], 'y': []})
 r_dspec_prof2 = p_dspec_lines.line(x='x', y='y', alpha=0.6, line_width=2, line_color='red',
                                    source=SRC_dspec_prof2)
-tooltips = [("(freqa,freqv)", "(@freqa, @freqv)"), ("max, lag", "(@ccmax,@ccpeak)"), ]
+tooltips = [("(freqa,freqv)", "(@freqa, @freqv)"), ("max, lag [s]", "(@ccmax,@ccpeak)"), ]
 # tooltips = """
 # <div>
 #     <div>
@@ -225,6 +229,7 @@ hover_JScode = """
     var nx = %d;
     var f0 = %s;
     var f1 = %s;
+    var nxfit = %d;
     var indices = cb_data.index['1d'].indices;
 
     var data = {'x': [], 'y': []};
@@ -272,14 +277,14 @@ hover_JScode = """
         data['y'].push(spec[CCfdata.fidxv[indices[0]]*nx+i]);
     }
     r_prof2.set('data',data);
-    """ % (dtim[0], dtim[-1], ntim, freq[0],freq[-1])
+    """ % (dtim[0], dtim[-1], ntim, freq[0], freq[-1], ntimfit)
 
 CJSargs = {'CC_SQR': SRC_CCmax_square, 'r_freq1': r_freq_line1.data_source, 'r_freq2': r_freq_line2.data_source,
            'specplt': ColumnDataSource({'data': [spec.ravel()]}), 'time': ColumnDataSource({'data': [dtim]}),
            'r_prof1': r_dspec_prof1.data_source,
            'r_prof2': r_dspec_prof2.data_source,
-           'r_CCmaxl1':r_CCmax_line1.data_source,
-           'r_CCmaxl2':r_CCmax_line2.data_source}
+           'r_CCmaxl1': r_CCmax_line1.data_source,
+           'r_CCmaxl2': r_CCmax_line2.data_source}
 
 p_CCmax_hover_callback = CustomJS(args=CJSargs, code=hover_JScode)
 p_CCmax_hover = HoverTool(tooltips=tooltips, callback=p_CCmax_hover_callback,
