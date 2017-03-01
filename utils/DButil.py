@@ -250,7 +250,7 @@ def XrsCorrMap(z, x, y):
     :return:
     '''
     from scipy.interpolate import splev, splrep
-    xfit = np.linspace(x[0], x[-1], 6 * len(x) + 1)
+    xfit = np.linspace(x[0], x[-1], 10 * len(x) + 1)
     zfit = np.zeros((len(y), len(xfit)))
     for yidx1, yq in enumerate(y):
         xx = x

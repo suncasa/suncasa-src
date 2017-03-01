@@ -83,7 +83,7 @@ specfit = CC_savedata['specfit']
 dtfit = np.median(np.diff(timfit))
 
 CCmaxDF = pd.DataFrame(
-    {'ccmax': ccmax.ravel(), 'ccpeak': ccpeak.ravel() * dtfit, 'freqa': freqa.ravel(), 'freqv': freqv.ravel(),
+    {'ccmax': ccmax.ravel(), 'ccpeak': ccpeak.ravel() * dtfit * 1000.0, 'freqa': freqa.ravel(), 'freqv': freqv.ravel(),
      'fidxa': fidxa.ravel(), 'fidxv': fidxv.ravel()})
 TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
 p_dspec = figure(tools=TOOLS,
@@ -172,13 +172,13 @@ p_CCpeak = figure(tools=TOOLS,
                   plot_height=config_plot['plot_config']['tab_XrsCorr']['CCmap_hght'],
                   x_range=p_CCmax.x_range, y_range=p_CCmax.y_range)
 p_CCpeak.axis.visible = True
-p_CCpeak.title.text = "Xross Correlation lag [sec]"
+p_CCpeak.title.text = "Xcorr lag [ms]"
 p_CCpeak.xaxis.axis_label = 'Frequency [GHz]'
 p_CCpeak.yaxis.axis_label = 'Frequency [GHz]'
 
 lagmaxd = (ntimfit - 1) / 2
-lagmax = lagmaxd * dtfit
-ccpeakplt = ccpeak * dtfit
+lagmax = lagmaxd * dtfit * 1000.0
+ccpeakplt = ccpeak * dtfit * 1000.0
 
 r_CCpeak = p_CCpeak.image(image=[ccpeakplt], x=freq[0], y=freq[0],
                           dw=freq[-1] - freq[0],
@@ -240,7 +240,7 @@ r_dspecfit_prof1 = p_dspec_lines.line(x='x', y='y', alpha=0.7, line_width=1, lin
 SRC_dspecfit_prof2 = ColumnDataSource({'x': [], 'y': []})
 r_dspecfit_prof2 = p_dspec_lines.line(x='x', y='y', alpha=0.7, line_width=1, line_color='red',
                                       source=SRC_dspecfit_prof2)
-tooltips = [("(freqa,freqv)", "(@freqa, @freqv)"), ("max, lag [s]", "(@ccmax,@ccpeak)"), ]
+tooltips = [("freqa, freqv", "@freqa, @freqv"), ("max, lag [ms]", "@ccmax, @ccpeak"), ]
 
 hover_JScode = """
     var CCfdata = CC_SQR.data;
@@ -336,20 +336,44 @@ p_CCpeak_hover = HoverTool(tooltips=tooltips, callback=p_CCpeak_hover_callback,
 p_CCpeak.add_tools(p_CCpeak_hover)
 
 
-def Slider_threshold_update(attrname, old, new):
-    global ccmax, ccpeak, specfit
-    thrshdpercent = Slider_threshold.value / 100.0
+def Slider_watershed_update(attrname, old, new):
+    wtshdpercent = Slider_watershed.value / 100.0
     specfit = CC_savedata['specfit'].copy()
     for fidx in xrange(nfreq):
         specslice = specfit[fidx, :]
         slicemax, slicemin = specslice.max(), specslice.min()
-        thrshd = slicemin + (slicemax - slicemin) * thrshdpercent
+        thrshd = slicemin + (slicemax - slicemin) * wtshdpercent
         specslice[specslice < thrshd] = thrshd
         specfit[fidx, :] = specslice
     r_dspecfit.data_source.data['image'] = [specfit]
 
 
-Slider_threshold = Slider(start=0, end=100, value=0, step=5, title="threshold",
+Slider_watershed = Slider(start=0, end=100, value=0, step=5, title="watershed",
+                          width=config_plot['plot_config']['tab_XrsCorr']['widgetbox_wdth'],
+                          callback_policy='mouseup')
+
+Slider_watershed.on_change('value', Slider_watershed_update)
+
+
+def Slider_threshold_update(attrname, old, new):
+    thrshdpercent = Slider_threshold.value / 100.0
+    specfit = CC_savedata['specfit'].copy()
+    thrshd = specfit.max() * thrshdpercent
+    fidxflag = np.log(specfit.max(axis=1)) < thrshdpercent*np.log(specfit.max())
+    ccmaxplt = ccmax
+    ccpeakplt = ccpeak * dtfit * 1000.0
+    for fflag in freq[fidxflag]:
+        ccmaxplt[freqa == fflag] = np.nan
+        ccmaxplt[freqv == fflag] = np.nan
+        ccpeakplt[freqa == fflag] = np.nan
+        ccpeakplt[freqv == fflag] = np.nan
+    maspecfit = np.tile(fidxflag, ntimfit).reshape(ntimfit, nfreq).swapaxes(0, 1)
+    specfit[maspecfit] = np.nan
+    r_dspecfit.data_source.data['image'] = [specfit]
+    r_CCmax.data_source.data['image'] = [ccmaxplt]
+    r_CCpeak.data_source.data['image'] = [ccpeakplt]
+
+Slider_threshold = Slider(start=0, end=100, value=0, step=1, title="threshold",
                           width=config_plot['plot_config']['tab_XrsCorr']['widgetbox_wdth'],
                           callback_policy='mouseup')
 
@@ -361,7 +385,8 @@ BUT_exit = Button(label='Exit FSview',
 BUT_exit.on_click(exit)
 
 lout = column(row(gridplot([[p_dspec, p_dspecfit]], toolbar_location='right'), p_dspec_lines),
-              row(gridplot([[p_CCmax, p_CCpeak]], toolbar_location='right'), column(Slider_threshold, BUT_exit)))
+              row(gridplot([[p_CCmax, p_CCpeak]], toolbar_location='right'),
+                  column(Slider_watershed, Slider_threshold, BUT_exit)))
 
 curdoc().add_root(lout)
 curdoc().title = "XrsCorr"
