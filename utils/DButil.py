@@ -241,7 +241,7 @@ def c_correlate(a, v):
     return np.correlate(a, v, mode='same')
 
 
-def XrsCorrMap(z, x, y, doxscale = True):
+def XcorrMap(z, x, y, doxscale = True):
     '''
     get the cross correlation map along y axis
     :param z: data
