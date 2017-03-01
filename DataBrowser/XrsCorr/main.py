@@ -13,6 +13,7 @@ from bokeh.models import (ColumnDataSource, CustomJS, Slider, Button, TextInput,
 from bokeh.models import LinearColorMapper, ColorBar, LogColorMapper
 from bokeh.plotting import figure, curdoc
 from astropy.time import Time
+from suncasa.utils import DButil
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -339,27 +340,32 @@ p_CCpeak.add_tools(p_CCpeak_hover)
 def Slider_watershed_update(attrname, old, new):
     wtshdpercent = Slider_watershed.value / 100.0
     specfit = CC_savedata['specfit'].copy()
+    spec = CC_savedata['spec'].copy()
     for fidx in xrange(nfreq):
-        specslice = specfit[fidx, :]
-        slicemax, slicemin = specslice.max(), specslice.min()
+        specfitslice = specfit[fidx, :]
+        slicemax, slicemin = specfitslice.max(), specfitslice.min()
         thrshd = slicemin + (slicemax - slicemin) * wtshdpercent
-        specslice[specslice < thrshd] = thrshd
-        specfit[fidx, :] = specslice
+        specfitslice[specfitslice < thrshd] = np.nan
+        specfit[fidx, :] = specfitslice
     r_dspecfit.data_source.data['image'] = [specfit]
+    # CC_dict = DButil.XrsCorrMap(specfit, timfit, freq, doxscale=False)
+    # r_CCmax.data_source.data['image'] = [CC_dict['ccmax']]
+    # r_CCpeak.data_source.data['image'] = [CC_dict['ccpeak'] * dtfit * 1000.0]
+
 
 
 Slider_watershed = Slider(start=0, end=100, value=0, step=5, title="watershed",
                           width=config_plot['plot_config']['tab_XrsCorr']['widgetbox_wdth'],
                           callback_policy='mouseup')
 
+# This data source is just used to communicate / trigger the real callback
 Slider_watershed.on_change('value', Slider_watershed_update)
 
 
 def Slider_threshold_update(attrname, old, new):
     thrshdpercent = Slider_threshold.value / 100.0
     specfit = CC_savedata['specfit'].copy()
-    thrshd = specfit.max() * thrshdpercent
-    fidxflag = np.log(specfit.max(axis=1)) < thrshdpercent*np.log(specfit.max())
+    fidxflag = np.log(specfit.max(axis=1)) < thrshdpercent * np.log(specfit.max())
     ccmaxplt = ccmax
     ccpeakplt = ccpeak * dtfit * 1000.0
     for fflag in freq[fidxflag]:
@@ -372,6 +378,7 @@ def Slider_threshold_update(attrname, old, new):
     r_dspecfit.data_source.data['image'] = [specfit]
     r_CCmax.data_source.data['image'] = [ccmaxplt]
     r_CCpeak.data_source.data['image'] = [ccpeakplt]
+
 
 Slider_threshold = Slider(start=0, end=100, value=0, step=1, title="threshold",
                           width=config_plot['plot_config']['tab_XrsCorr']['widgetbox_wdth'],

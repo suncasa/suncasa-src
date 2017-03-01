@@ -241,7 +241,7 @@ def c_correlate(a, v):
     return np.correlate(a, v, mode='same')
 
 
-def XrsCorrMap(z, x, y):
+def XrsCorrMap(z, x, y, doxscale = True):
     '''
     get the cross correlation map along y axis
     :param z: data
@@ -250,15 +250,19 @@ def XrsCorrMap(z, x, y):
     :return:
     '''
     from scipy.interpolate import splev, splrep
-    xfit = np.linspace(x[0], x[-1], 10 * len(x) + 1)
-    zfit = np.zeros((len(y), len(xfit)))
-    for yidx1, yq in enumerate(y):
-        xx = x
-        yy = z[yidx1, :]
-        s = len(yy)#(len(yy) - np.sqrt(2 * len(yy)))*2
-        tck = splrep(xx, yy, s=s)
-        ys = splev(xfit, tck)
-        zfit[yidx1, :] = ys
+    if doxscale:
+        xfit = np.linspace(x[0], x[-1], 10 * len(x) + 1)
+        zfit = np.zeros((len(y), len(xfit)))
+        for yidx1, yq in enumerate(y):
+            xx = x
+            yy = z[yidx1, :]
+            s = len(yy)  # (len(yy) - np.sqrt(2 * len(yy)))*2
+            tck = splrep(xx, yy, s=s)
+            ys = splev(xfit, tck)
+            zfit[yidx1, :] = ys
+    else:
+        xfit=x
+        zfit=z
     ny, nxfit = zfit.shape
     ccpeak = np.empty((ny - 1, ny - 1))
     ccpeak[:] = np.nan

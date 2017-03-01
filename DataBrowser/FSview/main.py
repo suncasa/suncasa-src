@@ -1387,7 +1387,7 @@ if os.path.exists(FS_dspecDF):
         hdu = read_fits(vlafile[0])
         pols = DButil.polsfromfitsheader(hdu.header)
         # initial dspecDF_select and dspecDF0POL
-        dspecDF_select = DButil.dspecDFfilter(dspecDF0, pols[0])
+        # dspecDF_select = DButil.dspecDFfilter(dspecDF0, pols[0])
         dspecDF0POL = DButil.dspecDFfilter(dspecDF0, pols[0])
 
         # initial the VLA map contour source
@@ -1899,6 +1899,8 @@ if os.path.exists(FS_dspecDF):
                                        width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
             rmax, rmin = tab2_spec_plt.max(), tab2_spec_plt.min()
 
+            dspecDF0POL = dspecDF0
+            dspecDF_select = dspecDF0
             '''create the regridded dynamic spectrum plot'''
             TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
             downsample_dspecDF(spec_square_rs_tmax=spec_square_rs_tmax, spec_square_rs_fmax=spec_square_rs_fmax)
