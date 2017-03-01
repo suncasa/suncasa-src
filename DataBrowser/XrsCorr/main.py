@@ -340,7 +340,6 @@ p_CCpeak.add_tools(p_CCpeak_hover)
 def Slider_watershed_update(attrname, old, new):
     wtshdpercent = Slider_watershed.value / 100.0
     specfit = CC_savedata['specfit'].copy()
-    spec = CC_savedata['spec'].copy()
     for fidx in xrange(nfreq):
         specfitslice = specfit[fidx, :]
         slicemax, slicemin = specfitslice.max(), specfitslice.min()
