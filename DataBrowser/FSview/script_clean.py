@@ -189,8 +189,6 @@ if os.path.exists('CASA_CLN_args.json'):
             fitsfile = [imname + '.fits']
             try:
                 vla_prep.imreg(imagefile=imagefile, fitsfile=fitsfile, helio=helio, toTb=False, scl100=True)
-                # os.system('cp {} {}'.format(fitsfile[0], database_dir + event_id +'/'+ struct_id + '/Synthesis_Image/local/'))
-                # print 'cp {} {}'.format(fitsfile[0], database_dir + event_id +'/'+ struct_id + '/Synthesis_Image/local/')
             except:
                 '{} not found!'.format(imagefile)
     # else:
