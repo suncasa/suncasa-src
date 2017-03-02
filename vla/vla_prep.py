@@ -442,22 +442,21 @@ def imreg(imagefile=None, fitsfile=None, beamfile=None, helio=None, \
             print 'offset of visibility phase center to solar disk center (arcsec): ', xoff, yoff
         (crval1, crval2) = (xoff + dx, yoff + dy)
         # update the fits header to heliocentric coordinates
-        hdu = pyfits.open(fitsf, mode='update')
-        header = hdu[0].header
-        (cdelt1, cdelt2) = (
-            -header['cdelt1'] * 3600., header['cdelt2'] * 3600.)  # Original CDELT1, 2 are for RA and DEC in degrees
-        header['cdelt1'] = cdelt1
-        header['cdelt2'] = cdelt2
-        header['cunit1'] = 'arcsec'
-        header['cunit2'] = 'arcsec'
-        header['crval1'] = crval1
-        header['crval2'] = crval2
-        header['ctype1'] = 'HPLN-TAN'
-        header['ctype2'] = 'HPLT-TAN'
-        header['date-obs'] = hel['date-obs']
-        header.update('exptime', hel['exptime'])
-        header.update('p_angle', hel['p0'])
-        # header.update('comment', 'Fits header updated to heliocentric coordinates by Bin Chen')
+        hdu=pyfits.open(fitsf,mode='update')
+        header=hdu[0].header
+        (cdelt1,cdelt2)=(-header['cdelt1']*3600.,header['cdelt2']*3600.) #Original CDELT1, 2 are for RA and DEC in degrees
+        header['cdelt1']=cdelt1
+        header['cdelt2']=cdelt2
+        header['cunit1']='arcsec'
+        header['cunit2']='arcsec'
+        header['crval1']=crval1
+        header['crval2']=crval2
+        header['ctype1']='HPLN-TAN'
+        header['ctype2']='HPLT-TAN'
+        header['date-obs']=hel['date-obs']
+        header.update('exptime',hel['exptime'])
+        header.update('p_angle',hel['p0'])
+        #header.update('comment', 'Fits header updated to heliocentric coordinates by Bin Chen')
         # update intensity units, i.e. to brightness temperature?
         if toTb:
             data = hdu[0].data  # remember the data order is reversed due to the FITS convension
