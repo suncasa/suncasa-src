@@ -66,18 +66,18 @@ if os.path.exists('CASA_CLN_args.json'):
     #             etstr = qa.time(qa.quantity(et_s + dt / 2, 's'), prec=9, form='fits')[0]
     #         timerans.append('{}~{}'.format(btstr, etstr))
 
-    imgprefix = 'slfcal/'
+    if 'imageprefix' in locals():
+        imgprefix = imageprefix
+    else:
+        imgprefix = 'slfcal/' + structure_id + '/'
     if not os.path.exists(imgprefix):
-        os.mkdir(imgprefix)
-    imgprefix = 'slfcal/' + structure_id + '/'
-    if not os.path.exists(imgprefix):
-        os.mkdir(imgprefix)
+        os.makedirs(imgprefix)
     '''set a loop to limit the number of timestamps in the time range'''
     # for TRang in timerans:
     # TRang=timerans[0]
     os.system('rm -rf {}'.format('cgrid_ft.im'))
     if not os.path.exists(imageprefix):
-        os.mkdir(imageprefix)
+        os.makedirs(imageprefix)
     default('ptclean')
     with open('CASA_CLN_args.json', 'r') as fp:
         CASA_CLN_args = json.load(fp)
@@ -174,9 +174,8 @@ if os.path.exists('CASA_CLN_args.json'):
         filestr = [qa.time(qa.quantity(tim[ll] - dt / 2, 's'), form='fits', prec=9)[0].replace(':', '').replace('-', '')
                    for ll in iterable]
 
-        if not os.path.exists(database_dir + event_id + struct_id + 'Synthesis_Image'):
-            os.system('mkdir {}'.format(database_dir + event_id + '/' + struct_id + '/' + 'Synthesis_Image/'))
-            os.system('mkdir {}'.format(database_dir + event_id + '/' + struct_id + '/' + 'Synthesis_Image/local/'))
+        if not os.path.exists(database_dir + event_id + '/' + struct_id + '/' + 'Synthesis_Image/local/'):
+            os.makedirs(database_dir + event_id + '/' + struct_id + '/' + 'Synthesis_Image/local/')
         # check if ephemfile and msinfofile exist
         if not ephemfile:
             print("ephemeris info does not exist!")
