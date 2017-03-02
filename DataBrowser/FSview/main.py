@@ -1123,7 +1123,12 @@ tab2_df = np.median(np.diff(tab2_freq))
 tab2_ntim = len(tab2_tim)
 tab2_nfreq = len(tab2_freq)
 
-tab2_bl = tab2_specdata['bl'].item().split(';')
+if isinstance(tab2_specdata['bl'].tolist(), str):
+    tab2_bl = tab2_specdata['bl'].item().split(';')
+elif isinstance(tab2_specdata['bl'].tolist(), list):
+    tab2_bl = ['&'.join(ll) for ll in tab2_specdata['bl'].tolist()]
+else:
+    raise ValueError('Please check the data of {}'.format(FS_specfile))
 bl_index = 0
 tab2_pol = 'I'
 sz_spec = tab2_spec.shape
