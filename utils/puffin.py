@@ -61,8 +61,9 @@ class PuffinMap:
         x, y = self.smap.pixel_to_data(XX / rescale * u.pix, YY / rescale * u.pix)
         return x, y
 
-    def meshgridpix(self, *args, **kwargs):
-        XX, YY = np.meshgrid(np.arange(self.smap.data.shape[0]), np.arange(self.smap.data.shape[1]))
+    def meshgridpix(self, rescale=1.0, *args, **kwargs):
+        XX, YY = np.meshgrid(np.arange(self.smap.data.shape[0] * rescale) / rescale,
+                             np.arange(self.smap.data.shape[1] * rescale) / rescale)
         x, y = XX * u.pix, YY * u.pix
         return x, y
 
@@ -128,7 +129,8 @@ class PuffinMap:
 
         return ColumnDataSource(data={'x': x, 'y': y})
 
-    def PlotMap(self, DrawLimb=True, DrawGrid=True, grid_spacing=15 * u.deg, title=None, x_range=None, y_range=None,
+    def PlotMap(self, DrawLimb=True, DrawGrid=True, grid_spacing=15 * u.deg, ignore_coord=False, title=None, tools=None,
+                x_range=None, y_range=None,
                 palette=None, *args,
                 **kwargs):
         """Plot the map using the bokeh.plotting interface
@@ -138,6 +140,8 @@ class PuffinMap:
         if not title:
             title = self.smap.name
 
+        if not tools:
+            tools = 'pan,wheel_zoom,save,reset'
         if not x_range:
             x_range = self.x_range
         if not y_range:
@@ -145,18 +149,33 @@ class PuffinMap:
         if not palette:
             palette = bokehpalette_jet
         # plot the global vla image
-        p_image = figure(tools='pan,wheel_zoom,save,reset', webgl=self.webgl, x_range=x_range, y_range=y_range,
-                         title=title,
-                         plot_height=self.plot_height,
-                         plot_width=self.plot_width, *args, **kwargs)
-        p_image.xaxis.axis_label = 'X-position [arcsec]'
-        p_image.yaxis.axis_label = 'Y-position [arcsec]'
-        r_img = p_image.image(image=source_image['data'], x=self.x, y=self.y, dw=self.dw, dh=self.dh, palette=palette)
-        if DrawLimb:
-            p_image.line(x='x', y='y', line_color='white', line_dash='solid', source=self.DrawLimbSource())
-            if DrawGrid:
-                p_image.multi_line(xs='xs', ys='ys', line_color='white', line_dash='dotted',
-                                   source=self.DrawGridSource(grid_spacing=grid_spacing))
+
+
+        if ignore_coord:
+            p_image = figure(tools=tools, webgl=self.webgl, x_range=[0, self.smap.data.shape[0]],
+                             y_range=[0, self.smap.data.shape[1]],
+                             title=title,
+                             plot_height=self.plot_height,
+                             plot_width=self.plot_width, *args, **kwargs)
+            p_image.xaxis.visible = False
+            p_image.yaxis.visible = False
+            r_img = p_image.image(image=source_image['data'], x=0, y=0, dw=self.smap.data.shape[0],
+                                  dh=self.smap.data.shape[1],
+                                  palette=palette)
+        else:
+            p_image = figure(tools=tools, webgl=self.webgl, x_range=x_range, y_range=y_range,
+                             title=title,
+                             plot_height=self.plot_height,
+                             plot_width=self.plot_width, *args, **kwargs)
+            p_image.xaxis.axis_label = 'X-position [arcsec]'
+            p_image.yaxis.axis_label = 'Y-position [arcsec]'
+            r_img = p_image.image(image=source_image['data'], x=self.x, y=self.y, dw=self.dw, dh=self.dh,
+                                  palette=palette)
+            if DrawLimb:
+                p_image.line(x='x', y='y', line_color='white', line_dash='solid', source=self.DrawLimbSource())
+                if DrawGrid:
+                    p_image.multi_line(xs='xs', ys='ys', line_color='white', line_dash='dotted',
+                                       source=self.DrawGridSource(grid_spacing=grid_spacing))
 
         return p_image, r_img
 
