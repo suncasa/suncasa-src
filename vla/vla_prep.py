@@ -455,10 +455,13 @@ def imreg(imagefile=None, fitsfile=None, beamfile=None, helio=None, \
         header['ctype2']='HPLT-TAN'
         header['date-obs']=hel['date-obs']
         try:
+            # this works for pyfits version of CASA 4.7.0 but not CASA 4.6.0
             header.update('exptime',hel['exptime'])
+            header.update('p_angle',hel['p0'])
         except:
+            # this works for astropy.io.fits
             header.append(('exptime',hel['exptime']))
-        header.update('p_angle',hel['p0'])
+            header.append(('p_angle',hel['p0']))
         #header.update('comment', 'Fits header updated to heliocentric coordinates by Bin Chen')
         # update intensity units, i.e. to brightness temperature?
         if toTb:
