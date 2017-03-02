@@ -24,7 +24,7 @@ from bokeh.palettes import Spectral11
 from bokeh.plotting import figure, curdoc
 import glob
 from astropy.time import Time
-from puffin import PuffinMap
+from suncasa.utils.puffin import PuffinMap
 from suncasa.utils import DButil
 
 __author__ = ["Sijie Yu"]
@@ -80,12 +80,6 @@ bokehpalette_viridis = [colors.rgb2hex(m) for m in colormap_viridis(np.arange(co
 '''
 -------------------------- panel 2,3   --------------------------
 '''
-
-
-def c_correlate(a, v):
-    a = (a - np.mean(a)) / (np.std(a) * len(a))
-    v = (v - np.mean(v)) / np.std(v)
-    return np.correlate(a, v, mode='same')
 
 
 def read_fits(fname):
@@ -250,7 +244,8 @@ def tab2_vdspec_update():
 ports = []
 
 
-def tab2_panel_XrsCorr_update():
+def tab2_panel_Xcorr_update():
+    # from scipy.interpolate import splev, splrep
     global tab2_dspec_selected, dspecDF_select
     if tab2_dspec_selected and len(tab2_dspec_selected) > 50:
         time0, time1 = Time((dspecDF_select['time'].min() + timestart) / 3600. / 24., format='jd'), Time(
@@ -263,45 +258,19 @@ def tab2_panel_XrsCorr_update():
         dspecSel = tab2_r_dspec.data_source.data['image'][0][freqidx0:(freqidx1 + 1), timeidx0:(timeidx1 + 1)]
         freqSel = tab2_freq[freqidx0:(freqidx1 + 1)]
         timSel = tab2_tim[timeidx0:(timeidx1 + 1)]
-        nfreqSel, ntimSel = dspecSel.shape
-        ccpeak = np.empty((nfreqSel - 1, nfreqSel - 1))
-        ccpeak[:] = np.nan
-        ccmax = ccpeak.copy()
-        freqa = ccpeak.copy()
-        freqv = ccpeak.copy()
-        fidxa = ccpeak.copy()
-        fidxv = ccpeak.copy()
-        for idx1 in xrange(1, nfreqSel):
-            for idx2 in xrange(0, idx1):
-                lightcurve1 = dspecSel[idx1, :]
-                lightcurve2 = dspecSel[idx2, :]
-                ccval = c_correlate(lightcurve1, lightcurve2)
-                cmax = np.amax(ccval)
-                cpeak = np.argmax(ccval) - ntimSel / 2
-                ccmax[idx2, idx1 - 1] = cmax
-                ccpeak[idx2, idx1 - 1] = cpeak
-                freqa[idx2, idx1 - 1] = freqSel[idx1 - 1]
-                freqv[idx2, idx1 - 1] = freqSel[idx2]
-                fidxa[idx2, idx1 - 1] = idx1 - 1
-                fidxv[idx2, idx1 - 1] = idx2
-                if idx1 - 1 != idx2:
-                    ccmax[idx1 - 1, idx2] = cmax
-                    ccpeak[idx1 - 1, idx2] = cpeak
-                    freqa[idx1 - 1, idx2] = freqSel[idx2]
-                    freqv[idx1 - 1, idx2] = freqSel[idx1 - 1]
-                    fidxa[idx1 - 1, idx2] = idx2
-                    fidxv[idx1 - 1, idx2] = idx1 - 1
-
+        CC_dict = DButil.XcorrMap(dspecSel, timSel, freqSel)
         CC_save = database_dir + event_id + struct_id + 'CC_save.npz'
-        np.savez(CC_save, spec=dspecSel, ccmax=ccmax, ccpeak=ccpeak, tim=timSel, freq=freqSel, nfreq=nfreqSel,
-                 ntim=ntimSel, freqv=freqv, freqa=freqa, fidxv=fidxv, fidxa=fidxa)
+        np.savez(CC_save, spec=dspecSel, specfit=CC_dict['zfit'], ccmax=CC_dict['ccmax'], ccpeak=CC_dict['ccpeak'],
+                 tim=CC_dict['x'], ntim=CC_dict['nx'], timfit=CC_dict['xfit'], ntimfit=CC_dict['nxfit'],
+                 freq=CC_dict['y'], nfreq=CC_dict['ny'], freqv=CC_dict['yv'], freqa=CC_dict['ya'],
+                 fidxv=CC_dict['yidxv'], fidxa=CC_dict['yidxa'])
         try:
             tab2_Div_LinkImg_plot.text = '<p><b>{}</b> saved.</p>'.format(CC_save)
         except:
             pass
         port = getfreeport()
-        print 'bokeh serve {}DataBrowser/XrsCorr --show --port {} &'.format(suncasa_dir, port)
-        os.system('bokeh serve {}DataBrowser/XrsCorr --show --port {} &'.format(suncasa_dir, port))
+        print 'bokeh serve {}DataBrowser/Xcorr --show --port {} &'.format(suncasa_dir, port)
+        os.system('bokeh serve {}DataBrowser/Xcorr --show --port {} &'.format(suncasa_dir, port))
         ports.append(port)
 
 
@@ -1499,7 +1468,7 @@ if os.path.exists(FS_dspecDF):
         hdu = read_fits(vlafile[0])
         pols = DButil.polsfromfitsheader(hdu.header)
         # initial dspecDF_select and dspecDF0POL
-        dspecDF_select = DButil.dspecDFfilter(dspecDF0, pols[0])
+        # dspecDF_select = DButil.dspecDFfilter(dspecDF0, pols[0])
         dspecDF0POL = DButil.dspecDFfilter(dspecDF0, pols[0])
 
         # initial the VLA map contour source
@@ -1818,16 +1787,17 @@ if os.path.exists(FS_dspecDF):
 
 
         tab2_CTRLs_LinkImg = [tab2_Slider_time_LinkImg, tab2_Slider_freq_LinkImg, tab2_Select_vla_pol]
+
         for ctrl in tab2_CTRLs_LinkImg:
             ctrl.on_change('value', tab3_slider_LinkImg_update)
 
         tab2_LinkImg_HGHT = config_plot['plot_config']['tab_FSview_base']['vla_hght']
         tab2_LinkImg_WDTH = config_plot['plot_config']['tab_FSview_base']['vla_wdth']
 
-        tab2_BUT_XrsCorr = Button(label='Xcros Corr',
+        tab2_BUT_Xcorr = Button(label='Xcros Corr',
                                   width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                   button_type='warning')
-        tab2_BUT_XrsCorr.on_click(tab2_panel_XrsCorr_update)
+        tab2_BUT_Xcorr.on_click(tab2_panel_Xcorr_update)
 
         tab2_panel2_BUT_exit = Button(label='Exit FSview',
                                       width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
@@ -2018,7 +1988,7 @@ if os.path.exists(FS_dspecDF):
         # else:
         lout2_2_1 = column(row(tab2_p_dspec, tab2_p_dspec_yPro), tab2_p_dspec_xPro)
         lout2_2_2 = widgetbox(tab2_Select_pol, tab2_Select_bl,
-                              tab2_Select_colorspace, tab2_BUT_XrsCorr,
+                              tab2_Select_colorspace, tab2_BUT_Xcorr,
                               tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
                               width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         lout2_2 = row(lout2_2_1, lout2_2_2)
@@ -2098,6 +2068,8 @@ if os.path.exists(FS_dspecDF):
                                        width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
             rmax, rmin = tab2_spec_plt.max(), tab2_spec_plt.min()
 
+            dspecDF0POL = dspecDF0
+            dspecDF_select = dspecDF0
             '''create the regridded dynamic spectrum plot'''
             TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
             downsample_dspecDF(spec_square_rs_tmax=spec_square_rs_tmax, spec_square_rs_fmax=spec_square_rs_fmax)
@@ -2579,10 +2551,10 @@ if os.path.exists(FS_dspecDF):
             for ctrl in tab2_CTRLs_LinkImg:
                 ctrl.on_change('value', tab3_slider_LinkImg_update)
 
-            tab2_BUT_XrsCorr = Button(label='Xcros Corr',
+            tab2_BUT_Xcorr = Button(label='Xcros Corr',
                                       width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                       button_type='warning')
-            tab2_BUT_XrsCorr.on_click(tab2_panel_XrsCorr_update)
+            tab2_BUT_Xcorr.on_click(tab2_panel_Xcorr_update)
 
             tab2_panel2_BUT_exit = Button(label='Exit FSview',
                                           width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
@@ -2652,7 +2624,7 @@ if os.path.exists(FS_dspecDF):
             lout2_1_2 = row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
                                    tab2_p_dspec_xPro),
                             widgetbox(tab2_Select_pol, tab2_Select_bl,
-                                      tab2_Select_colorspace, tab2_BUT_XrsCorr,
+                                      tab2_Select_colorspace, tab2_BUT_Xcorr,
                                       tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
                                       width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
             lout2_1 = column(lout2_1_1, lout2_1_2)
@@ -3184,10 +3156,10 @@ else:
     tab2_BUT_FS_view = Button(label='FS view', width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'],
                               button_type='primary')
 
-    tab2_BUT_XrsCorr = Button(label='Xcros Corr',
+    tab2_BUT_Xcorr = Button(label='Xcros Corr',
                               width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'],
                               button_type='warning')
-    tab2_BUT_XrsCorr.on_click(tab2_panel_XrsCorr_update)
+    tab2_BUT_Xcorr.on_click(tab2_panel_Xcorr_update)
 
 
     def tab2_panel2_exit():
@@ -3209,7 +3181,7 @@ else:
                                                   tab2_BUT_tCLN_param_SAVE, tab2_SPCR_LFT_BUT_CLEAN,
                                                   tab2_BUT_tCLN_CLEAN)),
                                        widgetbox(tab2_Select_pol, tab2_Select_bl, tab2_Select_colorspace,
-                                                 tab2_BUT_XrsCorr,
+                                                 tab2_BUT_Xcorr,
                                                  tab2_panel2_BUT_exit,
                                                  tab2_panel_Div_exit,
                                                  width=config_plot['plot_config']['tab_FSview2CASA'][

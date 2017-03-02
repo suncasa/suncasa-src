@@ -28,7 +28,8 @@ def freqsfromfitsheader(header):
     :return pols: polarisation stokes
     '''
     try:
-        freqs = ['{:.3f}'.format(ll/1e9) for ll in (header["CRVAL3"] + np.arange(header["NAXIS3"]) * header["CDELT3"])]
+        freqs = ['{:.3f}'.format(ll / 1e9) for ll in
+                 (header["CRVAL3"] + np.arange(header["NAXIS3"]) * header["CDELT3"])]
         return freqs
     except:
         print("error in fits header!")
@@ -232,6 +233,71 @@ def twoD_Gaussian((x, y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     c = (np.sin(theta) ** 2) / (2 * sigma_x ** 2) + (np.cos(theta) ** 2) / (2 * sigma_y ** 2)
     g = offset + amplitude * np.exp(- (a * ((x - xo) ** 2) + 2 * b * (x - xo) * (y - yo) + c * ((y - yo) ** 2)))
     return g.ravel()
+
+
+def c_correlate(a, v):
+    a = (a - np.mean(a)) / (np.std(a) * len(a))
+    v = (v - np.mean(v)) / np.std(v)
+    return np.correlate(a, v, mode='same')
+
+
+def XcorrMap(z, x, y, doxscale = True):
+    '''
+    get the cross correlation map along y axis
+    :param z: data
+    :param x: x axis
+    :param y: y axis
+    :return:
+    '''
+    from scipy.interpolate import splev, splrep
+    if doxscale:
+        xfit = np.linspace(x[0], x[-1], 10 * len(x) + 1)
+        zfit = np.zeros((len(y), len(xfit)))
+        for yidx1, yq in enumerate(y):
+            xx = x
+            yy = z[yidx1, :]
+            s = len(yy)  # (len(yy) - np.sqrt(2 * len(yy)))*2
+            tck = splrep(xx, yy, s=s)
+            ys = splev(xfit, tck)
+            zfit[yidx1, :] = ys
+    else:
+        xfit=x
+        zfit=z
+    ny, nxfit = zfit.shape
+    ccpeak = np.empty((ny - 1, ny - 1))
+    ccpeak[:] = np.nan
+    ccmax = ccpeak.copy()
+    ya = ccpeak.copy()
+    yv = ccpeak.copy()
+    yidxa = ccpeak.copy()
+    yidxv = ccpeak.copy()
+    for idx1 in xrange(1, ny):
+        for idx2 in xrange(0, idx1):
+            lightcurve1 = zfit[idx1, :]
+            lightcurve2 = zfit[idx2, :]
+            ccval = c_correlate(lightcurve1, lightcurve2)
+            if sum(lightcurve1) != 0 and sum(lightcurve2) != 0:
+                cmax = np.amax(ccval)
+                cpeak = np.argmax(ccval) - (nxfit - 1) / 2
+            else:
+                cmax = 0
+                cpeak = 0
+            ccmax[idx2, idx1 - 1] = cmax
+            ccpeak[idx2, idx1 - 1] = cpeak
+            ya[idx2, idx1 - 1] = y[idx1 - 1]
+            yv[idx2, idx1 - 1] = y[idx2]
+            yidxa[idx2, idx1 - 1] = idx1 - 1
+            yidxv[idx2, idx1 - 1] = idx2
+            if idx1 - 1 != idx2:
+                ccmax[idx1 - 1, idx2] = cmax
+                ccpeak[idx1 - 1, idx2] = cpeak
+                ya[idx1 - 1, idx2] = y[idx2]
+                yv[idx1 - 1, idx2] = y[idx1 - 1]
+                yidxa[idx1 - 1, idx2] = idx2
+                yidxv[idx1 - 1, idx2] = idx1 - 1
+
+    return {'zfit': zfit, 'ccmax': ccmax, 'ccpeak': ccpeak, 'x': x, 'nx': len(x), 'xfit': xfit, 'nxfit': nxfit, 'y': y,
+            'ny': ny, 'yv': yv, 'ya': ya, 'yidxv': yidxv, 'yidxa': yidxa}
 
 # def maxfit(image):
 #     # NAME:
