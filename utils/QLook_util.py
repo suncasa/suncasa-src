@@ -54,34 +54,34 @@ def twoD_Gaussian((x, y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     return g.ravel()
 
 
-def maxfit(image):
-    # NAME:
-    #    maxfit
-    # PURPOSE:
-    #    find maximum position of an image using 2D Gaussian fit
-    # INPUTS:
-    #    image: sunpy
-
-    data = image.data
-    nx, ny = data.shape
-    dx, dy = image.scale.x.value, image.scale.y.value
-    xc, yc = image.center.x.value, image.center.y.value
-    mapx, mapy = (np.linspace(0, nx - 1, nx) - image.reference_pixel.x.value + 1 + 0.5) * dx + xc, (
-        np.linspace(0, ny - 1, ny) - image.reference_pixel.y.value + 1 + 0.5) * dy + yc
-    mapx, mapy = np.meshgrid(mapx, mapy)
-    idxmax = np.where(data == np.amax(data))
-    idxhm = np.where(data >= np.amax(data) / 2)
-    hmfw = np.sqrt(len(idxhm[0]) / np.pi) * dx
-    xmax, ymax = mapx[idxmax[0][0], idxmax[1][0]], mapy[idxmax[0][0], idxmax[1][0]]
-    theta = np.arctan(
-        abs(idxhm[1] - image.reference_pixel.y.value).sum() / abs(idxhm[0] - image.reference_pixel.x.value).sum())
-    initial_guess = (np.amax(data), xmax, ymax, hmfw, hmfw, theta, data.std())
-
-    try:
-        popt, pcov = opt.curve_fit(twoD_Gaussian, (mapx, mapy), data.ravel(), p0=initial_guess)
-    except:
-        popt = np.empty((7))
-        popt[:] = np.nan
-
-    return popt
+# def maxfit(image):
+#     # NAME:
+#     #    maxfit
+#     # PURPOSE:
+#     #    find maximum position of an image using 2D Gaussian fit
+#     # INPUTS:
+#     #    image: sunpy
+#
+#     data = image.data
+#     nx, ny = data.shape
+#     dx, dy = image.scale.x.value, image.scale.y.value
+#     xc, yc = image.center.x.value, image.center.y.value
+#     mapx, mapy = (np.linspace(0, nx - 1, nx) - image.reference_pixel.x.value + 1 + 0.5) * dx + xc, (
+#         np.linspace(0, ny - 1, ny) - image.reference_pixel.y.value + 1 + 0.5) * dy + yc
+#     mapx, mapy = np.meshgrid(mapx, mapy)
+#     idxmax = np.where(data == np.amax(data))
+#     idxhm = np.where(data >= np.amax(data) / 2)
+#     hmfw = np.sqrt(len(idxhm[0]) / np.pi) * dx
+#     xmax, ymax = mapx[idxmax[0][0], idxmax[1][0]], mapy[idxmax[0][0], idxmax[1][0]]
+#     theta = np.arctan(
+#         abs(idxhm[1] - image.reference_pixel.y.value).sum() / abs(idxhm[0] - image.reference_pixel.x.value).sum())
+#     initial_guess = (np.amax(data), xmax, ymax, hmfw, hmfw, theta, data.std())
+#
+#     try:
+#         popt, pcov = opt.curve_fit(twoD_Gaussian, (mapx, mapy), data.ravel(), p0=initial_guess)
+#     except:
+#         popt = np.empty((7))
+#         popt[:] = np.nan
+#
+#     return popt
 

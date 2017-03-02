@@ -80,12 +80,12 @@ pimporteovsa(idbfiles,
         In this case only partially flagged rows will be used in the average.
         default: '0s'
 
-        combine -- Let the timebin span across scan, state or both.
-        State is equivalent to sub-scans. One scan may have several
-        state ids. For ALMA MSs, the sub-scans are limited to about
-        30s duration each. In these cases, the task will automatically
-        add state to the combine parameter. To see the number of states
-        in an MS, use the msmd tool. See help msmd.
+        <!--combine &#45;&#45; Let the timebin span across scan, state or both.-->
+        <!--State is equivalent to sub-scans. One scan may have several-->
+        <!--state ids. For ALMA MSs, the sub-scans are limited to about-->
+        <!--30s duration each. In these cases, the task will automatically-->
+        <!--add state to the combine parameter. To see the number of states-->
+        <!--in an MS, use the msmd tool. See help msmd.-->
 
 
     </example>
