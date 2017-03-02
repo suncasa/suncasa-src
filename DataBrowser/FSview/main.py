@@ -24,7 +24,7 @@ from bokeh.palettes import Spectral11
 from bokeh.plotting import figure, curdoc
 import glob
 from astropy.time import Time
-from puffin import PuffinMap
+from suncasa.utils.puffin import PuffinMap
 from suncasa.utils import DButil
 
 __author__ = ["Sijie Yu"]

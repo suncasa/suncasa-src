@@ -365,8 +365,8 @@ def Slider_threshold_update(attrname, old, new):
     thrshdpercent = Slider_threshold.value / 100.0
     specfit = CC_savedata['specfit'].copy()
     fidxflag = np.log(specfit.max(axis=1)) < thrshdpercent * np.log(specfit.max())
-    ccmaxplt = ccmax
-    ccpeakplt = ccpeak * dtfit * 1000.0
+    ccmaxplt = ccmax.copy()
+    ccpeakplt = ccpeak.copy() * dtfit * 1000.0
     for fflag in freq[fidxflag]:
         ccmaxplt[freqa == fflag] = np.nan
         ccmaxplt[freqv == fflag] = np.nan
