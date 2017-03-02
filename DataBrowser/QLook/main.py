@@ -75,6 +75,8 @@ def load_specdata(specfile=None):
         tab1_bl = tab1_specdata['bl'].item().split(';')
     elif isinstance(tab1_specdata['bl'].tolist(), list):
         tab1_bl = ['&'.join(ll) for ll in tab1_specdata['bl'].tolist()]
+    else:
+        raise ValueError('Please check the data of {}'.format(specfile))
     tab1_pol = 'I'
     bl_index = 0
     tab1_spec = tab1_specdata['spec'][:, :, :, :]
