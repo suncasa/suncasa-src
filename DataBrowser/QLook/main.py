@@ -71,7 +71,10 @@ specfile = database_dir + event_id + config_EvtID['datadir']['event_specfile']
 def load_specdata(specfile=None):
     global tab1_specdata, tab1_spec, tab1_tim, tab1_freq, tab1_dtim, tab1_spec_plt, tab1_bl
     tab1_specdata = np.load(specfile)
-    tab1_bl = tab1_specdata['bl'].item().split(';')
+    if isinstance(tab1_specdata['bl'].tolist(), str):
+        tab1_bl = tab1_specdata['bl'].item().split(';')
+    elif isinstance(tab1_specdata['bl'].tolist(), list):
+        tab1_bl = ['&'.join(ll) for ll in tab1_specdata['bl'].tolist()]
     tab1_pol = 'I'
     bl_index = 0
     tab1_spec = tab1_specdata['spec'][:, :, :, :]
@@ -121,7 +124,8 @@ tab1_p_dspec.axis.minor_tick_in = 3
 tab1_p_dspec.axis.major_tick_line_color = "white"
 tab1_p_dspec.axis.minor_tick_line_color = "white"
 
-tab1_r_dspec = tab1_p_dspec.image(image=[tab1_spec_plt], x=tab1_dtim[0], y=tab1_freq[0], dw=tab1_dtim[-1] - tab1_dtim[0],
+tab1_r_dspec = tab1_p_dspec.image(image=[tab1_spec_plt], x=tab1_dtim[0], y=tab1_freq[0],
+                                  dw=tab1_dtim[-1] - tab1_dtim[0],
                                   dh=tab1_freq[-1] - tab1_freq[0], palette=bokehpalette_jet)
 
 tab1_spec_sz = tab1_spec.shape
@@ -439,5 +443,3 @@ lout = panel1
 
 curdoc().add_root(lout)
 curdoc().title = "QLook tool"
-
-
