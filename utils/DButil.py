@@ -59,7 +59,7 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists = False, ti
     sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
                         for
                         ll in sdofits], format='iso', scale='utc')
-    if np.abs(sdotimeline.jd - jdtime) > timtol:
+    if np.min(np.abs(sdotimeline.jd - jdtime)) > timtol:
         raise ValueError('SDO File not found at the select timestamp. Download the data with EvtBrowser first.')
     idxaia = np.argmin(np.abs(sdotimeline.jd - jdtime))
     sdofile = sdofitspath[idxaia]
