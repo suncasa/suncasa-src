@@ -1231,11 +1231,11 @@ if os.path.exists(FS_dspecDF):
                                                   source=tab2_SRC_dspec_xPro)
         r_dspec_xPro_hover = tab2_p_dspec_xPro.circle(x='x', y='y', size=5, fill_alpha=0.5, fill_color='firebrick',
                                                       line_color='firebrick', source=tab2_SRC_dspec_xPro_hover)
-        tab2_l_dspec_xPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
-                                           source=tab2_SRC_dspec_xPro_hover,
-                                           render_mode='canvas')
-        tab2_l_dspec_xPro_hover.text_font_size = '5pt'
-        tab2_p_dspec_xPro.add_layout(tab2_l_dspec_xPro_hover)
+        l_dspec_xPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
+                                      source=tab2_SRC_dspec_xPro_hover,
+                                      render_mode='canvas')
+        l_dspec_xPro_hover.text_font_size = '10pt'
+        tab2_p_dspec_xPro.add_layout(l_dspec_xPro_hover)
         tab2_p_dspec_xPro.title.text_font_size = '6pt'
         tab2_p_dspec_xPro.background_fill_color = "beige"
         tab2_p_dspec_xPro.background_fill_alpha = 0.4
@@ -1267,7 +1267,7 @@ if os.path.exists(FS_dspecDF):
         l_dspec_yPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
                                       source=tab2_SRC_dspec_yPro_hover,
                                       render_mode='canvas')
-        l_dspec_yPro_hover.text_font_size = '5pt'
+        l_dspec_yPro_hover.text_font_size = '10pt'
         tab2_p_dspec_yPro.add_layout(l_dspec_yPro_hover)
         tab2_p_dspec_yPro.title.text_font_size = '6pt'
         tab2_p_dspec_yPro.yaxis.visible = False
@@ -1936,11 +1936,11 @@ if os.path.exists(FS_dspecDF):
                                                       source=tab2_SRC_dspec_xPro)
             r_dspec_xPro_hover = tab2_p_dspec_xPro.circle(x='x', y='y', size=5, fill_alpha=0.5, fill_color='firebrick',
                                                           line_color='firebrick', source=tab2_SRC_dspec_xPro_hover)
-            tab2_l_dspec_xPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
-                                               source=tab2_SRC_dspec_xPro_hover,
-                                               render_mode='canvas')
-            tab2_l_dspec_xPro_hover.text_font_size = '5pt'
-            tab2_p_dspec_xPro.add_layout(tab2_l_dspec_xPro_hover)
+            l_dspec_xPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
+                                          source=tab2_SRC_dspec_xPro_hover,
+                                          render_mode='canvas')
+            l_dspec_xPro_hover.text_font_size = '10pt'
+            tab2_p_dspec_xPro.add_layout(l_dspec_xPro_hover)
             tab2_p_dspec_xPro.title.text_font_size = '6pt'
             tab2_p_dspec_xPro.background_fill_color = "beige"
             tab2_p_dspec_xPro.background_fill_alpha = 0.4
@@ -1972,7 +1972,7 @@ if os.path.exists(FS_dspecDF):
             l_dspec_yPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
                                           source=tab2_SRC_dspec_yPro_hover,
                                           render_mode='canvas')
-            l_dspec_yPro_hover.text_font_size = '5pt'
+            l_dspec_yPro_hover.text_font_size = '10pt'
             tab2_p_dspec_yPro.add_layout(l_dspec_yPro_hover)
             tab2_p_dspec_yPro.title.text_font_size = '6pt'
             tab2_p_dspec_yPro.yaxis.visible = False
@@ -2351,7 +2351,7 @@ else:
         width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
     timestrs = []
     for ll in tab2_tim:
-        timestr = Time(ll / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+        timestr = Time(ll / 3600. / 24., format='mjd', scale='utc', precision=3, out_subfmt='date_hms').iso
         timestrs.append(timestr.split(' ')[1])
     timestrs = timestrs * tab2_nfreq
     dspecDF0 = pd.DataFrame({'time': xx - xx[0],
@@ -2462,11 +2462,11 @@ else:
                                               source=tab2_SRC_dspec_xPro)
     r_dspec_xPro_hover = tab2_p_dspec_xPro.circle(x='x', y='y', size=5, fill_alpha=0.5, fill_color='firebrick',
                                                   line_color='firebrick', source=tab2_SRC_dspec_xPro_hover)
-    tab2_l_dspec_xPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
-                                       source=tab2_SRC_dspec_xPro_hover,
-                                       render_mode='canvas')
-    tab2_l_dspec_xPro_hover.text_font_size = '5pt'
-    tab2_p_dspec_xPro.add_layout(tab2_l_dspec_xPro_hover)
+    l_dspec_xPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
+                                  source=tab2_SRC_dspec_xPro_hover,
+                                  render_mode='canvas')
+    l_dspec_xPro_hover.text_font_size = '10pt'
+    tab2_p_dspec_xPro.add_layout(l_dspec_xPro_hover)
     tab2_p_dspec_xPro.title.text_font_size = '6pt'
     tab2_p_dspec_xPro.background_fill_color = "beige"
     tab2_p_dspec_xPro.background_fill_alpha = 0.4
@@ -2497,7 +2497,7 @@ else:
                                                   line_color='firebrick', source=tab2_SRC_dspec_yPro_hover)
     l_dspec_yPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph', source=tab2_SRC_dspec_yPro_hover,
                                   render_mode='canvas')
-    l_dspec_yPro_hover.text_font_size = '5pt'
+    l_dspec_yPro_hover.text_font_size = '10pt'
     tab2_p_dspec_yPro.add_layout(l_dspec_yPro_hover)
     tab2_p_dspec_yPro.title.text_font_size = '6pt'
     tab2_p_dspec_yPro.yaxis.visible = False
