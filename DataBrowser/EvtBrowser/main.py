@@ -12,14 +12,7 @@ from astropy.time import Time
 import astropy.units as u
 import numpy as np
 from collections import OrderedDict
-
-def getfreeport():
-    import socket
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('localhost', 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
+from suncasa.utils import DButil
 
 
 __author__ = ["Sijie Yu"]
@@ -46,8 +39,7 @@ suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
 with open(suncasa_dir + 'DataBrowser/config.json', 'r') as fp:
     config = json.load(fp)
 
-database_dir = config['datadir']['database']
-database_dir = os.path.expandvars(database_dir) + '/'
+database_dir = os.path.expandvars(config['datadir']['database']) + '/'
 
 EvtID_list = pd.read_json(database_dir + config['datadir']['EvtID_list'])
 EvtID_list = EvtID_list.sort_values(['date'], ascending=[True])
@@ -108,7 +100,7 @@ def tab0_EvtSel():
                 with open(event_id_dir + 'config_EvtID.json', 'w') as fp:
                     json.dump(config_EvtID, fp)
                 os.system('cp {} {}config_EvtID_curr.json'.format(event_id_dir + 'config_EvtID.json', database_dir))
-                port = getfreeport()
+                port = DButil.getfreeport()
                 print 'bokeh serve {}DataBrowser/QLook --show --port {} &'.format(suncasa_dir, port)
                 os.system('bokeh serve {}DataBrowser/QLook --show --port {} &'.format(suncasa_dir, port))
                 ports.append(port)
@@ -138,104 +130,22 @@ def tab0_DDownload():
             if len(event_specfile) == 0:
                 tab0_Div_Tb.text = """<p>Warning: No <b>dynamic spectrum</b> data found! Create a <b>dynamic spectrum</b> first.</p>"""
             else:
-                try:
-                    from sunpy.net import vso
-                    client = vso.VSOClient()
-                    tab0_specdata = np.load(event_specfile[0])
-                    tab0_tim = tab0_specdata['tim'][:]
-                    tstrstart = Time(tab0_tim[0] / 3600. / 24., format='mjd', scale='utc', precision=3,
-                                     out_subfmt='date_hms').iso
-                    tstrend = Time(tab0_tim[-1] / 3600. / 24., format='mjd', scale='utc', precision=3,
-                                   out_subfmt='date_hms').iso
-                    tab0_Div_Tb_txt = tab0_Div_Tb.text
-
-                    qr_aia171 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
-                                             vso.attrs.Wave(171 * u.AA, 171 * u.AA))
-                    qr_aia94 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
-                                            vso.attrs.Wave(94 * u.AA, 94 * u.AA))
-                    qr_aia131 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
-                                             vso.attrs.Wave(131 * u.AA, 131 * u.AA))
-                    qr_hmi_los = client.query_legacy(tstart=tstrstart, tend=tstrend, instrument='HMI',
-                                                     physobs='los_magnetic_field')
-                    if len(qr_aia171) == 0:
-                        cadence = 12
-                        tstrstart = Time((tab0_tim[0] - cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
-                                         out_subfmt='date_hms').iso
-                        tstrend = Time((tab0_tim[-1] + cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
-                                       out_subfmt='date_hms').iso
-                        qr_aia171 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
-                                                 vso.attrs.Wave(171 * u.AA, 171 * u.AA))
-
-                    if len(qr_aia94) == 0:
-                        cadence = 12
-                        tstrstart = Time((tab0_tim[0] - cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
-                                         out_subfmt='date_hms').iso
-                        tstrend = Time((tab0_tim[-1] + cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
-                                       out_subfmt='date_hms').iso
-                        qr_aia94 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
-                                                vso.attrs.Wave(94 * u.AA, 94 * u.AA))
-                    if len(qr_aia131) == 0:
-                        cadence = 12
-                        tstrstart = Time((tab0_tim[0] - cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
-                                         out_subfmt='date_hms').iso
-                        tstrend = Time((tab0_tim[-1] + cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
-                                       out_subfmt='date_hms').iso
-                        qr_aia131 = client.query(vso.attrs.Time(tstrstart, tstrend), vso.attrs.Instrument('aia'),
-                                                 vso.attrs.Wave(131 * u.AA, 131 * u.AA))
-
-                    if len(qr_hmi_los) == 0:
-                        cadence = 45
-                        tstrstart = Time((tab0_tim[0] - cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
-                                         out_subfmt='date_hms').iso
-                        tstrend = Time((tab0_tim[-1] + cadence) / 3600. / 24., format='mjd', scale='utc', precision=3,
-                                       out_subfmt='date_hms').iso
-                        qr_hmi_los = client.query_legacy(tstart=tstrstart, tend=tstrend, instrument='HMI',
-                                                         physobs='los_magnetic_field')
-
-                    if len(qr_aia171) != 0:
-                        instrument = 'AIA'
-                        tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO/{} data downloading....</p>""".format(instrument)
-                        files = glob.glob(event_id_dir + '{}/*_171a_*.fits'.format(instrument))
-                        if len(files) == 0:
-                            for ll in xrange(len(qr_aia171)):
-                                tab0_Div_Tb_txt = tab0_Div_Tb.text
-                                res = client.get(qr_aia171[ll:ll + 1],
-                                                 path=event_id_dir + '{instrument}/{file}.fits').wait()
-                                tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>{}</p>""".format(res)
-                    if len(qr_aia94) != 0:
-                        instrument = 'AIA'
-                        tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO/{} data downloading....</p>""".format(instrument)
-                        files = glob.glob(event_id_dir + '{}/*_94a_*.fits'.format(instrument))
-                        if len(files) == 0:
-                            for ll in xrange(len(qr_aia94)):
-                                tab0_Div_Tb_txt = tab0_Div_Tb.text
-                                res = client.get(qr_aia94[ll:ll + 1],
-                                                 path=event_id_dir + '{instrument}/{file}.fits').wait()
-                                tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>{}</p>""".format(res)
-                    if len(qr_aia131) != 0:
-                        instrument = 'AIA'
-                        tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO/{} data downloading....</p>""".format(instrument)
-                        files = glob.glob(event_id_dir + '{}/*_131a_*.fits'.format(instrument))
-                        if len(files) == 0:
-                            for ll in xrange(len(qr_aia131)):
-                                tab0_Div_Tb_txt = tab0_Div_Tb.text
-                                res = client.get(qr_aia131[ll:ll + 1],
-                                                 path=event_id_dir + '{instrument}/{file}.fits').wait()
-                                tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>{}</p>""".format(res)
-                    if len(qr_hmi_los) != 0:
-                        instrument = 'HMI'
-                        tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO/{} data downloading....</p>""".format(instrument)
-                        files = glob.glob(event_id_dir + '{}/*.fits'.format(instrument))
-                        if len(files) == 0:
-                            for ll in xrange(len(qr_hmi_los)):
-                                tab0_Div_Tb_txt = tab0_Div_Tb.text
-                                res = client.get(qr_hmi_los[ll:ll + 1],
-                                                 path=event_id_dir + '{instrument}/{file}.fits').wait()
-                                tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>{}</p>""".format(res)
-                    tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>SDO data downloaded.</p>"""
-                except:
-                    tab0_Div_Tb_txt = tab0_Div_Tb.text
-                    tab0_Div_Tb.text = tab0_Div_Tb_txt + """<p>Unable to load vso.</p>"""
+                tab0_specdata = np.load(event_specfile[0])
+                tab0_tim = tab0_specdata['tim'][:]
+                tstrstart = Time(tab0_tim[0] / 3600. / 24., format='mjd', scale='utc', precision=3,
+                                 out_subfmt='date_hms').iso
+                tstrend = Time(tab0_tim[-1] / 3600. / 24., format='mjd', scale='utc', precision=3,
+                               out_subfmt='date_hms').iso
+                trange = {'tst':tstrstart,'ted':tstrend}
+                if not os.path.exists(database_dir+'/aiaBrowserData/'):
+                    os.makedirs(database_dir+'/aiaBrowserData/')
+                with open(database_dir + '/aiaBrowserData/Trange_args.json', 'w') as fp:
+                    json.dump(trange, fp)
+                port = DButil.getfreeport()
+                print 'bokeh serve {}aiaBrowser --show --port {} &'.format(suncasa_dir, port)
+                os.system('bokeh serve {}aiaBrowser --show --port {} &'.format(suncasa_dir, port))
+                ports.append(port)
+                tab0_Div_Tb.text = """<p>Event <b>""" + EvtID + """</b> selected. <p>Check the <b>aiaBrowser</b> in the <b>new tab</b>.</p>"""
     else:
         tab0_Div_Tb.text = """<p><b>Warning:</b> select a event first!!!</p>"""
 

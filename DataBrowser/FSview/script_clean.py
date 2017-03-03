@@ -51,20 +51,6 @@ if os.path.exists('CASA_CLN_args.json'):
     # dt = float('{:.3f}'.format(np.median(np.diff(timeInfo))))
     if not 'twidth' in locals():
         twidth = 1
-    # chunksize = ncpu
-    # timerans = []
-    # if etidx <= btidx + twidth * chunksize:
-    #     btstr = qa.time(qa.quantity(timeInfo[btidx] - dt / 2, 's'), prec=9, form='fits')[0]
-    #     etstr = qa.time(qa.quantity(timeInfo[etidx] + dt / 2, 's'), prec=9, form='fits')[0]
-    #     timerans.append('{}~{}'.format(btstr, etstr))
-    # else:
-    #     for iter in xrange(btidx, etidx + 1, twidth * chunksize):
-    #         btstr = qa.time(qa.quantity(timeInfo[iter] - dt / 2, 's'), prec=9, form='fits')[0]
-    #         if iter <= etidx - twidth * chunksize:
-    #             etstr = qa.time(qa.quantity(timeInfo[iter + twidth * chunksize] - dt / 2, 's'), prec=9, form='fits')[0]
-    #         else:
-    #             etstr = qa.time(qa.quantity(et_s + dt / 2, 's'), prec=9, form='fits')[0]
-    #         timerans.append('{}~{}'.format(btstr, etstr))
 
     if 'imageprefix' in locals():
         imgprefix = imageprefix
@@ -84,6 +70,7 @@ if os.path.exists('CASA_CLN_args.json'):
     for key, val in CASA_CLN_args.items():
         exec (key + '= {}'.format(val))
     timerange = timeran
+    doreg = True
     # width = 32
     if 'freqrange' in locals() and spw == '':
         if freqrange != '':

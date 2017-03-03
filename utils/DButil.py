@@ -4,6 +4,129 @@ __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
 
+def getfreeport():
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(('localhost', 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
+
+def sdo_aia_scale(image=None, wavelength=None):
+    '''
+    rescale the aia image
+    :param image: normalised aia image data
+    :param wavelength:
+    :return: byte scaled image data
+    '''
+    from scipy.misc import bytescale
+    if wavelength == '94':
+        image[image > 30] = 30
+        image[image < 0.5] = 0.5
+        image = np.log10(image)
+    elif wavelength == '131':
+        image[image > 200] = 200
+        image[image < 2] = 2
+        image = np.log10(image)
+    elif wavelength == '171':
+        image[image > 2000] = 2000
+        image[image < 20] = 20
+        image = np.log10(image)
+    return bytescale(image)
+
+
+def insertchar(source_str, insert_str, pos):
+    return source_str[:pos] + insert_str + source_str[pos:]
+
+
+def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists = False, timtol=1):
+    '''
+    read sdo file from local database
+    :param datadir:
+    :param wavelength:
+    :param jdtime: the timestamp
+    :param isexists: check if file exist. no data return.
+    :param timtol: time difference tolerance in days for considering data as the same timestamp
+    :return:
+    '''
+    import glob
+    import os
+    from astropy.time import Time
+    import sunpy.map
+    sdofitspath = glob.glob(datadir + '/aia.lev1_*Z.{}.image_lev1.fits'.format(wavelength))
+    sdofits = [os.path.basename(ll) for ll in sdofitspath]
+    sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
+                        for
+                        ll in sdofits], format='iso', scale='utc')
+    if np.abs(sdotimeline.jd - jdtime) > timtol:
+        raise ValueError('SDO File not found at the select timestamp. Download the data with EvtBrowser first.')
+    idxaia = np.argmin(np.abs(sdotimeline.jd - jdtime))
+    sdofile = sdofitspath[idxaia]
+    if isexists:
+        return os.path.exists(sdofile)
+    else:
+        try:
+            sdomap = sunpy.map.Map(sdofile)
+            sdomap.data = sdo_aia_scale(image=sdomap.data / sdomap.exposure_time.value, wavelength=wavelength)
+            return sdomap
+        except:
+            raise ValueError('File not found or invalid input')
+
+
+def findDist(x, y):
+    dx = np.diff(x)
+    dy = np.diff(y)
+    dist = np.sqrt(dx ** 2 + dy ** 2)
+    return np.insert(dist, 0, 0.0)
+
+
+def paramspline(x, y, length, s=0):
+    from scipy.interpolate import splev, splprep
+    tck, u = splprep([x, y], s=s)
+    unew = np.linspace(0, u[-1], length)
+    out = splev(unew, tck)
+    xs, ys = out[0], out[1]
+    grads = get_curve_grad(xs, ys)
+    return {'xs': xs, 'ys': ys, 'grads': grads['grad'], 'posangs': grads['posang']}
+
+
+def polyfit(x, y, length, deg):
+    xs = np.linspace(x.min(), x.max(), length)
+    z = np.polyfit(x=x, y=y, deg=deg)
+    p = np.poly1d(z)
+    ys = p(xs)
+    grads = get_curve_grad(xs, ys)
+    return {'xs': xs, 'ys': ys, 'grads': grads['grad'], 'posangs': grads['posang']}
+
+
+def spline(x, y, length, s=0):
+    from scipy.interpolate import splev, splrep
+    xs = np.linspace(x.min(), x.max(), length)
+    tck = splrep(x, y, s=s)
+    ys = splev(xs, tck)
+    grads = get_curve_grad(xs, ys)
+    return {'xs': xs, 'ys': ys, 'grads': grads['grad'], 'posangs': grads['posang']}
+
+
+def get_curve_grad(x, y):
+    '''
+    get the grad of at data point
+    :param x:
+    :param y:
+    :return: grad,posang
+    '''
+    deltay = np.roll(y, -1) - np.roll(y, 1)
+    deltay[0] = y[1] - y[0]
+    deltay[-1] = y[-1] - y[-2]
+    deltax = np.roll(x, -1) - np.roll(x, 1)
+    deltax[0] = x[1] - x[0]
+    deltax[-1] = x[-1] - x[-2]
+    grad = deltay / deltax
+    posang = np.arctan2(deltay, deltax)
+    return {'grad': grad, 'posang': posang}
+
+
 def polsfromfitsheader(header):
     '''
     get polarisation information from fits header
@@ -241,7 +364,7 @@ def c_correlate(a, v):
     return np.correlate(a, v, mode='same')
 
 
-def XCorrMap(z, x, y, doxscale = True):
+def XCorrMap(z, x, y, doxscale=True):
     '''
     get the cross correlation map along y axis
     :param z: data
@@ -261,8 +384,8 @@ def XCorrMap(z, x, y, doxscale = True):
             ys = splev(xfit, tck)
             zfit[yidx1, :] = ys
     else:
-        xfit=x
-        zfit=z
+        xfit = x
+        zfit = z
     ny, nxfit = zfit.shape
     ccpeak = np.empty((ny - 1, ny - 1))
     ccpeak[:] = np.nan
@@ -298,4 +421,3 @@ def XCorrMap(z, x, y, doxscale = True):
 
     return {'zfit': zfit, 'ccmax': ccmax, 'ccpeak': ccpeak, 'x': x, 'nx': len(x), 'xfit': xfit, 'nxfit': nxfit, 'y': y,
             'ny': ny, 'yv': yv, 'ya': ya, 'yidxv': yidxv, 'yidxa': yidxa}
-

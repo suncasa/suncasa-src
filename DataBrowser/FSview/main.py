@@ -30,16 +30,6 @@ from suncasa.utils import DButil
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
-
-def getfreeport():
-    import socket
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('localhost', 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
-
-
 if platform == "linux" or platform == "linux2":
     print 'Runing QLook in Linux platform'
     for ll in xrange(5100, 5100 + 10):
@@ -60,6 +50,7 @@ with open(suncasa_dir + 'DataBrowser/config.json', 'r') as fp:
     config_plot = json.load(fp)
 database_dir = config_plot['datadir']['database']
 database_dir = os.path.expandvars(database_dir) + '/'
+SDO_dir = database_dir + '/aiaBrowserData/Download/'
 spec_square_rs_tmax = config_plot['plot_config']['tab_FSview_base']['spec_square_rs_tmax']
 spec_square_rs_fmax = config_plot['plot_config']['tab_FSview_base']['spec_square_rs_fmax']
 spec_image_rs_ratio = config_plot['plot_config']['tab_FSview_base']['spec_image_rs_ratio']
@@ -96,39 +87,6 @@ def goodchan(hdu):
     hdu_goodchan = \
         np.where(np.nanmean(hdu.data[0, :, yc - ndy / 16:yc + ndy / 16, xc - ndx / 16:xc + ndx / 16], axis=(-1, -2)))[0]
     return hdu_goodchan
-
-
-def sdo_aia_scale(image=None, wavelength=None):
-    if wavelength == '94':
-        image[image > 30] = 30
-        image[image < 0.5] = 0.5
-        image = np.log10(image)
-    elif wavelength == '131':
-        image[image > 200] = 200
-        image[image < 2] = 2
-        image = np.log10(image)
-    elif wavelength == '171':
-        image[image > 2000] = 2000
-        image[image < 50] = 50
-        image = np.log10(image)
-    return bytescale(image)
-
-
-def sdomapfromlocalfile(wavelength=None, jdtime=None):
-    aiafitspath = glob.glob(database_dir + event_id + '/AIA/aia_lev1_{}a*.fits'.format(wavelength))
-    aiafits = [ll.split('/')[-1] for ll in aiafitspath]
-    aiatimeline = [ll.replace('aia_lev1_{}a_'.format(wavelength), '').replace('.fits', '').replace('z_image_lev1', '')
-                   for
-                   ll in aiafits]
-    aiatimeline = [ll.split('t')[0].replace('_', '-') + ' ' + ll.split('t')[1].replace('_', ':') for ll in
-                   aiatimeline]
-    aiatimeline = [ll[0:ll.rindex(':')] + '.' + ll[(ll.rindex(':') + 1):] for ll in aiatimeline]
-    aiatimeline = Time(aiatimeline, format='iso', scale='utc')
-    idxaia = np.argmin(np.abs(aiatimeline.jd - jdtime))
-    filepath = aiafitspath[idxaia]
-    aiamap = sunpy.map.Map(filepath)
-    aiamap.data = sdo_aia_scale(image=aiamap.data / aiamap.exposure_time.value, wavelength=wavelength)
-    return aiamap
 
 
 def rebin_specdata(tab2_spec, spec_square_rs_tmax=None, spec_square_rs_fmax=None):
@@ -268,7 +226,7 @@ def tab2_panel_XCorr_update():
             tab2_Div_LinkImg_plot.text = '<p><b>{}</b> saved.</p>'.format(CC_save)
         except:
             pass
-        port = getfreeport()
+        port = DButil.getfreeport()
         print 'bokeh serve {}DataBrowser/XCorr --show --port {} &'.format(suncasa_dir, port)
         os.system('bokeh serve {}DataBrowser/XCorr --show --port {} &'.format(suncasa_dir, port))
         ports.append(port)
@@ -328,7 +286,8 @@ def aia_submap_wavelength_selection(attrname, old, new):
     global tab3_r_aia_submap
     select_wave = tab2_Select_aia_wave.value
     print 'wavelength {} selected'.format(select_wave)
-    aiamap = sdomapfromlocalfile(wavelength=select_wave, jdtime=xx[0] / 3600. / 24.)
+    aiamap = DButil.readsdofile(datadir=SDO_dir, wavelength=select_wave, jdtime=xx[0] / 3600. / 24.,
+                                timtol=tab2_dur / 3600. / 24.)
     lengthx = vla_local_pfmap.dw[0] * u.arcsec
     lengthy = vla_local_pfmap.dh[0] * u.arcsec
     x0 = vla_local_pfmap.smap.center.x
@@ -1143,6 +1102,7 @@ spec_plt_max = spec_plt_max_pol[tab2_pol]
 spec_plt_min = spec_plt_min_pol[tab2_pol]
 
 tab2_dtim = tab2_tim - tab2_tim[0]
+tab2_dur = tab2_dtim[-1] - tab2_dtim[0]
 tim_map = ((np.tile(tab2_tim, tab2_nfreq).reshape(tab2_nfreq, tab2_ntim) / 3600. / 24. + 2400000.5)) * 86400.
 freq_map = np.tile(tab2_freq, tab2_ntim).reshape(tab2_ntim, tab2_nfreq).swapaxes(0, 1)
 xx = tim_map.flatten()
@@ -1426,7 +1386,8 @@ if os.path.exists(FS_dspecDF):
         bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
 
-        aiamap = sdomapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
+        aiamap = DButil.readsdofile(datadir=SDO_dir, wavelength='171', jdtime=xx[0] / 3600. / 24.,
+                                    timtol=tab2_dur / 3600. / 24.)
         colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
         bokehpalette_sdoaia171 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         colormap = cm.get_cmap("sdoaia94")  # choose any matplotlib colormap here
@@ -1631,8 +1592,8 @@ if os.path.exists(FS_dspecDF):
         tab2_LinkImg_WDTH = config_plot['plot_config']['tab_FSview_base']['vla_wdth']
 
         tab2_BUT_XCorr = Button(label='XCorr',
-                                  width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
-                                  button_type='warning')
+                                width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                button_type='warning')
         tab2_BUT_XCorr.on_click(tab2_panel_XCorr_update)
 
         tab2_panel2_BUT_exit = Button(label='Exit FSview',
@@ -1705,13 +1666,13 @@ if os.path.exists(FS_dspecDF):
         VdspecDF_update()
         tab3_SRC_dspec_vector_init()
         tab3_r_dspec_vector = tab3_p_dspec_vector.image(image=tab3_dspec_vector_img, x=tab2_dtim[0], y=tab2_freq[0],
-                                                        dw=tab2_dtim[-1] - tab2_dtim[0],
+                                                        dw=tab2_dur,
                                                         dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
         tab3_r_dspec_vectorx = tab3_p_dspec_vectorx.image(image=tab3_dspec_vectorx_img, x=tab2_dtim[0], y=tab2_freq[0],
-                                                          dw=tab2_dtim[-1] - tab2_dtim[0],
+                                                          dw=tab2_dur,
                                                           dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
         tab3_r_dspec_vectory = tab3_p_dspec_vectory.image(image=tab3_dspec_vectory_img, x=tab2_dtim[0], y=tab2_freq[0],
-                                                          dw=tab2_dtim[-1] - tab2_dtim[0],
+                                                          dw=tab2_dur,
                                                           dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
         tab3_source_idx_line = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
         tab3_r_dspec_vector_line = tab3_p_dspec_vector.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
@@ -1923,7 +1884,7 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
             tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
             tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0], y=tab2_freq[0],
-                                              dw=tab2_dtim[-1] - tab2_dtim[0],
+                                              dw=tab2_dur,
                                               dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
 
             # make the dspec data source selectable
@@ -2118,7 +2079,9 @@ if os.path.exists(FS_dspecDF):
             colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
             bokehpalette_sdoaia171 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
             # aiamap = sunpy.map.Map(filepath)
-            aiamap = sdomapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
+            print xx[0] / 3600. / 24., SDO_dir
+            aiamap = DButil.readsdofile(datadir=SDO_dir, wavelength='171', jdtime=xx[0] / 3600. / 24.,
+                                        timtol=tab2_dur / 3600. / 24.)
             MapRES = 256
             dimensions = u.Quantity([MapRES, MapRES], u.pixel)
             aia_resampled_map = aiamap.resample(dimensions)
@@ -2251,8 +2214,8 @@ if os.path.exists(FS_dspecDF):
                 ctrl.on_change('value', tab3_slider_LinkImg_update)
 
             tab2_BUT_XCorr = Button(label='XCorr',
-                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
-                                      button_type='warning')
+                                    width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                    button_type='warning')
             tab2_BUT_XCorr.on_click(tab2_panel_XCorr_update)
 
             tab2_panel2_BUT_exit = Button(label='Exit FSview',
@@ -2856,8 +2819,8 @@ else:
                               button_type='primary')
 
     tab2_BUT_XCorr = Button(label='XCorr',
-                              width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'],
-                              button_type='warning')
+                            width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'],
+                            button_type='warning')
     tab2_BUT_XCorr.on_click(tab2_panel_XCorr_update)
 
 

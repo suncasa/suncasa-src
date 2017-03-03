@@ -14,15 +14,7 @@ from bokeh.models import (ColumnDataSource, Button, TextInput, DataTable, TableC
 from bokeh.models.widgets import Select
 from bokeh.plotting import figure, curdoc
 from astropy.time import Time
-
-
-def getfreeport():
-    import socket
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('localhost', 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
+from suncasa.utils import DButil
 
 
 __author__ = ["Sijie Yu"]
@@ -363,7 +355,7 @@ def tab1_update_FSviewStrID():
             np.savez(FS_specfile, spec=spec, tim=tim, freq=freq, bl=bl, npol=npol, nbl=nbl, nfreq=nfreq, ntim=ntim)
             # tab1_Div_Tb.text = """<p><b>""" + FS_specfile + """</b> saved >>>>>> Click the <b>FS veiw button</b> again to make aperture synthesis images</p>"""
 
-        port = getfreeport()
+        port = DButil.getfreeport()
         print 'bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port)
         os.system('bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port))
         ports.append(port)

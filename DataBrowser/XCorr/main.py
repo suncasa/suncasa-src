@@ -13,6 +13,7 @@ from bokeh.models import (ColumnDataSource, CustomJS, Slider, Button, TextInput,
 from bokeh.models import LinearColorMapper, ColorBar, LogColorMapper
 from bokeh.plotting import figure, curdoc
 from astropy.time import Time
+
 # from suncasa.utils import DButil
 
 __author__ = ["Sijie Yu"]
@@ -37,11 +38,6 @@ colormap = cm.get_cmap("RdBu")  # choose any matplotlib colormap here
 bokehpalette_RdBu = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
 colormap = cm.get_cmap("Blues")  # choose any matplotlib colormap here
 bokehpalette_Blues = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-
-
-def exit():
-    raise SystemExit
-
 
 event_id = config_EvtID['datadir']['event_id']
 try:
@@ -352,7 +348,6 @@ def Slider_watershed_update(attrname, old, new):
     # r_CCpeak.data_source.data['image'] = [CC_dict['ccpeak'] * dtfit * 1000.0]
 
 
-
 Slider_watershed = Slider(start=0, end=100, value=0, step=5, title="watershed",
                           width=config_plot['plot_config']['tab_XCorr']['widgetbox_wdth'],
                           callback_policy='mouseup')
@@ -385,6 +380,17 @@ Slider_threshold = Slider(start=0, end=100, value=0, step=1, title="threshold",
 
 Slider_threshold.on_change('value', Slider_threshold_update)
 
+Div_exit = Div(
+    text="""<p><b>Warning</b>: Click <b>Exit</b>
+            first before closing the tab</p></b>""",
+    width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+
+
+def exit():
+    Div_exit.text = """<p><b>You may close the tab anytime you like.</b></p>"""
+    raise SystemExit
+
+
 BUT_exit = Button(label='Exit FSview',
                   width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                   button_type='danger')
@@ -392,7 +398,7 @@ BUT_exit.on_click(exit)
 
 lout = column(row(gridplot([[p_dspec, p_dspecfit]], toolbar_location='right'), p_dspec_lines),
               row(gridplot([[p_CCmax, p_CCpeak]], toolbar_location='right'),
-                  column(Slider_watershed, Slider_threshold, BUT_exit)))
+                  column(Slider_watershed, Slider_threshold, BUT_exit, Div_exit)))
 
 curdoc().add_root(lout)
 curdoc().title = "XCorr"
