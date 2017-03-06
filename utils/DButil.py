@@ -30,7 +30,7 @@ def sdo_aia_scale(image=None, wavelength=None):
         image[image < 2] = 2
         image = np.log10(image)
     elif wavelength == '171':
-        image[image > 2000] = 2000
+        image[image > 4000] = 4000
         image[image < 20] = 20
         image = np.log10(image)
     return bytescale(image)
@@ -40,7 +40,7 @@ def insertchar(source_str, insert_str, pos):
     return source_str[:pos] + insert_str + source_str[pos:]
 
 
-def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists = False, timtol=1):
+def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timtol=1):
     '''
     read sdo file from local database
     :param datadir:
@@ -59,7 +59,8 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists = False, ti
     sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
                         for
                         ll in sdofits], format='iso', scale='utc')
-    if np.min(np.abs(sdotimeline.jd - jdtime)) > timtol:
+
+    if 12. / 3600 / 24 < timtol < np.min(np.abs(sdotimeline.jd - jdtime)):
         raise ValueError('SDO File not found at the select timestamp. Download the data with EvtBrowser first.')
     idxaia = np.argmin(np.abs(sdotimeline.jd - jdtime))
     sdofile = sdofitspath[idxaia]
@@ -68,7 +69,6 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists = False, ti
     else:
         try:
             sdomap = sunpy.map.Map(sdofile)
-            sdomap.data = sdo_aia_scale(image=sdomap.data / sdomap.exposure_time.value, wavelength=wavelength)
             return sdomap
         except:
             raise ValueError('File not found or invalid input')
@@ -77,7 +77,7 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists = False, ti
 def findDist(x, y):
     dx = np.diff(x)
     dy = np.diff(y)
-    dist = np.sqrt(dx ** 2 + dy ** 2)
+    dist = np.hypot(dx, dy)
     return np.insert(dist, 0, 0.0)
 
 
@@ -125,6 +125,74 @@ def get_curve_grad(x, y):
     grad = deltay / deltax
     posang = np.arctan2(deltay, deltax)
     return {'grad': grad, 'posang': posang}
+
+
+def improfile(z, xi, yi, interp='cubic'):
+    '''
+    Pixel-value cross-section along line segment in an image
+    :param z: an image array
+    :param xi and yi: equal-length vectors specifying the pixel coordinates of the endpoints of the line segment
+    :param interp: interpolation type to sampling, 'nearest' or 'cubic'
+    :return: the intensity values of pixels along the line
+    '''
+    import scipy.ndimage
+    imgshape = z.shape
+    # x = np.arange(imgshape[1])
+    # y = np.arange(imgshape[0])
+    if len(xi) != len(yi):
+        raise ValueError('xi and yi must be equal-length!')
+    if len(xi) < 2:
+        raise ValueError('xi or yi must contain at least two elements!')
+    for idx, ll in enumerate(xi):
+        if not 0 < ll < imgshape[1] - 1:
+            raise ValueError('xi out of range!')
+        if not 0 < yi[idx] < imgshape[0] - 1:
+            raise ValueError('yi out of range!')
+            # xx, yy = np.meshgrid(x, y)
+    if len(xi) == 2:
+        length = np.hypot(np.diff(xi), np.diff(yi))[0]
+        x, y = np.linspace(xi[0], xi[1], length), np.linspace(yi[0], yi[1], length)
+    else:
+        x, y = xi, yi
+    if interp == 'cubic':
+        zi = scipy.ndimage.map_coordinates(z, np.vstack((x, y)))
+    else:
+        zi = z[x.astype(np.int), y.astype(np.int)]
+
+    return zi
+
+
+def canvaspix_to_data(smap, x, y):
+    import astropy.units as u
+    '''
+    Convert canvas pixel coordinates in MkPlot to data (world) coordinates by using
+    `~astropy.wcs.WCS.wcs_pix2world`.
+
+    :param smap: sunpy map
+    :param x: canvas Pixel coordinates of the CTYPE1 axis. (Normally solar-x)
+    :param y: canvas Pixel coordinates of the CTYPE2 axis. (Normally solar-y)
+    :return: world coordinates
+    '''
+    xynew = smap.pixel_to_data(x * u.pix, y * u.pix)
+    xnew = xynew[0].value
+    ynew = xynew[1].value
+    return [xnew,ynew]
+
+def data_to_mappixel(smap, x, y):
+    import astropy.units as u
+    '''
+    Convert data (world) coordinates in MkPlot to pixel coordinates in smap by using
+    `~astropy.wcs.WCS.wcs_pix2world`.
+
+    :param smap: sunpy map
+    :param x: Data coordinates of the CTYPE1 axis. (Normally solar-x)
+    :param y: Data coordinates of the CTYPE2 axis. (Normally solar-y)
+    :return: pixel coordinates
+    '''
+    xynew = smap.data_to_pixel(x * u.arcsec, y * u.arcsec)
+    xnew = xynew[0].value
+    ynew = xynew[1].value
+    return [xnew,ynew]
 
 
 def polsfromfitsheader(header):
@@ -421,3 +489,28 @@ def XCorrMap(z, x, y, doxscale=True):
 
     return {'zfit': zfit, 'ccmax': ccmax, 'ccpeak': ccpeak, 'x': x, 'nx': len(x), 'xfit': xfit, 'nxfit': nxfit, 'y': y,
             'ny': ny, 'yv': yv, 'ya': ya, 'yidxv': yidxv, 'yidxa': yidxa}
+
+
+class buttons_play:
+    '''
+    Produce A play/stop button widget for bokeh plot
+
+    '''
+    __slots__ = ['buttons']
+
+    def __init__(self, plot_width=None, *args,
+                 **kwargs):
+        from bokeh.models import Button
+        BUT_first = Button(label='<<', width=plot_width, button_type='primary')
+        BUT_prev = Button(label='|<', width=plot_width, button_type='warning')
+        BUT_play = Button(label='>', width=plot_width, button_type='success')
+        BUT_next = Button(label='>|', width=plot_width, button_type='warning')
+        BUT_last = Button(label='>>', width=plot_width, button_type='primary')
+
+        self.buttons = [BUT_first, BUT_prev, BUT_play, BUT_next, BUT_last]
+
+    def play(self, *args, **kwargs):
+        if self.buttons[2].label == '>':
+            self.buttons[2].label = '||'
+        else:
+            self.buttons[2].label = '>'

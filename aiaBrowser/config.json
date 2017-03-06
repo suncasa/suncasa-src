@@ -11,7 +11,7 @@
       "divJSOCinfo_wdth": 500
     },
     "tab_MkPlot": {
-      "aia_RSPmap_RES": 500.0,
+      "aia_RSPmap_RES": 800.0,
       "aia_submap_sz_max": 700.0,
       "aia_RSPmap_wdth": 370,
       "aia_RSPmap_hght": 350,
@@ -19,14 +19,14 @@
       "aia_RSP_squareny": 64.0,
       "aia_submap_wdth": 600,
       "aia_submap_hght": 600,
-      "time_plot_wdth": 1080,
-      "time_plot_hght": 300,
+      "time_plot_wdth": 370,
+      "time_plot_hght": 200,
       "button_wdth": 200,
       "space_wdth50": 50,
       "space_hght18": 18,
       "space_wdth20": 20,
       "space_hght10": 10,
-      "button_wdth_short": 40
+      "button_wdth_short": 70
     },
     "tab_FSview_base": {
       "dspec_thumb_wdth": 200,

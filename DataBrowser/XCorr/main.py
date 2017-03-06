@@ -131,7 +131,7 @@ r_dspecfit = p_dspecfit.image(image=[specfit], x=dtimfit[0], y=freq[0],
                               color_mapper=LinearColorMapper(palette=bokehpalette_jet, low=np.amin(spec),
                                                              high=np.amax(spec)))
 
-TOOLS = "save"
+TOOLS = "crosshair,save"
 SRC_CCmax_square = ColumnDataSource(CCmaxDF)
 p_CCmax = figure(tools=TOOLS,
                  plot_width=config_plot['plot_config']['tab_XCorr']['CCmap_wdth'],
@@ -155,10 +155,16 @@ r_CCmax_square = p_CCmax.square('freqa', 'freqv', source=SRC_CCmax_square, fill_
                                 nonselection_line_alpha=0.0,
                                 size=min(config_plot['plot_config']['tab_XCorr']['dspec_wdth'] / (nfreq - 1),
                                          config_plot['plot_config']['tab_XCorr']['dspec_hght'] / (nfreq - 1)))
-SRC_CCmax_line1 = ColumnDataSource({'x': [], 'y': []})
-r_CCmax_line1 = p_CCmax.line(x='x', y='y', alpha=0.6, line_width=2, line_color='orange', source=SRC_CCmax_line1)
-SRC_CCmax_line2 = ColumnDataSource({'x': [], 'y': []})
-r_CCmax_line2 = p_CCmax.line(x='x', y='y', alpha=0.6, line_width=2, line_color='red', source=SRC_CCmax_line2)
+p_CCmax.line(x=[freq[0], freq[-1]], y=[freq[0], freq[-1]], alpha=0.5, line_width=1, color='white')
+SRC_CCmax_pin = ColumnDataSource({'x': [], 'y': []})
+r_CCmax_pin = p_CCmax.cross(x='x', y='y', size=15, alpha=0.8, line_width=2, line_color='gray',
+                            source=SRC_CCmax_pin)
+SRC_CCmax_indicator1 = ColumnDataSource({'x': [], 'y': []})
+r_CCmax_indicator1 = p_CCmax.square(x='x', y='y', angle=np.pi / 4, size=12, alpha=0.6, line_color=None, color='orange',
+                                    source=SRC_CCmax_indicator1)
+SRC_CCmax_indicator2 = ColumnDataSource({'x': [], 'y': []})
+r_CCmax_indicator2 = p_CCmax.square(x='x', y='y', angle=np.pi / 4, size=12, alpha=0.6, line_color=None, color='red',
+                                    source=SRC_CCmax_indicator2)
 
 cm_CCmax = LinearColorMapper(palette=bokehpalette_Blues, low=0.5, high=1.0)
 cb_CCmax = ColorBar(color_mapper=cm_CCmax, label_standoff=5, width=5, border_line_color=None, location=(0, 0))
@@ -191,122 +197,138 @@ r_CCpeak_square = p_CCpeak.square('freqa', 'freqv', source=SRC_CCmax_square, fil
                                   nonselection_line_alpha=0.0,
                                   size=min(config_plot['plot_config']['tab_XCorr']['dspec_wdth'] / (nfreq - 1),
                                            config_plot['plot_config']['tab_XCorr']['dspec_hght'] / (nfreq - 1)))
-SRC_CCpeak_line1 = ColumnDataSource({'x': [], 'y': []})
-r_CCpeak_line1 = p_CCpeak.line(x='x', y='y', alpha=0.6, line_width=2, line_color='orange', source=SRC_CCmax_line1)
-SRC_CCpeak_line2 = ColumnDataSource({'x': [], 'y': []})
-r_CCpeak_line2 = p_CCpeak.line(x='x', y='y', alpha=0.6, line_width=2, line_color='red', source=SRC_CCmax_line2)
+p_CCpeak.line(x=[freq[0], freq[-1]], y=[freq[0], freq[-1]], alpha=0.5, line_width=1, color='black')
+SRC_CCpeak_pin = ColumnDataSource({'x': [], 'y': []})
+r_CCpeak_pin = p_CCpeak.cross(x='x', y='y', size=15, alpha=0.8, line_width=2, line_color='gray',
+                              source=SRC_CCmax_pin)
+r_CCpeak_indicator1 = p_CCpeak.square(x='x', y='y', angle=np.pi / 4, size=12, alpha=0.6, line_color=None,
+                                      color='orange',
+                                      source=SRC_CCmax_indicator1)
+r_CCpeak_indicator2 = p_CCpeak.square(x='x', y='y', angle=np.pi / 4, size=12, alpha=0.6, line_color=None, color='red',
+                                      source=SRC_CCmax_indicator2)
 
 cm_CCpeak = LinearColorMapper(palette=bokehpalette_RdBu, low=-lagmax / 3, high=lagmax / 3)
 cb_CCpeak = ColorBar(color_mapper=cm_CCpeak, label_standoff=5, width=5, border_line_color=None, location=(0, 0))
 p_CCpeak.add_layout(cb_CCpeak, 'right')
 
 SRC_freq_line1 = ColumnDataSource({'x': [], 'y': []})
-r_freq_line1 = p_dspec.line(x='x', y='y', alpha=0.6, line_width=2, line_color='orange', source=SRC_freq_line1)
+r_freq_line1 = p_dspec.line(x='x', y='y', alpha=0.2, line_width=1, line_color='black', source=SRC_freq_line1)
 SRC_freq_line2 = ColumnDataSource({'x': [], 'y': []})
-r_freq_line2 = p_dspec.line(x='x', y='y', alpha=0.6, line_width=2, line_color='red', source=SRC_freq_line2)
-r_fit_freq_line1 = p_dspecfit.line(x='x', y='y', alpha=0.6, line_width=2, line_color='orange',
+r_freq_line2 = p_dspec.line(x='x', y='y', alpha=0.2, line_width=1, line_color='black', source=SRC_freq_line2)
+r_freq_indicator1 = p_dspec.square(x='x', y='y', angle=np.pi / 4, size=12, alpha=0.6, line_color=None, color='orange',
+                                   source=SRC_freq_line1)
+r_freq_indicator2 = p_dspec.square(x='x', y='y', angle=np.pi / 4, size=12, alpha=0.6, line_color=None, color='red',
+                                   source=SRC_freq_line2)
+r_fit_freq_line1 = p_dspecfit.line(x='x', y='y', alpha=0.2, line_width=1, line_color='black',
                                    source=r_freq_line1.data_source)
-r_fit_freq_line2 = p_dspecfit.line(x='x', y='y', alpha=0.6, line_width=2, line_color='red',
+r_fit_freq_line2 = p_dspecfit.line(x='x', y='y', alpha=0.2, line_width=1, line_color='black',
                                    source=r_freq_line2.data_source)
+r_fit_freq_indicator1 = p_dspecfit.square(x='x', y='y', angle=np.pi / 4, size=12, alpha=0.6, line_color=None,
+                                          color='orange', source=SRC_freq_line1)
+r_fit_freq_indicator2 = p_dspecfit.square(x='x', y='y', angle=np.pi / 4, size=12, alpha=0.6, line_color=None,
+                                          color='red', source=SRC_freq_line2)
 
 TOOLS = "crosshair,save"
-p_dspec_lines = figure(tools=TOOLS,
-                       plot_width=config_plot['plot_config']['tab_XCorr']['CCmap_hght'],
-                       plot_height=config_plot['plot_config']['tab_XCorr']['CCmap_hght'],
-                       x_range=(dtim[0], dtim[-1]), y_range=(np.amin(spec), np.amax(spec)),
-                       toolbar_location="above")
-p_dspec_lines.axis.visible = True
-p_dspec_lines.title.text = "Light curves"
-p_dspec_lines.xaxis.axis_label = 'Seconds since ' + tim0_char
-p_dspec_lines.yaxis.axis_label = 'Flux [sfu]'
-p_dspec_lines.border_fill_alpha = 0.4
-p_dspec_lines.axis.major_tick_out = 0
-p_dspec_lines.axis.major_tick_in = 5
-p_dspec_lines.axis.minor_tick_out = 0
-p_dspec_lines.axis.minor_tick_in = 3
-p_dspec_lines.axis.major_tick_line_color = "white"
-p_dspec_lines.axis.minor_tick_line_color = "white"
+p_dspec_profile = figure(tools=TOOLS,
+                         plot_width=config_plot['plot_config']['tab_XCorr']['CCmap_hght'],
+                         plot_height=config_plot['plot_config']['tab_XCorr']['CCmap_hght'],
+                         x_range=(dtim[0], dtim[-1]), y_range=(np.amin(spec), np.amax(spec)),
+                         toolbar_location="above")
+p_dspec_profile.axis.visible = True
+p_dspec_profile.title.text = "Light curves"
+p_dspec_profile.xaxis.axis_label = 'Seconds since ' + tim0_char
+p_dspec_profile.yaxis.axis_label = 'Flux [sfu]'
+p_dspec_profile.border_fill_alpha = 0.4
+p_dspec_profile.axis.major_tick_out = 0
+p_dspec_profile.axis.major_tick_in = 5
+p_dspec_profile.axis.minor_tick_out = 0
+p_dspec_profile.axis.minor_tick_in = 3
+p_dspec_profile.axis.major_tick_line_color = "white"
+p_dspec_profile.axis.minor_tick_line_color = "white"
 
 SRC_dspec_prof1 = ColumnDataSource({'x': [], 'y': []})
-r_dspec_prof1 = p_dspec_lines.line(x='x', y='y', alpha=0.3, line_width=2, line_color='orange', source=SRC_dspec_prof1)
+r_dspec_prof1 = p_dspec_profile.line(x='x', y='y', alpha=0.3, line_width=2, line_color='orange', source=SRC_dspec_prof1)
 SRC_dspec_prof2 = ColumnDataSource({'x': [], 'y': []})
-r_dspec_prof2 = p_dspec_lines.line(x='x', y='y', alpha=0.3, line_width=2, line_color='red', source=SRC_dspec_prof2)
+r_dspec_prof2 = p_dspec_profile.line(x='x', y='y', alpha=0.3, line_width=2, line_color='red', source=SRC_dspec_prof2)
 SRC_dspecfit_prof1 = ColumnDataSource({'x': [], 'y': []})
-r_dspecfit_prof1 = p_dspec_lines.line(x='x', y='y', alpha=0.7, line_width=1, line_color='orange',
-                                      source=SRC_dspecfit_prof1)
+r_dspecfit_prof1 = p_dspec_profile.line(x='x', y='y', alpha=0.7, line_width=1, line_color='orange',
+                                        source=SRC_dspecfit_prof1)
 SRC_dspecfit_prof2 = ColumnDataSource({'x': [], 'y': []})
-r_dspecfit_prof2 = p_dspec_lines.line(x='x', y='y', alpha=0.7, line_width=1, line_color='red',
-                                      source=SRC_dspecfit_prof2)
+r_dspecfit_prof2 = p_dspec_profile.line(x='x', y='y', alpha=0.7, line_width=1, line_color='red',
+                                        source=SRC_dspecfit_prof2)
 tooltips = [("freqa, freqv", "@freqa, @freqv"), ("max, lag [ms]", "@ccmax, @ccpeak"), ]
 
 hover_JScode = """
-    var CCfdata = CC_SQR.data;
-    var spec = specplt.get('data').data[0];
-    var specfit = specplt.get('data').datafit[0];
-    var dtim = time.get('data').data[0];
-    var dtimfit = timefit.get('data').data[0];
     var t0 = %s;
     var t1 = %s;
     var nx = %d;
     var f0 = %s;
     var f1 = %s;
     var nxfit = %d;
+    var CCfdata = CC_SQR.data;
+    var spec = specplt.get('data').data[0];
+    var specfit = specplt.get('data').datafit[0];
+    var dtim = time.get('data').data[0];
+    var dtimfit = timefit.get('data').data[0];
     var indices = cb_data.index['1d'].indices;
 
     var data = {'x': [], 'y': []};
     data['x'].push(t0);
-    data['x'].push(t1);
-    for (i=0; i < 2; i++) {
-        data['y'].push(CCfdata.freqa[indices[0]]);
-    }
+    data['x'].push(t1*2);
+    data['y'].push(CCfdata.freqa[indices[0]]);
+    data['y'].push(CCfdata.freqa[indices[0]]);
     r_freq1.set('data',data);
 
-    data = {'x': [], 'y': []};
-    for (i=0; i < 2; i++) {
-        data['y'].push(CCfdata.freqv[indices[0]]);
-    }
+    var data = {'x': [], 'y': []};
     data['x'].push(t0);
-    data['x'].push(t1);
+    data['x'].push(t1*2);
+    data['y'].push(CCfdata.freqv[indices[0]]);
+    data['y'].push(CCfdata.freqv[indices[0]]);
     r_freq2.set('data',data);
 
     var data = {'x': [], 'y': []};
-    data['y'].push(f0);
-    data['y'].push(f1);
-    for (i=0; i < 2; i++) {
-        data['x'].push(CCfdata.freqa[indices[0]]);
-    }
+    data['x'].push(CCfdata.freqa[indices[0]]);
+    data['y'].push(CCfdata.freqv[indices[0]]);
     r_CCmaxl1.set('data',data);
 
     var data = {'x': [], 'y': []};
+    data['x'].push(CCfdata.freqa[indices[0]]);
     data['x'].push(f0);
-    data['x'].push(f1);
-    for (i=0; i < 2; i++) {
-        data['y'].push(CCfdata.freqv[indices[0]]);
-    }
-    r_CCmaxl2.set('data',data);
+    data['y'].push(f0);
+    data['y'].push(CCfdata.freqa[indices[0]]);
+    r_CCmaxlp1.set('data',data);
 
-    data = {'x': [], 'y': []};
+
+    var data = {'x': [], 'y': []};
+    data['x'].push(CCfdata.freqv[indices[0]]);
+    data['x'].push(f0);
+    data['y'].push(f0);
+    data['y'].push(CCfdata.freqv[indices[0]]);
+    r_CCmaxlp2.set('data',data);
+
+
+    var data = {'x': [], 'y': []};
     for (i=0; i < nx; i++) {
         data['x'].push(dtim[i]);
         data['y'].push(spec[ CCfdata.fidxa[indices[0]]*nx+i]);
     }
     r_prof1.set('data',data);
 
-    data = {'x': [], 'y': []};
+    var data = {'x': [], 'y': []};
     for (i=0; i < nx; i++) {
         data['x'].push(dtim[i]);
         data['y'].push(spec[CCfdata.fidxv[indices[0]]*nx+i]);
     }
     r_prof2.set('data',data);
 
-    data = {'x': [], 'y': []};
+    var data = {'x': [], 'y': []};
     for (i=0; i < nxfit; i++) {
         data['x'].push(dtimfit[i]);
         data['y'].push(specfit[CCfdata.fidxa[indices[0]]*nxfit+i]);
     }
     r_fit_prof1.set('data',data);
 
-    data = {'x': [], 'y': []};
+    var data = {'x': [], 'y': []};
     for (i=0; i < nxfit; i++) {
         data['x'].push(dtimfit[i]);
         data['y'].push(specfit[CCfdata.fidxv[indices[0]]*nxfit+i]);
@@ -319,8 +341,9 @@ CJSargs = {'CC_SQR': SRC_CCmax_square, 'r_freq1': r_freq_line1.data_source, 'r_f
            'time': ColumnDataSource({'data': [dtim]}),
            'timefit': ColumnDataSource({'data': [dtimfit]}), 'r_prof1': r_dspec_prof1.data_source,
            'r_prof2': r_dspec_prof2.data_source, 'r_fit_prof1': r_dspecfit_prof1.data_source,
-           'r_fit_prof2': r_dspecfit_prof2.data_source, 'r_CCmaxl1': r_CCmax_line1.data_source,
-           'r_CCmaxl2': r_CCmax_line2.data_source}
+           'r_fit_prof2': r_dspecfit_prof2.data_source, 'r_CCmaxl1': r_CCmax_pin.data_source,
+           'r_CCmaxlp1': r_CCpeak_indicator1.data_source,
+           'r_CCmaxlp2': r_CCmax_indicator2.data_source}
 
 p_CCmax_hover_callback = CustomJS(args=CJSargs, code=hover_JScode)
 p_CCmax_hover = HoverTool(tooltips=tooltips, callback=p_CCmax_hover_callback,
@@ -348,7 +371,7 @@ def Slider_watershed_update(attrname, old, new):
     # r_CCpeak.data_source.data['image'] = [CC_dict['ccpeak'] * dtfit * 1000.0]
 
 
-Slider_watershed = Slider(start=0, end=100, value=0, step=5, title="watershed",
+Slider_watershed = Slider(start=0, end=100, value=0, step=0.5, title="watershed",
                           width=config_plot['plot_config']['tab_XCorr']['widgetbox_wdth'],
                           callback_policy='mouseup')
 
@@ -396,7 +419,7 @@ BUT_exit = Button(label='Exit FSview',
                   button_type='danger')
 BUT_exit.on_click(exit)
 
-lout = column(row(gridplot([[p_dspec, p_dspecfit]], toolbar_location='right'), p_dspec_lines),
+lout = column(row(gridplot([[p_dspec, p_dspecfit]], toolbar_location='right'), p_dspec_profile),
               row(gridplot([[p_CCmax, p_CCpeak]], toolbar_location='right'),
                   column(Slider_watershed, Slider_threshold, BUT_exit, Div_exit)))
 

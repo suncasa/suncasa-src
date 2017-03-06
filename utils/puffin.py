@@ -7,6 +7,7 @@ import sunpy.map
 import sunpy.wcs as wcs
 from bokeh.models import ColumnDataSource
 from bokeh.plotting import figure
+from bokeh.models.mappers import LogColorMapper, LinearColorMapper
 from skimage.io import imread
 
 __author__ = ["Sijie Yu"]
@@ -15,6 +16,21 @@ __email__ = "sijie.yu@njit.edu"
 # define the colormaps
 colormap_jet = cm.get_cmap("jet")  # choose any matplotlib colormap here
 bokehpalette_jet = [colors.rgb2hex(m) for m in colormap_jet(np.arange(colormap_jet.N))]
+
+
+def sdo_aia_scale_dict(wavelength=None):
+    '''
+    rescale the aia image
+    :param image: normalised aia image data
+    :param wavelength:
+    :return: byte scaled image data
+    '''
+    if wavelength == '94':
+        return {'low': 0.5, 'high': 30}
+    elif wavelength == '131':
+        return {'low': 0.5, 'high': 40}
+    elif wavelength == '171':
+        return {'low': 4, 'high': 1000}
 
 
 class PuffinMap:
@@ -74,7 +90,9 @@ class PuffinMap:
         x = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)[0]
         XX, YY = (np.zeros(self.smap.data.shape[1]), np.arange(self.smap.data.shape[1]))
         y = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)[1]
-        return {'data': [self.smap.data], 'xx': [x], 'yy': [y]}
+        data = self.smap.data.copy()
+        data[~np.isnan(data)] = data[~np.isnan(data)] / self.smap.exposure_time.value * 0.2
+        return {'data': [data], 'xx': [x], 'yy': [y]}
 
     def DrawGridSource(self, grid_spacing=15 * u.deg, *args, **kwargs):
         """maps the Longitude and Latitude grids to Bokeh DataSource
@@ -146,37 +164,55 @@ class PuffinMap:
             x_range = self.x_range
         if not y_range:
             y_range = self.y_range
-        if not palette:
-            palette = bokehpalette_jet
-        # plot the global vla image
 
+        if not palette:
+            if self.smap.observatory == 'SDO' and self.smap.instrument[0:3] == 'AIA':
+                wavelngth = '{:.0f}'.format(self.smap.wavelength.value)
+                clmap = cm.get_cmap("sdoaia" + wavelngth)  # choose any matplotlib colormap here
+                palette = [colors.rgb2hex(m).encode("ascii").upper() for m in clmap(np.arange(clmap.N))]
+                clrange = sdo_aia_scale_dict(wavelength=wavelngth)
+                colormapper = LogColorMapper(palette=palette, low=clrange['low'], high=clrange['high'])
+                clrange
+            else:
+                palette = bokehpalette_jet
+                colormapper = LinearColorMapper(palette=palette)
+        else:
+            colormapper = LinearColorMapper(palette=palette)
 
         if ignore_coord:
-            p_image = figure(tools=tools, webgl=self.webgl, x_range=[0, self.smap.data.shape[0]],
-                             y_range=[0, self.smap.data.shape[1]],
-                             title=title,
-                             plot_height=self.plot_height,
-                             plot_width=self.plot_width, *args, **kwargs)
-            p_image.xaxis.visible = False
-            p_image.yaxis.visible = False
-            r_img = p_image.image(image=source_image['data'], x=0, y=0, dw=self.smap.data.shape[0],
-                                  dh=self.smap.data.shape[1],
-                                  palette=palette)
+            x_range = [0, self.smap.data.shape[0]]
+            y_range = [0, self.smap.data.shape[1]]
+            p_xaxis_visible = False
+            p_yaxis_visible = False
+            p_xaxis_axislabel = ''
+            p_yaxis_axislabel = ''
+            x0 = 0
+            y0 = 0
+            dw = self.smap.data.shape[0]
+            dh = self.smap.data.shape[1]
         else:
-            p_image = figure(tools=tools, webgl=self.webgl, x_range=x_range, y_range=y_range,
-                             title=title,
-                             plot_height=self.plot_height,
-                             plot_width=self.plot_width, *args, **kwargs)
-            p_image.xaxis.axis_label = 'X-position [arcsec]'
-            p_image.yaxis.axis_label = 'Y-position [arcsec]'
-            r_img = p_image.image(image=source_image['data'], x=self.x, y=self.y, dw=self.dw, dh=self.dh,
-                                  palette=palette)
-            if DrawLimb:
-                p_image.line(x='x', y='y', line_color='white', line_dash='solid', source=self.DrawLimbSource())
-                if DrawGrid:
-                    p_image.multi_line(xs='xs', ys='ys', line_color='white', line_dash='dotted',
-                                       source=self.DrawGridSource(grid_spacing=grid_spacing))
+            p_xaxis_visible = True
+            p_yaxis_visible = True
+            p_xaxis_axislabel = 'X-position [arcsec]'
+            p_yaxis_axislabel = 'Y-position [arcsec]'
+            x0 = self.x
+            y0 = self.y
+            dw = self.dw
+            dh = self.dh
 
+        p_image = figure(tools=tools, webgl=self.webgl, x_range=x_range,
+                         y_range=y_range, title=title, plot_height=self.plot_height,
+                         plot_width=self.plot_width, *args, **kwargs)
+        p_image.xaxis.axis_label = p_xaxis_axislabel
+        p_image.yaxis.axis_label = p_yaxis_axislabel
+        p_image.xaxis.visible = p_xaxis_visible
+        p_image.yaxis.visible = p_yaxis_visible
+        r_img = p_image.image(image=source_image['data'], x=x0, y=y0, dw=dw, dh=dh, color_mapper=colormapper)
+        if DrawLimb:
+            p_image.line(x='x', y='y', line_color='white', line_dash='solid', source=self.DrawLimbSource())
+            if DrawGrid:
+                p_image.multi_line(xs='xs', ys='ys', line_color='white', line_dash='dotted',
+                                   source=self.DrawGridSource(grid_spacing=grid_spacing))
         return p_image, r_img
 
 

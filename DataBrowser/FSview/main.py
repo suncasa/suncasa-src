@@ -1388,12 +1388,6 @@ if os.path.exists(FS_dspecDF):
 
         aiamap = DButil.readsdofile(datadir=SDO_dir, wavelength='171', jdtime=xx[0] / 3600. / 24.,
                                     timtol=tab2_dur / 3600. / 24.)
-        colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
-        bokehpalette_sdoaia171 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-        colormap = cm.get_cmap("sdoaia94")  # choose any matplotlib colormap here
-        bokehpalette_sdoaia94 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-        colormap = cm.get_cmap("sdoaia131")  # choose any matplotlib colormap here
-        bokehpalette_sdoaia131 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
         bokehpalette_gray = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         lengthx = vla_local_pfmap.dw[0] * u.arcsec
@@ -1413,8 +1407,7 @@ if os.path.exists(FS_dspecDF):
                                         plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
                                         webgl=config_plot['plot_config']['WebGL'])
 
-        tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
-                                                             palette=bokehpalette_sdoaia171)
+        tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg)
         tab2_p_aia.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
                               line_width=2)
         tab2_p_aia.circle(x='shape_longitude', y='shape_latitude',  # size=10.*dspecDFselect.loc[76,:]['peak']/50.,
@@ -2076,8 +2069,6 @@ if os.path.exists(FS_dspecDF):
             bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
             tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
 
-            colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
-            bokehpalette_sdoaia171 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
             # aiamap = sunpy.map.Map(filepath)
             print xx[0] / 3600. / 24., SDO_dir
             aiamap = DButil.readsdofile(datadir=SDO_dir, wavelength='171', jdtime=xx[0] / 3600. / 24.,
@@ -2092,8 +2083,7 @@ if os.path.exists(FS_dspecDF):
                                             plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
                                             webgl=config_plot['plot_config']['WebGL'])
 
-            tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
-                                                                 palette=bokehpalette_sdoaia171)
+            tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg)
             tab2_p_aia.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
                                   line_width=2)
             tab2_p_aia.title.text_font_size = '6pt'
