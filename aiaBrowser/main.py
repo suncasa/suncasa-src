@@ -45,7 +45,6 @@ suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
 with open(suncasa_dir + 'aiaBrowser/config.json', 'r') as fp:
     config = json.load(fp)
 
-email = config['core']['JSOC_reg_email']
 database_dir = os.path.expandvars(config['datadir']['database']) + '/aiaBrowserData/'
 if not os.path.exists(database_dir):
     os.makedirs(database_dir)
@@ -84,15 +83,15 @@ print database_dir + 'Trange_args.json'
 try:
     with open(database_dir + 'Trange_args.json', 'r') as fp:
         trcfg = json.load(fp)
-    print trcfg['tst']
-    YY_select_st.value, MM_select_st.value = trcfg['tst'][0:4], trcfg['tst'][5:7]
-    DD_select_st.value, hh_select_st.value = trcfg['tst'][8:10], trcfg['tst'][11:13]
-    mm_select_st.value, ss_select_st.value = trcfg['tst'][14:16], trcfg['tst'][17:19]
-    YY_select_ed.value, MM_select_ed.value = trcfg['ted'][0:4], trcfg['ted'][5:7]
-    DD_select_ed.value, hh_select_ed.value = trcfg['ted'][8:10], trcfg['ted'][11:13]
-    mm_select_ed.value, ss_select_ed.value = trcfg['ted'][14:16], trcfg['ted'][17:19]
+    print trcfg['aiaBrowser']['tst']
+    YY_select_st.value, MM_select_st.value = trcfg['aiaBrowser']['tst'][0:4], trcfg['aiaBrowser']['tst'][5:7]
+    DD_select_st.value, hh_select_st.value = trcfg['aiaBrowser']['tst'][8:10], trcfg['aiaBrowser']['tst'][11:13]
+    mm_select_st.value, ss_select_st.value = trcfg['aiaBrowser']['tst'][14:16], trcfg['aiaBrowser']['tst'][17:19]
+    YY_select_ed.value, MM_select_ed.value = trcfg['aiaBrowser']['ted'][0:4], trcfg['aiaBrowser']['ted'][5:7]
+    DD_select_ed.value, hh_select_ed.value = trcfg['aiaBrowser']['ted'][8:10], trcfg['aiaBrowser']['ted'][11:13]
+    mm_select_ed.value, ss_select_ed.value = trcfg['aiaBrowser']['ted'][14:16], trcfg['aiaBrowser']['ted'][17:19]
 except:
-    pass
+    trcfg = {}
 
 
 def YY_select_st_select_update(attrname, old, new):
@@ -230,6 +229,13 @@ Div_JSOC_info = Div(text="""""",
                     width=config['plot_config']['tab_aiaBrowser']['divJSOCinfo_wdth'])
 
 Text_Cadence = TextInput(value='12s', title="Cadence:", width=config['plot_config']['tab_aiaBrowser']['button_wdth'])
+Text_email = TextInput(value='', title="JSOC registered email:",
+                       width=config['plot_config']['tab_aiaBrowser']['button_wdth'])
+try:
+    email = config['core']['JSOC_reg_email']
+    Text_email.value = email
+except:
+    pass
 
 global selected_time
 selected_time = {'YY_select_st': YY_select_st.value, 'MM_select_st': MM_select_st.value,
@@ -239,12 +245,14 @@ selected_time = {'YY_select_st': YY_select_st.value, 'MM_select_st': MM_select_s
                  'DD_select_ed': DD_select_ed.value, 'hh_select_ed': hh_select_ed.value,
                  'mm_select_ed': mm_select_ed.value, 'ss_select_ed': ss_select_ed.value}
 
+def gettimestr(YY,MM,DD,hh,mm,ss):
+    return '{}-{}-{} {}:{}:{}'.format(YY, MM, DD, hh,mm, ss)
 
 def gettime():
-    tststr = '{}-{}-{} {}:{}:{}'.format(YY_select_st.value, MM_select_st.value, DD_select_st.value, hh_select_st.value,
-                                        mm_select_st.value, ss_select_st.value)
-    tedstr = '{}-{}-{} {}:{}:{}'.format(YY_select_ed.value, MM_select_ed.value, DD_select_ed.value, hh_select_ed.value,
-                                        mm_select_ed.value, ss_select_ed.value)
+    tststr = gettimestr(YY_select_st.value, MM_select_st.value, DD_select_st.value, hh_select_st.value,
+                               mm_select_st.value, ss_select_st.value)
+    tedstr = gettimestr(YY_select_ed.value, MM_select_ed.value, DD_select_ed.value, hh_select_ed.value,
+                               mm_select_ed.value, ss_select_ed.value)
     return Time([tststr, tedstr], format='iso', scale='utc')
 
 
@@ -316,8 +324,12 @@ def DownloadData():
         Div_JSOC_info.text = ''''''
         c = drms.Client(verbose=True)
         export_protocol = 'fits'
-        if not email or not c.check_email(email):
-            raise RuntimeError('Email address is not valid or not registered.')
+        if not Text_email.value:
+            Div_JSOC_info.text = '''Error: provide your JSOC registered email address!!!'''
+        else:
+            if not c.check_email(Text_email.value):
+                raise RuntimeError('Email address is not valid or not registered.')
+
         labelsactive = [Wavelngth_checkbox.labels[ll] for ll in Wavelngth_checkbox.active]
         if 'goes' in labelsactive:
             global goes
@@ -351,7 +363,7 @@ def DownloadData():
                     segments = 'image'
                     qstr = '%s[%s@%s][%s]{%s}' % (series, tsel, cadence, wave, segments)
                     print qstr
-                    r = c.export(qstr, method='url', protocol=export_protocol, email=email)
+                    r = c.export(qstr, method='url', protocol=export_protocol, email=Text_email.value)
                     Div_JSOC_info.text = Div_JSOC_info.text + """<p>Submitting export request {}...</p>""".format(qstr)
                     Div_JSOC_info.text = Div_JSOC_info.text + """<p>Request URL: {}</p>""".format(r.request_url)
                     Div_JSOC_info.text = Div_JSOC_info.text + """<p>{:d} file(s) available for download.</p>""".format(
@@ -364,7 +376,7 @@ def DownloadData():
                     Div_JSOC_info.text = Div_JSOC_info.text + """<p>Download directory: {}</p>""".format(
                         os.path.abspath(SDO_dir))
                 except:
-                    print qstr+' fial to export'
+                    print qstr + ' fail to export'
 
 
 BUT_DownloadData = Button(label='Download Data', width=config['plot_config']['tab_aiaBrowser']['button_wdth'],
@@ -377,8 +389,9 @@ def MkPlot():
     if ted.mjd <= tst.mjd:
         Div_info.text = '''Error: start time must occur earlier than end time. please re-enter start time and end time!!!'''
     else:
-        MkPlot_args_dict['tstart'] = tst.iso
-        MkPlot_args_dict['tend'] = ted.iso
+        MkPlot_args_dict['tst'] = tst.iso
+        MkPlot_args_dict['ted'] = ted.iso
+        MkPlot_args_dict['PlotID'] = Text_PlotID.value
         fout = database_dir + 'MkPlot_args.json'
         with open(fout, 'w') as fp:
             json.dump(MkPlot_args_dict, fp)
@@ -408,7 +421,7 @@ SPCR_RGT_widgetbox = Spacer(width=50, height=10)
 lout = row(column(row(YY_select_st, MM_select_st, DD_select_st, hh_select_st, mm_select_st, ss_select_st),
                   row(YY_select_ed, MM_select_ed, DD_select_ed, hh_select_ed, mm_select_ed, ss_select_ed)),
            SPCR_LFT_widgetbox, Wavelngth_checkbox, SPCR_RGT_widgetbox,
-           widgetbox(Text_Cadence, BUT_DownloadData, Text_PlotID, BUT_MkPlot, BUT_exit, Div_info,
+           widgetbox(Text_Cadence, Text_email, BUT_DownloadData, Text_PlotID, BUT_MkPlot, BUT_exit, Div_info,
                      width=config['plot_config']['tab_aiaBrowser']['button_wdth']))
 # def timeout_callback():
 #     print 'timeout'

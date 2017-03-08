@@ -136,7 +136,7 @@ def tab0_DDownload():
                                  out_subfmt='date_hms').iso
                 tstrend = Time(tab0_tim[-1] / 3600. / 24., format='mjd', scale='utc', precision=3,
                                out_subfmt='date_hms').iso
-                trange = {'tst':tstrstart,'ted':tstrend}
+                trange = {'aiaBrowser':{'tst':tstrstart,'ted':tstrend}}
                 if not os.path.exists(database_dir+'/aiaBrowserData/'):
                     os.makedirs(database_dir+'/aiaBrowserData/')
                 with open(database_dir + '/aiaBrowserData/Trange_args.json', 'w') as fp:

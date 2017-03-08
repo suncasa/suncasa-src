@@ -13,6 +13,41 @@ def getfreeport():
     return port
 
 
+def normalize_aiamap(smap):
+    '''
+    do expisure normalization of an aia map
+    :param aia map made from sunpy.map:
+    :return: normalised aia map
+    '''
+    try:
+        if smap.observatory == 'SDO' and smap.instrument[0:3] == 'AIA':
+            data = smap.data
+            data[~np.isnan(data)] = data[~np.isnan(
+                data)] / smap.exposure_time.value
+            smap.data = data
+            smap.meta['exptime'] = 1.0
+            return smap
+        else:
+            raise ValueError('input sunpy map is not from aia.')
+    except:
+        raise ValueError('check your input map. There are some errors in it.')
+
+
+def sdo_aia_scale_dict(wavelength=None):
+    '''
+    rescale the aia image
+    :param image: normalised aia image data
+    :param wavelength:
+    :return: byte scaled image data
+    '''
+    if wavelength == '94':
+        return {'low': 3, 'high': 150}
+    elif wavelength == '131':
+        return {'low': 3, 'high': 200}
+    elif wavelength == '171':
+        return {'low': 20, 'high': 5000}
+
+
 def sdo_aia_scale(image=None, wavelength=None):
     '''
     rescale the aia image
@@ -21,18 +56,10 @@ def sdo_aia_scale(image=None, wavelength=None):
     :return: byte scaled image data
     '''
     from scipy.misc import bytescale
-    if wavelength == '94':
-        image[image > 30] = 30
-        image[image < 0.5] = 0.5
-        image = np.log10(image)
-    elif wavelength == '131':
-        image[image > 200] = 200
-        image[image < 2] = 2
-        image = np.log10(image)
-    elif wavelength == '171':
-        image[image > 4000] = 4000
-        image[image < 20] = 20
-        image = np.log10(image)
+    clrange = sdo_aia_scale_dict(wavelength)
+    image[image > clrange['high']] = clrange['high']
+    image[image < clrange['low']] = clrange['low']
+    image = np.log10(image)
     return bytescale(image)
 
 
@@ -45,8 +72,8 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
     read sdo file from local database
     :param datadir:
     :param wavelength:
-    :param jdtime: the timestamp
-    :param isexists: check if file exist. no data return.
+    :param jdtime: the timestamp or timerange. if is timerange, return a list of files in the timerange
+    :param isexists: check if file exist. if files exist, return file name
     :param timtol: time difference tolerance in days for considering data as the same timestamp
     :return:
     '''
@@ -59,19 +86,34 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
     sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
                         for
                         ll in sdofits], format='iso', scale='utc')
-
-    if 12. / 3600 / 24 < timtol < np.min(np.abs(sdotimeline.jd - jdtime)):
-        raise ValueError('SDO File not found at the select timestamp. Download the data with EvtBrowser first.')
-    idxaia = np.argmin(np.abs(sdotimeline.jd - jdtime))
-    sdofile = sdofitspath[idxaia]
-    if isexists:
-        return os.path.exists(sdofile)
+    if timtol < 12. / 3600 / 24:
+        timtol = 12. / 3600 / 24
+    if isinstance(jdtime, list) or isinstance(jdtime, tuple) or type(jdtime) == np.ndarray:
+        if len(jdtime) != 2:
+            raise ValueError('jdtime must be a number or a two elements array/list/tuple')
+        else:
+            if jdtime[1] < jdtime[0]:
+                raise ValueError('start time must be occur earlier than end time!')
+            else:
+                sdofile = list(np.array(sdofitspath)[np.where(np.logical_and(jdtime[0] < sdotimeline.jd,sdotimeline.jd < jdtime[1]))[0]])
+                if len(sdofile)==0:
+                    raise ValueError(
+                        'No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
+                else:
+                    return sdofile
     else:
-        try:
-            sdomap = sunpy.map.Map(sdofile)
-            return sdomap
-        except:
-            raise ValueError('File not found or invalid input')
+        if timtol < np.min(np.abs(sdotimeline.jd - jdtime)):
+            raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
+        idxaia = np.argmin(np.abs(sdotimeline.jd - jdtime))
+        sdofile = sdofitspath[idxaia]
+        if isexists:
+            return sdofile
+        else:
+            try:
+                sdomap = sunpy.map.Map(sdofile)
+                return sdomap
+            except:
+                raise ValueError('File not found or invalid input')
 
 
 def findDist(x, y):
@@ -137,16 +179,14 @@ def improfile(z, xi, yi, interp='cubic'):
     '''
     import scipy.ndimage
     imgshape = z.shape
-    # x = np.arange(imgshape[1])
-    # y = np.arange(imgshape[0])
     if len(xi) != len(yi):
         raise ValueError('xi and yi must be equal-length!')
     if len(xi) < 2:
         raise ValueError('xi or yi must contain at least two elements!')
     for idx, ll in enumerate(xi):
-        if not 0 < ll < imgshape[1] - 1:
+        if not 0 < ll < imgshape[1]:
             raise ValueError('xi out of range!')
-        if not 0 < yi[idx] < imgshape[0] - 1:
+        if not 0 < yi[idx] < imgshape[0]:
             raise ValueError('yi out of range!')
             # xx, yy = np.meshgrid(x, y)
     if len(xi) == 2:
@@ -157,7 +197,7 @@ def improfile(z, xi, yi, interp='cubic'):
     if interp == 'cubic':
         zi = scipy.ndimage.map_coordinates(z, np.vstack((x, y)))
     else:
-        zi = z[x.astype(np.int), y.astype(np.int)]
+        zi = z[np.floor(y).astype(np.int),np.floor(x).astype(np.int)]
 
     return zi
 
@@ -176,7 +216,8 @@ def canvaspix_to_data(smap, x, y):
     xynew = smap.pixel_to_data(x * u.pix, y * u.pix)
     xnew = xynew[0].value
     ynew = xynew[1].value
-    return [xnew,ynew]
+    return [xnew, ynew]
+
 
 def data_to_mappixel(smap, x, y):
     import astropy.units as u
@@ -192,7 +233,7 @@ def data_to_mappixel(smap, x, y):
     xynew = smap.data_to_pixel(x * u.arcsec, y * u.arcsec)
     xnew = xynew[0].value
     ynew = xynew[1].value
-    return [xnew,ynew]
+    return [xnew, ynew]
 
 
 def polsfromfitsheader(header):
@@ -491,7 +532,7 @@ def XCorrMap(z, x, y, doxscale=True):
             'ny': ny, 'yv': yv, 'ya': ya, 'yidxv': yidxv, 'yidxa': yidxa}
 
 
-class buttons_play:
+class ButtonsPlayCTRL():
     '''
     Produce A play/stop button widget for bokeh plot
 
@@ -506,11 +547,5 @@ class buttons_play:
         BUT_play = Button(label='>', width=plot_width, button_type='success')
         BUT_next = Button(label='>|', width=plot_width, button_type='warning')
         BUT_last = Button(label='>>', width=plot_width, button_type='primary')
-
         self.buttons = [BUT_first, BUT_prev, BUT_play, BUT_next, BUT_last]
 
-    def play(self, *args, **kwargs):
-        if self.buttons[2].label == '>':
-            self.buttons[2].label = '||'
-        else:
-            self.buttons[2].label = '>'

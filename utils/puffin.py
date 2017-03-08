@@ -9,6 +9,7 @@ from bokeh.models import ColumnDataSource
 from bokeh.plotting import figure
 from bokeh.models.mappers import LogColorMapper, LinearColorMapper
 from skimage.io import imread
+from suncasa.utils import DButil
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -17,21 +18,10 @@ __email__ = "sijie.yu@njit.edu"
 colormap_jet = cm.get_cmap("jet")  # choose any matplotlib colormap here
 bokehpalette_jet = [colors.rgb2hex(m) for m in colormap_jet(np.arange(colormap_jet.N))]
 
-
-def sdo_aia_scale_dict(wavelength=None):
-    '''
-    rescale the aia image
-    :param image: normalised aia image data
-    :param wavelength:
-    :return: byte scaled image data
-    '''
-    if wavelength == '94':
-        return {'low': 0.5, 'high': 30}
-    elif wavelength == '131':
-        return {'low': 0.5, 'high': 40}
-    elif wavelength == '171':
-        return {'low': 4, 'high': 1000}
-
+def getAIApalette(wavelength):
+    clmap = cm.get_cmap("sdoaia" + wavelength)  # choose any matplotlib colormap here
+    palette = [colors.rgb2hex(m).encode("ascii").upper() for m in clmap(np.arange(clmap.N))]
+    return palette
 
 class PuffinMap:
     """
@@ -91,7 +81,7 @@ class PuffinMap:
         XX, YY = (np.zeros(self.smap.data.shape[1]), np.arange(self.smap.data.shape[1]))
         y = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)[1]
         data = self.smap.data.copy()
-        data[~np.isnan(data)] = data[~np.isnan(data)] / self.smap.exposure_time.value * 0.2
+        data[~np.isnan(data)] = data[~np.isnan(data)] / self.smap.exposure_time.value
         return {'data': [data], 'xx': [x], 'yy': [y]}
 
     def DrawGridSource(self, grid_spacing=15 * u.deg, *args, **kwargs):
@@ -168,11 +158,11 @@ class PuffinMap:
         if not palette:
             if self.smap.observatory == 'SDO' and self.smap.instrument[0:3] == 'AIA':
                 wavelngth = '{:.0f}'.format(self.smap.wavelength.value)
-                clmap = cm.get_cmap("sdoaia" + wavelngth)  # choose any matplotlib colormap here
-                palette = [colors.rgb2hex(m).encode("ascii").upper() for m in clmap(np.arange(clmap.N))]
-                clrange = sdo_aia_scale_dict(wavelength=wavelngth)
+                # clmap = cm.get_cmap("sdoaia" + wavelngth)  # choose any matplotlib colormap here
+                # palette = [colors.rgb2hex(m).encode("ascii").upper() for m in clmap(np.arange(clmap.N))]
+                palette = getAIApalette(wavelngth)
+                clrange = DButil.sdo_aia_scale_dict(wavelength=wavelngth)
                 colormapper = LogColorMapper(palette=palette, low=clrange['low'], high=clrange['high'])
-                clrange
             else:
                 palette = bokehpalette_jet
                 colormapper = LinearColorMapper(palette=palette)
