@@ -442,6 +442,7 @@ def imreg(imagefile=None, fitsfile=None, beamfile=None, helio=None, \
             print 'offset of visibility phase center to solar disk center (arcsec): ', xoff, yoff
         (crval1, crval2) = (xoff + dx, yoff + dy)
         # update the fits header to heliocentric coordinates
+
         hdu = pyfits.open(fitsf, mode='update')
         header = hdu[0].header
         (cdelt1, cdelt2) = (
@@ -463,7 +464,9 @@ def imreg(imagefile=None, fitsfile=None, beamfile=None, helio=None, \
             # this works for astropy.io.fits
             header.append(('exptime',hel['exptime']))
             header.append(('p_angle',hel['p0']))
+
         # header.update('comment', 'Fits header updated to heliocentric coordinates by Bin Chen')
+
         # update intensity units, i.e. to brightness temperature?
         if toTb:
             data = hdu[0].data  # remember the data order is reversed due to the FITS convension
