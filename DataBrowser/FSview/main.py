@@ -30,16 +30,6 @@ from suncasa.utils import DButil
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
-
-def getfreeport():
-    import socket
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('localhost', 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
-
-
 if platform == "linux" or platform == "linux2":
     print 'Runing QLook in Linux platform'
     for ll in xrange(5100, 5100 + 10):
@@ -60,6 +50,7 @@ with open(suncasa_dir + 'DataBrowser/config.json', 'r') as fp:
     config_plot = json.load(fp)
 database_dir = config_plot['datadir']['database']
 database_dir = os.path.expandvars(database_dir) + '/'
+SDO_dir = database_dir + '/aiaBrowserData/Download/'
 spec_square_rs_tmax = config_plot['plot_config']['tab_FSview_base']['spec_square_rs_tmax']
 spec_square_rs_fmax = config_plot['plot_config']['tab_FSview_base']['spec_square_rs_fmax']
 spec_image_rs_ratio = config_plot['plot_config']['tab_FSview_base']['spec_image_rs_ratio']
@@ -96,39 +87,6 @@ def goodchan(hdu):
     hdu_goodchan = \
     np.where(np.nanmean(hdu.data[0, :, yc - ndy / 16:yc + ndy / 16, xc - ndx / 16:xc + ndx / 16], axis=(-1, -2)))[0]
     return hdu_goodchan
-
-
-def sdo_aia_scale(image=None, wavelength=None):
-    if wavelength == '94':
-        image[image > 30] = 30
-        image[image < 0.5] = 0.5
-        image = np.log10(image)
-    elif wavelength == '131':
-        image[image > 200] = 200
-        image[image < 2] = 2
-        image = np.log10(image)
-    elif wavelength == '171':
-        image[image > 2000] = 2000
-        image[image < 50] = 50
-        image = np.log10(image)
-    return bytescale(image)
-
-
-def sdomapfromlocalfile(wavelength=None, jdtime=None):
-    aiafitspath = glob.glob(database_dir + event_id + '/AIA/aia_lev1_{}a*.fits'.format(wavelength))
-    aiafits = [ll.split('/')[-1] for ll in aiafitspath]
-    aiatimeline = [ll.replace('aia_lev1_{}a_'.format(wavelength), '').replace('.fits', '').replace('z_image_lev1', '')
-                   for
-                   ll in aiafits]
-    aiatimeline = [ll.split('t')[0].replace('_', '-') + ' ' + ll.split('t')[1].replace('_', ':') for ll in
-                   aiatimeline]
-    aiatimeline = [ll[0:ll.rindex(':')] + '.' + ll[(ll.rindex(':') + 1):] for ll in aiatimeline]
-    aiatimeline = Time(aiatimeline, format='iso', scale='utc')
-    idxaia = np.argmin(np.abs(aiatimeline.jd - jdtime))
-    filepath = aiafitspath[idxaia]
-    aiamap = sunpy.map.Map(filepath)
-    aiamap.data = sdo_aia_scale(image=aiamap.data / aiamap.exposure_time.value, wavelength=wavelength)
-    return aiamap
 
 
 def rebin_specdata(tab2_spec, spec_square_rs_tmax=None, spec_square_rs_fmax=None):
@@ -244,7 +202,7 @@ def tab2_vdspec_update():
 ports = []
 
 
-def tab2_panel_Xcorr_update():
+def tab2_panel_XCorr_update():
     # from scipy.interpolate import splev, splrep
     global tab2_dspec_selected, dspecDF_select
     if tab2_dspec_selected and len(tab2_dspec_selected) > 50:
@@ -258,7 +216,7 @@ def tab2_panel_Xcorr_update():
         dspecSel = tab2_r_dspec.data_source.data['image'][0][freqidx0:(freqidx1 + 1), timeidx0:(timeidx1 + 1)]
         freqSel = tab2_freq[freqidx0:(freqidx1 + 1)]
         timSel = tab2_tim[timeidx0:(timeidx1 + 1)]
-        CC_dict = DButil.XcorrMap(dspecSel, timSel, freqSel)
+        CC_dict = DButil.XCorrMap(dspecSel, timSel, freqSel)
         CC_save = database_dir + event_id + struct_id + 'CC_save.npz'
         np.savez(CC_save, spec=dspecSel, specfit=CC_dict['zfit'], ccmax=CC_dict['ccmax'], ccpeak=CC_dict['ccpeak'],
                  tim=CC_dict['x'], ntim=CC_dict['nx'], timfit=CC_dict['xfit'], ntimfit=CC_dict['nxfit'],
@@ -268,9 +226,9 @@ def tab2_panel_Xcorr_update():
             tab2_Div_LinkImg_plot.text = '<p><b>{}</b> saved.</p>'.format(CC_save)
         except:
             pass
-        port = getfreeport()
-        print 'bokeh serve {}DataBrowser/Xcorr --show --port {} &'.format(suncasa_dir, port)
-        os.system('bokeh serve {}DataBrowser/Xcorr --show --port {} &'.format(suncasa_dir, port))
+        port = DButil.getfreeport()
+        print 'bokeh serve {}DataBrowser/XCorr --show --port {} &'.format(suncasa_dir, port)
+        os.system('bokeh serve {}DataBrowser/XCorr --show --port {} &'.format(suncasa_dir, port))
         ports.append(port)
 
 
@@ -328,7 +286,8 @@ def aia_submap_wavelength_selection(attrname, old, new):
     global tab3_r_aia_submap
     select_wave = tab2_Select_aia_wave.value
     print 'wavelength {} selected'.format(select_wave)
-    aiamap = sdomapfromlocalfile(wavelength=select_wave, jdtime=xx[0] / 3600. / 24.)
+    aiamap = DButil.readsdofile(datadir=SDO_dir, wavelength=select_wave, jdtime=xx[0] / 3600. / 24.,
+                                timtol=tab2_dur / 3600. / 24.)
     lengthx = vla_local_pfmap.dw[0] * u.arcsec
     lengthy = vla_local_pfmap.dh[0] * u.arcsec
     x0 = vla_local_pfmap.smap.center.x
@@ -1123,7 +1082,12 @@ tab2_df = np.median(np.diff(tab2_freq))
 tab2_ntim = len(tab2_tim)
 tab2_nfreq = len(tab2_freq)
 
-tab2_bl = tab2_specdata['bl'].item().split(';')
+if isinstance(tab2_specdata['bl'].tolist(), str):
+    tab2_bl = tab2_specdata['bl'].item().split(';')
+elif isinstance(tab2_specdata['bl'].tolist(), list):
+    tab2_bl = ['&'.join(ll) for ll in tab2_specdata['bl'].tolist()]
+else:
+    raise ValueError('Please check the data of {}'.format(FS_specfile))
 bl_index = 0
 tab2_pol = 'I'
 sz_spec = tab2_spec.shape
@@ -1138,6 +1102,7 @@ spec_plt_max = spec_plt_max_pol[tab2_pol]
 spec_plt_min = spec_plt_min_pol[tab2_pol]
 
 tab2_dtim = tab2_tim - tab2_tim[0]
+tab2_dur = tab2_dtim[-1] - tab2_dtim[0]
 tim_map = ((np.tile(tab2_tim, tab2_nfreq).reshape(tab2_nfreq, tab2_ntim) / 3600. / 24. + 2400000.5)) * 86400.
 freq_map = np.tile(tab2_freq, tab2_ntim).reshape(tab2_ntim, tab2_nfreq).swapaxes(0, 1)
 xx = tim_map.flatten()
@@ -1266,11 +1231,11 @@ if os.path.exists(FS_dspecDF):
                                                   source=tab2_SRC_dspec_xPro)
         r_dspec_xPro_hover = tab2_p_dspec_xPro.circle(x='x', y='y', size=5, fill_alpha=0.5, fill_color='firebrick',
                                                       line_color='firebrick', source=tab2_SRC_dspec_xPro_hover)
-        tab2_l_dspec_xPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
-                                           source=tab2_SRC_dspec_xPro_hover,
-                                           render_mode='canvas')
-        tab2_l_dspec_xPro_hover.text_font_size = '5pt'
-        tab2_p_dspec_xPro.add_layout(tab2_l_dspec_xPro_hover)
+        l_dspec_xPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
+                                      source=tab2_SRC_dspec_xPro_hover,
+                                      render_mode='canvas')
+        l_dspec_xPro_hover.text_font_size = '10pt'
+        tab2_p_dspec_xPro.add_layout(l_dspec_xPro_hover)
         tab2_p_dspec_xPro.title.text_font_size = '6pt'
         tab2_p_dspec_xPro.background_fill_color = "beige"
         tab2_p_dspec_xPro.background_fill_alpha = 0.4
@@ -1302,7 +1267,7 @@ if os.path.exists(FS_dspecDF):
         l_dspec_yPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
                                       source=tab2_SRC_dspec_yPro_hover,
                                       render_mode='canvas')
-        l_dspec_yPro_hover.text_font_size = '5pt'
+        l_dspec_yPro_hover.text_font_size = '10pt'
         tab2_p_dspec_yPro.add_layout(l_dspec_yPro_hover)
         tab2_p_dspec_yPro.title.text_font_size = '6pt'
         tab2_p_dspec_yPro.yaxis.visible = False
@@ -1468,7 +1433,7 @@ if os.path.exists(FS_dspecDF):
         hdu = read_fits(vlafile[0])
         pols = DButil.polsfromfitsheader(hdu.header)
         # initial dspecDF_select and dspecDF0POL
-        # dspecDF_select = DButil.dspecDFfilter(dspecDF0, pols[0])
+        dspecDF_select = DButil.dspecDFfilter(dspecDF0, pols[0])
         dspecDF0POL = DButil.dspecDFfilter(dspecDF0, pols[0])
 
         # initial the VLA map contour source
@@ -1502,29 +1467,10 @@ if os.path.exists(FS_dspecDF):
         bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
 
-        # import the aia image
-        # from sunpy.net.helioviewer import HelioviewerClient
-        #
-        # hv = HelioviewerClient()
-        # filepath = hv.download_jp2(jdutil.jd_to_datetime(xx[0] / 3600. / 24.), observatory='SDO', instrument='AIA',
-        #                            detector='AIA', measurement='171',
-        #                            directory=database_dir + event_id + struct_id + config_EvtID['datadir']['J2000'],
-        #                            overwrite=True)
 
+        aiamap = DButil.readsdofile(datadir=SDO_dir, wavelength='171', jdtime=xx[0] / 3600. / 24.,
+                                    timtol=tab2_dur / 3600. / 24.)
 
-
-
-
-        aiamap = sdomapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
-        # filepath = database_dir + event_id + struct_id + config_EvtID['datadir'][
-        #     'J2000'] + '2014_11_01__16_45_59_34__SDO_AIA_AIA_171.jp2'
-        # aiamap = sunpy.map.Map(filepath)
-        colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
-        bokehpalette_sdoaia171 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-        colormap = cm.get_cmap("sdoaia94")  # choose any matplotlib colormap here
-        bokehpalette_sdoaia94 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-        colormap = cm.get_cmap("sdoaia131")  # choose any matplotlib colormap here
-        bokehpalette_sdoaia131 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
         bokehpalette_gray = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         lengthx = vla_local_pfmap.dw[0] * u.arcsec
@@ -1544,8 +1490,7 @@ if os.path.exists(FS_dspecDF):
                                         plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
                                         webgl=config_plot['plot_config']['WebGL'])
 
-        tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
-                                                             palette=bokehpalette_sdoaia171)
+        tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg)
         tab2_p_aia.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
                               line_width=2)
         tab2_p_aia.circle(x='shape_longitude', y='shape_latitude',  # size=10.*dspecDFselect.loc[76,:]['peak']/50.,
@@ -1794,10 +1739,10 @@ if os.path.exists(FS_dspecDF):
         tab2_LinkImg_HGHT = config_plot['plot_config']['tab_FSview_base']['vla_hght']
         tab2_LinkImg_WDTH = config_plot['plot_config']['tab_FSview_base']['vla_wdth']
 
-        tab2_BUT_Xcorr = Button(label='Xcros Corr',
-                                  width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
-                                  button_type='warning')
-        tab2_BUT_Xcorr.on_click(tab2_panel_Xcorr_update)
+        tab2_BUT_XCorr = Button(label='XCorr',
+                                width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                button_type='warning')
+        tab2_BUT_XCorr.on_click(tab2_panel_XCorr_update)
 
         tab2_panel2_BUT_exit = Button(label='Exit FSview',
                                       width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
@@ -1869,13 +1814,13 @@ if os.path.exists(FS_dspecDF):
         VdspecDF_update()
         tab3_SRC_dspec_vector_init()
         tab3_r_dspec_vector = tab3_p_dspec_vector.image(image=tab3_dspec_vector_img, x=tab2_dtim[0], y=tab2_freq[0],
-                                                        dw=tab2_dtim[-1] - tab2_dtim[0],
+                                                        dw=tab2_dur,
                                                         dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
         tab3_r_dspec_vectorx = tab3_p_dspec_vectorx.image(image=tab3_dspec_vectorx_img, x=tab2_dtim[0], y=tab2_freq[0],
-                                                          dw=tab2_dtim[-1] - tab2_dtim[0],
+                                                          dw=tab2_dur,
                                                           dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
         tab3_r_dspec_vectory = tab3_p_dspec_vectory.image(image=tab3_dspec_vectory_img, x=tab2_dtim[0], y=tab2_freq[0],
-                                                          dw=tab2_dtim[-1] - tab2_dtim[0],
+                                                          dw=tab2_dur,
                                                           dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
         tab3_source_idx_line = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
         tab3_r_dspec_vector_line = tab3_p_dspec_vector.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
@@ -1988,7 +1933,7 @@ if os.path.exists(FS_dspecDF):
         # else:
         lout2_2_1 = column(row(tab2_p_dspec, tab2_p_dspec_yPro), tab2_p_dspec_xPro)
         lout2_2_2 = widgetbox(tab2_Select_pol, tab2_Select_bl,
-                              tab2_Select_colorspace, tab2_BUT_Xcorr,
+                              tab2_Select_colorspace, tab2_BUT_XCorr,
                               tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
                               width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         lout2_2 = row(lout2_2_1, lout2_2_2)
@@ -2087,7 +2032,7 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
             tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
             tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0], y=tab2_freq[0],
-                                              dw=tab2_dtim[-1] - tab2_dtim[0],
+                                              dw=tab2_dur,
                                               dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
 
             # make the dspec data source selectable
@@ -2139,11 +2084,11 @@ if os.path.exists(FS_dspecDF):
                                                       source=tab2_SRC_dspec_xPro)
             r_dspec_xPro_hover = tab2_p_dspec_xPro.circle(x='x', y='y', size=5, fill_alpha=0.5, fill_color='firebrick',
                                                           line_color='firebrick', source=tab2_SRC_dspec_xPro_hover)
-            tab2_l_dspec_xPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
-                                               source=tab2_SRC_dspec_xPro_hover,
-                                               render_mode='canvas')
-            tab2_l_dspec_xPro_hover.text_font_size = '5pt'
-            tab2_p_dspec_xPro.add_layout(tab2_l_dspec_xPro_hover)
+            l_dspec_xPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
+                                          source=tab2_SRC_dspec_xPro_hover,
+                                          render_mode='canvas')
+            l_dspec_xPro_hover.text_font_size = '10pt'
+            tab2_p_dspec_xPro.add_layout(l_dspec_xPro_hover)
             tab2_p_dspec_xPro.title.text_font_size = '6pt'
             tab2_p_dspec_xPro.background_fill_color = "beige"
             tab2_p_dspec_xPro.background_fill_alpha = 0.4
@@ -2175,7 +2120,7 @@ if os.path.exists(FS_dspecDF):
             l_dspec_yPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
                                           source=tab2_SRC_dspec_yPro_hover,
                                           render_mode='canvas')
-            l_dspec_yPro_hover.text_font_size = '5pt'
+            l_dspec_yPro_hover.text_font_size = '10pt'
             tab2_p_dspec_yPro.add_layout(l_dspec_yPro_hover)
             tab2_p_dspec_yPro.title.text_font_size = '6pt'
             tab2_p_dspec_yPro.yaxis.visible = False
@@ -2360,10 +2305,10 @@ if os.path.exists(FS_dspecDF):
             bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
             tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
 
-            colormap = cm.get_cmap("sdoaia171")  # choose any matplotlib colormap here
-            bokehpalette_sdoaia171 = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
             # aiamap = sunpy.map.Map(filepath)
-            aiamap = sdomapfromlocalfile(wavelength='171', jdtime=xx[0] / 3600. / 24.)
+            print xx[0] / 3600. / 24., SDO_dir
+            aiamap = DButil.readsdofile(datadir=SDO_dir, wavelength='171', jdtime=xx[0] / 3600. / 24.,
+                                        timtol=tab2_dur / 3600. / 24.)
             MapRES = 256
             dimensions = u.Quantity([MapRES, MapRES], u.pixel)
             aia_resampled_map = aiamap.resample(dimensions)
@@ -2374,8 +2319,7 @@ if os.path.exists(FS_dspecDF):
                                             plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
                                             webgl=config_plot['plot_config']['WebGL'])
 
-            tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
-                                                                 palette=bokehpalette_sdoaia171)
+            tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg)
             tab2_p_aia.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
                                   line_width=2)
             tab2_p_aia.title.text_font_size = '6pt'
@@ -2551,10 +2495,10 @@ if os.path.exists(FS_dspecDF):
             for ctrl in tab2_CTRLs_LinkImg:
                 ctrl.on_change('value', tab3_slider_LinkImg_update)
 
-            tab2_BUT_Xcorr = Button(label='Xcros Corr',
-                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
-                                      button_type='warning')
-            tab2_BUT_Xcorr.on_click(tab2_panel_Xcorr_update)
+            tab2_BUT_XCorr = Button(label='XCorr',
+                                    width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                    button_type='warning')
+            tab2_BUT_XCorr.on_click(tab2_panel_XCorr_update)
 
             tab2_panel2_BUT_exit = Button(label='Exit FSview',
                                           width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
@@ -2624,7 +2568,7 @@ if os.path.exists(FS_dspecDF):
             lout2_1_2 = row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
                                    tab2_p_dspec_xPro),
                             widgetbox(tab2_Select_pol, tab2_Select_bl,
-                                      tab2_Select_colorspace, tab2_BUT_Xcorr,
+                                      tab2_Select_colorspace, tab2_BUT_XCorr,
                                       tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
                                       width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
             lout2_1 = column(lout2_1_1, lout2_1_2)
@@ -2689,7 +2633,7 @@ else:
         width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
     timestrs = []
     for ll in tab2_tim:
-        timestr = Time(ll / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
+        timestr = Time(ll / 3600. / 24., format='mjd', scale='utc', precision=3, out_subfmt='date_hms').iso
         timestrs.append(timestr.split(' ')[1])
     timestrs = timestrs * tab2_nfreq
     dspecDF0 = pd.DataFrame({'time': xx - xx[0],
@@ -2800,11 +2744,11 @@ else:
                                               source=tab2_SRC_dspec_xPro)
     r_dspec_xPro_hover = tab2_p_dspec_xPro.circle(x='x', y='y', size=5, fill_alpha=0.5, fill_color='firebrick',
                                                   line_color='firebrick', source=tab2_SRC_dspec_xPro_hover)
-    tab2_l_dspec_xPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
-                                       source=tab2_SRC_dspec_xPro_hover,
-                                       render_mode='canvas')
-    tab2_l_dspec_xPro_hover.text_font_size = '5pt'
-    tab2_p_dspec_xPro.add_layout(tab2_l_dspec_xPro_hover)
+    l_dspec_xPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
+                                  source=tab2_SRC_dspec_xPro_hover,
+                                  render_mode='canvas')
+    l_dspec_xPro_hover.text_font_size = '10pt'
+    tab2_p_dspec_xPro.add_layout(l_dspec_xPro_hover)
     tab2_p_dspec_xPro.title.text_font_size = '6pt'
     tab2_p_dspec_xPro.background_fill_color = "beige"
     tab2_p_dspec_xPro.background_fill_alpha = 0.4
@@ -2835,7 +2779,7 @@ else:
                                                   line_color='firebrick', source=tab2_SRC_dspec_yPro_hover)
     l_dspec_yPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph', source=tab2_SRC_dspec_yPro_hover,
                                   render_mode='canvas')
-    l_dspec_yPro_hover.text_font_size = '5pt'
+    l_dspec_yPro_hover.text_font_size = '10pt'
     tab2_p_dspec_yPro.add_layout(l_dspec_yPro_hover)
     tab2_p_dspec_yPro.title.text_font_size = '6pt'
     tab2_p_dspec_yPro.yaxis.visible = False
@@ -3156,10 +3100,10 @@ else:
     tab2_BUT_FS_view = Button(label='FS view', width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'],
                               button_type='primary')
 
-    tab2_BUT_Xcorr = Button(label='Xcros Corr',
-                              width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'],
-                              button_type='warning')
-    tab2_BUT_Xcorr.on_click(tab2_panel_Xcorr_update)
+    tab2_BUT_XCorr = Button(label='XCorr',
+                            width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'],
+                            button_type='warning')
+    tab2_BUT_XCorr.on_click(tab2_panel_XCorr_update)
 
 
     def tab2_panel2_exit():
@@ -3181,7 +3125,7 @@ else:
                                                   tab2_BUT_tCLN_param_SAVE, tab2_SPCR_LFT_BUT_CLEAN,
                                                   tab2_BUT_tCLN_CLEAN)),
                                        widgetbox(tab2_Select_pol, tab2_Select_bl, tab2_Select_colorspace,
-                                                 tab2_BUT_Xcorr,
+                                                 tab2_BUT_XCorr,
                                                  tab2_panel2_BUT_exit,
                                                  tab2_panel_Div_exit,
                                                  width=config_plot['plot_config']['tab_FSview2CASA'][

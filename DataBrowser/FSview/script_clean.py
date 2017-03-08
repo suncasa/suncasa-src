@@ -51,39 +51,26 @@ if os.path.exists('CASA_CLN_args.json'):
     # dt = float('{:.3f}'.format(np.median(np.diff(timeInfo))))
     if not 'twidth' in locals():
         twidth = 1
-    # chunksize = ncpu
-    # timerans = []
-    # if etidx <= btidx + twidth * chunksize:
-    #     btstr = qa.time(qa.quantity(timeInfo[btidx] - dt / 2, 's'), prec=9, form='fits')[0]
-    #     etstr = qa.time(qa.quantity(timeInfo[etidx] + dt / 2, 's'), prec=9, form='fits')[0]
-    #     timerans.append('{}~{}'.format(btstr, etstr))
-    # else:
-    #     for iter in xrange(btidx, etidx + 1, twidth * chunksize):
-    #         btstr = qa.time(qa.quantity(timeInfo[iter] - dt / 2, 's'), prec=9, form='fits')[0]
-    #         if iter <= etidx - twidth * chunksize:
-    #             etstr = qa.time(qa.quantity(timeInfo[iter + twidth * chunksize] - dt / 2, 's'), prec=9, form='fits')[0]
-    #         else:
-    #             etstr = qa.time(qa.quantity(et_s + dt / 2, 's'), prec=9, form='fits')[0]
-    #         timerans.append('{}~{}'.format(btstr, etstr))
 
-    imgprefix = 'slfcal/'
+    if 'imageprefix' in locals():
+        imgprefix = imageprefix
+    else:
+        imgprefix = 'slfcal/' + structure_id + '/'
     if not os.path.exists(imgprefix):
-        os.mkdir(imgprefix)
-    imgprefix = 'slfcal/' + structure_id + '/'
-    if not os.path.exists(imgprefix):
-        os.mkdir(imgprefix)
+        os.makedirs(imgprefix)
     '''set a loop to limit the number of timestamps in the time range'''
     # for TRang in timerans:
     # TRang=timerans[0]
     os.system('rm -rf {}'.format('cgrid_ft.im'))
     if not os.path.exists(imageprefix):
-        os.mkdir(imageprefix)
+        os.makedirs(imageprefix)
     default('ptclean')
     with open('CASA_CLN_args.json', 'r') as fp:
         CASA_CLN_args = json.load(fp)
     for key, val in CASA_CLN_args.items():
         exec (key + '= {}'.format(val))
     timerange = timeran
+    doreg = True
     # width = 32
     if 'freqrange' in locals() and spw == '':
         if freqrange != '':
@@ -174,9 +161,8 @@ if os.path.exists('CASA_CLN_args.json'):
         filestr = [qa.time(qa.quantity(tim[ll] - dt / 2, 's'), form='fits', prec=9)[0].replace(':', '').replace('-', '')
                    for ll in iterable]
 
-        if not os.path.exists(database_dir + event_id + struct_id + 'Synthesis_Image'):
-            os.system('mkdir {}'.format(database_dir + event_id + '/' + struct_id + '/' + 'Synthesis_Image/'))
-            os.system('mkdir {}'.format(database_dir + event_id + '/' + struct_id + '/' + 'Synthesis_Image/local/'))
+        if not os.path.exists(database_dir + event_id + '/' + struct_id + '/' + 'Synthesis_Image/local/'):
+            os.makedirs(database_dir + event_id + '/' + struct_id + '/' + 'Synthesis_Image/local/')
         # check if ephemfile and msinfofile exist
         if not ephemfile:
             print("ephemeris info does not exist!")
@@ -190,8 +176,6 @@ if os.path.exists('CASA_CLN_args.json'):
             fitsfile = [imname + '.fits']
             try:
                 vla_prep.imreg(imagefile=imagefile, fitsfile=fitsfile, helio=helio, toTb=False, scl100=True)
-                # os.system('cp {} {}'.format(fitsfile[0], database_dir + event_id +'/'+ struct_id + '/Synthesis_Image/local/'))
-                # print 'cp {} {}'.format(fitsfile[0], database_dir + event_id +'/'+ struct_id + '/Synthesis_Image/local/')
             except:
                 '{} not found!'.format(imagefile)
     # else:
@@ -203,7 +187,7 @@ if os.path.exists('CASA_CLN_args.json'):
         # mms = fits[idxmms - 4:idxmms - 1]
         # fits1 = fits[0:idxmms - 4] + '{:03d}'.format(int(mms) + int(dt/2*1000)) + fits[idxmms - 1:]
         fits1 = fits.split('/')[-1]
-        # print imgdir+fits1
+        print 'mv {} {}'.format(fits, imgdir + fits1)
         os.system('mv {} {}'.format(fits, imgdir + fits1))
 
     os.chdir(cwd)

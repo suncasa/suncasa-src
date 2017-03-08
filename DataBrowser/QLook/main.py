@@ -14,15 +14,7 @@ from bokeh.models import (ColumnDataSource, Button, TextInput, DataTable, TableC
 from bokeh.models.widgets import Select
 from bokeh.plotting import figure, curdoc
 from astropy.time import Time
-
-
-def getfreeport():
-    import socket
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('localhost', 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
+from suncasa.utils import DButil
 
 
 __author__ = ["Sijie Yu"]
@@ -71,7 +63,12 @@ specfile = database_dir + event_id + config_EvtID['datadir']['event_specfile']
 def load_specdata(specfile=None):
     global tab1_specdata, tab1_spec, tab1_tim, tab1_freq, tab1_dtim, tab1_spec_plt, tab1_bl
     tab1_specdata = np.load(specfile)
-    tab1_bl = tab1_specdata['bl'].item().split(';')
+    if isinstance(tab1_specdata['bl'].tolist(), str):
+        tab1_bl = tab1_specdata['bl'].item().split(';')
+    elif isinstance(tab1_specdata['bl'].tolist(), list):
+        tab1_bl = ['&'.join(ll) for ll in tab1_specdata['bl'].tolist()]
+    else:
+        raise ValueError('Please check the data of {}'.format(specfile))
     tab1_pol = 'I'
     bl_index = 0
     tab1_spec = tab1_specdata['spec'][:, :, :, :]
@@ -121,7 +118,8 @@ tab1_p_dspec.axis.minor_tick_in = 3
 tab1_p_dspec.axis.major_tick_line_color = "white"
 tab1_p_dspec.axis.minor_tick_line_color = "white"
 
-tab1_r_dspec = tab1_p_dspec.image(image=[tab1_spec_plt], x=tab1_dtim[0], y=tab1_freq[0], dw=tab1_dtim[-1] - tab1_dtim[0],
+tab1_r_dspec = tab1_p_dspec.image(image=[tab1_spec_plt], x=tab1_dtim[0], y=tab1_freq[0],
+                                  dw=tab1_dtim[-1] - tab1_dtim[0],
                                   dh=tab1_freq[-1] - tab1_freq[0], palette=bokehpalette_jet)
 
 tab1_spec_sz = tab1_spec.shape
@@ -357,7 +355,7 @@ def tab1_update_FSviewStrID():
             np.savez(FS_specfile, spec=spec, tim=tim, freq=freq, bl=bl, npol=npol, nbl=nbl, nfreq=nfreq, ntim=ntim)
             # tab1_Div_Tb.text = """<p><b>""" + FS_specfile + """</b> saved >>>>>> Click the <b>FS veiw button</b> again to make aperture synthesis images</p>"""
 
-        port = getfreeport()
+        port = DButil.getfreeport()
         print 'bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port)
         os.system('bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port))
         ports.append(port)
@@ -439,5 +437,3 @@ lout = panel1
 
 curdoc().add_root(lout)
 curdoc().title = "QLook tool"
-
-

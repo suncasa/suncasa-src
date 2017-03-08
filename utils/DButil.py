@@ -4,6 +4,238 @@ __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
 
+def getfreeport():
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(('localhost', 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
+
+def normalize_aiamap(smap):
+    '''
+    do expisure normalization of an aia map
+    :param aia map made from sunpy.map:
+    :return: normalised aia map
+    '''
+    try:
+        if smap.observatory == 'SDO' and smap.instrument[0:3] == 'AIA':
+            data = smap.data
+            data[~np.isnan(data)] = data[~np.isnan(
+                data)] / smap.exposure_time.value
+            smap.data = data
+            smap.meta['exptime'] = 1.0
+            return smap
+        else:
+            raise ValueError('input sunpy map is not from aia.')
+    except:
+        raise ValueError('check your input map. There are some errors in it.')
+
+
+def sdo_aia_scale_dict(wavelength=None):
+    '''
+    rescale the aia image
+    :param image: normalised aia image data
+    :param wavelength:
+    :return: byte scaled image data
+    '''
+    if wavelength == '94':
+        return {'low': 3, 'high': 150}
+    elif wavelength == '131':
+        return {'low': 3, 'high': 200}
+    elif wavelength == '171':
+        return {'low': 20, 'high': 5000}
+
+
+def sdo_aia_scale(image=None, wavelength=None):
+    '''
+    rescale the aia image
+    :param image: normalised aia image data
+    :param wavelength:
+    :return: byte scaled image data
+    '''
+    from scipy.misc import bytescale
+    clrange = sdo_aia_scale_dict(wavelength)
+    image[image > clrange['high']] = clrange['high']
+    image[image < clrange['low']] = clrange['low']
+    image = np.log10(image)
+    return bytescale(image)
+
+
+def insertchar(source_str, insert_str, pos):
+    return source_str[:pos] + insert_str + source_str[pos:]
+
+
+def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timtol=1):
+    '''
+    read sdo file from local database
+    :param datadir:
+    :param wavelength:
+    :param jdtime: the timestamp or timerange. if is timerange, return a list of files in the timerange
+    :param isexists: check if file exist. if files exist, return file name
+    :param timtol: time difference tolerance in days for considering data as the same timestamp
+    :return:
+    '''
+    import glob
+    import os
+    from astropy.time import Time
+    import sunpy.map
+    sdofitspath = glob.glob(datadir + '/aia.lev1_*Z.{}.image_lev1.fits'.format(wavelength))
+    sdofits = [os.path.basename(ll) for ll in sdofitspath]
+    sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
+                        for
+                        ll in sdofits], format='iso', scale='utc')
+    if timtol < 12. / 3600 / 24:
+        timtol = 12. / 3600 / 24
+    if isinstance(jdtime, list) or isinstance(jdtime, tuple) or type(jdtime) == np.ndarray:
+        if len(jdtime) != 2:
+            raise ValueError('jdtime must be a number or a two elements array/list/tuple')
+        else:
+            if jdtime[1] < jdtime[0]:
+                raise ValueError('start time must be occur earlier than end time!')
+            else:
+                sdofile = list(np.array(sdofitspath)[np.where(np.logical_and(jdtime[0] < sdotimeline.jd,sdotimeline.jd < jdtime[1]))[0]])
+                if len(sdofile)==0:
+                    raise ValueError(
+                        'No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
+                else:
+                    return sdofile
+    else:
+        if timtol < np.min(np.abs(sdotimeline.jd - jdtime)):
+            raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
+        idxaia = np.argmin(np.abs(sdotimeline.jd - jdtime))
+        sdofile = sdofitspath[idxaia]
+        if isexists:
+            return sdofile
+        else:
+            try:
+                sdomap = sunpy.map.Map(sdofile)
+                return sdomap
+            except:
+                raise ValueError('File not found or invalid input')
+
+
+def findDist(x, y):
+    dx = np.diff(x)
+    dy = np.diff(y)
+    dist = np.hypot(dx, dy)
+    return np.insert(dist, 0, 0.0)
+
+
+def paramspline(x, y, length, s=0):
+    from scipy.interpolate import splev, splprep
+    tck, u = splprep([x, y], s=s)
+    unew = np.linspace(0, u[-1], length)
+    out = splev(unew, tck)
+    xs, ys = out[0], out[1]
+    grads = get_curve_grad(xs, ys)
+    return {'xs': xs, 'ys': ys, 'grads': grads['grad'], 'posangs': grads['posang']}
+
+
+def polyfit(x, y, length, deg):
+    xs = np.linspace(x.min(), x.max(), length)
+    z = np.polyfit(x=x, y=y, deg=deg)
+    p = np.poly1d(z)
+    ys = p(xs)
+    grads = get_curve_grad(xs, ys)
+    return {'xs': xs, 'ys': ys, 'grads': grads['grad'], 'posangs': grads['posang']}
+
+
+def spline(x, y, length, s=0):
+    from scipy.interpolate import splev, splrep
+    xs = np.linspace(x.min(), x.max(), length)
+    tck = splrep(x, y, s=s)
+    ys = splev(xs, tck)
+    grads = get_curve_grad(xs, ys)
+    return {'xs': xs, 'ys': ys, 'grads': grads['grad'], 'posangs': grads['posang']}
+
+
+def get_curve_grad(x, y):
+    '''
+    get the grad of at data point
+    :param x:
+    :param y:
+    :return: grad,posang
+    '''
+    deltay = np.roll(y, -1) - np.roll(y, 1)
+    deltay[0] = y[1] - y[0]
+    deltay[-1] = y[-1] - y[-2]
+    deltax = np.roll(x, -1) - np.roll(x, 1)
+    deltax[0] = x[1] - x[0]
+    deltax[-1] = x[-1] - x[-2]
+    grad = deltay / deltax
+    posang = np.arctan2(deltay, deltax)
+    return {'grad': grad, 'posang': posang}
+
+
+def improfile(z, xi, yi, interp='cubic'):
+    '''
+    Pixel-value cross-section along line segment in an image
+    :param z: an image array
+    :param xi and yi: equal-length vectors specifying the pixel coordinates of the endpoints of the line segment
+    :param interp: interpolation type to sampling, 'nearest' or 'cubic'
+    :return: the intensity values of pixels along the line
+    '''
+    import scipy.ndimage
+    imgshape = z.shape
+    if len(xi) != len(yi):
+        raise ValueError('xi and yi must be equal-length!')
+    if len(xi) < 2:
+        raise ValueError('xi or yi must contain at least two elements!')
+    for idx, ll in enumerate(xi):
+        if not 0 < ll < imgshape[1]:
+            raise ValueError('xi out of range!')
+        if not 0 < yi[idx] < imgshape[0]:
+            raise ValueError('yi out of range!')
+            # xx, yy = np.meshgrid(x, y)
+    if len(xi) == 2:
+        length = np.hypot(np.diff(xi), np.diff(yi))[0]
+        x, y = np.linspace(xi[0], xi[1], length), np.linspace(yi[0], yi[1], length)
+    else:
+        x, y = xi, yi
+    if interp == 'cubic':
+        zi = scipy.ndimage.map_coordinates(z, np.vstack((x, y)))
+    else:
+        zi = z[np.floor(y).astype(np.int),np.floor(x).astype(np.int)]
+
+    return zi
+
+
+def canvaspix_to_data(smap, x, y):
+    import astropy.units as u
+    '''
+    Convert canvas pixel coordinates in MkPlot to data (world) coordinates by using
+    `~astropy.wcs.WCS.wcs_pix2world`.
+
+    :param smap: sunpy map
+    :param x: canvas Pixel coordinates of the CTYPE1 axis. (Normally solar-x)
+    :param y: canvas Pixel coordinates of the CTYPE2 axis. (Normally solar-y)
+    :return: world coordinates
+    '''
+    xynew = smap.pixel_to_data(x * u.pix, y * u.pix)
+    xnew = xynew[0].value
+    ynew = xynew[1].value
+    return [xnew, ynew]
+
+
+def data_to_mappixel(smap, x, y):
+    import astropy.units as u
+    '''
+    Convert data (world) coordinates in MkPlot to pixel coordinates in smap by using
+    `~astropy.wcs.WCS.wcs_pix2world`.
+
+    :param smap: sunpy map
+    :param x: Data coordinates of the CTYPE1 axis. (Normally solar-x)
+    :param y: Data coordinates of the CTYPE2 axis. (Normally solar-y)
+    :return: pixel coordinates
+    '''
+    xynew = smap.data_to_pixel(x * u.arcsec, y * u.arcsec)
+    xnew = xynew[0].value
+    ynew = xynew[1].value
+    return [xnew, ynew]
+
+
 def polsfromfitsheader(header):
     '''
     get polarisation information from fits header
@@ -241,7 +473,7 @@ def c_correlate(a, v):
     return np.correlate(a, v, mode='same')
 
 
-def XcorrMap(z, x, y, doxscale = True):
+def XCorrMap(z, x, y, doxscale=True):
     '''
     get the cross correlation map along y axis
     :param z: data
@@ -261,8 +493,8 @@ def XcorrMap(z, x, y, doxscale = True):
             ys = splev(xfit, tck)
             zfit[yidx1, :] = ys
     else:
-        xfit=x
-        zfit=z
+        xfit = x
+        zfit = z
     ny, nxfit = zfit.shape
     ccpeak = np.empty((ny - 1, ny - 1))
     ccpeak[:] = np.nan
@@ -299,33 +531,21 @@ def XcorrMap(z, x, y, doxscale = True):
     return {'zfit': zfit, 'ccmax': ccmax, 'ccpeak': ccpeak, 'x': x, 'nx': len(x), 'xfit': xfit, 'nxfit': nxfit, 'y': y,
             'ny': ny, 'yv': yv, 'ya': ya, 'yidxv': yidxv, 'yidxa': yidxa}
 
-# def maxfit(image):
-#     # NAME:
-#     #    maxfit
-#     # PURPOSE:
-#     #    find maximum position of an image using 2D Gaussian fit
-#     # INPUTS:
-#     #    image: sunpy
-#
-#     data = image.data
-#     nx, ny = data.shape
-#     dx, dy = image.scale.x.value, image.scale.y.value
-#     xc, yc = image.center.x.value, image.center.y.value
-#     mapx, mapy = (np.linspace(0, nx - 1, nx) - image.reference_pixel.x.value + 1 + 0.5) * dx + xc, (
-#         np.linspace(0, ny - 1, ny) - image.reference_pixel.y.value + 1 + 0.5) * dy + yc
-#     mapx, mapy = np.meshgrid(mapx, mapy)
-#     idxmax = np.where(data == np.amax(data))
-#     idxhm = np.where(data >= np.amax(data) / 2)
-#     hmfw = np.sqrt(len(idxhm[0]) / np.pi) * dx
-#     xmax, ymax = mapx[idxmax[0][0], idxmax[1][0]], mapy[idxmax[0][0], idxmax[1][0]]
-#     theta = np.arctan(
-#         abs(idxhm[1] - image.reference_pixel.y.value).sum() / abs(idxhm[0] - image.reference_pixel.x.value).sum())
-#     initial_guess = (np.amax(data), xmax, ymax, hmfw, hmfw, theta, data.std())
-#
-#     try:
-#         popt, pcov = opt.curve_fit(twoD_Gaussian, (mapx, mapy), data.ravel(), p0=initial_guess)
-#     except:
-#         popt = np.empty((7))
-#         popt[:] = np.nan
-#
-#     return popt
+
+class ButtonsPlayCTRL():
+    '''
+    Produce A play/stop button widget for bokeh plot
+
+    '''
+    __slots__ = ['buttons']
+
+    def __init__(self, plot_width=None, *args,
+                 **kwargs):
+        from bokeh.models import Button
+        BUT_first = Button(label='<<', width=plot_width, button_type='primary')
+        BUT_prev = Button(label='|<', width=plot_width, button_type='warning')
+        BUT_play = Button(label='>', width=plot_width, button_type='success')
+        BUT_next = Button(label='>|', width=plot_width, button_type='warning')
+        BUT_last = Button(label='>>', width=plot_width, button_type='primary')
+        self.buttons = [BUT_first, BUT_prev, BUT_play, BUT_next, BUT_last]
+
