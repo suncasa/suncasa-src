@@ -97,9 +97,6 @@ BUT_exit.on_click(exit_update)
 
 lout = row(p_stackplt, column(BUT_exit, Div_info))
 
-# def timeout_callback():
-#     print 'timeout'
-#     raise SystemExit
 
 
 curdoc().add_root(lout)

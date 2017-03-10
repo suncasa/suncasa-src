@@ -63,20 +63,64 @@ def update_sdosubmp_region(attrname, old, new):
             ClearDraw()
 
 
-def LoadChunk_update():
-    global sdosubmpdict
+def ProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█'):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '=' * (length - filledLength)
+    # return '%s |%s| %s%% %s' % (prefix, bar, percent, suffix)
+    return '{} |{}| {}% {}'.format(prefix, bar, percent, suffix)
+
+
+
+def LoadChunk():
     sdosubmplist = []
     timestamps = []
-    sdosubmpdict = {}
     for sidx, sfile in enumerate(sdofile):
         sdomaptmp = DButil.normalize_aiamap(sunpy.map.Map(sfile))
         sdosubmptmp = sdomaptmp.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]),
                                        u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
         sdosubmplist.append(sdosubmptmp)
         timestamps.append(Time(sdosubmptmp.meta['date-obs'].replace('T', ' '), format='iso', scale='utc').jd)
-        Div_info.text = """<p><b>{}</b> out of <b>{}</b> map loaded.</b></p>""".format(sidx, nsdofile)
-    sdosubmpdict = {'map': sdosubmplist, 'time': np.array(timestamps)}
-    Div_info.text = """<p><b>SDO submap chunk loaded.</b></p>"""
+        Div_info.text = """<p>{}</p>""".format(
+            ProgressBar(sidx + 1, nsdofile, suffix='Load', decimals=0, length=16, fill='#'))
+    sdompdict = {'map': sdosubmplist, 'time': np.array(timestamps)}
+    # Div_info.text = """<p><b>SDO submap chunk loaded.</b></p>"""
+    return sdompdict
+
+
+def LoadSubChunk(sdompdict):
+    sdosubmplist = []
+    for sidx, smap in enumerate(sdompdict['map']):
+        sdosubmptmp = smap.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]),
+                                  u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
+        sdosubmplist.append(sdosubmptmp)
+        Div_info.text = """<p>{}</p>""".format(
+            ProgressBar(sidx + 1, nsdofile, suffix='Update', decimals=0, length=14, fill='#'))
+    # Div_info.text = """<p><b>update SDO submap chunk.</b></p>"""
+    return {'map': sdosubmplist, 'time': sdompdict['time']}
+
+
+def LoadChunk_handler():
+    global sdosubmpdict
+    if sdosubmpdict:
+        if x0 >= sdosubmpdict['map'][0].xrange[0].value and x1 <= sdosubmpdict['map'][0].xrange[1].value and y0 >= \
+                sdosubmpdict['map'][0].yrange[0].value and y1 <= sdosubmpdict['map'][0].yrange[1].value:
+            sdosubmpdict = LoadSubChunk(sdosubmpdict)
+        else:
+            sdosubmpdict = LoadChunk()
+    else:
+        sdosubmpdict = LoadChunk()
 
 
 def ButtonNext_handler():
@@ -473,7 +517,7 @@ BUT_ClearDraw = Button(label='ClearDraw', width=config_plot['plot_config']['tab_
 BUT_ClearDraw.on_click(ClearDraw)
 BUT_loadchunk = Button(label='LoadChunk', width=config_plot['plot_config']['tab_MkPlot']['button_wdth'],
                        button_type='primary')
-BUT_loadchunk.on_click(LoadChunk_update)
+BUT_loadchunk.on_click(LoadChunk_handler)
 BUT_Stackplt = Button(label='StackPlt', width=config_plot['plot_config']['tab_MkPlot']['button_wdth'],
                       button_type='success')
 BUT_Stackplt.on_click(StackpltView)

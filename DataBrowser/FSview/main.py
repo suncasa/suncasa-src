@@ -6,14 +6,12 @@ from collections import OrderedDict
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
-from scipy.misc import bytescale
 import matplotlib.cm as cm
 import matplotlib.colors as colors
 import numpy as np
 import pandas as pd
 from sys import platform
 import scipy.ndimage as sn
-import sunpy.map
 from math import radians, cos, sin
 from bokeh.layouts import row, column, widgetbox, gridplot
 from bokeh.models import (ColumnDataSource, CustomJS, Slider, Button, TextInput, RadioButtonGroup, CheckboxGroup,
@@ -285,9 +283,9 @@ def tab2_SRC_maxfit_centroid_init(dspecDFsel):
 def aia_submap_wavelength_selection(attrname, old, new):
     global tab3_r_aia_submap
     select_wave = tab2_Select_aia_wave.value
-    print 'wavelength {} selected'.format(select_wave)
     aiamap = DButil.readsdofile(datadir=SDO_dir, wavelength=select_wave, jdtime=xx[0] / 3600. / 24.,
                                 timtol=tab2_dur / 3600. / 24.)
+    print 'wavelength {} selected'.format(select_wave)
     lengthx = vla_local_pfmap.dw[0] * u.arcsec
     lengthy = vla_local_pfmap.dh[0] * u.arcsec
     x0 = vla_local_pfmap.smap.center.x
@@ -1292,86 +1290,6 @@ if os.path.exists(FS_dspecDF):
 
         tab2_Select_pol_opt = ['RR', 'LL', 'I', 'V']
 
-        def tab2_vdspec_update():
-            global spec_plt_R, spec_plt_L, spec_plt_I, spec_plt_V, tab2_Select_pol_opt
-            select_pol = tab2_Select_pol.value
-            tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
-            if tab2_BUT_vdspec.label == "VEC Dyn Spec":
-                if tab2_vla_square_selected:
-                    tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum in calculating...</b></p>'
-                    tab2_Select_pol_opt = tab2_Select_pol.options
-                    tab2_Select_pol.options = pols
-                    tab2_BUT_vdspec.label = "Dyn Spec"
-                    idxmax = max(tab2_vla_square_selected)
-                    idxmin = min(tab2_vla_square_selected)
-                    x0pix, x1pix = idxmin % mapvlasize[0], idxmax % mapvlasize[0]
-                    y0pix, y1pix = idxmin / mapvlasize[0], idxmax / mapvlasize[0]
-                    print x0pix, x1pix, y0pix, y1pix
-                    spec_plt_R = np.zeros((tab2_nfreq, tab2_ntim))
-                    spec_plt_L = np.zeros((tab2_nfreq, tab2_ntim))
-                    spec_plt_I = np.zeros((tab2_nfreq, tab2_ntim))
-                    spec_plt_V = np.zeros((tab2_nfreq, tab2_ntim))
-                    if len(pols) > 1:
-                        for ll in xrange(tab2_ntim):
-                            hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
-                            if os.path.exists(hdufile):
-                                hdu = read_fits(hdufile)
-                                hdu_goodchan = goodchan(hdu)
-                                nfreq_hdu = hdu_goodchan[-1] - hdu_goodchan[0] + 1
-                                freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
-                                freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
-                                idxfreq = freq.index(freq_ref)
-                                vla_l = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
-                                vla_r = hdu.data[1, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
-                                spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                    np.nanmean(vla_l, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
-                                spec_plt_R[spec_plt_R < 0] = 0
-                                spec_plt_L[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                    np.nanmean(vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
-                                spec_plt_L[spec_plt_L < 0] = 0
-                                spec_plt_I[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                    np.nanmean(vla_l + vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
-                                spec_plt_I[spec_plt_I < 0] = 0
-                                spec_plt_V[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                    np.nanmean(vla_l - vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
-                                spec_plt_V[spec_plt_V < 0] = 0
-                    elif len(pols) == 1:
-                        for ll in xrange(tab2_ntim):
-                            hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
-                            if os.path.exists(hdufile):
-                                hdu = read_fits(hdufile)
-                                hdu_goodchan = goodchan(hdu)
-                                nfreq_hdu = hdu_goodchan[-1] - hdu_goodchan[0] + 1
-                                freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
-                                freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
-                                idxfreq = freq.index(freq_ref)
-                                vladata = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
-                                vlaflux = np.nanmean(vladata, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
-                                spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = vlaflux
-                                spec_plt_R[spec_plt_R < 0] = 0
-                        spec_plt_L = spec_plt_R
-                        spec_plt_I = spec_plt_R
-                        spec_plt_V = spec_plt_R
-                        # print spec_plt_L
-                    tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum calculated.</b></p>'
-
-                    tab2_dspec_image_plt(select_pol)
-                    tab2_p_dspec.title.text = "Vector Dynamic spectrum"
-                else:
-                    tab2_Div_LinkImg_plot.text = '<p><b>Warning:</b> select a region first.</p>'
-            else:
-                tab2_Select_pol.options = tab2_Select_pol_opt
-                select_bl = tab2_Select_bl.value
-                tab2_BUT_vdspec.label = "VEC Dyn Spec"
-                bl_index = tab2_bl.index(select_bl)
-                spec_plt_R = tab2_spec[0, bl_index, :, :]
-                spec_plt_L = tab2_spec[1, bl_index, :, :]
-                spec_plt_I = (tab2_spec[0, bl_index, :, :] + tab2_spec[1, bl_index, :, :]) / 2.
-                spec_plt_V = (tab2_spec[0, bl_index, :, :] - tab2_spec[1, bl_index, :, :]) / 2.
-                tab2_dspec_image_plt(select_pol)
-                tab2_p_dspec.title.text = "Dynamic spectrum"
-                tab2_Div_LinkImg_plot.text = ''
-
 
         tab2_BUT_vdspec.on_click(tab2_vdspec_update)
 
@@ -1518,8 +1436,7 @@ if os.path.exists(FS_dspecDF):
         # tab2_SRC_aia_submap_square = ColumnDataSource(ImgDF0)
         tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
                                                                         grid_spacing=20 * u.deg,
-                                                                        title='EM sources centroid map',
-                                                                        palette=bokehpalette_gray)
+                                                                        title='EM sources centroid map')
         # tab2_r_aia_submap_square = tab3_p_aia_submap.square('xx', 'yy', source=tab2_SRC_aia_submap_square,
         #                                                     fill_alpha=0.0, fill_color=None,
         #                                                     line_color=None, line_alpha=0.0, selection_fill_alpha=0.5,
@@ -1558,24 +1475,6 @@ if os.path.exists(FS_dspecDF):
         tab2_Select_aia_wave = Select(title="Wavelenght:", value='171', options=['94', '131', '171'],
                                       width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
-        def aia_submap_wavelength_selection(attrname, old, new):
-            global tab3_r_aia_submap
-            select_wave = tab2_Select_aia_wave.value
-            print 'wavelength {} selected'.format(select_wave)
-            aiamap = sdomapfromlocalfile(wavelength=select_wave, jdtime=xx[0] / 3600. / 24.)
-            lengthx = vla_local_pfmap.dw[0] * u.arcsec
-            lengthy = vla_local_pfmap.dh[0] * u.arcsec
-            x0 = vla_local_pfmap.smap.center.x
-            y0 = vla_local_pfmap.smap.center.y
-            aiamap_submap = aiamap.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
-                                          u.Quantity([y0 - lengthy / 2, y0 + lengthy / 2]))
-            aia_submap_pfmap = PuffinMap(smap=aiamap_submap,
-                                         plot_height=config_plot['plot_config']['tab_FSview_FitANLYS'][
-                                             'aia_submap_hght'],
-                                         plot_width=config_plot['plot_config']['tab_FSview_FitANLYS'][
-                                             'aia_submap_wdth'],
-                                         webgl=config_plot['plot_config']['WebGL'])
-            tab3_r_aia_submap.data_source.data['data'] = aia_submap_pfmap.ImageSource().data['data']
 
         tab2_Select_aia_wave.on_change('value', aia_submap_wavelength_selection)
         colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
@@ -1677,59 +1576,6 @@ if os.path.exists(FS_dspecDF):
         tab2_source_idx_line_y = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
         tab2_r_dspec_line_y = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
                                                 line_color='white', source=tab2_source_idx_line_y)
-
-        def tab3_slider_LinkImg_update(attrname, old, new):
-            global hdu
-            select_vla_pol = tab2_Select_vla_pol.value
-            tab2_Slider_time_LinkImg.start = next(
-                i for i in xrange(tab2_ntim) if tab2_dtim[i] >= tab2_p_dspec.x_range.start)
-            tab2_Slider_time_LinkImg.end = next(
-                i for i in xrange(tab2_ntim - 1, -1, -1) if tab2_dtim[i] <= tab2_p_dspec.x_range.end) + 1
-            tab2_Slider_freq_LinkImg.start = next(
-                i for i in xrange(tab2_nfreq) if tab2_freq[i] >= tab2_p_dspec.y_range.start)
-            tab2_Slider_freq_LinkImg.end = next(
-                i for i in xrange(tab2_nfreq - 1, -1, -1) if tab2_freq[i] <= tab2_p_dspec.y_range.end) + 1
-            tidx = int(tab2_Slider_time_LinkImg.value)
-            fidx = int(tab2_Slider_freq_LinkImg.value)
-            tab2_r_dspec_line_x.data_source.data = ColumnDataSource(
-                pd.DataFrame({'time': [tab2_dtim[tidx], tab2_dtim[tidx]],
-                              'freq': [tab2_freq[0], tab2_freq[-1]]})).data
-            tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
-                pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
-                              'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
-            hdufile = fits_LOCL_dir + dspecDF0.loc[tidx, :]['fits_local']
-            if os.path.exists(hdufile):
-                hdu = read_fits(hdufile)
-                hdu_goodchan = goodchan(hdu)
-                freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
-                freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
-                idxfreq = freq.index(freq_ref)
-                fidx_hdu = fidx - idxfreq
-                if hdu_goodchan[0] <= fidx_hdu <= hdu_goodchan[-1]:
-                    if select_vla_pol == 'RR':
-                        vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :]
-                    elif select_vla_pol == 'LL':
-                        vladata = hdu.data[pols.index('LL'), fidx_hdu, :, :]
-                    elif select_vla_pol == 'I':
-                        vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :] + hdu.data[pols.index('1'), fidx_hdu, :, :]
-                    elif select_vla_pol == 'V':
-                        vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :] - hdu.data[pols.index('1'), fidx_hdu, :, :]
-                    pfmap = PuffinMap(vladata, hdu.header, plot_height=tab2_LinkImg_HGHT,
-                                      plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
-                    SRC_Img = pfmap.ImageSource()
-                    tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
-                    mapx, mapy = pfmap.meshgrid()
-                    mapx, mapy = mapx.value, mapy.value
-                    SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
-                    tab2_r_vla_multi_line.data_source.data = SRC_contour.data
-                    tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
-                        dspecDF0.loc[tidx, :]['fits_local'])
-                else:
-                    tab2_Div_LinkImg_plot.text = '<p><b>freq idx</b> out of range.</p>'
-            else:
-                tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
-                    dspecDF0.loc[tidx, :]['fits_local'])
-
 
         tab2_CTRLs_LinkImg = [tab2_Slider_time_LinkImg, tab2_Slider_freq_LinkImg, tab2_Select_vla_pol]
 
@@ -2144,84 +1990,6 @@ if os.path.exists(FS_dspecDF):
                                      button_type="success")
             tab2_Select_pol_opt = ['RR', 'LL', 'I', 'V']
 
-            def tab2_vdspec_update():
-                global spec_plt_R, spec_plt_L, spec_plt_I, spec_plt_V, tab2_Select_pol_opt
-                select_pol = tab2_Select_pol.value
-                tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
-                if tab2_BUT_vdspec.label == "VEC Dyn Spec":
-                    if tab2_vla_square_selected:
-                        tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum in calculating...</b></p>'
-                        tab2_Select_pol_opt = tab2_Select_pol.options
-                        tab2_Select_pol.options = pols
-                        tab2_BUT_vdspec.label = "Dyn Spec"
-                        idxmax = max(tab2_vla_square_selected)
-                        idxmin = min(tab2_vla_square_selected)
-                        x0pix, x1pix = idxmin % mapvlasize[0], idxmax % mapvlasize[0]
-                        y0pix, y1pix = idxmin / mapvlasize[0], idxmax / mapvlasize[0]
-                        print x0pix, x1pix, y0pix, y1pix
-                        spec_plt_R = np.zeros((tab2_nfreq, tab2_ntim))
-                        spec_plt_L = np.zeros((tab2_nfreq, tab2_ntim))
-                        spec_plt_I = np.zeros((tab2_nfreq, tab2_ntim))
-                        spec_plt_V = np.zeros((tab2_nfreq, tab2_ntim))
-                        if len(pols) > 1:
-                            for ll in xrange(tab2_ntim):
-                                hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
-                                if os.path.exists(hdufile):
-                                    hdu = read_fits(hdufile)
-                                    hdu_goodchan = goodchan(hdu)
-                                    nfreq_hdu = hdu_goodchan[-1] - hdu_goodchan[0] + 1
-                                    freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
-                                    freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
-                                    idxfreq = freq.index(freq_ref)
-                                    vla_l = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
-                                    vla_r = hdu.data[1, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
-                                    spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                        np.nanmean(vla_l, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
-                                    spec_plt_R[spec_plt_R < 0] = 0
-                                    spec_plt_L[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                        np.nanmean(vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
-                                    spec_plt_L[spec_plt_L < 0] = 0
-                                    spec_plt_I[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                        np.nanmean(vla_l + vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
-                                    spec_plt_I[spec_plt_I < 0] = 0
-                                    spec_plt_V[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                                        np.nanmean(vla_l - vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
-                                    spec_plt_V[spec_plt_V < 0] = 0
-                        elif len(pols) == 1:
-                            for ll in xrange(tab2_ntim):
-                                hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
-                                if os.path.exists(hdufile):
-                                    hdu = read_fits(hdufile)
-                                    hdu_goodchan = goodchan(hdu)
-                                    nfreq_hdu = hdu_goodchan[-1] - hdu_goodchan[0] + 1
-                                    freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
-                                    freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
-                                    idxfreq = freq.index(freq_ref)
-                                    vladata = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
-                                    vlaflux = np.nanmean(vladata, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1]+1]
-                                    spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = vlaflux
-                                    spec_plt_R[spec_plt_R < 0] = 0
-                            spec_plt_L = spec_plt_R
-                            spec_plt_I = spec_plt_R
-                            spec_plt_V = spec_plt_R
-                        tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum calculated.</b></p>'
-
-                        tab2_dspec_image_plt(select_pol)
-                        tab2_p_dspec.title.text = "Vector Dynamic spectrum"
-                    else:
-                        tab2_Div_LinkImg_plot.text = '<p><b>Warning:</b> select a region first.</p>'
-                else:
-                    tab2_Select_pol.options = tab2_Select_pol_opt
-                    select_bl = tab2_Select_bl.value
-                    tab2_BUT_vdspec.label = "VEC Dyn Spec"
-                    bl_index = tab2_bl.index(select_bl)
-                    spec_plt_R = tab2_spec[0, bl_index, :, :]
-                    spec_plt_L = tab2_spec[1, bl_index, :, :]
-                    spec_plt_I = (tab2_spec[0, bl_index, :, :] + tab2_spec[1, bl_index, :, :]) / 2.
-                    spec_plt_V = (tab2_spec[0, bl_index, :, :] - tab2_spec[1, bl_index, :, :]) / 2.
-                    tab2_dspec_image_plt(select_pol)
-                    tab2_p_dspec.title.text = "Dynamic spectrum"
-                    tab2_Div_LinkImg_plot.text = ''
 
 
             tab2_BUT_vdspec.on_click(tab2_vdspec_update)
@@ -2434,61 +2202,6 @@ if os.path.exists(FS_dspecDF):
             tab2_source_idx_line_y = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
             tab2_r_dspec_line_y = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
                                                     line_color='white', source=tab2_source_idx_line_y)
-
-
-            def tab3_slider_LinkImg_update(attrname, old, new):
-                global hdu
-                select_vla_pol = tab2_Select_vla_pol.value
-                tab2_Slider_time_LinkImg.start = next(
-                    i for i in xrange(tab2_ntim) if tab2_dtim[i] >= tab2_p_dspec.x_range.start)
-                tab2_Slider_time_LinkImg.end = next(
-                    i for i in xrange(tab2_ntim - 1, -1, -1) if tab2_dtim[i] <= tab2_p_dspec.x_range.end) + 1
-                tab2_Slider_freq_LinkImg.start = next(
-                    i for i in xrange(tab2_nfreq) if tab2_freq[i] >= tab2_p_dspec.y_range.start)
-                tab2_Slider_freq_LinkImg.end = next(
-                    i for i in xrange(tab2_nfreq - 1, -1, -1) if tab2_freq[i] <= tab2_p_dspec.y_range.end) + 1
-                tidx = int(tab2_Slider_time_LinkImg.value)
-                fidx = int(tab2_Slider_freq_LinkImg.value)
-                tab2_r_dspec_line_x.data_source.data = ColumnDataSource(
-                    pd.DataFrame({'time': [tab2_dtim[tidx], tab2_dtim[tidx]],
-                                  'freq': [tab2_freq[0], tab2_freq[-1]]})).data
-                tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
-                    pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
-                                  'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
-                hdufile = fits_LOCL_dir + dspecDF0.loc[tidx, :]['fits_local']
-                if os.path.exists(hdufile):
-                    hdu = read_fits(hdufile)
-                    hdu_goodchan = goodchan(hdu)
-                    freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
-                    freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
-                    idxfreq = freq.index(freq_ref)
-                    fidx_hdu = fidx - idxfreq
-                    if hdu_goodchan[0] <= fidx_hdu <= hdu_goodchan[-1]:
-                        if select_vla_pol == 'RR':
-                            vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :]
-                        elif select_vla_pol == 'LL':
-                            vladata = hdu.data[pols.index('LL'), fidx_hdu, :, :]
-                        elif select_vla_pol == 'I':
-                            vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :] + hdu.data[pols.index('1'), fidx_hdu,
-                                                                                   :, :]
-                        elif select_vla_pol == 'V':
-                            vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :] - hdu.data[pols.index('1'), fidx_hdu,
-                                                                                   :, :]
-                        pfmap = PuffinMap(vladata, hdu.header, plot_height=tab2_LinkImg_HGHT,
-                                          plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
-                        SRC_Img = pfmap.ImageSource()
-                        tab2_r_vla.data_source.data['data'] = SRC_Img.data['data']
-                        mapx, mapy = pfmap.meshgrid()
-                        mapx, mapy = mapx.value, mapy.value
-                        SRC_contour = get_contour_data(mapx, mapy, pfmap.smap.data)
-                        tab2_r_vla_multi_line.data_source.data = SRC_contour.data
-                        tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
-                            dspecDF0.loc[tidx, :]['fits_local'])
-                    else:
-                        tab2_Div_LinkImg_plot.text = '<p><b>freq idx</b> out of range.</p>'
-                else:
-                    tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
-                        dspecDF0.loc[tidx, :]['fits_local'])
 
 
             tab2_CTRLs_LinkImg = [tab2_Slider_time_LinkImg, tab2_Slider_freq_LinkImg, tab2_Select_vla_pol]

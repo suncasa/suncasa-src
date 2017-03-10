@@ -75,14 +75,14 @@ def load_specdata(specfile=None):
     tab1_tim = tab1_specdata['tim'][:]
     tab1_freq = tab1_specdata['freq'] / 1e9
     tab1_spec_sz = tab1_spec.shape
-    spec_sz2, spec_sz1 = 10, 10
-    if tab1_spec_sz[3] > 1750:
-        spec_sz2 = next(i for i in xrange(1, 10) if i / 10. * tab1_spec_sz[3] > 1750)
-    if tab1_spec_sz[2] > 250:
-        spec_sz1 = next(i for i in xrange(1, 10) if i / 10. * tab1_spec_sz[2] > 250)
-    tab1_spec = sn.interpolation.zoom(tab1_spec, [1, 1, spec_sz1 / 10.0, spec_sz2 / 10.0], order=1)
-    tab1_tim = sn.interpolation.zoom(tab1_tim, spec_sz2 / 10.0, order=1)
-    tab1_freq = sn.interpolation.zoom(tab1_freq, spec_sz1 / 10.0, order=1)
+    spec_sz2, spec_sz1 = 100, 100
+    if tab1_spec_sz[3] > 3000:
+        spec_sz2 = next(i for i in xrange(1, 100) if i / 100. * tab1_spec_sz[3] > 3000)
+    if tab1_spec_sz[2] > 300:
+        spec_sz1 = next(i for i in xrange(1, 100) if i / 100. * tab1_spec_sz[2] > 300)
+    tab1_spec = sn.interpolation.zoom(tab1_spec, [1, 1, spec_sz1 / 100.0, spec_sz2 / 100.0], order=1)
+    tab1_tim = sn.interpolation.zoom(tab1_tim, spec_sz2 / 100.0, order=1)
+    tab1_freq = sn.interpolation.zoom(tab1_freq, spec_sz1 / 100.0, order=1)
 
     if tab1_pol == 'RR':
         tab1_spec_plt = tab1_spec[0, bl_index, :, :]
@@ -123,13 +123,13 @@ tab1_r_dspec = tab1_p_dspec.image(image=[tab1_spec_plt], x=tab1_dtim[0], y=tab1_
                                   dh=tab1_freq[-1] - tab1_freq[0], palette=bokehpalette_jet)
 
 tab1_spec_sz = tab1_spec.shape
-ratio_spec_sz2, ratio_spec_sz1 = 10, 10
+ratio_spec_sz2, ratio_spec_sz1 = 100., 100.
 if tab1_spec_sz[3] > 520:
-    ratio_spec_sz2 = next(i for i in xrange(1, 10) if i / 10. * tab1_spec_sz[3] > 520)
+    ratio_spec_sz2 = next(i for i in xrange(1, 100) if i / 100. * tab1_spec_sz[3] > 520)
 if tab1_spec_sz[2] > 75:
-    ratio_spec_sz1 = next(i for i in xrange(1, 10) if i / 10. * tab1_spec_sz[2] > 75)
-tab1_tim_square = sn.interpolation.zoom(tab1_tim, ratio_spec_sz2 / 10., order=1)
-tab1_freq_square = sn.interpolation.zoom(tab1_freq, ratio_spec_sz1 / 10., order=1)
+    ratio_spec_sz1 = next(i for i in xrange(1, 100) if i / 100. * tab1_spec_sz[2] > 75)
+tab1_tim_square = sn.interpolation.zoom(tab1_tim, ratio_spec_sz2 / 100., order=1)
+tab1_freq_square = sn.interpolation.zoom(tab1_freq, ratio_spec_sz1 / 100., order=1)
 tab1_nfreq_square, = tab1_freq_square.shape
 tab1_ntim_square, = tab1_tim_square.shape
 tim_map = ((np.tile(tab1_tim_square, tab1_nfreq_square).reshape(tab1_nfreq_square,

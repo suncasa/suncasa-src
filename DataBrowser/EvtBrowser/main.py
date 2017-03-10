@@ -154,20 +154,6 @@ tab0_BUT_DDownload = Button(label='SDO image fetch', width=150, button_type='pri
 tab0_BUT_DDownload.on_click(tab0_DDownload)
 
 
-# def tab2_BUT_tCLN_param_default():
-#     global tab2_tCLN_Param_dict
-#     tab2_tCLN_Param_dict = OrderedDict()
-#     tab2_tCLN_Param_dict['WAVELENGTH'] = "'171,193,hmi'"
-#     tab2_tCLN_Param_dict['cadence'] = "''"
-#     tab2_tCLN_Param_dict['email'] = "''"
-#     tab2_Div_tCLN_text = '<p><b>#  ptclean :: Parallelized clean in consecutive time steps</b></p>' + ' '.join(
-#         "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tCLN_Param_dict.items())
-#     tab2_Div_tCLN.text = tab2_Div_tCLN_text
-#     tab2_Div_tCLN2.text = '<p><b>Default parameter Restored.</b></p>'
-#
-#
-# tab2_BUT_tCLN_param_default()
-
 tab0_SPCR_LFT_Div_title = Spacer(width=200, height=10)
 tab0_SPCR_RGT_Div_title = Spacer(width=50, height=10)
 tab0_SPCR_LFT_DataTb_dspec = Spacer(width=50, height=10)
