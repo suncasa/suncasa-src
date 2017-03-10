@@ -26,7 +26,7 @@ class ptclean_cli_:
        self.__bases__ = (ptclean_cli_,)
        self.__doc__ = self.__call__.__doc__
 
-       self.parameters={'vis':None, 'imageprefix':None, 'ncpu':None, 'twidth':None, 'doreg':None, 'ephemfile':None, 'msinfofile':None, 'outlierfile':None, 'field':None, 'spw':None, 'selectdata':None, 'timerange':None, 'uvrange':None, 'antenna':None, 'scan':None, 'observation':None, 'intent':None, 'mode':None, 'resmooth':None, 'gridmode':None, 'wprojplanes':None, 'facets':None, 'cfcache':None, 'rotpainc':None, 'painc':None, 'aterm':None, 'psterm':None, 'mterm':None, 'wbawp':None, 'conjbeams':None, 'epjtable':None, 'interpolation':None, 'niter':None, 'gain':None, 'threshold':None, 'psfmode':None, 'imagermode':None, 'ftmachine':None, 'mosweight':None, 'scaletype':None, 'multiscale':None, 'negcomponent':None, 'smallscalebias':None, 'interactive':None, 'mask':None, 'nchan':None, 'start':None, 'width':None, 'outframe':None, 'veltype':None, 'imsize':None, 'cell':None, 'phasecenter':None, 'restfreq':None, 'stokes':None, 'weighting':None, 'robust':None, 'uvtaper':None, 'outertaper':None, 'innertaper':None, 'modelimage':None, 'restoringbeam':None, 'pbcor':None, 'minpb':None, 'usescratch':None, 'noise':None, 'npixels':None, 'npercycle':None, 'cyclefactor':None, 'cyclespeedup':None, 'nterms':None, 'reffreq':None, 'chaniter':None, 'flatnoise':None, 'allowchunk':None, }
+       self.parameters={'vis':None, 'imageprefix':None, 'ncpu':None, 'twidth':None, 'doreg':None, 'overwrite':None, 'ephemfile':None, 'msinfofile':None, 'outlierfile':None, 'field':None, 'spw':None, 'selectdata':None, 'timerange':None, 'uvrange':None, 'antenna':None, 'scan':None, 'observation':None, 'intent':None, 'mode':None, 'resmooth':None, 'gridmode':None, 'wprojplanes':None, 'facets':None, 'cfcache':None, 'rotpainc':None, 'painc':None, 'aterm':None, 'psterm':None, 'mterm':None, 'wbawp':None, 'conjbeams':None, 'epjtable':None, 'interpolation':None, 'niter':None, 'gain':None, 'threshold':None, 'psfmode':None, 'imagermode':None, 'ftmachine':None, 'mosweight':None, 'scaletype':None, 'multiscale':None, 'negcomponent':None, 'smallscalebias':None, 'interactive':None, 'mask':None, 'nchan':None, 'start':None, 'width':None, 'outframe':None, 'veltype':None, 'imsize':None, 'cell':None, 'phasecenter':None, 'restfreq':None, 'stokes':None, 'weighting':None, 'robust':None, 'uvtaper':None, 'outertaper':None, 'innertaper':None, 'modelimage':None, 'restoringbeam':None, 'pbcor':None, 'minpb':None, 'usescratch':None, 'noise':None, 'npixels':None, 'npercycle':None, 'cyclefactor':None, 'cyclespeedup':None, 'nterms':None, 'reffreq':None, 'chaniter':None, 'flatnoise':None, 'allowchunk':None, }
 
 
     def result(self, key=None):
@@ -34,7 +34,7 @@ class ptclean_cli_:
 	    return None
 
 
-    def __call__(self, vis=None, imageprefix=None, ncpu=None, twidth=None, doreg=None, ephemfile=None, msinfofile=None, outlierfile=None, field=None, spw=None, selectdata=None, timerange=None, uvrange=None, antenna=None, scan=None, observation=None, intent=None, mode=None, resmooth=None, gridmode=None, wprojplanes=None, facets=None, cfcache=None, rotpainc=None, painc=None, aterm=None, psterm=None, mterm=None, wbawp=None, conjbeams=None, epjtable=None, interpolation=None, niter=None, gain=None, threshold=None, psfmode=None, imagermode=None, ftmachine=None, mosweight=None, scaletype=None, multiscale=None, negcomponent=None, smallscalebias=None, interactive=None, mask=None, nchan=None, start=None, width=None, outframe=None, veltype=None, imsize=None, cell=None, phasecenter=None, restfreq=None, stokes=None, weighting=None, robust=None, uvtaper=None, outertaper=None, innertaper=None, modelimage=None, restoringbeam=None, pbcor=None, minpb=None, usescratch=None, noise=None, npixels=None, npercycle=None, cyclefactor=None, cyclespeedup=None, nterms=None, reffreq=None, chaniter=None, flatnoise=None, allowchunk=None, ):
+    def __call__(self, vis=None, imageprefix=None, ncpu=None, twidth=None, doreg=None, overwrite=None, ephemfile=None, msinfofile=None, outlierfile=None, field=None, spw=None, selectdata=None, timerange=None, uvrange=None, antenna=None, scan=None, observation=None, intent=None, mode=None, resmooth=None, gridmode=None, wprojplanes=None, facets=None, cfcache=None, rotpainc=None, painc=None, aterm=None, psterm=None, mterm=None, wbawp=None, conjbeams=None, epjtable=None, interpolation=None, niter=None, gain=None, threshold=None, psfmode=None, imagermode=None, ftmachine=None, mosweight=None, scaletype=None, multiscale=None, negcomponent=None, smallscalebias=None, interactive=None, mask=None, nchan=None, start=None, width=None, outframe=None, veltype=None, imsize=None, cell=None, phasecenter=None, restfreq=None, stokes=None, weighting=None, robust=None, uvtaper=None, outertaper=None, innertaper=None, modelimage=None, restoringbeam=None, pbcor=None, minpb=None, usescratch=None, noise=None, npixels=None, npercycle=None, cyclefactor=None, cyclespeedup=None, nterms=None, reffreq=None, chaniter=None, flatnoise=None, allowchunk=None, ):
 
         """Parallelized clean in consecutive time steps
 
@@ -54,6 +54,9 @@ Parallelized clean in consecutive time steps. Packed over CASA clean.
 		   Default Value: 1
 
 		doreg:	True if use vla_prep to register the image
+		   Default Value: False
+
+		overwrite:	True if overwrite the image
 		   Default Value: False
 
 		ephemfile:	emphemeris file generated from vla_prep.read_horizons()
@@ -409,6 +412,7 @@ Parallelized clean in consecutive time steps. Packed over CASA clean.
             myparams['ncpu'] = ncpu = self.parameters['ncpu']
             myparams['twidth'] = twidth = self.parameters['twidth']
             myparams['doreg'] = doreg = self.parameters['doreg']
+            myparams['overwrite'] = overwrite = self.parameters['overwrite']
             myparams['ephemfile'] = ephemfile = self.parameters['ephemfile']
             myparams['msinfofile'] = msinfofile = self.parameters['msinfofile']
             myparams['outlierfile'] = outlierfile = self.parameters['outlierfile']
@@ -499,6 +503,7 @@ Parallelized clean in consecutive time steps. Packed over CASA clean.
         mytmp['ncpu'] = ncpu
         mytmp['twidth'] = twidth
         mytmp['doreg'] = doreg
+        mytmp['overwrite'] = overwrite
         mytmp['ephemfile'] = ephemfile
         mytmp['msinfofile'] = msinfofile
         mytmp['outlierfile'] = outlierfile
@@ -598,7 +603,7 @@ Parallelized clean in consecutive time steps. Packed over CASA clean.
               casalog.post(scriptstr[0]+'\n', 'INFO')
           else :
               casalog.post(scriptstr[1][1:]+'\n', 'INFO')
-          result = ptclean(vis, imageprefix, ncpu, twidth, doreg, ephemfile, msinfofile, outlierfile, field, spw, selectdata, timerange, uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode, wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams, epjtable, interpolation, niter, gain, threshold, psfmode, imagermode, ftmachine, mosweight, scaletype, multiscale, negcomponent, smallscalebias, interactive, mask, nchan, start, width, outframe, veltype, imsize, cell, phasecenter, restfreq, stokes, weighting, robust, uvtaper, outertaper, innertaper, modelimage, restoringbeam, pbcor, minpb, usescratch, noise, npixels, npercycle, cyclefactor, cyclespeedup, nterms, reffreq, chaniter, flatnoise, allowchunk)
+          result = ptclean(vis, imageprefix, ncpu, twidth, doreg, overwrite, ephemfile, msinfofile, outlierfile, field, spw, selectdata, timerange, uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode, wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams, epjtable, interpolation, niter, gain, threshold, psfmode, imagermode, ftmachine, mosweight, scaletype, multiscale, negcomponent, smallscalebias, interactive, mask, nchan, start, width, outframe, veltype, imsize, cell, phasecenter, restfreq, stokes, weighting, robust, uvtaper, outertaper, innertaper, modelimage, restoringbeam, pbcor, minpb, usescratch, noise, npixels, npercycle, cyclefactor, cyclespeedup, nterms, reffreq, chaniter, flatnoise, allowchunk)
           casalog.post('##### End Task: ' + tname + '  ' + spaces + ' #####'+
                        '\n##########################################')
 
@@ -654,6 +659,7 @@ Parallelized clean in consecutive time steps. Packed over CASA clean.
         a['ncpu']  = 8
         a['twidth']  = 1
         a['doreg']  = False
+        a['overwrite']  = False
         a['outlierfile']  = ''
         a['field']  = ''
         a['spw']  = ''
@@ -789,6 +795,7 @@ Parallelized clean in consecutive time steps. Packed over CASA clean.
                'ncpu': 'Number of cpu cores to use',
                'twidth': 'Number of time pixels to average',
                'doreg': 'True if use vla_prep to register the image',
+               'overwrite': 'True if overwrite the image',
                'ephemfile': 'emphemeris file generated from vla_prep.read_horizons()',
                'msinfofile': 'time-dependent phase center information generated from vla_prep.read_msinfo()',
                'outlierfile': 'Text file with image names, sizes, centers for outliers',
@@ -898,6 +905,7 @@ Parallelized clean in consecutive time steps. Packed over CASA clean.
         a['ncpu']  = 8
         a['twidth']  = 1
         a['doreg']  = False
+        a['overwrite']  = False
         a['ephemfile']  = ''
         a['msinfofile']  = ''
         a['outlierfile']  = ''

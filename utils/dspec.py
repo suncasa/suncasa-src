@@ -36,7 +36,7 @@ def get_dspec(vis=None, specfile=None, bl=None, spw=None, timeran=None):
     if not bl:
         bl = ''
     if not specfile:
-        specfile = msfile + '.spec.npz'
+        specfile = vis + '.spec.npz'
     print 'Splitting selected dynamic spectral data...'
     ms.open(vis, nomodify=True)
     vis_spl = './tmpms.splitted'
