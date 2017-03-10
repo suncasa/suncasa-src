@@ -8,33 +8,53 @@ msfile = 'SUN01_20141101T163940-164700.50ms.cal.ms'
 ephemfile = 'horizons_sun_20141101.radecp'
 msinfofile = 'SUN01_20141101.T163940-164700.50ms.cal.msinfo.npz'
 
-##################  ----------- U04-prep -----------------#########
+##################  ----------- U04burst-prep -----------------#########
 slfcalms_timeran = '16:46:12.375~16:46:32.475'
 slfcalms_s = ['0', '1', '2', '3']
 slfcalms_chan = ['0~63', '0~63', '0~63', '0~63']
-structure_id = 'U04-prep'
+structure_id = 'Uburst04-prep'
 pol = 'LL'
+refantenna = 'ea04'
+antennas = '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26'
 spwchan = ','.join('%s:%s' % t for t in zip(slfcalms_s, slfcalms_chan))
 ##  ----------- spw 0 -----------------
 struct_timerange = '2014/11/01/16:46:17.100~2014/11/01/16:46:17.600'
-struct_freqrange = '1.086~1.106 GHz'
+struct_freqrange = '1.080~1.116 GHz'
 CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
 phasecenter_local = 'J2000 14h26m59.300 -14d36m00.200'
+phasecenter_global = 'J2000 14h26m22.7351 -14d29m29.801'
 ##  ----------- spw 1 -----------------
 # struct_timerange = '2014/11/01/16:46:17.600~2014/11/01/16:46:18.400'
 # struct_freqrange = '1.146~1.182 GHz'
 # CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
 # phasecenter_local = 'J2000 14h26m59.500 -14d36m01.100'
 ##  ----------- spw 2 -----------------
-struct_timerange = '2014/11/01/16:46:17.650~2014/11/01/16:46:18.250'
-struct_freqrange = '1.286~1.318 GHz'
-CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
-phasecenter_local = 'J2000 14h27m00.100 -14d35m24.200'
+# struct_timerange = '2014/11/01/16:46:17.650~2014/11/01/16:46:18.250'
+# struct_freqrange = '1.286~1.318 GHz'
+# CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
+# phasecenter_local = 'J2000 14h27m00.100 -14d35m24.200'
 ##  ----------- spw 3 -----------------
-struct_timerange = '2014/11/01/16:46:16.150~2014/11/01/16:46:19.650'
-struct_freqrange = '1.422~1.476 GHz'
+# struct_timerange = '2014/11/01/16:46:16.150~2014/11/01/16:46:19.650'
+# struct_freqrange = '1.422~1.476 GHz'
+# CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
+# phasecenter_local = 'J2000 14h26m56.300 -14d35m11.000'
+
+
+##################  ----------- typeIII01-prep -----------------#########
+slfcalms_timeran = "16:42:48~16:42:54"
+slfcalms_s = ['0', '1', '2', '3']
+slfcalms_chan = ['0~63', '0~63', '0~63', '0~63']
+structure_id = 'typeIII01-prep'
+pol = 'LL'
+refantenna = 'ea04'
+antennas = '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26'
+spwchan = ','.join('%s:%s' % t for t in zip(slfcalms_s, slfcalms_chan))
+##  ----------- spw 0 -----------------
+struct_timerange = '2014/11/01/16:42:50.925~2014/11/01/16:42:53.825'
+struct_freqrange = '1.016~1.102 GHz'
 CLNmask = 'slfcal/{}/region_spw0.rgn'.format(structure_id)
-phasecenter_local = 'J2000 14h26m56.300 -14d35m11.000'
+phasecenter_local = 'J2000 14h26m59.300 -14d36m00.200'
+phasecenter_global = 'J2000 14h26m22.7351 -14d29m29.801'
 
 #
 # ##################  ----------- typeIII01 -----------------#########
@@ -107,20 +127,20 @@ if not os.path.exists(dir_ms_split):
 
 strtmp = [t.replace(':', '') for t in slfcalms_timeran.split('~')]
 timestr = 'T' + strtmp[0] + '-' + strtmp[1]
-slfcalms = dir_ms_split + 'SUN01_20141101T' + timestr + '.50ms.slfcal.ms'
-slfcal_dbkg_ms = dir_ms_split + 'SUN01_20141101T' + timestr + '.50ms.slfcal.dbkg.ms'
+slfcalms = dir_ms_split + 'SUN01_20141101T' + timestr + '.' + structure_id + '.50ms.slfcal.ms'
+slfcal_dbkg_ms = dir_ms_split + 'SUN01_20141101T' + timestr + '.' + structure_id + '.50ms.slfcal.dbkg.ms'
 
 debkg = False
 prep = False
-tofits = True
+tofits = False
 
 print 'Script for calibrating 2014 Nov 1 data --- ' + structure_id
 print ''
 
 if debkg:
-    slfcalms = dir_ms_split + 'SUN01_20141101T' + timestr + '.50ms.slfcal.dbkg.ms'
+    slfcalms = dir_ms_split + 'SUN01_20141101T' + timestr + '.' + structure_id + '.50ms.slfcal.dbkg.ms'
 else:
-    slfcalms = dir_ms_split + 'SUN01_20141101T' + timestr + '.50ms.slfcal.ms'
+    slfcalms = dir_ms_split + 'SUN01_20141101T' + timestr + '.' + structure_id + '.50ms.slfcal.ms'
 
 if prep:
     if debkg:
@@ -160,14 +180,7 @@ freqInfo = axisInfo["axis_info"]["freq_axis"]["chan_freq"].swapaxes(0, 1) / 1e9
 freqInfo_ravel = freqInfo.ravel()
 timeInfo = axisInfo["axis_info"]["time_axis"]['MJDseconds']
 timran = ms.range(["time"])
-
-refantenna = 'ea04'
-# antennas='0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26'
-antennas = '0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,26'
-# antennas = ''
-
-# t_int=tim[idx_tim[-1]]-tim[idx_tim[len(idx_selec[0])/2]]
-# ii=900#len(idx_selec[1])/2
+ms.close()
 
 t_int = 0.05
 
@@ -200,13 +213,10 @@ spwstr = spw
 
 calprefix = 'caltables/'
 if not os.path.exists(calprefix):
-    os.mkdir(calprefix)
-imgprefix = 'slfcal/'
-if not os.path.exists(imgprefix):
-    os.mkdir(imgprefix)
+    os.makedirs(calprefix)
 imgprefix = 'slfcal/' + structure_id + '/'
 if not os.path.exists(imgprefix):
-    os.mkdir(imgprefix)
+    os.makedirs(imgprefix)
 
 calprefix = calprefix + 'cal_SUN_' + timestr + 'T.spw' + ms_spw[0]
 imgprefix = imgprefix + structure_id + '_'
@@ -221,9 +231,12 @@ slfcal_img_local = [imgprefix + timestr + 'T.' + spwstr.replace(':', '-') + '.lo
 slfcal_img_list = [imgprefix + timestr + 'T.' + spwstr.replace(':', '-') + '.slfcal{:d}'.format(ll) for ll in
                    slfcal_list]
 slfcal_table_list = [calprefix + '.slfcal.G{:d}'.format(ll) for ll in slfcal_list]
-uvrange_list = ['<7klambda', '<7klambda', '', '']
+uvrange_list = ['<5klambda', '<5klambda', '', '']
 slfcalms_list = [slfcalms[:-3] + '{}.ms'.format(ll) for ll in slfcal_list]
 # uvrange_list = ['<1klambda', '<3klambda', '<6klambda', '<9klambda', '','']
+
+
+
 
 slfcal_iter = 0
 clearcal(vis=slfcalms, spw=ms_spw[0])
@@ -235,7 +248,12 @@ for l in range(len(cols2rm)):
         tb.removecols(cols2rm[l])
 tb.close()
 
-# first round of self calibration
+for ll in slfcal_img_list:
+    os.system('rm -rf {}*'.format(ll))
+for ll in slfcal_table_list:
+    os.system('rm -rf {}*'.format(ll))
+
+## first round of self calibration
 default('clean')
 vis = slfcalms
 imagename = slfcal_img_list[slfcal_iter]
@@ -247,36 +265,39 @@ weighting = 'briggs'
 robust = 0.5
 niter = 1000
 antenna = antennas
-uvrange = '<5klambda'#uvrange_list[slfcal_iter]
+uvrange = uvrange_list[slfcal_iter]
 npercycle = 50
 imsize = [512, 512]
 cell = ['5arcsec', '5arcsec']
-phasecenter = 'J2000 14h26m22.7351 -14d29m29.801'
+# imsize = [256, 256]
+# cell = ['3arcsec', '3arcsec']
+phasecenter = phasecenter_global
 stokes = pol
-uvtaper = True
+# uvtaper = True
 # outertaper = ['30.0arcsec']
 interactive = True
 usescratch = True
 clean()
 os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.flux')
-os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.mask')
-os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.model')
-os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.psf')
+# os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.mask')
+# os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.model')
+# os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.psf')
 os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.residual')
 
-# gain solution, phase only
+##gain solution, phase only
 gaincal(vis=slfcalms, refant=refantenna, caltable=slfcal_table_list[slfcal_iter], uvrange=uvrange_list[slfcal_iter],
-        spw=spwstr, selectdata=True, timerange=timeran, solint='inf', gaintype='G', calmode='p', minsnr=2,minblperant=2)
+        spw=ms_spw[0], selectdata=True, timerange=timeran, solint='inf', gaintype='G', calmode='p', minsnr=2,
+        minblperant=2, antenna=antennas)
 plotcal(caltable=slfcal_table_list[slfcal_iter], antenna=antennas, xaxis='antenna', yaxis='phase', \
         subplot=111, iteration='channel')
 clearcal(vis=slfcalms, spw=ms_spw[0])
 applycal(vis=slfcalms, gaintable=slfcal_table_list[slfcal_iter], spw=ms_spw[0], selectdata=True, \
-         antenna=antennas, interp='linear', flagbackup=False, applymode='calonly')
+         antenna=antennas, interp='linear', flagbackup=False, applymode='calonly', calwt=False)
 
 os.system('rm -fr ' + slfcalms_list[slfcal_iter + 1])
 split(vis=slfcalms, outputvis=slfcalms_list[slfcal_iter + 1], datacolumn='corrected')
 
-#second round of self calibration
+##second round of self calibration
 slfcal_iter += 1
 tget('clean')
 vis = slfcalms_list[slfcal_iter]
@@ -284,24 +305,24 @@ imagename = slfcal_img_list[slfcal_iter]
 # uvrange = uvrange_list[slfcal_iter]
 clean()
 os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.flux')
-os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.mask')
-os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.model')
-os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.psf')
+# os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.mask')
+# os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.model')
+# os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.psf')
 os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.residual')
 
 gaincal(vis=slfcalms_list[slfcal_iter], refant=refantenna, caltable=slfcal_table_list[slfcal_iter], spw=spwstr, \
         selectdata=True, timerange=timeran, solint='inf', gaintype='G', calmode='p',
-        uvrange=uvrange_list[slfcal_iter], minsnr=2)
+        uvrange=uvrange_list[slfcal_iter], minsnr=2, minblperant=2, antenna=antennas)
 
 plotcal(caltable=slfcal_table_list[slfcal_iter], antenna=antennas, xaxis='antenna', yaxis='phase', subplot=111)
 clearcal(vis=slfcalms, spw=ms_spw[0])
 applycal(vis=slfcalms, gaintable=slfcal_table_list[0:slfcal_iter + 1], spw=ms_spw[0], selectdata=True, \
-         antenna=antennas, interp='linear', flagbackup=False, applymode='calonly')
+         antenna=antennas, interp='linear', flagbackup=False, applymode='calonly', calwt=False)
 
 os.system('rm -fr ' + slfcalms_list[slfcal_iter + 1])
-split(vis=slfcalms, outputvis=slfcalms_list[slfcal_iter + 1], datacolumn='corrected')
+split(vis=slfcalms, outputvis=slfcalms_list[slfcal_iter + 1], spw=ms_spw[0], datacolumn='corrected')
 
-#third round of self calibration
+##third round of self calibration
 slfcal_iter += 1
 tget('clean')
 vis = slfcalms_list[slfcal_iter]
@@ -309,35 +330,34 @@ imagename = slfcal_img_list[slfcal_iter]
 # uvrange = uvrange_list[slfcal_iter]
 clean()
 os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.flux')
-os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.mask')
-os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.model')
-os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.psf')
+# os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.mask')
+# os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.model')
+# os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.psf')
 os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.residual')
 
 gaincal(vis=slfcalms_list[slfcal_iter], refant=refantenna, caltable=slfcal_table_list[slfcal_iter], spw=spwstr, \
         selectdata=True, timerange=timeran, solint='inf', gaintype='G', calmode='p',
-        uvrange=uvrange_list[slfcal_iter], minsnr=2)
+        uvrange=uvrange_list[slfcal_iter], minsnr=2, minblperant=2, antenna=antennas)
 
 plotcal(caltable=slfcal_table_list[slfcal_iter], antenna=antennas, xaxis='antenna', yaxis='phase', \
         subplot=111)
 clearcal(vis=slfcalms, spw=ms_spw[0])
 applycal(vis=slfcalms, gaintable=slfcal_table_list[0:slfcal_iter + 1], spw=ms_spw[0], selectdata=True, \
-         antenna=antennas, interp='linear', flagbackup=False, applymode='calonly')
+         antenna=antennas, interp='linear', flagbackup=False, applymode='calonly', calwt=False)
 
 os.system('rm -fr ' + slfcalms_list[slfcal_iter + 1])
-split(vis=slfcalms, outputvis=slfcalms_list[slfcal_iter + 1], datacolumn='corrected')
+split(vis=slfcalms, outputvis=slfcalms_list[slfcal_iter + 1], spw=ms_spw[0], datacolumn='corrected')
 
-
-#final image
+##final image
 slfcal_iter += 1
 tget('clean')
 vis = slfcalms_list[slfcal_iter]
 imagename = slfcal_img_list[slfcal_iter]
 clean()
 os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.flux')
-os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.mask')
-os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.model')
-os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.psf')
+# os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.mask')
+# os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.model')
+# os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.psf')
 os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.residual')
 
 # split(vis=slfcalms_list[slfcal_iter], outputvis=slfcalms[:-3]+'.spw{}.ms'.format(ms_spw[0]), spw = ms_spw[0],datacolumn='data')
@@ -370,11 +390,11 @@ os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.residual')
 #     #     plotcal(caltable=slfcal_table_list[slfcal_iter], antenna=antennas, xaxis='antenna', yaxis='phase', \
 #     #             subplot=111)
 #     #     applycal(vis=slfcalms, gaintable=slfcal_table_list[0:(slfcal_iter + 1)], spw=ms_spw[0], selectdata=True, \
-#     #              antenna=antennas, interp='linear', flagbackup=False, applymode='calonly')
+#     #              antenna=antennas, interp='linear', flagbackup=False, applymode='calonly', calwt=False)
 #     # else:
 #     #     slfcal_iter -= 1
 #     #     applycal(vis=slfcalms, gaintable=slfcal_table_list[0:(slfcal_iter + 1)], spw=ms_spw[0], selectdata=True, \
-#     #              antenna=antennas, interp='linear', flagbackup=False, applymode='calonly')
+#     #              antenna=antennas, interp='linear', flagbackup=False, applymode='calonly', calwt=False)
 #     #     break
 #     gaincal(vis=slfcalms, refant=refantenna, caltable=slfcal_table_list[slfcal_iter], spw=spwstr, \
 #             selectdata=True, timerange=timeran, solint='inf', gaintype='G', calmode='p',
@@ -385,11 +405,11 @@ os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.residual')
 #         plotcal(caltable=slfcal_table_list[slfcal_iter], antenna=antennas, xaxis='antenna', yaxis='phase', \
 #                 subplot=111)
 #         applycal(vis=slfcalms, gaintable=slfcal_table_list[slfcal_iter], spw=ms_spw[0], selectdata=True, \
-#                  antenna=antennas, interp='linear', flagbackup=False, applymode='calonly')
+#                  antenna=antennas, interp='linear', flagbackup=False, applymode='calonly', calwt=False)
 #     else:
 #         slfcal_iter -= 1
 #         applycal(vis=slfcalms, gaintable=slfcal_table_list[slfcal_iter], spw=ms_spw[0], selectdata=True, \
-#                  antenna=antennas, interp='linear', flagbackup=False, applymode='calonly')
+#                  antenna=antennas, interp='linear', flagbackup=False, applymode='calonly', calwt=False)
 #         break
 # print 'self calibration finished within {:d} iterations'.format(slfcal_iter + 1)
 # # os.system('cp -r {} caltables/{}.spw{}.G'.format(slfcal_table_list[slfcal_iter], structure_id, ms_spw[0]))
@@ -398,7 +418,7 @@ os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.residual')
 #     try:
 #         clearcal(vis=slfcalms, spw=ms_spw[0])
 #         applycal(vis=slfcalms, gaintable=slfcal_table_list[slfcal_iter], spw=ms_spw[0], selectdata=True, \
-#                  antenna=antennas, interp='linear', flagbackup=False, applymode='calonly')
+#                  antenna=antennas, interp='linear', flagbackup=False, applymode='calonly', calwt=False)
 #         # final imaging
 #         tget('clean')
 #         vis = slfcalms
@@ -410,7 +430,7 @@ os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.residual')
 #         npercycle = 10
 #         imsize = [512, 512]
 #         cell = ['5arcsec', '5arcsec']
-#         phasecenter = 'J2000 14h26m22.7351 -14d29m29.801'
+#         phasecenter = phasecenter_global
 #         uvtaper = True
 #         outertaper = ['30.0arcsec']
 #         interactive = False
@@ -457,13 +477,13 @@ os.system('rm -fr ' + slfcal_img_list[slfcal_iter] + '.residual')
 #     stridx1 = ll.index('spw')
 #     stridx2 = ll.index('.G')
 #     applycal(vis=slfcalms, gaintable=ll, spw=ll[stridx1 + 3:stridx2], selectdata=True, \
-#              antenna=antennas, interp='linear', flagbackup=False, applymode='calonly')
+#              antenna=antennas, interp='linear', flagbackup=False, applymode='calonly', calwt=False)
 
 clearcal(vis=slfcalms)
 for ll in xrange(4):
     caltabl = glob.glob('caltables/cal_SUN*.spw{}.slfcal.G?'.format(ll))
-    if len(caltabl) >0:
+    if len(caltabl) > 0:
         applycal(vis=slfcalms, gaintable=caltabl, selectdata=True, \
-             antenna=antennas, interp='linear', flagbackup=False, applymode='calonly')
+                 antenna=antennas, interp='linear', flagbackup=False, applymode='calonly', calwt=False)
     else:
         print 'caltable for spw {} not found'.format(ll)

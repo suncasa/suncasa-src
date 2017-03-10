@@ -1,23 +1,37 @@
 {
   "plot_config": {
-    "tab_FSview_FitANLYS": {
-      "aia_submap_hght": 580,
-      "dspec_small_hght": 180,
-      "dspec_small_wdth": 465,
-      "aia_submap_wdth": 590,
-      "button_wdth": 100,
+    "tab_aiaBrowser": {
+      "YY_select_wdth": 150,
+      "MM_select_wdth": 80,
+      "DD_select_wdth": 80,
+      "hh_select_wdth": 80,
+      "mm_select_wdth": 80,
+      "ss_select_wdth": 80,
+      "button_wdth": 180,
+      "divJSOCinfo_wdth": 500
+    },
+    "tab_MkPlot": {
+      "aia_RSPmap_RES": 800.0,
+      "aia_submap_sz_max": 500.0,
+      "aia_RSPmap_wdth": 400,
+      "aia_RSPmap_hght": 380,
+      "aia_RSP_squarenx": 64.0,
+      "aia_RSP_squareny": 64.0,
+      "aia_submap_wdth": 700,
+      "aia_submap_hght": 700,
+      "time_plot_wdth": 400,
+      "time_plot_hght": 200,
+      "button_wdth": 200,
       "space_wdth50": 50,
+      "space_wdth80": 80,
       "space_hght18": 18,
       "space_wdth20": 20,
-      "space_hght10": 10
+      "space_hght10": 10,
+      "button_wdth_short": 70
     },
-    "tab_XCorr": {
-      "dspec_hght": 400,
-      "dspec_wdth": 430,
-      "dspec_wdth_offset": 0,
-      "CCmap_hght": 400,
-      "CCmap_wdth": 430,
-      "widgetbox_wdth":400
+    "tab_StackPlt": {
+      "stackplt_wdth": 800,
+      "stackplt_hght": 500
     },
     "tab_FSview_base": {
       "dspec_thumb_wdth": 200,
@@ -57,7 +71,7 @@
       "dspec_thumb_hght": 390,
       "dspec_xPro_hght": 200,
       "widgetbox_wdth": 150,
-      "input_tCLN_wdth": 300,
+      "input_tCLN_wdth": 640,
       "button_wdth": 120,
       "space_wdth50": 50,
       "space_hght18": 18,
@@ -74,7 +88,7 @@
       "StrID_DataTb_hght": 280
     },
     "tab_EvtBrowser": {
-      "StrID_DataTb_wdth": 900,
+      "StrID_DataTb_wdth": 1050,
       "dspec_Ctrl_widget_wdth": 200,
       "dspec_hght": 500,
       "dspec_wdth": 1450,
@@ -120,6 +134,7 @@
   },
   "core": {
     "casapy46": "${SUNCASAPY46}",
-    "casapy47": "${SUNCASAPY47}"
+    "casapy47": "${SUNCASAPY47}",
+    "JSOC_reg_email": "sijie.yu@njit.edu"
   }
 }
