@@ -397,7 +397,7 @@ database_dir = config_plot['datadir']['database']
 database_dir = os.path.expandvars(database_dir) + '/aiaBrowserData/'
 if not os.path.exists(database_dir):
     os.system('mkdir {}'.format(database_dir))
-SDO_dir = database_dir + 'Download/'
+SDOdir = database_dir + 'Download/'
 if not os.path.exists(database_dir):
     os.system('mkdir {}'.format(database_dir))
 infile = database_dir + 'MkPlot_args.json'
@@ -406,7 +406,7 @@ with open(infile, 'rb') as fp:
 
 trange = Time([MkPlot_args_dict['tst'], MkPlot_args_dict['ted']], format='iso', scale='utc')
 PlotID = MkPlot_args_dict['PlotID']
-sdofile = DButil.readsdofile(datadir=SDO_dir, wavelength='171', jdtime=trange.jd)
+sdofile = DButil.readsdofile(datadir=SDOdir, wavelength='171', jdtime=trange.jd)
 nsdofile = len(sdofile)
 global sdofileidx
 if nsdofile == 0:

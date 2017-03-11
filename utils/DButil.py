@@ -1,7 +1,6 @@
 import numpy as np
 import os
-import Tkinter
-import tkFileDialog
+import json
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -24,10 +23,25 @@ __email__ = "sijie.yu@njit.edu"
 #         if not os.path.exists(ll):
 #             os.makedirs(ll)
 
+def loadjsonfile(jsonfile,mustexist=True):
+    if os.path.exists(jsonfile):
+        with open(jsonfile, 'r') as fp:
+            data = json.load(fp)
+        return data
+    else:
+        if mustexist:
+            raise SystemExit('{} not found!'.format(jsonfile))
+        else:
+            return None
+
+
+def updatejsonfile(jsonfile,data):
+    with open(jsonfile, 'w') as fp:
+        json.dump(data, fp)
 
 def getsdodir(filename, unique=True):
     '''
-    return a list of the data path relative to the SDO_dir
+    return a list of the data path relative to the SDOdir
     :param filename:
     :return:
     '''
@@ -651,33 +665,41 @@ class ButtonsPlayCTRL():
         self.buttons = [BUT_first, BUT_prev, BUT_play, BUT_next, BUT_last]
 
 
-class FileDialog():
-    '''
-    produce a file dialog button widget for bokeh plot
-    '''
-
-    def __init__(self, plot_width=50, labels={'dir':'...','open':'open','save':'save'}, *args,
-                 **kwargs):
-        from bokeh.models import Button
-        buttons = {}
-        for k,v in labels.items():
-            buttons[k] = Button(label=v, width=plot_width)
-        self.buttons = buttons
-
-    def askdirectory(self):
-        Tkinter.Tk().withdraw()  # Close the root window
-        in_path = tkFileDialog.askdirectory()
-        if in_path:
-            return in_path
-
-    def askopenfilename(self):
-        Tkinter.Tk().withdraw()  # Close the root window
-        in_path = tkFileDialog.askopenfilename()
-        if in_path:
-            return in_path
-
-    def asksaveasfilename(self):
-        Tkinter.Tk().withdraw()  # Close the root window
-        in_path = tkFileDialog.asksaveasfilename()
-        if in_path:
-            return in_path
+# class FileDialog():
+#     '''
+#     produce a file dialog button widget for bokeh plot
+#     '''
+#     import Tkinter
+#     import tkFileDialog
+#
+#     def __init__(self, plot_width=30, labels={'dir':'...','open':'open','save':'save'}, *args,
+#                  **kwargs):
+#         from bokeh.models import Button
+#         buttons = {}
+#         for k,v in labels.items():
+#             buttons[k] = Button(label=v, width=plot_width)
+#         self.buttons = buttons
+#
+#     def askdirectory(self):
+#         tkRoot = Tkinter.Tk()
+#         tkRoot.withdraw()  # Close the root window
+#         in_path = tkFileDialog.askdirectory()
+#         tkRoot.destroy()
+#         if in_path:
+#             return in_path
+#
+#     def askopenfilename(self):
+#         tkRoot = Tkinter.Tk()
+#         tkRoot.withdraw()  # Close the root window
+#         in_path = tkFileDialog.askopenfilename()
+#         tkRoot.destroy()
+#         if in_path:
+#             return in_path
+#
+#     def asksaveasfilename(self):
+#         tkRoot = Tkinter.Tk()
+#         tkRoot.withdraw()  # Close the root window
+#         in_path = tkFileDialog.asksaveasfilename()
+#         tkRoot.destroy()
+#         if in_path:
+#             return in_path

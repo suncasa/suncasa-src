@@ -19,6 +19,8 @@ import drms
 from sunpy.lightcurve import GOESLightCurve
 from sunpy.time import TimeRange
 from suncasa.utils import DButil
+import Tkinter
+import tkFileDialog
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -42,15 +44,36 @@ ports = []
 '''load config file'''
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
 '''load config file'''
-with open(suncasa_dir + 'aiaBrowser/config.json', 'r') as fp:
-    config = json.load(fp)
+config = DButil.loadjsonfile(suncasa_dir + 'aiaBrowser/config.json')
 
 database_dir = os.path.expandvars(config['datadir']['database']) + '/aiaBrowserData/'
 if not os.path.exists(database_dir):
     os.makedirs(database_dir)
-SDO_dir = database_dir + 'Download/'
-if not os.path.exists(SDO_dir):
-    os.makedirs(SDO_dir)
+
+# if 'SDOdir' in config['datadir'].keys():
+#     if config['datadir']['SDOdir']:
+#         SDOdir = config['datadir']['SDOdir']
+# else:
+#     SDOdir = database_dir + 'Download/'
+#     config['datadir']['SDOdir'] = SDOdir
+#     fout = suncasa_dir + 'aiaBrowser/config.json'
+#     DButil.updatejsonfile(fout, config)
+try:
+    if config['datadir']['SDOdir']:
+        SDOdir = config['datadir']['SDOdir']
+    else:
+        SDOdir = database_dir + 'Download/'
+        config['datadir']['SDOdir'] = SDOdir
+        fout = suncasa_dir + 'aiaBrowser/config.json'
+        DButil.updatejsonfile(fout, config)
+except:
+    SDOdir = database_dir + 'Download/'
+    config['datadir']['SDOdir'] = SDOdir
+    fout = suncasa_dir + 'aiaBrowser/config.json'
+    DButil.updatejsonfile(fout, config)
+
+if not os.path.exists(SDOdir):
+    os.makedirs(SDOdir)
 
 YY_select_st = Select(title="Start Time: Year", value="2014", options=['{:04d}'.format(ll) for ll in range(2010, 2025)],
                       width=config['plot_config']['tab_aiaBrowser']['YY_select_wdth'])
@@ -228,7 +251,8 @@ Div_info = Div(text="""<p><b>Warning</b>: Click <b>Exit</b> first before closing
 Div_JSOC_info = Div(text="""""",
                     width=config['plot_config']['tab_aiaBrowser']['divJSOCinfo_wdth'])
 
-Text_sdodir = TextInput(value=SDO_dir, title="Directory:")
+Text_sdodir = TextInput(value=SDOdir, title="Directory:",
+                        width=config['plot_config']['tab_aiaBrowser']['button_wdth'] * 2, sizing_mode='scale_width')
 Text_Cadence = TextInput(value='12s', title="Cadence:", width=config['plot_config']['tab_aiaBrowser']['button_wdth'])
 Text_email = TextInput(value='', title="JSOC registered email:",
                        width=config['plot_config']['tab_aiaBrowser']['button_wdth'])
@@ -361,23 +385,23 @@ def DownloadData():
                     Div_JSOC_info.text = Div_JSOC_info.text + """<p>{:d} file(s) available for download.</p>""".format(
                         len(r.urls))
                     idx2download = DButil.FileNotInList(r.data['filename'],
-                                                        DButil.readsdofile(datadir=SDO_dir, wavelength=wave,
+                                                        DButil.readsdofile(datadir=SDOdir, wavelength=wave,
                                                                            jdtime=[tst.jd, ted.jd],
                                                                            isexists=True))
                     if len(idx2download) > 0:
-                        r.download(SDO_dir, index=idx2download)
+                        r.download(SDOdir, index=idx2download)
                         # Div_JSOC_info.text = Div_JSOC_info.text + """<p>Target file(s) existed.</p>"""
 
-                    filename = glob.glob(SDO_dir + '*.fits')
+                    filename = glob.glob(SDOdir + '*.fits')
                     dirs = DButil.getsdodir(filename)
                     for ll, dd in enumerate(dirs['dir']):
-                        if not os.path.exists(SDO_dir + dd):
-                            os.makedirs(SDO_dir + dd)
-                        os.system('mv {}/*{}*.fits {}{}'.format(SDO_dir, dirs['timstr'][ll], SDO_dir, dd))
+                        if not os.path.exists(SDOdir + dd):
+                            os.makedirs(SDOdir + dd)
+                        os.system('mv {}/*{}*.fits {}{}'.format(SDOdir, dirs['timstr'][ll], SDOdir, dd))
 
                     Div_JSOC_info.text = Div_JSOC_info.text + """<p>Download finished.</p>"""
                     Div_JSOC_info.text = Div_JSOC_info.text + """<p>Download directory: {}</p>""".format(
-                        os.path.abspath(SDO_dir))
+                        os.path.abspath(SDOdir))
                 except:
                     print qstr + ' fail to export'
 
@@ -411,25 +435,22 @@ BUT_MkPlot.on_click(MkPlot)
 
 
 def Buttonaskdir_handler():
-    global SDO_dir
-    import Tkinter
-    import tkFileDialog
+    global SDOdir
     tkRoot = Tkinter.Tk()
     tkRoot.withdraw()  # Close the root window
-    in_path = tkFileDialog.askdirectory(initialdir=SDO_dir,parent=tkRoot)
+    in_path = tkFileDialog.askdirectory(initialdir=SDOdir, parent=tkRoot) + '/'
     tkRoot.destroy()
-    # Tkinter.Tk().withdraw()  # Close the root window
-    # in_path = tkFileDialog.askdirectory(initialdir=SDO_dir)
     if in_path:
         Text_sdodir.value = in_path
-        SDO_dir = in_path
+        SDOdir = in_path
+        config['datadir']['SDOdir'] = SDOdir
+        fout = suncasa_dir + 'aiaBrowser/config.json'
+        DButil.updatejsonfile(fout, config)
         print in_path
 
 
-# ButtonsFileDialog = DButil.FileDialog(labels={'dir': '...'})
-
-But_dir = Button(label='...', width=30)
-But_dir.on_click(Buttonaskdir_handler)
+But_sdodir = Button(label='Directory', width=config['plot_config']['tab_aiaBrowser']['button_wdth'])
+But_sdodir.on_click(Buttonaskdir_handler)
 
 
 def exit_update():
@@ -444,10 +465,9 @@ SPCR_LFT_widgetbox = Spacer(width=50, height=10)
 SPCR_RGT_widgetbox = Spacer(width=50, height=10)
 
 lout = row(column(row(YY_select_st, MM_select_st, DD_select_st, hh_select_st, mm_select_st, ss_select_st),
-                  row(YY_select_ed, MM_select_ed, DD_select_ed, hh_select_ed, mm_select_ed, ss_select_ed),
-                  row(Text_sdodir, But_dir)),
+                  row(YY_select_ed, MM_select_ed, DD_select_ed, hh_select_ed, mm_select_ed, ss_select_ed)),
            SPCR_LFT_widgetbox, Wavelngth_checkbox, SPCR_RGT_widgetbox,
-           widgetbox(Text_Cadence, Text_email, BUT_DownloadData,
+           widgetbox(Text_Cadence, Text_email, Text_sdodir, But_sdodir, BUT_DownloadData,
                      Text_PlotID,
                      BUT_MkPlot, BUT_exit, Div_info,
                      width=config['plot_config']['tab_aiaBrowser']['button_wdth']))
