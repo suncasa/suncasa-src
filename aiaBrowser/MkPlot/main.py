@@ -364,19 +364,21 @@ def MkStackplt():
                         'wavelength': '{:.0f}'.format(smap.wavelength.value), 'observatory': smap.observatory,
                         'instrument': smap.instrument[0:3]}
         Div_info.text = """<p>click <b>Stackplt</b> to view the stack plot</p>"""
+        return True
     else:
         Div_info.text = """<p>load the chunk first!!!</p>"""
+        return False
 
 
 def StackpltView():
-    MkStackplt()
-    stackplt_save = database_dir + 'stackplt-' + PlotID + '.npy'
-    np.save(stackplt_save, stackpltdict)
-    port = DButil.getfreeport()
-    print 'bokeh serve {}aiaBrowser/StackPlt --show --port {} &'.format(suncasa_dir, port)
-    os.system('bokeh serve {}aiaBrowser/StackPlt --show --port {} &'.format(suncasa_dir, port))
-    ports.append(port)
-    Div_info.text = """<p><p>Check the <b>StackPlt</b> in the <b>new tab</b>.</p>"""
+    if MkStackplt():
+        stackplt_save = database_dir + 'stackplt-' + PlotID + '.npy'
+        np.save(stackplt_save, stackpltdict)
+        port = DButil.getfreeport()
+        print 'bokeh serve {}aiaBrowser/StackPlt --show --port {} &'.format(suncasa_dir, port)
+        os.system('bokeh serve {}aiaBrowser/StackPlt --show --port {} &'.format(suncasa_dir, port))
+        ports.append(port)
+        Div_info.text = """<p><p>Check the <b>StackPlt</b> in the <b>new tab</b>.</p>"""
 
 
 def exit_update():

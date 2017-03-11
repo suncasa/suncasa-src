@@ -409,7 +409,7 @@ Div_exit = Div(
     width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
 
-def exit():
+def exit_update():
     Div_exit.text = """<p><b>You may close the tab anytime you like.</b></p>"""
     raise SystemExit
 
@@ -417,7 +417,7 @@ def exit():
 BUT_exit = Button(label='Exit FSview',
                   width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                   button_type='danger')
-BUT_exit.on_click(exit)
+BUT_exit.on_click(exit_update)
 
 lout = column(row(gridplot([[p_dspec, p_dspecfit]], toolbar_location='right'), p_dspec_profile),
               row(gridplot([[p_CCmax, p_CCpeak]], toolbar_location='right'),

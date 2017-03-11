@@ -1,7 +1,72 @@
 import numpy as np
+import os
+import Tkinter
+import tkFileDialog
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
+
+
+# def mkunidir(dirlist, isdir=True):
+#     '''
+#     get the list of all unique directories from the filelist, make these directories
+#     :param dirlist:
+#     :param isdir: if dirlist is a list of directories.
+#                 if not, dirlist is a list of full path of files,
+#                 the base name will be removed from the paths.
+#     :return:
+#     '''
+#     import os
+#     if not isdir:
+#         dirlist = [os.path.dirname(ff) for ff in dirlist]
+#     dirs = list(set(dirlist))
+#     for ll in dirs:
+#         if not os.path.exists(ll):
+#             os.makedirs(ll)
+
+
+def getsdodir(filename, unique=True):
+    '''
+    return a list of the data path relative to the SDO_dir
+    :param filename:
+    :return:
+    '''
+    if type(filename) == str:
+        filename = [filename]
+    dirlist = []
+    timstrs = []
+    if unique:
+        for ll in filename:
+            timstr = os.path.basename(ll).split('.')[2].split('T')[0]
+            ymd = timstr.replace('-', '/')
+            dirlist.append('/{}/_{}'.format(ymd, timstr))
+        dirlist = list(set(dirlist))
+        for ll, dd in enumerate(dirlist):
+            dirlist[ll], timstr = dd.split('_')
+            timstrs.append(timstr)
+    else:
+        for ll in filename:
+            timstr = os.path.basename(ll).split('.')[2].split('T')[0]
+            ymd = timstr.replace('-', '/')
+            dirlist.append('/{}/'.format(ymd))
+            timstrs.append(timstr)
+    return {'dir': dirlist, 'timstr': timstrs}
+
+
+def FileNotInList(file2chk, filelist):
+    '''
+    return the index of files not in the list
+    :param file2chk: files to be check
+    :param filelist: the list
+    :return:
+    '''
+    idxs = []
+    if len(file2chk) > 0:
+        filelist = [os.path.basename(ll) for ll in filelist]
+        for idx, items in enumerate(file2chk):
+            if items not in filelist:
+                idxs.append(idx)
+    return idxs
 
 
 def getfreeport():
@@ -67,12 +132,21 @@ def insertchar(source_str, insert_str, pos):
     return source_str[:pos] + insert_str + source_str[pos:]
 
 
+# def get_trange_files(trange):
+#     '''
+#     Given a timerange, this routine will take all relevant SDO files from that time range,
+#     put them in a list, and return that list.
+#     :param trange: two elements list of timestamps in Julian days
+#     :return:
+#     '''
+
+
 def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timtol=1):
     '''
     read sdo file from local database
     :param datadir:
     :param wavelength:
-    :param jdtime: the timestamp or timerange. if is timerange, return a list of files in the timerange
+    :param jdtime: the timestamp or timerange in Julian days. if is timerange, return a list of files in the timerange
     :param isexists: check if file exist. if files exist, return file name
     :param timtol: time difference tolerance in days for considering data as the same timestamp
     :return:
@@ -81,11 +155,8 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
     import os
     from astropy.time import Time
     import sunpy.map
-    sdofitspath = glob.glob(datadir + '/aia.lev1_*Z.{}.image_lev1.fits'.format(wavelength))
-    sdofits = [os.path.basename(ll) for ll in sdofitspath]
-    sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
-                        for
-                        ll in sdofits], format='iso', scale='utc')
+    from datetime import date, timedelta as td
+
     if timtol < 12. / 3600 / 24:
         timtol = 12. / 3600 / 24
     if isinstance(jdtime, list) or isinstance(jdtime, tuple) or type(jdtime) == np.ndarray:
@@ -95,13 +166,43 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
             if jdtime[1] < jdtime[0]:
                 raise ValueError('start time must be occur earlier than end time!')
             else:
-                sdofile = list(np.array(sdofitspath)[np.where(np.logical_and(jdtime[0] < sdotimeline.jd,sdotimeline.jd < jdtime[1]))[0]])
-                if len(sdofile)==0:
+                sdofitspath = []
+                jdtimestr = [Time(ll, format='jd').iso for ll in jdtime]
+                ymd = [ll.split(' ')[0].split('-') for ll in jdtimestr]
+                d1 = date(int(ymd[0][0]), int(ymd[0][1]), int(ymd[0][2]))
+                d2 = date(int(ymd[1][0]), int(ymd[1][1]), int(ymd[1][2]))
+                delta = d2 - d1
+                for i in xrange(delta.days + 1):
+                    ymd = d1 + td(days=i)
+                    sdofitspathtmp = glob.glob(
+                        datadir + '/{:04d}/{:02d}/{:02d}/aia.lev1_*Z.{}.image_lev1.fits'.format(ymd.year, ymd.month,
+                                                                                                ymd.day, wavelength))
+                    if len(sdofitspathtmp) > 0:
+                        sdofitspath = sdofitspath + sdofitspathtmp
+                if len(sdofitspath) == 0:
                     raise ValueError(
-                        'No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
-                else:
-                    return sdofile
+                        'No SDO file found under {} at the time range of {} to {}. Download the data with EvtBrowser first.'.format(
+                            datadir, jdtimestr[0], jdtimestr[1]))
+                sdofits = [os.path.basename(ll) for ll in sdofitspath]
+                sdotimeline = Time(
+                    [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
+                     for
+                     ll in sdofits], format='iso', scale='utc')
+                sdofile = list(np.array(sdofitspath)[
+                                   np.where(np.logical_and(jdtime[0] < sdotimeline.jd, sdotimeline.jd < jdtime[1]))[0]])
+                return sdofile
     else:
+        jdtimstr = Time(jdtime, format='jd').iso
+        ymd = jdtimstr.split(' ')[0].split('-')
+        sdofitspath = glob.glob(
+            datadir + '/{}/{}/{}/aia.lev1_*Z.{}.image_lev1.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
+        if len(sdofitspath) == 0:
+            raise ValueError('No SDO file found under {}.'.format(datadir))
+        sdofits = [os.path.basename(ll) for ll in sdofitspath]
+        sdotimeline = Time(
+            [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
+             for
+             ll in sdofits], format='iso', scale='utc')
         if timtol < np.min(np.abs(sdotimeline.jd - jdtime)):
             raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
         idxaia = np.argmin(np.abs(sdotimeline.jd - jdtime))
@@ -197,7 +298,7 @@ def improfile(z, xi, yi, interp='cubic'):
     if interp == 'cubic':
         zi = scipy.ndimage.map_coordinates(z, np.vstack((x, y)))
     else:
-        zi = z[np.floor(y).astype(np.int),np.floor(x).astype(np.int)]
+        zi = z[np.floor(y).astype(np.int), np.floor(x).astype(np.int)]
 
     return zi
 
@@ -549,3 +650,34 @@ class ButtonsPlayCTRL():
         BUT_last = Button(label='>>', width=plot_width, button_type='primary')
         self.buttons = [BUT_first, BUT_prev, BUT_play, BUT_next, BUT_last]
 
+
+class FileDialog():
+    '''
+    produce a file dialog button widget for bokeh plot
+    '''
+
+    def __init__(self, plot_width=50, labels={'dir':'...','open':'open','save':'save'}, *args,
+                 **kwargs):
+        from bokeh.models import Button
+        buttons = {}
+        for k,v in labels.items():
+            buttons[k] = Button(label=v, width=plot_width)
+        self.buttons = buttons
+
+    def askdirectory(self):
+        Tkinter.Tk().withdraw()  # Close the root window
+        in_path = tkFileDialog.askdirectory()
+        if in_path:
+            return in_path
+
+    def askopenfilename(self):
+        Tkinter.Tk().withdraw()  # Close the root window
+        in_path = tkFileDialog.askopenfilename()
+        if in_path:
+            return in_path
+
+    def asksaveasfilename(self):
+        Tkinter.Tk().withdraw()  # Close the root window
+        in_path = tkFileDialog.asksaveasfilename()
+        if in_path:
+            return in_path

@@ -7,9 +7,9 @@ import pandas as pd
 import sunpy.map
 from sys import platform
 from bokeh.layouts import row, column, widgetbox, gridplot
-from bokeh.models import (ColumnDataSource, CustomJS, Slider, Button, TextInput, RadioButtonGroup, CheckboxGroup,
+from bokeh.models import (ColumnDataSource, CustomJS, Slider, Button, RadioButtonGroup, CheckboxGroup,
                           BoxSelectTool, TapTool, LassoSelectTool, Tool, HoverTool, Spacer, LabelSet, Div)
-from bokeh.models.widgets import Select
+from bokeh.models.widgets import Select, TextInput
 from bokeh.plotting import figure, curdoc
 from bokeh.core.properties import Instance
 import glob
@@ -228,6 +228,7 @@ Div_info = Div(text="""<p><b>Warning</b>: Click <b>Exit</b> first before closing
 Div_JSOC_info = Div(text="""""",
                     width=config['plot_config']['tab_aiaBrowser']['divJSOCinfo_wdth'])
 
+Text_sdodir = TextInput(value=SDO_dir, title="Directory:")
 Text_Cadence = TextInput(value='12s', title="Cadence:", width=config['plot_config']['tab_aiaBrowser']['button_wdth'])
 Text_email = TextInput(value='', title="JSOC registered email:",
                        width=config['plot_config']['tab_aiaBrowser']['button_wdth'])
@@ -245,14 +246,16 @@ selected_time = {'YY_select_st': YY_select_st.value, 'MM_select_st': MM_select_s
                  'DD_select_ed': DD_select_ed.value, 'hh_select_ed': hh_select_ed.value,
                  'mm_select_ed': mm_select_ed.value, 'ss_select_ed': ss_select_ed.value}
 
-def gettimestr(YY,MM,DD,hh,mm,ss):
-    return '{}-{}-{} {}:{}:{}'.format(YY, MM, DD, hh,mm, ss)
+
+def gettimestr(YY, MM, DD, hh, mm, ss):
+    return '{}-{}-{} {}:{}:{}'.format(YY, MM, DD, hh, mm, ss)
+
 
 def gettime():
     tststr = gettimestr(YY_select_st.value, MM_select_st.value, DD_select_st.value, hh_select_st.value,
-                               mm_select_st.value, ss_select_st.value)
+                        mm_select_st.value, ss_select_st.value)
     tedstr = gettimestr(YY_select_ed.value, MM_select_ed.value, DD_select_ed.value, hh_select_ed.value,
-                               mm_select_ed.value, ss_select_ed.value)
+                        mm_select_ed.value, ss_select_ed.value)
     return Time([tststr, tedstr], format='iso', scale='utc')
 
 
@@ -301,17 +304,6 @@ def get_num(x):
 
 global MkPlot_args_dict
 MkPlot_args_dict = {}
-
-
-def CheckFileinList(file2chk, filelist):
-    # return the index of files tobe downloaded
-    idxs = []
-    if len(file2chk) > 0:
-        filelist = [os.path.basename(ll) for ll in filelist]
-        for idx, items in enumerate(file2chk):
-            if items not in filelist:
-                idxs.append(idx)
-    return idxs
 
 
 def DownloadData():
@@ -368,10 +360,21 @@ def DownloadData():
                     Div_JSOC_info.text = Div_JSOC_info.text + """<p>Request URL: {}</p>""".format(r.request_url)
                     Div_JSOC_info.text = Div_JSOC_info.text + """<p>{:d} file(s) available for download.</p>""".format(
                         len(r.urls))
-                    idx2download = CheckFileinList(r.data['filename'], glob.glob(SDO_dir + '*.fits'))
+                    idx2download = DButil.FileNotInList(r.data['filename'],
+                                                        DButil.readsdofile(datadir=SDO_dir, wavelength=wave,
+                                                                           jdtime=[tst.jd, ted.jd],
+                                                                           isexists=True))
                     if len(idx2download) > 0:
                         r.download(SDO_dir, index=idx2download)
-                        Div_JSOC_info.text = Div_JSOC_info.text + """<p>Target file(s) existed.</p>"""
+                        # Div_JSOC_info.text = Div_JSOC_info.text + """<p>Target file(s) existed.</p>"""
+
+                    filename = glob.glob(SDO_dir + '*.fits')
+                    dirs = DButil.getsdodir(filename)
+                    for ll, dd in enumerate(dirs['dir']):
+                        if not os.path.exists(SDO_dir + dd):
+                            os.makedirs(SDO_dir + dd)
+                        os.system('mv {}/*{}*.fits {}{}'.format(SDO_dir, dirs['timstr'][ll], SDO_dir, dd))
+
                     Div_JSOC_info.text = Div_JSOC_info.text + """<p>Download finished.</p>"""
                     Div_JSOC_info.text = Div_JSOC_info.text + """<p>Download directory: {}</p>""".format(
                         os.path.abspath(SDO_dir))
@@ -407,21 +410,46 @@ BUT_MkPlot = Button(label='MkPlot', width=config['plot_config']['tab_aiaBrowser'
 BUT_MkPlot.on_click(MkPlot)
 
 
-def exit():
+def Buttonaskdir_handler():
+    global SDO_dir
+    import Tkinter
+    import tkFileDialog
+    tkRoot = Tkinter.Tk()
+    tkRoot.withdraw()  # Close the root window
+    in_path = tkFileDialog.askdirectory(initialdir=SDO_dir,parent=tkRoot)
+    tkRoot.destroy()
+    # Tkinter.Tk().withdraw()  # Close the root window
+    # in_path = tkFileDialog.askdirectory(initialdir=SDO_dir)
+    if in_path:
+        Text_sdodir.value = in_path
+        SDO_dir = in_path
+        print in_path
+
+
+# ButtonsFileDialog = DButil.FileDialog(labels={'dir': '...'})
+
+But_dir = Button(label='...', width=30)
+But_dir.on_click(Buttonaskdir_handler)
+
+
+def exit_update():
     Div_info.text = """<p><b>You may close the tab anytime you like.</b></p>"""
     raise SystemExit
 
 
 BUT_exit = Button(label='Exit', width=config['plot_config']['tab_aiaBrowser']['button_wdth'], button_type='danger')
-BUT_exit.on_click(exit)
+BUT_exit.on_click(exit_update)
 
 SPCR_LFT_widgetbox = Spacer(width=50, height=10)
 SPCR_RGT_widgetbox = Spacer(width=50, height=10)
 
 lout = row(column(row(YY_select_st, MM_select_st, DD_select_st, hh_select_st, mm_select_st, ss_select_st),
-                  row(YY_select_ed, MM_select_ed, DD_select_ed, hh_select_ed, mm_select_ed, ss_select_ed)),
+                  row(YY_select_ed, MM_select_ed, DD_select_ed, hh_select_ed, mm_select_ed, ss_select_ed),
+                  row(Text_sdodir, But_dir)),
            SPCR_LFT_widgetbox, Wavelngth_checkbox, SPCR_RGT_widgetbox,
-           widgetbox(Text_Cadence, Text_email, BUT_DownloadData, Text_PlotID, BUT_MkPlot, BUT_exit, Div_info,
+           widgetbox(Text_Cadence, Text_email, BUT_DownloadData,
+                     Text_PlotID,
+                     BUT_MkPlot, BUT_exit, Div_info,
                      width=config['plot_config']['tab_aiaBrowser']['button_wdth']))
 # def timeout_callback():
 #     print 'timeout'

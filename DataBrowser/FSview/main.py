@@ -1352,7 +1352,7 @@ if os.path.exists(FS_dspecDF):
         pols = DButil.polsfromfitsheader(hdu.header)
         # initial dspecDF_select and dspecDF0POL
         dspecDF_select = DButil.dspecDFfilter(dspecDF0, pols[0])
-        dspecDF0POL = DButil.dspecDFfilter(dspecDF0, pols[0])
+        dspecDF0POL = dspecDF_select.copy() #DButil.dspecDFfilter(dspecDF0, pols[0])
 
         # initial the VLA map contour source
         tab2_SRC_vlamap_contour = ColumnDataSource(
