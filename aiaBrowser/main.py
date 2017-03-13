@@ -50,22 +50,14 @@ database_dir = os.path.expandvars(config['datadir']['database']) + '/aiaBrowserD
 if not os.path.exists(database_dir):
     os.makedirs(database_dir)
 
-# if 'SDOdir' in config['datadir'].keys():
-#     if config['datadir']['SDOdir']:
-#         SDOdir = config['datadir']['SDOdir']
-# else:
-#     SDOdir = database_dir + 'Download/'
-#     config['datadir']['SDOdir'] = SDOdir
-#     fout = suncasa_dir + 'aiaBrowser/config.json'
-#     DButil.updatejsonfile(fout, config)
+
 try:
     if config['datadir']['SDOdir']:
         SDOdir = config['datadir']['SDOdir']
+        if not os.path.exists(SDOdir):
+            os.makedirs(SDOdir)
     else:
-        SDOdir = database_dir + 'Download/'
-        config['datadir']['SDOdir'] = SDOdir
-        fout = suncasa_dir + 'aiaBrowser/config.json'
-        DButil.updatejsonfile(fout, config)
+        raise ValueError
 except:
     SDOdir = database_dir + 'Download/'
     config['datadir']['SDOdir'] = SDOdir
@@ -74,6 +66,7 @@ except:
 
 if not os.path.exists(SDOdir):
     os.makedirs(SDOdir)
+
 
 YY_select_st = Select(title="Start Time: Year", value="2014", options=['{:04d}'.format(ll) for ll in range(2010, 2025)],
                       width=config['plot_config']['tab_aiaBrowser']['YY_select_wdth'])

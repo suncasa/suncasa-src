@@ -545,6 +545,7 @@ def regridspec(spec, x, y, nxmax=None, nymax=None):
     :param nymax:
     :return:
     '''
+    import math
     # from scipy.interpolate import griddata
     # npol, nbl, nf, nt = spec.shape
     # if nt > nxmax:
@@ -559,28 +560,29 @@ def regridspec(spec, x, y, nxmax=None, nymax=None):
     #     for b in xrange(nbl):
     #         specnew[p, b, :, :] = griddata(np.stack((xx, yy), axis=-1), spec[p, b, :, :].ravel(), (grid_x, grid_y),method='linear')
     # return [specnew, tt, ff]
-    import matplotlib.pyplot as plt
-    plt.ioff()
-    img = plt.pcolormesh(x, y, spec[0, 0, :, :])
-    img2 = img.get_array().reshape(img._meshHeight, img._meshWidth)
-    nf, nt = img2.shape
-    npol, nbl = spec.shape[:2]
+    # import matplotlib.pyplot as plt
+    # plt.ioff()
+    # img = plt.pcolormesh(x, y, spec[0, 0, :, :])
+    # img2 = img.get_array().reshape(img._meshHeight, img._meshWidth)
+    # nf, nt = img2.shape
+    npol, nbl, nf, nt = spec.shape
     if nt > nxmax:
-        xstep = int(float(nt)/nxmax)
+        xstep = math.ceil(float(nt) / nxmax)
     else:
-        xstep=1
+        xstep = 1
     if nf > nymax:
         ystep = int(float(nf) / nymax)
     else:
-        ystep=1
-    img2 = img2[::ystep,::xstep]
-    nf, nt = img2.shape
-    specnew = np.zeros((npol, nbl, nf, nt))
-    for p in xrange(npol):
-        for b in xrange(nbl):
-            img = plt.pcolormesh(x, y, spec[p, b, :, :])
-            img2 = img.get_array().reshape(img._meshHeight, img._meshWidth)
-            specnew[p, b, :, :] = img2[::ystep,::xstep]
+        ystep = 1
+    specnew = spec[:, :, ::ystep, ::xstep]
+    # img2 = img2[::ystep,::xstep]
+    # nf, nt = img2.shape
+    # specnew = np.zeros((npol, nbl, nf, nt))
+    # for p in xrange(npol):
+    #     for b in xrange(nbl):
+    #         img = plt.pcolormesh(x, y, spec[p, b, :, :])
+    #         img2 = img.get_array().reshape(img._meshHeight, img._meshWidth)
+    #         specnew[p, b, :, :] = img2[::ystep,::xstep]
     return specnew
 
 
