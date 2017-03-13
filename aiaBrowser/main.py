@@ -19,8 +19,6 @@ import drms
 from sunpy.lightcurve import GOESLightCurve
 from sunpy.time import TimeRange
 from suncasa.utils import DButil
-import Tkinter
-import tkFileDialog
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -44,56 +42,44 @@ ports = []
 '''load config file'''
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
 '''load config file'''
-config = DButil.loadjsonfile(suncasa_dir + 'aiaBrowser/config.json')
+config_main = DButil.loadjsonfile(suncasa_dir + 'DataBrowser/config.json')
 
-database_dir = os.path.expandvars(config['datadir']['database']) + '/aiaBrowserData/'
+database_dir = os.path.expandvars(config_main['datadir']['database']) + '/aiaBrowserData/'
 if not os.path.exists(database_dir):
     os.makedirs(database_dir)
 
-
-try:
-    if config['datadir']['SDOdir']:
-        SDOdir = config['datadir']['SDOdir']
-        if not os.path.exists(SDOdir):
-            os.makedirs(SDOdir)
-    else:
-        raise ValueError
-except:
-    SDOdir = database_dir + 'Download/'
-    config['datadir']['SDOdir'] = SDOdir
-    fout = suncasa_dir + 'aiaBrowser/config.json'
-    DButil.updatejsonfile(fout, config)
-
+SDOdir = DButil.getSDOdir(config_main, database_dir, suncasa_dir)
+print SDOdir
 if not os.path.exists(SDOdir):
     os.makedirs(SDOdir)
 
 
 YY_select_st = Select(title="Start Time: Year", value="2014", options=['{:04d}'.format(ll) for ll in range(2010, 2025)],
-                      width=config['plot_config']['tab_aiaBrowser']['YY_select_wdth'])
+                      width=config_main['plot_config']['tab_aiaBrowser']['YY_select_wdth'])
 MM_select_st = Select(title="Month", value="01", options=['{:02d}'.format(ll) for ll in range(1, 13)],
-                      width=config['plot_config']['tab_aiaBrowser']['MM_select_wdth'])
+                      width=config_main['plot_config']['tab_aiaBrowser']['MM_select_wdth'])
 DD_select_st = Select(title="Day", value="01", options=['{:02d}'.format(ll) for ll in range(1, 32)],
-                      width=config['plot_config']['tab_aiaBrowser']['DD_select_wdth'])
+                      width=config_main['plot_config']['tab_aiaBrowser']['DD_select_wdth'])
 hh_select_st = Select(title="hh", value="00", options=['{:02d}'.format(ll) for ll in range(0, 25)],
-                      width=config['plot_config']['tab_aiaBrowser']['hh_select_wdth'])
+                      width=config_main['plot_config']['tab_aiaBrowser']['hh_select_wdth'])
 mm_select_st = Select(title="mm", value="00", options=['{:02d}'.format(ll) for ll in range(0, 60)],
-                      width=config['plot_config']['tab_aiaBrowser']['mm_select_wdth'])
+                      width=config_main['plot_config']['tab_aiaBrowser']['mm_select_wdth'])
 ss_select_st = Select(title="ss", value="00", options=['{:02d}'.format(ll) for ll in range(0, 60)],
-                      width=config['plot_config']['tab_aiaBrowser']['ss_select_wdth'])
+                      width=config_main['plot_config']['tab_aiaBrowser']['ss_select_wdth'])
 
 YY_select_ed = Select(title="End Time: Year", value="2014", options=['{:04d}'.format(ll) for ll in range(2010, 2025)],
-                      width=config['plot_config']['tab_aiaBrowser']['YY_select_wdth'])
+                      width=config_main['plot_config']['tab_aiaBrowser']['YY_select_wdth'])
 MM_select_ed = Select(title="Month", value="01", options=['{:02d}'.format(ll) for ll in range(1, 13)],
-                      width=config['plot_config']['tab_aiaBrowser']['MM_select_wdth'])
+                      width=config_main['plot_config']['tab_aiaBrowser']['MM_select_wdth'])
 DD_select_ed = Select(title="Day", value="01", options=['{:02d}'.format(ll) for ll in range(1, 32)],
-                      width=config['plot_config']['tab_aiaBrowser']['DD_select_wdth'])
+                      width=config_main['plot_config']['tab_aiaBrowser']['DD_select_wdth'])
 hh_select_ed = Select(title="hh", value="23", options=['{:02d}'.format(ll) for ll in range(0, 24)],
-                      width=config['plot_config']['tab_aiaBrowser']['hh_select_wdth'])
+                      width=config_main['plot_config']['tab_aiaBrowser']['hh_select_wdth'])
 mm_select_ed = Select(title="mm", value="59", options=['{:02d}'.format(ll) for ll in range(0, 60)],
-                      width=config['plot_config']['tab_aiaBrowser']['mm_select_wdth'])
+                      width=config_main['plot_config']['tab_aiaBrowser']['mm_select_wdth'])
 ss_select_ed = Select(title="ss", value="59", options=['{:02d}'.format(ll) for ll in range(0, 60)],
-                      width=config['plot_config']['tab_aiaBrowser']['ss_select_wdth'])
-Text_PlotID = TextInput(value='', title="Plot ID:", width=config['plot_config']['tab_aiaBrowser']['button_wdth'])
+                      width=config_main['plot_config']['tab_aiaBrowser']['ss_select_wdth'])
+Text_PlotID = TextInput(value='', title="Plot ID:", width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'])
 
 print database_dir + 'Trange_args.json'
 try:
@@ -240,17 +226,17 @@ def ss_select_ed_select_update(attrname, old, new):
 ss_select_ed.on_change('value', ss_select_ed_select_update)
 
 Div_info = Div(text="""<p><b>Warning</b>: Click <b>Exit</b> first before closing the tab</p></b>""",
-               width=config['plot_config']['tab_aiaBrowser']['button_wdth'])
+               width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'])
 Div_JSOC_info = Div(text="""""",
-                    width=config['plot_config']['tab_aiaBrowser']['divJSOCinfo_wdth'])
+                    width=config_main['plot_config']['tab_aiaBrowser']['divJSOCinfo_wdth'])
 
 Text_sdodir = TextInput(value=SDOdir, title="Directory:",
-                        width=config['plot_config']['tab_aiaBrowser']['button_wdth'] * 2, sizing_mode='scale_width')
-Text_Cadence = TextInput(value='12s', title="Cadence:", width=config['plot_config']['tab_aiaBrowser']['button_wdth'])
+                        width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'] * 2, sizing_mode='scale_width')
+Text_Cadence = TextInput(value='12s', title="Cadence:", width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'])
 Text_email = TextInput(value='', title="JSOC registered email:",
-                       width=config['plot_config']['tab_aiaBrowser']['button_wdth'])
+                       width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'])
 try:
-    email = config['core']['JSOC_reg_email']
+    email = config_main['core']['JSOC_reg_email']
     Text_email.value = email
 except:
     pass
@@ -302,7 +288,7 @@ Text_PlotID.value = getPlotID()
 
 wavelngth_list = ["goes", "HMI_Magnetogram", "1700", "1600", "304", "171", "193", "211", "335", "94", "131"]
 Wavelngth_checkbox = CheckboxGroup(labels=wavelngth_list, active=[0],
-                                   width=config['plot_config']['tab_aiaBrowser']['button_wdth'])
+                                   width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'])
 serieslist = {}
 for ll in wavelngth_list:
     if ll == "HMI_Magnetogram":
@@ -399,7 +385,7 @@ def DownloadData():
                     print qstr + ' fail to export'
 
 
-BUT_DownloadData = Button(label='Download Data', width=config['plot_config']['tab_aiaBrowser']['button_wdth'],
+BUT_DownloadData = Button(label='Download Data', width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'],
                           button_type='primary')
 BUT_DownloadData.on_click(DownloadData)
 
@@ -423,11 +409,13 @@ def MkPlot():
         Div_info.text = Div_info.text + """<p>Check the <b>FS_view</b> in the <b>new tab</b></p>"""
 
 
-BUT_MkPlot = Button(label='MkPlot', width=config['plot_config']['tab_aiaBrowser']['button_wdth'], button_type='success')
+BUT_MkPlot = Button(label='MkPlot', width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'], button_type='success')
 BUT_MkPlot.on_click(MkPlot)
 
 
 def Buttonaskdir_handler():
+    import Tkinter
+    import tkFileDialog
     global SDOdir
     tkRoot = Tkinter.Tk()
     tkRoot.withdraw()  # Close the root window
@@ -436,13 +424,13 @@ def Buttonaskdir_handler():
     if in_path:
         Text_sdodir.value = in_path
         SDOdir = in_path
-        config['datadir']['SDOdir'] = SDOdir
+        config_main['datadir']['SDOdir'] = SDOdir
         fout = suncasa_dir + 'aiaBrowser/config.json'
-        DButil.updatejsonfile(fout, config)
+        DButil.updatejsonfile(fout, config_main)
         print in_path
 
 
-But_sdodir = Button(label='Directory', width=config['plot_config']['tab_aiaBrowser']['button_wdth'])
+But_sdodir = Button(label='Directory', width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'])
 But_sdodir.on_click(Buttonaskdir_handler)
 
 
@@ -451,7 +439,7 @@ def exit_update():
     raise SystemExit
 
 
-BUT_exit = Button(label='Exit', width=config['plot_config']['tab_aiaBrowser']['button_wdth'], button_type='danger')
+BUT_exit = Button(label='Exit', width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'], button_type='danger')
 BUT_exit.on_click(exit_update)
 
 SPCR_LFT_widgetbox = Spacer(width=50, height=10)
@@ -463,7 +451,7 @@ lout = row(column(row(YY_select_st, MM_select_st, DD_select_st, hh_select_st, mm
            widgetbox(Text_Cadence, Text_email, Text_sdodir, But_sdodir, BUT_DownloadData,
                      Text_PlotID,
                      BUT_MkPlot, BUT_exit, Div_info,
-                     width=config['plot_config']['tab_aiaBrowser']['button_wdth']))
+                     width=config_main['plot_config']['tab_aiaBrowser']['button_wdth']))
 # def timeout_callback():
 #     print 'timeout'
 #     raise SystemExit
