@@ -418,7 +418,7 @@ def Buttonaskdir_handler():
         Text_sdodir.value = in_path
         SDOdir = in_path
         config_main['datadir']['SDOdir'] = SDOdir
-        fout = suncasa_dir + 'aiaBrowser/config.json'
+        fout = suncasa_dir + 'DataBrowser/config.json'
         DButil.updatejsonfile(fout, config_main)
         print in_path
 

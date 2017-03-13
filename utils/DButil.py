@@ -50,7 +50,7 @@ def getSDOdir(config,database_dir,suncasa_dir):
     except:
         SDOdir = database_dir + 'Download/'
         config['datadir']['SDOdir'] = SDOdir
-        fout = suncasa_dir + 'aiaBrowser/config.json'
+        fout = suncasa_dir + 'DataBrowser/config.json'
         updatejsonfile(fout, config)
     return SDOdir
 

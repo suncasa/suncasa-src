@@ -37,7 +37,6 @@ elif platform == "win32":
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
 '''load config file'''
 config_main = DButil.loadjsonfile(suncasa_dir + 'DataBrowser/config.json')
-
 database_dir = os.path.expandvars(config_main['datadir']['database']) + '/'
 
 EvtID_list = pd.read_json(database_dir + config_main['datadir']['EvtID_list'])
