@@ -39,6 +39,21 @@ def updatejsonfile(jsonfile, data):
     with open(jsonfile, 'w') as fp:
         json.dump(data, fp)
 
+def getSDOdir(config,database_dir,suncasa_dir):
+    try:
+        if config['datadir']['SDOdir']:
+            SDOdir = config['datadir']['SDOdir']
+            if not os.path.exists(SDOdir):
+                os.makedirs(SDOdir)
+        else:
+            raise ValueError
+    except:
+        SDOdir = database_dir + 'Download/'
+        config['datadir']['SDOdir'] = SDOdir
+        fout = suncasa_dir + 'DataBrowser/config.json'
+        updatejsonfile(fout, config)
+    return SDOdir
+
 
 def getsdodir(filename, unique=True):
     '''

@@ -52,18 +52,17 @@ elif platform == "win32":
 '''load config file'''
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
 '''load config file'''
-with open(suncasa_dir + 'DataBrowser/config.json', 'r') as fp:
-    config_plot = json.load(fp)
-database_dir = config_plot['datadir']['database']
+config_main = DButil.loadjsonfile(suncasa_dir + 'DataBrowser/config.json')
+database_dir = config_main['datadir']['database']
 database_dir = os.path.expandvars(database_dir) + '/'
-with open('{}config_EvtID_curr.json'.format(database_dir), 'r') as fp:
-    config_EvtID = json.load(fp)
-ntmax = config_plot['plot_config']['tab_QLook']['spec_square_rs_tmax']
-nfmax = config_plot['plot_config']['tab_QLook']['spec_square_rs_fmax']
-ntmaximg = config_plot['plot_config']['tab_QLook']['spec_image_rs_tmax']
-nfmaximg = config_plot['plot_config']['tab_QLook']['spec_image_rs_fmax']
+config_EvtID = DButil.loadjsonfile('{}config_EvtID_curr.json'.format(database_dir))
+SDOdir = DButil.getSDOdir(config_main, database_dir + '/aiaBrowserData/', suncasa_dir)
+ntmax = config_main['plot_config']['tab_QLook']['spec_square_rs_tmax']
+nfmax = config_main['plot_config']['tab_QLook']['spec_square_rs_fmax']
+ntmaximg = config_main['plot_config']['tab_QLook']['spec_image_rs_tmax']
+nfmaximg = config_main['plot_config']['tab_QLook']['spec_image_rs_fmax']
 
-spec_image_rs_ratio = config_plot['plot_config']['tab_FSview_base']['spec_image_rs_ratio']
+spec_image_rs_ratio = config_main['plot_config']['tab_FSview_base']['spec_image_rs_ratio']
 
 '''define the colormaps'''
 colormap_jet = cm.get_cmap("jet")  # choose any matplotlib colormap here
@@ -74,7 +73,7 @@ bokehpalette_jet = [colors.rgb2hex(m) for m in colormap_jet(np.arange(colormap_j
 '''
 
 start_timestamp = time.time()
-database_dir = config_plot['datadir']['database']
+database_dir = config_main['datadir']['database']
 database_dir = os.path.expandvars(database_dir) + '/'
 event_id = config_EvtID['datadir']['event_id']
 specfile = database_dir + event_id + config_EvtID['datadir']['event_specfile']
@@ -107,9 +106,9 @@ tab1_dtim = tab1_tim - tab1_tim[0]
 TOOLS = "pan,wheel_zoom,box_zoom,reset,save"
 
 '''create the dynamic spectrum plot'''
-tab1_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
-                      plot_width=config_plot['plot_config']['tab_QLook']['dspec_wdth'],
-                      plot_height=config_plot['plot_config']['tab_QLook']['dspec_hght'],
+tab1_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
+                      plot_width=config_main['plot_config']['tab_QLook']['dspec_wdth'],
+                      plot_height=config_main['plot_config']['tab_QLook']['dspec_hght'],
                       x_range=(tab1_dtim[0], tab1_dtim[-1]),
                       y_range=(tab1_freq[0], tab1_freq[-1]), toolbar_location="above")
 tim0_char = Time((tab1_tim[0] / 3600. / 24. + 2400000.5) * 86400. / 3600. / 24., format='jd', scale='utc',
@@ -214,10 +213,10 @@ tab1_p_dspec.axis.minor_tick_line_color = "white"
 tab1_TbCols = [TableColumn(field="str_id", title="StrID"), TableColumn(field="timeran", title="Time Range"),
                TableColumn(field="freqran", title="Freq Range"), ]
 tab1_DataTb_dspec = DataTable(source=tab1_render_patch.data_source, columns=tab1_TbCols,
-                              width=config_plot['plot_config']['tab_QLook']['StrID_DataTb_wdth'],
-                              height=config_plot['plot_config']['tab_QLook']['StrID_DataTb_hght'])  # , editable=True)
+                              width=config_main['plot_config']['tab_QLook']['StrID_DataTb_wdth'],
+                              height=config_main['plot_config']['tab_QLook']['StrID_DataTb_hght'])  # , editable=True)
 
-tab1_Div_Tb = Div(text=""" """, width=config_plot['plot_config']['tab_QLook']['StrID_DataTb_wdth'])
+tab1_Div_Tb = Div(text=""" """, width=config_main['plot_config']['tab_QLook']['StrID_DataTb_wdth'])
 tab1_Div_exit = Div(text="""
 <p><b>Warning</b>: 1. Click the <b>Exit QLook</b> first before closing the tab</p>
 <p><b>Warning</b>: 2. <b>FSview</b> or <b>FSview2CASA</b> tabs will disconnect if <b>Exit QLook is clicked</b></p>""",
@@ -244,7 +243,9 @@ def tab1_SRC_dspec_square_select(attrname, old, new):
 tab1_SRC_dspec_square.on_change('selected', tab1_SRC_dspec_square_select)
 
 tab1_input_StrID = TextInput(value="Type in here", title="New StrID:",
-                             width=config_plot['plot_config']['tab_QLook']['StrID_DataTb_BUT_wdth'])
+                             width=config_main['plot_config']['tab_QLook']['StrID_DataTb_BUT_wdth'])
+Text_sdodir = TextInput(value=SDOdir, title="SDO Directory:",
+                        width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'] * 2, sizing_mode='scale_width')
 timestart = xx[0]
 
 
@@ -385,7 +386,7 @@ def tab1_update_reloadStrID():
         database_dir + event_id)
 
 
-tab1_BUT_OPT = dict(width=config_plot['plot_config']['tab_QLook']['StrID_DataTb_BUT_wdth'])
+tab1_BUT_OPT = dict(width=config_main['plot_config']['tab_QLook']['StrID_DataTb_BUT_wdth'])
 tab1_BUT_addStrID = Button(label='Add to StrID', button_type='success', **tab1_BUT_OPT)
 tab1_BUT_addStrID.on_click(tab1_update_addStrID)
 tab1_BUT_deleteStrID = Button(label='Delete StrID', button_type='danger', **tab1_BUT_OPT)
@@ -403,6 +404,27 @@ tab1_SPCR_ABV_DataTb_dspec = Spacer(width=100, height=18)
 tab1_SPCR_LFT_But = Spacer(width=10, height=25)
 tab1_SPCR_LFT_DataTb_evt = Spacer(width=20, height=15)
 tab1_SPCR_ABV_DataTb_evt = Spacer(width=100, height=18)
+
+
+def Buttonaskdir_handler():
+    import Tkinter
+    import tkFileDialog
+    global SDOdir
+    tkRoot = Tkinter.Tk()
+    tkRoot.withdraw()  # Close the root window
+    in_path = tkFileDialog.askdirectory(initialdir=SDOdir, parent=tkRoot) + '/'
+    tkRoot.destroy()
+    if in_path:
+        Text_sdodir.value = in_path
+        SDOdir = in_path
+        config_main['datadir']['SDOdir'] = SDOdir
+        fout = suncasa_dir + 'DataBrowser/config.json'
+        DButil.updatejsonfile(fout, config_main)
+        print in_path
+
+
+But_sdodir = Button(label='Directory', width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'])
+But_sdodir.on_click(Buttonaskdir_handler)
 
 
 def tab1_exit():
@@ -428,7 +450,8 @@ panel1 = column(tab1_p_dspec,
                               width=150),
                     tab1_SPCR_LFT_DataTb_evt, tab1_SPCR_LFT_DataTb_dspec, column(tab1_DataTb_dspec, tab1_Div_Tb),
                     tab1_SPCR_LFT_But,
-                    widgetbox(tab1_BUT_FSviewStrID, tab1_input_StrID, tab1_BUT_addStrID, tab1_BUT_deleteStrID,
+                    widgetbox(tab1_BUT_FSviewStrID, Text_sdodir, But_sdodir, tab1_input_StrID, tab1_BUT_addStrID,
+                              tab1_BUT_deleteStrID,
                               tab1_BUT_saveStrID,
                               tab1_BUT_reloadStrID)))
 

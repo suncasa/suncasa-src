@@ -36,12 +36,10 @@ elif platform == "win32":
 
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
 '''load config file'''
-with open(suncasa_dir + 'DataBrowser/config.json', 'r') as fp:
-    config = json.load(fp)
+config_main = DButil.loadjsonfile(suncasa_dir + 'DataBrowser/config.json')
+database_dir = os.path.expandvars(config_main['datadir']['database']) + '/'
 
-database_dir = os.path.expandvars(config['datadir']['database']) + '/'
-
-EvtID_list = pd.read_json(database_dir + config['datadir']['EvtID_list'])
+EvtID_list = pd.read_json(database_dir + config_main['datadir']['EvtID_list'])
 EvtID_list = EvtID_list.sort_values(['date'], ascending=[True])
 
 '''
@@ -49,15 +47,15 @@ EvtID_list = EvtID_list.sort_values(['date'], ascending=[True])
 '''
 tab0_Div_title = Div(text="""
 <p><b>Welcome to Event Browser. Select one solar flare event to start. Have fun!</b></p>""",
-                     width=config['plot_config']['tab_EvtBrowser']['StrID_DataTb_wdth'])
+                     width=config_main['plot_config']['tab_EvtBrowser']['StrID_DataTb_wdth'])
 
 tab0_SRC_Tb_EvtID = ColumnDataSource(EvtID_list)
 tab0_TbCols2 = [TableColumn(field="event_id", title="EvtID"), TableColumn(field="timeran", title="Time Range"),
                 TableColumn(field="freqran", title="Freq Range"), ]
 tab0_DataTb_evt = DataTable(source=tab0_SRC_Tb_EvtID, columns=tab0_TbCols2,
-                            width=config['plot_config']['tab_EvtBrowser']['StrID_DataTb_wdth'],
-                            height=config['plot_config']['tab_EvtBrowser']['StrID_DataTb_hght'])  # , editable=True)
-tab0_Div_Tb = Div(text=""" """, width=config['plot_config']['tab_QLook']['StrID_DataTb_wdth'])
+                            width=config_main['plot_config']['tab_EvtBrowser']['StrID_DataTb_wdth'],
+                            height=config_main['plot_config']['tab_EvtBrowser']['StrID_DataTb_hght'])  # , editable=True)
+tab0_Div_Tb = Div(text=""" """, width=config_main['plot_config']['tab_QLook']['StrID_DataTb_wdth'])
 tab0_Div_exit = Div(text="""
 <p><b>Warning</b>: 1. Click the <b>Exit EvtBrowser</b> first before closing the tab</p>
 <p><b>Warning</b>: 2. <b>QLook</b> <b>FSview</b> or <b>FSview2CASA</b> tabs will disconnect if <b>Exit EvtBrowser is clicked</b></p>""",

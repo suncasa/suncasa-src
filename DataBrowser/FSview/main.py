@@ -44,18 +44,15 @@ elif platform == "win32":
 '''load config file'''
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
 '''load config file'''
-with open(suncasa_dir + 'DataBrowser/config.json', 'r') as fp:
-    config_plot = json.load(fp)
-database_dir = config_plot['datadir']['database']
+config_main = DButil.loadjsonfile(suncasa_dir + 'DataBrowser/config.json')
+database_dir = config_main['datadir']['database']
 database_dir = os.path.expandvars(database_dir) + '/'
-SDOdir = database_dir + '/aiaBrowserData/Download/'
-spec_square_rs_tmax = config_plot['plot_config']['tab_FSview_base']['spec_square_rs_tmax']
-spec_square_rs_fmax = config_plot['plot_config']['tab_FSview_base']['spec_square_rs_fmax']
-spec_image_rs_ratio = config_plot['plot_config']['tab_FSview_base']['spec_image_rs_ratio']
-# dspec_fs_tmax = config_plot['plot_config']['tab_FSview_base']['dspec_fs_tmax']
-# dspec_fs_fmax = config_plot['plot_config']['tab_FSview_base']['dspec_fs_fmax']
-with open('{}config_EvtID_curr.json'.format(database_dir), 'r') as fp:
-    config_EvtID = json.load(fp)
+config_EvtID = DButil.loadjsonfile('{}config_EvtID_curr.json'.format(database_dir))
+SDOdir = DButil.getSDOdir(config_main, database_dir + '/aiaBrowserData/', suncasa_dir)
+spec_square_rs_tmax = config_main['plot_config']['tab_FSview_base']['spec_square_rs_tmax']
+spec_square_rs_fmax = config_main['plot_config']['tab_FSview_base']['spec_square_rs_fmax']
+spec_image_rs_ratio = config_main['plot_config']['tab_FSview_base']['spec_image_rs_ratio']
+
 
 # do_spec_regrid = False
 
@@ -280,11 +277,11 @@ def aia_submap_wavelength_selection(attrname, old, new):
     aiamap_submap = aiamap.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
                                   u.Quantity([y0 - lengthy / 2, y0 + lengthy / 2]))
     aia_submap_pfmap = PuffinMap(smap=aiamap_submap,
-                                 plot_height=config_plot['plot_config']['tab_FSview_FitANLYS'][
+                                 plot_height=config_main['plot_config']['tab_FSview_FitANLYS'][
                                      'aia_submap_hght'],
-                                 plot_width=config_plot['plot_config']['tab_FSview_FitANLYS'][
+                                 plot_width=config_main['plot_config']['tab_FSview_FitANLYS'][
                                      'aia_submap_wdth'],
-                                 webgl=config_plot['plot_config']['WebGL'])
+                                 webgl=config_main['plot_config']['WebGL'])
     tab3_r_aia_submap.data_source.data['image'] = aia_submap_pfmap.ImageSource()['data']
 
 
@@ -326,7 +323,7 @@ def tab3_slider_LinkImg_update(attrname, old, new):
             elif select_vla_pol == 'V':
                 vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :] - hdu.data[pols.index('1'), fidx_hdu, :, :]
             pfmap = PuffinMap(vladata, hdu.header, plot_height=tab2_LinkImg_HGHT,
-                              plot_width=tab2_LinkImg_WDTH, webgl=config_plot['plot_config']['WebGL'])
+                              plot_width=tab2_LinkImg_WDTH, webgl=config_main['plot_config']['WebGL'])
             tab2_r_vla.data_source.data['image'] = pfmap.ImageSource()['data']
             mapx, mapy = pfmap.meshgrid()
             mapx, mapy = mapx.value, mapy.value
@@ -549,15 +546,15 @@ def tab2_update_MapRES(attrname, old, new):
     dimensions = u.Quantity([select_MapRES, select_MapRES], u.pixel)
     aia_resampled_map = aiamap.resample(dimensions)
     aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
-                                    plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                    plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
-                                    webgl=config_plot['plot_config']['WebGL'])
+                                    plot_height=config_main['plot_config']['tab_FSview_base']['aia_hght'],
+                                    plot_width=config_main['plot_config']['tab_FSview_base']['aia_wdth'],
+                                    webgl=config_main['plot_config']['WebGL'])
     tab2_r_aia.data_source.data['image'] = aia_resampled_pfmap.ImageSource()['data']
     hmi_resampled_map = hmimap.resample(dimensions)
     hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
-                                    plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                    plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
-                                    webgl=config_plot['plot_config']['WebGL'])
+                                    plot_height=config_main['plot_config']['tab_FSview_base']['vla_hght'],
+                                    plot_width=config_main['plot_config']['tab_FSview_base']['vla_wdth'],
+                                    webgl=config_main['plot_config']['WebGL'])
     # SRC_HMI = hmi_resampled_pfmap.ImageSource()
     tab2_r_hmi.data_source.data['image'] = hmi_resampled_pfmap.ImageSource()['data']
     print("---tab2_update_MapRES -- %s seconds ---" % (time.time() - start_timestamp))
@@ -1032,7 +1029,7 @@ def tab2_BUT_tImfit_update():
         <p>CASA imfit is in processing.</p>'.format(
             database_dir + event_id + struct_id)
         os.chdir(database_dir + event_id + struct_id)
-        suncasapy47 = config_plot['core']['casapy47']
+        suncasapy47 = config_main['core']['casapy47']
         suncasapy47 = os.path.expandvars(suncasapy47)
         os.system('{} -c script_imfit.py'.format(suncasapy47))
         tab2_Div_tImfit2.text = '<p>imfit finished, go back to <b>QLook</b> \
@@ -1142,7 +1139,7 @@ if os.path.exists(FS_dspecDF):
         vlafile = glob.glob(fits_LOCL_dir + '*.fits')
         tab2_panel2_Div_exit = Div(text="""<p><b>Warning</b>: Click the <b>Exit FSview</b>
                                 first before closing the tab</p></b>""",
-                                   width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                   width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         # tab2_panel3_Div_exit = Div(text="""<p><b>Warning</b>: Click the <b>Exit FSview</b>
         #                         first before closing the tab</p></b>""",
         #                            width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
@@ -1152,9 +1149,9 @@ if os.path.exists(FS_dspecDF):
         TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
         downsample_dspecDF(spec_square_rs_tmax=spec_square_rs_tmax, spec_square_rs_fmax=spec_square_rs_fmax)
         tab2_SRC_dspec_square = ColumnDataSource(dspecDF0_rs)
-        tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
-                              plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
-                              plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
+        tab2_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
+                              plot_width=config_main['plot_config']['tab_FSview_base']['dspec_wdth'],
+                              plot_height=config_main['plot_config']['tab_FSview_base']['dspec_hght'],
                               x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
                               toolbar_location="above")
         tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
@@ -1177,9 +1174,9 @@ if os.path.exists(FS_dspecDF):
                                             selection_line_alpha=0.0, selection_line_color=None,
                                             nonselection_line_alpha=0.0,
                                             size=max(
-                                                config_plot['plot_config']['tab_FSview_base'][
+                                                config_main['plot_config']['tab_FSview_base'][
                                                     'dspec_wdth'] / tab2_ntim * spec_rs_step,
-                                                config_plot['plot_config']['tab_FSview_base'][
+                                                config_main['plot_config']['tab_FSview_base'][
                                                     'dspec_hght'] / tab2_nfreq * spec_rs_step))
 
         tab2_p_dspec.add_tools(BoxSelectTool(renderers=[tab2_r_square]))
@@ -1197,15 +1194,15 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec.axis.minor_tick_line_color = "white"
 
         tab2_Select_pol = Select(title="Polarization:", value='I', options=['RR', 'LL', 'I', 'V'],
-                                 width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                 width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         tab2_Select_bl = Select(title="Baseline:", value=tab2_bl[0], options=tab2_bl,
-                                width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         tab2_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
-                                        width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                        width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
-        tab2_p_dspec_xPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
-                                   plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_xPro_wdth'],
-                                   plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_xPro_hght'],
+        tab2_p_dspec_xPro = figure(tools='', webgl=config_main['plot_config']['WebGL'],
+                                   plot_width=config_main['plot_config']['tab_FSview_base']['dspec_xPro_wdth'],
+                                   plot_height=config_main['plot_config']['tab_FSview_base']['dspec_xPro_hght'],
                                    x_range=tab2_p_dspec.x_range, y_range=(spec_plt_min, spec_plt_max),
                                    title="Time profile", toolbar_location=None)
         tab2_SRC_dspec_xPro = ColumnDataSource({'x': [], 'y': []})
@@ -1236,9 +1233,9 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec_xPro.axis.major_tick_line_color = "black"
         tab2_p_dspec_xPro.axis.minor_tick_line_color = "black"
 
-        tab2_p_dspec_yPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
-                                   plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_yPro_wdth'],
-                                   plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_yPro_hght'],
+        tab2_p_dspec_yPro = figure(tools='', webgl=config_main['plot_config']['WebGL'],
+                                   plot_width=config_main['plot_config']['tab_FSview_base']['dspec_yPro_wdth'],
+                                   plot_height=config_main['plot_config']['tab_FSview_base']['dspec_yPro_hght'],
                                    x_range=(spec_plt_min, spec_plt_max), y_range=tab2_p_dspec.y_range,
                                    title="Frequency profile", toolbar_location=None)
         tab2_SRC_dspec_yPro = ColumnDataSource({'x': [], 'y': []})
@@ -1272,7 +1269,7 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec_yPro.axis.minor_tick_line_color = "black"
 
         tab2_BUT_vdspec = Button(label="VEC Dyn Spec",
-                                 width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                 width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                  button_type="success")
 
         tab2_Select_pol_opt = ['RR', 'LL', 'I', 'V']
@@ -1356,9 +1353,9 @@ if os.path.exists(FS_dspecDF):
 
         hdu_goodchan = goodchan(hdu)
         vla_local_pfmap = PuffinMap(hdu.data[0, hdu_goodchan[0], :, :], hdu.header,
-                                    plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                    plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
-                                    webgl=config_plot['plot_config']['WebGL'])
+                                    plot_height=config_main['plot_config']['tab_FSview_base']['vla_hght'],
+                                    plot_width=config_main['plot_config']['tab_FSview_base']['vla_wdth'],
+                                    webgl=config_main['plot_config']['WebGL'])
         # plot the contour of vla image
         mapx, mapy = vla_local_pfmap.meshgrid()
         mapx, mapy = mapx.value, mapy.value
@@ -1372,9 +1369,11 @@ if os.path.exists(FS_dspecDF):
         bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
 
-
+        # try:
         aiamap = DButil.readsdofile(datadir=SDOdir, wavelength='171', jdtime=xx[0] / 3600. / 24.,
-                                    timtol=tab2_dur / 3600. / 24.)
+                                timtol=tab2_dur / 3600. / 24.)
+        # except:
+            # raise SystemExit('No SDO fits found under {}. '.format(SDOdir))
 
         colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
         bokehpalette_gray = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
@@ -1391,9 +1390,9 @@ if os.path.exists(FS_dspecDF):
         # plot the global AIA image
 
         aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
-                                        plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                        plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
-                                        webgl=config_plot['plot_config']['WebGL'])
+                                        plot_height=config_main['plot_config']['tab_FSview_base']['aia_hght'],
+                                        plot_width=config_main['plot_config']['tab_FSview_base']['aia_wdth'],
+                                        webgl=config_main['plot_config']['WebGL'])
 
         tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg)
         tab2_p_aia.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
@@ -1416,9 +1415,9 @@ if os.path.exists(FS_dspecDF):
 
         # plot the detail AIA image
         aia_submap_pfmap = PuffinMap(smap=aiamap_submap,
-                                     plot_height=config_plot['plot_config']['tab_FSview_FitANLYS']['aia_submap_hght'],
-                                     plot_width=config_plot['plot_config']['tab_FSview_FitANLYS']['aia_submap_wdth'],
-                                     webgl=config_plot['plot_config']['WebGL'])
+                                     plot_height=config_main['plot_config']['tab_FSview_FitANLYS']['aia_submap_hght'],
+                                     plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['aia_submap_wdth'],
+                                     webgl=config_main['plot_config']['WebGL'])
 
         # tab2_SRC_aia_submap_square = ColumnDataSource(ImgDF0)
         tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
@@ -1460,7 +1459,7 @@ if os.path.exists(FS_dspecDF):
                                                         source=tab3_SRC_aia_submap_rect)
 
         tab2_Select_aia_wave = Select(title="Wavelenght:", value='171', options=['94', '131', '171'],
-                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
 
         tab2_Select_aia_wave.on_change('value', aia_submap_wavelength_selection)
@@ -1470,9 +1469,9 @@ if os.path.exists(FS_dspecDF):
         # todo fix this bug
         hmi_resampled_map = hmimap.resample(dimensions)
         hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
-                                        plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                        plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
-                                        webgl=config_plot['plot_config']['WebGL'])
+                                        plot_height=config_main['plot_config']['tab_FSview_base']['vla_hght'],
+                                        plot_width=config_main['plot_config']['tab_FSview_base']['vla_wdth'],
+                                        webgl=config_main['plot_config']['WebGL'])
 
         tab2_p_hmi, tab2_r_hmi = hmi_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
                                                              x_range=tab2_p_aia.x_range,
@@ -1529,17 +1528,17 @@ if os.path.exists(FS_dspecDF):
                                                    fill_color=None, fill_alpha=0.5, line_color="white",
                                                    line_alpha=1, line_width=1)
 
-        tab2_LinkImg_HGHT = config_plot['plot_config']['tab_FSview_base']['vla_hght']
-        tab2_LinkImg_WDTH = config_plot['plot_config']['tab_FSview_base']['vla_wdth']
+        tab2_LinkImg_HGHT = config_main['plot_config']['tab_FSview_base']['vla_hght']
+        tab2_LinkImg_WDTH = config_main['plot_config']['tab_FSview_base']['vla_wdth']
 
         tab2_Div_LinkImg_plot = Div(text=""" """,
-                                    width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                    width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
         tab2_Slider_time_LinkImg = Slider(start=0, end=tab2_ntim - 1, value=0, step=1, title="time idx",
-                                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                          width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                           callback_policy='mouseup')
         tab2_Slider_freq_LinkImg = Slider(start=0, end=tab2_nfreq - 1, value=0, step=1, title="freq idx",
-                                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                          width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                           callback_policy='mouseup')
 
         # pols = ['RR', 'LL', 'I', 'V']
@@ -1552,10 +1551,10 @@ if os.path.exists(FS_dspecDF):
             pols = pols + ['I', 'V']
 
         tab2_Select_vla_pol = Select(title="Polarization:", value=pols[0], options=pols,
-                                     width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                     width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         select_vla_pol = tab2_Select_vla_pol.value
         tab2_Select_vla_pol2 = Select(title="Polarization:", value=tab2_Select_vla_pol.value, options=pols,
-                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
         tab2_source_idx_line_x = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
         tab2_r_dspec_line_x = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
@@ -1569,37 +1568,37 @@ if os.path.exists(FS_dspecDF):
         for ctrl in tab2_CTRLs_LinkImg:
             ctrl.on_change('value', tab3_slider_LinkImg_update)
 
-        tab2_LinkImg_HGHT = config_plot['plot_config']['tab_FSview_base']['vla_hght']
-        tab2_LinkImg_WDTH = config_plot['plot_config']['tab_FSview_base']['vla_wdth']
+        tab2_LinkImg_HGHT = config_main['plot_config']['tab_FSview_base']['vla_hght']
+        tab2_LinkImg_WDTH = config_main['plot_config']['tab_FSview_base']['vla_wdth']
 
         tab2_BUT_XCorr = Button(label='XCorr',
-                                width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                 button_type='warning')
         tab2_BUT_XCorr.on_click(tab2_panel_XCorr_update)
 
         tab2_panel2_BUT_exit = Button(label='Exit FSview',
-                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                       button_type='danger')
         tab2_panel2_BUT_exit.on_click(tab2_panel_exit)
 
         tab2_panel3_BUT_exit = Button(label='Exit FSview',
-                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                       button_type='danger')
         tab2_panel3_BUT_exit.on_click(tab2_panel_exit)
 
         tab3_p_dspec_vector = figure(tools='pan,wheel_zoom,box_zoom,save,reset',
-                                     plot_width=config_plot['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
-                                     plot_height=config_plot['plot_config']['tab_FSview_FitANLYS']['dspec_small_hght'],
+                                     plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
+                                     plot_height=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_hght'],
                                      x_range=(tab2_dtim[0], tab2_dtim[-1]),
                                      y_range=(tab2_freq[0], tab2_freq[-1]), toolbar_location='above')
         tab3_p_dspec_vectorx = figure(tools='pan,wheel_zoom,box_zoom,save,reset',
-                                      plot_width=config_plot['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
-                                      plot_height=config_plot['plot_config']['tab_FSview_FitANLYS']['dspec_small_hght'],
+                                      plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
+                                      plot_height=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_hght'],
                                       x_range=tab3_p_dspec_vector.x_range,
                                       y_range=tab3_p_dspec_vector.y_range, toolbar_location='above')
         tab3_p_dspec_vectory = figure(tools='pan,wheel_zoom,box_zoom,save,reset',
-                                      plot_width=config_plot['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
-                                      plot_height=config_plot['plot_config']['tab_FSview_FitANLYS'][
+                                      plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
+                                      plot_height=config_main['plot_config']['tab_FSview_FitANLYS'][
                                                       'dspec_small_hght'] + 40,
                                       x_range=tab3_p_dspec_vector.x_range,
                                       y_range=tab3_p_dspec_vector.y_range, toolbar_location='above')
@@ -1675,9 +1674,9 @@ if os.path.exists(FS_dspecDF):
                                                                 selection_line_alpha=0.0, selection_line_color='white',
                                                                 nonselection_line_alpha=0.0,
                                                                 size=min(
-                                                                    config_plot['plot_config']['tab_FSview_FitANLYS'][
+                                                                    config_main['plot_config']['tab_FSview_FitANLYS'][
                                                                         'dspec_small_wdth'] / tab2_ntim,
-                                                                    config_plot['plot_config']['tab_FSview_FitANLYS'][
+                                                                    config_main['plot_config']['tab_FSview_FitANLYS'][
                                                                         'dspec_small_hght'] / tab2_nfreq))
 
         tab2_dspec_selected = None
@@ -1687,12 +1686,12 @@ if os.path.exists(FS_dspecDF):
         tab2_Select_MapRES = Select(title="Img resolution:", value='{}x{}'.format(MapRES, MapRES),
                                     options=["32x32", "64x64", "128x128", "256x256", "512x512", "1024x1024",
                                              "2048x2048"],
-                                    width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                    width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
         rgnfitsfile = database_dir + event_id + struct_id + "CASA_imfit_region_fits.rgn"
 
         tab2_BUT_SavRgn = Button(label='Save Region',
-                                 width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                 width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                  button_type='primary')
         tab2_BUT_SavRgn.on_click(tab2_save_region)
         tab2_dspec_vector_selected = None
@@ -1709,7 +1708,7 @@ if os.path.exists(FS_dspecDF):
 
         tab3_RBG_dspec_small = RadioButtonGroup(labels=tab3_dspec_small_CTRLs_OPT['labels_dspec_small'], active=0)
         tab3_BUT_dspec_small_reset = Button(label='Reset DRange',
-                                            width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                            width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         tab3_Slider_dspec_small_dmax = Slider(start=mean_amp_g, end=mean_amp_g + 2 * drange_amp_g, value=vmax_amp_g,
                                               step=1,
                                               title='dmax', callback_throttle=250)
@@ -1719,7 +1718,7 @@ if os.path.exists(FS_dspecDF):
         tab3_RBG_dspec_small.on_change('active', tab3_RBG_dspec_small_update)
         tab3_BUT_dspec_small_reset.on_click(tab3_BUT_dspec_small_reset_update)
         tab3_BUT_dspec_small_resetall = Button(label='Reset All',
-                                               width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                               width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         tab3_BUT_dspec_small_resetall.on_click(tab3_BUT_dspec_small_resetall_update)
         tab3_CTRLs_dspec_small = [tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin]
         for ctrl in tab3_CTRLs_dspec_small:
@@ -1752,14 +1751,14 @@ if os.path.exists(FS_dspecDF):
         tab2_Select_MapRES = Select(title="Img resolution:", value='{}x{}'.format(MapRES, MapRES),
                                     options=["32x32", "64x64", "128x128", "256x256", "512x512", "1024x1024",
                                              "2048x2048"],
-                                    width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                    width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
         tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
 
         lout2_1 = row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
                       widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
                                 tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
-                                width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
+                                width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']))
         # if do_spec_regrid:
         #     # lout2_2_1 = column(tab2_p_dspec_rs, row(tab2_p_dspec, tab2_p_dspec_yPro), tab2_p_dspec_xPro)
         #     pass
@@ -1768,7 +1767,7 @@ if os.path.exists(FS_dspecDF):
         lout2_2_2 = widgetbox(tab2_Select_pol, tab2_Select_bl,
                               tab2_Select_colorspace, tab2_BUT_XCorr,
                               tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
-                              width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                              width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         lout2_2 = row(lout2_2_1, lout2_2_2)
         panel2 = column(lout2_1, lout2_2)
 
@@ -1843,7 +1842,7 @@ if os.path.exists(FS_dspecDF):
                 tab2_tCLN_Param_dict = json.load(fp)
             tab2_panel2_Div_exit = Div(text="""<p><b>Warning</b>: Click the <b>Exit FSview</b>\
                                     first before closing the tab</p></b>""",
-                                       width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                       width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
             rmax, rmin = tab2_spec_plt.max(), tab2_spec_plt.min()
 
             dspecDF0POL = dspecDF0
@@ -1854,9 +1853,9 @@ if os.path.exists(FS_dspecDF):
             '''create the dynamic spectrum plot'''
             TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
             tab2_SRC_dspec_square = ColumnDataSource(dspecDF0_rs)
-            tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
-                                  plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'],
-                                  plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_hght'],
+            tab2_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
+                                  plot_width=config_main['plot_config']['tab_FSview_base']['dspec_wdth'],
+                                  plot_height=config_main['plot_config']['tab_FSview_base']['dspec_hght'],
                                   x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
                                   toolbar_location="above")
             tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
@@ -1877,9 +1876,9 @@ if os.path.exists(FS_dspecDF):
                                                 selection_line_alpha=0.0, selection_line_color=None,
                                                 nonselection_line_alpha=0.0,
                                                 size=max(
-                                                    config_plot['plot_config']['tab_FSview_base'][
+                                                    config_main['plot_config']['tab_FSview_base'][
                                                         'dspec_wdth'] / float(tab2_ntim) * spec_rs_step,
-                                                    config_plot['plot_config']['tab_FSview_base'][
+                                                    config_main['plot_config']['tab_FSview_base'][
                                                         'dspec_hght'] / float(tab2_nfreq) * spec_rs_step))
             tab2_p_dspec.add_tools(BoxSelectTool(renderers=[tab2_r_square]))
 
@@ -1898,15 +1897,15 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec.axis.minor_tick_line_color = "white"
 
             tab2_Select_pol = Select(title="Polarization:", value='I', options=['RR', 'LL', 'I', 'V'],
-                                     width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                     width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
             tab2_Select_bl = Select(title="Baseline:", value=tab2_bl[0], options=tab2_bl,
-                                    width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                    width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
             tab2_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
-                                            width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                            width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
-            tab2_p_dspec_xPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
-                                       plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_xPro_wdth'],
-                                       plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_xPro_hght'],
+            tab2_p_dspec_xPro = figure(tools='', webgl=config_main['plot_config']['WebGL'],
+                                       plot_width=config_main['plot_config']['tab_FSview_base']['dspec_xPro_wdth'],
+                                       plot_height=config_main['plot_config']['tab_FSview_base']['dspec_xPro_hght'],
                                        x_range=tab2_p_dspec.x_range, y_range=(spec_plt_min, spec_plt_max),
                                        title="Time profile", toolbar_location=None)
             tab2_SRC_dspec_xPro = ColumnDataSource({'x': [], 'y': []})
@@ -1937,9 +1936,9 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec_xPro.axis.major_tick_line_color = "black"
             tab2_p_dspec_xPro.axis.minor_tick_line_color = "black"
 
-            tab2_p_dspec_yPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
-                                       plot_width=config_plot['plot_config']['tab_FSview_base']['dspec_yPro_wdth'],
-                                       plot_height=config_plot['plot_config']['tab_FSview_base']['dspec_yPro_hght'],
+            tab2_p_dspec_yPro = figure(tools='', webgl=config_main['plot_config']['WebGL'],
+                                       plot_width=config_main['plot_config']['tab_FSview_base']['dspec_yPro_wdth'],
+                                       plot_height=config_main['plot_config']['tab_FSview_base']['dspec_yPro_hght'],
                                        x_range=(spec_plt_min, spec_plt_max), y_range=tab2_p_dspec.y_range,
                                        title="Frequency profile", toolbar_location=None)
             tab2_SRC_dspec_yPro = ColumnDataSource({'x': [], 'y': []})
@@ -1973,7 +1972,7 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec_yPro.axis.minor_tick_line_color = "black"
 
             tab2_BUT_vdspec = Button(label="VEC Dyn Spec",
-                                     width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                     width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                      button_type="success")
             tab2_Select_pol_opt = ['RR', 'LL', 'I', 'V']
 
@@ -2044,9 +2043,9 @@ if os.path.exists(FS_dspecDF):
             hdu = read_fits(vlafile[0])
             hdu_goodchan = goodchan(hdu)
             vla_local_pfmap = PuffinMap(hdu.data[0, hdu_goodchan[0], :, :], hdu.header,
-                                        plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                        plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
-                                        webgl=config_plot['plot_config']['WebGL'])
+                                        plot_height=config_main['plot_config']['tab_FSview_base']['vla_hght'],
+                                        plot_width=config_main['plot_config']['tab_FSview_base']['vla_wdth'],
+                                        webgl=config_main['plot_config']['WebGL'])
             # plot the contour of vla image
             mapx, mapy = vla_local_pfmap.meshgrid()
             mapx, mapy = mapx.value, mapy.value
@@ -2070,9 +2069,9 @@ if os.path.exists(FS_dspecDF):
 
             # plot the global AIA image
             aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
-                                            plot_height=config_plot['plot_config']['tab_FSview_base']['aia_hght'],
-                                            plot_width=config_plot['plot_config']['tab_FSview_base']['aia_wdth'],
-                                            webgl=config_plot['plot_config']['WebGL'])
+                                            plot_height=config_main['plot_config']['tab_FSview_base']['aia_hght'],
+                                            plot_width=config_main['plot_config']['tab_FSview_base']['aia_wdth'],
+                                            webgl=config_main['plot_config']['WebGL'])
 
             tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg)
             tab2_p_aia.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
@@ -2100,9 +2099,9 @@ if os.path.exists(FS_dspecDF):
             # plot the global HMI image
             hmi_resampled_map = hmimap.resample(dimensions)
             hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
-                                            plot_height=config_plot['plot_config']['tab_FSview_base']['vla_hght'],
-                                            plot_width=config_plot['plot_config']['tab_FSview_base']['vla_wdth'],
-                                            webgl=config_plot['plot_config']['WebGL'])
+                                            plot_height=config_main['plot_config']['tab_FSview_base']['vla_hght'],
+                                            plot_width=config_main['plot_config']['tab_FSview_base']['vla_wdth'],
+                                            webgl=config_main['plot_config']['WebGL'])
 
             tab2_p_hmi, tab2_r_hmi = hmi_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
                                                                  x_range=tab2_p_aia.x_range,
@@ -2157,17 +2156,17 @@ if os.path.exists(FS_dspecDF):
                                                        fill_color=None, fill_alpha=0.5, line_color="white",
                                                        line_alpha=1, line_width=1)
 
-            tab2_LinkImg_HGHT = config_plot['plot_config']['tab_FSview_base']['vla_hght']
-            tab2_LinkImg_WDTH = config_plot['plot_config']['tab_FSview_base']['vla_wdth']
+            tab2_LinkImg_HGHT = config_main['plot_config']['tab_FSview_base']['vla_hght']
+            tab2_LinkImg_WDTH = config_main['plot_config']['tab_FSview_base']['vla_wdth']
 
             tab2_Div_LinkImg_plot = Div(text=""" """,
-                                        width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                        width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
             tab2_Slider_time_LinkImg = Slider(start=0, end=tab2_ntim - 1, value=0, step=1, title="time idx",
-                                              width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                              width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                               callback_policy='mouseup')
             tab2_Slider_freq_LinkImg = Slider(start=0, end=tab2_nfreq - 1, value=0, step=1, title="freq idx",
-                                              width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                              width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                               callback_policy='mouseup')
 
             pols = DButil.polsfromfitsheader(hdu.header)
@@ -2181,7 +2180,7 @@ if os.path.exists(FS_dspecDF):
                 pols = pols + ['I', 'V']
 
             tab2_Select_vla_pol = Select(title="Polarization:", value=pols[0], options=pols,
-                                         width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                         width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
             tab2_source_idx_line_x = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
             tab2_r_dspec_line_x = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
@@ -2196,12 +2195,12 @@ if os.path.exists(FS_dspecDF):
                 ctrl.on_change('value', tab3_slider_LinkImg_update)
 
             tab2_BUT_XCorr = Button(label='XCorr',
-                                    width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                    width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                     button_type='warning')
             tab2_BUT_XCorr.on_click(tab2_panel_XCorr_update)
 
             tab2_panel2_BUT_exit = Button(label='Exit FSview',
-                                          width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                          width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                           button_type='danger')
             tab2_panel2_BUT_exit.on_click(tab2_panel_exit)
             tab2_dspec_selected = None
@@ -2212,65 +2211,65 @@ if os.path.exists(FS_dspecDF):
             tab2_Select_MapRES = Select(title="Img resolution:", value='{}x{}'.format(MapRES, MapRES),
                                         options=["32x32", "64x64", "128x128", "256x256", "512x512", "1024x1024",
                                                  "2048x2048"],
-                                        width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+                                        width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
             tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
             rgnfitsfile = database_dir + event_id + struct_id + "CASA_imfit_region_fits.rgn"
             tab2_BUT_SavRgn = Button(label='Save Region',
-                                     width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                     width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                      button_type='primary')
             tab2_BUT_SavRgn.on_click(tab2_save_region)
 
             tab2_maxfit_checkbox = CheckboxGroup(labels=["parabolic fit"], active=[])
             tab2_maxfit_checkbox.on_click(Domaxfit)
             tab2_input_tImfit = TextInput(value="Input the param here", title="pimfit task parameters:",
-                                          width=config_plot['plot_config']['tab_FSviewPrep']['input_tCLN_wdth'])
-            tab2_Div_tImfit = Div(text='', width=config_plot['plot_config']['tab_FSviewPrep']['tab2_Div_tImfit_wdth'])
-            tab2_Div_tImfit2 = Div(text='', width=config_plot['plot_config']['tab_FSviewPrep']['input_tCLN_wdth'])
+                                          width=config_main['plot_config']['tab_FSviewPrep']['input_tCLN_wdth'])
+            tab2_Div_tImfit = Div(text='', width=config_main['plot_config']['tab_FSviewPrep']['tab2_Div_tImfit_wdth'])
+            tab2_Div_tImfit2 = Div(text='', width=config_main['plot_config']['tab_FSviewPrep']['input_tCLN_wdth'])
 
             tab2_BUT_tImfit_param_default()
             tab2_BUT_tImfit_param_ADD = Button(label='Add to Param',
-                                               width=config_plot['plot_config']['tab_FSviewPrep']['button_wdth'],
+                                               width=config_main['plot_config']['tab_FSviewPrep']['button_wdth'],
                                                button_type='primary')
             tab2_BUT_tImfit_param_ADD.on_click(tab2_BUT_tImfit_param_add)
             tab2_BUT_tImfit_param_DEL = Button(label='Delete Param',
-                                               width=config_plot['plot_config']['tab_FSviewPrep']['button_wdth'],
+                                               width=config_main['plot_config']['tab_FSviewPrep']['button_wdth'],
                                                button_type='warning')
             tab2_BUT_tImfit_param_DEL.on_click(tab2_BUT_tImfit_param_delete)
             tab2_BUT_tImfit_param_Default = Button(label='Default Param',
-                                                   width=config_plot['plot_config']['tab_FSviewPrep']['button_wdth'])
+                                                   width=config_main['plot_config']['tab_FSviewPrep']['button_wdth'])
             tab2_BUT_tImfit_param_Default.on_click(tab2_BUT_tImfit_param_default)
             tab2_SPCR_LFT_BUT_tImfit_param_DEL = Spacer(
-                width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth10'])
+                width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
             tab2_SPCR_LFT_BUT_tImfit_param_RELOAD = Spacer(
-                width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth10'])
+                width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
             tab2_SPCR_LFT_BUT_tImfit_param_DEFAULT = Spacer(
-                width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth10'])
+                width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
 
             tab2_BUT_tImfit_param_RELOAD = Button(label='reload Param',
-                                                  width=config_plot['plot_config']['tab_FSviewPrep']['button_wdth'])
+                                                  width=config_main['plot_config']['tab_FSviewPrep']['button_wdth'])
             tab2_BUT_tImfit_param_RELOAD.on_click(tab2_BUT_timfit_param_reload)
             tab2_SPCR_LFT_BUT_tImfit_param_reload = Spacer(
-                width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth20'])
+                width=config_main['plot_config']['tab_FSviewPrep']['space_wdth20'])
 
             tab2_BUT_tImfit = Button(label='imfit',
-                                     width=config_plot['plot_config']['tab_FSviewPrep']['button_wdth'],
+                                     width=config_main['plot_config']['tab_FSviewPrep']['button_wdth'],
                                      button_type='success')
             tab2_BUT_tImfit.on_click(tab2_BUT_tImfit_update)
-            tab2_SPCR_ABV_BUT_timfit = Spacer(width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth10'])
+            tab2_SPCR_ABV_BUT_timfit = Spacer(width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
 
-            tab2_SPCR_LFT_Div_tImfit = Spacer(width=config_plot['plot_config']['tab_FSviewPrep']['space_wdth10'])
+            tab2_SPCR_LFT_Div_tImfit = Spacer(width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
 
             lout2_1_1 = row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
                             widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
                                       tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
-                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
+                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']))
             lout2_1_2 = row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
                                    tab2_p_dspec_xPro),
                             widgetbox(tab2_Select_pol, tab2_Select_bl,
                                       tab2_Select_colorspace, tab2_BUT_XCorr,
                                       tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
-                                      width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth']))
+                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']))
             lout2_1 = column(lout2_1_1, lout2_1_2)
             lout2_2 = tab2_SPCR_LFT_Div_tImfit
             lout2_3 = column(row(tab2_input_tImfit, tab2_maxfit_checkbox), tab2_Div_tImfit2,
@@ -2286,7 +2285,7 @@ if os.path.exists(FS_dspecDF):
         else:
             tab_panel_Div_info = Div(
                 text="""<p><b>Warning</b>: Synthesis images not found!!!</p>""",
-                width=config_plot['plot_config']['tab_FSview_base']['dspec_wdth'])
+                width=config_main['plot_config']['tab_FSview_base']['dspec_wdth'])
             lout = tab_panel_Div_info
             curdoc().add_root(lout)
             curdoc().title = "FSview"
@@ -2330,7 +2329,7 @@ else:
     tab2_panel_Div_exit = Div(
         text="""<p><b>Warning</b>: Click the <b>Exit FSview2CASA</b>
                 first before closing the tab</p></b>""",
-        width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
+        width=config_main['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
     timestrs = []
     for ll in tab2_tim:
         timestr = Time(ll / 3600. / 24., format='mjd', scale='utc', precision=3, out_subfmt='date_hms').iso
@@ -2348,9 +2347,9 @@ else:
     tab2_SRC_dspec_square = ColumnDataSource(dspecDF0_rs)
 
     '''create the dynamic spectrum plot'''
-    tab2_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
-                          plot_width=config_plot['plot_config']['tab_FSview2CASA']['dspec_wdth'],
-                          plot_height=config_plot['plot_config']['tab_FSview2CASA']['dspec_hght'],
+    tab2_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
+                          plot_width=config_main['plot_config']['tab_FSview2CASA']['dspec_wdth'],
+                          plot_height=config_main['plot_config']['tab_FSview2CASA']['dspec_hght'],
                           x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
                           toolbar_location="above")
     tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
@@ -2369,9 +2368,9 @@ else:
                                         selection_fill_alpha=0.0, nonselection_fill_alpha=0.0,
                                         selection_line_alpha=0.0, nonselection_line_alpha=0.0,
                                         size=max(
-                                            config_plot['plot_config']['tab_FSview2CASA']['dspec_wdth'] / float(
+                                            config_main['plot_config']['tab_FSview2CASA']['dspec_wdth'] / float(
                                                 tab2_ntim) * spec_rs_step,
-                                            config_plot['plot_config']['tab_FSview2CASA']['dspec_hght'] / float(
+                                            config_main['plot_config']['tab_FSview2CASA']['dspec_hght'] / float(
                                                 tab2_nfreq) * spec_rs_step))
     tab2_SRC_dspec_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
     tab2_r_dspec_patch = tab2_p_dspec.patch('xx', 'yy', source=tab2_SRC_dspec_Patch,
@@ -2425,15 +2424,15 @@ else:
     tab2_SRC_dspec_square.on_change('selected', tab2_dspec_selection_change)
 
     tab2_Select_pol = Select(title="Polarization:", value='I', options=['RR', 'LL', 'I', 'V'],
-                             width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
+                             width=config_main['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
     tab2_Select_bl = Select(title="Baseline:", value=tab2_bl[0], options=tab2_bl,
-                            width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
+                            width=config_main['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
     tab2_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
-                                    width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
+                                    width=config_main['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'])
 
-    tab2_p_dspec_xPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
-                               plot_width=config_plot['plot_config']['tab_FSview2CASA']['dspec_xPro_wdth'],
-                               plot_height=config_plot['plot_config']['tab_FSview2CASA']['dspec_xPro_hght'],
+    tab2_p_dspec_xPro = figure(tools='', webgl=config_main['plot_config']['WebGL'],
+                               plot_width=config_main['plot_config']['tab_FSview2CASA']['dspec_xPro_wdth'],
+                               plot_height=config_main['plot_config']['tab_FSview2CASA']['dspec_xPro_hght'],
                                x_range=tab2_p_dspec.x_range, y_range=(spec_plt_min, spec_plt_max),
                                title="Time profile", toolbar_location=None)
     tab2_SRC_dspec_xPro = ColumnDataSource({'x': [], 'y': []})
@@ -2464,9 +2463,9 @@ else:
     tab2_p_dspec_xPro.axis.major_tick_line_color = "black"
     tab2_p_dspec_xPro.axis.minor_tick_line_color = "black"
 
-    tab2_p_dspec_yPro = figure(tools='', webgl=config_plot['plot_config']['WebGL'],
-                               plot_width=config_plot['plot_config']['tab_FSview2CASA']['dspec_yPro_wdth'],
-                               plot_height=config_plot['plot_config']['tab_FSview2CASA']['dspec_yPro_hght'],
+    tab2_p_dspec_yPro = figure(tools='', webgl=config_main['plot_config']['WebGL'],
+                               plot_width=config_main['plot_config']['tab_FSview2CASA']['dspec_yPro_wdth'],
+                               plot_height=config_main['plot_config']['tab_FSview2CASA']['dspec_yPro_hght'],
                                x_range=(spec_plt_min, spec_plt_max), y_range=tab2_p_dspec.y_range,
                                title="Frequency profile", toolbar_location=None)
     tab2_SRC_dspec_yPro = ColumnDataSource({'x': [], 'y': []})
@@ -2589,9 +2588,9 @@ else:
     tab2_p_dspec.add_tools(tab2_p_dspec_hover)
 
     tab2_input_tCLN = TextInput(value="Input the param here", title="Clean task parameters:",
-                                width=config_plot['plot_config']['tab_FSview2CASA']['input_tCLN_wdth'])
-    tab2_Div_tCLN = Div(text='', width=config_plot['plot_config']['tab_FSview2CASA']['tab2_Div_tCLN_wdth'])
-    tab2_Div_tCLN2 = Div(text='', width=config_plot['plot_config']['tab_FSview2CASA']['input_tCLN_wdth'])
+                                width=config_main['plot_config']['tab_FSview2CASA']['input_tCLN_wdth'])
+    tab2_Div_tCLN = Div(text='', width=config_main['plot_config']['tab_FSview2CASA']['tab2_Div_tCLN_wdth'])
+    tab2_Div_tCLN2 = Div(text='', width=config_main['plot_config']['tab_FSview2CASA']['input_tCLN_wdth'])
 
 
     def tab2_BUT_tCLN_param_add():
@@ -2680,23 +2679,23 @@ else:
     tab2_BUT_tCLN_param_default()
 
     tab2_BUT_tCLN_param_ADD = Button(label='Add to Param',
-                                     width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'],
+                                     width=config_main['plot_config']['tab_FSview2CASA']['button_wdth'],
                                      button_type='primary')
     tab2_BUT_tCLN_param_ADD.on_click(tab2_BUT_tCLN_param_add)
     tab2_BUT_tCLN_param_DEL = Button(label='Delete Param',
-                                     width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'],
+                                     width=config_main['plot_config']['tab_FSview2CASA']['button_wdth'],
                                      button_type='warning')
     tab2_BUT_tCLN_param_DEL.on_click(tab2_BUT_tCLN_param_delete)
     tab2_BUT_tCLN_param_Default = Button(label='Default Param',
-                                         width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'])
+                                         width=config_main['plot_config']['tab_FSview2CASA']['button_wdth'])
     tab2_BUT_tCLN_param_Default.on_click(tab2_BUT_tCLN_param_default)
-    tab2_SPCR_LFT_BUT_tCLN_param_DEL = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
-    tab2_SPCR_LFT_BUT_tCLN_param_RELOAD = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
-    tab2_SPCR_LFT_BUT_tCLN_param_SAVE = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
-    tab2_SPCR_LFT_BUT_tCLN_param_DEFAULT = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
-    tab2_SPCR_LFT_BUT_tCLN_param_FSVIEW = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
-    tab2_SPCR_LFT_Div_tCLN2 = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth50'],
-                                     height=config_plot['plot_config']['tab_FSview2CASA']['space_hght10'])
+    tab2_SPCR_LFT_BUT_tCLN_param_DEL = Spacer(width=config_main['plot_config']['tab_FSview2CASA']['space_wdth10'])
+    tab2_SPCR_LFT_BUT_tCLN_param_RELOAD = Spacer(width=config_main['plot_config']['tab_FSview2CASA']['space_wdth10'])
+    tab2_SPCR_LFT_BUT_tCLN_param_SAVE = Spacer(width=config_main['plot_config']['tab_FSview2CASA']['space_wdth10'])
+    tab2_SPCR_LFT_BUT_tCLN_param_DEFAULT = Spacer(width=config_main['plot_config']['tab_FSview2CASA']['space_wdth10'])
+    tab2_SPCR_LFT_BUT_tCLN_param_FSVIEW = Spacer(width=config_main['plot_config']['tab_FSview2CASA']['space_wdth10'])
+    tab2_SPCR_LFT_Div_tCLN2 = Spacer(width=config_main['plot_config']['tab_FSview2CASA']['space_wdth50'],
+                                     height=config_main['plot_config']['tab_FSview2CASA']['space_hght10'])
 
 
     def tab2_BUT_tCLN_param_reload():
@@ -2769,7 +2768,7 @@ else:
             tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}.</b></p>\
             <p>CASA clean is in processing.</p>'.format(database_dir + event_id + struct_id)
             os.chdir(database_dir + event_id + struct_id)
-            suncasapy46 = config_plot['core']['casapy46']
+            suncasapy46 = config_main['core']['casapy46']
             suncasapy46 = os.path.expandvars(suncasapy46)
             os.system('{} -c script_clean.py'.format(suncasapy46))
             tab2_Div_tCLN2.text = '<p>Clean finished, go back to <b>QLook</b> window, select StrID <b>{}</b> and \
@@ -2784,24 +2783,24 @@ else:
 
 
     tab2_BUT_tCLN_param_RELOAD = Button(label='reload Param',
-                                        width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'])
+                                        width=config_main['plot_config']['tab_FSview2CASA']['button_wdth'])
     tab2_BUT_tCLN_param_RELOAD.on_click(tab2_BUT_tCLN_param_reload)
     tab2_BUT_tCLN_param_SAVE = Button(label='save Param',
-                                      width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'],
+                                      width=config_main['plot_config']['tab_FSview2CASA']['button_wdth'],
                                       button_type='success')
     tab2_BUT_tCLN_param_SAVE.on_click(tab2_BUT_tCLN_param_save)
     tab2_BUT_tCLN_CLEAN = Button(label='clean',
-                                 width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'],
+                                 width=config_main['plot_config']['tab_FSview2CASA']['button_wdth'],
                                  button_type='success')
-    tab2_SPCR_ABV_BUT_tCLN = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'],
-                                    height=config_plot['plot_config']['tab_FSview2CASA']['space_hght18'])
+    tab2_SPCR_ABV_BUT_tCLN = Spacer(width=config_main['plot_config']['tab_FSview2CASA']['space_wdth10'],
+                                    height=config_main['plot_config']['tab_FSview2CASA']['space_hght18'])
     tab2_BUT_tCLN_CLEAN.on_click(tab2_BUT_tCLN_clean)
-    tab2_SPCR_LFT_BUT_CLEAN = Spacer(width=config_plot['plot_config']['tab_FSview2CASA']['space_wdth10'])
-    tab2_BUT_FS_view = Button(label='FS view', width=config_plot['plot_config']['tab_FSview2CASA']['button_wdth'],
+    tab2_SPCR_LFT_BUT_CLEAN = Spacer(width=config_main['plot_config']['tab_FSview2CASA']['space_wdth10'])
+    tab2_BUT_FS_view = Button(label='FS view', width=config_main['plot_config']['tab_FSview2CASA']['button_wdth'],
                               button_type='primary')
 
     tab2_BUT_XCorr = Button(label='XCorr',
-                            width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'],
+                            width=config_main['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'],
                             button_type='warning')
     tab2_BUT_XCorr.on_click(tab2_panel_XCorr_update)
 
@@ -2812,7 +2811,7 @@ else:
 
 
     tab2_panel2_BUT_exit = Button(label='Exit FSview2CASA',
-                                  width=config_plot['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'],
+                                  width=config_main['plot_config']['tab_FSview2CASA']['widgetbox_wdth1'],
                                   button_type='danger')
     tab2_panel2_BUT_exit.on_click(tab2_panel2_exit)
     panel2 = row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
@@ -2828,7 +2827,7 @@ else:
                                                  tab2_BUT_XCorr,
                                                  tab2_panel2_BUT_exit,
                                                  tab2_panel_Div_exit,
-                                                 width=config_plot['plot_config']['tab_FSview2CASA'][
+                                                 width=config_main['plot_config']['tab_FSview2CASA'][
                                                      'widgetbox_wdth2'])), tab2_Div_tCLN2))), tab2_Div_tCLN)
 
     curdoc().add_root(panel2)
