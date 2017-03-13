@@ -71,7 +71,11 @@
       "dspec_hght": 500,
       "dspec_wdth": 1450,
       "StrID_DataTb_BUT_wdth": 200,
-      "StrID_DataTb_hght": 280
+      "StrID_DataTb_hght": 280,
+      "spec_square_rs_tmax": 300,
+      "spec_square_rs_fmax": 256,
+      "spec_image_rs_tmax": 1600,
+      "spec_image_rs_fmax": 256
     },
     "tab_EvtBrowser": {
       "StrID_DataTb_wdth": 900,

@@ -34,7 +34,7 @@ database_dir = config_plot['datadir']['database']
 database_dir = os.path.expandvars(database_dir) + '/aiaBrowserData/'
 if not os.path.exists(database_dir):
     os.system('mkdir {}'.format(database_dir))
-SDO_dir = database_dir + 'Download/'
+SDOdir = database_dir + 'Download/'
 if not os.path.exists(database_dir):
     os.system('mkdir {}'.format(database_dir))
 infile = database_dir + 'MkPlot_args.json'

@@ -7,9 +7,9 @@ import pandas as pd
 import sunpy.map
 from sys import platform
 from bokeh.layouts import row, column, widgetbox, gridplot
-from bokeh.models import (ColumnDataSource, CustomJS, Slider, Button, TextInput, RadioButtonGroup, CheckboxGroup,
+from bokeh.models import (ColumnDataSource, CustomJS, Slider, Button, RadioButtonGroup, CheckboxGroup,
                           BoxSelectTool, TapTool, LassoSelectTool, Tool, HoverTool, Spacer, LabelSet, Div)
-from bokeh.models.widgets import Select
+from bokeh.models.widgets import Select, TextInput
 from bokeh.plotting import figure, curdoc
 from bokeh.core.properties import Instance
 import glob
@@ -19,6 +19,8 @@ import drms
 from sunpy.lightcurve import GOESLightCurve
 from sunpy.time import TimeRange
 from suncasa.utils import DButil
+import Tkinter
+import tkFileDialog
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -42,15 +44,36 @@ ports = []
 '''load config file'''
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
 '''load config file'''
-with open(suncasa_dir + 'aiaBrowser/config.json', 'r') as fp:
-    config = json.load(fp)
+config = DButil.loadjsonfile(suncasa_dir + 'aiaBrowser/config.json')
 
 database_dir = os.path.expandvars(config['datadir']['database']) + '/aiaBrowserData/'
 if not os.path.exists(database_dir):
     os.makedirs(database_dir)
-SDO_dir = database_dir + 'Download/'
-if not os.path.exists(SDO_dir):
-    os.makedirs(SDO_dir)
+
+# if 'SDOdir' in config['datadir'].keys():
+#     if config['datadir']['SDOdir']:
+#         SDOdir = config['datadir']['SDOdir']
+# else:
+#     SDOdir = database_dir + 'Download/'
+#     config['datadir']['SDOdir'] = SDOdir
+#     fout = suncasa_dir + 'aiaBrowser/config.json'
+#     DButil.updatejsonfile(fout, config)
+try:
+    if config['datadir']['SDOdir']:
+        SDOdir = config['datadir']['SDOdir']
+    else:
+        SDOdir = database_dir + 'Download/'
+        config['datadir']['SDOdir'] = SDOdir
+        fout = suncasa_dir + 'aiaBrowser/config.json'
+        DButil.updatejsonfile(fout, config)
+except:
+    SDOdir = database_dir + 'Download/'
+    config['datadir']['SDOdir'] = SDOdir
+    fout = suncasa_dir + 'aiaBrowser/config.json'
+    DButil.updatejsonfile(fout, config)
+
+if not os.path.exists(SDOdir):
+    os.makedirs(SDOdir)
 
 YY_select_st = Select(title="Start Time: Year", value="2014", options=['{:04d}'.format(ll) for ll in range(2010, 2025)],
                       width=config['plot_config']['tab_aiaBrowser']['YY_select_wdth'])
@@ -228,6 +251,8 @@ Div_info = Div(text="""<p><b>Warning</b>: Click <b>Exit</b> first before closing
 Div_JSOC_info = Div(text="""""",
                     width=config['plot_config']['tab_aiaBrowser']['divJSOCinfo_wdth'])
 
+Text_sdodir = TextInput(value=SDOdir, title="Directory:",
+                        width=config['plot_config']['tab_aiaBrowser']['button_wdth'] * 2, sizing_mode='scale_width')
 Text_Cadence = TextInput(value='12s', title="Cadence:", width=config['plot_config']['tab_aiaBrowser']['button_wdth'])
 Text_email = TextInput(value='', title="JSOC registered email:",
                        width=config['plot_config']['tab_aiaBrowser']['button_wdth'])
@@ -245,14 +270,16 @@ selected_time = {'YY_select_st': YY_select_st.value, 'MM_select_st': MM_select_s
                  'DD_select_ed': DD_select_ed.value, 'hh_select_ed': hh_select_ed.value,
                  'mm_select_ed': mm_select_ed.value, 'ss_select_ed': ss_select_ed.value}
 
-def gettimestr(YY,MM,DD,hh,mm,ss):
-    return '{}-{}-{} {}:{}:{}'.format(YY, MM, DD, hh,mm, ss)
+
+def gettimestr(YY, MM, DD, hh, mm, ss):
+    return '{}-{}-{} {}:{}:{}'.format(YY, MM, DD, hh, mm, ss)
+
 
 def gettime():
     tststr = gettimestr(YY_select_st.value, MM_select_st.value, DD_select_st.value, hh_select_st.value,
-                               mm_select_st.value, ss_select_st.value)
+                        mm_select_st.value, ss_select_st.value)
     tedstr = gettimestr(YY_select_ed.value, MM_select_ed.value, DD_select_ed.value, hh_select_ed.value,
-                               mm_select_ed.value, ss_select_ed.value)
+                        mm_select_ed.value, ss_select_ed.value)
     return Time([tststr, tedstr], format='iso', scale='utc')
 
 
@@ -301,17 +328,6 @@ def get_num(x):
 
 global MkPlot_args_dict
 MkPlot_args_dict = {}
-
-
-def CheckFileinList(file2chk, filelist):
-    # return the index of files tobe downloaded
-    idxs = []
-    if len(file2chk) > 0:
-        filelist = [os.path.basename(ll) for ll in filelist]
-        for idx, items in enumerate(file2chk):
-            if items not in filelist:
-                idxs.append(idx)
-    return idxs
 
 
 def DownloadData():
@@ -368,13 +384,24 @@ def DownloadData():
                     Div_JSOC_info.text = Div_JSOC_info.text + """<p>Request URL: {}</p>""".format(r.request_url)
                     Div_JSOC_info.text = Div_JSOC_info.text + """<p>{:d} file(s) available for download.</p>""".format(
                         len(r.urls))
-                    idx2download = CheckFileinList(r.data['filename'], glob.glob(SDO_dir + '*.fits'))
+                    idx2download = DButil.FileNotInList(r.data['filename'],
+                                                        DButil.readsdofile(datadir=SDOdir, wavelength=wave,
+                                                                           jdtime=[tst.jd, ted.jd],
+                                                                           isexists=True))
                     if len(idx2download) > 0:
-                        r.download(SDO_dir, index=idx2download)
-                        Div_JSOC_info.text = Div_JSOC_info.text + """<p>Target file(s) existed.</p>"""
+                        r.download(SDOdir, index=idx2download)
+                        # Div_JSOC_info.text = Div_JSOC_info.text + """<p>Target file(s) existed.</p>"""
+
+                    filename = glob.glob(SDOdir + '*.fits')
+                    dirs = DButil.getsdodir(filename)
+                    for ll, dd in enumerate(dirs['dir']):
+                        if not os.path.exists(SDOdir + dd):
+                            os.makedirs(SDOdir + dd)
+                        os.system('mv {}/*{}*.fits {}{}'.format(SDOdir, dirs['timstr'][ll], SDOdir, dd))
+
                     Div_JSOC_info.text = Div_JSOC_info.text + """<p>Download finished.</p>"""
                     Div_JSOC_info.text = Div_JSOC_info.text + """<p>Download directory: {}</p>""".format(
-                        os.path.abspath(SDO_dir))
+                        os.path.abspath(SDOdir))
                 except:
                     print qstr + ' fail to export'
 
@@ -407,13 +434,32 @@ BUT_MkPlot = Button(label='MkPlot', width=config['plot_config']['tab_aiaBrowser'
 BUT_MkPlot.on_click(MkPlot)
 
 
-def exit():
+def Buttonaskdir_handler():
+    global SDOdir
+    tkRoot = Tkinter.Tk()
+    tkRoot.withdraw()  # Close the root window
+    in_path = tkFileDialog.askdirectory(initialdir=SDOdir, parent=tkRoot) + '/'
+    tkRoot.destroy()
+    if in_path:
+        Text_sdodir.value = in_path
+        SDOdir = in_path
+        config['datadir']['SDOdir'] = SDOdir
+        fout = suncasa_dir + 'aiaBrowser/config.json'
+        DButil.updatejsonfile(fout, config)
+        print in_path
+
+
+But_sdodir = Button(label='Directory', width=config['plot_config']['tab_aiaBrowser']['button_wdth'])
+But_sdodir.on_click(Buttonaskdir_handler)
+
+
+def exit_update():
     Div_info.text = """<p><b>You may close the tab anytime you like.</b></p>"""
     raise SystemExit
 
 
 BUT_exit = Button(label='Exit', width=config['plot_config']['tab_aiaBrowser']['button_wdth'], button_type='danger')
-BUT_exit.on_click(exit)
+BUT_exit.on_click(exit_update)
 
 SPCR_LFT_widgetbox = Spacer(width=50, height=10)
 SPCR_RGT_widgetbox = Spacer(width=50, height=10)
@@ -421,7 +467,9 @@ SPCR_RGT_widgetbox = Spacer(width=50, height=10)
 lout = row(column(row(YY_select_st, MM_select_st, DD_select_st, hh_select_st, mm_select_st, ss_select_st),
                   row(YY_select_ed, MM_select_ed, DD_select_ed, hh_select_ed, mm_select_ed, ss_select_ed)),
            SPCR_LFT_widgetbox, Wavelngth_checkbox, SPCR_RGT_widgetbox,
-           widgetbox(Text_Cadence, Text_email, BUT_DownloadData, Text_PlotID, BUT_MkPlot, BUT_exit, Div_info,
+           widgetbox(Text_Cadence, Text_email, Text_sdodir, But_sdodir, BUT_DownloadData,
+                     Text_PlotID,
+                     BUT_MkPlot, BUT_exit, Div_info,
                      width=config['plot_config']['tab_aiaBrowser']['button_wdth']))
 # def timeout_callback():
 #     print 'timeout'

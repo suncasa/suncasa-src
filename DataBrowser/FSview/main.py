@@ -48,7 +48,7 @@ with open(suncasa_dir + 'DataBrowser/config.json', 'r') as fp:
     config_plot = json.load(fp)
 database_dir = config_plot['datadir']['database']
 database_dir = os.path.expandvars(database_dir) + '/'
-SDO_dir = database_dir + '/aiaBrowserData/Download/'
+SDOdir = database_dir + '/aiaBrowserData/Download/'
 spec_square_rs_tmax = config_plot['plot_config']['tab_FSview_base']['spec_square_rs_tmax']
 spec_square_rs_fmax = config_plot['plot_config']['tab_FSview_base']['spec_square_rs_fmax']
 spec_image_rs_ratio = config_plot['plot_config']['tab_FSview_base']['spec_image_rs_ratio']
@@ -86,19 +86,6 @@ def goodchan(hdu):
     np.where(np.nanmean(hdu.data[0, :, yc - ndy / 16:yc + ndy / 16, xc - ndx / 16:xc + ndx / 16], axis=(-1, -2)))[0]
     return hdu_goodchan
 
-
-def rebin_specdata(tab2_spec, spec_square_rs_tmax=None, spec_square_rs_fmax=None):
-    # global tab2_spec_rs, tab2_tim_image_rs, tab2_freq_image_rs, tab2_ntim_image_rs, tab2_nfreq_image_rs
-    tab2_spec_sz = tab2_spec.shape
-    if tab2_spec_sz[3] > spec_square_rs_tmax * spec_image_rs_ratio:
-        spec_sz2 = float(spec_square_rs_tmax * spec_image_rs_ratio) / float(tab2_spec_sz[3])
-    if tab2_spec_sz[2] > spec_square_rs_fmax * spec_image_rs_ratio:
-        spec_sz1 = float(spec_square_rs_fmax * spec_image_rs_ratio) / float(tab2_spec_sz[2])
-    tab2_spec_rs = sn.interpolation.zoom(tab2_spec, [1, 1, spec_sz1, spec_sz2], order=1)
-    tab2_tim_image_rs = sn.interpolation.zoom(tab2_tim, spec_sz2, order=1)
-    tab2_freq_image_rs = sn.interpolation.zoom(tab2_freq, spec_sz1, order=1)
-    tab2_ntim_image_rs = len(tab2_tim_image_rs)
-    tab2_nfreq_image_rs = len(tab2_freq_image_rs)
 
 
 def downsample_dspecDF(spec_square_rs_tmax=None, spec_square_rs_fmax=None):
@@ -283,7 +270,7 @@ def tab2_SRC_maxfit_centroid_init(dspecDFsel):
 def aia_submap_wavelength_selection(attrname, old, new):
     global tab3_r_aia_submap
     select_wave = tab2_Select_aia_wave.value
-    aiamap = DButil.readsdofile(datadir=SDO_dir, wavelength=select_wave, jdtime=xx[0] / 3600. / 24.,
+    aiamap = DButil.readsdofile(datadir=SDOdir, wavelength=select_wave, jdtime=xx[0] / 3600. / 24.,
                                 timtol=tab2_dur / 3600. / 24.)
     print 'wavelength {} selected'.format(select_wave)
     lengthx = vla_local_pfmap.dw[0] * u.arcsec
@@ -1352,7 +1339,7 @@ if os.path.exists(FS_dspecDF):
         pols = DButil.polsfromfitsheader(hdu.header)
         # initial dspecDF_select and dspecDF0POL
         dspecDF_select = DButil.dspecDFfilter(dspecDF0, pols[0])
-        dspecDF0POL = DButil.dspecDFfilter(dspecDF0, pols[0])
+        dspecDF0POL = dspecDF_select.copy() #DButil.dspecDFfilter(dspecDF0, pols[0])
 
         # initial the VLA map contour source
         tab2_SRC_vlamap_contour = ColumnDataSource(
@@ -1386,7 +1373,7 @@ if os.path.exists(FS_dspecDF):
         tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
 
 
-        aiamap = DButil.readsdofile(datadir=SDO_dir, wavelength='171', jdtime=xx[0] / 3600. / 24.,
+        aiamap = DButil.readsdofile(datadir=SDOdir, wavelength='171', jdtime=xx[0] / 3600. / 24.,
                                     timtol=tab2_dur / 3600. / 24.)
 
         colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
@@ -2074,8 +2061,8 @@ if os.path.exists(FS_dspecDF):
             tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
 
             # aiamap = sunpy.map.Map(filepath)
-            print xx[0] / 3600. / 24., SDO_dir
-            aiamap = DButil.readsdofile(datadir=SDO_dir, wavelength='171', jdtime=xx[0] / 3600. / 24.,
+            print xx[0] / 3600. / 24., SDOdir
+            aiamap = DButil.readsdofile(datadir=SDOdir, wavelength='171', jdtime=xx[0] / 3600. / 24.,
                                         timtol=tab2_dur / 3600. / 24.)
             MapRES = 256
             dimensions = u.Quantity([MapRES, MapRES], u.pixel)
