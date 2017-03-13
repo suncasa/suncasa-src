@@ -87,19 +87,6 @@ def goodchan(hdu):
     return hdu_goodchan
 
 
-def rebin_specdata(tab2_spec, spec_square_rs_tmax=None, spec_square_rs_fmax=None):
-    # global tab2_spec_rs, tab2_tim_image_rs, tab2_freq_image_rs, tab2_ntim_image_rs, tab2_nfreq_image_rs
-    tab2_spec_sz = tab2_spec.shape
-    if tab2_spec_sz[3] > spec_square_rs_tmax * spec_image_rs_ratio:
-        spec_sz2 = float(spec_square_rs_tmax * spec_image_rs_ratio) / float(tab2_spec_sz[3])
-    if tab2_spec_sz[2] > spec_square_rs_fmax * spec_image_rs_ratio:
-        spec_sz1 = float(spec_square_rs_fmax * spec_image_rs_ratio) / float(tab2_spec_sz[2])
-    tab2_spec_rs = sn.interpolation.zoom(tab2_spec, [1, 1, spec_sz1, spec_sz2], order=1)
-    tab2_tim_image_rs = sn.interpolation.zoom(tab2_tim, spec_sz2, order=1)
-    tab2_freq_image_rs = sn.interpolation.zoom(tab2_freq, spec_sz1, order=1)
-    tab2_ntim_image_rs = len(tab2_tim_image_rs)
-    tab2_nfreq_image_rs = len(tab2_freq_image_rs)
-
 
 def downsample_dspecDF(spec_square_rs_tmax=None, spec_square_rs_fmax=None):
     global dspecDF0_rs, dspecDF0, spec_rs_step

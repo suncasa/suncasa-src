@@ -23,7 +23,7 @@ __email__ = "sijie.yu@njit.edu"
 #         if not os.path.exists(ll):
 #             os.makedirs(ll)
 
-def loadjsonfile(jsonfile,mustexist=True):
+def loadjsonfile(jsonfile, mustexist=True):
     if os.path.exists(jsonfile):
         with open(jsonfile, 'r') as fp:
             data = json.load(fp)
@@ -35,9 +35,10 @@ def loadjsonfile(jsonfile,mustexist=True):
             return None
 
 
-def updatejsonfile(jsonfile,data):
+def updatejsonfile(jsonfile, data):
     with open(jsonfile, 'w') as fp:
         json.dump(data, fp)
+
 
 def getsdodir(filename, unique=True):
     '''
@@ -517,7 +518,7 @@ def dspecDFfilter(dspecDF, pol):
                     'beam_positionangle']
     ## above are the columns to filter
     colnlistess = dspecDF.columns.tolist()
-    if getcolctinDF(dspecDF, 'peak')[0] > 1:
+    if getcolctinDF(dspecDF, 'peak')[0] > 0:
         for ll in colnlistcom + colnlistgaus:
             colinfo = getcolctinDF(dspecDF, ll)
             if colinfo[0] > 0:
@@ -533,6 +534,54 @@ def dspecDFfilter(dspecDF, pol):
         return dspecDF1
     else:
         return dspecDF
+
+
+def regridspec(spec, x, y, nxmax=None, nymax=None):
+    '''
+    :param spec: ndarray of float or complex, shape (npol,nbl,nf,nt) Data values.
+    :param x: Data point x coordinates.
+    :param y: Data point y coordinates.
+    :param nxmax:
+    :param nymax:
+    :return:
+    '''
+    # from scipy.interpolate import griddata
+    # npol, nbl, nf, nt = spec.shape
+    # if nt > nxmax:
+    #     nt = nxmax
+    # if nf > nymax:
+    #     nf = nymax
+    # specnew = np.zeros((npol, nbl, nf, nt))
+    # tt = np.linspace(xx[0], xx[-1], nt)
+    # ff = np.linspace(yy[0], yy[-1], nf)
+    # grid_x, grid_y = np.meshgrid(tt, ff)
+    # for p in xrange(npol):
+    #     for b in xrange(nbl):
+    #         specnew[p, b, :, :] = griddata(np.stack((xx, yy), axis=-1), spec[p, b, :, :].ravel(), (grid_x, grid_y),method='linear')
+    # return [specnew, tt, ff]
+    import matplotlib.pyplot as plt
+    plt.ioff()
+    img = plt.pcolormesh(x, y, spec[0, 0, :, :])
+    img2 = img.get_array().reshape(img._meshHeight, img._meshWidth)
+    nf, nt = img2.shape
+    npol, nbl = spec.shape[:2]
+    if nt > nxmax:
+        xstep = int(float(nt)/nxmax)
+    else:
+        xstep=1
+    if nf > nymax:
+        ystep = int(float(nf) / nymax)
+    else:
+        ystep=1
+    img2 = img2[::ystep,::xstep]
+    nf, nt = img2.shape
+    specnew = np.zeros((npol, nbl, nf, nt))
+    for p in xrange(npol):
+        for b in xrange(nbl):
+            img = plt.pcolormesh(x, y, spec[p, b, :, :])
+            img2 = img.get_array().reshape(img._meshHeight, img._meshWidth)
+            specnew[p, b, :, :] = img2[::ystep,::xstep]
+    return specnew
 
 
 def get_contour_data(X, Y, Z):
@@ -663,7 +712,6 @@ class ButtonsPlayCTRL():
         BUT_next = Button(label='>|', width=plot_width, button_type='warning')
         BUT_last = Button(label='>>', width=plot_width, button_type='primary')
         self.buttons = [BUT_first, BUT_prev, BUT_play, BUT_next, BUT_last]
-
 
 # class FileDialog():
 #     '''

@@ -17,6 +17,20 @@ from astropy.time import Time
 from suncasa.utils import DButil
 
 
+def downsample_dspecDF(spec_square_rs_tmax=None, spec_square_rs_fmax=None):
+    global dspecDF0_rs, dspecDF0, spec_rs_step
+    spec_sz = len(dspecDF0.index)
+    spec_sz_max = spec_square_rs_tmax * spec_square_rs_fmax
+    if spec_sz > spec_sz_max:
+        spec_rs_step = next(i for i in xrange(1, 1000) if spec_sz / i < spec_sz_max)
+    else:
+        spec_rs_step = 1
+    dspecDF0_rs = dspecDF0.loc[::spec_rs_step, :]
+
+
+# todo 1. Split the FSview page.
+# todo 3. add clean ID to in FSview2CASA.
+
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
@@ -44,6 +58,12 @@ database_dir = config_plot['datadir']['database']
 database_dir = os.path.expandvars(database_dir) + '/'
 with open('{}config_EvtID_curr.json'.format(database_dir), 'r') as fp:
     config_EvtID = json.load(fp)
+ntmax = config_plot['plot_config']['tab_QLook']['spec_square_rs_tmax']
+nfmax = config_plot['plot_config']['tab_QLook']['spec_square_rs_fmax']
+ntmaximg = config_plot['plot_config']['tab_QLook']['spec_image_rs_tmax']
+nfmaximg = config_plot['plot_config']['tab_QLook']['spec_image_rs_fmax']
+
+spec_image_rs_ratio = config_plot['plot_config']['tab_FSview_base']['spec_image_rs_ratio']
 
 '''define the colormaps'''
 colormap_jet = cm.get_cmap("jet")  # choose any matplotlib colormap here
@@ -59,44 +79,33 @@ database_dir = os.path.expandvars(database_dir) + '/'
 event_id = config_EvtID['datadir']['event_id']
 specfile = database_dir + event_id + config_EvtID['datadir']['event_specfile']
 
+tab1_specdata = np.load(specfile)
+if isinstance(tab1_specdata['bl'].tolist(), str):
+    tab1_bl = tab1_specdata['bl'].item().split(';')
+elif isinstance(tab1_specdata['bl'].tolist(), list):
+    tab1_bl = ['&'.join(ll) for ll in tab1_specdata['bl'].tolist()]
+else:
+    raise ValueError('Please check the data of {}'.format(specfile))
+tab1_pol = 'I'
+bl_index = 0
+# tab1_spec = tab1_specdata['spec'][:, :, :, :]
+tab1_tim = tab1_specdata['tim'][:]
+tab1_freq = tab1_specdata['freq'] / 1e9
+tab1_spec = DButil.regridspec(tab1_specdata['spec'][:, :, :, :], tab1_tim - tab1_tim[0], tab1_freq, nxmax=ntmaximg,
+                              nymax=nfmaximg)
 
-def load_specdata(specfile=None):
-    global tab1_specdata, tab1_spec, tab1_tim, tab1_freq, tab1_dtim, tab1_spec_plt, tab1_bl
-    tab1_specdata = np.load(specfile)
-    if isinstance(tab1_specdata['bl'].tolist(), str):
-        tab1_bl = tab1_specdata['bl'].item().split(';')
-    elif isinstance(tab1_specdata['bl'].tolist(), list):
-        tab1_bl = ['&'.join(ll) for ll in tab1_specdata['bl'].tolist()]
-    else:
-        raise ValueError('Please check the data of {}'.format(specfile))
-    tab1_pol = 'I'
-    bl_index = 0
-    tab1_spec = tab1_specdata['spec'][:, :, :, :]
-    tab1_tim = tab1_specdata['tim'][:]
-    tab1_freq = tab1_specdata['freq'] / 1e9
-    tab1_spec_sz = tab1_spec.shape
-    spec_sz2, spec_sz1 = 100, 100
-    if tab1_spec_sz[3] > 3000:
-        spec_sz2 = next(i for i in xrange(1, 100) if i / 100. * tab1_spec_sz[3] > 3000)
-    if tab1_spec_sz[2] > 300:
-        spec_sz1 = next(i for i in xrange(1, 100) if i / 100. * tab1_spec_sz[2] > 300)
-    tab1_spec = sn.interpolation.zoom(tab1_spec, [1, 1, spec_sz1 / 100.0, spec_sz2 / 100.0], order=1)
-    tab1_tim = sn.interpolation.zoom(tab1_tim, spec_sz2 / 100.0, order=1)
-    tab1_freq = sn.interpolation.zoom(tab1_freq, spec_sz1 / 100.0, order=1)
+if tab1_pol == 'RR':
+    tab1_spec_plt = tab1_spec[0, bl_index, :, :]
+elif tab1_pol == 'LL':
+    tab1_spec_plt = tab1_spec[1, bl_index, :, :]
+elif tab1_pol == 'I':
+    tab1_spec_plt = (tab1_spec[0, bl_index, :, :] + tab1_spec[1, bl_index, :, :]) / 2.
+elif tab1_pol == 'V':
+    tab1_spec_plt = (tab1_spec[0, bl_index, :, :] - tab1_spec[1, bl_index, :, :]) / 2.
+tab1_dtim = tab1_tim - tab1_tim[0]
 
-    if tab1_pol == 'RR':
-        tab1_spec_plt = tab1_spec[0, bl_index, :, :]
-    elif tab1_pol == 'LL':
-        tab1_spec_plt = tab1_spec[1, bl_index, :, :]
-    elif tab1_pol == 'I':
-        tab1_spec_plt = (tab1_spec[0, bl_index, :, :] + tab1_spec[1, bl_index, :, :]) / 2.
-    elif tab1_pol == 'V':
-        tab1_spec_plt = (tab1_spec[0, bl_index, :, :] - tab1_spec[1, bl_index, :, :]) / 2.
-    tab1_dtim = tab1_tim - tab1_tim[0]
-
-
-load_specdata(specfile)
 TOOLS = "pan,wheel_zoom,box_zoom,reset,save"
+
 '''create the dynamic spectrum plot'''
 tab1_p_dspec = figure(tools=TOOLS, webgl=config_plot['plot_config']['WebGL'],
                       plot_width=config_plot['plot_config']['tab_QLook']['dspec_wdth'],
@@ -122,23 +131,15 @@ tab1_r_dspec = tab1_p_dspec.image(image=[tab1_spec_plt], x=tab1_dtim[0], y=tab1_
                                   dw=tab1_dtim[-1] - tab1_dtim[0],
                                   dh=tab1_freq[-1] - tab1_freq[0], palette=bokehpalette_jet)
 
-tab1_spec_sz = tab1_spec.shape
-ratio_spec_sz2, ratio_spec_sz1 = 100., 100.
-if tab1_spec_sz[3] > 520:
-    ratio_spec_sz2 = next(i for i in xrange(1, 100) if i / 100. * tab1_spec_sz[3] > 520)
-if tab1_spec_sz[2] > 75:
-    ratio_spec_sz1 = next(i for i in xrange(1, 100) if i / 100. * tab1_spec_sz[2] > 75)
-tab1_tim_square = sn.interpolation.zoom(tab1_tim, ratio_spec_sz2 / 100., order=1)
-tab1_freq_square = sn.interpolation.zoom(tab1_freq, ratio_spec_sz1 / 100., order=1)
-tab1_nfreq_square, = tab1_freq_square.shape
-tab1_ntim_square, = tab1_tim_square.shape
-tim_map = ((np.tile(tab1_tim_square, tab1_nfreq_square).reshape(tab1_nfreq_square,
-                                                                tab1_ntim_square) / 3600. / 24. + 2400000.5)) * 86400.
-freq_map = np.tile(tab1_freq_square, tab1_ntim_square).reshape(tab1_ntim_square, tab1_nfreq_square).swapaxes(0, 1)
+tab1_nfreq = len(tab1_freq)
+tab1_ntim = len(tab1_tim)
+tim_map = ((np.tile(tab1_tim, tab1_nfreq).reshape(tab1_nfreq, tab1_ntim) / 3600. / 24. + 2400000.5)) * 86400.
+freq_map = np.tile(tab1_freq, tab1_ntim).reshape(tab1_ntim, tab1_nfreq).swapaxes(0, 1)
 xx = tim_map.flatten()
 yy = freq_map.flatten()
-tab1_dspecDF_square = pd.DataFrame({'time': xx - xx[0], 'freq': yy})
-tab1_SRC_dspec_square = ColumnDataSource(tab1_dspecDF_square)
+dspecDF0 = pd.DataFrame({'time': xx - xx[0], 'freq': yy})
+downsample_dspecDF(spec_square_rs_tmax=ntmax, spec_square_rs_fmax=nfmax)
+tab1_SRC_dspec_square = ColumnDataSource(dspecDF0_rs)
 tab1_r_square = tab1_p_dspec.square('time', 'freq', source=tab1_SRC_dspec_square, fill_color=None, fill_alpha=0.0,
                                     line_color=None, line_alpha=0.0, selection_fill_color=None,
                                     selection_fill_alpha=0.0, nonselection_fill_alpha=0.0,
@@ -230,7 +231,7 @@ def tab1_SRC_dspec_square_select(attrname, old, new):
     tab1_selected_dspec_square = tab1_SRC_dspec_square.selected['1d']['indices']
     if tab1_selected_dspec_square:
         global dftmp
-        dftmp = tab1_dspecDF_square.iloc[tab1_selected_dspec_square, :]
+        dftmp = dspecDF0_rs.iloc[tab1_selected_dspec_square, :]
         x0, x1 = dftmp['time'].min(), dftmp['time'].max()
         y0, y1 = dftmp['freq'].min(), dftmp['freq'].max()
         tab2_r_dspec_patch.data_source.data = ColumnDataSource(
