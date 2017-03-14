@@ -1537,10 +1537,10 @@ if os.path.exists(FS_dspecDF):
                                     width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
         tab2_Slider_time_LinkImg = Slider(start=0, end=tab2_ntim - 1, value=0, step=1, title="time idx",
-                                          width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                          width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']*2,
                                           callback_policy='mouseup')
         tab2_Slider_freq_LinkImg = Slider(start=0, end=tab2_nfreq - 1, value=0, step=1, title="freq idx",
-                                          width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                          width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']*2,
                                           callback_policy='mouseup')
 
         # pols = ['RR', 'LL', 'I', 'V']
@@ -1763,7 +1763,7 @@ if os.path.exists(FS_dspecDF):
         lout2_1 = row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
                       widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
                                 tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
-                                width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']))
+                                width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']*2))
         # if do_spec_regrid:
         #     # lout2_2_1 = column(tab2_p_dspec_rs, row(tab2_p_dspec, tab2_p_dspec_yPro), tab2_p_dspec_xPro)
         #     pass
@@ -2165,10 +2165,10 @@ if os.path.exists(FS_dspecDF):
                                         width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
             tab2_Slider_time_LinkImg = Slider(start=0, end=tab2_ntim - 1, value=0, step=1, title="time idx",
-                                              width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                              width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']*2,
                                               callback_policy='mouseup')
             tab2_Slider_freq_LinkImg = Slider(start=0, end=tab2_nfreq - 1, value=0, step=1, title="freq idx",
-                                              width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                              width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']*2,
                                               callback_policy='mouseup')
 
             pols = DButil.polsfromfitsheader(hdu.header)
@@ -2264,7 +2264,7 @@ if os.path.exists(FS_dspecDF):
             lout2_1_1 = row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
                             widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
                                       tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
-                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']))
+                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']*2))
             lout2_1_2 = row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
                                    tab2_p_dspec_xPro),
                             widgetbox(tab2_Select_pol, tab2_Select_bl,

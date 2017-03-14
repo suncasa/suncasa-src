@@ -612,8 +612,8 @@ def tab2_BUT_tCLN_param_save():
         exec ('workdir = {}'.format(val))
     else:
         workdir = './'
-    os.system('cp {} {}'.format(CleanID_dir + 'CASA_CLN_args.json', workdir))
-    # os.system('cp {}/DataBrowser/ToClean/script_clean.py {}'.format(suncasa_dir, workdir))
+    # os.system('cp {} {}'.format(CleanID_dir + 'CASA_CLN_args.json', workdir))
+    os.system('cp {}/DataBrowser/ToClean/script_clean.py {}'.format(suncasa_dir, CleanID_dir))
 
     for ii in range(tab2_ntim):
         iit = int(ii) / twidth * twidth

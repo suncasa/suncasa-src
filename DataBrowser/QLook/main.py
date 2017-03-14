@@ -402,7 +402,7 @@ def tab1_update_FSviewStrID():
         CleanIDdir = event_dir + struct_id + CleanID + '/'
         FS_dspecDF = CleanIDdir + 'dspecDF-save'
         if CleanIDdir != '' and os.path.exists(FS_dspecDF):
-            tab1_Div_Tb.text = """<p>Check the <b>FS_view</b> in the <b>new tab</b></p>"""
+            tab1_Div_FSview.text = """<p>Check the <b>FS_view</b> in the <b>new tab</b></p>"""
             port = DButil.getfreeport()
             print 'bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port)
             os.system('bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port))
@@ -410,7 +410,7 @@ def tab1_update_FSviewStrID():
         else:
             tab1_Div_FSview.text = """<p>Click <b>ToClean </b> to make synthesis images first!!</p>"""
     else:
-        tab1_Div_Tb.text = """<p><b>Warning: No StrID selected. Select one StrID first!!!</b></p>"""
+        tab1_Div_FSview.text = """<p><b>Warning: No StrID selected. Select one StrID first!!!</b></p>"""
 
 
 def tab1_update_saveStrID():

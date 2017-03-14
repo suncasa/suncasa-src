@@ -69,8 +69,8 @@ if os.path.exists('CASA_CLN_args.json'):
     if not os.path.exists(imageprefix):
         os.makedirs(imageprefix)
     default('ptclean')
-    with open('CASA_CLN_args.json', 'r') as fp:
-        CASA_CLN_args = json.load(fp)
+    # with open('CASA_CLN_args.json', 'r') as fp:
+    #     CASA_CLN_args = json.load(fp)
     for key, val in CASA_CLN_args.items():
         exec (key + '= {}'.format(val))
     timerange = timeran
