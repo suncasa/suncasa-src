@@ -52,6 +52,7 @@ SDOdir = DButil.getSDOdir(config_main, database_dir + '/aiaBrowserData/', suncas
 spec_square_rs_tmax = config_main['plot_config']['tab_FSview_base']['spec_square_rs_tmax']
 spec_square_rs_fmax = config_main['plot_config']['tab_FSview_base']['spec_square_rs_fmax']
 spec_image_rs_ratio = config_main['plot_config']['tab_FSview_base']['spec_image_rs_ratio']
+tidx_prev = None
 
 # do_spec_regrid = False
 
@@ -284,7 +285,7 @@ def aia_submap_wavelength_selection(attrname, old, new):
 
 
 def tab3_slider_LinkImg_update(attrname, old, new):
-    global hdu, select_vla_pol, dspecDF0POL
+    global hdu, select_vla_pol, dspecDF0POL, tidx_prev
     select_vla_pol = tab2_Select_vla_pol.value
     dspecDF0POL = DButil.dspecDFfilter(dspecDF0, select_vla_pol)
     tab2_Slider_time_LinkImg.start = next(
@@ -305,7 +306,8 @@ def tab3_slider_LinkImg_update(attrname, old, new):
                       'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
     hdufile = fits_LOCL_dir + dspecDF0POL.loc[DFidx_selected, :]['fits_local']
     if os.path.exists(hdufile):
-        hdu = read_fits(hdufile)
+        if tidx != tidx_prev:
+            hdu = read_fits(hdufile)
         hdu_goodchan = goodchan(hdu)
         freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
         freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
@@ -334,6 +336,7 @@ def tab3_slider_LinkImg_update(attrname, old, new):
     else:
         tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
             dspecDF0POL.loc[DFidx_selected, :]['fits_local'])
+    tidx_prev = tidx
 
 
 def tab2_SRC_maxfit_centroid_update(dspecDFsel):
@@ -500,7 +503,7 @@ def tab3_SRC_dspec_vector_update():
 
 
 def tab2_dspec_selection_change(attrname, old, new):
-    global tab2_dspec_selected
+    global tab2_dspec_selected, tidx_prev
     tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
     if tab2_dspec_selected:
         global dspecDF_select, DFidx_selected
@@ -512,6 +515,7 @@ def tab2_dspec_selection_change(attrname, old, new):
             '{:.3f}'.format(dspecDF0.loc[DFidx_selected, :]['time'])))
         fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
             '{:.3f}'.format(dspecDF0.loc[DFidx_selected, :]['freq'])))
+        tidx_prev = tidx
         tab2_Slider_time_LinkImg.value = tidx
         tab2_Slider_freq_LinkImg.value = fidx
         if len(tab2_dspec_selected) > 100:
@@ -1069,6 +1073,7 @@ elif isinstance(tab2_specdata['bl'].tolist(), list):
     tab2_bl = ['&'.join(ll) for ll in tab2_specdata['bl'].tolist()]
 else:
     raise ValueError('Please check the data of {}'.format(FS_specfile))
+
 bl_index = 0
 tab2_pol = 'I'
 sz_spec = tab2_spec.shape
@@ -1374,8 +1379,8 @@ if os.path.exists(FS_dspecDF):
 
         colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
         bokehpalette_gray = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-        lengthx = vla_local_pfmap.dw[0] * u.arcsec
-        lengthy = vla_local_pfmap.dh[0] * u.arcsec
+        lengthx = vla_local_pfmap.dw[0] * u.arcsec / 2
+        lengthy = vla_local_pfmap.dh[0] * u.arcsec / 2
         x0 = vla_local_pfmap.smap.center.x
         y0 = vla_local_pfmap.smap.center.y
         aiamap_submap = aiamap.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
