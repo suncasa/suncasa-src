@@ -58,7 +58,7 @@ tab0_DataTb_evt = DataTable(source=tab0_SRC_Tb_EvtID, columns=tab0_TbCols2,
 tab0_Div_Tb = Div(text=""" """, width=config_main['plot_config']['tab_QLook']['StrID_DataTb_wdth'])
 tab0_Div_exit = Div(text="""
 <p><b>Warning</b>: 1. Click the <b>Exit EvtBrowser</b> first before closing the tab</p>
-<p><b>Warning</b>: 2. <b>QLook</b> <b>FSview</b> or <b>FSview2CASA</b> tabs will disconnect if <b>Exit EvtBrowser is clicked</b></p>""",
+<p><b>Warning</b>: 2. <b>QLook</b> <b>FSview</b> or <b>ToClean</b> tabs will disconnect if <b>Exit EvtBrowser is clicked</b></p>""",
                     width=150)
 
 ports = []

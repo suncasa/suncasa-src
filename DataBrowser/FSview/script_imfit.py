@@ -16,6 +16,10 @@ if os.path.exists('CASA_imfit_args.json'):
 
     if 'struct_id' in locals():
         structure_id = struct_id
+        if 'clean_id' in locals():
+            cleanIDdir = database_dir + event_id + '/' + struct_id+'/' + clean_id
+        else:
+            raise ValueError('define a clean_id!!!')
     else:
         raise ValueError('define a struct_id!!!')
     print 'Script for imfit --- {} in {}'.format(structure_id, event_id)
@@ -38,7 +42,7 @@ if os.path.exists('CASA_imfit_args.json'):
             exec (key + '= {}'.format(val))
         out = pmaxfit()
 
-    imgdir = database_dir + event_id + '/' + struct_id + '/Synthesis_Image/'
+    imgdir = cleanIDdir + '/Synthesis_Image/'
     if not os.path.exists(imgdir):
         os.mkdir(imgdir)
     with open(imgdir + 'CASA_imfit_out', 'w') as fp:
@@ -46,15 +50,15 @@ if os.path.exists('CASA_imfit_args.json'):
 
     # todo add deconvolved results
     dspecDF2 = DButil.transfitdict2DF(out, gaussfit=gaussfit)
-    with open(database_dir + event_id + '/' + struct_id + '/dspecDF-save', 'rb') as fp:
+    with open(cleanIDdir + '/dspecDF-save', 'rb') as fp:
         dspecDF1 = pickle.load(fp)
     for ll in dspecDF1.index:
         tmp = dspecDF1.loc[ll, 'freq']
         dspecDF1.loc[ll, 'freq'] = float('{:.3f}'.format(tmp))
     dspecDF = pd.merge(dspecDF1, dspecDF2, how='left', on=['freqstr', 'fits_local'])
-    with open(database_dir + event_id + '/' + struct_id + '/dspecDF-save', 'wb') as fp:
+    with open(cleanIDdir + '/dspecDF-save', 'wb') as fp:
         pickle.dump(dspecDF, fp)
-    print 'imfit results saved to ' + database_dir + event_id + '/' + struct_id + '/dspecDF-save'
+    print 'imfit results saved to ' + cleanIDdir + '/dspecDF-save'
 
 else:
     print 'CASA arguments config file not found!!'
