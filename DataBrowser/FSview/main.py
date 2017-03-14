@@ -304,7 +304,10 @@ def tab3_slider_LinkImg_update(attrname, old, new):
     tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
         pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
                       'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
-    hdufile = fits_LOCL_dir + dspecDF0POL.loc[DFidx_selected, :]['fits_local']
+    timeidxs = np.unique(dspecDF0POL['time'])
+    fitsfile = dspecDF0POL[dspecDF0POL.time == timeidxs[tidx]].iloc[0]['fits_local']
+    hdufile = fits_LOCL_dir + fitsfile
+    print hdufile
     if os.path.exists(hdufile):
         if tidx != tidx_prev:
             hdu = read_fits(hdufile)
@@ -313,6 +316,7 @@ def tab3_slider_LinkImg_update(attrname, old, new):
         freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
         idxfreq = freq.index(freq_ref)
         fidx_hdu = fidx - idxfreq
+        print 'tidx,tidx_prev,fidx:', tidx, tidx_prev, fidx_hdu
         if hdu_goodchan[0] <= fidx_hdu <= hdu_goodchan[-1]:
             if select_vla_pol == 'RR':
                 vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :]
@@ -329,13 +333,11 @@ def tab3_slider_LinkImg_update(attrname, old, new):
             mapx, mapy = mapx.value, mapy.value
             SRC_contour = DButil.get_contour_data(mapx, mapy, pfmap.smap.data)
             tab2_r_vla_multi_line.data_source.data = SRC_contour.data
-            tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(
-                dspecDF0POL.loc[DFidx_selected, :]['fits_local'])
+            tab2_Div_LinkImg_plot.text = '<p><b>{}</b> loaded.</p>'.format(fitsfile)
         else:
             tab2_Div_LinkImg_plot.text = '<p><b>freq idx</b> out of range.</p>'
     else:
-        tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(
-            dspecDF0POL.loc[DFidx_selected, :]['fits_local'])
+        tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(fitsfile)
     tidx_prev = tidx
 
 
@@ -515,7 +517,6 @@ def tab2_dspec_selection_change(attrname, old, new):
             '{:.3f}'.format(dspecDF0.loc[DFidx_selected, :]['time'])))
         fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
             '{:.3f}'.format(dspecDF0.loc[DFidx_selected, :]['freq'])))
-        tidx_prev = tidx
         tab2_Slider_time_LinkImg.value = tidx
         tab2_Slider_freq_LinkImg.value = fidx
         if len(tab2_dspec_selected) > 100:
@@ -1568,6 +1569,9 @@ if os.path.exists(FS_dspecDF):
 
         for ctrl in tab2_CTRLs_LinkImg:
             ctrl.on_change('value', tab3_slider_LinkImg_update)
+        # tab2_Slider_time_LinkImg.on_change('value', tab3_slider_LinkImg_update)
+        # tab2_Slider_freq_LinkImg.on_change('value', tab3_slider_LinkImg_update)
+        # tab2_Select_vla_pol.on_change('value', tab3_slider_LinkImg_update)
 
         tab2_LinkImg_HGHT = config_main['plot_config']['tab_FSview_base']['vla_hght']
         tab2_LinkImg_WDTH = config_main['plot_config']['tab_FSview_base']['vla_wdth']

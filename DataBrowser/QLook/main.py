@@ -401,11 +401,8 @@ def tab1_update_FSviewStrID():
         dumpCurrFS(StrID, CleanID)
         CleanIDdir = event_dir + struct_id + CleanID + '/'
         FS_dspecDF = CleanIDdir + 'dspecDF-save'
-        print FS_dspecDF
         if CleanIDdir != '' and os.path.exists(FS_dspecDF):
-            tab1_Div_Tb.text = """<p>sent StrID to <b>""" + database_dir + StrID['str_id'][0] + """.json</b></p>
-                <p>sent FS_config to <b>""" + event_dir + """CurrFS.json</b></p>
-                <p>Check the <b>FS_view</b> in the <b>new tab</b></p>"""
+            tab1_Div_Tb.text = """<p>Check the <b>FS_view</b> in the <b>new tab</b></p>"""
             port = DButil.getfreeport()
             print 'bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port)
             os.system('bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port))
