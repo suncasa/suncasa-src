@@ -622,6 +622,8 @@ def get_contour_data(X, Y, Z):
     import matplotlib.cm as cm
     from bokeh.models import (ColumnDataSource)
     cs = plt.contour(X, Y, Z, levels=(np.arange(5, 10, 2) / 10.0 * np.nanmax(Z)).tolist(), cmap=cm.Greys_r)
+    dx = X[0,1]-X[0,0]
+    dy = Y[1,0]-Y[0,0]
     xs = []
     ys = []
     xt = []
@@ -641,8 +643,8 @@ def get_contour_data(X, Y, Z):
 
         for path in isolevel.get_paths():
             v = path.vertices
-            x = v[:, 0]
-            y = v[:, 1]
+            x = v[:, 0]+dx
+            y = v[:, 1]+dy
             xs.append(x.tolist())
             ys.append(y.tolist())
             xt.append(x[len(x) / 2])
