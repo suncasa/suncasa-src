@@ -11,7 +11,7 @@ from taskinit import casalog
 from taskinit import xmlpath
 #from taskmanager import tm
 import task_ptclean
-def ptclean(vis='', imageprefix='', ncpu=8, twidth=1, doreg=False, ephemfile='', msinfofile='', outlierfile='', field='', spw='', selectdata=True, timerange='', uvrange='', antenna='', scan='', observation='', intent='', mode='mfs', resmooth=False, gridmode='', wprojplanes=-1, facets=1, cfcache='cfcache.dir', rotpainc=5.0, painc=360.0, aterm=True, psterm=False, mterm=True, wbawp=False, conjbeams=True, epjtable='', interpolation='linear', niter=500, gain=0.1, threshold='0.0mJy', psfmode='clark', imagermode='csclean', ftmachine='mosaic', mosweight=False, scaletype='SAULT', multiscale=[0], negcomponent=-1, smallscalebias=0.6, interactive=False, mask=[], nchan=-1, start=0, width=1, outframe='', veltype='radio', imsize=[256, 256], cell=['1.0arcsec'], phasecenter='', restfreq='', stokes='I', weighting='natural', robust=0.0, uvtaper=False, outertaper=[''], innertaper=['1.0'], modelimage='', restoringbeam=[''], pbcor=False, minpb=0.2, usescratch=False, noise='1.0Jy', npixels=0, npercycle=100, cyclefactor=1.5, cyclespeedup=-1, nterms=1, reffreq='', chaniter=False, flatnoise=True, allowchunk=False):
+def ptclean(vis='', imageprefix='', ncpu=8, twidth=1, doreg=False, overwrite=False, ephemfile='', msinfofile='', outlierfile='', field='', spw='', selectdata=True, timerange='', uvrange='', antenna='', scan='', observation='', intent='', mode='mfs', resmooth=False, gridmode='', wprojplanes=-1, facets=1, cfcache='cfcache.dir', rotpainc=5.0, painc=360.0, aterm=True, psterm=False, mterm=True, wbawp=False, conjbeams=True, epjtable='', interpolation='linear', niter=500, gain=0.1, threshold='0.0mJy', psfmode='clark', imagermode='csclean', ftmachine='mosaic', mosweight=False, scaletype='SAULT', multiscale=[0], negcomponent=-1, smallscalebias=0.6, interactive=False, mask=[], nchan=-1, start=0, width=1, outframe='', veltype='radio', imsize=[256, 256], cell=['1.0arcsec'], phasecenter='', restfreq='', stokes='I', weighting='natural', robust=0.0, uvtaper=False, outertaper=[''], innertaper=['1.0'], modelimage='', restoringbeam=[''], pbcor=False, minpb=0.2, usescratch=False, noise='1.0Jy', npixels=0, npercycle=100, cyclefactor=1.5, cyclespeedup=-1, nterms=1, reffreq='', chaniter=False, flatnoise=True, allowchunk=False):
 
         """Parallelized clean in consecutive time steps
   
@@ -33,6 +33,7 @@ def ptclean(vis='', imageprefix='', ncpu=8, twidth=1, doreg=False, ephemfile='',
         mytmp['ncpu'] = ncpu
         mytmp['twidth'] = twidth
         mytmp['doreg'] = doreg
+        mytmp['overwrite'] = overwrite
         mytmp['ephemfile'] = ephemfile
         mytmp['msinfofile'] = msinfofile
         mytmp['outlierfile'] = outlierfile
@@ -109,12 +110,12 @@ def ptclean(vis='', imageprefix='', ncpu=8, twidth=1, doreg=False, ephemfile='',
         mytmp['chaniter'] = chaniter
         mytmp['flatnoise'] = flatnoise
         mytmp['allowchunk'] = allowchunk
-	pathname="file:///local/software/suncasa/tasks/"
+	pathname="file:///Users/fisher/PycharmProjects/suncasa/tasks/"
 	trec = casac.utils().torecord(pathname+'ptclean.xml')
 
         casalog.origin('ptclean')
         if trec.has_key('ptclean') and casac.utils().verify(mytmp, trec['ptclean']) :
-	    result = task_ptclean.ptclean(vis, imageprefix, ncpu, twidth, doreg, ephemfile, msinfofile, outlierfile, field, spw, selectdata, timerange, uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode, wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams, epjtable, interpolation, niter, gain, threshold, psfmode, imagermode, ftmachine, mosweight, scaletype, multiscale, negcomponent, smallscalebias, interactive, mask, nchan, start, width, outframe, veltype, imsize, cell, phasecenter, restfreq, stokes, weighting, robust, uvtaper, outertaper, innertaper, modelimage, restoringbeam, pbcor, minpb, usescratch, noise, npixels, npercycle, cyclefactor, cyclespeedup, nterms, reffreq, chaniter, flatnoise, allowchunk)
+	    result = task_ptclean.ptclean(vis, imageprefix, ncpu, twidth, doreg, overwrite, ephemfile, msinfofile, outlierfile, field, spw, selectdata, timerange, uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode, wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams, epjtable, interpolation, niter, gain, threshold, psfmode, imagermode, ftmachine, mosweight, scaletype, multiscale, negcomponent, smallscalebias, interactive, mask, nchan, start, width, outframe, veltype, imsize, cell, phasecenter, restfreq, stokes, weighting, robust, uvtaper, outertaper, innertaper, modelimage, restoringbeam, pbcor, minpb, usescratch, noise, npixels, npercycle, cyclefactor, cyclespeedup, nterms, reffreq, chaniter, flatnoise, allowchunk)
 
 	else :
 	  result = False

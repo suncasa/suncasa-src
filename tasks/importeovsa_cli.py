@@ -59,7 +59,7 @@ class importeovsa_cli_:
 		   Default Value: 
 
 		nocreatms:	If setting nocreatms True, will simulate a model measurement set for the first idb file and copy the model for the rest of idl files in list. If False, will simulate a new measurement set for every idbfile in list.
-		   Default Value: True
+		   Default Value: False
 
 		doconcat:	If concatenate multi casa measurement sets to one file.
 		   Default Value: False
@@ -120,12 +120,12 @@ class importeovsa_cli_:
             In this case only partially flagged rows will be used in the average.
             default: '0s'
 
-            combine -- Let the timebin span across scan, state or both.
-            State is equivalent to sub-scans. One scan may have several
-            state ids. For ALMA MSs, the sub-scans are limited to about
-            30s duration each. In these cases, the task will automatically
-            add state to the combine parameter. To see the number of states
-            in an MS, use the msmd tool. See help msmd.
+            
+            
+            
+            
+            
+            
 
 
         
@@ -203,7 +203,7 @@ class importeovsa_cli_:
         mytmp['nocreatms'] = nocreatms
         mytmp['doconcat'] = doconcat
         mytmp['modelms'] = modelms
-	pathname="file:///local/software/suncasa/tasks/"
+	pathname="file:///Users/fisher/PycharmProjects/suncasa/tasks/"
 	trec = casac.casac.utils().torecord(pathname+'importeovsa.xml')
 
         casalog.origin('importeovsa')
@@ -281,7 +281,7 @@ class importeovsa_cli_:
         a['timebin']  = '0s'
         a['width']  = 1
         a['visprefix']  = ''
-        a['nocreatms']  = True
+        a['nocreatms']  = False
         a['doconcat']  = False
         a['modelms']  = ''
 
@@ -376,7 +376,7 @@ class importeovsa_cli_:
         a['timebin']  = '0s'
         a['width']  = 1
         a['visprefix']  = ''
-        a['nocreatms']  = True
+        a['nocreatms']  = False
         a['doconcat']  = False
         a['modelms']  = ''
 

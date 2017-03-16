@@ -564,7 +564,7 @@ imfit()
         mytmp['rms'] = rms
         mytmp['noisefwhm'] = noisefwhm
         mytmp['summary'] = summary
-	pathname="file:///local/software/suncasa/tasks/"
+	pathname="file:///Users/fisher/PycharmProjects/suncasa/tasks/"
 	trec = casac.casac.utils().torecord(pathname+'pimfit.xml')
 
         casalog.origin('pimfit')
