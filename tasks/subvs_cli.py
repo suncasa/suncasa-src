@@ -251,7 +251,7 @@ average over frequency (channels) and time (integrations).
         mytmp['splitsel'] = splitsel
         mytmp['reverse'] = reverse
         mytmp['overwrite'] = overwrite
-	pathname="file:///local/software/suncasa/tasks/"
+	pathname="file:///Users/fisher/PycharmProjects/suncasa/tasks/"
 	trec = casac.casac.utils().torecord(pathname+'subvs.xml')
 
         casalog.origin('subvs')

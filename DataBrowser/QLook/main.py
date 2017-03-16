@@ -29,7 +29,6 @@ def downsample_dspecDF(spec_square_rs_tmax=None, spec_square_rs_fmax=None):
 
 
 # todo 1. Split the FSview page.
-# todo 3. add clean ID to in FSview2CASA.
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -55,14 +54,18 @@ suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
 config_main = DButil.loadjsonfile(suncasa_dir + 'DataBrowser/config.json')
 database_dir = config_main['datadir']['database']
 database_dir = os.path.expandvars(database_dir) + '/'
+CleanIDdir = ''
+CleanIDdirdict = {}
 config_EvtID = DButil.loadjsonfile('{}config_EvtID_curr.json'.format(database_dir))
 SDOdir = DButil.getSDOdir(config_main, database_dir + '/aiaBrowserData/', suncasa_dir)
 ntmax = config_main['plot_config']['tab_QLook']['spec_square_rs_tmax']
 nfmax = config_main['plot_config']['tab_QLook']['spec_square_rs_fmax']
 ntmaximg = config_main['plot_config']['tab_QLook']['spec_image_rs_tmax']
 nfmaximg = config_main['plot_config']['tab_QLook']['spec_image_rs_fmax']
-
+tab1_BUT_OPT1 = dict(width=config_main['plot_config']['tab_QLook']['StrID_DataTb_BUT_wdth'] / 2)
+tab1_BUT_OPT2 = dict(width=config_main['plot_config']['tab_QLook']['StrID_DataTb_BUT_wdth'])
 spec_image_rs_ratio = config_main['plot_config']['tab_FSview_base']['spec_image_rs_ratio']
+ports = []
 
 '''define the colormaps'''
 colormap_jet = cm.get_cmap("jet")  # choose any matplotlib colormap here
@@ -76,7 +79,8 @@ start_timestamp = time.time()
 database_dir = config_main['datadir']['database']
 database_dir = os.path.expandvars(database_dir) + '/'
 event_id = config_EvtID['datadir']['event_id']
-specfile = database_dir + event_id + config_EvtID['datadir']['event_specfile']
+event_dir = database_dir + event_id
+specfile = event_dir + config_EvtID['datadir']['event_specfile']
 
 tab1_specdata = np.load(specfile)
 if isinstance(tab1_specdata['bl'].tolist(), str):
@@ -149,9 +153,11 @@ tab2_r_dspec_patch = tab1_p_dspec.patch('xx', 'yy', source=tab2_SRC_dspec_Patch,
                                         line_alpha=1.0, line_width=1)
 
 ## ----------------baseline & polarization selection------------------------
-tab1_Select_bl = Select(title="Baseline:", value=tab1_bl[0], options=tab1_bl, width=150)
-tab1_Select_pol = Select(title="Polarization:", value="I", options=["RR", "LL", "I", "V"], width=150)
-tab1_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"], width=150)
+tab1_Select_OPT = dict(width=config_main['plot_config']['tab_QLook']['dspec_Ctrl_widget_wdth'])
+tab1_Select_bl = Select(title="Baseline:", value=tab1_bl[0], options=tab1_bl, **tab1_Select_OPT)
+tab1_Select_pol = Select(title="Polarization:", value="I", options=["RR", "LL", "I", "V"], **tab1_Select_OPT)
+tab1_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"], **tab1_Select_OPT)
+tab1_Select_CleanID = Select(title="CleanID:", value=None, options=[], **tab1_Select_OPT)
 
 
 def tab1_update_dspec(attrname, old, new):
@@ -177,14 +183,14 @@ tab1_ctrls = [tab1_Select_bl, tab1_Select_pol, tab1_Select_colorspace]
 for ctrl in tab1_ctrls:
     ctrl.on_change('value', tab1_update_dspec)
 try:
-    os.system('cp {}StrID_list.json {}StrID_list_tmp.json'.format(database_dir + event_id, database_dir + event_id))
-    StrIDList = pd.read_json(database_dir + event_id + 'StrID_list_tmp.json')
+    os.system('cp {}StrID_list.json {}StrID_list_tmp.json'.format(event_dir, event_dir))
+    StrIDList = pd.read_json(event_dir + 'StrID_list_tmp.json')
     StrIDList = StrIDList.sort_values(by='timeran', ascending=1)
     StrIDList['time'] = [ll - tab1_tim[0] for ll in StrIDList['time']]
 except:
     StrIDList = pd.DataFrame({'date': [], 'freq': [], 'freqran': [], 'str_id': [], 'time': [], 'timeran': []})
-    StrIDList.to_json(database_dir + event_id + 'StrID_list.json')
-    os.system('cp {}StrID_list.json {}StrID_list_tmp.json'.format(database_dir + event_id, database_dir + event_id))
+    StrIDList.to_json(event_dir + 'StrID_list.json')
+    os.system('cp {}StrID_list.json {}StrID_list_tmp.json'.format(event_dir, event_dir))
 
 tab1_SRC_StrIDPatch = ColumnDataSource(StrIDList)
 tab1_render_patch = tab1_p_dspec.patches('time', 'freq', source=tab1_SRC_StrIDPatch, hover_fill_color="OrangeRed",
@@ -217,9 +223,10 @@ tab1_DataTb_dspec = DataTable(source=tab1_render_patch.data_source, columns=tab1
                               height=config_main['plot_config']['tab_QLook']['StrID_DataTb_hght'])  # , editable=True)
 
 tab1_Div_Tb = Div(text=""" """, width=config_main['plot_config']['tab_QLook']['StrID_DataTb_wdth'])
+tab1_Div_FSview = Div(text=""" """, width=config_main['plot_config']['tab_QLook']['StrID_DataTb_BUT_wdth'])
 tab1_Div_exit = Div(text="""
 <p><b>Warning</b>: 1. Click the <b>Exit QLook</b> first before closing the tab</p>
-<p><b>Warning</b>: 2. <b>FSview</b> or <b>FSview2CASA</b> tabs will disconnect if <b>Exit QLook is clicked</b></p>""",
+<p><b>Warning</b>: 2. <b>FSview</b> or <b>ToClean</b> tabs will disconnect if <b>Exit QLook is clicked</b></p>""",
                     width=150)
 
 tab1_selected_dspec_square = None
@@ -242,10 +249,9 @@ def tab1_SRC_dspec_square_select(attrname, old, new):
 
 tab1_SRC_dspec_square.on_change('selected', tab1_SRC_dspec_square_select)
 
-tab1_input_StrID = TextInput(value="Type in here", title="New StrID:",
-                             width=config_main['plot_config']['tab_QLook']['StrID_DataTb_BUT_wdth'])
-Text_sdodir = TextInput(value=SDOdir, title="SDO Directory:",
-                        width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'] * 2, sizing_mode='scale_width')
+tab1_input_StrID = TextInput(value="Type in here", title="New StrID:", **tab1_BUT_OPT2)
+Text_sdodir = TextInput(value=SDOdir, title="SDO Directory:", **tab1_BUT_OPT2)
+Text_CleanID = TextInput(value=DButil.getcurtimstr(), title="CleanID:", **tab1_BUT_OPT2)
 timestart = xx[0]
 
 
@@ -264,12 +270,12 @@ def tab1_update_addStrID():
                                   str_id=[[tab1_input_StrID.value]], date=[[date_char]],
                                   timeran=[[t0_char + '~' + t1_char]],
                                   freqran=[["{:.3f}~{:.3f} GHz".format(freq0, freq1)]]))
-        StrIDList = pd.read_json(database_dir + event_id + 'StrID_list_tmp.json')
+        StrIDList = pd.read_json(event_dir + 'StrID_list_tmp.json')
         StrIDList = pd.concat([StrIDList, StrID])
         StrIDList = StrIDList.sort_values(by='timeran', ascending=1)
         StrIDList.index = range(StrIDList.index.size)
-        StrIDList.to_json(database_dir + event_id + 'StrID_list_tmp.json')
-        StrIDList['time'] = [ll - tab1_tim_square[0] for ll in StrIDList['time']]
+        StrIDList.to_json(event_dir + 'StrID_list_tmp.json')
+        StrIDList['time'] = [ll - tab1_tim[0] for ll in StrIDList['time']]
         tab1_render_patch.data_source.data = ColumnDataSource(StrIDList).data
         tab1_Div_Tb.text = """<p>added <b>""" + tab1_input_StrID.value + """</b>  to the list</p>"""
     else:
@@ -283,21 +289,36 @@ tab1_selected_StrID_entry = None
 
 def tab1_selection_StrID_entry(attrname, old, new):
     global tab1_selected_StrID_entry
+    global CleanIDdir, CleanIDdirdict
     tab1_selected_StrID_entry = tab1_SRC_StrIDPatch.selected['1d']['indices']
+    StrID = StrIDList.iloc[tab1_selected_StrID_entry[0]]
+    struct_id = StrID['str_id'][0] + '/'
+    in_path = event_dir + struct_id
+    CleanIDdirdict = DButil.getlatestfile(directory=in_path)
+    if CleanIDdirdict:
+        tab1_Select_CleanID.options = [os.path.basename(ll) for ll in CleanIDdirdict['items']]
+        tab1_Select_CleanID.value = os.path.basename(CleanIDdirdict['latest'])
+        CleanIDdir = CleanIDdirdict['latest']
+    else:
+        tab1_Select_CleanID.options = []
+        tab1_Select_CleanID.value = ''
+        Text_CleanID.value = DButil.getcurtimstr()
+        CleanIDdir = ''
+        tab1_Div_FSview.text = """<p>Click <b>ToClean </b> to make synthesis images first!!</p>"""
 
 
 tab1_SRC_StrIDPatch.on_change('selected', tab1_selection_StrID_entry)
 
 
 def tab1_update_deleteStrID():
-    global tab1_tim_square, tab1_selected_StrID_entry, database_dir, event_id
+    global tab1_selected_StrID_entry, database_dir, event_id
     if tab1_selected_StrID_entry:
-        StrIDList = pd.read_json(database_dir + event_id + 'StrID_list_tmp.json')
+        StrIDList = pd.read_json(event_dir + 'StrID_list_tmp.json')
         StrIDList = StrIDList.sort_values(by='timeran', ascending=1)
         StrIDList = StrIDList.drop(StrIDList.index[tab1_selected_StrID_entry])
         StrIDList.index = range(StrIDList.index.size)
-        StrIDList.to_json(database_dir + event_id + 'StrID_list_tmp.json')
-        StrIDList['time'] = [ll - tab1_tim_square[0] for ll in StrIDList['time']]
+        StrIDList.to_json(event_dir + 'StrID_list_tmp.json')
+        StrIDList['time'] = [ll - tab1_tim[0] for ll in StrIDList['time']]
         tab1_render_patch.data_source.data = ColumnDataSource(StrIDList).data
         tab1_Div_Tb.text = """<p>removed <b>""" + StrIDList.iloc[tab1_selected_StrID_entry[0]]['str_id'][
             0] + """</b> from the list</p>"""
@@ -306,107 +327,130 @@ def tab1_update_deleteStrID():
         tab1_Div_Tb.text = """<p><b>Warning: No StrID selected. Select one StrID first!!!</b></p>"""
 
 
-ports = []
+def dumpCurrFS(StrID, cleanid):
+    out_json = event_dir + 'CurrFS.json'
+    struct_id = StrID['str_id'][0] + '/'
+    FS_config = {'datadir': {'event_id': event_id, 'struct_id': struct_id, 'clean_id': cleanid + '/',
+                             'FS_specfile': event_dir + struct_id + StrID['str_id'][0] + '_' + StrID['date'][
+                                 0] + 'T' + str(StrID['timeran'][0]).translate(None, ':') + '.spec.npz'}}
+    DButil.updatejsonfile(out_json, FS_config)
+    return FS_config
+
+
+def tab1_update_CleanStrID():
+    global dftmp
+    global ports
+    if tab1_selected_StrID_entry:
+        StrIDList = pd.read_json(event_dir + 'StrID_list_tmp.json')
+        StrIDList = StrIDList.sort_values(by='timeran', ascending=1)
+        StrID = StrIDList.iloc[tab1_selected_StrID_entry[0]]
+        out_json = event_dir + StrID['str_id'][0] + '.json'
+        StrID.to_json(out_json)
+        struct_id = StrID['str_id'][0] + '/'
+        FS_config = dumpCurrFS(StrID, Text_CleanID.value)
+        FS_specfile = FS_config['datadir']['FS_specfile']
+        CleanIDdir = event_dir + struct_id + Text_CleanID.value
+        print CleanIDdir
+        if not os.path.exists(CleanIDdir):
+            os.makedirs(CleanIDdir)
+        FS_dspecDF = CleanIDdir + '/dspecDF-save'
+        if not os.path.exists(FS_specfile):
+            time0, time1 = StrID['time'][0], StrID['time'][1]
+            freq0, freq1 = StrID['freq'][0], StrID['freq'][-1]
+            bl = tab1_specdata['bl']
+            spec = tab1_specdata['spec']
+            npol = tab1_specdata['npol']
+            nbl = tab1_specdata['nbl']
+            ntim = tab1_specdata['ntim']
+            nfreq = tab1_specdata['nfreq']
+            tim = tab1_specdata['tim'][:]
+            freq = tab1_specdata['freq'] / 1e9
+            timeidx0 = next(i for i in xrange(ntim) if tim[i] >= time0)
+            timeidx1 = next(i for i in xrange(ntim - 1, -1, -1) if tim[i] <= time1) + 1
+            freqidx0 = next(i for i in xrange(nfreq) if freq[i] >= freq0)
+            freqidx1 = next(i for i in xrange(nfreq - 1, -1, -1) if freq[i] <= freq1) + 1
+            spec = spec[:, :, freqidx0:(freqidx1 + 1), timeidx0:(timeidx1 + 1)]
+            tim = tim[timeidx0:(timeidx1 + 1)]
+            freq = freq[freqidx0:(freqidx1 + 1)] * 1.0e9
+            ntim = len(tim)
+            nfreq = len(freq)
+            np.savez(FS_specfile, spec=spec, tim=tim, freq=freq, bl=bl, npol=npol, nbl=nbl, nfreq=nfreq, ntim=ntim)
+
+        if os.path.exists(FS_dspecDF):
+            Text_CleanID.value = DButil.getcurtimstr()
+            tab1_Div_Tb.text = """<p>CleanID existed. Click <b>FSview</b> to see the results or use the <b>new CleanID</b> to continue.</p>"""
+        else:
+            port = DButil.getfreeport()
+            print 'bokeh serve {}DataBrowser/ToClean --show --port {} &'.format(suncasa_dir, port)
+            os.system('bokeh serve {}DataBrowser/ToClean --show --port {} &'.format(suncasa_dir, port))
+            ports.append(port)
+            tab1_Div_Tb.text = """<p>Check the <b>ToClean </b> in the <b>new tab</b></p>"""
+    else:
+        tab1_Div_Tb.text = """<p><b>Warning: No StrID selected. Select one StrID first!!!</b></p>"""
 
 
 def tab1_update_FSviewStrID():
     global dftmp
     global ports
     if tab1_selected_StrID_entry:
-        StrIDList = pd.read_json(database_dir + event_id + 'StrID_list_tmp.json')
+        StrIDList = pd.read_json(event_dir + 'StrID_list_tmp.json')
         StrIDList = StrIDList.sort_values(by='timeran', ascending=1)
         StrID = StrIDList.iloc[tab1_selected_StrID_entry[0]]
-        out_json = database_dir + event_id + StrID['str_id'][0] + '.json'
-        StrID.to_json(out_json)
-        out_json = database_dir + event_id + 'CurrFS.json'
         struct_id = StrID['str_id'][0] + '/'
-        FS_config = {'datadir': {'event_id': event_id, 'struct_id': struct_id,
-                                 'FS_specfile': database_dir + event_id + struct_id + StrID['str_id'][0] + '_' +
-                                                StrID['date'][0] + 'T' + str(StrID['timeran'][0]).translate(None,
-                                                                                                            ':') + '.spec.npz'}}
-        with open(out_json, 'w') as fp:
-            json.dump(FS_config, fp)
-        in_json = database_dir + event_id + 'CurrFS.json'
-        with open(in_json, 'r') as fp:
-            FS_config = json.load(fp)
-        FS_specfile = FS_config['datadir']['FS_specfile']
-        FS_dspecDF = database_dir + event_id + struct_id + 'dspecDF-save'
-        time0, time1 = StrID['time'][0], StrID['time'][1]
-        freq0, freq1 = StrID['freq'][0], StrID['freq'][-1]
-        bl = tab1_specdata['bl']
-        spec = tab1_specdata['spec']
-        npol = tab1_specdata['npol']
-        nbl = tab1_specdata['nbl']
-        ntim = tab1_specdata['ntim']
-        nfreq = tab1_specdata['nfreq']
-        tim = tab1_specdata['tim'][:]
-        freq = tab1_specdata['freq'] / 1e9
-        timeidx0 = next(i for i in xrange(ntim) if tim[i] >= time0)
-        timeidx1 = next(i for i in xrange(ntim - 1, -1, -1) if tim[i] <= time1) + 1
-        freqidx0 = next(i for i in xrange(nfreq) if freq[i] >= freq0)
-        freqidx1 = next(i for i in xrange(nfreq - 1, -1, -1) if freq[i] <= freq1) + 1
-        spec = spec[:, :, freqidx0:(freqidx1 + 1), timeidx0:(timeidx1 + 1)]
-        tim = tim[timeidx0:(timeidx1 + 1)]
-        freq = freq[freqidx0:(freqidx1 + 1)] * 1.0e9
-        ntim = len(tim)
-        nfreq = len(freq)
-        if not os.path.exists(FS_specfile):
-            struct_id_dir = database_dir + event_id + struct_id
-            if not os.path.exists(struct_id_dir):
-                os.system('mkdir {}'.format(struct_id_dir))
-            np.savez(FS_specfile, spec=spec, tim=tim, freq=freq, bl=bl, npol=npol, nbl=nbl, nfreq=nfreq, ntim=ntim)
-            # tab1_Div_Tb.text = """<p><b>""" + FS_specfile + """</b> saved >>>>>> Click the <b>FS veiw button</b> again to make aperture synthesis images</p>"""
-
-        port = DButil.getfreeport()
-        print 'bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port)
-        os.system('bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port))
-        ports.append(port)
-        if os.path.exists(FS_dspecDF):
-            tab1_Div_Tb.text = """<p>sent StrID to <b>""" + database_dir + StrID['str_id'][0] + """.json</b></p>
-                <p>sent FS_config to <b>""" + database_dir + event_id + """CurrFS.json</b></p>
-                <p>Check the <b>FS_view</b> in the <b>new tab</b></p>"""
+        CleanID = tab1_Select_CleanID.value
+        dumpCurrFS(StrID, CleanID)
+        CleanIDdir = event_dir + struct_id + CleanID + '/'
+        FS_dspecDF = CleanIDdir + 'dspecDF-save'
+        if CleanIDdir != '' and os.path.exists(FS_dspecDF):
+            tab1_Div_FSview.text = """<p>Check the <b>FS_view</b> in the <b>new tab</b></p>"""
+            port = DButil.getfreeport()
+            print 'bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port)
+            os.system('bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port))
+            ports.append(port)
         else:
-            tab1_Div_Tb.text = """<p>Check the <b>FS_clean </b> in the <b>new tab</b></p>"""
+            tab1_Div_FSview.text = """<p>Click <b>ToClean </b> to make synthesis images first!!</p>"""
     else:
-        tab1_Div_Tb.text = """<p><b>Warning: No StrID selected. Select one StrID first!!!</b></p>"""
+        tab1_Div_FSview.text = """<p><b>Warning: No StrID selected. Select one StrID first!!!</b></p>"""
 
 
 def tab1_update_saveStrID():
-    os.system('cp {}StrID_list_tmp.json {}StrID_list.json'.format(database_dir + event_id, database_dir + event_id))
-    tab1_Div_Tb.text = """<p>StrID data saved to <b>""" + '{}StrID_list.json</b></p>'.format(database_dir + event_id)
+    os.system('cp {}StrID_list_tmp.json {}StrID_list.json'.format(event_dir, event_dir))
+    tab1_Div_Tb.text = """<p>StrID data saved to <b>""" + '{}StrID_list.json</b></p>'.format(event_dir)
 
 
 def tab1_update_reloadStrID():
-    os.system('cp {}StrID_list.json {}StrID_list_tmp.json'.format(database_dir + event_id, database_dir + event_id))
-    StrIDList = pd.read_json(database_dir + event_id + 'StrID_list_tmp.json')
+    os.system('cp {}StrID_list.json {}StrID_list_tmp.json'.format(event_dir, event_dir))
+    StrIDList = pd.read_json(event_dir + 'StrID_list_tmp.json')
     StrIDList = StrIDList.sort_values(by='timeran', ascending=1)
-    StrIDList['time'] = [ll - tab1_tim_square[0] for ll in StrIDList['time']]
+    StrIDList['time'] = [ll - tab1_tim[0] for ll in StrIDList['time']]
     tab1_render_patch.data_source.data = ColumnDataSource(StrIDList).data
-    tab1_Div_Tb.text = """<p>StrID data reloaded from <b>""" + '{}StrID_list.json</b></p>'.format(
-        database_dir + event_id)
+    tab1_Div_Tb.text = """<p>StrID data reloaded from <b>""" + '{}StrID_list.json</b></p>'.format(event_dir)
 
 
-tab1_BUT_OPT = dict(width=config_main['plot_config']['tab_QLook']['StrID_DataTb_BUT_wdth'])
-tab1_BUT_addStrID = Button(label='Add to StrID', button_type='success', **tab1_BUT_OPT)
-tab1_BUT_addStrID.on_click(tab1_update_addStrID)
-tab1_BUT_deleteStrID = Button(label='Delete StrID', button_type='danger', **tab1_BUT_OPT)
-tab1_BUT_deleteStrID.on_click(tab1_update_deleteStrID)
-tab1_BUT_saveStrID = Button(label='Save StrID', button_type='primary', **tab1_BUT_OPT)
-tab1_BUT_saveStrID.on_click(tab1_update_saveStrID)
-tab1_BUT_reloadStrID = Button(label='Reload StrID', button_type='warning', **tab1_BUT_OPT)
-tab1_BUT_reloadStrID.on_click(tab1_update_reloadStrID)
-tab1_BUT_FSviewStrID = Button(label='FS View', button_type='primary', **tab1_BUT_OPT)
-tab1_BUT_FSviewStrID.on_click(tab1_update_FSviewStrID)
+# def ButtonaskcleanID_handler():
+#     import Tkinter
+#     import tkFileDialog
+#     global CleanID, CleanIDdir
+#     if tab1_selected_StrID_entry:
+#         tkRoot = Tkinter.Tk()
+#         tkRoot.withdraw()  # Close the root window
+#         in_path = tkFileDialog.asksaveasfilename(initialdir=CleanIDdir, parent=tkRoot)
+#         tkRoot.destroy()
+#         if in_path:
+#             CleanIDdir = os.path.dirname(in_path)
+#             CleanID = os.path.basename(in_path)
+#             Text_CleanID.value = CleanID
+#             print CleanIDdir + CleanID
+#     else:
+#         CleanID = DButil.getcurtimstr()
+#         tab1_Div_Tb.text = """<p><b>Warning: No StrID selected. Select one StrID first!!!</b></p>"""
+#
+#
+# But_CleanID = Button(label='New CleanID', **tab1_BUT_OPT2)
+# But_CleanID.on_click(ButtonaskcleanID_handler)
 
-tab1_SPCR_LFT_DataTb_dspec = Spacer(width=10, height=100)
-tab1_SPCR_RGT_DataTb_dspec = Spacer(width=20, height=100)
-tab1_SPCR_ABV_DataTb_dspec = Spacer(width=100, height=18)
-tab1_SPCR_LFT_But = Spacer(width=10, height=25)
-tab1_SPCR_LFT_DataTb_evt = Spacer(width=20, height=15)
-tab1_SPCR_ABV_DataTb_evt = Spacer(width=100, height=18)
 
-
-def Buttonaskdir_handler():
+def Buttonasksdodir_handler():
     import Tkinter
     import tkFileDialog
     global SDOdir
@@ -423,8 +467,29 @@ def Buttonaskdir_handler():
         print in_path
 
 
-But_sdodir = Button(label='Directory', width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'])
-But_sdodir.on_click(Buttonaskdir_handler)
+But_sdodir = Button(label='Directory', **tab1_BUT_OPT2)
+But_sdodir.on_click(Buttonasksdodir_handler)
+
+tab1_BUT_addStrID = Button(label='Add', button_type='success', **tab1_BUT_OPT1)
+tab1_BUT_addStrID.on_click(tab1_update_addStrID)
+tab1_BUT_deleteStrID = Button(label='Delete', button_type='danger', **tab1_BUT_OPT1)
+tab1_BUT_deleteStrID.on_click(tab1_update_deleteStrID)
+tab1_BUT_saveStrID = Button(label='Save', button_type='primary', **tab1_BUT_OPT1)
+tab1_BUT_saveStrID.on_click(tab1_update_saveStrID)
+tab1_BUT_reloadStrID = Button(label='Reload', button_type='warning', **tab1_BUT_OPT1)
+tab1_BUT_reloadStrID.on_click(tab1_update_reloadStrID)
+
+tab1_BUT_CleanStrID = Button(label='ToClean', button_type='success', **tab1_BUT_OPT2)
+tab1_BUT_CleanStrID.on_click(tab1_update_CleanStrID)
+tab1_BUT_FSviewStrID = Button(label='FSview', button_type='primary', **tab1_BUT_OPT2)
+tab1_BUT_FSviewStrID.on_click(tab1_update_FSviewStrID)
+
+tab1_SPCR_LFT_DataTb_dspec = Spacer(width=10, height=100)
+tab1_SPCR_RGT_DataTb_dspec = Spacer(width=20, height=100)
+tab1_SPCR_ABV_DataTb_dspec = Spacer(width=100, height=18)
+tab1_SPCR_LFT_But = Spacer(width=10, height=25)
+tab1_SPCR_LFT_DataTb_evt = Spacer(width=20, height=15)
+tab1_SPCR_ABV_DataTb_evt = Spacer(width=100, height=18)
 
 
 def tab1_exit():
@@ -442,18 +507,17 @@ def tab1_exit():
     raise SystemExit
 
 
-tab1_BUT_exit = Button(label='Exit QLook', width=150, button_type='danger')
+tab1_BUT_exit = Button(label='Exit QLook', button_type='danger', **tab1_Select_OPT)
 tab1_BUT_exit.on_click(tab1_exit)
 
-panel1 = column(tab1_p_dspec,
-                row(widgetbox(tab1_Select_bl, tab1_Select_pol, tab1_Select_colorspace, tab1_BUT_exit, tab1_Div_exit,
-                              width=150),
-                    tab1_SPCR_LFT_DataTb_evt, tab1_SPCR_LFT_DataTb_dspec, column(tab1_DataTb_dspec, tab1_Div_Tb),
-                    tab1_SPCR_LFT_But,
-                    widgetbox(tab1_BUT_FSviewStrID, Text_sdodir, But_sdodir, tab1_input_StrID, tab1_BUT_addStrID,
-                              tab1_BUT_deleteStrID,
-                              tab1_BUT_saveStrID,
-                              tab1_BUT_reloadStrID)))
+panel1 = column(
+    row(tab1_p_dspec, column(Text_sdodir, But_sdodir, tab1_Select_CleanID, tab1_BUT_FSviewStrID, tab1_Div_FSview)),
+    row(widgetbox(tab1_Select_bl, tab1_Select_pol, tab1_Select_colorspace, tab1_BUT_exit, tab1_Div_exit,
+                  **tab1_Select_OPT),
+        tab1_SPCR_LFT_DataTb_evt, tab1_SPCR_LFT_DataTb_dspec, column(tab1_DataTb_dspec, tab1_Div_Tb),
+        tab1_SPCR_LFT_But,
+        column(tab1_input_StrID, row(tab1_BUT_addStrID, tab1_BUT_deleteStrID),
+               row(tab1_BUT_saveStrID, tab1_BUT_reloadStrID), Text_CleanID, tab1_BUT_CleanStrID)))
 
 print("--- %s seconds ---" % (time.time() - start_timestamp))
 

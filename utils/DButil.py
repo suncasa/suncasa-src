@@ -1,4 +1,5 @@
 import numpy as np
+import glob
 import os
 import json
 
@@ -23,6 +24,22 @@ __email__ = "sijie.yu@njit.edu"
 #         if not os.path.exists(ll):
 #             os.makedirs(ll)
 
+def getcurtimstr(prefix='CleanID_', suffix=''):
+    import time
+    return prefix + time.strftime("%Y%m%d_%H%M%S") + suffix
+
+
+def getlatestfile(directory='./', prefix='CleanID_', suffix=''):
+    filelist = glob.glob('{}/{}*{}'.format(directory, prefix, suffix))
+    if len(filelist) > 0:
+        latest_file = max(filelist, key=os.path.getctime)
+        print latest_file
+        return {'items': filelist, 'latest': latest_file, 'idx': filelist.index(latest_file)}
+    else:
+        print 'No file found!'
+        return None
+
+
 def loadjsonfile(jsonfile, mustexist=True):
     if os.path.exists(jsonfile):
         with open(jsonfile, 'r') as fp:
@@ -39,7 +56,8 @@ def updatejsonfile(jsonfile, data):
     with open(jsonfile, 'w') as fp:
         json.dump(data, fp)
 
-def getSDOdir(config,database_dir,suncasa_dir):
+
+def getSDOdir(config, database_dir, suncasa_dir):
     try:
         if config['datadir']['SDOdir']:
             SDOdir = config['datadir']['SDOdir']
@@ -181,8 +199,6 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
     :param timtol: time difference tolerance in days for considering data as the same timestamp
     :return:
     '''
-    import glob
-    import os
     from astropy.time import Time
     import sunpy.map
     from datetime import date, timedelta as td
@@ -601,11 +617,13 @@ def regridspec(spec, x, y, nxmax=None, nymax=None):
     return specnew
 
 
-def get_contour_data(X, Y, Z):
+def get_contour_data(X, Y, Z, levels=[0.5, 0.7, 0.9]):
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
     from bokeh.models import (ColumnDataSource)
-    cs = plt.contour(X, Y, Z, levels=(np.arange(5, 10, 2) / 10.0 * np.nanmax(Z)).tolist(), cmap=cm.Greys_r)
+    cs = plt.contour(X, Y, Z, levels=(np.array(levels) * np.nanmax(Z)).tolist(), cmap=cm.Greys_r)
+    # dx = X[0,1]-X[0,0]
+    # dy = Y[1,0]-Y[0,0]
     xs = []
     ys = []
     xt = []
@@ -625,6 +643,8 @@ def get_contour_data(X, Y, Z):
 
         for path in isolevel.get_paths():
             v = path.vertices
+            # x = v[:, 0]+dx
+            # y = v[:, 1]+dy
             x = v[:, 0]
             y = v[:, 1]
             xs.append(x.tolist())

@@ -31,6 +31,10 @@ if os.path.exists('CASA_CLN_args.json'):
 
     if 'struct_id' in locals():
         structure_id = struct_id
+        if 'clean_id' in locals():
+            cleanIDdir = database_dir + event_id + '/' + struct_id + '/' + clean_id + '/'
+        else:
+            raise ValueError('define a clean_id!!!')
     else:
         raise ValueError('define a struct_id!!!')
     print 'Script for clean --- {} in {}'.format(structure_id, event_id)
@@ -55,7 +59,7 @@ if os.path.exists('CASA_CLN_args.json'):
     if 'imageprefix' in locals():
         imgprefix = imageprefix
     else:
-        imgprefix = 'slfcal/' + structure_id + '/'
+        imgprefix = 'slfcal/' + structure_id + '/' + clean_id + '/'
     if not os.path.exists(imgprefix):
         os.makedirs(imgprefix)
     '''set a loop to limit the number of timestamps in the time range'''
@@ -65,8 +69,8 @@ if os.path.exists('CASA_CLN_args.json'):
     if not os.path.exists(imageprefix):
         os.makedirs(imageprefix)
     default('ptclean')
-    with open('CASA_CLN_args.json', 'r') as fp:
-        CASA_CLN_args = json.load(fp)
+    # with open('CASA_CLN_args.json', 'r') as fp:
+    #     CASA_CLN_args = json.load(fp)
     for key, val in CASA_CLN_args.items():
         exec (key + '= {}'.format(val))
     timerange = timeran
@@ -93,7 +97,7 @@ if os.path.exists('CASA_CLN_args.json'):
     # inp(ptclean)
     out = ptclean()
 
-    imgdir = database_dir + event_id + '/' + struct_id + '/Synthesis_Image/'
+    imgdir = cleanIDdir + 'Synthesis_Image/'
     if not os.path.exists(imgdir):
         os.mkdir(imgdir)
     with open(imgdir + 'CASA_CLN_out', 'w') as fp:
@@ -161,8 +165,8 @@ if os.path.exists('CASA_CLN_args.json'):
         filestr = [qa.time(qa.quantity(tim[ll] - dt / 2, 's'), form='fits', prec=9)[0].replace(':', '').replace('-', '')
                    for ll in iterable]
 
-        if not os.path.exists(database_dir + event_id + '/' + struct_id + '/' + 'Synthesis_Image/local/'):
-            os.makedirs(database_dir + event_id + '/' + struct_id + '/' + 'Synthesis_Image/local/')
+        if not os.path.exists(cleanIDdir + 'Synthesis_Image/local/'):
+            os.makedirs(cleanIDdir + 'Synthesis_Image/local/')
         # check if ephemfile and msinfofile exist
         if not ephemfile:
             print("ephemeris info does not exist!")

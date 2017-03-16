@@ -53,7 +53,6 @@ print SDOdir
 if not os.path.exists(SDOdir):
     os.makedirs(SDOdir)
 
-
 YY_select_st = Select(title="Start Time: Year", value="2014", options=['{:04d}'.format(ll) for ll in range(2010, 2025)],
                       width=config_main['plot_config']['tab_aiaBrowser']['YY_select_wdth'])
 MM_select_st = Select(title="Month", value="01", options=['{:02d}'.format(ll) for ll in range(1, 13)],
@@ -230,9 +229,8 @@ Div_info = Div(text="""<p><b>Warning</b>: Click <b>Exit</b> first before closing
 Div_JSOC_info = Div(text="""""",
                     width=config_main['plot_config']['tab_aiaBrowser']['divJSOCinfo_wdth'])
 
-Text_sdodir = TextInput(value=SDOdir, title="Directory:",
-                        width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'] * 2, sizing_mode='scale_width')
-Text_Cadence = TextInput(value='12s', title="Cadence:", width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'])
+Text_Cadence = TextInput(value='12s', title="Cadence:",
+                         width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'])
 Text_email = TextInput(value='', title="JSOC registered email:",
                        width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'])
 try:
@@ -409,9 +407,11 @@ def MkPlot():
         Div_info.text = Div_info.text + """<p>Check the <b>FS_view</b> in the <b>new tab</b></p>"""
 
 
-BUT_MkPlot = Button(label='MkPlot', width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'], button_type='success')
+BUT_MkPlot = Button(label='MkPlot', width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'],
+                    button_type='success')
 BUT_MkPlot.on_click(MkPlot)
 
+Text_sdodir = TextInput(value=SDOdir, title="SDO Directory:", width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'])
 
 def Buttonaskdir_handler():
     import Tkinter

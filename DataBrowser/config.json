@@ -66,11 +66,11 @@
       "space_wdth10": 10
     },
     "tab_QLook": {
-      "StrID_DataTb_wdth": 1050,
-      "dspec_Ctrl_widget_wdth": 200,
+      "StrID_DataTb_wdth": 720,
+      "dspec_Ctrl_widget_wdth": 150,
       "dspec_hght": 500,
-      "dspec_wdth": 1450,
-      "StrID_DataTb_BUT_wdth": 200,
+      "dspec_wdth": 1100,
+      "StrID_DataTb_BUT_wdth": 160,
       "StrID_DataTb_hght": 280,
       "spec_square_rs_tmax": 300,
       "spec_square_rs_fmax": 256,
@@ -85,7 +85,7 @@
       "StrID_DataTb_BUT_wdth": 200,
       "StrID_DataTb_hght": 280
     },
-    "tab_FSview2CASA": {
+    "tab_ToClean": {
       "tab2_Div_tCLN_wdth": 700,
       "tab2_Div_tCLN_hght": 300,
       "tab2_Div_tCLN2_wdth": 700,
