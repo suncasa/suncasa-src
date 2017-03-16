@@ -890,13 +890,14 @@ def tab2_prep_vla_square_selection_change(attrname, old, new):
         x0pix, x1pix = idxmin % mapvlasize[0], idxmax % mapvlasize[0]
         y0pix, y1pix = idxmin / mapvlasize[0], idxmax / mapvlasize[0]
         tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, y0pix, x1pix, y1pix)
-        if tab2_tImfit_Param_dict['gaussfit']:
+        if tab2_tImfit_Param_dict['gaussfit'] == 'True':
             tab2_BUT_tImfit.label = 'pimfit'
             tab2_maxfit_checkbox.active = []
             tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
             on an image region(s)</b></p>' + ' '.join(
                 "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
         else:
+            tab2_tImfit_Param_dict['gaussfit'] = 'False'
             tab2_BUT_tImfit.label = 'pmaxfit'
             tab2_maxfit_checkbox.active = [0]
             tab2_Div_tImfit_text = '<p><b>#  maxfit :: do one parabolic fit components \
@@ -911,13 +912,13 @@ def tab2_prep_vla_square_selection_change(attrname, old, new):
 def Domaxfit(new):
     global tab2_tImfit_Param_dict
     if len(tab2_maxfit_checkbox.active) == 0:
-        tab2_tImfit_Param_dict['gaussfit'] = True
+        tab2_tImfit_Param_dict['gaussfit'] = 'True'
         tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
         on an image region(s)</b></p>' + ' '.join(
             "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
         tab2_BUT_tImfit.label = 'pimfit'
     else:
-        tab2_tImfit_Param_dict['gaussfit'] = False
+        tab2_tImfit_Param_dict['gaussfit'] = 'False'
         tab2_Div_tImfit_text = '<p><b>#  maxfit :: do one parabolic fit components \
         on an image region(s)</b></p>' + ' '.join(
             "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
@@ -938,15 +939,16 @@ def tab2_BUT_tImfit_param_add():
         else:
             tab2_Div_tImfit2.text = '<p>Input syntax: <b>stokes</b>="LL"; \
             <b>ncpu</b>=10; Any spaces will be ignored.</p>'
-    if tab2_tImfit_Param_dict['gaussfit']:
-        tab2_BUT_tImfit.label = 'pimfit'
+    if tab2_tImfit_Param_dict['gaussfit'] == 'True':
         tab2_maxfit_checkbox.active = []
+        tab2_BUT_tImfit.label = 'pimfit'
         tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
         on an image region(s)</b></p>' + ' '.join(
             "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
     else:
-        tab2_BUT_tImfit.label = 'pmaxfit'
+        tab2_tImfit_Param_dict['gaussfit'] = 'False'
         tab2_maxfit_checkbox.active = [0]
+        tab2_BUT_tImfit.label = 'pmaxfit'
         tab2_Div_tImfit_text = '<p><b>#  maxfit :: do one parabolic fit components \
         on an image region(s)</b></p>' + ' '.join(
             "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
@@ -977,7 +979,7 @@ def tab2_BUT_tImfit_param_default():
     global tab2_tImfit_Param_dict
     tab2_tImfit_Param_dict = OrderedDict()
     vlafileliststr = "'" + "','".join(vlafile) + "'"
-    tab2_tImfit_Param_dict['gaussfit'] = "True"
+    tab2_tImfit_Param_dict['gaussfit'] = "False"
     tab2_tImfit_Param_dict['event_id'] = "'{}'".format(event_id.replace("/", ""))
     tab2_tImfit_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
     tab2_tImfit_Param_dict['clean_id'] = "'{}'".format(CleanID.replace("/", ""))
@@ -986,7 +988,7 @@ def tab2_BUT_tImfit_param_default():
     # tab2_tImfit_Param_dict['stokes'] = "'{}'".format(tab2_Select_vla_pol.value)
     tab2_tImfit_Param_dict['mask'] = "''"
     tab2_tImfit_Param_dict['imagefiles'] = "[{}]".format(vlafileliststr)
-    tab2_maxfit_checkbox.active = []
+    tab2_maxfit_checkbox.active = [0]
     tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
     on an image region(s)</b></p>' + ' '.join(
         "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
@@ -999,7 +1001,7 @@ def tab2_BUT_timfit_param_reload():
     infile = CleanID_dir + 'CASA_imfit_args.json'
     try:
         tab2_tImfit_Param_dict = DButil.loadjsonfile(infile)
-        if tab2_tImfit_Param_dict['gaussfit']:
+        if tab2_tImfit_Param_dict['gaussfit'] == 'True':
             tab2_BUT_tImfit.label = 'pimfit'
             tab2_maxfit_checkbox.active = []
             tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
@@ -1029,9 +1031,22 @@ def tab2_BUT_tImfit_update():
         tab2_Div_tImfit2.text = '<p>CASA imfit script and arguments config file saved to <b>{}.</b></p>\
         <p>CASA imfit is in processing.</p>'.format(CleanID_dir)
         os.chdir(CleanID_dir)
-        suncasapy47 = config_main['core']['casapy47']
-        suncasapy47 = os.path.expandvars(suncasapy47)
-        os.system('{} -c script_imfit.py'.format(suncasapy47))
+        suncasapy46 = config_main['core']['casapy46']
+        suncasapy46 = os.path.expandvars(suncasapy46)
+        os.system('{} -c script_imfit.py'.format(suncasapy46))
+        with open(CleanID_dir + '/Synthesis_Image/CASA_imfit_out', 'rb') as f:
+            out = pickle.load(f)
+        exec ('gaussfit = {}'.format(tab2_tImfit_Param_dict['gaussfit']))
+        dspecDF2 = DButil.transfitdict2DF(out, gaussfit=gaussfit)
+        with open(CleanID_dir + '/dspecDF-save', 'rb') as fp:
+            dspecDF1 = pickle.load(fp)
+        for ll in dspecDF1.index:
+            tmp = dspecDF1.loc[ll, 'freq']
+            dspecDF1.loc[ll, 'freq'] = float('{:.3f}'.format(tmp))
+        dspecDF = pd.merge(dspecDF1, dspecDF2, how='left', on=['freqstr', 'fits_local'])
+        with open(CleanID_dir + '/dspecDF-save', 'wb') as fp:
+            pickle.dump(dspecDF, fp)
+        print 'imfit results saved to ' + CleanID_dir + '/dspecDF-save'
         tab2_Div_tImfit2.text = '<p>imfit finished, go back to <b>QLook</b> \
         window, select StrID <b>{}</b> and click <b>FSview</b> button again.</p>'.format(struct_id[0:-1])
     except:
@@ -1537,10 +1552,10 @@ if os.path.exists(FS_dspecDF):
                                     width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
         tab2_Slider_time_LinkImg = Slider(start=0, end=tab2_ntim - 1, value=0, step=1, title="time idx",
-                                          width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']*2,
+                                          width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'] * 2,
                                           callback_policy='mouseup')
         tab2_Slider_freq_LinkImg = Slider(start=0, end=tab2_nfreq - 1, value=0, step=1, title="freq idx",
-                                          width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']*2,
+                                          width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'] * 2,
                                           callback_policy='mouseup')
 
         # pols = ['RR', 'LL', 'I', 'V']
@@ -1763,7 +1778,7 @@ if os.path.exists(FS_dspecDF):
         lout2_1 = row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
                       widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
                                 tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
-                                width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']*2))
+                                width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'] * 2))
         # if do_spec_regrid:
         #     # lout2_2_1 = column(tab2_p_dspec_rs, row(tab2_p_dspec, tab2_p_dspec_yPro), tab2_p_dspec_xPro)
         #     pass
@@ -2165,10 +2180,10 @@ if os.path.exists(FS_dspecDF):
                                         width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
             tab2_Slider_time_LinkImg = Slider(start=0, end=tab2_ntim - 1, value=0, step=1, title="time idx",
-                                              width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']*2,
+                                              width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'] * 2,
                                               callback_policy='mouseup')
             tab2_Slider_freq_LinkImg = Slider(start=0, end=tab2_nfreq - 1, value=0, step=1, title="freq idx",
-                                              width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']*2,
+                                              width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'] * 2,
                                               callback_policy='mouseup')
 
             pols = DButil.polsfromfitsheader(hdu.header)
@@ -2221,12 +2236,12 @@ if os.path.exists(FS_dspecDF):
                                      button_type='primary')
             tab2_BUT_SavRgn.on_click(tab2_save_region)
 
-            tab2_maxfit_checkbox = CheckboxGroup(labels=["parabolic fit"], active=[])
-            tab2_maxfit_checkbox.on_click(Domaxfit)
             tab2_input_tImfit = TextInput(value="Input the param here", title="pimfit task parameters:",
                                           width=config_main['plot_config']['tab_FSviewPrep']['input_tCLN_wdth'])
             tab2_Div_tImfit = Div(text='', width=config_main['plot_config']['tab_FSviewPrep']['tab2_Div_tImfit_wdth'])
             tab2_Div_tImfit2 = Div(text='', width=config_main['plot_config']['tab_FSviewPrep']['input_tCLN_wdth'])
+            tab2_maxfit_checkbox = CheckboxGroup(labels=["parabolic fit"], active=[0])
+            tab2_maxfit_checkbox.on_click(Domaxfit)
 
             tab2_BUT_tImfit_param_default()
             tab2_BUT_tImfit_param_ADD = Button(label='Add to Param',
@@ -2264,7 +2279,7 @@ if os.path.exists(FS_dspecDF):
             lout2_1_1 = row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
                             widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
                                       tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
-                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']*2))
+                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'] * 2))
             lout2_1_2 = row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
                                    tab2_p_dspec_xPro),
                             widgetbox(tab2_Select_pol, tab2_Select_bl,

@@ -2,9 +2,9 @@ import json
 import os
 from  casac import *
 import pickle
-import numpy as np
-import pandas as pd
-from suncasa.utils import DButil
+# import numpy as np
+# import pandas as pd
+# from suncasa.utils import DButil
 
 database_dir = "${SUNCASADB}"
 database_dir = os.path.expandvars(database_dir) + '/'
@@ -49,16 +49,16 @@ if os.path.exists('CASA_imfit_args.json'):
         pickle.dump(out, fp)
 
     # todo add deconvolved results
-    dspecDF2 = DButil.transfitdict2DF(out, gaussfit=gaussfit)
-    with open(cleanIDdir + '/dspecDF-save', 'rb') as fp:
-        dspecDF1 = pickle.load(fp)
-    for ll in dspecDF1.index:
-        tmp = dspecDF1.loc[ll, 'freq']
-        dspecDF1.loc[ll, 'freq'] = float('{:.3f}'.format(tmp))
-    dspecDF = pd.merge(dspecDF1, dspecDF2, how='left', on=['freqstr', 'fits_local'])
-    with open(cleanIDdir + '/dspecDF-save', 'wb') as fp:
-        pickle.dump(dspecDF, fp)
-    print 'imfit results saved to ' + cleanIDdir + '/dspecDF-save'
+    # dspecDF2 = DButil.transfitdict2DF(out, gaussfit=gaussfit)
+    # with open(cleanIDdir + '/dspecDF-save', 'rb') as fp:
+    #     dspecDF1 = pickle.load(fp)
+    # for ll in dspecDF1.index:
+    #     tmp = dspecDF1.loc[ll, 'freq']
+    #     dspecDF1.loc[ll, 'freq'] = float('{:.3f}'.format(tmp))
+    # dspecDF = pd.merge(dspecDF1, dspecDF2, how='left', on=['freqstr', 'fits_local'])
+    # with open(cleanIDdir + '/dspecDF-save', 'wb') as fp:
+    #     pickle.dump(dspecDF, fp)
+    # print 'imfit results saved to ' + cleanIDdir + '/dspecDF-save'
 
 else:
     print 'CASA arguments config file not found!!'
