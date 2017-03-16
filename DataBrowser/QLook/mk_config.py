@@ -47,7 +47,7 @@ config_plot = {'datadir': {'database': '/Users/fisher/Desktop/work/2016/NJIT/201
              'dspec_thumb_wdth': tab2_dspec_thumb_wdth, 'dspec_thumb_hght': tab2_dspec_thumb_hght},
     'tab_FSview_FitANLYS': {'aia_submap_wdth': 720, 'aia_submap_hght': 720, 'dspec_small_wdth': 500, 'dspec_small_hght': 180},
     'WebGL': False,
-    'tab_FSview2CASA': {'dspec_wdth': tab1_dspec_wdth, 'dspec_hght': tab1_dspec_hght - 100, 'dspec_xPro_wdth': 800,
+    'tab_ToClean': {'dspec_wdth': tab1_dspec_wdth, 'dspec_hght': tab1_dspec_hght - 100, 'dspec_xPro_wdth': 800,
                    'dspec_xPro_hght': 200, 'dspec_yPro_wdth': tab1_dspec_wdth - 800 - 150,
                    'dspec_yPro_hght': tab2_dspec_xPro_hght, 'aia_wdth': 400 - 5, 'aia_hght': 400 - 10,
                    'vla_wdth': 400 - 70, 'vla_hght': 400 - 10, 'dspec_thumb_wdth': tab2_dspec_thumb_wdth,

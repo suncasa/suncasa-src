@@ -11,7 +11,7 @@ from taskinit import casalog
 from taskinit import xmlpath
 #from taskmanager import tm
 import task_importeovsa
-def importeovsa(idbfiles='', timebin='0s', width=1, visprefix='', nocreatms=True, doconcat=False, modelms=''):
+def importeovsa(idbfiles='', timebin='0s', width=1, visprefix='', nocreatms=False, doconcat=False, modelms=''):
 
         """Import EOVSA idb file(s) to a measurement set or multiple measurement set
 
@@ -64,12 +64,12 @@ def importeovsa(idbfiles='', timebin='0s', width=1, visprefix='', nocreatms=True
             In this case only partially flagged rows will be used in the average.
             default: '0s'
 
-            combine -- Let the timebin span across scan, state or both.
-            State is equivalent to sub-scans. One scan may have several
-            state ids. For ALMA MSs, the sub-scans are limited to about
-            30s duration each. In these cases, the task will automatically
-            add state to the combine parameter. To see the number of states
-            in an MS, use the msmd tool. See help msmd.
+            
+            
+            
+            
+            
+            
 
 
         
@@ -87,7 +87,7 @@ def importeovsa(idbfiles='', timebin='0s', width=1, visprefix='', nocreatms=True
         mytmp['nocreatms'] = nocreatms
         mytmp['doconcat'] = doconcat
         mytmp['modelms'] = modelms
-	pathname="file:///local/software/suncasa/tasks/"
+	pathname="file:///Users/fisher/PycharmProjects/suncasa/tasks/"
 	trec = casac.utils().torecord(pathname+'importeovsa.xml')
 
         casalog.origin('importeovsa')

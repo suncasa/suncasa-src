@@ -48,7 +48,7 @@ def update_sdosubmp_region(attrname, old, new):
         if x1 > x0 + mapx_sdo_RSPmap[0, 1] - mapx_sdo_RSPmap[0, 0] and y1 > y0 + mapy_sdo_RSPmap[0, 1] - \
                 mapy_sdo_RSPmap[0, 0]:
             ## select at least 4 points
-            patch_size = min(x1 - x0, y1 - y0, config_plot['plot_config']['tab_MkPlot']['aia_submap_sz_max'])
+            patch_size = min(x1 - x0, y1 - y0, config_main['plot_config']['tab_MkPlot']['aia_submap_sz_max'])
             x1, y0 = x0 + patch_size, y1 - patch_size
             r_sdo_RSPmap_square_patch.data_source.data = ColumnDataSource(
                 pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
@@ -390,14 +390,14 @@ ports = []
 '''load config file'''
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
 '''load config file'''
-with open(suncasa_dir + 'aiaBrowser/config.json', 'r') as fp:
-    config_plot = json.load(fp)
-
-database_dir = config_plot['datadir']['database']
+config_main = DButil.loadjsonfile(suncasa_dir + 'DataBrowser/config.json')
+database_dir = config_main['datadir']['database']
 database_dir = os.path.expandvars(database_dir) + '/aiaBrowserData/'
 if not os.path.exists(database_dir):
     os.system('mkdir {}'.format(database_dir))
-SDOdir = database_dir + 'Download/'
+
+SDOdir = DButil.getSDOdir(config_main, database_dir, suncasa_dir)
+
 if not os.path.exists(database_dir):
     os.system('mkdir {}'.format(database_dir))
 infile = database_dir + 'MkPlot_args.json'
@@ -416,12 +416,12 @@ cutslitplt = {}
 sdosubmpdict = {}
 sdomap = sunpy.map.Map(sdofile[sdofileidx])
 sdomap = DButil.normalize_aiamap(sdomap)
-MapRES = config_plot['plot_config']['tab_MkPlot']['aia_RSPmap_RES']
+MapRES = config_main['plot_config']['tab_MkPlot']['aia_RSPmap_RES']
 dimensions = u.Quantity([MapRES, MapRES], u.pixel)
 sdo_RSPmap = sdomap.resample(dimensions)
 sdo_RSP_pfmap = PuffinMap(smap=sdo_RSPmap,
-                          plot_height=config_plot['plot_config']['tab_MkPlot']['aia_RSPmap_hght'],
-                          plot_width=config_plot['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'])
+                          plot_height=config_main['plot_config']['tab_MkPlot']['aia_RSPmap_hght'],
+                          plot_width=config_main['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'])
 p_sdomap, r_sdomap = sdo_RSP_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg)
 mapx_sdo_RSPmap, mapy_sdo_RSPmap = sdo_RSP_pfmap.meshgrid(rescale=0.2)
 mapx_sdo_RSPmap, mapy_sdo_RSPmap = mapx_sdo_RSPmap.value, mapy_sdo_RSPmap.value
@@ -434,15 +434,15 @@ r_sdo_RSPmap_square = p_sdomap.square('xx', 'yy', source=SRC_sdo_RSPmap_square,
                                       nonselection_fill_alpha=0.0,
                                       selection_line_alpha=0.0, selection_line_color=None,
                                       nonselection_line_alpha=0.0,
-                                      size=max(config_plot['plot_config']['tab_MkPlot']['aia_RSPmap_hght'] /
-                                               config_plot['plot_config']['tab_MkPlot']['aia_RSP_squareny'],
-                                               config_plot['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'] /
-                                               config_plot['plot_config']['tab_MkPlot']['aia_RSP_squarenx']))
+                                      size=max(config_main['plot_config']['tab_MkPlot']['aia_RSPmap_hght'] /
+                                               config_main['plot_config']['tab_MkPlot']['aia_RSP_squareny'],
+                                               config_main['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'] /
+                                               config_main['plot_config']['tab_MkPlot']['aia_RSP_squarenx']))
 
 x0 = sdo_RSP_pfmap.smap.center.x.value
 y0 = sdo_RSP_pfmap.smap.center.y.value
-lengthx = config_plot['plot_config']['tab_MkPlot']['aia_submap_sz_max']
-lengthy = config_plot['plot_config']['tab_MkPlot']['aia_submap_sz_max']
+lengthx = config_main['plot_config']['tab_MkPlot']['aia_submap_sz_max']
+lengthy = config_main['plot_config']['tab_MkPlot']['aia_submap_sz_max']
 x0, x1 = x0 - lengthx / 2, x0 + lengthx / 2
 y0, y1 = y0 - lengthy / 2, y0 + lengthy / 2
 sdosubmp = sdomap.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]), u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
@@ -462,8 +462,8 @@ p_sdomap.add_tools(BoxSelectTool(renderers=[r_sdo_RSPmap_square]))
 SRC_sdo_RSPmap_square.on_change('selected', update_sdosubmp_region)
 
 sdosubmp_pfmap = PuffinMap(smap=sdosubmp,
-                           plot_height=config_plot['plot_config']['tab_MkPlot']['aia_submap_hght'],
-                           plot_width=config_plot['plot_config']['tab_MkPlot']['aia_submap_wdth'])
+                           plot_height=config_main['plot_config']['tab_MkPlot']['aia_submap_hght'],
+                           plot_width=config_main['plot_config']['tab_MkPlot']['aia_submap_wdth'])
 p_sdosubmp, r_sdosubmp = sdosubmp_pfmap.PlotMap(DrawLimb=False, DrawGrid=False, ignore_coord=True)
 mapx_sdosubmp, mapy_sdosubmp = sdosubmp_pfmap.meshgridpix(rescale=0.125)
 mapx_sdosubmp, mapy_sdosubmp = mapx_sdosubmp.value, mapy_sdosubmp.value
@@ -477,10 +477,10 @@ r_sdosubmp_square = p_sdosubmp.square('xx', 'yy', source=SRC_sdosubmp_canvas_squ
                                       nonselection_fill_alpha=0.0,
                                       selection_line_alpha=0.0, selection_line_color=None,
                                       nonselection_line_alpha=0.0,
-                                      size=max(config_plot['plot_config']['tab_MkPlot']['aia_submap_hght'] /
-                                               config_plot['plot_config']['tab_MkPlot']['aia_RSP_squareny'],
-                                               config_plot['plot_config']['tab_MkPlot']['aia_submap_wdth'] /
-                                               config_plot['plot_config']['tab_MkPlot']['aia_RSP_squarenx']))
+                                      size=max(config_main['plot_config']['tab_MkPlot']['aia_submap_hght'] /
+                                               config_main['plot_config']['tab_MkPlot']['aia_RSP_squareny'],
+                                               config_main['plot_config']['tab_MkPlot']['aia_submap_wdth'] /
+                                               config_main['plot_config']['tab_MkPlot']['aia_RSP_squarenx']))
 p_sdosubmp.add_tools(TapTool(renderers=[r_sdosubmp_square]))
 SRC_sdosubmp_line = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
 SRC_sdosubmp_line0 = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
@@ -496,8 +496,8 @@ r_sdosubmp_cross = p_sdosubmp.cross(x='xx', y='yy', size=15, line_width=2, alpha
 
 TOOLS = "pan,wheel_zoom,box_zoom,reset,save"
 p_lighcurve = figure(tools=TOOLS,
-                     plot_width=config_plot['plot_config']['tab_MkPlot']['time_plot_wdth'],
-                     plot_height=config_plot['plot_config']['tab_MkPlot']['time_plot_hght'],
+                     plot_width=config_main['plot_config']['tab_MkPlot']['time_plot_wdth'],
+                     plot_height=config_main['plot_config']['tab_MkPlot']['time_plot_hght'],
                      toolbar_location="above")
 p_lighcurve.axis.visible = True
 p_lighcurve.title.text = "light Curve"
@@ -511,20 +511,20 @@ p_lighcurve.axis.minor_tick_in = 3
 SRC_lightcurve = ColumnDataSource({'x': [], 'y': []})
 r_lighcurve = p_lighcurve.line(x='x', y='y', alpha=0.8, line_width=1, line_color='black', source=SRC_lightcurve)
 
-BUT_UndoDraw = Button(label='Undo', width=config_plot['plot_config']['tab_MkPlot']['button_wdth'],
+BUT_UndoDraw = Button(label='Undo', width=config_main['plot_config']['tab_MkPlot']['button_wdth'],
                       button_type='warning')
 BUT_UndoDraw.on_click(UndoDraw)
-BUT_ClearDraw = Button(label='ClearDraw', width=config_plot['plot_config']['tab_MkPlot']['button_wdth'],
+BUT_ClearDraw = Button(label='ClearDraw', width=config_main['plot_config']['tab_MkPlot']['button_wdth'],
                        button_type='primary')
 BUT_ClearDraw.on_click(ClearDraw)
-BUT_loadchunk = Button(label='LoadChunk', width=config_plot['plot_config']['tab_MkPlot']['button_wdth'],
+BUT_loadchunk = Button(label='LoadChunk', width=config_main['plot_config']['tab_MkPlot']['button_wdth'],
                        button_type='primary')
 BUT_loadchunk.on_click(LoadChunk_handler)
-BUT_Stackplt = Button(label='StackPlt', width=config_plot['plot_config']['tab_MkPlot']['button_wdth'],
+BUT_Stackplt = Button(label='StackPlt', width=config_main['plot_config']['tab_MkPlot']['button_wdth'],
                       button_type='success')
 BUT_Stackplt.on_click(StackpltView)
 
-ButtonsPlayCTRL = DButil.ButtonsPlayCTRL(plot_width=config_plot['plot_config']['tab_MkPlot']['button_wdth_short'])
+ButtonsPlayCTRL = DButil.ButtonsPlayCTRL(plot_width=config_main['plot_config']['tab_MkPlot']['button_wdth_short'])
 ButtonsPlayCTRL.buttons[0].on_click(ButtonFirst_handler)
 ButtonsPlayCTRL.buttons[1].on_click(ButtonPrev_handler)
 ButtonsPlayCTRL.buttons[2].on_click(ButtonPlay_handler)
@@ -552,14 +552,14 @@ Hideitem_checkbox.on_click(HideItemUpdate)
 fitMeth_radiogroup.on_click(fitMethUpdate)
 
 Div_info = Div(text="""<p><b>Warning</b>: Click <b>Exit</b>
-            first before closing the tab</p></b>""", width=config_plot['plot_config']['tab_MkPlot']['button_wdth'])
-BUT_default_fitparam = Button(label='Default', width=config_plot['plot_config']['tab_MkPlot']['button_wdth'],
+            first before closing the tab</p></b>""", width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
+BUT_default_fitparam = Button(label='Default', width=config_main['plot_config']['tab_MkPlot']['button_wdth'],
                               button_type='success')
 BUT_default_fitparam.on_click(default_fitparam)
-BUT_exit = Button(label='Exit', width=config_plot['plot_config']['tab_MkPlot']['button_wdth'], button_type='danger')
+BUT_exit = Button(label='Exit', width=config_main['plot_config']['tab_MkPlot']['button_wdth'], button_type='danger')
 BUT_exit.on_click(exit_update)
 
-SPCR_LFT_lbutt_play = Spacer(width=config_plot['plot_config']['tab_MkPlot']['space_wdth80'])
+SPCR_LFT_lbutt_play = Spacer(width=config_main['plot_config']['tab_MkPlot']['space_wdth80'])
 # lbutt_play = row(BUT_first, BUT_prev, BUT_play, BUT_next, BUT_last)
 # lbutt_play = buttons_play
 lbutt_play = row(ButtonsPlayCTRL.buttons[0], ButtonsPlayCTRL.buttons[1], ButtonsPlayCTRL.buttons[2],
@@ -569,7 +569,7 @@ lout = row(column(p_sdomap, p_lighcurve, lbutt_play), p_sdosubmp,
            widgetbox(Text_SlitLgth, Text_Cutwdth, Text_CutAng, Slider_smoothing_factor,
                      Hideitem_checkbox, fitMeth_radiogroup, BUT_UndoDraw, BUT_ClearDraw, BUT_default_fitparam,
                      BUT_loadchunk, BUT_Stackplt, BUT_exit, Div_info,
-                     width=config_plot['plot_config']['tab_MkPlot']['button_wdth']))
+                     width=config_main['plot_config']['tab_MkPlot']['button_wdth']))
 
 # def timeout_callback():
 #     print 'timeout'

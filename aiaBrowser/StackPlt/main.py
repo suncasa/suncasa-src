@@ -27,10 +27,9 @@ def exit_update():
 '''load config file'''
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
 '''load config file'''
-with open(suncasa_dir + 'aiaBrowser/config.json', 'r') as fp:
-    config_plot = json.load(fp)
+config_main = DButil.loadjsonfile(suncasa_dir + 'DataBrowser/config.json')
 
-database_dir = config_plot['datadir']['database']
+database_dir = config_main['datadir']['database']
 database_dir = os.path.expandvars(database_dir) + '/aiaBrowserData/'
 if not os.path.exists(database_dir):
     os.system('mkdir {}'.format(database_dir))
@@ -64,8 +63,8 @@ ndist = len(dist)
 
 TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
 p_stackplt = figure(tools=TOOLS,
-                    plot_width=config_plot['plot_config']['tab_StackPlt']['stackplt_wdth'],
-                    plot_height=config_plot['plot_config']['tab_StackPlt']['stackplt_hght'],
+                    plot_width=config_main['plot_config']['tab_StackPlt']['stackplt_wdth'],
+                    plot_height=config_main['plot_config']['tab_StackPlt']['stackplt_hght'],
                     x_range=(dtim[0], dtim[-1]), y_range=(dist[0], dist[-1]),
                     toolbar_location="above")
 tim0_char = Time(tim[0], format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
@@ -91,8 +90,8 @@ else:
 r_stackplt = p_stackplt.image(image=[intens], x=dtim[0], y=dist[0], dw=dtim[-1] - dtim[0], dh=dist[-1] - dist[0],
                               color_mapper=colormapper)
 Div_info = Div(text="""<p><b>Warning</b>: Click <b>Exit</b>
-            first before closing the tab</p></b>""", width=config_plot['plot_config']['tab_MkPlot']['button_wdth'])
-BUT_exit = Button(label='Exit', width=config_plot['plot_config']['tab_MkPlot']['button_wdth'], button_type='danger')
+            first before closing the tab</p></b>""", width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
+BUT_exit = Button(label='Exit', width=config_main['plot_config']['tab_MkPlot']['button_wdth'], button_type='danger')
 BUT_exit.on_click(exit_update)
 
 lout = row(p_stackplt, column(BUT_exit, Div_info))

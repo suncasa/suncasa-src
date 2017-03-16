@@ -580,7 +580,7 @@ Parallelized clean in consecutive time steps. Packed over CASA clean.
         mytmp['chaniter'] = chaniter
         mytmp['flatnoise'] = flatnoise
         mytmp['allowchunk'] = allowchunk
-	pathname="file:///local/software/suncasa/tasks/"
+	pathname="file:///Users/fisher/PycharmProjects/suncasa/tasks/"
 	trec = casac.casac.utils().torecord(pathname+'ptclean.xml')
 
         casalog.origin('ptclean')

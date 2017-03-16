@@ -17,7 +17,7 @@
       "dspec_wdth_offset": 0,
       "CCmap_hght": 400,
       "CCmap_wdth": 430,
-      "widgetbox_wdth":400
+      "widgetbox_wdth": 400
     },
     "tab_FSview_base": {
       "dspec_thumb_wdth": 200,
@@ -66,11 +66,11 @@
       "space_wdth10": 10
     },
     "tab_QLook": {
-      "StrID_DataTb_wdth": 1050,
-      "dspec_Ctrl_widget_wdth": 200,
+      "StrID_DataTb_wdth": 720,
+      "dspec_Ctrl_widget_wdth": 150,
       "dspec_hght": 500,
-      "dspec_wdth": 1450,
-      "StrID_DataTb_BUT_wdth": 200,
+      "dspec_wdth": 1100,
+      "StrID_DataTb_BUT_wdth": 160,
       "StrID_DataTb_hght": 280,
       "spec_square_rs_tmax": 300,
       "spec_square_rs_fmax": 256,
@@ -85,7 +85,7 @@
       "StrID_DataTb_BUT_wdth": 200,
       "StrID_DataTb_hght": 280
     },
-    "tab_FSview2CASA": {
+    "tab_ToClean": {
       "tab2_Div_tCLN_wdth": 700,
       "tab2_Div_tCLN_hght": 300,
       "tab2_Div_tCLN2_wdth": 700,
@@ -108,22 +108,57 @@
       "space_hght10": 10,
       "space_hght5": 5
     },
+    "tab_aiaBrowser": {
+      "divJSOCinfo_wdth": 500,
+      "button_wdth": 180,
+      "YY_select_wdth": 150,
+      "hh_select_wdth": 80,
+      "mm_select_wdth": 80,
+      "MM_select_wdth": 80,
+      "DD_select_wdth": 80,
+      "ss_select_wdth": 80
+    },
+    "tab_StackPlt": {
+      "stackplt_hght": 500,
+      "stackplt_wdth": 800
+    },
+    "tab_MkPlot": {
+      "space_wdth80": 80,
+      "button_wdth": 200,
+      "aia_submap_sz_max": 500.0,
+      "space_wdth20": 20,
+      "aia_submap_wdth": 700,
+      "space_hght10": 10,
+      "aia_RSPmap_wdth": 400,
+      "aia_RSPmap_RES": 800.0,
+      "space_hght18": 18,
+      "time_plot_hght": 200,
+      "button_wdth_short": 70,
+      "aia_submap_hght": 700,
+      "aia_RSP_squareny": 64.0,
+      "aia_RSP_squarenx": 64.0,
+      "space_wdth50": 50,
+      "aia_RSPmap_hght": 380,
+      "time_plot_wdth": 400
+    },
     "WebGL": false
   },
   "datadir": {
-    "database": "${SUNCASADB}",
-    "suncasa": "${SUNCASA}",
-    "EvtID_list": "EvtID_list.json",
-    "J2000": "J2000/",
-    "AIA": "AIA/",
-    "HMI": "HMI/",
-    "fits_LOCL": "Synthesis_Image/local/",
     "fits_LOCL_init": "QLook/static/Synthesis_Image_fits_LOCL_init.fits",
+    "fits_GLOB_init": "QLook/static/Synthesis_Image_fits_GLOB_init.fits",
+    "database": "${SUNCASADB}",
+    "EvtID_list": "EvtID_list.json",
+    "SDOdir": "/Users/fisher/Desktop/work/2016/NJIT/2014-11-01/test/database/aiaBrowserData/Download",
+    "fits_LOCL": "Synthesis_Image/local/",
+    "suncasa": "${SUNCASA}",
+    "J2000": "J2000/",
     "fits_GLOB": "Synthesis_Image/global/",
-    "fits_GLOB_init": "QLook/static/Synthesis_Image_fits_GLOB_init.fits"
+    "AIA": "AIA/",
+    "HMI": "HMI/"
   },
   "core": {
+    "casapy47": "${SUNCASAPY47}",
     "casapy46": "${SUNCASAPY46}",
-    "casapy47": "${SUNCASAPY47}"
+    "JSOC_reg_email": "sijie.yu@njit.edu"
   }
 }
