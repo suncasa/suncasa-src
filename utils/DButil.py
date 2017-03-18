@@ -567,7 +567,32 @@ def dspecDFfilter(dspecDF, pol):
         return dspecDF
 
 
-def regridspec(spec, x, y, nxmax=None, nymax=None):
+def regridimage(values, x, y, grid=None, resize=[1.0, 1.0]):
+    '''
+    re-grid the data on a regular grid with uneven grid spacing to an uniform grid
+    :param values: The image data on the regular grid
+    :param x: the points defining the regular grid in x
+    :param y: the points defining the regular grid in y
+    :param grid: new uniform mesh grid [gridx,gridy]
+    :param resize: list of re-size ratio factors of x and y. if resize is not [1.0,1.0], grid is neglected.
+    :return: re-gridded image
+    '''
+    from scipy.interpolate import RegularGridInterpolator
+    ny, nx = values.shape
+    if grid and resize == [1.0, 1.0]:
+        gridx, gridy = grid
+    else:
+        gridx, gridy = np.meshgrid(np.linspace(x[0], x[-1], nx * resize[0]), np.linspace(y[0], y[-1], ny * resize[1]))
+    ny, nx = gridx.shape
+    rgi = RegularGridInterpolator(points=(y, x), values=values, bounds_error=False)
+    datanew = rgi(np.stack(np.stack((gridy.ravel(), gridx.ravel()), axis=-1))).reshape(ny, nx)
+    if grid:
+        return datanew
+    else:
+        return [datanew, gridx, gridy]
+
+
+def regridspec(spec, x, y, nxmax=None, nymax=None, interp=False):
     '''
     :param spec: ndarray of float or complex, shape (npol,nbl,nf,nt) Data values.
     :param x: Data point x coordinates.
@@ -576,44 +601,32 @@ def regridspec(spec, x, y, nxmax=None, nymax=None):
     :param nymax:
     :return:
     '''
-    import math
-    # from scipy.interpolate import griddata
-    # npol, nbl, nf, nt = spec.shape
-    # if nt > nxmax:
-    #     nt = nxmax
-    # if nf > nymax:
-    #     nf = nymax
-    # specnew = np.zeros((npol, nbl, nf, nt))
-    # tt = np.linspace(xx[0], xx[-1], nt)
-    # ff = np.linspace(yy[0], yy[-1], nf)
-    # grid_x, grid_y = np.meshgrid(tt, ff)
-    # for p in xrange(npol):
-    #     for b in xrange(nbl):
-    #         specnew[p, b, :, :] = griddata(np.stack((xx, yy), axis=-1), spec[p, b, :, :].ravel(), (grid_x, grid_y),method='linear')
-    # return [specnew, tt, ff]
-    # import matplotlib.pyplot as plt
-    # plt.ioff()
-    # img = plt.pcolormesh(x, y, spec[0, 0, :, :])
-    # img2 = img.get_array().reshape(img._meshHeight, img._meshWidth)
-    # nf, nt = img2.shape
+
     npol, nbl, nf, nt = spec.shape
-    if nt > nxmax:
-        xstep = math.ceil(float(nt) / nxmax)
+    if interp:
+        if nxmax:
+            if nt > nxmax:
+                nt = nxmax
+        if nymax:
+            if nf > nymax:
+                nf = nymax
+        specnew = np.zeros((npol, nbl, nf, nt))
+        tt = np.linspace(x[0], x[-1], nt)
+        ff = np.linspace(y[0], y[-1], nf)
+        grid_x, grid_y = np.meshgrid(tt, ff)
+        for p in xrange(npol):
+            for b in xrange(nbl):
+                specnew[p, b, :, :] = regridimage(spec[p, b, :, :], x, y, grid=[grid_x, grid_y])
     else:
-        xstep = 1
-    if nf > nymax:
-        ystep = int(float(nf) / nymax)
-    else:
-        ystep = 1
-    specnew = spec[:, :, ::ystep, ::xstep]
-    # img2 = img2[::ystep,::xstep]
-    # nf, nt = img2.shape
-    # specnew = np.zeros((npol, nbl, nf, nt))
-    # for p in xrange(npol):
-    #     for b in xrange(nbl):
-    #         img = plt.pcolormesh(x, y, spec[p, b, :, :])
-    #         img2 = img.get_array().reshape(img._meshHeight, img._meshWidth)
-    #         specnew[p, b, :, :] = img2[::ystep,::xstep]
+        xstep, ystep = 1, 1
+        if nxmax:
+            if nt > nxmax:
+                import math
+                xstep = math.ceil(float(nt) / nxmax)
+        if nymax:
+            if nf > nymax:
+                ystep = int(float(nf) / nymax)
+        specnew = spec[:, :, ::ystep, ::xstep]
     return specnew
 
 
