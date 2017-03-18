@@ -126,17 +126,12 @@ r_img = p_img.image(image=[zz], x=xbd[0], y=ybd[0], dw=xbd[-1] - xbd[0] + dx,
                     color_mapper=colormapper)
 
 xLFE = xbd
-xRTE = np.append(xbd[1:], xbd[-1] + dx)
+xRTE = np.append(xLFE[1:], xLFE[-1] + dx)
 yBTE = ybd
-yTPE = np.append(ybd[1:], ybd[-1] + dy)
-
-# imgquadDF = pd.DataFrame(
-#     {'left': np.repeat(xbd[0], ndy), 'right': np.repeat(xbd[-1] + dx, ndy), 'bottom': yBTE.ravel(),
-#      'top': yTPE.ravel()})
-
-SRC_img_quadx = ColumnDataSource({'left': xLFE.ravel(), 'right': xRTE.ravel(), 'bottom': np.repeat(ybd[0], ndx),
-                                  'top': np.repeat(ybd[-1] + dy, ndx)})
-SRC_img_quady = ColumnDataSource({'left': np.repeat(xbd[0], ndy), 'right': np.repeat(xbd[-1] + dx, ndy),
+yTPE = np.append(yBTE[1:], yBTE[-1] + dy)
+SRC_img_quadx = ColumnDataSource({'left': xLFE.ravel(), 'right': xRTE.ravel(), 'bottom': np.repeat(yBTE[0], ndx),
+                                  'top': np.repeat(yBTE[-1] + dy, ndx)})
+SRC_img_quady = ColumnDataSource({'left': np.repeat(xLFE[0], ndy), 'right': np.repeat(xLFE[-1] + dx, ndy),
                                   'bottom': yBTE.ravel(), 'top': yTPE.ravel()})
 
 r_img_quadx = p_img.quad('left', 'right', 'top', 'bottom', source=SRC_img_quadx,
