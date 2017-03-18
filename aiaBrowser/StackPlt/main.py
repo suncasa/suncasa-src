@@ -25,30 +25,31 @@ def exit_update():
     Div_info.text = """<p><b>You may close the tab anytime you like.</b></p>"""
     raise SystemExit
 
-def XYswitch_update(attrname, old, new):
-    if RadioButG_XYswitch.active == 0:
-        imgdata = {'left': np.repeat(xbd[0], ndy), 'right': np.repeat(xbd[-1] + dx, ndy),
-                   'bottom': yBTE.ravel(),
-                   'top': yTPE.ravel()}
-    else:
-        imgdata = {'left': xLFE.ravel(), 'right': xRTE.ravel(), 'bottom': np.repeat(ybd[0], ndx),
-                   'top': np.repeat(ybd[-1] + dy, ndx)}
-    r_img_quad.data_source.data = imgdata
-    r_imgprofile.data_source.data = {'xx': [], 'yy': []}
 
-
-def update_imgprofile(attrname, old, new):
-    img_quad_selected = SRC_img_quad.selected['1d']['indices']
-    if img_quad_selected:
+def update_imgprofile():
+    img_quadx_selected = SRC_img_quadx.selected['1d']['indices']
+    img_quady_selected = SRC_img_quady.selected['1d']['indices']
+    if len(img_quadx_selected) > 0 and len(img_quady_selected) > 0:
         if RadioButG_XYswitch.active == 0:
-            imgprofiledata = {'xx': xbd.ravel(), 'yy': zz[img_quad_selected, :].ravel()}
+            imgprofiledata = {'xx': xbd.ravel(), 'yy': zz[img_quady_selected, :].ravel()}
+            p_imgprofile.xaxis.axis_label = 'Seconds since ' + tim0_char
+            print img_quady_selected
         else:
-            imgprofiledata = {'xx': ybd.ravel(), 'yy': zz[:, img_quad_selected].ravel()}
+            imgprofiledata = {'xx': ybd.ravel(), 'yy': zz[:, img_quadx_selected].ravel()}
+            p_imgprofile.xaxis.axis_label = 'distance [arcsec]'
+            print img_quadx_selected
         r_imgprofile.data_source.data = imgprofiledata
         p_imgprofile.x_range.start, p_imgprofile.x_range.end = imgprofiledata['xx'][0], imgprofiledata['xx'][-1]
     else:
         r_imgprofile.data_source.data = {'xx': [], 'yy': []}
 
+
+# def XYswitch_update(attrname, old, new):
+#     update_imgprofile()
+
+
+def SRC_img_quad_update(attrname, old, new):
+    update_imgprofile()
 
 
 '''load config file'''
@@ -129,20 +130,46 @@ xRTE = np.append(xbd[1:], xbd[-1] + dx)
 yBTE = ybd
 yTPE = np.append(ybd[1:], ybd[-1] + dy)
 
-imgquadDF = pd.DataFrame(
-    {'left': np.repeat(xbd[0], ndy), 'right': np.repeat(xbd[-1] + dx, ndy), 'bottom': yBTE.ravel(),
-     'top': yTPE.ravel()})
+# imgquadDF = pd.DataFrame(
+#     {'left': np.repeat(xbd[0], ndy), 'right': np.repeat(xbd[-1] + dx, ndy), 'bottom': yBTE.ravel(),
+#      'top': yTPE.ravel()})
 
-SRC_img_quad = ColumnDataSource(imgquadDF)
-r_img_quad = p_img.quad('left', 'right', 'top', 'bottom', source=SRC_img_quad,
-                        fill_color=None, fill_alpha=1.0,
-                        line_color=None, line_alpha=0.0, selection_fill_alpha=0.2,
-                        selection_fill_color='white',
-                        nonselection_fill_alpha=1.0, nonselection_fill_color=None,
-                        selection_line_alpha=0.0, selection_line_color=None,
-                        nonselection_line_alpha=0.0, nonselection_line_color=None)
+SRC_img_quadx = ColumnDataSource({'left': xLFE.ravel(), 'right': xRTE.ravel(), 'bottom': np.repeat(ybd[0], ndx),
+                                  'top': np.repeat(ybd[-1] + dy, ndx)})
+SRC_img_quady = ColumnDataSource({'left': np.repeat(xbd[0], ndy), 'right': np.repeat(xbd[-1] + dx, ndy),
+                                  'bottom': yBTE.ravel(), 'top': yTPE.ravel()})
 
-p_img.add_tools(TapTool(renderers=[r_img_quad]))
+r_img_quadx = p_img.quad('left', 'right', 'top', 'bottom', source=SRC_img_quadx,
+                         fill_color=None, fill_alpha=1.0,
+                         line_color=None, line_alpha=0.0, selection_fill_alpha=0.2,
+                         selection_fill_color='white',
+                         nonselection_fill_alpha=1.0, nonselection_fill_color=None,
+                         selection_line_alpha=0.0, selection_line_color=None,
+                         nonselection_line_alpha=0.0, nonselection_line_color=None)
+r_img_quady = p_img.quad('left', 'right', 'top', 'bottom', source=SRC_img_quady,
+                         fill_color=None, fill_alpha=1.0,
+                         line_color=None, line_alpha=0.0, selection_fill_alpha=0.2,
+                         selection_fill_color='white',
+                         nonselection_fill_alpha=1.0, nonselection_fill_color=None,
+                         selection_line_alpha=0.0, selection_line_color=None,
+                         nonselection_line_alpha=0.0, nonselection_line_color=None)
+
+# xxLFE = np.tile(xLFE, ndy).reshape((ndy, ndx))
+# xxRTE = np.tile(xRTE, ndy).reshape((ndy, ndx))
+# yyBTE = np.tile(yBTE, ndx).reshape((ndx, ndy)).swapaxes(0, 1)
+# yyTPE = np.tile(yTPE, ndx).reshape((ndx, ndy)).swapaxes(0, 1)
+# SRC_img_quadtest = ColumnDataSource(
+#     {'left': xxLFE.ravel(), 'right': xxRTE.ravel(), 'bottom': yyBTE.ravel(), 'top': yyTPE.ravel()})
+#
+# r_img_quadtest = p_img.quad('left', 'right', 'top', 'bottom', source=SRC_img_quadtest,
+#                             fill_color=None, fill_alpha=1.0,
+#                             line_color=None, line_alpha=0.0, selection_fill_alpha=0.8,
+#                             selection_fill_color='black',
+#                             nonselection_fill_alpha=1.0, nonselection_fill_color=None,
+#                             selection_line_alpha=0.0, selection_line_color=None,
+#                             nonselection_line_alpha=0.0, nonselection_line_color=None)
+
+p_img.add_tools(TapTool(renderers=[r_img_quadx, r_img_quady]))
 Div_info = Div(text="""<p><b>Warning</b>: Click <b>Exit</b>
             first before closing the tab</p></b>""", width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
 
@@ -163,11 +190,12 @@ p_imgprofile.axis.minor_tick_in = 3
 SRC_imgprofile = ColumnDataSource({'xx': [], 'yy': []})
 r_imgprofile = p_imgprofile.line(x='xx', y='yy', alpha=0.8, line_width=1, line_color='black', source=SRC_imgprofile)
 
-
 RadioButG_XYswitch = RadioButtonGroup(labels=["X profile", "Y profile"], active=0)
-RadioButG_XYswitch.on_change('active', XYswitch_update)
+RadioButG_XYswitch.on_change('active', SRC_img_quad_update)
 
-SRC_img_quad.on_change('selected', update_imgprofile)
+SRC_img_quadx.on_change('selected', SRC_img_quad_update)
+SRC_img_quady.on_change('selected', SRC_img_quad_update)
+# SRC_img_quadtest.on_change('selected', SRC_img_quad_update)
 
 BUT_exit = Button(label='Exit', width=config_main['plot_config']['tab_MkPlot']['button_wdth'], button_type='danger')
 BUT_exit.on_click(exit_update)
