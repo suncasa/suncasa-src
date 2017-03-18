@@ -3,6 +3,7 @@ import json
 import os
 import astropy.units as u
 import bokeh.palettes as bp
+import pickle
 import numpy as np
 import pandas as pd
 import sunpy.map
@@ -36,7 +37,22 @@ def update_sdosubmp_image(fileidx):
         ValueError('make a cut slit first!')
 
 
-def update_sdosubmp_region(attrname, old, new):
+def update_sdosubmp_region(x0, x1, y0, y1):
+    global sdosubmp
+    global xaxis_sdosubmp, yaxis_sdosubmp
+    global Canvas_scale, Canvas_scaleX, Canvas_scaleY
+    r_sdo_RSPmap_square_patch.data_source.data = ColumnDataSource(
+        pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
+    sdosubmp = sdomap.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]),
+                             u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
+    xaxis_sdosubmp, yaxis_sdosubmp = sdosubmp.data.shape
+    Canvas_scaleX, Canvas_scaleY = float(xaxis_sdosubmp) / xaxis_sdosubmp_canvas, float(
+        yaxis_sdosubmp) / yaxis_sdosubmp_canvas
+    Canvas_scale = (Canvas_scaleX + Canvas_scaleY) / 2.0
+    r_sdosubmp.data_source.data['image'] = [sdosubmp.data]
+
+
+def sdosubmp_region_select(attrname, old, new):
     global ImgDF0_sdo_RSPmap, sdosubmp, x0, x1, y0, y1
     global xaxis_sdosubmp, yaxis_sdosubmp
     global Canvas_scale, Canvas_scaleX, Canvas_scaleY
@@ -50,15 +66,7 @@ def update_sdosubmp_region(attrname, old, new):
             ## select at least 4 points
             patch_size = min(x1 - x0, y1 - y0, config_main['plot_config']['tab_MkPlot']['aia_submap_sz_max'])
             x1, y0 = x0 + patch_size, y1 - patch_size
-            r_sdo_RSPmap_square_patch.data_source.data = ColumnDataSource(
-                pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
-            sdosubmp = sdomap.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]),
-                                     u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
-            xaxis_sdosubmp, yaxis_sdosubmp = sdosubmp.data.shape
-            Canvas_scaleX, Canvas_scaleY = float(xaxis_sdosubmp) / xaxis_sdosubmp_canvas, float(
-                yaxis_sdosubmp) / yaxis_sdosubmp_canvas
-            Canvas_scale = (Canvas_scaleX + Canvas_scaleY) / 2.0
-            r_sdosubmp.data_source.data['image'] = [sdosubmp.data]
+            update_sdosubmp_region(x0, x1, y0, y1)
             Text_SlitLgth.value = '{:.0f}'.format(np.sqrt(xaxis_sdosubmp ** 2 + yaxis_sdosubmp ** 2) / 4)
             ClearDraw()
 
@@ -80,7 +88,6 @@ def ProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, 
     bar = fill * filledLength + '=' * (length - filledLength)
     # return '%s |%s| %s%% %s' % (prefix, bar, percent, suffix)
     return '{} |{}| {}% {}'.format(prefix, bar, percent, suffix)
-
 
 
 def LoadChunk():
@@ -107,7 +114,6 @@ def LoadSubChunk(sdompdict):
         sdosubmplist.append(sdosubmptmp)
         Div_info.text = """<p>{}</p>""".format(
             ProgressBar(sidx + 1, nsdofile, suffix='Update', decimals=0, length=14, fill='#'))
-    # Div_info.text = """<p><b>update SDO submap chunk.</b></p>"""
     return {'map': sdosubmplist, 'time': sdompdict['time']}
 
 
@@ -181,7 +187,7 @@ def sdosubmp_square_selection_change(attrname, old, new):
                 ascending = False
         cutslitplt = MakeSlit(tapPointDF_sdosubmp_canvas)
         getimprofile(sdosubmp, cutslitplt)
-        pushslit2plt(clearpoint=clearpoint)
+        pushslit2plt(cutslitplt, clearpoint=clearpoint)
 
 
 def FitSlit(xx, yy, cutwidth, cutang, cutlength, s=None, method='Polyfit'):
@@ -239,24 +245,21 @@ def MakeSlit(pointDF):
     return cutslitplt
 
 
-def pushslit2plt(clearpoint=False):
-    r_sdosubmp_line.data_source.data = ColumnDataSource(
-        pd.DataFrame({'xx': cutslitplt['xcen'], 'yy': cutslitplt['ycen']})).data
-    r_sdosubmp_line0.data_source.data = ColumnDataSource(
-        pd.DataFrame({'xx': cutslitplt['xs0'], 'yy': cutslitplt['ys0']})).data
-    r_sdosubmp_line1.data_source.data = ColumnDataSource(
-        pd.DataFrame({'xx': cutslitplt['xs1'], 'yy': cutslitplt['ys1']})).data
+def pushslit2plt(cutslit, clearpoint=False):
+    r_sdosubmp_line.data_source.data = {'xx': cutslit['xcen'], 'yy': cutslit['ycen']}
+    r_sdosubmp_line0.data_source.data = {'xx': cutslit['xs0'], 'yy': cutslit['ys0']}
+    r_sdosubmp_line1.data_source.data = {'xx': cutslit['xs1'], 'yy': cutslit['ys1']}
     if clearpoint:
-        r_sdosubmp_cross.data_source.data = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []})).data
+        r_sdosubmp_cross.data_source.data = {'xx': [], 'yy': []}
     else:
-        r_sdosubmp_cross.data_source.data = ColumnDataSource(pd.DataFrame(tapPointDF_sdosubmp_canvas)).data
+        r_sdosubmp_cross.data_source.data = ColumnDataSource(tapPointDF_sdosubmp_canvas).data
 
 
 def clearslitplt():
-    r_sdosubmp_line.data_source.data = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []})).data
-    r_sdosubmp_line0.data_source.data = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []})).data
-    r_sdosubmp_line1.data_source.data = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []})).data
-    r_sdosubmp_cross.data_source.data = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []})).data
+    r_sdosubmp_line.data_source.data = {'xx': [], 'yy': []}
+    r_sdosubmp_line0.data_source.data = {'xx': [], 'yy': []}
+    r_sdosubmp_line1.data_source.data = {'xx': [], 'yy': []}
+    r_sdosubmp_cross.data_source.data = {'xx': [], 'yy': []}
 
 
 def slider_smoothing_factor_update(attrname, old, new):
@@ -274,7 +277,7 @@ def slider_smoothing_factor_update(attrname, old, new):
                              float(Text_SlitLgth.value), s=np.exp(
                 Slider_smoothing_factor.value * (np.log(smoth_factor1) - np.log(smoth_factor0))) * smoth_factor0,
                              method=fitmethod)
-        pushslit2plt(clearpoint=clearpoint)
+        pushslit2plt(cutslitplt, clearpoint=clearpoint)
 
 
 def UndoDraw():
@@ -283,17 +286,22 @@ def UndoDraw():
         tapPointDF_sdosubmp_canvas.drop(len(tapPointDF_sdosubmp_canvas.index) - 1, inplace=True)
         cutslitplt = MakeSlit(tapPointDF_sdosubmp_canvas)
         getimprofile(sdosubmp, cutslitplt)
-        pushslit2plt(clearpoint=clearpoint)
+        pushslit2plt(cutslitplt, clearpoint=clearpoint)
+        if len(tapPointDF_sdosubmp_canvas.index) == 1:
+            r_lighcurve.data_source.data = {'x': [], 'y': []}
     else:
         ClearDraw()
 
 
 def ClearDraw():
-    global tapPointDF_sdosubmp_canvas, ascending
+    global tapPointDF_sdosubmp_canvas, ascending, cutslitplt
     Slider_smoothing_factor.value = 1.0
     ascending = True
     tapPointDF_sdosubmp_canvas = pd.DataFrame({'xx': [], 'yy': []})
     clearslitplt()
+    cutslitplt = {'xcen': [], 'ycen': [], 'xs0': [], 'ys0': [], 'xs1': [], 'ys1': [], 'cutwidth': [],
+                  'posangs': [], 'posangs2': [], 'dist': []}
+    r_lighcurve.data_source.data = {'x': [], 'y': []}
 
 
 def getimprofile(smap, cutslit, plot=True):
@@ -332,7 +340,7 @@ def HideItemUpdate(new):
         if len(Hideitem_checkbox.active) == 1 and Hideitemlist[Hideitem_checkbox.active[0]] == "Hide Slit&Points":
             clearslitplt()
         else:
-            pushslit2plt(clearpoint=clearpoint)
+            pushslit2plt(cutslitplt, clearpoint=clearpoint)
     else:
         clearslitplt()
 
@@ -342,13 +350,64 @@ def fitMethUpdate(new):
     fitmethod = fitmethoddict['{}'.format(fitMeth_radiogroup.active)]
     cutslitplt = MakeSlit(tapPointDF_sdosubmp_canvas)
     getimprofile(sdosubmp, cutslitplt)
-    pushslit2plt(clearpoint=clearpoint)
+    pushslit2plt(cutslitplt, clearpoint=clearpoint)
 
 
 def default_fitparam():
     Text_Cutwdth.value = '5.0'
     Text_CutAng.value = '5.0'
     Text_SlitLgth.value = '{:.0f}'.format(np.sqrt(xaxis_sdosubmp ** 2 + yaxis_sdosubmp ** 2) / 4)
+
+
+def LoadSlit():
+    global cutslitplt, tapPointDF_sdosubmp_canvas, ascending
+    global fitmethod, smoth_factor1, smoth_factor2
+    global x0, x1, y0, y1
+    fin = database_dir + 'cutslit-' + PlotID
+    if os.path.exists(fin):
+        cutslitdict = pickle.load(open(fin, 'rb'))
+        tapPointDF_sdosubmp_canvas = cutslitdict['tapPointDF_sdosubmp_canvas']
+        ascending = cutslitdict['ascending']
+        fitmethod = cutslitdict['fitmethod']
+        smoth_factor1 = cutslitdict['smoth_factor1']
+        smoth_factor1 = cutslitdict['smoth_factor2']
+        smoth_factor = cutslitdict['smoth_factor']
+        Cutwdth = cutslitdict['Cutwdth']
+        CutAng = cutslitdict['CutAng']
+        SlitLgth = cutslitdict['SlitLgth']
+        x0 = cutslitdict['x0']
+        x1 = cutslitdict['x1']
+        y0 = cutslitdict['y0']
+        y1 = cutslitdict['y1']
+        # for key, val in cutslitdict.items():
+        #     exec (key + '=val')
+        Text_Cutwdth.value = Cutwdth
+        Text_CutAng.value = CutAng
+        Text_SlitLgth.value = SlitLgth
+        fitMeth_radiogroup.active = int(fitmethoddict.keys()[fitmethoddict.values().index(fitmethod)])
+        Slider_smoothing_factor.value = smoth_factor
+        update_sdosubmp_region(x0, x1, y0, y1)
+        cutslitplt = MakeSlit(tapPointDF_sdosubmp_canvas)
+        getimprofile(sdosubmp, cutslitplt)
+        pushslit2plt(cutslitplt, clearpoint=clearpoint)
+        Div_info.text = """<p><b>cutslit settings</b> in {} loaded.</p>""".format(fin)
+    else:
+        Div_info.text = """<p>No cutslit file found!!</p>"""
+
+
+def SaveSlit():
+    if cutslitplt:
+        fout = database_dir + 'cutslit-' + PlotID
+        cutslitdict = {'tapPointDF_sdosubmp_canvas': tapPointDF_sdosubmp_canvas,
+                       'ascending': ascending, 'fitmethod': fitmethod, 'smoth_factor1': smoth_factor1,
+                       'smoth_factor2': smoth_factor1, 'smoth_factor': Slider_smoothing_factor.value,
+                       'Cutwdth': Text_Cutwdth.value, 'CutAng': Text_CutAng.value,
+                       'SlitLgth': Text_SlitLgth.value, 'x0': x0, 'x1': x1, 'y0': y0, 'y1': y1}
+        with open(fout, 'wb') as fp:
+            pickle.dump(cutslitdict, fp)
+        Div_info.text = """<p><b>cutslit settings</b> saved to {}.</p>""".format(fout)
+    else:
+        Div_info.text = """<p>make a slit first!!!</p>"""
 
 
 def MkStackplt():
@@ -360,7 +419,7 @@ def MkStackplt():
             stackplt.append(intens['y'])
         stackplt = np.vstack(stackplt)
         stackplt = stackplt.transpose()
-        stackpltdict = {'intens': stackplt, 'time': sdosubmpdict['time'], 'dist': intens['x'],
+        stackpltdict = {'zz': stackplt, 'x': sdosubmpdict['time'], 'y': intens['x'],
                         'wavelength': '{:.0f}'.format(smap.wavelength.value), 'observatory': smap.observatory,
                         'instrument': smap.instrument[0:3]}
         Div_info.text = """<p>click <b>Stackplt</b> to view the stack plot</p>"""
@@ -370,7 +429,7 @@ def MkStackplt():
         return False
 
 
-def StackpltView():
+def ViewStackplt():
     if MkStackplt():
         stackplt_save = database_dir + 'stackplt-' + PlotID + '.npy'
         np.save(stackplt_save, stackpltdict)
@@ -459,7 +518,7 @@ r_sdo_RSPmap_square_patch = p_sdomap.patch('xx', 'yy', source=SRC_sdo_RSPmap_pat
                                            line_alpha=1, line_width=1)
 p_sdomap.add_tools(BoxSelectTool(renderers=[r_sdo_RSPmap_square]))
 
-SRC_sdo_RSPmap_square.on_change('selected', update_sdosubmp_region)
+SRC_sdo_RSPmap_square.on_change('selected', sdosubmp_region_select)
 
 sdosubmp_pfmap = PuffinMap(smap=sdosubmp,
                            plot_height=config_main['plot_config']['tab_MkPlot']['aia_submap_hght'],
@@ -514,15 +573,15 @@ r_lighcurve = p_lighcurve.line(x='x', y='y', alpha=0.8, line_width=1, line_color
 BUT_UndoDraw = Button(label='Undo', width=config_main['plot_config']['tab_MkPlot']['button_wdth'],
                       button_type='warning')
 BUT_UndoDraw.on_click(UndoDraw)
-BUT_ClearDraw = Button(label='ClearDraw', width=config_main['plot_config']['tab_MkPlot']['button_wdth'],
-                       button_type='primary')
+BUT_ClearDraw = Button(label='ClearDraw', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
+                       button_type='danger')
 BUT_ClearDraw.on_click(ClearDraw)
-BUT_loadchunk = Button(label='LoadChunk', width=config_main['plot_config']['tab_MkPlot']['button_wdth'],
+BUT_loadchunk = Button(label='LoadChunk', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
                        button_type='primary')
 BUT_loadchunk.on_click(LoadChunk_handler)
-BUT_Stackplt = Button(label='StackPlt', width=config_main['plot_config']['tab_MkPlot']['button_wdth'],
-                      button_type='success')
-BUT_Stackplt.on_click(StackpltView)
+BUT_Stackplt = Button(label='StackPlt', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
+                      button_type='primary')
+BUT_Stackplt.on_click(ViewStackplt)
 
 ButtonsPlayCTRL = DButil.ButtonsPlayCTRL(plot_width=config_main['plot_config']['tab_MkPlot']['button_wdth_short'])
 ButtonsPlayCTRL.buttons[0].on_click(ButtonFirst_handler)
@@ -553,9 +612,15 @@ fitMeth_radiogroup.on_click(fitMethUpdate)
 
 Div_info = Div(text="""<p><b>Warning</b>: Click <b>Exit</b>
             first before closing the tab</p></b>""", width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
-BUT_default_fitparam = Button(label='Default', width=config_main['plot_config']['tab_MkPlot']['button_wdth'],
-                              button_type='success')
+BUT_default_fitparam = Button(label='Default', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
+                              button_type='primary')
 BUT_default_fitparam.on_click(default_fitparam)
+BUT_loadslit = Button(label='LoadSlit', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
+                      button_type='success')
+BUT_loadslit.on_click(LoadSlit)
+BUT_saveslit = Button(label='SaveSlit', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
+                      button_type='success')
+BUT_saveslit.on_click(SaveSlit)
 BUT_exit = Button(label='Exit', width=config_main['plot_config']['tab_MkPlot']['button_wdth'], button_type='danger')
 BUT_exit.on_click(exit_update)
 
@@ -565,11 +630,18 @@ SPCR_LFT_lbutt_play = Spacer(width=config_main['plot_config']['tab_MkPlot']['spa
 lbutt_play = row(ButtonsPlayCTRL.buttons[0], ButtonsPlayCTRL.buttons[1], ButtonsPlayCTRL.buttons[2],
                  ButtonsPlayCTRL.buttons[3],
                  ButtonsPlayCTRL.buttons[4])
-lout = row(column(p_sdomap, p_lighcurve, lbutt_play), p_sdosubmp,
-           widgetbox(Text_SlitLgth, Text_Cutwdth, Text_CutAng, Slider_smoothing_factor,
-                     Hideitem_checkbox, fitMeth_radiogroup, BUT_UndoDraw, BUT_ClearDraw, BUT_default_fitparam,
-                     BUT_loadchunk, BUT_Stackplt, BUT_exit, Div_info,
-                     width=config_main['plot_config']['tab_MkPlot']['button_wdth']))
+loutc1 = column(p_sdomap, p_lighcurve, lbutt_play)
+loutc2 = p_sdosubmp
+widgt1 = widgetbox(Text_SlitLgth, Text_Cutwdth, Text_CutAng, Slider_smoothing_factor, Hideitem_checkbox,
+                   fitMeth_radiogroup, BUT_UndoDraw, width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
+widgt2 = widgetbox(BUT_ClearDraw, BUT_loadslit, BUT_loadchunk,
+                   width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'])
+widgt3 = widgetbox(BUT_default_fitparam, BUT_saveslit, BUT_Stackplt,
+                   width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'])
+widgt4 = widgetbox(BUT_exit, Div_info, width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
+loutc3 = column(widgt1, row(widgt2, widgt3), widgt4)
+
+lout = row(loutc1, loutc2, loutc3)
 
 # def timeout_callback():
 #     print 'timeout'

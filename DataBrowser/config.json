@@ -120,12 +120,14 @@
     },
     "tab_StackPlt": {
       "stackplt_hght": 500,
-      "stackplt_wdth": 800
+      "stackplt_wdth": 800,
+      "stackpltpro_hght": 250
     },
     "tab_MkPlot": {
       "space_wdth80": 80,
       "button_wdth": 200,
-      "aia_submap_sz_max": 500.0,
+      "button_wdth_half": 100,
+      "aia_submap_sz_max": 300.0,
       "space_wdth20": 20,
       "aia_submap_wdth": 700,
       "space_hght10": 10,
