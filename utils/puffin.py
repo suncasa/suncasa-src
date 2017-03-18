@@ -57,6 +57,7 @@ class PuffinMap:
         dh (UnitsSpecProperty) - The height of the plot region that the image will occupy.
         """
         dx, dy = self.smap.scale.x.value, self.smap.scale.y.value
+        self.dx, self.dy = dx, dy
         x0, x1 = self.smap.xrange.value[0] - dx / 2.0, self.smap.xrange.value[1] - dx / 2.0
         y0, y1 = self.smap.yrange.value[0] - dy / 2.0, self.smap.yrange.value[1] - dy / 2.0
         self.x, self.y = [x0], [y0]
