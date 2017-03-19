@@ -555,10 +555,9 @@ def trange_reset():
     Slider_trange.start = trangesec[0]
     Slider_trange.end = trangesec[1]
     Slider_trange.range = trangesec
-    Slider_trange.title = 'Time range [seconds since {}]'.format(
-        Time(sdosubmpdict['time'][0], format='jd', scale='utc').iso)
+    # Slider_trange.title = 'Time range [seconds since {}]'.format(
+    #     Time(sdosubmpdict['time'][0], format='jd', scale='utc').iso)
     # update of the title doesn't work
-    print Slider_trange.title
 
 
 def trange_update():
