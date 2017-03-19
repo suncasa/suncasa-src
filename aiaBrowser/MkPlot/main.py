@@ -78,22 +78,44 @@ def update_sdosubmp_region(x0, x1, y0, y1):
 
 
 def sdosubmp_region_select(attrname, old, new):
-    global ImgDF0_sdo_RSPmap, sdosubmp, x0, x1, y0, y1
+    global tapPointDF_sdo_RSPmap, sdo_RSPmap_quadselround
+    global sdosubmp, x0, x1, y0, y1
     global xaxis_sdosubmp, yaxis_sdosubmp
     global Canvas_scale, Canvas_scaleX, Canvas_scaleY
-    r_sdo_RSPmap_square_selected = SRC_sdo_RSPmap_square.selected['1d']['indices']
-    if r_sdo_RSPmap_square_selected:
-        ImgDF_sdo_RSPmap = ImgDF0_sdo_RSPmap.iloc[r_sdo_RSPmap_square_selected, :]
-        x0, x1 = ImgDF_sdo_RSPmap['xx'].min(), ImgDF_sdo_RSPmap['xx'].max()
-        y0, y1 = ImgDF_sdo_RSPmap['yy'].min(), ImgDF_sdo_RSPmap['yy'].max()
-        if x1 > x0 + mapx_sdo_RSPmap[0, 1] - mapx_sdo_RSPmap[0, 0] and y1 > y0 + mapy_sdo_RSPmap[0, 1] - \
-                mapy_sdo_RSPmap[0, 0]:
-            ## select at least 4 points
-            patch_size = min(x1 - x0, y1 - y0, config_main['plot_config']['tab_MkPlot']['aia_submap_sz_max'])
-            x1, y0 = x0 + patch_size, y1 - patch_size
-            update_sdosubmp_region(x0, x1, y0, y1)
-            Text_SlitLgth.value = '{:.0f}'.format(np.sqrt(xaxis_sdosubmp ** 2 + yaxis_sdosubmp ** 2) / 4)
-            ClearDraw()
+    sdo_RSPmap_quadselround += 1
+    if sdo_RSPmap_quadselround == 2:
+        sdo_RSPmap_quadx_selected = SRC_sdo_RSPmap_quadx.selected['1d']['indices']
+        sdo_RSPmap_quady_selected = SRC_sdo_RSPmap_quady.selected['1d']['indices']
+        SRC_sdo_RSPmap_quadx.selected = {'0d': {'glyph': None, 'indices': []}, '1d': {'indices': []}, '2d': {}}
+        SRC_sdo_RSPmap_quady.selected = {'0d': {'glyph': None, 'indices': []}, '1d': {'indices': []}, '2d': {}}
+        if len(sdo_RSPmap_quadx_selected) > 0 and len(sdo_RSPmap_quady_selected) > 0:
+            tapPointDF_sdo_RSPmap = tapPointDF_sdo_RSPmap.append(
+                pd.Series({'xx': mapx_sdo_RSPmap[sdo_RSPmap_quady_selected[0], sdo_RSPmap_quadx_selected[0]],
+                           'yy': mapy_sdo_RSPmap[sdo_RSPmap_quady_selected[0], sdo_RSPmap_quadx_selected[0]]}),
+                ignore_index=True)
+            if len(tapPointDF_sdo_RSPmap.index) == 1:
+                r_sdo_RSPmap_line.data_source.data = {
+                    'xs': [[mapx_sdo_RSPmap[sdo_RSPmap_quady_selected[0], sdo_RSPmap_quadx_selected[0]]] * 2,
+                           [mapx_sdo_RSPmap[sdo_RSPmap_quady_selected[0], 0],
+                            mapx_sdo_RSPmap[sdo_RSPmap_quady_selected[0], -1]]],
+                    'ys': [[mapy_sdo_RSPmap[0, sdo_RSPmap_quadx_selected[0]],
+                            mapy_sdo_RSPmap[-1, sdo_RSPmap_quadx_selected[0]]],
+                           [mapy_sdo_RSPmap[sdo_RSPmap_quady_selected[0], sdo_RSPmap_quadx_selected[0]]] * 2]}
+            if len(tapPointDF_sdo_RSPmap.index) == 2:
+                x0, x1 = tapPointDF_sdo_RSPmap['xx'].min(), tapPointDF_sdo_RSPmap['xx'].max()
+                y0, y1 = tapPointDF_sdo_RSPmap['yy'].min(), tapPointDF_sdo_RSPmap['yy'].max()
+                if x1 > x0 + mapx_sdo_RSPmap[0, 1] - mapx_sdo_RSPmap[0, 0] and y1 > y0 + mapy_sdo_RSPmap[0, 1] - \
+                        mapy_sdo_RSPmap[0, 0]:
+                    ## select at least 4 points
+                    patch_size = min(max(x1 - x0, y1 - y0),
+                                     config_main['plot_config']['tab_MkPlot']['aia_submap_sz_max'])
+                    x1, y0 = x0 + patch_size, y1 - patch_size
+                    update_sdosubmp_region(x0, x1, y0, y1)
+                    Text_SlitLgth.value = '{:.0f}'.format(np.sqrt(xaxis_sdosubmp ** 2 + yaxis_sdosubmp ** 2) / 4)
+                    ClearDraw()
+                tapPointDF_sdo_RSPmap = pd.DataFrame({'xx': [], 'yy': []})
+                r_sdo_RSPmap_line.data_source.data = {'xs': [], 'ys': []}
+        sdo_RSPmap_quadselround = 0
 
 
 def ProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█'):
@@ -226,19 +248,17 @@ def sdosubmp_animate_update():
 
 
 def sdosubmp_quad_selection_change(attrname, old, new):
-    global tapPointDF_sdosubmp_canvas, ascending, cutslitplt, quadselround
-    quadselround += 1
-    if quadselround == 2:
+    global tapPointDF_sdosubmp_canvas, ascending, cutslitplt, sdosubmp_quadselround
+    sdosubmp_quadselround += 1
+    if sdosubmp_quadselround == 2:
         sdosubmp_quadx_selected = SRC_sdosubmp_canvas_quadx.selected['1d']['indices']
         sdosubmp_quady_selected = SRC_sdosubmp_canvas_quady.selected['1d']['indices']
         SRC_sdosubmp_canvas_quadx.selected = {'0d': {'glyph': None, 'indices': []}, '1d': {'indices': []}, '2d': {}}
         SRC_sdosubmp_canvas_quady.selected = {'0d': {'glyph': None, 'indices': []}, '1d': {'indices': []}, '2d': {}}
         if len(sdosubmp_quadx_selected) > 0 and len(sdosubmp_quady_selected) > 0:
-            sdosubmp_square_selected = [sdosubmp_quadx_selected[0] + sdosubmp_quady_selected[0] * ndx]
-            ImgDF_sdosubmp = ImgDF0_sdosubmp_canvas.iloc[sdosubmp_square_selected, :]
-            DFidx_selected = ImgDF_sdosubmp.index[0]
             tapPointDF_sdosubmp_canvas = tapPointDF_sdosubmp_canvas.append(
-                ImgDF0_sdosubmp_canvas.loc[DFidx_selected, :],
+                pd.Series({'xx': mapx_sdosubmp[sdosubmp_quady_selected[0], sdosubmp_quadx_selected[0]],
+                           'yy': mapy_sdosubmp[sdosubmp_quady_selected[0], sdosubmp_quadx_selected[0]]}),
                 ignore_index=True)
             if len(tapPointDF_sdosubmp_canvas.index) == 2:
                 if tapPointDF_sdosubmp_canvas.loc[tapPointDF_sdosubmp_canvas.index[0], 'xx'] > \
@@ -248,7 +268,7 @@ def sdosubmp_quad_selection_change(attrname, old, new):
             cutslitplt = MakeSlit(tapPointDF_sdosubmp_canvas)
             getimprofile(sdosubmp, cutslitplt)
             pushslit2plt(cutslitplt, clearpoint=clearpoint)
-        quadselround = 0
+        sdosubmp_quadselround = 0
 
 
 def FitSlit(xx, yy, cutwidth, cutang, cutlength, s=None, method='Polyfit'):
@@ -451,7 +471,7 @@ def LoadSlit(fin):
         cutslitplt = MakeSlit(tapPointDF_sdosubmp_canvas)
         getimprofile(sdosubmp, cutslitplt)
         pushslit2plt(cutslitplt, clearpoint=clearpoint)
-        Div_info.text = """<p><b>cutslit settings</b> in {} loaded.</p>""".format(fin)
+        Div_info.text = """<p><b>cutslit settings</b> in {} <b>loaded</b>.</p>""".format(fin)
     else:
         Div_info.text = """<p>No cutslit file found!!</p>"""
 
@@ -465,7 +485,7 @@ def SaveSlit(fout):
                        'SlitLgth': Text_SlitLgth.value, 'x0': x0, 'x1': x1, 'y0': y0, 'y1': y1}
         with open(fout, 'wb') as fp:
             pickle.dump(cutslitdict, fp)
-        Div_info.text = """<p><b>cutslit settings</b> saved to {}.</p>""".format(fout)
+        Div_info.text = """<p><b>cutslit settings saved</b> to {}.</p>""".format(fout)
     else:
         Div_info.text = """<p>make a slit first!!!</p>"""
 
@@ -515,12 +535,13 @@ def trange_reset():
     # update of the title doesn't work
     print Slider_trange.title
 
+
 def trange_update():
     global sdofileinbound, nsdofileinbound
     if sdosubmpdict:
         sdosubmpdict['mask'] = np.logical_and(
-            sdosubmpdict['time'] >= trange.jd[0] + (Slider_trange.range[0]-5.0) / 24. / 3600,
-            sdosubmpdict['time'] <= trange.jd[0] + (Slider_trange.range[1]+5.0) / 24. / 3600)
+            sdosubmpdict['time'] >= trange.jd[0] + (Slider_trange.range[0] - 6.0) / 24. / 3600,
+            sdosubmpdict['time'] <= trange.jd[0] + (Slider_trange.range[1] + 6.0) / 24. / 3600)
         maskidx = np.where(sdosubmpdict['mask'])[0]
         sdofileinbound = [maskidx[0], maskidx[-1]]
 
@@ -584,7 +605,8 @@ sdofileidx = 0
 slitfile = database_dir + 'cutslit-' + PlotID
 cutslitplt = {}
 sdosubmpdict = {}
-quadselround = 0
+sdosubmp_quadselround = 0
+sdo_RSPmap_quadselround = 0
 sdomap = sunpy.map.Map(sdofile[sdofileidx])
 sdomap = DButil.normalize_aiamap(sdomap)
 MapRES = config_main['plot_config']['tab_MkPlot']['aia_RSPmap_RES']
@@ -593,22 +615,43 @@ sdo_RSPmap = sdomap.resample(dimensions)
 sdo_RSP_pfmap = PuffinMap(smap=sdo_RSPmap,
                           plot_height=config_main['plot_config']['tab_MkPlot']['aia_RSPmap_hght'],
                           plot_width=config_main['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'])
-p_sdomap, r_sdomap = sdo_RSP_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg)
-mapx_sdo_RSPmap, mapy_sdo_RSPmap = sdo_RSP_pfmap.meshgrid(rescale=0.2)
+p_sdomap, r_sdomap = sdo_RSP_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
+                                           tools='crosshair,pan,wheel_zoom,reset,save')
+mapx_sdo_RSPmap, mapy_sdo_RSPmap = sdo_RSP_pfmap.meshgrid(rescale=1.0)
 mapx_sdo_RSPmap, mapy_sdo_RSPmap = mapx_sdo_RSPmap.value, mapy_sdo_RSPmap.value
-ImgDF0_sdo_RSPmap = pd.DataFrame({'xx': mapx_sdo_RSPmap.ravel(), 'yy': mapy_sdo_RSPmap.ravel()})
-SRC_sdo_RSPmap_square = ColumnDataSource(ImgDF0_sdo_RSPmap)
-r_sdo_RSPmap_square = p_sdomap.square('xx', 'yy', source=SRC_sdo_RSPmap_square,
-                                      fill_alpha=0.0, fill_color=None,
-                                      line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
-                                      selection_fill_color=None,
-                                      nonselection_fill_alpha=0.0,
-                                      selection_line_alpha=0.0, selection_line_color=None,
-                                      nonselection_line_alpha=0.0,
-                                      size=max(config_main['plot_config']['tab_MkPlot']['aia_RSPmap_hght'] /
-                                               config_main['plot_config']['tab_MkPlot']['aia_RSP_squareny'],
-                                               config_main['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'] /
-                                               config_main['plot_config']['tab_MkPlot']['aia_RSP_squarenx']))
+ndy, ndx = mapx_sdo_RSPmap.shape
+tapPointDF_sdo_RSPmap = pd.DataFrame({'xx': [], 'yy': []})  ## the selected point to fit in aia submap
+dx = np.mean(np.diff(mapx_sdo_RSPmap[0, :]))
+dy = np.mean(np.diff(mapy_sdo_RSPmap[:, 0]))
+xLFE = mapx_sdo_RSPmap[0, :] - dx / 2.0
+xRTE = np.append(xLFE[1:], xLFE[-1] + dx)
+yBTE = mapy_sdo_RSPmap[:, 0] - dy / 2.0
+yTPE = np.append(yBTE[1:], yBTE[-1] + dy)
+SRC_sdo_RSPmap_quadx = ColumnDataSource(
+    {'left': xLFE.ravel(), 'right': xRTE.ravel(), 'bottom': np.repeat(yBTE[0], ndx),
+     'top': np.repeat(yBTE[-1] + dy, ndx)})
+SRC_sdo_RSPmap_quady = ColumnDataSource(
+    {'left': np.repeat(xLFE[0], ndy), 'right': np.repeat(xLFE[-1] + dx, ndy), 'bottom': yBTE.ravel(),
+     'top': yTPE.ravel()})
+
+r_sdo_RSPmap_quadx = p_sdomap.quad('left', 'right', 'top', 'bottom', source=SRC_sdo_RSPmap_quadx,
+                                   fill_alpha=0.0, fill_color=None,
+                                   line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
+                                   selection_fill_color=None,
+                                   nonselection_fill_alpha=0.0,
+                                   selection_line_alpha=0.0, selection_line_color=None,
+                                   nonselection_line_alpha=0.0)
+r_sdo_RSPmap_quady = p_sdomap.quad('left', 'right', 'top', 'bottom', source=SRC_sdo_RSPmap_quady,
+                                   fill_alpha=0.0, fill_color=None,
+                                   line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
+                                   selection_fill_color=None,
+                                   nonselection_fill_alpha=0.0,
+                                   selection_line_alpha=0.0, selection_line_color=None,
+                                   nonselection_line_alpha=0.0)
+p_sdomap.add_tools(TapTool(renderers=[r_sdo_RSPmap_quadx, r_sdo_RSPmap_quady]))
+
+SRC_sdo_RSPmap_quadx.on_change('selected', sdosubmp_region_select)
+SRC_sdo_RSPmap_quady.on_change('selected', sdosubmp_region_select)
 
 x0 = sdo_RSP_pfmap.smap.center.x.value
 y0 = sdo_RSP_pfmap.smap.center.y.value
@@ -623,14 +666,13 @@ Canvas_scaleX, Canvas_scaleY = float(xaxis_sdosubmp) / xaxis_sdosubmp_canvas, fl
     yaxis_sdosubmp) / yaxis_sdosubmp_canvas
 # Canvas_scale = np.sqrt(Canvas_scaleX ** 2 + Canvas_scaleY ** 2)
 Canvas_scale = (Canvas_scaleX + Canvas_scaleY) / 2.0
-SRC_sdo_RSPmap_patch = ColumnDataSource(
-    pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]}))
+SRC_sdo_RSPmap_patch = ColumnDataSource({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})
 r_sdo_RSPmap_square_patch = p_sdomap.patch('xx', 'yy', source=SRC_sdo_RSPmap_patch,
-                                           fill_color=None, fill_alpha=0.5, line_color="white",
+                                           fill_color=None, fill_alpha=0.0, line_color="white",
                                            line_alpha=1, line_width=1)
-p_sdomap.add_tools(BoxSelectTool(renderers=[r_sdo_RSPmap_square]))
-
-SRC_sdo_RSPmap_square.on_change('selected', sdosubmp_region_select)
+SRC_sdo_RSPmap_line = ColumnDataSource({'xs': [], 'ys': []})
+r_sdo_RSPmap_line = p_sdomap.multi_line('xs', 'ys', source=SRC_sdo_RSPmap_line, line_color='cyan', line_width=1,
+                                        alpha=0.8)
 
 sdosubmp_pfmap = PuffinMap(smap=sdosubmp,
                            plot_height=config_main['plot_config']['tab_MkPlot']['aia_submap_hght'],
@@ -640,9 +682,7 @@ p_sdosubmp, r_sdosubmp = sdosubmp_pfmap.PlotMap(DrawLimb=False, DrawGrid=False, 
 mapx_sdosubmp, mapy_sdosubmp = sdosubmp_pfmap.meshgridpix(rescale=1.0)
 mapx_sdosubmp, mapy_sdosubmp = mapx_sdosubmp.value, mapy_sdosubmp.value
 ndy, ndx = mapx_sdosubmp.shape
-ImgDF0_sdosubmp_canvas = pd.DataFrame({'xx': mapx_sdosubmp.ravel(), 'yy': mapy_sdosubmp.ravel()})
 tapPointDF_sdosubmp_canvas = pd.DataFrame({'xx': [], 'yy': []})  ## the selected point to fit in aia submap
-# SRC_sdosubmp_canvas_quadx = ColumnDataSource(ImgDF0_sdosubmp_canvas)
 dx = np.mean(np.diff(mapx_sdosubmp[0, :]))
 dy = np.mean(np.diff(mapy_sdosubmp[:, 0]))
 xLFE = mapx_sdosubmp[0, :] - dx / 2.0
@@ -670,9 +710,12 @@ r_sdosubmp_quady = p_sdosubmp.quad('left', 'right', 'top', 'bottom', source=SRC_
                                    selection_line_alpha=0.0, selection_line_color=None,
                                    nonselection_line_alpha=0.0)
 p_sdosubmp.add_tools(TapTool(renderers=[r_sdosubmp_quadx, r_sdosubmp_quady]))
-SRC_sdosubmp_line = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
-SRC_sdosubmp_line0 = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
-SRC_sdosubmp_line1 = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
+SRC_sdosubmp_canvas_quadx.on_change('selected', sdosubmp_quad_selection_change)
+SRC_sdosubmp_canvas_quady.on_change('selected', sdosubmp_quad_selection_change)
+
+SRC_sdosubmp_line = ColumnDataSource({'xx': [], 'yy': []})
+SRC_sdosubmp_line0 = ColumnDataSource({'xx': [], 'yy': []})
+SRC_sdosubmp_line1 = ColumnDataSource({'xx': [], 'yy': []})
 r_sdosubmp_line = p_sdosubmp.line('xx', 'yy', source=SRC_sdosubmp_line, line_color='white', line_width=2,
                                   alpha=0.7)
 r_sdosubmp_line0 = p_sdosubmp.line('xx', 'yy', source=SRC_sdosubmp_line0, line_color='white', line_width=1.5,
@@ -732,8 +775,6 @@ fitmethod = fitmethoddict['{}'.format(fitMeth_radiogroup.active)]
 ascending = True
 clearpoint = False
 
-SRC_sdosubmp_canvas_quadx.on_change('selected', sdosubmp_quad_selection_change)
-SRC_sdosubmp_canvas_quady.on_change('selected', sdosubmp_quad_selection_change)
 Slider_smoothing_factor = Slider(start=0.0, end=1.0, value=1.0, step=0.05, title='smoothing factor')
 Slider_smoothing_factor.on_change('value', slider_smoothing_factor_update)
 
@@ -745,17 +786,10 @@ Div_info = Div(text="""<p><b>Warning</b>: Click <b>Exit</b>
 BUT_default_fitparam = Button(label='Default', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
                               button_type='primary')
 BUT_default_fitparam.on_click(default_fitparam)
-# BUT_loadslit = Button(label='LoadSlit', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
-#                       button_type='success')
-# BUT_loadslit.on_click(LoadSlit)
-# BUT_saveslit = Button(label='SaveSlit', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
-#                       button_type='success')
-# BUT_saveslit.on_click(SaveSlit)
 BUT_exit = Button(label='Exit', width=config_main['plot_config']['tab_MkPlot']['button_wdth'], button_type='danger')
 BUT_exit.on_click(exit_update)
 
 menu_slit = [("Open", "Open"), ("Save As", "Save As"), None, ("Load", "Load"), ("Save", "Save")]
-# menu_slit = [("Open", "Open"), ("Save As", "Save As")]
 DropDn_slit = Dropdown(label="Slit File", menu=menu_slit,
                        width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'])
 DropDn_slit.on_change('value', DropDn_slit_handler)
@@ -782,8 +816,6 @@ except:
     pass
 
 SPCR_LFT_lbutt_play = Spacer(width=config_main['plot_config']['tab_MkPlot']['space_wdth80'])
-# lbutt_play = row(BUT_first, BUT_prev, BUT_play, BUT_next, BUT_last)
-# lbutt_play = buttons_play
 lbutt_play = row(ButtonsPlayCTRL.buttons[0], ButtonsPlayCTRL.buttons[1], ButtonsPlayCTRL.buttons[2],
                  ButtonsPlayCTRL.buttons[3],
                  ButtonsPlayCTRL.buttons[4])
@@ -800,11 +832,6 @@ widgt4 = widgetbox(BUT_exit, Div_info, width=config_main['plot_config']['tab_MkP
 loutc3 = column(widgt1, row(widgt2, widgt3), widgt4)
 
 lout = row(loutc1, loutc2, loutc3)
-
-# def timeout_callback():
-#     print 'timeout'
-#     raise SystemExit
-
 
 curdoc().add_root(lout)
 curdoc().title = "MkPlot"
