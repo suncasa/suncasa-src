@@ -1,5 +1,3 @@
-import glob
-import json
 import os
 import astropy.units as u
 import bokeh.palettes as bp
@@ -11,9 +9,10 @@ from astropy.time import Time
 from bokeh.layouts import row, column, widgetbox
 from bokeh.models import (ColumnDataSource, Slider, Button, TextInput, CheckboxGroup, RadioGroup,
                           BoxSelectTool, TapTool, Div, Spacer, Range1d)
-from bokeh.models.widgets import Dropdown
+from bokeh.models.widgets import Dropdown, RangeSlider, Select
 from bokeh.plotting import figure, curdoc
 from sunpy.time import TimeRange
+from sunpy.physics.transforms.solar_rotation import mapcube_solar_derotate
 from suncasa.utils.puffin import PuffinMap
 from suncasa.utils import DButil
 import Tkinter
@@ -31,13 +30,26 @@ def update_sdosubmp_image(fileidx):
         sdosubmp = sdomap.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]),
                                  u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
     else:
-        sdosubmp = sdosubmpdict['map'][fileidx]
+        sdosubmp = sdosubmpdict['mc_derot'].maps[fileidx]
     r_sdosubmp.data_source.data['image'] = [sdosubmp.data]
     p_sdosubmp.title.text = sdosubmp.name
     try:
         getimprofile(sdosubmp, cutslitplt)
     except:
         ValueError('make a cut slit first!')
+
+
+def aiamap_wavelength_selection(attrname, old, new):
+    global select_wave, sdofile
+    select_wave = Select_aia_wave.value
+    MkPlot_args_dict['wavelength'] = select_wave
+    outfile = database_dir + 'MkPlot_args.json'
+    DButil.updatejsonfile(outfile, MkPlot_args_dict)
+    try:
+        SaveSlit(slitfile)
+    except:
+        pass
+    Div_info.text = """<p><b>Refresh</b> the <b>web page</b> to load new wavelength of AIA</p>"""
 
 
 def update_sdosubmp_region(x0, x1, y0, y1):
@@ -53,6 +65,16 @@ def update_sdosubmp_region(x0, x1, y0, y1):
         yaxis_sdosubmp) / yaxis_sdosubmp_canvas
     Canvas_scale = (Canvas_scaleX + Canvas_scaleY) / 2.0
     r_sdosubmp.data_source.data['image'] = [sdosubmp.data]
+    try:
+        if x0 >= sdosubmpdict['mc'].maps[0].xrange[0].value and x1 <= sdosubmpdict['mc'].maps[0].xrange[
+            1].value and y0 >= \
+                sdosubmpdict['mc'].maps[0].yrange[0].value and y1 <= sdosubmpdict['mc'].maps[0].yrange[
+            1].value:
+            BUT_loadchunk.label = 'UpdateChunk'
+        else:
+            BUT_loadchunk.label = 'LoadChunk'
+    except:
+        pass
 
 
 def sdosubmp_region_select(attrname, old, new):
@@ -103,61 +125,89 @@ def LoadChunk():
         sdosubmplist.append(sdosubmptmp)
         timestamps.append(Time(sdosubmptmp.meta['date-obs'].replace('T', ' '), format='iso', scale='utc').jd)
         Div_info.text = """<p>{}</p>""".format(
-            ProgressBar(sidx + 1, nsdofile, suffix='Load', decimals=0, length=16, fill='#'))
-    sdompdict = {'map': sdosubmplist, 'time': np.array(timestamps)}
+            ProgressBar(sidx + 1, nsdofile + 1, suffix='Load', decimals=0, length=16, fill='#'))
+    mc = sunpy.map.Map(sdosubmplist, cube=True)
+    sdompdict = {'mc': mc, 'mc_derot': mapcube_solar_derotate(mc), 'time': np.array(timestamps)}
+    mask = np.logical_and(sdompdict['time'] >= trange.jd[0] + Slider_trange.range[0] / 24. / 3600,
+                          sdompdict['time'] <= trange.jd[0] + Slider_trange.range[1] / 24. / 3600)
+    sdompdict['mask'] = mask
+    Div_info.text = """<p>{}</p>""".format(
+        ProgressBar(nsdofile + 1, nsdofile + 1, suffix='Load', decimals=0, length=16, fill='#'))
     # Div_info.text = """<p><b>SDO submap chunk loaded.</b></p>"""
     return sdompdict
 
 
 def LoadSubChunk(sdompdict):
     sdosubmplist = []
-    for sidx, smap in enumerate(sdompdict['map']):
+    for sidx, smap in enumerate(sdompdict['mc'].maps):
         sdosubmptmp = smap.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]),
                                   u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
         sdosubmplist.append(sdosubmptmp)
         Div_info.text = """<p>{}</p>""".format(
-            ProgressBar(sidx + 1, nsdofile, suffix='Update', decimals=0, length=14, fill='#'))
-    return {'map': sdosubmplist, 'time': sdompdict['time']}
+            ProgressBar(sidx + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, fill='#'))
+    mc_derot = mapcube_solar_derotate(sunpy.map.Map(sdosubmplist, cube=True))
+    Div_info.text = """<p>{}</p>""".format(
+        ProgressBar(nsdofile + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, fill='#'))
+    return mc_derot
 
 
 def LoadChunk_handler():
     global sdosubmpdict
     if sdosubmpdict:
-        if x0 >= sdosubmpdict['map'][0].xrange[0].value and x1 <= sdosubmpdict['map'][0].xrange[1].value and y0 >= \
-                sdosubmpdict['map'][0].yrange[0].value and y1 <= sdosubmpdict['map'][0].yrange[1].value:
-            sdosubmpdict = LoadSubChunk(sdosubmpdict)
+        if x0 >= sdosubmpdict['mc'].maps[0].xrange[0].value and x1 <= sdosubmpdict['mc'].maps[0].xrange[
+            1].value and y0 >= \
+                sdosubmpdict['mc'].maps[0].yrange[0].value and y1 <= sdosubmpdict['mc'].maps[0].yrange[
+            1].value:
+            sdosubmpdict['mc_derot'] = LoadSubChunk(sdosubmpdict)
+            sdosubmpdict['mask'] = np.logical_and(
+                sdosubmpdict['time'] >= trange.jd[0] + Slider_trange.range[0] / 24. / 3600,
+                sdosubmpdict['time'] <= trange.jd[0] + Slider_trange.range[1] / 24. / 3600)
+            trange_update()
         else:
             sdosubmpdict = LoadChunk()
+            trange_update()
     else:
         sdosubmpdict = LoadChunk()
+        trange_update()
+    trange_reset()
+
+
+def Slider_sdoidx_update(attrname, old, new):
+    global sdofileidx
+    update_sdosubmp_image(Slider_sdoidx.value)
+    sdofileidx = Slider_sdoidx.value
 
 
 def ButtonNext_handler():
     global sdofileidx
     sdofileidx += 1
+    if sdofileidx > sdofileinbound[1]:
+        sdofileidx = sdofileinbound[0]
     sdofileidx = sdofileidx % nsdofile
-    update_sdosubmp_image(sdofileidx)
+    Slider_sdoidx.value = sdofileidx
 
 
 def ButtonPrev_handler():
     global sdofileidx
     sdofileidx -= 1
+    if sdofileidx < sdofileinbound[0]:
+        sdofileidx = sdofileinbound[1]
     sdofileidx = sdofileidx % nsdofile
-    update_sdosubmp_image(sdofileidx)
+    Slider_sdoidx.value = sdofileidx
 
 
 def ButtonLast_handler():
     global sdofileidx
-    sdofileidx = - 1
+    sdofileidx = sdofileinbound[1]
     sdofileidx = sdofileidx % nsdofile
-    update_sdosubmp_image(sdofileidx)
+    Slider_sdoidx.value = sdofileidx
 
 
 def ButtonFirst_handler():
     global sdofileidx
-    sdofileidx = 0
+    sdofileidx = sdofileinbound[0]
     sdofileidx = sdofileidx % nsdofile
-    update_sdosubmp_image(sdofileidx)
+    Slider_sdoidx.value = sdofileidx
 
 
 def ButtonPlay_handler():
@@ -171,7 +221,7 @@ def ButtonPlay_handler():
 
 
 def sdosubmp_animate_update():
-    if sdosubmpdict['map']:
+    if sdosubmpdict['mc_derot']:
         ButtonNext_handler()
 
 
@@ -424,16 +474,21 @@ def MkStackplt():
     global stackpltdict
     if sdosubmpdict:
         stackplt = []
-        for sidx, smap in enumerate(sdosubmpdict['map']):
-            intens = getimprofile(smap, cutslitplt, plot=False)
-            stackplt.append(intens['y'])
-        stackplt = np.vstack(stackplt)
-        stackplt = stackplt.transpose()
-        stackpltdict = {'zz': stackplt, 'x': sdosubmpdict['time'], 'y': intens['x'],
-                        'wavelength': '{:.0f}'.format(smap.wavelength.value), 'observatory': smap.observatory,
-                        'instrument': smap.instrument[0:3]}
-        Div_info.text = """<p>click <b>Stackplt</b> to view the stack plot</p>"""
-        return True
+        for sidx, smap in enumerate(sdosubmpdict['mc_derot'].maps):
+            if sdosubmpdict['mask'][sidx]:
+                intens = getimprofile(smap, cutslitplt, plot=False)
+                stackplt.append(intens['y'])
+        if len(stackplt) > 1:
+            stackplt = np.vstack(stackplt)
+            stackplt = stackplt.transpose()
+            stackpltdict = {'zz': stackplt, 'x': sdosubmpdict['time'][sdosubmpdict['mask']], 'y': intens['x'],
+                            'wavelength': '{:.0f}'.format(smap.wavelength.value), 'observatory': smap.observatory,
+                            'instrument': smap.instrument[0:3]}
+            Div_info.text = """<p>click <b>Stackplt</b> to view the stack plot</p>"""
+            return True
+        else:
+            Div_info.text = """<p>less than two frame in selected time range!!!</p>"""
+            return False
     else:
         Div_info.text = """<p>load the chunk first!!!</p>"""
         return False
@@ -448,6 +503,52 @@ def ViewStackplt():
         os.system('bokeh serve {}aiaBrowser/StackPlt --show --port {} &'.format(suncasa_dir, port))
         ports.append(port)
         Div_info.text = """<p><p>Check the <b>StackPlt</b> in the <b>new tab</b>.</p>"""
+
+
+def trange_reset():
+    trangesec = (0, int((sdosubmpdict['time'][-1] - sdosubmpdict['time'][0]) * 24 * 3600))
+    Slider_trange.start = trangesec[0]
+    Slider_trange.end = trangesec[1]
+    Slider_trange.range = trangesec
+    Slider_trange.title = 'Time range [seconds since {}]'.format(
+        Time(sdosubmpdict['time'][0], format='jd', scale='utc').iso)
+    # update of the title doesn't work
+    print Slider_trange.title
+
+def trange_update():
+    global sdofileinbound, nsdofileinbound
+    if sdosubmpdict:
+        sdosubmpdict['mask'] = np.logical_and(
+            sdosubmpdict['time'] >= trange.jd[0] + (Slider_trange.range[0]-5.0) / 24. / 3600,
+            sdosubmpdict['time'] <= trange.jd[0] + (Slider_trange.range[1]+5.0) / 24. / 3600)
+        maskidx = np.where(sdosubmpdict['mask'])[0]
+        sdofileinbound = [maskidx[0], maskidx[-1]]
+
+
+def trange_change_handler(attr, old, new):
+    trange_update()
+
+
+def DropDn_slit_handler(attr, old, new):
+    global slitfile
+    if DropDn_slit.value == "Open":
+        tkRoot = Tkinter.Tk()
+        tkRoot.withdraw()  # Close the root window
+        fin = tkFileDialog.askopenfilename(initialdir=database_dir, initialfile='cutslit-' + PlotID)
+        LoadSlit(fin)
+        slitfile = fin
+    elif DropDn_slit.value == "Save As":
+        tkRoot = Tkinter.Tk()
+        tkRoot.withdraw()  # Close the root window
+        fout = tkFileDialog.asksaveasfilename(initialdir=database_dir, initialfile='cutslit-' + PlotID)
+        SaveSlit(fout)
+        slitfile = fout
+    elif DropDn_slit.value == "Load":
+        LoadSlit(slitfile)
+    elif DropDn_slit.value == "Save":
+        SaveSlit(slitfile)
+    else:
+        pass
 
 
 def exit_update():
@@ -470,12 +571,11 @@ SDOdir = DButil.getSDOdir(config_main, database_dir, suncasa_dir)
 if not os.path.exists(database_dir):
     os.system('mkdir {}'.format(database_dir))
 infile = database_dir + 'MkPlot_args.json'
-with open(infile, 'rb') as fp:
-    MkPlot_args_dict = json.load(fp)
+MkPlot_args_dict = DButil.loadjsonfile(infile)
 
 trange = Time([MkPlot_args_dict['tst'], MkPlot_args_dict['ted']], format='iso', scale='utc')
 PlotID = MkPlot_args_dict['PlotID']
-sdofile = DButil.readsdofile(datadir=SDOdir, wavelength='171', jdtime=trange.jd)
+sdofile = DButil.readsdofile(datadir=SDOdir, wavelength=MkPlot_args_dict['wavelength'], jdtime=trange.jd)
 nsdofile = len(sdofile)
 global sdofileidx, slitfile
 if nsdofile == 0:
@@ -536,7 +636,7 @@ sdosubmp_pfmap = PuffinMap(smap=sdosubmp,
                            plot_height=config_main['plot_config']['tab_MkPlot']['aia_submap_hght'],
                            plot_width=config_main['plot_config']['tab_MkPlot']['aia_submap_wdth'])
 p_sdosubmp, r_sdosubmp = sdosubmp_pfmap.PlotMap(DrawLimb=False, DrawGrid=False, ignore_coord=True,
-                                                tools='crosshair,pan,wheel_zoom,save,reset')
+                                                tools='crosshair,pan,wheel_zoom,reset,save')
 mapx_sdosubmp, mapy_sdosubmp = sdosubmp_pfmap.meshgridpix(rescale=1.0)
 mapx_sdosubmp, mapy_sdosubmp = mapx_sdosubmp.value, mapy_sdosubmp.value
 ndy, ndx = mapx_sdosubmp.shape
@@ -582,7 +682,7 @@ r_sdosubmp_line1 = p_sdosubmp.line('xx', 'yy', source=SRC_sdosubmp_line1, line_c
 r_sdosubmp_cross = p_sdosubmp.cross(x='xx', y='yy', size=15, line_width=2, alpha=0.7, line_color='firebrick',
                                     source=ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []})))
 
-TOOLS = "pan,wheel_zoom,box_zoom,reset,save"
+TOOLS = "save"
 p_lighcurve = figure(tools=TOOLS,
                      plot_width=config_main['plot_config']['tab_MkPlot']['time_plot_wdth'],
                      plot_height=config_main['plot_config']['tab_MkPlot']['time_plot_hght'],
@@ -654,34 +754,32 @@ BUT_default_fitparam.on_click(default_fitparam)
 BUT_exit = Button(label='Exit', width=config_main['plot_config']['tab_MkPlot']['button_wdth'], button_type='danger')
 BUT_exit.on_click(exit_update)
 
-
-def DropDn_slit_handler(attr, old, new):
-    global slitfile
-    if DropDn_slit.value == "Open":
-        tkRoot = Tkinter.Tk()
-        tkRoot.withdraw()  # Close the root window
-        fin = tkFileDialog.askopenfilename(initialdir=database_dir, initialfile='cutslit-' + PlotID)
-        LoadSlit(fin)
-        slitfile = fin
-    elif DropDn_slit.value == "Save As":
-        tkRoot = Tkinter.Tk()
-        tkRoot.withdraw()  # Close the root window
-        fout = tkFileDialog.asksaveasfilename(initialdir=database_dir, initialfile='cutslit-' + PlotID)
-        SaveSlit(fout)
-        slitfile = fout
-    elif DropDn_slit.value == "Load":
-        LoadSlit(slitfile)
-    elif DropDn_slit.value == "Save":
-        SaveSlit(slitfile)
-    else:
-        pass
-
-
 menu_slit = [("Open", "Open"), ("Save As", "Save As"), None, ("Load", "Load"), ("Save", "Save")]
 # menu_slit = [("Open", "Open"), ("Save As", "Save As")]
-DropDn_slit = Dropdown(label="Slit File", button_type="success", menu=menu_slit,
+DropDn_slit = Dropdown(label="Slit File", menu=menu_slit,
                        width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'])
 DropDn_slit.on_change('value', DropDn_slit_handler)
+
+trangesec = (0, int(np.diff(trange.jd)[0] * 24 * 3600))
+Slider_trange = RangeSlider(start=trangesec[0], end=trangesec[1], range=trangesec, step=12,
+                            title='Time range [seconds since {}]'.format(trange.iso[0]),
+                            width=config_main['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'])
+Slider_trange.on_change('range', trange_change_handler)
+sdofileinbound = [0, nsdofile - 1]
+
+Slider_sdoidx = Slider(start=0, end=nsdofile - 1, value=0, step=1, title='frame:',
+                       width=config_main['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'])
+Slider_sdoidx.on_change('value', Slider_sdoidx_update)
+
+aia_wv_list = ["1700", "1600", "304", "171", "193", "211", "335", "94", "131"]
+Select_aia_wave = Select(title="AIA Wavelenght:", value=MkPlot_args_dict['wavelength'], options=aia_wv_list,
+                         width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
+Select_aia_wave.on_change('value', aiamap_wavelength_selection)
+
+try:
+    LoadSlit(slitfile)
+except:
+    pass
 
 SPCR_LFT_lbutt_play = Spacer(width=config_main['plot_config']['tab_MkPlot']['space_wdth80'])
 # lbutt_play = row(BUT_first, BUT_prev, BUT_play, BUT_next, BUT_last)
@@ -689,10 +787,11 @@ SPCR_LFT_lbutt_play = Spacer(width=config_main['plot_config']['tab_MkPlot']['spa
 lbutt_play = row(ButtonsPlayCTRL.buttons[0], ButtonsPlayCTRL.buttons[1], ButtonsPlayCTRL.buttons[2],
                  ButtonsPlayCTRL.buttons[3],
                  ButtonsPlayCTRL.buttons[4])
-loutc1 = column(p_sdomap, p_lighcurve, lbutt_play)
+widgt0 = widgetbox(Slider_trange, Slider_sdoidx, width=config_main['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'])
+loutc1 = column(p_sdomap, p_lighcurve, widgt0, lbutt_play)
 loutc2 = p_sdosubmp
-widgt1 = widgetbox(Text_SlitLgth, Text_Cutwdth, Text_CutAng, Slider_smoothing_factor, Hideitem_checkbox,
-                   fitMeth_radiogroup, width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
+widgt1 = widgetbox(Select_aia_wave, Text_SlitLgth, Text_Cutwdth, Text_CutAng, Slider_smoothing_factor,
+                   Hideitem_checkbox, fitMeth_radiogroup, width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
 widgt2 = widgetbox(BUT_UndoDraw, DropDn_slit, BUT_loadchunk,
                    width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'])
 widgt3 = widgetbox(BUT_ClearDraw, BUT_default_fitparam, BUT_Stackplt,

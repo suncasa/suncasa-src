@@ -33,11 +33,9 @@ def update_imgprofile():
         if RadioButG_XYswitch.active == 0:
             imgprofiledata = {'xx': xbd.ravel(), 'yy': zz[img_quady_selected, :].ravel()}
             p_imgprofile.xaxis.axis_label = 'Seconds since ' + tim0_char
-            print img_quady_selected
         else:
             imgprofiledata = {'xx': ybd.ravel(), 'yy': zz[:, img_quadx_selected].ravel()}
             p_imgprofile.xaxis.axis_label = 'distance [arcsec]'
-            print img_quadx_selected
         r_imgprofile.data_source.data = imgprofiledata
         p_imgprofile.x_range.start, p_imgprofile.x_range.end = imgprofiledata['xx'][0], imgprofiledata['xx'][-1]
     else:
@@ -136,14 +134,14 @@ SRC_img_quady = ColumnDataSource({'left': np.repeat(xLFE[0], ndy), 'right': np.r
 
 r_img_quadx = p_img.quad('left', 'right', 'top', 'bottom', source=SRC_img_quadx,
                          fill_color=None, fill_alpha=1.0,
-                         line_color=None, line_alpha=0.0, selection_fill_alpha=0.2,
+                         line_color=None, line_alpha=0.0, selection_fill_alpha=0.4,
                          selection_fill_color='white',
                          nonselection_fill_alpha=1.0, nonselection_fill_color=None,
                          selection_line_alpha=0.0, selection_line_color=None,
                          nonselection_line_alpha=0.0, nonselection_line_color=None)
 r_img_quady = p_img.quad('left', 'right', 'top', 'bottom', source=SRC_img_quady,
                          fill_color=None, fill_alpha=1.0,
-                         line_color=None, line_alpha=0.0, selection_fill_alpha=0.2,
+                         line_color=None, line_alpha=0.0, selection_fill_alpha=0.4,
                          selection_fill_color='white',
                          nonselection_fill_alpha=1.0, nonselection_fill_color=None,
                          selection_line_alpha=0.0, selection_line_color=None,

@@ -13,11 +13,49 @@ from bokeh.models import (ColumnDataSource, CustomJS, Slider, Button, TextInput,
 from bokeh.models import LinearColorMapper, ColorBar, LogColorMapper
 from bokeh.plotting import figure, curdoc
 from astropy.time import Time
-
-# from suncasa.utils import DButil
+from suncasa.utils import DButil
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
+
+
+def Slider_watershed_update(attrname, old, new):
+    wtshdpercent = Slider_watershed.value / 100.0
+    specfit = CC_savedata['specfit'].copy()
+    for fidx in xrange(nfreq):
+        specfitslice = specfit[fidx, :]
+        slicemax, slicemin = specfitslice.max(), specfitslice.min()
+        thrshd = slicemin + (slicemax - slicemin) * wtshdpercent
+        specfitslice[specfitslice < thrshd] = np.nan
+        specfit[fidx, :] = specfitslice
+    r_dspecfit.data_source.data['image'] = [specfit]
+    # CC_dict = DButil.XCorrMap(specfit, timfit, freq, doxscale=False)
+    # r_CCmax.data_source.data['image'] = [CC_dict['ccmax']]
+    # r_CCpeak.data_source.data['image'] = [CC_dict['ccpeak'] * dtfit * 1000.0]
+
+
+def Slider_threshold_update(attrname, old, new):
+    thrshdpercent = Slider_threshold.value / 100.0
+    specfit = CC_savedata['specfit'].copy()
+    fidxflag = np.log(specfit.max(axis=1)) < thrshdpercent * np.log(specfit.max())
+    ccmaxplt = ccmax.copy()
+    ccpeakplt = ccpeak.copy() * dtfit * 1000.0
+    for fflag in freq[fidxflag]:
+        ccmaxplt[freqa == fflag] = np.nan
+        ccmaxplt[freqv == fflag] = np.nan
+        ccpeakplt[freqa == fflag] = np.nan
+        ccpeakplt[freqv == fflag] = np.nan
+    maspecfit = np.tile(fidxflag, ntimfit).reshape(ntimfit, nfreq).swapaxes(0, 1)
+    specfit[maspecfit] = np.nan
+    r_dspecfit.data_source.data['image'] = [specfit]
+    r_CCmax.data_source.data['image'] = [ccmaxplt]
+    r_CCpeak.data_source.data['image'] = [ccpeakplt]
+
+
+def exit_update():
+    Div_exit.text = """<p><b>You may close the tab anytime you like.</b></p>"""
+    raise SystemExit
+
 
 '''load config file'''
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
@@ -131,7 +169,7 @@ r_dspecfit = p_dspecfit.image(image=[specfit], x=dtimfit[0], y=freq[0],
                               color_mapper=LinearColorMapper(palette=bokehpalette_jet, low=np.amin(spec),
                                                              high=np.amax(spec)))
 
-TOOLS = "crosshair,save"
+TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
 SRC_CCmax_square = ColumnDataSource(CCmaxDF)
 p_CCmax = figure(tools=TOOLS,
                  plot_width=config_main['plot_config']['tab_XCorr']['CCmap_wdth'],
@@ -355,47 +393,12 @@ p_CCpeak_hover = HoverTool(tooltips=tooltips, callback=p_CCpeak_hover_callback,
                            renderers=[r_CCpeak_square])
 p_CCpeak.add_tools(p_CCpeak_hover)
 
-
-def Slider_watershed_update(attrname, old, new):
-    wtshdpercent = Slider_watershed.value / 100.0
-    specfit = CC_savedata['specfit'].copy()
-    for fidx in xrange(nfreq):
-        specfitslice = specfit[fidx, :]
-        slicemax, slicemin = specfitslice.max(), specfitslice.min()
-        thrshd = slicemin + (slicemax - slicemin) * wtshdpercent
-        specfitslice[specfitslice < thrshd] = np.nan
-        specfit[fidx, :] = specfitslice
-    r_dspecfit.data_source.data['image'] = [specfit]
-    # CC_dict = DButil.XCorrMap(specfit, timfit, freq, doxscale=False)
-    # r_CCmax.data_source.data['image'] = [CC_dict['ccmax']]
-    # r_CCpeak.data_source.data['image'] = [CC_dict['ccpeak'] * dtfit * 1000.0]
-
-
 Slider_watershed = Slider(start=0, end=100, value=0, step=0.5, title="watershed",
                           width=config_main['plot_config']['tab_XCorr']['widgetbox_wdth'],
                           callback_policy='mouseup')
 
 # This data source is just used to communicate / trigger the real callback
 Slider_watershed.on_change('value', Slider_watershed_update)
-
-
-def Slider_threshold_update(attrname, old, new):
-    thrshdpercent = Slider_threshold.value / 100.0
-    specfit = CC_savedata['specfit'].copy()
-    fidxflag = np.log(specfit.max(axis=1)) < thrshdpercent * np.log(specfit.max())
-    ccmaxplt = ccmax.copy()
-    ccpeakplt = ccpeak.copy() * dtfit * 1000.0
-    for fflag in freq[fidxflag]:
-        ccmaxplt[freqa == fflag] = np.nan
-        ccmaxplt[freqv == fflag] = np.nan
-        ccpeakplt[freqa == fflag] = np.nan
-        ccpeakplt[freqv == fflag] = np.nan
-    maspecfit = np.tile(fidxflag, ntimfit).reshape(ntimfit, nfreq).swapaxes(0, 1)
-    specfit[maspecfit] = np.nan
-    r_dspecfit.data_source.data['image'] = [specfit]
-    r_CCmax.data_source.data['image'] = [ccmaxplt]
-    r_CCpeak.data_source.data['image'] = [ccpeakplt]
-
 
 Slider_threshold = Slider(start=0, end=100, value=0, step=1, title="threshold",
                           width=config_main['plot_config']['tab_XCorr']['widgetbox_wdth'],
@@ -407,12 +410,6 @@ Div_exit = Div(
     text="""<p><b>Warning</b>: Click <b>Exit</b>
             first before closing the tab</p></b>""",
     width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-
-
-def exit_update():
-    Div_exit.text = """<p><b>You may close the tab anytime you like.</b></p>"""
-    raise SystemExit
-
 
 BUT_exit = Button(label='Exit FSview',
                   width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],

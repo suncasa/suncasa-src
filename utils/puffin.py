@@ -4,6 +4,7 @@ import matplotlib.colors as colors
 import numpy as np
 import sunpy.coordinates
 import sunpy.map
+import sunpy.cm
 import sunpy.wcs as wcs
 from bokeh.models import ColumnDataSource
 from bokeh.plotting import figure
@@ -166,7 +167,10 @@ class PuffinMap:
                 # palette = [colors.rgb2hex(m).encode("ascii").upper() for m in clmap(np.arange(clmap.N))]
                 palette = getAIApalette(wavelngth)
                 clrange = DButil.sdo_aia_scale_dict(wavelength=wavelngth)
-                colormapper = LogColorMapper(palette=palette, low=clrange['low'], high=clrange['high'])
+                if clrange['log']:
+                    colormapper = LogColorMapper(palette=palette, low=clrange['low'], high=clrange['high'])
+                else:
+                    colormapper = LinearColorMapper(palette=palette, low=clrange['low'], high=clrange['high'])
             else:
                 palette = bokehpalette_jet
                 colormapper = LinearColorMapper(palette=palette)

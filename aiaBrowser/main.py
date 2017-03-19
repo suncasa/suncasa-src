@@ -393,25 +393,34 @@ def MkPlot():
     if ted.mjd <= tst.mjd:
         Div_info.text = '''Error: start time must occur earlier than end time. please re-enter start time and end time!!!'''
     else:
-        MkPlot_args_dict['tst'] = tst.iso
-        MkPlot_args_dict['ted'] = ted.iso
-        MkPlot_args_dict['PlotID'] = Text_PlotID.value
-        fout = database_dir + 'MkPlot_args.json'
-        with open(fout, 'w') as fp:
-            json.dump(MkPlot_args_dict, fp)
-        Div_info.text = '''<p><b>{} saved.</b></p>'''.format(fout)
-        port = DButil.getfreeport()
-        print 'bokeh serve {}aiaBrowser/MkPlot --show --port {} &'.format(suncasa_dir, port)
-        os.system('bokeh serve {}aiaBrowser/MkPlot --show --port {} &'.format(suncasa_dir, port))
-        ports.append(port)
-        Div_info.text = Div_info.text + """<p>Check the <b>FS_view</b> in the <b>new tab</b></p>"""
+        labelsactive = [Wavelngth_checkbox.labels[ll] for ll in Wavelngth_checkbox.active]
+        Slabelsactive = set(labelsactive)
+        Swavelength = set(["1700", "1600", "304", "171", "193", "211", "335", "94", "131"])
+        if len(Swavelength.intersection(Slabelsactive)) == 1:
+            MkPlot_args_dict['wavelength'] = list(Swavelength.intersection(Slabelsactive))[0]
+            MkPlot_args_dict['tst'] = tst.iso
+            MkPlot_args_dict['ted'] = ted.iso
+            MkPlot_args_dict['PlotID'] = Text_PlotID.value
+            fout = database_dir + 'MkPlot_args.json'
+            with open(fout, 'w') as fp:
+                json.dump(MkPlot_args_dict, fp)
+            Div_info.text = '''<p><b>{} saved.</b></p>'''.format(fout)
+            port = DButil.getfreeport()
+            print 'bokeh serve {}aiaBrowser/MkPlot --show --port {} &'.format(suncasa_dir, port)
+            os.system('bokeh serve {}aiaBrowser/MkPlot --show --port {} &'.format(suncasa_dir, port))
+            ports.append(port)
+            Div_info.text = Div_info.text + """<p>Check the <b>MkPlot</b> in the <b>new tab</b></p>"""
+        else:
+            Div_info.text = Div_info.text + """<p>Choose one <b>AIA</b> wavelength to <b>MkPlot!!</b></p>"""
 
 
 BUT_MkPlot = Button(label='MkPlot', width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'],
                     button_type='success')
 BUT_MkPlot.on_click(MkPlot)
 
-Text_sdodir = TextInput(value=SDOdir, title="SDO Directory:", width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'])
+Text_sdodir = TextInput(value=SDOdir, title="SDO Directory:",
+                        width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'])
+
 
 def Buttonaskdir_handler():
     import Tkinter

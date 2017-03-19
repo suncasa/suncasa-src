@@ -154,11 +154,23 @@ def sdo_aia_scale_dict(wavelength=None):
     :return: byte scaled image data
     '''
     if wavelength == '94':
-        return {'low': 3, 'high': 150}
+        return {'low': 0.1, 'high': 150, 'log': True}
     elif wavelength == '131':
-        return {'low': 3, 'high': 200}
+        return {'low': 0.5, 'high': 500, 'log': True}
     elif wavelength == '171':
-        return {'low': 20, 'high': 5000}
+        return {'low': 20, 'high': 5000, 'log': True}
+    elif wavelength == '193':
+        return {'low': 30, 'high': 5000, 'log': True}
+    elif wavelength == '211':
+        return {'low': 10, 'high': 2000, 'log': True}
+    elif wavelength == '304':
+        return {'low': 1, 'high': 1000, 'log': True}
+    elif wavelength == '335':
+        return {'low': 0.1, 'high': 50, 'log': True}
+    elif wavelength == '1600':
+        return {'low': 20, 'high': 2500, 'log': True}
+    elif wavelength == '1700':
+        return {'low': 300, 'high': 5000, 'log': True}
 
 
 def sdo_aia_scale(image=None, wavelength=None):
@@ -763,41 +775,41 @@ class ButtonsPlayCTRL():
         BUT_last = Button(label='>>', width=plot_width, button_type='primary')
         self.buttons = [BUT_first, BUT_prev, BUT_play, BUT_next, BUT_last]
 
-# class FileDialog():
-#     '''
-#     produce a file dialog button widget for bokeh plot
-#     '''
-#     import Tkinter
-#     import tkFileDialog
-#
-#     def __init__(self, plot_width=30, labels={'dir':'...','open':'open','save':'save'}, *args,
-#                  **kwargs):
-#         from bokeh.models import Button
-#         buttons = {}
-#         for k,v in labels.items():
-#             buttons[k] = Button(label=v, width=plot_width)
-#         self.buttons = buttons
-#
-#     def askdirectory(self):
-#         tkRoot = Tkinter.Tk()
-#         tkRoot.withdraw()  # Close the root window
-#         in_path = tkFileDialog.askdirectory()
-#         tkRoot.destroy()
-#         if in_path:
-#             return in_path
-#
-#     def askopenfilename(self):
-#         tkRoot = Tkinter.Tk()
-#         tkRoot.withdraw()  # Close the root window
-#         in_path = tkFileDialog.askopenfilename()
-#         tkRoot.destroy()
-#         if in_path:
-#             return in_path
-#
-#     def asksaveasfilename(self):
-#         tkRoot = Tkinter.Tk()
-#         tkRoot.withdraw()  # Close the root window
-#         in_path = tkFileDialog.asksaveasfilename()
-#         tkRoot.destroy()
-#         if in_path:
-#             return in_path
+        # class FileDialog():
+        #     '''
+        #     produce a file dialog button widget for bokeh plot
+        #     '''
+        #     import Tkinter
+        #     import tkFileDialog
+        #
+        #     def __init__(self, plot_width=30, labels={'dir':'...','open':'open','save':'save'}, *args,
+        #                  **kwargs):
+        #         from bokeh.models import Button
+        #         buttons = {}
+        #         for k,v in labels.items():
+        #             buttons[k] = Button(label=v, width=plot_width)
+        #         self.buttons = buttons
+        #
+        #     def askdirectory(self):
+        #         tkRoot = Tkinter.Tk()
+        #         tkRoot.withdraw()  # Close the root window
+        #         in_path = tkFileDialog.askdirectory()
+        #         tkRoot.destroy()
+        #         if in_path:
+        #             return in_path
+        #
+        #     def askopenfilename(self):
+        #         tkRoot = Tkinter.Tk()
+        #         tkRoot.withdraw()  # Close the root window
+        #         in_path = tkFileDialog.askopenfilename()
+        #         tkRoot.destroy()
+        #         if in_path:
+        #             return in_path
+        #
+        #     def asksaveasfilename(self):
+        #         tkRoot = Tkinter.Tk()
+        #         tkRoot.withdraw()  # Close the root window
+        #         in_path = tkFileDialog.asksaveasfilename()
+        #         tkRoot.destroy()
+        #         if in_path:
+        #             return in_path
