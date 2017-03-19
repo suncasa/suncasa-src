@@ -66,10 +66,11 @@ def update_sdosubmp_region(x0, x1, y0, y1):
     Canvas_scale = (Canvas_scaleX + Canvas_scaleY) / 2.0
     r_sdosubmp.data_source.data['image'] = [sdosubmp.data]
     try:
-        if x0 >= sdosubmpdict['mc'].maps[0].xrange[0].value and x1 <= sdosubmpdict['mc'].maps[0].xrange[
-            1].value and y0 >= \
-                sdosubmpdict['mc'].maps[0].yrange[0].value and y1 <= sdosubmpdict['mc'].maps[0].yrange[
-            1].value:
+        if x0 >= sdosubmpdict['FOV'][0] and x1 <= sdosubmpdict['FOV'][2] and y0 >= sdosubmpdict['FOV'][
+            1] and y1 <= \
+                sdosubmpdict['FOV'][3]:
+            UpdateSubChunk()
+            trange_update()
             BUT_loadchunk.label = 'UpdateChunk'
         else:
             BUT_loadchunk.label = 'LoadChunk'
@@ -137,6 +138,10 @@ def ProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, 
     return '{} |{}| {}% {}'.format(prefix, bar, percent, suffix)
 
 
+def Derot_checkbox_handler(new):
+    LoadChunk_handler()
+
+
 def LoadChunk():
     sdosubmplist = []
     timestamps = []
@@ -149,7 +154,13 @@ def LoadChunk():
         Div_info.text = """<p>{}</p>""".format(
             ProgressBar(sidx + 1, nsdofile + 1, suffix='Load', decimals=0, length=16, fill='#'))
     mc = sunpy.map.Map(sdosubmplist, cube=True)
-    sdompdict = {'mc': mc, 'mc_derot': mapcube_solar_derotate(mc), 'time': np.array(timestamps)}
+    if len(Derot_checkbox.active) == 1:
+        sdompdict = {'FOV': [x0, y0, x1, y1], 'subFOV': [x0, y0, x1, y1], 'mc': mc,
+                     'mc_derot': mapcube_solar_derotate(mc),
+                     'time': np.array(timestamps)}
+    else:
+        sdompdict = {'FOV': [x0, y0, x1, y1], 'subFOV': [x0, y0, x1, y1], 'mc': mc, 'mc_derot': mc,
+                     'time': np.array(timestamps)}
     mask = np.logical_and(sdompdict['time'] >= trange.jd[0] + Slider_trange.range[0] / 24. / 3600,
                           sdompdict['time'] <= trange.jd[0] + Slider_trange.range[1] / 24. / 3600)
     sdompdict['mask'] = mask
@@ -167,23 +178,29 @@ def LoadSubChunk(sdompdict):
         sdosubmplist.append(sdosubmptmp)
         Div_info.text = """<p>{}</p>""".format(
             ProgressBar(sidx + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, fill='#'))
-    mc_derot = mapcube_solar_derotate(sunpy.map.Map(sdosubmplist, cube=True))
+    if len(Derot_checkbox.active) == 1:
+        mc_derot = mapcube_solar_derotate(sunpy.map.Map(sdosubmplist, cube=True))
+    else:
+        mc_derot = sunpy.map.Map(sdosubmplist, cube=True)
     Div_info.text = """<p>{}</p>""".format(
         ProgressBar(nsdofile + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, fill='#'))
     return mc_derot
 
+def UpdateSubChunk():
+    global sdosubmpdict
+    sdosubmpdict['mc_derot'] = LoadSubChunk(sdosubmpdict)
+    sdosubmpdict['subFOV'] = [x0, y0, x1, y1]
+    sdosubmpdict['mask'] = np.logical_and(
+        sdosubmpdict['time'] >= trange.jd[0] + Slider_trange.range[0] / 24. / 3600,
+        sdosubmpdict['time'] <= trange.jd[0] + Slider_trange.range[1] / 24. / 3600)
 
 def LoadChunk_handler():
     global sdosubmpdict
     if sdosubmpdict:
-        if x0 >= sdosubmpdict['mc'].maps[0].xrange[0].value and x1 <= sdosubmpdict['mc'].maps[0].xrange[
-            1].value and y0 >= \
-                sdosubmpdict['mc'].maps[0].yrange[0].value and y1 <= sdosubmpdict['mc'].maps[0].yrange[
-            1].value:
-            sdosubmpdict['mc_derot'] = LoadSubChunk(sdosubmpdict)
-            sdosubmpdict['mask'] = np.logical_and(
-                sdosubmpdict['time'] >= trange.jd[0] + Slider_trange.range[0] / 24. / 3600,
-                sdosubmpdict['time'] <= trange.jd[0] + Slider_trange.range[1] / 24. / 3600)
+        if x0 >= sdosubmpdict['FOV'][0] and x1 <= sdosubmpdict['FOV'][2] and y0 >= sdosubmpdict['FOV'][
+            1] and y1 <= \
+                sdosubmpdict['FOV'][3]:
+            UpdateSubChunk()
             trange_update()
         else:
             sdosubmpdict = LoadChunk()
@@ -203,7 +220,7 @@ def Slider_sdoidx_update(attrname, old, new):
 def ButtonNext_handler():
     global sdofileidx
     sdofileidx += 1
-    if sdofileidx > sdofileinbound[1]:
+    if sdofileidx > sdofileinbound[1] or sdofileidx < sdofileinbound[0]:
         sdofileidx = sdofileinbound[0]
     sdofileidx = sdofileidx % nsdofile
     Slider_sdoidx.value = sdofileidx
@@ -212,7 +229,7 @@ def ButtonNext_handler():
 def ButtonPrev_handler():
     global sdofileidx
     sdofileidx -= 1
-    if sdofileidx < sdofileinbound[0]:
+    if sdofileidx < sdofileinbound[0] or sdofileidx > sdofileinbound[1]:
         sdofileidx = sdofileinbound[1]
     sdofileidx = sdofileidx % nsdofile
     Slider_sdoidx.value = sdofileidx
@@ -236,7 +253,7 @@ def ButtonPlay_handler():
     global sdofileidx
     if ButtonsPlayCTRL.buttons[2].label == '>':
         ButtonsPlayCTRL.buttons[2].label = '||'
-        curdoc().add_periodic_callback(sdosubmp_animate_update, 100)
+        curdoc().add_periodic_callback(sdosubmp_animate_update, 150)
     else:
         ButtonsPlayCTRL.buttons[2].label = '>'
         curdoc().remove_periodic_callback(sdosubmp_animate_update)
@@ -633,7 +650,6 @@ SRC_sdo_RSPmap_quadx = ColumnDataSource(
 SRC_sdo_RSPmap_quady = ColumnDataSource(
     {'left': np.repeat(xLFE[0], ndy), 'right': np.repeat(xLFE[-1] + dx, ndy), 'bottom': yBTE.ravel(),
      'top': yTPE.ravel()})
-
 r_sdo_RSPmap_quadx = p_sdomap.quad('left', 'right', 'top', 'bottom', source=SRC_sdo_RSPmap_quadx,
                                    fill_alpha=0.0, fill_color=None,
                                    line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
@@ -769,6 +785,9 @@ Text_SlitLgth = TextInput(value='{:.0f}'.format(np.sqrt(xaxis_sdosubmp ** 2 + ya
 
 Hideitemlist = ["Hide Slit&Points", "Hide Points only"]
 Hideitem_checkbox = CheckboxGroup(labels=Hideitemlist, active=[])
+
+Derot_checkbox = CheckboxGroup(labels=['De-rotation'], active=[0])
+Derot_checkbox.on_click(Derot_checkbox_handler)
 fitmethoddict = {'0': "Polyfit", '1': "Spline", '2': "Param_Spline"}
 fitMeth_radiogroup = RadioGroup(labels=["Polyfit", "Spline", "Parametric Spline"], active=0)
 fitmethod = fitmethoddict['{}'.format(fitMeth_radiogroup.active)]
@@ -823,7 +842,8 @@ widgt0 = widgetbox(Slider_trange, Slider_sdoidx, width=config_main['plot_config'
 loutc1 = column(p_sdomap, p_lighcurve, widgt0, lbutt_play)
 loutc2 = p_sdosubmp
 widgt1 = widgetbox(Select_aia_wave, Text_SlitLgth, Text_Cutwdth, Text_CutAng, Slider_smoothing_factor,
-                   Hideitem_checkbox, fitMeth_radiogroup, width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
+                   Hideitem_checkbox, fitMeth_radiogroup, Derot_checkbox,
+                   width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
 widgt2 = widgetbox(BUT_UndoDraw, DropDn_slit, BUT_loadchunk,
                    width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'])
 widgt3 = widgetbox(BUT_ClearDraw, BUT_default_fitparam, BUT_Stackplt,

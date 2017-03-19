@@ -284,7 +284,7 @@ def getPlotID():
 
 Text_PlotID.value = getPlotID()
 
-wavelngth_list = ["goes", "HMI_Magnetogram", "1700", "1600", "304", "171", "193", "211", "335", "94", "131"]
+wavelngth_list = ["goes", "HMI_Magnetogram", "1700", "1600", "304", "171", "193", "211", "335", "94", "131", "All"]
 Wavelngth_checkbox = CheckboxGroup(labels=wavelngth_list, active=[0],
                                    width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'])
 serieslist = {}
@@ -293,10 +293,22 @@ for ll in wavelngth_list:
         serieslist[ll] = 'hmi.M_45s'
     elif ll in ["1700", "1600"]:
         serieslist[ll] = 'aia.lev1_uv_24s'
-    elif ll == 'goes':
+    elif ll == ['goes', 'All']:
         serieslist[ll] = ''
     else:
         serieslist[ll] = 'aia.lev1_euv_12s'
+
+
+def Wavelngth_checkbox_change(attrname, old, new):
+    labelsactive = [Wavelngth_checkbox.labels[ll] for ll in Wavelngth_checkbox.active]
+    if 'All' in labelsactive:
+        Wavelngth_checkbox.active = range(len(Wavelngth_checkbox.labels) - 1)
+        Wavelngth_checkbox.labels = wavelngth_list[0:-1]+['None']
+    elif 'None' in labelsactive:
+        Wavelngth_checkbox.active = [0]
+        Wavelngth_checkbox.labels = wavelngth_list
+
+Wavelngth_checkbox.on_change('active', Wavelngth_checkbox_change)
 
 
 def get_num(x):
