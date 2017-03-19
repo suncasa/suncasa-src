@@ -186,6 +186,7 @@ def LoadSubChunk(sdompdict):
         ProgressBar(nsdofile + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, fill='#'))
     return mc_derot
 
+
 def UpdateSubChunk():
     global sdosubmpdict
     sdosubmpdict['mc_derot'] = LoadSubChunk(sdosubmpdict)
@@ -193,6 +194,7 @@ def UpdateSubChunk():
     sdosubmpdict['mask'] = np.logical_and(
         sdosubmpdict['time'] >= trange.jd[0] + Slider_trange.range[0] / 24. / 3600,
         sdosubmpdict['time'] <= trange.jd[0] + Slider_trange.range[1] / 24. / 3600)
+
 
 def LoadChunk_handler():
     global sdosubmpdict
@@ -213,8 +215,8 @@ def LoadChunk_handler():
 
 def Slider_sdoidx_update(attrname, old, new):
     global sdofileidx
-    update_sdosubmp_image(Slider_sdoidx.value)
-    sdofileidx = Slider_sdoidx.value
+    update_sdosubmp_image(Slider_sdoidx.value - 1)
+    sdofileidx = Slider_sdoidx.value - 1
 
 
 def ButtonNext_handler():
@@ -223,7 +225,7 @@ def ButtonNext_handler():
     if sdofileidx > sdofileinbound[1] or sdofileidx < sdofileinbound[0]:
         sdofileidx = sdofileinbound[0]
     sdofileidx = sdofileidx % nsdofile
-    Slider_sdoidx.value = sdofileidx
+    Slider_sdoidx.value = sdofileidx + 1
 
 
 def ButtonPrev_handler():
@@ -232,21 +234,21 @@ def ButtonPrev_handler():
     if sdofileidx < sdofileinbound[0] or sdofileidx > sdofileinbound[1]:
         sdofileidx = sdofileinbound[1]
     sdofileidx = sdofileidx % nsdofile
-    Slider_sdoidx.value = sdofileidx
+    Slider_sdoidx.value = sdofileidx + 1
 
 
 def ButtonLast_handler():
     global sdofileidx
     sdofileidx = sdofileinbound[1]
     sdofileidx = sdofileidx % nsdofile
-    Slider_sdoidx.value = sdofileidx
+    Slider_sdoidx.value = sdofileidx + 1
 
 
 def ButtonFirst_handler():
     global sdofileidx
     sdofileidx = sdofileinbound[0]
     sdofileidx = sdofileidx % nsdofile
-    Slider_sdoidx.value = sdofileidx
+    Slider_sdoidx.value = sdofileidx + 1
 
 
 def ButtonPlay_handler():
@@ -510,21 +512,25 @@ def SaveSlit(fout):
 def MkStackplt():
     global stackpltdict
     if sdosubmpdict:
-        stackplt = []
-        for sidx, smap in enumerate(sdosubmpdict['mc_derot'].maps):
-            if sdosubmpdict['mask'][sidx]:
-                intens = getimprofile(smap, cutslitplt, plot=False)
-                stackplt.append(intens['y'])
-        if len(stackplt) > 1:
-            stackplt = np.vstack(stackplt)
-            stackplt = stackplt.transpose()
-            stackpltdict = {'zz': stackplt, 'x': sdosubmpdict['time'][sdosubmpdict['mask']], 'y': intens['x'],
-                            'wavelength': '{:.0f}'.format(smap.wavelength.value), 'observatory': smap.observatory,
-                            'instrument': smap.instrument[0:3]}
-            Div_info.text = """<p>click <b>Stackplt</b> to view the stack plot</p>"""
-            return True
+        if len(cutslitplt['xcen']) > 0:
+            stackplt = []
+            for sidx, smap in enumerate(sdosubmpdict['mc_derot'].maps):
+                if sdosubmpdict['mask'][sidx]:
+                    intens = getimprofile(smap, cutslitplt, plot=False)
+                    stackplt.append(intens['y'])
+            if len(stackplt) > 1:
+                stackplt = np.vstack(stackplt)
+                stackplt = stackplt.transpose()
+                stackpltdict = {'zz': stackplt, 'x': sdosubmpdict['time'][sdosubmpdict['mask']], 'y': intens['x'],
+                                'wavelength': '{:.0f}'.format(smap.wavelength.value), 'observatory': smap.observatory,
+                                'instrument': smap.instrument[0:3]}
+                Div_info.text = """<p>click <b>Stackplt</b> to view the stack plot</p>"""
+                return True
+            else:
+                Div_info.text = """<p>less than two frame in selected time range!!!</p>"""
+                return False
         else:
-            Div_info.text = """<p>less than two frame in selected time range!!!</p>"""
+            Div_info.text = """<p>make a <b>cut slit</b> first!!!</p>"""
             return False
     else:
         Div_info.text = """<p>load the chunk first!!!</p>"""
@@ -543,14 +549,15 @@ def ViewStackplt():
 
 
 def trange_reset():
-    trangesec = (0, int((sdosubmpdict['time'][-1] - sdosubmpdict['time'][0]) * 24 * 3600))
+    dur = (sdosubmpdict['time'][-1] - sdosubmpdict['time'][0]) * 24 * 3600
+    deltat = float('{:.1f}'.format((sdosubmpdict['time'][0] - trange.jd[0]) * 24. * 3600.))
+    trangesec = (deltat, float('{:.1f}'.format(dur)) + deltat)
     Slider_trange.start = trangesec[0]
     Slider_trange.end = trangesec[1]
     Slider_trange.range = trangesec
-    Slider_trange.title = 'Time range [seconds since {}]'.format(
-        Time(sdosubmpdict['time'][0], format='jd', scale='utc').iso)
+    # Slider_trange.title = 'Time range [seconds since {}]'.format(
+    #     Time(sdosubmpdict['time'][0], format='jd', scale='utc').iso)
     # update of the title doesn't work
-    print Slider_trange.title
 
 
 def trange_update():
@@ -813,14 +820,14 @@ DropDn_slit = Dropdown(label="Slit File", menu=menu_slit,
                        width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'])
 DropDn_slit.on_change('value', DropDn_slit_handler)
 
-trangesec = (0, int(np.diff(trange.jd)[0] * 24 * 3600))
-Slider_trange = RangeSlider(start=trangesec[0], end=trangesec[1], range=trangesec, step=12,
+trangesec = (0.0, float(int(np.diff(trange.jd)[0] * 24 * 3600)))
+Slider_trange = RangeSlider(start=trangesec[0], end=trangesec[1], range=trangesec, step=12.0,
                             title='Time range [seconds since {}]'.format(trange.iso[0]),
                             width=config_main['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'])
 Slider_trange.on_change('range', trange_change_handler)
 sdofileinbound = [0, nsdofile - 1]
 
-Slider_sdoidx = Slider(start=0, end=nsdofile - 1, value=0, step=1, title='frame:',
+Slider_sdoidx = Slider(start=1, end=nsdofile, value=1, step=1, title='frame:',
                        width=config_main['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'])
 Slider_sdoidx.on_change('value', Slider_sdoidx_update)
 
