@@ -659,7 +659,8 @@ def trange_update(updatemask=True):
         print updatemask, sdosubmpdict['mask']
         sdofileinbound = [maskidx[0], maskidx[-1]]
         Slider_sdoidx.value = sdofileinbound[0]+1
-        # Slider_trange.range = (trangesec[0]+sdofileinbound[0]*AIAcadence,trangesec[0]+sdofileinbound[1]*AIAcadence)
+        if Select_DiffImg.value != 'No diff images':
+            Slider_trange.range = (trangesec[0]+sdofileinbound[0]*AIAcadence,trangesec[0]+sdofileinbound[1]*AIAcadence)
 
 
 def trange_change_handler(attr, old, new):
@@ -887,7 +888,7 @@ ButtonsPlayCTRL.buttons[3].on_click(ButtonNext_handler)
 ButtonsPlayCTRL.buttons[4].on_click(ButtonLast_handler)
 
 Text_Cutwdth = TextInput(value='5.0', title="Cut Width (pix):")
-Text_CutAng = TextInput(value='5.0', title="Cut Angle (deg):")
+Text_CutAng = TextInput(value='0.0', title="Cut Angle (deg):")
 Text_SlitLgth = TextInput(value='{:.0f}'.format(np.sqrt(xaxis_sdosubmp ** 2 + yaxis_sdosubmp ** 2) / 4),
                           title="Slit Length (pix):")
 
