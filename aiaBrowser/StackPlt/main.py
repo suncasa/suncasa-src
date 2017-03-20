@@ -69,6 +69,10 @@ try:
 except:
     print 'Error: No MkPlot_args.json found!!!'
     raise SystemExit
+try:
+    imagetype = MkPlot_args_dict['imagetype']
+except:
+    imagetype = 'image'
 
 PlotID = MkPlot_args_dict['PlotID']
 try:
@@ -113,8 +117,11 @@ p_img.axis.major_tick_line_color = "white"
 p_img.axis.minor_tick_line_color = "white"
 if imgdict['observatory'] == 'SDO' and imgdict['instrument'] == 'AIA':
     palette = getAIApalette(wavelngth)
-    clrange = DButil.sdo_aia_scale_dict(wavelength=wavelngth)
-    colormapper = LogColorMapper(palette=palette, low=clrange['low'], high=clrange['high'])
+    clrange = DButil.sdo_aia_scale_dict(wavelength=wavelngth,imagetype=imagetype)
+    if clrange['log']:
+        colormapper = LogColorMapper(palette=palette, low=clrange['low'], high=clrange['high'])
+    else:
+        colormapper = LinearColorMapper(palette=palette, low=clrange['low'], high=clrange['high'])
 else:
     palette = bp.viridis(256)
     colormapper = LinearColorMapper(palette=palette)

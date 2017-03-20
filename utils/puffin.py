@@ -68,13 +68,13 @@ class PuffinMap:
         self.y_range = [y0, y1]
 
     def meshgrid(self, rescale=1.0, *args, **kwargs):
-        XX, YY = np.meshgrid(np.arange(self.smap.data.shape[0] * rescale), np.arange(self.smap.data.shape[1] * rescale))
+        XX, YY = np.meshgrid(np.arange(self.smap.data.shape[1] * rescale), np.arange(self.smap.data.shape[0] * rescale))
         x, y = self.smap.pixel_to_data(XX / rescale * u.pix, YY / rescale * u.pix)
         return x, y
 
     def meshgridpix(self, rescale=1.0, *args, **kwargs):
-        XX, YY = np.meshgrid(np.arange(self.smap.data.shape[0] * rescale) / rescale,
-                             np.arange(self.smap.data.shape[1] * rescale) / rescale)
+        XX, YY = np.meshgrid(np.arange(self.smap.data.shape[1] * rescale) / rescale,
+                             np.arange(self.smap.data.shape[0] * rescale) / rescale)
         x, y = XX * u.pix, YY * u.pix
         return x, y
 
@@ -92,8 +92,8 @@ class PuffinMap:
     def DrawGridSource(self, grid_spacing=15 * u.deg, *args, **kwargs):
         """maps the Longitude and Latitude grids to Bokeh DataSource
         """
-        XX, YY = np.meshgrid(np.arange(self.smap.data.shape[0]), np.arange(self.smap.data.shape[1]))
-        x, y = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)
+        # XX, YY = np.meshgrid(np.arange(self.smap.data.shape[0]), np.arange(self.smap.data.shape[1]))
+        # x, y = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)
         dsun = self.smap.dsun
 
         b0 = self.smap.heliographic_latitude.to(u.deg).value
@@ -144,7 +144,7 @@ class PuffinMap:
 
     def PlotMap(self, DrawLimb=True, DrawGrid=True, grid_spacing=15 * u.deg, ignore_coord=False, title=None, tools=None,
                 x_range=None, y_range=None,
-                palette=None, *args,
+                palette=None, imagetype='image', *args,
                 **kwargs):
         """Plot the map using the bokeh.plotting interface
         """
@@ -166,7 +166,8 @@ class PuffinMap:
                 # clmap = cm.get_cmap("sdoaia" + wavelngth)  # choose any matplotlib colormap here
                 # palette = [colors.rgb2hex(m).encode("ascii").upper() for m in clmap(np.arange(clmap.N))]
                 palette = getAIApalette(wavelngth)
-                clrange = DButil.sdo_aia_scale_dict(wavelength=wavelngth)
+                clrange = DButil.sdo_aia_scale_dict(wavelength=wavelngth, imagetype=imagetype)
+                print clrange
                 if clrange['log']:
                     colormapper = LogColorMapper(palette=palette, low=clrange['low'], high=clrange['high'])
                 else:

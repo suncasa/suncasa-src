@@ -7,9 +7,9 @@ import pandas as pd
 import sunpy.map
 from astropy.time import Time
 from bokeh.layouts import row, column, widgetbox
-from bokeh.models import (ColumnDataSource, Slider, Button, TextInput, CheckboxGroup, RadioGroup,
+from bokeh.models import (ColumnDataSource, Slider, Button, TextInput, CheckboxGroup, CheckboxButtonGroup, RadioGroup,
                           BoxSelectTool, TapTool, Div, Spacer, Range1d)
-from bokeh.models.widgets import Dropdown, RangeSlider, Select
+from bokeh.models.widgets import Dropdown, RangeSlider, Select, Panel, Tabs
 from bokeh.plotting import figure, curdoc
 from sunpy.time import TimeRange
 from sunpy.physics.transforms.solar_rotation import mapcube_solar_derotate
@@ -30,7 +30,7 @@ def update_sdosubmp_image(fileidx):
         sdosubmp = sdomap.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]),
                                  u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
     else:
-        sdosubmp = sdosubmpdict['mc_derot'].maps[fileidx]
+        sdosubmp = sdosubmpdict['submc'].maps[fileidx]
     r_sdosubmp.data_source.data['image'] = [sdosubmp.data]
     p_sdosubmp.title.text = sdosubmp.name
     try:
@@ -50,6 +50,80 @@ def aiamap_wavelength_selection(attrname, old, new):
     except:
         pass
     Div_info.text = """<p><b>Refresh</b> the <b>web page</b> to load new wavelength of AIA</p>"""
+
+
+def Running_diff_img(sdompdict, ratio=False):
+    global datastep
+    datastep = Slider_datadt.value / AIAcadence
+    maps = sdosubmpdict['submc'].maps
+    for sidx, smap in enumerate(maps):
+        if sidx < datastep:
+            sdompdict['mask'][sidx] = False
+        else:
+            sdompdict['mask'][sidx] = True
+            if ratio:
+                sdompdict['submc'].maps[sidx].data = smap.data / maps[sidx - datastep].data
+            else:
+                sdompdict['submc'].maps[sidx].data = smap.data - maps[sidx - datastep].data
+        Div_info.text = """<p>{}</p>""".format(
+            ProgressBar(sidx + 1, nsdofile, suffix='Update', decimals=0, length=14, empfile='=', fill='#'))
+    return sdompdict
+
+
+def Base_diff_img(sdompdict, ratio=False):
+    maps = sdosubmpdict['submc'].maps
+    for sidx, smap in enumerate(maps):
+        if sidx == 0:
+            sdompdict['mask'][sidx] = False
+        else:
+            sdompdict['mask'][sidx] = True
+            if ratio:
+                sdompdict['submc'].maps[sidx].data = smap.data / maps[0].data
+            else:
+                sdompdict['submc'].maps[sidx].data = smap.data - maps[0].data
+        Div_info.text = """<p>{}</p>""".format(
+            ProgressBar(sidx + 1, nsdofile, suffix='Update', decimals=0, length=14, empfile='=', fill='#'))
+    return sdompdict
+
+
+def DiffImg_update():
+    global sdosubmpdict
+    if sdosubmpdict:
+        if Select_DiffImg.value == 'No diff images':
+            LoadChunk_handler()
+        else:
+            UpdateSubChunk()
+            if Select_DiffImg.value == 'Running diff':
+                sdosubmpdict = Running_diff_img(sdosubmpdict, ratio=False)
+            elif Select_DiffImg.value == 'Base diff':
+                sdosubmpdict = Base_diff_img(sdosubmpdict, ratio=False)
+            elif Select_DiffImg.value == 'Running diff/Ratio':
+                sdosubmpdict = Running_diff_img(sdosubmpdict, ratio=True)
+            elif Select_DiffImg.value == 'Base diff/Ratio':
+                sdosubmpdict = Base_diff_img(sdosubmpdict, ratio=True)
+            trange_update(updatemask=False)
+    else:
+        Div_info.text = """<p>load the <b>chunk</b> first!!!</p>"""
+
+
+def Select_DiffImg_update(attrname, old, new):
+    global imagetype
+    imagetype = DiffImglabelsdict_r[Select_DiffImg.value]
+    if imagetype == 'image':
+        LoadChunk_handler()
+    else:
+        DiffImg_update()
+    update_sdosubmp_image(Slider_sdoidx.value - 1)
+    MkPlot_args_dict['imagetype'] = DiffImglabelsdict_r[Select_DiffImg.value]
+    outfile = database_dir + 'MkPlot_args.json'
+    DButil.updatejsonfile(outfile, MkPlot_args_dict)
+    Div_info.text = """<p><b>Refresh</b> the <b>web page</b> to load diff images</p>"""
+
+
+def Slider_datadt_update(attrname, old, new):
+    if Select_DiffImg.value != 'No diff images':
+        DiffImg_update()
+        update_sdosubmp_image(Slider_sdoidx.value - 1)
 
 
 def update_sdosubmp_region(x0, x1, y0, y1):
@@ -119,7 +193,7 @@ def sdosubmp_region_select(attrname, old, new):
         sdo_RSPmap_quadselround = 0
 
 
-def ProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█'):
+def ProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, empfile=' ', fill='█'):
     """
     Call in a loop to create terminal progress bar
     @params:
@@ -130,15 +204,16 @@ def ProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, 
         decimals    - Optional  : positive number of decimals in percent complete (Int)
         length      - Optional  : character length of bar (Int)
         fill        - Optional  : bar fill character (Str)
+        empfile     - Optional  : empty bar fill character (Str)
     """
     percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     filledLength = int(length * iteration // total)
-    bar = fill * filledLength + '=' * (length - filledLength)
+    bar = fill * filledLength + empfile * (length - filledLength)
     # return '%s |%s| %s%% %s' % (prefix, bar, percent, suffix)
     return '{} |{}| {}% {}'.format(prefix, bar, percent, suffix)
 
 
-def Derot_checkbox_handler(new):
+def ImgOption_checkbox_handler(new):
     LoadChunk_handler()
 
 
@@ -152,21 +227,15 @@ def LoadChunk():
         sdosubmplist.append(sdosubmptmp)
         timestamps.append(Time(sdosubmptmp.meta['date-obs'].replace('T', ' '), format='iso', scale='utc').jd)
         Div_info.text = """<p>{}</p>""".format(
-            ProgressBar(sidx + 1, nsdofile + 1, suffix='Load', decimals=0, length=16, fill='#'))
+            ProgressBar(sidx + 1, nsdofile + 1, suffix='Load', decimals=0, length=16, empfile='=', fill='#'))
     mc = sunpy.map.Map(sdosubmplist, cube=True)
-    if len(Derot_checkbox.active) == 1:
-        sdompdict = {'FOV': [x0, y0, x1, y1], 'subFOV': [x0, y0, x1, y1], 'mc': mc,
-                     'mc_derot': mapcube_solar_derotate(mc),
-                     'time': np.array(timestamps)}
-    else:
-        sdompdict = {'FOV': [x0, y0, x1, y1], 'subFOV': [x0, y0, x1, y1], 'mc': mc, 'mc_derot': mc,
-                     'time': np.array(timestamps)}
+    sdompdict = {'FOV': [x0, y0, x1, y1], 'subFOV': [x0, y0, x1, y1], 'mc': mc, 'time': np.array(timestamps)}
+    sdompdict['submc'] = LoadSubChunk(sdompdict)
     mask = np.logical_and(sdompdict['time'] >= trange.jd[0] + Slider_trange.range[0] / 24. / 3600,
                           sdompdict['time'] <= trange.jd[0] + Slider_trange.range[1] / 24. / 3600)
     sdompdict['mask'] = mask
     Div_info.text = """<p>{}</p>""".format(
-        ProgressBar(nsdofile + 1, nsdofile + 1, suffix='Load', decimals=0, length=16, fill='#'))
-    # Div_info.text = """<p><b>SDO submap chunk loaded.</b></p>"""
+        ProgressBar(nsdofile + 1, nsdofile + 1, suffix='Load', decimals=0, length=16, empfile='=', fill='#'))
     return sdompdict
 
 
@@ -175,21 +244,27 @@ def LoadSubChunk(sdompdict):
     for sidx, smap in enumerate(sdompdict['mc'].maps):
         sdosubmptmp = smap.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]),
                                   u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
+        if ImgOption_checkbox.active == [1]:
+            if sidx == 0:
+                grid = DButil.smapmeshgrid2(sdosubmptmp)
+            sdosubmptmp = DButil.smapradialfilter(sdosubmptmp, grid=grid)
         sdosubmplist.append(sdosubmptmp)
         Div_info.text = """<p>{}</p>""".format(
-            ProgressBar(sidx + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, fill='#'))
-    if len(Derot_checkbox.active) == 1:
-        mc_derot = mapcube_solar_derotate(sunpy.map.Map(sdosubmplist, cube=True))
+            ProgressBar(sidx + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, empfile='=', fill='#'))
+    if 0 in ImgOption_checkbox.active:
+        submc = mapcube_solar_derotate(sunpy.map.Map(sdosubmplist, cube=True))
     else:
-        mc_derot = sunpy.map.Map(sdosubmplist, cube=True)
+        submc = sunpy.map.Map(sdosubmplist, cube=True)
+    # if imagetype != 'image':
+    #     DiffImg_update()
     Div_info.text = """<p>{}</p>""".format(
-        ProgressBar(nsdofile + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, fill='#'))
-    return mc_derot
+        ProgressBar(nsdofile + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, empfile='=', fill='#'))
+    return submc
 
 
 def UpdateSubChunk():
     global sdosubmpdict
-    sdosubmpdict['mc_derot'] = LoadSubChunk(sdosubmpdict)
+    sdosubmpdict['submc'] = LoadSubChunk(sdosubmpdict)
     sdosubmpdict['subFOV'] = [x0, y0, x1, y1]
     sdosubmpdict['mask'] = np.logical_and(
         sdosubmpdict['time'] >= trange.jd[0] + Slider_trange.range[0] / 24. / 3600,
@@ -203,14 +278,24 @@ def LoadChunk_handler():
             1] and y1 <= \
                 sdosubmpdict['FOV'][3]:
             UpdateSubChunk()
-            trange_update()
         else:
             sdosubmpdict = LoadChunk()
-            trange_update()
     else:
         sdosubmpdict = LoadChunk()
-        trange_update()
+    print imagetype
     trange_reset()
+    if imagetype != 'image':
+        DiffImg_update()
+        trange_update(updatemask=False)
+    else:
+        trange_update()
+    update_sdosubmp_image(Slider_sdoidx.value - 1)
+
+
+def Slider_sdoidxstep_update(attrname, old, new):
+    global sdofileidxstep
+    sdofileidxstep = Slider_sdoidxstep.value
+    Slider_sdoidx.step = sdofileidxstep
 
 
 def Slider_sdoidx_update(attrname, old, new):
@@ -221,7 +306,7 @@ def Slider_sdoidx_update(attrname, old, new):
 
 def ButtonNext_handler():
     global sdofileidx
-    sdofileidx += 1
+    sdofileidx += sdofileidxstep
     if sdofileidx > sdofileinbound[1] or sdofileidx < sdofileinbound[0]:
         sdofileidx = sdofileinbound[0]
     sdofileidx = sdofileidx % nsdofile
@@ -230,7 +315,7 @@ def ButtonNext_handler():
 
 def ButtonPrev_handler():
     global sdofileidx
-    sdofileidx -= 1
+    sdofileidx -= sdofileidxstep
     if sdofileidx < sdofileinbound[0] or sdofileidx > sdofileinbound[1]:
         sdofileidx = sdofileinbound[1]
     sdofileidx = sdofileidx % nsdofile
@@ -254,15 +339,18 @@ def ButtonFirst_handler():
 def ButtonPlay_handler():
     global sdofileidx
     if ButtonsPlayCTRL.buttons[2].label == '>':
-        ButtonsPlayCTRL.buttons[2].label = '||'
-        curdoc().add_periodic_callback(sdosubmp_animate_update, 150)
+        if sdosubmpdict:
+            ButtonsPlayCTRL.buttons[2].label = '||'
+            curdoc().add_periodic_callback(sdosubmp_animate_update, 150)
+        else:
+            Div_info.text = """<p>load the <b>chunk</b> first!!!</p>"""
     else:
         ButtonsPlayCTRL.buttons[2].label = '>'
         curdoc().remove_periodic_callback(sdosubmp_animate_update)
 
 
 def sdosubmp_animate_update():
-    if sdosubmpdict['mc_derot']:
+    if sdosubmpdict['submc']:
         ButtonNext_handler()
 
 
@@ -463,7 +551,6 @@ def LoadSlit(fin):
     global cutslitplt, tapPointDF_sdosubmp_canvas, ascending
     global fitmethod, smoth_factor1, smoth_factor2
     global x0, x1, y0, y1
-    # fin = database_dir + 'cutslit-' + PlotID
     if os.path.exists(fin):
         cutslitdict = pickle.load(open(fin, 'rb'))
         tapPointDF_sdosubmp_canvas = cutslitdict['tapPointDF_sdosubmp_canvas']
@@ -514,7 +601,7 @@ def MkStackplt():
     if sdosubmpdict:
         if len(cutslitplt['xcen']) > 0:
             stackplt = []
-            for sidx, smap in enumerate(sdosubmpdict['mc_derot'].maps):
+            for sidx, smap in enumerate(sdosubmpdict['submc'].maps):
                 if sdosubmpdict['mask'][sidx]:
                     intens = getimprofile(smap, cutslitplt, plot=False)
                     stackplt.append(intens['y'])
@@ -533,7 +620,7 @@ def MkStackplt():
             Div_info.text = """<p>make a <b>cut slit</b> first!!!</p>"""
             return False
     else:
-        Div_info.text = """<p>load the chunk first!!!</p>"""
+        Div_info.text = """<p>load the <b>chunk</b> first!!!</p>"""
         return False
 
 
@@ -549,6 +636,7 @@ def ViewStackplt():
 
 
 def trange_reset():
+    global trangesec
     dur = (sdosubmpdict['time'][-1] - sdosubmpdict['time'][0]) * 24 * 3600
     deltat = float('{:.1f}'.format((sdosubmpdict['time'][0] - trange.jd[0]) * 24. * 3600.))
     trangesec = (deltat, float('{:.1f}'.format(dur)) + deltat)
@@ -560,14 +648,18 @@ def trange_reset():
     # update of the title doesn't work
 
 
-def trange_update():
+def trange_update(updatemask=True):
     global sdofileinbound, nsdofileinbound
     if sdosubmpdict:
-        sdosubmpdict['mask'] = np.logical_and(
-            sdosubmpdict['time'] >= trange.jd[0] + (Slider_trange.range[0] - 6.0) / 24. / 3600,
-            sdosubmpdict['time'] <= trange.jd[0] + (Slider_trange.range[1] + 6.0) / 24. / 3600)
+        if updatemask:
+            sdosubmpdict['mask'] = np.logical_and(
+                sdosubmpdict['time'] >= trange.jd[0] + (Slider_trange.range[0] - 6.0) / 24. / 3600,
+                sdosubmpdict['time'] <= trange.jd[0] + (Slider_trange.range[1] + 6.0) / 24. / 3600)
         maskidx = np.where(sdosubmpdict['mask'])[0]
+        print updatemask, sdosubmpdict['mask']
         sdofileinbound = [maskidx[0], maskidx[-1]]
+        Slider_sdoidx.value = sdofileinbound[0]+1
+        Slider_trange.range = (trangesec[0]+sdofileinbound[0]*AIAcadence,trangesec[0]+sdofileinbound[1]*AIAcadence)
 
 
 def trange_change_handler(attr, old, new):
@@ -617,6 +709,10 @@ if not os.path.exists(database_dir):
     os.system('mkdir {}'.format(database_dir))
 infile = database_dir + 'MkPlot_args.json'
 MkPlot_args_dict = DButil.loadjsonfile(infile)
+try:
+    imagetype = MkPlot_args_dict['imagetype']
+except:
+    imagetype = 'image'
 
 trange = Time([MkPlot_args_dict['tst'], MkPlot_args_dict['ted']], format='iso', scale='utc')
 PlotID = MkPlot_args_dict['PlotID']
@@ -626,9 +722,14 @@ global sdofileidx, slitfile
 if nsdofile == 0:
     raise SystemExit('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
 sdofileidx = 0
+sdofileidxstep = 1
+smoth_factor0 = 0
+smoth_factor1 = 0
 slitfile = database_dir + 'cutslit-' + PlotID
 cutslitplt = {}
 sdosubmpdict = {}
+AIAcadence = config_main['plot_config']['tab_MkPlot']['AIA_cadence'][MkPlot_args_dict['wavelength']]
+datastep = 1
 sdosubmp_quadselround = 0
 sdo_RSPmap_quadselround = 0
 sdomap = sunpy.map.Map(sdofile[sdofileidx])
@@ -701,7 +802,7 @@ sdosubmp_pfmap = PuffinMap(smap=sdosubmp,
                            plot_height=config_main['plot_config']['tab_MkPlot']['aia_submap_hght'],
                            plot_width=config_main['plot_config']['tab_MkPlot']['aia_submap_wdth'])
 p_sdosubmp, r_sdosubmp = sdosubmp_pfmap.PlotMap(DrawLimb=False, DrawGrid=False, ignore_coord=True,
-                                                tools='crosshair,pan,wheel_zoom,reset,save')
+                                                tools='crosshair,pan,wheel_zoom,reset,save', imagetype=imagetype)
 mapx_sdosubmp, mapy_sdosubmp = sdosubmp_pfmap.meshgridpix(rescale=1.0)
 mapx_sdosubmp, mapy_sdosubmp = mapx_sdosubmp.value, mapy_sdosubmp.value
 ndy, ndx = mapx_sdosubmp.shape
@@ -750,8 +851,8 @@ r_sdosubmp_cross = p_sdosubmp.cross(x='xx', y='yy', size=15, line_width=2, alpha
 
 TOOLS = "save"
 p_lighcurve = figure(tools=TOOLS,
-                     plot_width=config_main['plot_config']['tab_MkPlot']['time_plot_wdth'],
-                     plot_height=config_main['plot_config']['tab_MkPlot']['time_plot_hght'],
+                     plot_width=config_main['plot_config']['tab_MkPlot']['light_curve_wdth'],
+                     plot_height=config_main['plot_config']['tab_MkPlot']['light_curve_hght'],
                      toolbar_location="above")
 p_lighcurve.axis.visible = True
 p_lighcurve.title.text = "light Curve"
@@ -793,8 +894,9 @@ Text_SlitLgth = TextInput(value='{:.0f}'.format(np.sqrt(xaxis_sdosubmp ** 2 + ya
 Hideitemlist = ["Hide Slit&Points", "Hide Points only"]
 Hideitem_checkbox = CheckboxGroup(labels=Hideitemlist, active=[])
 
-Derot_checkbox = CheckboxGroup(labels=['De-rotation'], active=[0])
-Derot_checkbox.on_click(Derot_checkbox_handler)
+ImgOption_checkbox = CheckboxButtonGroup(labels=['Track', 'Radial Filter'], active=[0])
+ImgOption_checkbox.on_click(ImgOption_checkbox_handler)
+
 fitmethoddict = {'0': "Polyfit", '1': "Spline", '2': "Param_Spline"}
 fitMeth_radiogroup = RadioGroup(labels=["Polyfit", "Spline", "Parametric Spline"], active=0)
 fitmethod = fitmethoddict['{}'.format(fitMeth_radiogroup.active)]
@@ -821,21 +923,40 @@ DropDn_slit = Dropdown(label="Slit File", menu=menu_slit,
 DropDn_slit.on_change('value', DropDn_slit_handler)
 
 trangesec = (0.0, float(int(np.diff(trange.jd)[0] * 24 * 3600)))
-Slider_trange = RangeSlider(start=trangesec[0], end=trangesec[1], range=trangesec, step=12.0,
+Slider_trange = RangeSlider(start=trangesec[0], end=trangesec[1], range=trangesec, step=AIAcadence,
                             title='Time range [seconds since {}]'.format(trange.iso[0]),
                             width=config_main['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'])
 Slider_trange.on_change('range', trange_change_handler)
 sdofileinbound = [0, nsdofile - 1]
 
-Slider_sdoidx = Slider(start=1, end=nsdofile, value=1, step=1, title='frame:',
+Slider_sdoidx = Slider(start=1, end=nsdofile, value=1, step=sdofileidxstep, title='frame',
                        width=config_main['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'])
 Slider_sdoidx.on_change('value', Slider_sdoidx_update)
+
+Slider_sdoidxstep = Slider(start=1, end=nsdofile - 1, value=1, step=1, title='step',
+                           width=config_main['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'])
+Slider_sdoidxstep.on_change('value', Slider_sdoidxstep_update)
 
 aia_wv_list = ["1700", "1600", "304", "171", "193", "211", "335", "94", "131"]
 Select_aia_wave = Select(title="AIA Wavelenght:", value=MkPlot_args_dict['wavelength'], options=aia_wv_list,
                          width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
 Select_aia_wave.on_change('value', aiamap_wavelength_selection)
 
+DiffImglabelsdict = config_main['plot_config']['tab_MkPlot']['imagetype']
+DiffImglabels = []
+DiffImglabelsdict_r = {}
+for k, v in DiffImglabelsdict.items():
+    DiffImglabels.append(v)
+    DiffImglabelsdict_r[v] = k
+
+Select_DiffImg = Select(title="Difference images:", value=DiffImglabelsdict[imagetype], options=DiffImglabels,
+                        width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
+Select_DiffImg.on_change('value', Select_DiffImg_update)
+
+Slider_datadt = Slider(start=AIAcadence, end=(nsdofile - 1) * AIAcadence, value=AIAcadence, step=AIAcadence,
+                       title='dt [second]',
+                       width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
+Slider_datadt.on_change('value', Slider_datadt_update)
 try:
     LoadSlit(slitfile)
 except:
@@ -845,18 +966,25 @@ SPCR_LFT_lbutt_play = Spacer(width=config_main['plot_config']['tab_MkPlot']['spa
 lbutt_play = row(ButtonsPlayCTRL.buttons[0], ButtonsPlayCTRL.buttons[1], ButtonsPlayCTRL.buttons[2],
                  ButtonsPlayCTRL.buttons[3],
                  ButtonsPlayCTRL.buttons[4])
-widgt0 = widgetbox(Slider_trange, Slider_sdoidx, width=config_main['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'])
+widgt0 = widgetbox(Slider_trange, Slider_sdoidx, Slider_sdoidxstep,
+                   width=config_main['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'])
 loutc1 = column(p_sdomap, p_lighcurve, widgt0, lbutt_play)
 loutc2 = p_sdosubmp
-widgt1 = widgetbox(Select_aia_wave, Text_SlitLgth, Text_Cutwdth, Text_CutAng, Slider_smoothing_factor,
-                   Hideitem_checkbox, fitMeth_radiogroup, Derot_checkbox,
-                   width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
+widgt1p1 = widgetbox(Select_aia_wave, Text_SlitLgth, Text_Cutwdth, Text_CutAng,
+                     Slider_smoothing_factor,
+                     Hideitem_checkbox, fitMeth_radiogroup, ImgOption_checkbox,
+                     width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
+tab1 = Panel(child=widgt1p1, title="cutslit")
+widgt1p2 = widgetbox(Select_DiffImg, Slider_datadt,
+                     width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
+tab2 = Panel(child=widgt1p2, title="Diff")
+tabs = Tabs(tabs=[tab1, tab2])
 widgt2 = widgetbox(BUT_UndoDraw, DropDn_slit, BUT_loadchunk,
                    width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'])
 widgt3 = widgetbox(BUT_ClearDraw, BUT_default_fitparam, BUT_Stackplt,
                    width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'])
 widgt4 = widgetbox(BUT_exit, Div_info, width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
-loutc3 = column(widgt1, row(widgt2, widgt3), widgt4)
+loutc3 = column(tabs, row(widgt2, widgt3), widgt4)
 
 lout = row(loutc1, loutc2, loutc3)
 

@@ -303,10 +303,11 @@ def Wavelngth_checkbox_change(attrname, old, new):
     labelsactive = [Wavelngth_checkbox.labels[ll] for ll in Wavelngth_checkbox.active]
     if 'All' in labelsactive:
         Wavelngth_checkbox.active = range(len(Wavelngth_checkbox.labels) - 1)
-        Wavelngth_checkbox.labels = wavelngth_list[0:-1]+['None']
+        Wavelngth_checkbox.labels = wavelngth_list[0:-1] + ['None']
     elif 'None' in labelsactive:
         Wavelngth_checkbox.active = [0]
         Wavelngth_checkbox.labels = wavelngth_list
+
 
 Wavelngth_checkbox.on_change('active', Wavelngth_checkbox_change)
 
@@ -454,6 +455,26 @@ def Buttonaskdir_handler():
 But_sdodir = Button(label='Directory', width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'])
 But_sdodir.on_click(Buttonaskdir_handler)
 
+DiffImglabelsdict = config_main['plot_config']['tab_MkPlot']['imagetype']
+DiffImglabels = []
+DiffImglabelsdict_r = {}
+for k, v in DiffImglabelsdict.items():
+    DiffImglabels.append(v)
+    DiffImglabelsdict_r[v] = k
+
+
+def Select_DiffImg_update(attrname, old, new):
+    global MkPlot_args_dict
+    MkPlot_args_dict['imagetype'] = DiffImglabelsdict_r[Select_DiffImg.value]
+    # outfile = database_dir + 'MkPlot_args.json'
+    # DButil.updatejsonfile(outfile, MkPlot_args_dict)
+    # Div_info.text = """<p><b>Refresh</b> the <b>web page</b> to load diff images</p>"""
+
+
+Select_DiffImg = Select(title="Difference images:", value=DiffImglabelsdict['image'], options=DiffImglabels,
+                        width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
+Select_DiffImg.on_change('value', Select_DiffImg_update)
+
 
 def exit_update():
     Div_info.text = """<p><b>You may close the tab anytime you like.</b></p>"""
@@ -470,7 +491,7 @@ lout = row(column(row(YY_select_st, MM_select_st, DD_select_st, hh_select_st, mm
                   row(YY_select_ed, MM_select_ed, DD_select_ed, hh_select_ed, mm_select_ed, ss_select_ed)),
            SPCR_LFT_widgetbox, Wavelngth_checkbox, SPCR_RGT_widgetbox,
            widgetbox(Text_Cadence, Text_email, Text_sdodir, But_sdodir, BUT_DownloadData,
-                     Text_PlotID,
+                     Text_PlotID, Select_DiffImg,
                      BUT_MkPlot, BUT_exit, Div_info,
                      width=config_main['plot_config']['tab_aiaBrowser']['button_wdth']))
 # def timeout_callback():
