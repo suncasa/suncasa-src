@@ -659,10 +659,10 @@ def trange_update(updatemask=True):
         print updatemask, sdosubmpdict['mask']
         sdofileinbound = [maskidx[0], maskidx[-1]]
         Slider_sdoidx.value = sdofileinbound[0] + 1
-        if Select_DiffImg.value != 'No diff images':
-            sldertran = list(Slider_trange.range)
-            sldertran[0] = trangesec[0] + sdofileinbound[0] * AIAcadence
-            Slider_trange.range = tuple(sldertran)
+        # if Select_DiffImg.value != 'No diff images':
+        sldertran = list(Slider_trange.range)
+        sldertran[0] = trangesec[0] + sdofileinbound[0] * AIAcadence
+        Slider_trange.range = tuple(sldertran)
 
 
 def trange_change_handler(attr, old, new):
@@ -959,7 +959,7 @@ Select_DiffImg.on_change('value', Select_DiffImg_update)
 Slider_datadt = Slider(start=AIAcadence, end=(nsdofile - 1) * AIAcadence, value=AIAcadence, step=AIAcadence,
                        title='dt [second]',
                        width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
-Slider_datadt.on_change('value', Slider_datadt_update)
+# Slider_datadt.on_change('value', Slider_datadt_update)
 try:
     LoadSlit(slitfile)
 except:
