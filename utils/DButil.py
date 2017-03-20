@@ -1,4 +1,5 @@
 import numpy as np
+import glob
 import os
 import json
 
@@ -23,6 +24,22 @@ __email__ = "sijie.yu@njit.edu"
 #         if not os.path.exists(ll):
 #             os.makedirs(ll)
 
+def getcurtimstr(prefix='CleanID_', suffix=''):
+    import time
+    return prefix + time.strftime("%Y%m%d_%H%M%S") + suffix
+
+
+def getlatestfile(directory='./', prefix='CleanID_', suffix=''):
+    filelist = glob.glob('{}/{}*{}'.format(directory, prefix, suffix))
+    if len(filelist) > 0:
+        latest_file = max(filelist, key=os.path.getctime)
+        print latest_file
+        return {'items': filelist, 'latest': latest_file, 'idx': filelist.index(latest_file)}
+    else:
+        print 'No file found!'
+        return None
+
+
 def loadjsonfile(jsonfile, mustexist=True):
     if os.path.exists(jsonfile):
         with open(jsonfile, 'r') as fp:
@@ -38,6 +55,22 @@ def loadjsonfile(jsonfile, mustexist=True):
 def updatejsonfile(jsonfile, data):
     with open(jsonfile, 'w') as fp:
         json.dump(data, fp)
+
+
+def getSDOdir(config, database_dir, suncasa_dir):
+    try:
+        if config['datadir']['SDOdir']:
+            SDOdir = config['datadir']['SDOdir']
+            if not os.path.exists(SDOdir):
+                os.makedirs(SDOdir)
+        else:
+            raise ValueError
+    except:
+        SDOdir = database_dir + 'Download/'
+        config['datadir']['SDOdir'] = SDOdir
+        fout = suncasa_dir + 'DataBrowser/config.json'
+        updatejsonfile(fout, config)
+    return SDOdir
 
 
 def getsdodir(filename, unique=True):
@@ -113,7 +146,7 @@ def normalize_aiamap(smap):
         raise ValueError('check your input map. There are some errors in it.')
 
 
-def sdo_aia_scale_dict(wavelength=None):
+def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
     '''
     rescale the aia image
     :param image: normalised aia image data
@@ -121,11 +154,104 @@ def sdo_aia_scale_dict(wavelength=None):
     :return: byte scaled image data
     '''
     if wavelength == '94':
-        return {'low': 3, 'high': 150}
+        if imagetype == 'image':
+            return {'low': 0.1, 'high': 150, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -30, 'high': 30, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -30, 'high': 30, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '131':
-        return {'low': 3, 'high': 200}
+        if imagetype == 'image':
+            return {'low': 0.5, 'high': 500, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -100, 'high': 100, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -100, 'high': 100, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '171':
-        return {'low': 20, 'high': 5000}
+        if imagetype == 'image':
+            return {'low': 20, 'high': 5000, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -400, 'high': 400, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -400, 'high': 400, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+    elif wavelength == '193':
+        if imagetype == 'image':
+            return {'low': 30, 'high': 5000, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -1500, 'high': 1500, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -1500, 'high': 1500, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+    elif wavelength == '211':
+        if imagetype == 'image':
+            return {'low': 10, 'high': 2000, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -600, 'high': 600, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -600, 'high': 600, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+    elif wavelength == '304':
+        if imagetype == 'image':
+            return {'low': 1, 'high': 1000, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -300, 'high': 300, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -300, 'high': 300, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+    elif wavelength == '335':
+        if imagetype == 'image':
+            return {'low': 0.1, 'high': 50, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -15, 'high': 15, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -15, 'high': 15, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+    elif wavelength == '1600':
+        if imagetype == 'image':
+            return {'low': 20, 'high': 2500, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -800, 'high': 800, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -800, 'high': 800, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+    elif wavelength == '1700':
+        if imagetype == 'image':
+            return {'low': 300, 'high': 5000, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -1500, 'high': 1500, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -1500, 'high': 1500, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
 
 
 def sdo_aia_scale(image=None, wavelength=None):
@@ -166,8 +292,6 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
     :param timtol: time difference tolerance in days for considering data as the same timestamp
     :return:
     '''
-    import glob
-    import os
     from astropy.time import Time
     import sunpy.map
     from datetime import date, timedelta as td
@@ -536,7 +660,66 @@ def dspecDFfilter(dspecDF, pol):
         return dspecDF
 
 
-def regridspec(spec, x, y, nxmax=None, nymax=None):
+# def smapmeshgrid(smap, rescale=1.0):
+#     import astropy.units as u
+#     XX, YY = np.meshgrid(np.arange(smap.data.shape[1] * rescale), np.arange(smap.data.shape[0] * rescale))
+#     x, y = smap.pixel_to_data(XX / rescale * u.pix, YY / rescale * u.pix)
+#     return x, y
+
+
+def smapmeshgrid2(smap, rescale=1.0):
+    import astropy.units as u
+    ref_pix = smap.reference_pixel
+    scale = smap.scale
+    mrot = smap.rotation_matrix
+    XX, YY = np.meshgrid(np.arange(smap.data.shape[1] * rescale) / rescale,
+                         np.arange(smap.data.shape[0] * rescale) / rescale)
+    x, y = XX * u.pix, YY * u.pix
+    x = (x - ref_pix[0] + 1.0 * u.pix) * scale[0]
+    y = (y - ref_pix[1] + 1.0 * u.pix) * scale[1]
+    xnew = mrot[0, 0] * x + mrot[0, 1] * y
+    ynew = mrot[1, 0] * x + mrot[1, 1] * y
+    return xnew, ynew
+
+
+def smapradialfilter(smap, grid=None):
+    if grid:
+        x, y = grid
+    else:
+        x, y = smapmeshgrid2(smap)
+    r = smap.rsun_obs
+    rr = np.sqrt(x * x + y * y)
+    maskout = rr > r
+    smap.data[maskout] = smap.data[maskout] * np.exp(5 * (rr[maskout] / r - 1))
+    return smap
+
+
+def regridimage(values, x, y, grid=None, resize=[1.0, 1.0]):
+    '''
+    re-grid the data on a regular grid with uneven grid spacing to an uniform grid
+    :param values: The image data on the regular grid
+    :param x: the points defining the regular grid in x
+    :param y: the points defining the regular grid in y
+    :param grid: new uniform mesh grid [gridx,gridy]
+    :param resize: list of re-size ratio factors of x and y. if resize is not [1.0,1.0], grid is neglected.
+    :return: re-gridded image
+    '''
+    from scipy.interpolate import RegularGridInterpolator
+    ny, nx = values.shape
+    if grid and resize == [1.0, 1.0]:
+        gridx, gridy = grid
+    else:
+        gridx, gridy = np.meshgrid(np.linspace(x[0], x[-1], nx * resize[0]), np.linspace(y[0], y[-1], ny * resize[1]))
+    ny, nx = gridx.shape
+    rgi = RegularGridInterpolator(points=(y, x), values=values, bounds_error=False)
+    datanew = rgi(np.stack(np.stack((gridy.ravel(), gridx.ravel()), axis=-1))).reshape(ny, nx)
+    if grid:
+        return datanew
+    else:
+        return [datanew, gridx, gridy]
+
+
+def regridspec(spec, x, y, nxmax=None, nymax=None, interp=False):
     '''
     :param spec: ndarray of float or complex, shape (npol,nbl,nf,nt) Data values.
     :param x: Data point x coordinates.
@@ -545,50 +728,42 @@ def regridspec(spec, x, y, nxmax=None, nymax=None):
     :param nymax:
     :return:
     '''
-    # from scipy.interpolate import griddata
-    # npol, nbl, nf, nt = spec.shape
-    # if nt > nxmax:
-    #     nt = nxmax
-    # if nf > nymax:
-    #     nf = nymax
-    # specnew = np.zeros((npol, nbl, nf, nt))
-    # tt = np.linspace(xx[0], xx[-1], nt)
-    # ff = np.linspace(yy[0], yy[-1], nf)
-    # grid_x, grid_y = np.meshgrid(tt, ff)
-    # for p in xrange(npol):
-    #     for b in xrange(nbl):
-    #         specnew[p, b, :, :] = griddata(np.stack((xx, yy), axis=-1), spec[p, b, :, :].ravel(), (grid_x, grid_y),method='linear')
-    # return [specnew, tt, ff]
-    import matplotlib.pyplot as plt
-    plt.ioff()
-    img = plt.pcolormesh(x, y, spec[0, 0, :, :])
-    img2 = img.get_array().reshape(img._meshHeight, img._meshWidth)
-    nf, nt = img2.shape
-    npol, nbl = spec.shape[:2]
-    if nt > nxmax:
-        xstep = int(float(nt)/nxmax)
+
+    npol, nbl, nf, nt = spec.shape
+    if interp:
+        if nxmax:
+            if nt > nxmax:
+                nt = nxmax
+        if nymax:
+            if nf > nymax:
+                nf = nymax
+        specnew = np.zeros((npol, nbl, nf, nt))
+        tt = np.linspace(x[0], x[-1], nt)
+        ff = np.linspace(y[0], y[-1], nf)
+        grid_x, grid_y = np.meshgrid(tt, ff)
+        for p in xrange(npol):
+            for b in xrange(nbl):
+                specnew[p, b, :, :] = regridimage(spec[p, b, :, :], x, y, grid=[grid_x, grid_y])
     else:
-        xstep=1
-    if nf > nymax:
-        ystep = int(float(nf) / nymax)
-    else:
-        ystep=1
-    img2 = img2[::ystep,::xstep]
-    nf, nt = img2.shape
-    specnew = np.zeros((npol, nbl, nf, nt))
-    for p in xrange(npol):
-        for b in xrange(nbl):
-            img = plt.pcolormesh(x, y, spec[p, b, :, :])
-            img2 = img.get_array().reshape(img._meshHeight, img._meshWidth)
-            specnew[p, b, :, :] = img2[::ystep,::xstep]
+        xstep, ystep = 1, 1
+        if nxmax:
+            if nt > nxmax:
+                import math
+                xstep = math.ceil(float(nt) / nxmax)
+        if nymax:
+            if nf > nymax:
+                ystep = int(float(nf) / nymax)
+        specnew = spec[:, :, ::ystep, ::xstep]
     return specnew
 
 
-def get_contour_data(X, Y, Z):
+def get_contour_data(X, Y, Z, levels=[0.5, 0.7, 0.9]):
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
     from bokeh.models import (ColumnDataSource)
-    cs = plt.contour(X, Y, Z, levels=(np.arange(5, 10, 2) / 10.0 * np.nanmax(Z)).tolist(), cmap=cm.Greys_r)
+    cs = plt.contour(X, Y, Z, levels=(np.array(levels) * np.nanmax(Z)).tolist(), cmap=cm.Greys_r)
+    # dx = X[0,1]-X[0,0]
+    # dy = Y[1,0]-Y[0,0]
     xs = []
     ys = []
     xt = []
@@ -608,6 +783,8 @@ def get_contour_data(X, Y, Z):
 
         for path in isolevel.get_paths():
             v = path.vertices
+            # x = v[:, 0]+dx
+            # y = v[:, 1]+dy
             x = v[:, 0]
             y = v[:, 1]
             xs.append(x.tolist())
@@ -713,41 +890,41 @@ class ButtonsPlayCTRL():
         BUT_last = Button(label='>>', width=plot_width, button_type='primary')
         self.buttons = [BUT_first, BUT_prev, BUT_play, BUT_next, BUT_last]
 
-# class FileDialog():
-#     '''
-#     produce a file dialog button widget for bokeh plot
-#     '''
-#     import Tkinter
-#     import tkFileDialog
-#
-#     def __init__(self, plot_width=30, labels={'dir':'...','open':'open','save':'save'}, *args,
-#                  **kwargs):
-#         from bokeh.models import Button
-#         buttons = {}
-#         for k,v in labels.items():
-#             buttons[k] = Button(label=v, width=plot_width)
-#         self.buttons = buttons
-#
-#     def askdirectory(self):
-#         tkRoot = Tkinter.Tk()
-#         tkRoot.withdraw()  # Close the root window
-#         in_path = tkFileDialog.askdirectory()
-#         tkRoot.destroy()
-#         if in_path:
-#             return in_path
-#
-#     def askopenfilename(self):
-#         tkRoot = Tkinter.Tk()
-#         tkRoot.withdraw()  # Close the root window
-#         in_path = tkFileDialog.askopenfilename()
-#         tkRoot.destroy()
-#         if in_path:
-#             return in_path
-#
-#     def asksaveasfilename(self):
-#         tkRoot = Tkinter.Tk()
-#         tkRoot.withdraw()  # Close the root window
-#         in_path = tkFileDialog.asksaveasfilename()
-#         tkRoot.destroy()
-#         if in_path:
-#             return in_path
+        # class FileDialog():
+        #     '''
+        #     produce a file dialog button widget for bokeh plot
+        #     '''
+        #     import Tkinter
+        #     import tkFileDialog
+        #
+        #     def __init__(self, plot_width=30, labels={'dir':'...','open':'open','save':'save'}, *args,
+        #                  **kwargs):
+        #         from bokeh.models import Button
+        #         buttons = {}
+        #         for k,v in labels.items():
+        #             buttons[k] = Button(label=v, width=plot_width)
+        #         self.buttons = buttons
+        #
+        #     def askdirectory(self):
+        #         tkRoot = Tkinter.Tk()
+        #         tkRoot.withdraw()  # Close the root window
+        #         in_path = tkFileDialog.askdirectory()
+        #         tkRoot.destroy()
+        #         if in_path:
+        #             return in_path
+        #
+        #     def askopenfilename(self):
+        #         tkRoot = Tkinter.Tk()
+        #         tkRoot.withdraw()  # Close the root window
+        #         in_path = tkFileDialog.askopenfilename()
+        #         tkRoot.destroy()
+        #         if in_path:
+        #             return in_path
+        #
+        #     def asksaveasfilename(self):
+        #         tkRoot = Tkinter.Tk()
+        #         tkRoot.withdraw()  # Close the root window
+        #         in_path = tkFileDialog.asksaveasfilename()
+        #         tkRoot.destroy()
+        #         if in_path:
+        #             return in_path

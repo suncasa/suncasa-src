@@ -4,6 +4,7 @@ import matplotlib.colors as colors
 import numpy as np
 import sunpy.coordinates
 import sunpy.map
+import sunpy.cm
 import sunpy.wcs as wcs
 from bokeh.models import ColumnDataSource
 from bokeh.plotting import figure
@@ -18,10 +19,12 @@ __email__ = "sijie.yu@njit.edu"
 colormap_jet = cm.get_cmap("jet")  # choose any matplotlib colormap here
 bokehpalette_jet = [colors.rgb2hex(m) for m in colormap_jet(np.arange(colormap_jet.N))]
 
+
 def getAIApalette(wavelength):
     clmap = cm.get_cmap("sdoaia" + wavelength)  # choose any matplotlib colormap here
     palette = [colors.rgb2hex(m).encode("ascii").upper() for m in clmap(np.arange(clmap.N))]
     return palette
+
 
 class PuffinMap:
     """
@@ -54,8 +57,10 @@ class PuffinMap:
         dw (UnitsSpecProperty) - The widths of the plot regions that the images will occupy.
         dh (UnitsSpecProperty) - The height of the plot region that the image will occupy.
         """
-        x0, x1 = self.smap.xrange.value[0], self.smap.xrange.value[1]
-        y0, y1 = self.smap.yrange.value[0], self.smap.yrange.value[1]
+        dx, dy = self.smap.scale.x.value, self.smap.scale.y.value
+        self.dx, self.dy = dx, dy
+        x0, x1 = self.smap.xrange.value[0] - dx / 2.0, self.smap.xrange.value[1] - dx / 2.0
+        y0, y1 = self.smap.yrange.value[0] - dy / 2.0, self.smap.yrange.value[1] - dy / 2.0
         self.x, self.y = [x0], [y0]
         self.dw, self.dh = [x1 - x0], [y1 - y0]
         self.x_range = [x0, x1]
@@ -63,13 +68,13 @@ class PuffinMap:
         self.y_range = [y0, y1]
 
     def meshgrid(self, rescale=1.0, *args, **kwargs):
-        XX, YY = np.meshgrid(np.arange(self.smap.data.shape[0] * rescale), np.arange(self.smap.data.shape[1] * rescale))
+        XX, YY = np.meshgrid(np.arange(self.smap.data.shape[1] * rescale), np.arange(self.smap.data.shape[0] * rescale))
         x, y = self.smap.pixel_to_data(XX / rescale * u.pix, YY / rescale * u.pix)
         return x, y
 
     def meshgridpix(self, rescale=1.0, *args, **kwargs):
-        XX, YY = np.meshgrid(np.arange(self.smap.data.shape[0] * rescale) / rescale,
-                             np.arange(self.smap.data.shape[1] * rescale) / rescale)
+        XX, YY = np.meshgrid(np.arange(self.smap.data.shape[1] * rescale) / rescale,
+                             np.arange(self.smap.data.shape[0] * rescale) / rescale)
         x, y = XX * u.pix, YY * u.pix
         return x, y
 
@@ -87,8 +92,8 @@ class PuffinMap:
     def DrawGridSource(self, grid_spacing=15 * u.deg, *args, **kwargs):
         """maps the Longitude and Latitude grids to Bokeh DataSource
         """
-        XX, YY = np.meshgrid(np.arange(self.smap.data.shape[0]), np.arange(self.smap.data.shape[1]))
-        x, y = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)
+        # XX, YY = np.meshgrid(np.arange(self.smap.data.shape[0]), np.arange(self.smap.data.shape[1]))
+        # x, y = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)
         dsun = self.smap.dsun
 
         b0 = self.smap.heliographic_latitude.to(u.deg).value
@@ -139,7 +144,7 @@ class PuffinMap:
 
     def PlotMap(self, DrawLimb=True, DrawGrid=True, grid_spacing=15 * u.deg, ignore_coord=False, title=None, tools=None,
                 x_range=None, y_range=None,
-                palette=None, *args,
+                palette=None, imagetype='image', *args,
                 **kwargs):
         """Plot the map using the bokeh.plotting interface
         """
@@ -161,8 +166,12 @@ class PuffinMap:
                 # clmap = cm.get_cmap("sdoaia" + wavelngth)  # choose any matplotlib colormap here
                 # palette = [colors.rgb2hex(m).encode("ascii").upper() for m in clmap(np.arange(clmap.N))]
                 palette = getAIApalette(wavelngth)
-                clrange = DButil.sdo_aia_scale_dict(wavelength=wavelngth)
-                colormapper = LogColorMapper(palette=palette, low=clrange['low'], high=clrange['high'])
+                clrange = DButil.sdo_aia_scale_dict(wavelength=wavelngth, imagetype=imagetype)
+                print clrange
+                if clrange['log']:
+                    colormapper = LogColorMapper(palette=palette, low=clrange['low'], high=clrange['high'])
+                else:
+                    colormapper = LinearColorMapper(palette=palette, low=clrange['low'], high=clrange['high'])
             else:
                 palette = bokehpalette_jet
                 colormapper = LinearColorMapper(palette=palette)
@@ -170,14 +179,14 @@ class PuffinMap:
             colormapper = LinearColorMapper(palette=palette)
 
         if ignore_coord:
-            x_range = [0, self.smap.data.shape[0]]
-            y_range = [0, self.smap.data.shape[1]]
+            x_range = [0 - 0.5, self.smap.data.shape[0] - 0.5]
+            y_range = [0 - 0.5, self.smap.data.shape[1] - 0.5]
             p_xaxis_visible = False
             p_yaxis_visible = False
             p_xaxis_axislabel = ''
             p_yaxis_axislabel = ''
-            x0 = 0
-            y0 = 0
+            x0 = 0 - 0.5
+            y0 = 0 - 0.5
             dw = self.smap.data.shape[0]
             dh = self.smap.data.shape[1]
         else:
