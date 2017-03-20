@@ -294,7 +294,8 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
     '''
     from astropy.time import Time
     import sunpy.map
-    from datetime import date, timedelta as td
+    from datetime import date
+    from datetime import timedelta as td
 
     if timtol < 12. / 3600 / 24:
         timtol = 12. / 3600 / 24
@@ -327,7 +328,8 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
                     [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
                      for
                      ll in sdofits], format='iso', scale='utc')
-                sdofile = list(np.array(sdofitspath)[
+                sdofitspathnew = [x for (y,x) in sorted(zip(sdotimeline.jd,sdofitspath))]
+                sdofile = list(np.array(sdofitspathnew)[
                                    np.where(np.logical_and(jdtime[0] < sdotimeline.jd, sdotimeline.jd < jdtime[1]))[0]])
                 return sdofile
     else:
