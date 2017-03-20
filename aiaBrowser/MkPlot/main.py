@@ -658,9 +658,11 @@ def trange_update(updatemask=True):
         maskidx = np.where(sdosubmpdict['mask'])[0]
         print updatemask, sdosubmpdict['mask']
         sdofileinbound = [maskidx[0], maskidx[-1]]
-        Slider_sdoidx.value = sdofileinbound[0]+1
+        Slider_sdoidx.value = sdofileinbound[0] + 1
         if Select_DiffImg.value != 'No diff images':
-            Slider_trange.range = (trangesec[0]+sdofileinbound[0]*AIAcadence,trangesec[0]+sdofileinbound[1]*AIAcadence)
+            sldertran = list(Slider_trange.range)
+            sldertran[0] = trangesec[0] + sdofileinbound[0] * AIAcadence
+            Slider_trange.range = tuple(sldertran)
 
 
 def trange_change_handler(attr, old, new):
