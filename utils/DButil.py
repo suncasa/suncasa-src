@@ -146,7 +146,7 @@ def normalize_aiamap(smap):
         raise ValueError('check your input map. There are some errors in it.')
 
 
-def sdo_aia_scale_dict(wavelength=None):
+def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
     '''
     rescale the aia image
     :param image: normalised aia image data
@@ -154,23 +154,104 @@ def sdo_aia_scale_dict(wavelength=None):
     :return: byte scaled image data
     '''
     if wavelength == '94':
-        return {'low': 0.1, 'high': 150, 'log': True}
+        if imagetype == 'image':
+            return {'low': 0.1, 'high': 150, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -30, 'high': 30, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -30, 'high': 30, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '131':
-        return {'low': 0.5, 'high': 500, 'log': True}
+        if imagetype == 'image':
+            return {'low': 0.5, 'high': 500, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -100, 'high': 100, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -100, 'high': 100, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '171':
-        return {'low': 20, 'high': 5000, 'log': True}
+        if imagetype == 'image':
+            return {'low': 20, 'high': 5000, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -400, 'high': 400, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -400, 'high': 400, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '193':
-        return {'low': 30, 'high': 5000, 'log': True}
+        if imagetype == 'image':
+            return {'low': 30, 'high': 5000, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -1500, 'high': 1500, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -1500, 'high': 1500, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '211':
-        return {'low': 10, 'high': 2000, 'log': True}
+        if imagetype == 'image':
+            return {'low': 10, 'high': 2000, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -600, 'high': 600, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -600, 'high': 600, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '304':
-        return {'low': 1, 'high': 1000, 'log': True}
+        if imagetype == 'image':
+            return {'low': 1, 'high': 1000, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -300, 'high': 300, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -300, 'high': 300, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '335':
-        return {'low': 0.1, 'high': 50, 'log': True}
+        if imagetype == 'image':
+            return {'low': 0.1, 'high': 50, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -15, 'high': 15, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -15, 'high': 15, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '1600':
-        return {'low': 20, 'high': 2500, 'log': True}
+        if imagetype == 'image':
+            return {'low': 20, 'high': 2500, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -800, 'high': 800, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -800, 'high': 800, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '1700':
-        return {'low': 300, 'high': 5000, 'log': True}
+        if imagetype == 'image':
+            return {'low': 300, 'high': 5000, 'log': True}
+        elif imagetype == 'RDimage':
+            return {'low': -1500, 'high': 1500, 'log': False}
+        elif imagetype == 'BDimage':
+            return {'low': -1500, 'high': 1500, 'log': False}
+        elif imagetype == 'RDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
+        elif imagetype == 'BDRimage':
+            return {'low': -1.5, 'high': 1.5, 'log': False}
 
 
 def sdo_aia_scale(image=None, wavelength=None):
@@ -213,7 +294,8 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
     '''
     from astropy.time import Time
     import sunpy.map
-    from datetime import date, timedelta as td
+    from datetime import date
+    from datetime import timedelta as td
 
     if timtol < 12. / 3600 / 24:
         timtol = 12. / 3600 / 24
@@ -246,7 +328,8 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
                     [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
                      for
                      ll in sdofits], format='iso', scale='utc')
-                sdofile = list(np.array(sdofitspath)[
+                sdofitspathnew = [x for (y,x) in sorted(zip(sdotimeline.jd,sdofitspath))]
+                sdofile = list(np.array(sdofitspathnew)[
                                    np.where(np.logical_and(jdtime[0] < sdotimeline.jd, sdotimeline.jd < jdtime[1]))[0]])
                 return sdofile
     else:
@@ -577,6 +660,40 @@ def dspecDFfilter(dspecDF, pol):
         return dspecDF1
     else:
         return dspecDF
+
+
+# def smapmeshgrid(smap, rescale=1.0):
+#     import astropy.units as u
+#     XX, YY = np.meshgrid(np.arange(smap.data.shape[1] * rescale), np.arange(smap.data.shape[0] * rescale))
+#     x, y = smap.pixel_to_data(XX / rescale * u.pix, YY / rescale * u.pix)
+#     return x, y
+
+
+def smapmeshgrid2(smap, rescale=1.0):
+    import astropy.units as u
+    ref_pix = smap.reference_pixel
+    scale = smap.scale
+    mrot = smap.rotation_matrix
+    XX, YY = np.meshgrid(np.arange(smap.data.shape[1] * rescale) / rescale,
+                         np.arange(smap.data.shape[0] * rescale) / rescale)
+    x, y = XX * u.pix, YY * u.pix
+    x = (x - ref_pix[0] + 1.0 * u.pix) * scale[0]
+    y = (y - ref_pix[1] + 1.0 * u.pix) * scale[1]
+    xnew = mrot[0, 0] * x + mrot[0, 1] * y
+    ynew = mrot[1, 0] * x + mrot[1, 1] * y
+    return xnew, ynew
+
+
+def smapradialfilter(smap, grid=None):
+    if grid:
+        x, y = grid
+    else:
+        x, y = smapmeshgrid2(smap)
+    r = smap.rsun_obs
+    rr = np.sqrt(x * x + y * y)
+    maskout = rr > r
+    smap.data[maskout] = smap.data[maskout] * np.exp(5 * (rr[maskout] / r - 1))
+    return smap
 
 
 def regridimage(values, x, y, grid=None, resize=[1.0, 1.0]):

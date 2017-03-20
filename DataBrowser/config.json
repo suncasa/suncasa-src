@@ -134,14 +134,32 @@
       "aia_RSPmap_wdth": 400,
       "aia_RSPmap_RES": 800,
       "space_hght18": 18,
-      "time_plot_hght": 200,
+      "light_curve_hght": 150,
       "button_wdth_short": 70,
       "aia_submap_hght": 700,
       "aia_RSP_squareny": 64.0,
       "aia_RSP_squarenx": 64.0,
       "space_wdth50": 50,
       "aia_RSPmap_hght": 380,
-      "time_plot_wdth": 400
+      "light_curve_wdth": 400,
+      "AIA_cadence": {
+        "1700": 24,
+        "1600": 24,
+        "304": 12,
+        "171": 12,
+        "193": 12,
+        "211": 12,
+        "335": 12,
+        "94": 12,
+        "131": 12
+      },
+      "imagetype":{
+        "image":"No diff images",
+        "RDimage":"Running diff",
+        "BDimage":"Base diff",
+        "RDRimage":"Running diff/Ratio",
+        "BDRimage":"Base diff/Ratio"
+      }
     },
     "WebGL": false
   },

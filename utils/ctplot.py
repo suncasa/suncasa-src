@@ -23,7 +23,7 @@ def maxfit(smap, width=[5, 5], mapxy=None):
     if mapxy:
         mapx, mapy = mapxy
     else:
-        XX, YY = np.meshgrid(np.arange(smap.data.shape[0]), np.arange(smap.data.shape[1]))
+        XX, YY = np.meshgrid(np.arange(smap.data.shape[1]), np.arange(smap.data.shape[0]))
         mapx, mapy = smap.pixel_to_data(XX * u.pix, YY * u.pix)
         mapx, mapy = mapx.value, mapy.value
 
@@ -104,7 +104,7 @@ def pltcentriod(vlafile, aiafile, pol=0, chans=[], x_range=[], y_range=[], **kwa
     hdu = hdulist[0]
     vladata = hdu.data[pol, 0, :, :]
     vlamap = sunpy.map.Map((vladata, hdu.header))
-    XX, YY = np.meshgrid(np.arange(vlamap.data.shape[0]), np.arange(vlamap.data.shape[1]))
+    XX, YY = np.meshgrid(np.arange(vlamap.data.shape[1]), np.arange(vlamap.data.shape[0]))
     mapx, mapy = vlamap.pixel_to_data(XX * u.pix, YY * u.pix)
     mapx, mapy = mapx.value, mapy.value
     fig = plt.figure()
