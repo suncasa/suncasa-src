@@ -122,8 +122,10 @@ def Select_DiffImg_update(attrname, old, new):
 
 def Slider_datadt_update(attrname, old, new):
     if Select_DiffImg.value != 'No diff images':
-        DiffImg_update()
-        update_sdosubmp_image(Slider_sdoidx.value - 1)
+        if sdosubmpdict:
+            BUT_loadchunk.label = 'UpdateChunk'
+        # DiffImg_update()
+        # update_sdosubmp_image(Slider_sdoidx.value - 1)
 
 
 def update_sdosubmp_region(x0, x1, y0, y1):
@@ -959,7 +961,7 @@ Select_DiffImg.on_change('value', Select_DiffImg_update)
 Slider_datadt = Slider(start=AIAcadence, end=(nsdofile - 1) * AIAcadence, value=AIAcadence, step=AIAcadence,
                        title='dt [second]',
                        width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
-# Slider_datadt.on_change('value', Slider_datadt_update)
+Slider_datadt.on_change('value', Slider_datadt_update)
 try:
     LoadSlit(slitfile)
 except:
