@@ -124,6 +124,8 @@ def Slider_datadt_update(attrname, old, new):
     if Select_DiffImg.value != 'No diff images':
         if sdosubmpdict:
             BUT_loadchunk.label = 'UpdateChunk'
+    else:
+        Slider_datadt.value = Slider_datadt.start
         # DiffImg_update()
         # update_sdosubmp_image(Slider_sdoidx.value - 1)
 
