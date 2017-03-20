@@ -543,7 +543,7 @@ def fitMethUpdate(new):
 
 def default_fitparam():
     Text_Cutwdth.value = '5.0'
-    Text_CutAng.value = '5.0'
+    Text_CutAng.value = '0.0'
     Text_SlitLgth.value = '{:.0f}'.format(np.sqrt(xaxis_sdosubmp ** 2 + yaxis_sdosubmp ** 2) / 4)
 
 
@@ -659,7 +659,7 @@ def trange_update(updatemask=True):
         print updatemask, sdosubmpdict['mask']
         sdofileinbound = [maskidx[0], maskidx[-1]]
         Slider_sdoidx.value = sdofileinbound[0]+1
-        Slider_trange.range = (trangesec[0]+sdofileinbound[0]*AIAcadence,trangesec[0]+sdofileinbound[1]*AIAcadence)
+        # Slider_trange.range = (trangesec[0]+sdofileinbound[0]*AIAcadence,trangesec[0]+sdofileinbound[1]*AIAcadence)
 
 
 def trange_change_handler(attr, old, new):
