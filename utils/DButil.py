@@ -339,7 +339,7 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
                      for
                      ll in sdofits], format='iso', scale='utc')
                 sdofitspathnew = [x for (y,x) in sorted(zip(sdotimeline.jd,sdofitspath))]
-                sdofitsnew = [os.path.basename(ll) for ll in sdofitspath]
+                sdofitsnew = [os.path.basename(ll) for ll in sdofitspathnew]
                 sdotimelinenew = Time(
                     [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
                      for
