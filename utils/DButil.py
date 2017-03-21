@@ -677,7 +677,7 @@ def dspecDF2text(DFfile,outfile=None):
             if outfile:
                 with open(DFfile, 'rb') as f:
                     dspecDF0 = pickle.load(f)
-                dspecDF0.drop(['dspec', 'fits_global', 'fits_local','timestr'],axis=1,inplace=True)
+                dspecDF0.drop(['dspec', 'fits_global', 'fits_local'],axis=1,inplace=True)
                 dspecDF0.to_csv(outfile, sep='\t')
             else:
                 raise ValueError('provide output file name!')
