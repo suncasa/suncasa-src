@@ -6,6 +6,12 @@ import json
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
+def initconfig(suncasa_dir):
+    if not os.path.exists(suncasa_dir + 'DataBrowser/config.json'):
+        os.system('cp {} {}'.format(suncasa_dir + 'DataBrowser/config_init.json',suncasa_dir + 'DataBrowser/config.json'))
+        return True
+    else:
+        return False
 
 # def mkunidir(dirlist, isdir=True):
 #     '''
@@ -657,16 +663,45 @@ def dspecDFfilter(dspecDF, pol):
         if getcolctinDF(dspecDF, 'shape_majoraxis')[0] > 0:
             for ll in colnlistgaus:
                 dspecDF1[ll] = dspecDF.copy()[ll + pol]
+        print 'dspedDF is filtered'
         return dspecDF1
     else:
+        print 'dspedDF no need filter'
         return dspecDF
 
 
-# def smapmeshgrid(smap, rescale=1.0):
-#     import astropy.units as u
-#     XX, YY = np.meshgrid(np.arange(smap.data.shape[1] * rescale), np.arange(smap.data.shape[0] * rescale))
-#     x, y = smap.pixel_to_data(XX / rescale * u.pix, YY / rescale * u.pix)
-#     return x, y
+# def dspecDF2binary(DFfile,outfile=None):
+#     if DFfile:
+#         if outfile:
+#             # Pack the data into a byte buffer.  Note the asterisks in the next three lines!
+#             # If your data includes integers or other data types, use 'i' or other instead of 'f'
+#             import struct
+#             nindex = len(dspecDF0.index)
+#
+#             time = dspecDF0.time.as_matrix()
+#             freq = dspecDF0.freq.as_matrix()
+#             peak = dspecDF0.peak.as_matrix()
+#             shape_longitude = dspecDF0.shape_longitude.as_matrix()
+#             shape_latitude = dspecDF0.shape_latitude.as_matrix()
+#             shape_majoraxis = dspecDF0.shape_majoraxis.as_matrix()
+#             shape_minoraxis = dspecDF0.shape_minoraxis.as_matrix()
+#             shape_positionangle = dspecDF0.shape_positionangle.as_matrix()
+#             buf = struct.pack(str(nindex) + 'd', *time)
+#             buf += struct.pack(str(nindex) + 'd', *freq)
+#             buf += struct.pack(str(nindex) + 'd', *peak)
+#             buf += struct.pack(str(nindex) + 'd', *shape_longitude)
+#             buf += struct.pack(str(nindex) + 'd', *shape_latitude)
+#             buf += struct.pack(str(nindex) + 'd', *shape_majoraxis)
+#             buf += struct.pack(str(nindex) + 'd', *shape_minoraxis)
+#             buf += struct.pack(str(nindex) + 'd', *shape_positionangle)
+#             with open('parafit.dat', 'wb') as f:
+#                 f.write(buf)
+#             f.close()
+#         else:
+#             raise ValueError('provide output file name!')
+#     else:
+#         raise ValueError('provide input file name!')
+
 
 
 def smapmeshgrid2(smap, rescale=1.0):

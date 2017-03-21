@@ -52,6 +52,7 @@ def SRC_img_quad_update(attrname, old, new):
 
 '''load config file'''
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
+DButil.initconfig(suncasa_dir)
 '''load config file'''
 config_main = DButil.loadjsonfile(suncasa_dir + 'DataBrowser/config.json')
 

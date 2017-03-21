@@ -41,6 +41,7 @@ ports = []
 
 '''load config file'''
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
+DButil.initconfig(suncasa_dir)
 '''load config file'''
 config_main = DButil.loadjsonfile(suncasa_dir + 'DataBrowser/config.json')
 
@@ -293,7 +294,7 @@ for ll in wavelngth_list:
         serieslist[ll] = 'hmi.M_45s'
     elif ll in ["1700", "1600"]:
         serieslist[ll] = 'aia.lev1_uv_24s'
-    elif ll == ['goes', 'All']:
+    elif ll in ['goes', 'All', 'None']:
         serieslist[ll] = ''
     else:
         serieslist[ll] = 'aia.lev1_euv_12s'
@@ -346,54 +347,55 @@ def DownloadData():
                 pickle.dump(goes, fp)
             Div_JSOC_info.text = """<p>{} saved.</p>""".format(fout)
             MkPlot_args_dict['goesfile'] = os.path.basename(fout)
+            labelsactive.pop(labelsactive.index('goes'))
         for series in ['hmi.M_45s', 'aia.lev1_uv_24s', 'aia.lev1_euv_12s']:
             waves = []
             for ll in labelsactive:
                 if serieslist[ll] == series:
                     waves.append(ll)
-            if len(waves) > 0:
-                try:
-                    tsel = tst.iso.replace(' ', 'T') + '_TAI-' + ted.iso.replace(' ', 'T') + '_TAI'
-                    wave = ','.join(waves)
-                    cadence = Text_Cadence.value
-                    if cadence[-1] == 's' and get_num(cadence) < 12:
-                        cadence = '12s'
-                        Text_Cadence.value = cadence
-                    if series == 'aia.lev1_uv_24s':
-                        if cadence[-1] == 's' and get_num(cadence) < 24:
-                            cadence = '24s'
-                    if series == 'hmi.M_45s':
-                        wave = ''
-                        if cadence[-1] == 's' and get_num(cadence) < 45:
-                            cadence = '45s'
-                    segments = 'image'
-                    qstr = '%s[%s@%s][%s]{%s}' % (series, tsel, cadence, wave, segments)
-                    print qstr
-                    r = c.export(qstr, method='url', protocol=export_protocol, email=Text_email.value)
-                    Div_JSOC_info.text = Div_JSOC_info.text + """<p>Submitting export request {}...</p>""".format(qstr)
-                    Div_JSOC_info.text = Div_JSOC_info.text + """<p>Request URL: {}</p>""".format(r.request_url)
-                    Div_JSOC_info.text = Div_JSOC_info.text + """<p>{:d} file(s) available for download.</p>""".format(
-                        len(r.urls))
-                    idx2download = DButil.FileNotInList(r.data['filename'],
-                                                        DButil.readsdofile(datadir=SDOdir, wavelength=wave,
-                                                                           jdtime=[tst.jd, ted.jd],
-                                                                           isexists=True))
-                    if len(idx2download) > 0:
-                        r.download(SDOdir, index=idx2download)
-                        # Div_JSOC_info.text = Div_JSOC_info.text + """<p>Target file(s) existed.</p>"""
+                if len(waves) > 0:
+                    try:
+                        tsel = tst.iso.replace(' ', 'T') + '_TAI-' + ted.iso.replace(' ', 'T') + '_TAI'
+                        wave = ','.join(waves)
+                        cadence = Text_Cadence.value
+                        if cadence[-1] == 's' and get_num(cadence) < 12:
+                            cadence = '12s'
+                            Text_Cadence.value = cadence
+                        if series == 'aia.lev1_uv_24s':
+                            if cadence[-1] == 's' and get_num(cadence) < 24:
+                                cadence = '24s'
+                        if series == 'hmi.M_45s':
+                            wave = ''
+                            if cadence[-1] == 's' and get_num(cadence) < 45:
+                                cadence = '45s'
+                        segments = 'image'
+                        qstr = '%s[%s@%s][%s]{%s}' % (series, tsel, cadence, wave, segments)
+                        print qstr
+                        r = c.export(qstr, method='url', protocol=export_protocol, email=Text_email.value)
+                        Div_JSOC_info.text = Div_JSOC_info.text + """<p>Submitting export request {}...</p>""".format(qstr)
+                        Div_JSOC_info.text = Div_JSOC_info.text + """<p>Request URL: {}</p>""".format(r.request_url)
+                        Div_JSOC_info.text = Div_JSOC_info.text + """<p>{:d} file(s) available for download.</p>""".format(
+                            len(r.urls))
+                        idx2download = DButil.FileNotInList(r.data['filename'],
+                                                            DButil.readsdofile(datadir=SDOdir, wavelength=wave,
+                                                                               jdtime=[tst.jd, ted.jd],
+                                                                               isexists=True))
+                        if len(idx2download) > 0:
+                            r.download(SDOdir, index=idx2download)
+                            # Div_JSOC_info.text = Div_JSOC_info.text + """<p>Target file(s) existed.</p>"""
 
-                    filename = glob.glob(SDOdir + '*.fits')
-                    dirs = DButil.getsdodir(filename)
-                    for ll, dd in enumerate(dirs['dir']):
-                        if not os.path.exists(SDOdir + dd):
-                            os.makedirs(SDOdir + dd)
-                        os.system('mv {}/*{}*.fits {}{}'.format(SDOdir, dirs['timstr'][ll], SDOdir, dd))
+                        filename = glob.glob(SDOdir + '*.fits')
+                        dirs = DButil.getsdodir(filename)
+                        for ll, dd in enumerate(dirs['dir']):
+                            if not os.path.exists(SDOdir + dd):
+                                os.makedirs(SDOdir + dd)
+                            os.system('mv {}/*{}*.fits {}{}'.format(SDOdir, dirs['timstr'][ll], SDOdir, dd))
 
-                    Div_JSOC_info.text = Div_JSOC_info.text + """<p>Download finished.</p>"""
-                    Div_JSOC_info.text = Div_JSOC_info.text + """<p>Download directory: {}</p>""".format(
-                        os.path.abspath(SDOdir))
-                except:
-                    print qstr + ' fail to export'
+                        Div_JSOC_info.text = Div_JSOC_info.text + """<p>Download finished.</p>"""
+                        Div_JSOC_info.text = Div_JSOC_info.text + """<p>Download directory: {}</p>""".format(
+                            os.path.abspath(SDOdir))
+                    except:
+                        print qstr + ' fail to export'
 
 
 BUT_DownloadData = Button(label='Download Data', width=config_main['plot_config']['tab_aiaBrowser']['button_wdth'],

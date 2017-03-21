@@ -168,7 +168,7 @@
     "fits_GLOB_init": "QLook/static/Synthesis_Image_fits_GLOB_init.fits",
     "database": "${SUNCASADB}",
     "EvtID_list": "EvtID_list.json",
-    "SDOdir": "/Users/fisher/Desktop/work/2016/NJIT/2014-11-01/test/database/aiaBrowserData/Download",
+    "SDOdir": "",
     "fits_LOCL": "Synthesis_Image/local/",
     "suncasa": "${SUNCASA}",
     "J2000": "J2000/",
@@ -179,6 +179,6 @@
   "core": {
     "casapy47": "${SUNCASAPY47}",
     "casapy46": "${SUNCASAPY46}",
-    "JSOC_reg_email": "sijie.yu@njit.edu"
+    "JSOC_reg_email": ""
   }
 }
