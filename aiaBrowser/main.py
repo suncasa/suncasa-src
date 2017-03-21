@@ -400,8 +400,8 @@ def DownloadData():
                             os.makedirs(SDOdir + dd)
                         os.system('mv {}/*{}*.fits {}{}'.format(SDOdir, dirs['timstr'][ll], SDOdir, dd))
 
-                Div_JSOC_info.text = Div_JSOC_info.text + """<p>Download finished.</p>"""
-                Div_JSOC_info.text = Div_JSOC_info.text + """<p>Download directory: {}</p>""".format(
+                Div_JSOC_info.text = Div_JSOC_info.text + """<p>Download <b>finished</b>.</p>"""
+                Div_JSOC_info.text = Div_JSOC_info.text + """<p>file(s) downloaded to <b>{}</b></p>""".format(
                     os.path.abspath(SDOdir))
                 # except:
                 #     print qstr + ' fail to export'
