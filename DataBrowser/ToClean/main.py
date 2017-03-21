@@ -43,6 +43,7 @@ elif platform == "win32":
 
 '''load config file'''
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
+DButil.initconfig(suncasa_dir)
 '''load config file'''
 config_main = DButil.loadjsonfile(suncasa_dir + 'DataBrowser/config.json')
 database_dir = config_main['datadir']['database']

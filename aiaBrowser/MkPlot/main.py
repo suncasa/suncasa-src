@@ -122,8 +122,12 @@ def Select_DiffImg_update(attrname, old, new):
 
 def Slider_datadt_update(attrname, old, new):
     if Select_DiffImg.value != 'No diff images':
-        DiffImg_update()
-        update_sdosubmp_image(Slider_sdoidx.value - 1)
+        if sdosubmpdict:
+            BUT_loadchunk.label = 'UpdateChunk'
+    else:
+        Slider_datadt.value = Slider_datadt.start
+        # DiffImg_update()
+        # update_sdosubmp_image(Slider_sdoidx.value - 1)
 
 
 def update_sdosubmp_region(x0, x1, y0, y1):
@@ -543,7 +547,7 @@ def fitMethUpdate(new):
 
 def default_fitparam():
     Text_Cutwdth.value = '5.0'
-    Text_CutAng.value = '5.0'
+    Text_CutAng.value = '0.0'
     Text_SlitLgth.value = '{:.0f}'.format(np.sqrt(xaxis_sdosubmp ** 2 + yaxis_sdosubmp ** 2) / 4)
 
 
@@ -658,8 +662,11 @@ def trange_update(updatemask=True):
         maskidx = np.where(sdosubmpdict['mask'])[0]
         print updatemask, sdosubmpdict['mask']
         sdofileinbound = [maskidx[0], maskidx[-1]]
-        Slider_sdoidx.value = sdofileinbound[0]+1
-        Slider_trange.range = (trangesec[0]+sdofileinbound[0]*AIAcadence,trangesec[0]+sdofileinbound[1]*AIAcadence)
+        Slider_sdoidx.value = sdofileinbound[0] + 1
+        # if Select_DiffImg.value != 'No diff images':
+        sldertran = list(Slider_trange.range)
+        sldertran[0] = trangesec[0] + sdofileinbound[0] * AIAcadence
+        Slider_trange.range = tuple(sldertran)
 
 
 def trange_change_handler(attr, old, new):
@@ -696,6 +703,7 @@ def exit_update():
 ports = []
 '''load config file'''
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
+DButil.initconfig(suncasa_dir)
 '''load config file'''
 config_main = DButil.loadjsonfile(suncasa_dir + 'DataBrowser/config.json')
 database_dir = config_main['datadir']['database']
@@ -887,7 +895,7 @@ ButtonsPlayCTRL.buttons[3].on_click(ButtonNext_handler)
 ButtonsPlayCTRL.buttons[4].on_click(ButtonLast_handler)
 
 Text_Cutwdth = TextInput(value='5.0', title="Cut Width (pix):")
-Text_CutAng = TextInput(value='5.0', title="Cut Angle (deg):")
+Text_CutAng = TextInput(value='0.0', title="Cut Angle (deg):")
 Text_SlitLgth = TextInput(value='{:.0f}'.format(np.sqrt(xaxis_sdosubmp ** 2 + yaxis_sdosubmp ** 2) / 4),
                           title="Slit Length (pix):")
 

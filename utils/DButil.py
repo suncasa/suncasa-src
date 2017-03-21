@@ -2,10 +2,17 @@ import numpy as np
 import glob
 import os
 import json
+import pickle
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
+def initconfig(suncasa_dir):
+    if not os.path.exists(suncasa_dir + 'DataBrowser/config.json'):
+        os.system('cp {} {}'.format(suncasa_dir + 'DataBrowser/config_init.json',suncasa_dir + 'DataBrowser/config.json'))
+        return True
+    else:
+        return False
 
 # def mkunidir(dirlist, isdir=True):
 #     '''
@@ -657,16 +664,28 @@ def dspecDFfilter(dspecDF, pol):
         if getcolctinDF(dspecDF, 'shape_majoraxis')[0] > 0:
             for ll in colnlistgaus:
                 dspecDF1[ll] = dspecDF.copy()[ll + pol]
+        print 'dspedDF is filtered'
         return dspecDF1
     else:
+        print 'dspedDF no need filter'
         return dspecDF
 
 
-# def smapmeshgrid(smap, rescale=1.0):
-#     import astropy.units as u
-#     XX, YY = np.meshgrid(np.arange(smap.data.shape[1] * rescale), np.arange(smap.data.shape[0] * rescale))
-#     x, y = smap.pixel_to_data(XX / rescale * u.pix, YY / rescale * u.pix)
-#     return x, y
+def dspecDF2text(DFfile,outfile=None):
+    if DFfile:
+        if os.path.exists(DFfile):
+            if outfile:
+                with open(DFfile, 'rb') as f:
+                    dspecDF0 = pickle.load(f)
+                dspecDF0.drop(['dspec', 'fits_global', 'fits_local'],axis=1,inplace=True)
+                dspecDF0.to_csv(outfile, sep='\t')
+            else:
+                raise ValueError('provide output file name!')
+        else:
+            raise ValueError('input file "{}" does not existed!'.format(DFfile))
+    else:
+        raise ValueError('provide input file name!')
+
 
 
 def smapmeshgrid2(smap, rescale=1.0):
