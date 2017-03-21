@@ -1783,7 +1783,7 @@ if os.path.exists(FS_dspecDF):
                                               step=1, title='dmin', callback_throttle=250)
         thresholdrange = (np.floor(dspecDF0POL['peak'].min()), np.ceil(dspecDF0POL['peak'].max()))
         tab3_rSlider_threshold = RangeSlider(start=thresholdrange[0], end=thresholdrange[1], range=thresholdrange,
-                                             step=1, title='flux threshold selection', callback_throttle=250)
+                                             step=1, title='flux threshold selection', callback_throttle=250, width=400)
         tab3_rSlider_threshold.on_change('range', rSlider_threshold_handler)
         tab3_RBG_dspec_small.on_change('active', tab3_RBG_dspec_small_handler)
         tab3_BUT_dspec_small_reset.on_click(tab3_BUT_dspec_small_reset_update)
