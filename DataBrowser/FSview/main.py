@@ -532,9 +532,14 @@ def tab3_SRC_dspec_vector_update():
 
 def rSlider_threshold_handler(attrname, old, new):
     global thresholdrange
+    print tab3_p_dspec_vector.x_range.start, tab3_p_dspec_vector.x_range.end
     thresholdrange = tab3_rSlider_threshold.range
     tab2_SRC_dspec_vector_square.selected = {'2d': {}, '1d': {'indices': list(
-        dspecDF0POL[dspecDF0POL['peak'] <= thresholdrange[1]][dspecDF0POL['peak'] >= thresholdrange[0]].index)},
+        dspecDF0POL[dspecDF0POL['peak'] <= thresholdrange[1]][dspecDF0POL['peak'] >= thresholdrange[0]][
+            dspecDF0POL['time'] >= tab3_p_dspec_vector.x_range.start][
+            dspecDF0POL['time'] <= tab3_p_dspec_vector.x_range.end][
+            dspecDF0POL['freq'] >= tab3_p_dspec_vector.y_range.start][
+            dspecDF0POL['freq'] <= tab3_p_dspec_vector.y_range.end].index)},
                                              '0d': {'indices': [], 'get_view': {}, 'glyph': None}}
     for ll in range(len(tab3_dspec_small_CTRLs_OPT['labels_dspec_small'])):
         RBG_dspec_small_update(ll)
