@@ -336,6 +336,9 @@ def DownloadData():
         else:
             if not c.check_email(Text_email.value):
                 raise RuntimeError('Email address is not valid or not registered.')
+            else:
+                config_main['core']['JSOC_reg_email'] = Text_email.value
+                DButil.updatejsonfile(suncasa_dir + 'DataBrowser/config.json', config_main)
 
         labelsactive = [Wavelngth_checkbox.labels[ll] for ll in Wavelngth_checkbox.active]
         if 'goes' in labelsactive:
@@ -372,7 +375,8 @@ def DownloadData():
                         qstr = '%s[%s@%s][%s]{%s}' % (series, tsel, cadence, wave, segments)
                         print qstr
                         r = c.export(qstr, method='url', protocol=export_protocol, email=Text_email.value)
-                        Div_JSOC_info.text = Div_JSOC_info.text + """<p>Submitting export request {}...</p>""".format(qstr)
+                        Div_JSOC_info.text = Div_JSOC_info.text + """<p>Submitting export request {}...</p>""".format(
+                            qstr)
                         Div_JSOC_info.text = Div_JSOC_info.text + """<p>Request URL: {}</p>""".format(r.request_url)
                         Div_JSOC_info.text = Div_JSOC_info.text + """<p>{:d} file(s) available for download.</p>""".format(
                             len(r.urls))
