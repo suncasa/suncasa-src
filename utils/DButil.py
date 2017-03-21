@@ -208,9 +208,9 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
         if imagetype == 'image':
             return {'low': 10, 'high': 2000, 'log': True}
         elif imagetype == 'RDimage':
-            return {'low': -600, 'high': 600, 'log': False}
+            return {'low': -300, 'high': 300, 'log': False}
         elif imagetype == 'BDimage':
-            return {'low': -600, 'high': 600, 'log': False}
+            return {'low': -300, 'high': 300, 'log': False}
         elif imagetype == 'RDRimage':
             return {'low': -1.5, 'high': 1.5, 'log': False}
         elif imagetype == 'BDRimage':
