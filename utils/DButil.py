@@ -2,6 +2,7 @@ import numpy as np
 import glob
 import os
 import json
+import pickle
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -326,9 +327,12 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
                     if len(sdofitspathtmp) > 0:
                         sdofitspath = sdofitspath + sdofitspathtmp
                 if len(sdofitspath) == 0:
-                    raise ValueError(
-                        'No SDO file found under {} at the time range of {} to {}. Download the data with EvtBrowser first.'.format(
-                            datadir, jdtimestr[0], jdtimestr[1]))
+                    if isexists:
+                        return sdofitspath
+                    else:
+                        raise ValueError(
+                            'No SDO file found under {} at the time range of {} to {}. Download the data with EvtBrowser first.'.format(
+                                datadir, jdtimestr[0], jdtimestr[1]))
                 sdofits = [os.path.basename(ll) for ll in sdofitspath]
                 sdotimeline = Time(
                     [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
@@ -670,37 +674,20 @@ def dspecDFfilter(dspecDF, pol):
         return dspecDF
 
 
-# def dspecDF2binary(DFfile,outfile=None):
-#     if DFfile:
-#         if outfile:
-#             # Pack the data into a byte buffer.  Note the asterisks in the next three lines!
-#             # If your data includes integers or other data types, use 'i' or other instead of 'f'
-#             import struct
-#             nindex = len(dspecDF0.index)
-#
-#             time = dspecDF0.time.as_matrix()
-#             freq = dspecDF0.freq.as_matrix()
-#             peak = dspecDF0.peak.as_matrix()
-#             shape_longitude = dspecDF0.shape_longitude.as_matrix()
-#             shape_latitude = dspecDF0.shape_latitude.as_matrix()
-#             shape_majoraxis = dspecDF0.shape_majoraxis.as_matrix()
-#             shape_minoraxis = dspecDF0.shape_minoraxis.as_matrix()
-#             shape_positionangle = dspecDF0.shape_positionangle.as_matrix()
-#             buf = struct.pack(str(nindex) + 'd', *time)
-#             buf += struct.pack(str(nindex) + 'd', *freq)
-#             buf += struct.pack(str(nindex) + 'd', *peak)
-#             buf += struct.pack(str(nindex) + 'd', *shape_longitude)
-#             buf += struct.pack(str(nindex) + 'd', *shape_latitude)
-#             buf += struct.pack(str(nindex) + 'd', *shape_majoraxis)
-#             buf += struct.pack(str(nindex) + 'd', *shape_minoraxis)
-#             buf += struct.pack(str(nindex) + 'd', *shape_positionangle)
-#             with open('parafit.dat', 'wb') as f:
-#                 f.write(buf)
-#             f.close()
-#         else:
-#             raise ValueError('provide output file name!')
-#     else:
-#         raise ValueError('provide input file name!')
+def dspecDF2text(DFfile,outfile=None):
+    if DFfile:
+        if os.path.exists(DFfile):
+            if outfile:
+                with open(DFfile, 'rb') as f:
+                    dspecDF0 = pickle.load(f)
+                dspecDF0.drop(['dspec', 'fits_global', 'fits_local'],axis=1,inplace=True)
+                dspecDF0.to_csv(outfile, sep='\t')
+            else:
+                raise ValueError('provide output file name!')
+        else:
+            raise ValueError('input file "{}" does not existed!'.format(DFfile))
+    else:
+        raise ValueError('provide input file name!')
 
 
 
