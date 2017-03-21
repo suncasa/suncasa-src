@@ -269,8 +269,8 @@ def aia_submap_wavelength_selection(attrname, old, new):
     aiamap = DButil.readsdofile(datadir=SDOdir, wavelength=select_wave, jdtime=xx[0] / 3600. / 24.,
                                 timtol=tab2_dur / 3600. / 24.)
     print 'wavelength {} selected'.format(select_wave)
-    lengthx = vla_local_pfmap.dw[0] * u.arcsec
-    lengthy = vla_local_pfmap.dh[0] * u.arcsec
+    lengthx = vla_local_pfmap.dw[0] * u.arcsec / 4.0
+    lengthy = vla_local_pfmap.dh[0] * u.arcsec / 4.0
     x0 = vla_local_pfmap.smap.center.x
     y0 = vla_local_pfmap.smap.center.y
     aiamap_submap = aiamap.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
@@ -353,7 +353,7 @@ def tab2_Select_vla_pol_update(attrname, old, new):
     thresholdrange = (np.floor(dspecDF0POL['peak'].min()), np.ceil(dspecDF0POL['peak'].max()))
     tab3_rSlider_threshold.start = thresholdrange[0]
     tab3_rSlider_threshold.end = thresholdrange[1]
-    tab3_rSlider_threshold.range=thresholdrange
+    tab3_rSlider_threshold.range = thresholdrange
     if tab2_dspec_vector_selected:
         VdspecDF_update(selected=tab2_dspec_vector_selected)
     else:
@@ -538,6 +538,7 @@ def rSlider_threshold_handler(attrname, old, new):
                                              '0d': {'indices': [], 'get_view': {}, 'glyph': None}}
     for ll in range(len(tab3_dspec_small_CTRLs_OPT['labels_dspec_small'])):
         RBG_dspec_small_update(ll)
+
 
 def tab2_dspec_selection_change(attrname, old, new):
     global tab2_dspec_selected, tidx_prev
@@ -1438,8 +1439,8 @@ if os.path.exists(FS_dspecDF):
 
         colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
         bokehpalette_gray = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-        lengthx = vla_local_pfmap.dw[0] * u.arcsec / 2
-        lengthy = vla_local_pfmap.dh[0] * u.arcsec / 2
+        lengthx = vla_local_pfmap.dw[0] * u.arcsec / 4.0
+        lengthy = vla_local_pfmap.dh[0] * u.arcsec / 4.0
         x0 = vla_local_pfmap.smap.center.x
         y0 = vla_local_pfmap.smap.center.y
         aiamap_submap = aiamap.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
