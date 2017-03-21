@@ -339,8 +339,13 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
                      for
                      ll in sdofits], format='iso', scale='utc')
                 sdofitspathnew = [x for (y,x) in sorted(zip(sdotimeline.jd,sdofitspath))]
+                sdofitsnew = [os.path.basename(ll) for ll in sdofitspath]
+                sdotimelinenew = Time(
+                    [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
+                     for
+                     ll in sdofitsnew], format='iso', scale='utc')
                 sdofile = list(np.array(sdofitspathnew)[
-                                   np.where(np.logical_and(jdtime[0] < sdotimeline.jd, sdotimeline.jd < jdtime[1]))[0]])
+                                   np.where(np.logical_and(jdtime[0] < sdotimelinenew.jd, sdotimelinenew.jd < jdtime[1]))[0]])
                 return sdofile
     else:
         jdtimstr = Time(jdtime, format='jd').iso
