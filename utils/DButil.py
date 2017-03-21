@@ -657,8 +657,10 @@ def dspecDFfilter(dspecDF, pol):
         if getcolctinDF(dspecDF, 'shape_majoraxis')[0] > 0:
             for ll in colnlistgaus:
                 dspecDF1[ll] = dspecDF.copy()[ll + pol]
+        print 'dspedDF is filtered'
         return dspecDF1
     else:
+        print 'dspedDF no need filter'
         return dspecDF
 
 
