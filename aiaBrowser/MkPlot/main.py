@@ -660,7 +660,7 @@ def trange_update(updatemask=True):
                 sdosubmpdict['time'] >= trange.jd[0] + (Slider_trange.range[0] - 6.0) / 24. / 3600,
                 sdosubmpdict['time'] <= trange.jd[0] + (Slider_trange.range[1] + 6.0) / 24. / 3600)
         maskidx = np.where(sdosubmpdict['mask'])[0]
-        print updatemask, sdosubmpdict['mask']
+        # print updatemask, sdosubmpdict['mask']
         sdofileinbound = [maskidx[0], maskidx[-1]]
         Slider_sdoidx.value = sdofileinbound[0] + 1
         # if Select_DiffImg.value != 'No diff images':
