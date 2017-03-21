@@ -293,7 +293,7 @@ for ll in wavelngth_list:
         serieslist[ll] = 'hmi.M_45s'
     elif ll in ["1700", "1600"]:
         serieslist[ll] = 'aia.lev1_uv_24s'
-    elif ll == ['goes', 'All']:
+    elif ll in ['goes', 'All', 'None']:
         serieslist[ll] = ''
     else:
         serieslist[ll] = 'aia.lev1_euv_12s'
