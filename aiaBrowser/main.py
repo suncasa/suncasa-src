@@ -41,6 +41,7 @@ ports = []
 
 '''load config file'''
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
+DButil.initconfig(suncasa_dir)
 '''load config file'''
 config_main = DButil.loadjsonfile(suncasa_dir + 'DataBrowser/config.json')
 
