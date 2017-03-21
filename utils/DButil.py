@@ -327,9 +327,12 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
                     if len(sdofitspathtmp) > 0:
                         sdofitspath = sdofitspath + sdofitspathtmp
                 if len(sdofitspath) == 0:
-                    raise ValueError(
-                        'No SDO file found under {} at the time range of {} to {}. Download the data with EvtBrowser first.'.format(
-                            datadir, jdtimestr[0], jdtimestr[1]))
+                    if isexists:
+                        return sdofitspath
+                    else:
+                        raise ValueError(
+                            'No SDO file found under {} at the time range of {} to {}. Download the data with EvtBrowser first.'.format(
+                                datadir, jdtimestr[0], jdtimestr[1]))
                 sdofits = [os.path.basename(ll) for ll in sdofitspath]
                 sdotimeline = Time(
                     [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)

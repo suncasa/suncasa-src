@@ -333,8 +333,10 @@ def DownloadData():
         export_protocol = 'fits'
         if not Text_email.value:
             Div_JSOC_info.text = '''Error: provide your JSOC registered email address!!!'''
+            raise RuntimeError('Email address is required.')
         else:
             if not c.check_email(Text_email.value):
+                Div_JSOC_info.text = '''Error: <b>Email address</b> is not valid or not registered.!!!'''
                 raise RuntimeError('Email address is not valid or not registered.')
             else:
                 config_main['core']['JSOC_reg_email'] = Text_email.value
@@ -375,7 +377,7 @@ def DownloadData():
                 qstr = '%s[%s@%s][%s]{%s}' % (series, tsel, cadence, wave, segments)
                 print qstr
                 r = c.export(qstr, method='url', protocol=export_protocol, email=Text_email.value)
-                Div_JSOC_info.text = Div_JSOC_info.text + """<p>Submitting export request {}...</p>""".format(
+                Div_JSOC_info.text = Div_JSOC_info.text + """<p>Submitting export request <b>{}</b>...</p>""".format(
                     qstr)
                 Div_JSOC_info.text = Div_JSOC_info.text + """<p>Request URL: {}</p>""".format(r.request_url)
                 Div_JSOC_info.text = Div_JSOC_info.text + """<p>{:d} file(s) available for download.</p>""".format(
@@ -385,15 +387,18 @@ def DownloadData():
                                                                        jdtime=[tst.jd, ted.jd],
                                                                        isexists=True))
                 if len(idx2download) > 0:
+                    Div_JSOC_info.text = Div_JSOC_info.text + """<p><b>Downloading</b>....</p>"""
                     r.download(SDOdir, index=idx2download)
-                    # Div_JSOC_info.text = Div_JSOC_info.text + """<p>Target file(s) existed.</p>"""
+                else:
+                    Div_JSOC_info.text = Div_JSOC_info.text + """<p>Target file(s) existed.</p>"""
 
                 filename = glob.glob(SDOdir + '*.fits')
-                dirs = DButil.getsdodir(filename)
-                for ll, dd in enumerate(dirs['dir']):
-                    if not os.path.exists(SDOdir + dd):
-                        os.makedirs(SDOdir + dd)
-                    os.system('mv {}/*{}*.fits {}{}'.format(SDOdir, dirs['timstr'][ll], SDOdir, dd))
+                if len(filename) > 0:
+                    dirs = DButil.getsdodir(filename)
+                    for ll, dd in enumerate(dirs['dir']):
+                        if not os.path.exists(SDOdir + dd):
+                            os.makedirs(SDOdir + dd)
+                        os.system('mv {}/*{}*.fits {}{}'.format(SDOdir, dirs['timstr'][ll], SDOdir, dd))
 
                 Div_JSOC_info.text = Div_JSOC_info.text + """<p>Download finished.</p>"""
                 Div_JSOC_info.text = Div_JSOC_info.text + """<p>Download directory: {}</p>""".format(
@@ -494,7 +499,8 @@ SPCR_LFT_widgetbox = Spacer(width=50, height=10)
 SPCR_RGT_widgetbox = Spacer(width=50, height=10)
 
 lout = row(column(row(YY_select_st, MM_select_st, DD_select_st, hh_select_st, mm_select_st, ss_select_st),
-                  row(YY_select_ed, MM_select_ed, DD_select_ed, hh_select_ed, mm_select_ed, ss_select_ed)),
+                  row(YY_select_ed, MM_select_ed, DD_select_ed, hh_select_ed, mm_select_ed, ss_select_ed),
+                  Div_JSOC_info),
            SPCR_LFT_widgetbox, Wavelngth_checkbox, SPCR_RGT_widgetbox,
            widgetbox(Text_Cadence, Text_email, Text_sdodir, But_sdodir, BUT_DownloadData,
                      Text_PlotID, Select_DiffImg,
