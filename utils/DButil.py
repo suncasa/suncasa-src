@@ -34,6 +34,26 @@ def initconfig(suncasa_dir):
 #         if not os.path.exists(ll):
 #             os.makedirs(ll)
 
+def ProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, empfill=' ', fill='#'):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        empfill     - Optional  : empty bar fill character (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + empfill * (length - filledLength)
+    # return '%s |%s| %s%% %s' % (prefix, bar, percent, suffix)
+    return '{} |{}| {}% {}'.format(prefix, bar, percent, suffix)
+
+
 def getcurtimstr(prefix='CleanID_', suffix=''):
     import time
     return prefix + time.strftime("%Y%m%d_%H%M%S") + suffix
@@ -787,7 +807,7 @@ def regridspec(spec, x, y, nxmax=None, nymax=None, interp=False):
             if nf > nymax:
                 ystep = int(float(nf) / nymax)
         specnew = spec[:, :, ::ystep, ::xstep]
-    return specnew
+    return [specnew, xstep, ystep]
 
 
 def get_contour_data(X, Y, Z, levels=[0.5, 0.7, 0.9]):

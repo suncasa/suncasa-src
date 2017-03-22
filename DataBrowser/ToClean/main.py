@@ -237,7 +237,8 @@ tab2_SRC_dspec_square = ColumnDataSource(dspecDF0_rs)
 tab2_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
                       plot_width=config_main['plot_config']['tab_ToClean']['dspec_wdth'],
                       plot_height=config_main['plot_config']['tab_ToClean']['dspec_hght'],
-                      x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
+                      x_range=(tab2_dtim[0] - tab2_dt / 2.0, tab2_dtim[-1] + tab2_dt / 2.0),
+                      y_range=(tab2_freq[0] - tab2_df / 2.0, tab2_freq[-1] + tab2_df / 2.0),
                       toolbar_location="above")
 tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
 tab2_p_dspec.axis.visible = True
@@ -245,9 +246,9 @@ tab2_p_dspec.title.text = "Dynamic spectrum"
 tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
 tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
 # tab2_SRC_dspec_image = ColumnDataSource(data={'data': [tab2_spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
-tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0], y=tab2_freq[0],
-                                  dw=tab2_dtim[-1] - tab2_dtim[0],
-                                  dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
+tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0] - tab2_dt / 2.0, y=tab2_freq[0] - tab2_df / 2.0,
+                                  dw=tab2_dtim[-1] - tab2_dtim[0] + tab2_dt,
+                                  dh=tab2_freq[-1] - tab2_freq[0] + tab2_df, palette=bokehpalette_jet)
 
 # make the dspec data source selectable
 tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=None, fill_alpha=0.0,

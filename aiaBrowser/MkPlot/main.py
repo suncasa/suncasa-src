@@ -66,7 +66,7 @@ def Running_diff_img(sdompdict, ratio=False):
             else:
                 sdompdict['submc'].maps[sidx].data = smap.data - maps[sidx - datastep].data
         Div_info.text = """<p>{}</p>""".format(
-            ProgressBar(sidx + 1, nsdofile, suffix='Update', decimals=0, length=14, empfile='=', fill='#'))
+            DButil.ProgressBar(sidx + 1, nsdofile, suffix='Update', decimals=0, length=14, empfill='=', fill='#'))
     return sdompdict
 
 
@@ -82,7 +82,7 @@ def Base_diff_img(sdompdict, ratio=False):
             else:
                 sdompdict['submc'].maps[sidx].data = smap.data - maps[0].data
         Div_info.text = """<p>{}</p>""".format(
-            ProgressBar(sidx + 1, nsdofile, suffix='Update', decimals=0, length=14, empfile='=', fill='#'))
+            DButil.ProgressBar(sidx + 1, nsdofile, suffix='Update', decimals=0, length=14, empfill='=', fill='#'))
     return sdompdict
 
 
@@ -197,25 +197,6 @@ def sdosubmp_region_select(attrname, old, new):
         sdo_RSPmap_quadselround = 0
 
 
-def ProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, empfile=' ', fill='█'):
-    """
-    Call in a loop to create terminal progress bar
-    @params:
-        iteration   - Required  : current iteration (Int)
-        total       - Required  : total iterations (Int)
-        prefix      - Optional  : prefix string (Str)
-        suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : positive number of decimals in percent complete (Int)
-        length      - Optional  : character length of bar (Int)
-        fill        - Optional  : bar fill character (Str)
-        empfile     - Optional  : empty bar fill character (Str)
-    """
-    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
-    filledLength = int(length * iteration // total)
-    bar = fill * filledLength + empfile * (length - filledLength)
-    # return '%s |%s| %s%% %s' % (prefix, bar, percent, suffix)
-    return '{} |{}| {}% {}'.format(prefix, bar, percent, suffix)
-
 
 def ImgOption_checkbox_handler(new):
     LoadChunk_handler()
@@ -231,7 +212,7 @@ def LoadChunk():
         sdosubmplist.append(sdosubmptmp)
         timestamps.append(Time(sdosubmptmp.meta['date-obs'].replace('T', ' '), format='iso', scale='utc').jd)
         Div_info.text = """<p>{}</p>""".format(
-            ProgressBar(sidx + 1, nsdofile + 1, suffix='Load', decimals=0, length=16, empfile='=', fill='#'))
+            DButil.ProgressBar(sidx + 1, nsdofile + 1, suffix='Load', decimals=0, length=16, empfill='=', fill='#'))
     mc = sunpy.map.Map(sdosubmplist, cube=True)
     sdompdict = {'FOV': [x0, y0, x1, y1], 'subFOV': [x0, y0, x1, y1], 'mc': mc, 'time': np.array(timestamps)}
     sdompdict['submc'] = LoadSubChunk(sdompdict)
@@ -239,7 +220,7 @@ def LoadChunk():
                           sdompdict['time'] <= trange.jd[0] + Slider_trange.range[1] / 24. / 3600)
     sdompdict['mask'] = mask
     Div_info.text = """<p>{}</p>""".format(
-        ProgressBar(nsdofile + 1, nsdofile + 1, suffix='Load', decimals=0, length=16, empfile='=', fill='#'))
+        DButil.ProgressBar(nsdofile + 1, nsdofile + 1, suffix='Load', decimals=0, length=16, empfill='=', fill='#'))
     return sdompdict
 
 
@@ -254,7 +235,7 @@ def LoadSubChunk(sdompdict):
             sdosubmptmp = DButil.smapradialfilter(sdosubmptmp, grid=grid)
         sdosubmplist.append(sdosubmptmp)
         Div_info.text = """<p>{}</p>""".format(
-            ProgressBar(sidx + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, empfile='=', fill='#'))
+            DButil.ProgressBar(sidx + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, empfill='=', fill='#'))
     if 0 in ImgOption_checkbox.active:
         submc = mapcube_solar_derotate(sunpy.map.Map(sdosubmplist, cube=True))
     else:
@@ -262,7 +243,7 @@ def LoadSubChunk(sdompdict):
     # if imagetype != 'image':
     #     DiffImg_update()
     Div_info.text = """<p>{}</p>""".format(
-        ProgressBar(nsdofile + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, empfile='=', fill='#'))
+        DButil.ProgressBar(nsdofile + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, empfill='=', fill='#'))
     return submc
 
 

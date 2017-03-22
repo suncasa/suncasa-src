@@ -70,26 +70,6 @@ bokehpalette_viridis = [colors.rgb2hex(m) for m in colormap_viridis(np.arange(co
 '''
 
 
-def ProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, empfile=' ', fill='█'):
-    """
-    Call in a loop to create terminal progress bar
-    @params:
-        iteration   - Required  : current iteration (Int)
-        total       - Required  : total iterations (Int)
-        prefix      - Optional  : prefix string (Str)
-        suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : positive number of decimals in percent complete (Int)
-        length      - Optional  : character length of bar (Int)
-        fill        - Optional  : bar fill character (Str)
-        empfile     - Optional  : empty bar fill character (Str)
-    """
-    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
-    filledLength = int(length * iteration // total)
-    bar = fill * filledLength + empfile * (length - filledLength)
-    # return '%s |%s| %s%% %s' % (prefix, bar, percent, suffix)
-    return '{} |{}| {}% {}'.format(prefix, bar, percent, suffix)
-
-
 def read_fits(fname):
     hdulist = fits.open(fname)
     hdu = hdulist[0]
@@ -815,7 +795,7 @@ def tab2_panel3_savimgs_handler():
                        x_range=[tab3_p_aia_submap.x_range.start, tab3_p_aia_submap.x_range.end],
                        y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end], maponly=maponly)
         tab3_Div_Tb.text = """<p>{}</p>""".format(
-            ProgressBar(sidx + 1, nfiles, suffix='Output', decimals=0, length=30, empfile='=', fill='#'))
+            DButil.ProgressBar(sidx + 1, nfiles, suffix='Output', decimals=0, length=30, empfill='=', fill='#'))
     tab3_Div_Tb.text = '<p>images saved to <b>{}</b>.</p>'.format(outimgdir)
 
 
@@ -1275,7 +1255,8 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
                               plot_width=config_main['plot_config']['tab_FSview_base']['dspec_wdth'],
                               plot_height=config_main['plot_config']['tab_FSview_base']['dspec_hght'],
-                              x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
+                              x_range=(tab2_dtim[0] - tab2_dt / 2.0, tab2_dtim[-1] + tab2_dt / 2.0),
+                              y_range=(tab2_freq[0] - tab2_df / 2.0, tab2_freq[-1] + tab2_df / 2.0),
                               toolbar_location="above")
         tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
         tab2_p_dspec.axis.visible = True
@@ -1284,9 +1265,10 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
         # tab2_SRC_dspec_image = ColumnDataSource(
         #     data={'data': [tab2_spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
-        tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0], y=tab2_freq[0],
-                                          dw=tab2_dtim[-1] - tab2_dtim[0],
-                                          dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
+        tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0] - tab2_dt / 2.0,
+                                          y=tab2_freq[0] - tab2_df / 2.0,
+                                          dw=tab2_dur + tab2_dt,
+                                          dh=tab2_freq[-1] - tab2_freq[0] + tab2_df, palette=bokehpalette_jet)
 
         # make the dspec data source selectable
         tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=None,
@@ -1717,8 +1699,9 @@ if os.path.exists(FS_dspecDF):
         tab3_p_dspec_vector = figure(tools='pan,wheel_zoom,box_zoom,save,reset',
                                      plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
                                      plot_height=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_hght'],
-                                     x_range=(tab2_dtim[0], tab2_dtim[-1]),
-                                     y_range=(tab2_freq[0], tab2_freq[-1]), toolbar_location='above')
+                                     x_range=(tab2_dtim[0] - tab2_dt / 2.0, tab2_dtim[-1] + tab2_dt / 2.0),
+                                     y_range=(tab2_freq[0] - tab2_df / 2.0, tab2_freq[-1] + tab2_df / 2.0),
+                                     toolbar_location='above')
         tab3_p_dspec_vectorx = figure(tools='pan,wheel_zoom,box_zoom,save,reset',
                                       plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
                                       plot_height=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_hght'],
@@ -1773,15 +1756,21 @@ if os.path.exists(FS_dspecDF):
         VdspecDF_init()
         VdspecDF_update()
         tab3_SRC_dspec_vector_init()
-        tab3_r_dspec_vector = tab3_p_dspec_vector.image(image=tab3_dspec_vector_img, x=tab2_dtim[0], y=tab2_freq[0],
-                                                        dw=tab2_dur,
-                                                        dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
-        tab3_r_dspec_vectorx = tab3_p_dspec_vectorx.image(image=tab3_dspec_vectorx_img, x=tab2_dtim[0], y=tab2_freq[0],
-                                                          dw=tab2_dur,
-                                                          dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
-        tab3_r_dspec_vectory = tab3_p_dspec_vectory.image(image=tab3_dspec_vectory_img, x=tab2_dtim[0], y=tab2_freq[0],
-                                                          dw=tab2_dur,
-                                                          dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
+        tab3_r_dspec_vector = tab3_p_dspec_vector.image(image=tab3_dspec_vector_img, x=tab2_dtim[0] - tab2_dt / 2.0,
+                                                        y=tab2_freq[0] - tab2_df / 2.0,
+                                                        dw=tab2_dur + tab2_dt,
+                                                        dh=tab2_freq[-1] - tab2_freq[0] + tab2_df,
+                                                        palette=bokehpalette_jet)
+        tab3_r_dspec_vectorx = tab3_p_dspec_vectorx.image(image=tab3_dspec_vectorx_img, x=tab2_dtim[0] - tab2_dt / 2.0,
+                                                          y=tab2_freq[0] - tab2_df / 2.0,
+                                                          dw=tab2_dur + tab2_dt,
+                                                          dh=tab2_freq[-1] - tab2_freq[0] + tab2_df,
+                                                          palette=bokehpalette_jet)
+        tab3_r_dspec_vectory = tab3_p_dspec_vectory.image(image=tab3_dspec_vectory_img, x=tab2_dtim[0] - tab2_dt / 2.0,
+                                                          y=tab2_freq[0] - tab2_df / 2.0,
+                                                          dw=tab2_dur + tab2_dt,
+                                                          dh=tab2_freq[-1] - tab2_freq[0] + tab2_df,
+                                                          palette=bokehpalette_jet)
         tab3_source_idx_line = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
         tab3_r_dspec_vector_line = tab3_p_dspec_vector.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
                                                             line_color='white', source=tab3_source_idx_line)
@@ -2000,16 +1989,18 @@ if os.path.exists(FS_dspecDF):
             tab2_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
                                   plot_width=config_main['plot_config']['tab_FSview_base']['dspec_wdth'],
                                   plot_height=config_main['plot_config']['tab_FSview_base']['dspec_hght'],
-                                  x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
+                                  x_range=(tab2_dtim[0] - tab2_dt / 2.0, tab2_dtim[-1] + tab2_dt / 2.0),
+                                  y_range=(tab2_freq[0] - tab2_df / 2.0, tab2_freq[-1] + tab2_df / 2.0),
                                   toolbar_location="above")
             tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
             tab2_p_dspec.axis.visible = True
             tab2_p_dspec.title.text = "Dynamic spectrum"
             tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
             tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
-            tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0], y=tab2_freq[0],
-                                              dw=tab2_dur,
-                                              dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
+            tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0] - tab2_dt / 2.0,
+                                              y=tab2_freq[0] - tab2_df / 2.0,
+                                              dw=tab2_dur + tab2_dt,
+                                              dh=tab2_freq[-1] - tab2_freq[0] + tab2_df, palette=bokehpalette_jet)
 
             # make the dspec data source selectable
             tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=None,

@@ -95,8 +95,10 @@ bl_index = 0
 # tab1_spec = tab1_specdata['spec'][:, :, :, :]
 tab1_tim = tab1_specdata['tim'][:]
 tab1_freq = tab1_specdata['freq'] / 1e9
-tab1_spec = DButil.regridspec(tab1_specdata['spec'][:, :, :, :], tab1_tim - tab1_tim[0], tab1_freq, nxmax=ntmaximg,
+tab1_spec,tab1_tim_step,tab1_freq_step = DButil.regridspec(tab1_specdata['spec'][:, :, :, :], tab1_tim - tab1_tim[0], tab1_freq, nxmax=ntmaximg,
                               nymax=nfmaximg)
+dt = np.mean(np.diff(tab1_tim[::tab1_tim_step]))
+df = np.mean(np.diff(tab1_freq[::tab1_freq_step]))
 
 if tab1_pol == 'RR':
     tab1_spec_plt = tab1_spec[0, bl_index, :, :]
@@ -114,8 +116,8 @@ TOOLS = "pan,wheel_zoom,box_zoom,reset,save"
 tab1_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
                       plot_width=config_main['plot_config']['tab_QLook']['dspec_wdth'],
                       plot_height=config_main['plot_config']['tab_QLook']['dspec_hght'],
-                      x_range=(tab1_dtim[0], tab1_dtim[-1]),
-                      y_range=(tab1_freq[0], tab1_freq[-1]), toolbar_location="above")
+                      x_range=(tab1_dtim[0]-dt/2.0, tab1_dtim[-1]+dt/2.0),
+                      y_range=(tab1_freq[0]-df/2.0, tab1_freq[-1]+df/2.0), toolbar_location="above")
 tim0_char = Time((tab1_tim[0] / 3600. / 24. + 2400000.5) * 86400. / 3600. / 24., format='jd', scale='utc',
                  precision=3).iso
 tab1_p_dspec.axis.visible = True
@@ -131,9 +133,9 @@ tab1_p_dspec.axis.minor_tick_in = 3
 tab1_p_dspec.axis.major_tick_line_color = "white"
 tab1_p_dspec.axis.minor_tick_line_color = "white"
 
-tab1_r_dspec = tab1_p_dspec.image(image=[tab1_spec_plt], x=tab1_dtim[0], y=tab1_freq[0],
-                                  dw=tab1_dtim[-1] - tab1_dtim[0],
-                                  dh=tab1_freq[-1] - tab1_freq[0], palette=bokehpalette_jet)
+tab1_r_dspec = tab1_p_dspec.image(image=[tab1_spec_plt], x=tab1_dtim[0]-dt/2.0, y=tab1_freq[0]-df/2.0,
+                                  dw=tab1_dtim[-1] - tab1_dtim[0]+dt,
+                                  dh=tab1_freq[-1] - tab1_freq[0]+df, palette=bokehpalette_jet)
 
 tab1_nfreq = len(tab1_freq)
 tab1_ntim = len(tab1_tim)
