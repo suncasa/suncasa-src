@@ -24,6 +24,7 @@ import glob
 from astropy.time import Time
 from suncasa.utils.puffin import PuffinMap
 from suncasa.utils import DButil
+from suncasa.utils import ctplot
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -785,7 +786,7 @@ def tab2_panel3_savimgs_handler():
         else:
             centroids = {}
             centroids['freqran'] = [tab3_p_dspec_vector.y_range.start, tab3_p_dspec_vector.y_range.end]
-        DButil.plotmap(centroids, aiamap_submap, outfile=dftmp['timestr'][0] + '.png', label=dftmp['timestr'][0],
+        ctplot.plotmap(centroids, aiamap_submap, outfile=dftmp['timestr'][0] + '.png', label=dftmp['timestr'][0],
                        x_range=[tab3_p_aia_submap.x_range.start, tab3_p_aia_submap.x_range.end],
                        y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end])
 
