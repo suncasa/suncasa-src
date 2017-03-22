@@ -778,6 +778,8 @@ def tab2_panel3_savimgs_handler():
     timseq = np.unique(dspecDF0POLsub['time'])
     subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'timestr']
     for ll in timseq:
+        timstr = dspecDF0POLsub[dspecDF0POLsub['time'] == ll]['timestr'].iloc[0]
+        maponly = True
         centroids = {}
         centroids['freqran'] = [tab3_p_dspec_vector.y_range.start, tab3_p_dspec_vector.y_range.end]
         if ll in timselseq:
@@ -786,10 +788,10 @@ def tab2_panel3_savimgs_handler():
             centroids['freq'] = dftmp['freq'].as_matrix()
             centroids['shape_longitude'] = dftmp['shape_longitude'].as_matrix()
             centroids['shape_latitude'] = dftmp['shape_latitude'].as_matrix()
-        timstr = dspecDF0POLsub[dspecDF0POLsub['time'] == ll]['timestr'].iloc[0]
-        ctplot.plotmap(centroids, aiamap_submap, outfile=timstr.replace(':','') + '.png', label='VLA ' + timstr,
+            maponly = False
+        ctplot.plotmap(centroids, aiamap_submap, outfile=timstr.replace(':', '') + '.png', label='VLA ' + timstr,
                        x_range=[tab3_p_aia_submap.x_range.start, tab3_p_aia_submap.x_range.end],
-                       y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end])
+                       y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end], maponly=maponly)
 
 
 def tab3_BUT_plot_xargs_default():
