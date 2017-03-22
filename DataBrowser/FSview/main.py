@@ -1892,7 +1892,9 @@ if os.path.exists(FS_dspecDF):
             global outimgdir
             tkRoot = Tkinter.Tk()
             tkRoot.withdraw()  # Close the root window
-            outimgdir = tkFileDialog.askdirectory(initialdir=outimgdir, parent=tkRoot) + '/'
+            outdir = tkFileDialog.askdirectory(initialdir=outimgdir, parent=tkRoot) + '/'
+            if outdir:
+                outimgdir = outdir
             tkRoot.destroy()
 
 
@@ -1924,7 +1926,7 @@ if os.path.exists(FS_dspecDF):
                                   toolbar_location='right'), tab3_Div_Tb)
         lout3_3 = widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
                             tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab3_rSlider_threshold,
-                            tab2_Select_vla_pol2, tab2_Select_aia_wave, tab2_panel3_BUT_savimgs, But_outdir,
+                            tab2_Select_vla_pol2, tab2_Select_aia_wave, But_outdir, tab2_panel3_BUT_savimgs,
                             tab2_panel3_BUT_exit,
                             width=200)
         panel3 = row(lout3_1, lout3_2, lout3_3)
