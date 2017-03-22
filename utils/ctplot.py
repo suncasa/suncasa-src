@@ -82,7 +82,7 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
         if not maponly:
             nchan = len(vlafile['freq'])
             for idx, chan in enumerate(vlafile['freq']):
-                x, y = [vlafile['shape_longitude'], vlafile['shape_latitude']] * u.arcsec
+                x, y = [vlafile['shape_longitude'][idx], vlafile['shape_latitude'][idx]] * u.arcsec
                 plt.plot(x.to(u.deg), y.to(u.deg), '+', transform=ax.get_transform('world'),
                          color=cm.jet(int((chan - freqs[0]) / (freqs[-1] - freqs[0]) * 255)),
                          zorder=nchan + zorder * idx,

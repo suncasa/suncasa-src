@@ -778,16 +778,16 @@ def tab2_panel3_savimgs_handler():
     timseq = np.unique(dspecDF0POLsub['time'])
     subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'timestr']
     for ll in timseq:
+        centroids = {}
+        centroids['freqran'] = [tab3_p_dspec_vector.y_range.start, tab3_p_dspec_vector.y_range.end]
         if ll in timselseq:
-            dftmp = dspecDF_select[dspecDF_select.time == ll]
+            dftmp = dspecDF_select[dspecDF_select.time == ll][subset_label]
             dftmp = dftmp.dropna(how='any', subset=subset_label)
-            centroids = dftmp.to_dict()
-            centroids['freqran'] = [tab3_p_dspec_vector.y_range.start, tab3_p_dspec_vector.y_range.end]
-        else:
-            centroids = {}
-            centroids['freqran'] = [tab3_p_dspec_vector.y_range.start, tab3_p_dspec_vector.y_range.end]
-        timstr = dspecDF0POLsub[dspecDF0POLsub == ll]['timestr'][0]
-        ctplot.plotmap(centroids, aiamap_submap, outfile=timstr + '.png', label='VLA ' + timstr,
+            centroids['freq'] = dftmp['freq'].as_matrix()
+            centroids['shape_longitude'] = dftmp['shape_longitude'].as_matrix()
+            centroids['shape_latitude'] = dftmp['shape_latitude'].as_matrix()
+        timstr = dspecDF0POLsub[dspecDF0POLsub['time'] == ll]['timestr'].iloc[0]
+        ctplot.plotmap(centroids, aiamap_submap, outfile=timstr.replace(':','') + '.png', label='VLA ' + timstr,
                        x_range=[tab3_p_aia_submap.x_range.start, tab3_p_aia_submap.x_range.end],
                        y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end])
 

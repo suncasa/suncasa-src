@@ -7,12 +7,15 @@ import pickle
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
+
 def initconfig(suncasa_dir):
     if not os.path.exists(suncasa_dir + 'DataBrowser/config.json'):
-        os.system('cp {} {}'.format(suncasa_dir + 'DataBrowser/config_init.json',suncasa_dir + 'DataBrowser/config.json'))
+        os.system(
+            'cp {} {}'.format(suncasa_dir + 'DataBrowser/config_init.json', suncasa_dir + 'DataBrowser/config.json'))
         return True
     else:
         return False
+
 
 # def mkunidir(dirlist, isdir=True):
 #     '''
@@ -338,14 +341,16 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
                     [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
                      for
                      ll in sdofits], format='iso', scale='utc')
-                sdofitspathnew = [x for (y,x) in sorted(zip(sdotimeline.jd,sdofitspath))]
+                sdofitspathnew = [x for (y, x) in sorted(zip(sdotimeline.jd, sdofitspath))]
                 sdofitsnew = [os.path.basename(ll) for ll in sdofitspathnew]
                 sdotimelinenew = Time(
                     [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
                      for
                      ll in sdofitsnew], format='iso', scale='utc')
                 sdofile = list(np.array(sdofitspathnew)[
-                                   np.where(np.logical_and(jdtime[0] < sdotimelinenew.jd, sdotimelinenew.jd < jdtime[1]))[0]])
+                                   np.where(
+                                       np.logical_and(jdtime[0] < sdotimelinenew.jd, sdotimelinenew.jd < jdtime[1]))[
+                                       0]])
                 return sdofile
     else:
         jdtimstr = Time(jdtime, format='jd').iso
@@ -679,13 +684,13 @@ def dspecDFfilter(dspecDF, pol):
         return dspecDF
 
 
-def dspecDF2text(DFfile,outfile=None):
+def dspecDF2text(DFfile, outfile=None):
     if DFfile:
         if os.path.exists(DFfile):
             if outfile:
                 with open(DFfile, 'rb') as f:
                     dspecDF0 = pickle.load(f)
-                dspecDF0.drop(['dspec', 'fits_global', 'fits_local'],axis=1,inplace=True)
+                dspecDF0.drop(['dspec', 'fits_global', 'fits_local'], axis=1, inplace=True)
                 dspecDF0.to_csv(outfile, sep='\t')
             else:
                 raise ValueError('provide output file name!')
@@ -693,7 +698,6 @@ def dspecDF2text(DFfile,outfile=None):
             raise ValueError('input file "{}" does not existed!'.format(DFfile))
     else:
         raise ValueError('provide input file name!')
-
 
 
 def smapmeshgrid2(smap, rescale=1.0):
