@@ -768,6 +768,28 @@ def tab3_slider_ANLYS_idx_update(attrname, old, new):
         tab3_Div_Tb.text = """<p><b>Warning: Animate is OFF!!!</b></p>"""
 
 
+def tab2_panel3_savimgs_handler():
+    dspecDF0POLsub = dspecDF0POL[dspecDF0POL['time'] >= tab3_p_dspec_vector.x_range.start][
+        dspecDF0POL['time'] <= tab3_p_dspec_vector.x_range.end][
+        dspecDF0POL['freq'] >= tab3_p_dspec_vector.y_range.start][
+        dspecDF0POL['freq'] <= tab3_p_dspec_vector.y_range.end]
+    timselseq = np.unique(dspecDF_select['time'])
+    timseq = np.unique(dspecDF0POLsub['time'])
+    subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'timestr']
+    for ll in timseq:
+        if ll in timselseq:
+            dftmp = dspecDF_select[dspecDF_select.time == ll]
+            dftmp = dftmp.dropna(how='any', subset=subset_label)
+            centroids = dftmp.to_dict()
+            centroids['freqran'] = [tab3_p_dspec_vector.y_range.start, tab3_p_dspec_vector.y_range.end]
+        else:
+            centroids = {}
+            centroids['freqran'] = [tab3_p_dspec_vector.y_range.start, tab3_p_dspec_vector.y_range.end]
+        DButil.plotmap(centroids, aiamap_submap, outfile=dftmp['timestr'][0] + '.png', label=dftmp['timestr'][0],
+                       x_range=[tab3_p_aia_submap.x_range.start, tab3_p_aia_submap.x_range.end],
+                       y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end])
+
+
 def tab3_BUT_plot_xargs_default():
     global tab3_plot_xargs_dict
     tab3_plot_xargs_dict = OrderedDict()
@@ -803,7 +825,7 @@ def tab3_animate():
             if tab2_dspec_vector_selected:
                 tab3_BUT_PlayCTRL.label = 'Pause'
                 tab3_BUT_PlayCTRL.button_type = 'danger'
-                curdoc().add_periodic_callback(tab3_animate_update, 125)
+                curdoc().add_periodic_callback(tab3_animate_update, 150)
                 tab3_Div_Tb.text = """ """
             else:
                 tab3_Div_Tb.text = """<p><b>Warning: Select time and frequency from the Dynamic Spectrum first!!!</b></p>"""
@@ -1655,6 +1677,11 @@ if os.path.exists(FS_dspecDF):
                                       button_type='danger')
         tab2_panel3_BUT_exit.on_click(tab2_panel_exit)
 
+        tab2_panel3_BUT_savimgs = Button(label='Save images',
+                                         width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                         button_type='primary')
+        tab2_panel3_BUT_savimgs.on_click(tab2_panel3_savimgs_handler)
+
         tab3_p_dspec_vector = figure(tools='pan,wheel_zoom,box_zoom,save,reset',
                                      plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
                                      plot_height=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_hght'],
@@ -1851,7 +1878,8 @@ if os.path.exists(FS_dspecDF):
                                   toolbar_location='right'), tab3_Div_Tb)
         lout3_3 = widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
                             tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab3_rSlider_threshold,
-                            tab2_Select_vla_pol2, tab2_Select_aia_wave, tab2_panel3_BUT_exit, width=200)
+                            tab2_Select_vla_pol2, tab2_Select_aia_wave, tab2_panel3_BUT_savimgs, tab2_panel3_BUT_exit,
+                            width=200)
         panel3 = row(lout3_1, lout3_2, lout3_3)
         # tab2 = Panel(child=panel2, title="FS View")
         # tab3 = Panel(child=panel3, title="FitANLYS")
