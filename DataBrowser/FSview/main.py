@@ -2404,7 +2404,8 @@ if os.path.exists(FS_dspecDF):
                                       width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']))
             lout2_1 = column(lout2_1_1, lout2_1_2)
             lout2_2 = tab2_SPCR_LFT_Div_tImfit
-            lout2_3 = column(row(tab2_input_tImfit, tab2_maxfit_checkbox), tab2_Div_tImfit2,
+            lout2_3 = column(widgetbox(tab2_input_tImfit, tab2_maxfit_checkbox, tab2_Div_tImfit2,
+                                       width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']*1.5),
                              row(tab2_BUT_tImfit_param_ADD, tab2_SPCR_LFT_BUT_tImfit_param_DEL,
                                  tab2_BUT_tImfit_param_DEL, tab2_SPCR_LFT_BUT_tImfit_param_DEFAULT,
                                  tab2_BUT_tImfit_param_Default, tab2_SPCR_LFT_BUT_tImfit_param_RELOAD,

@@ -95,8 +95,9 @@ bl_index = 0
 # tab1_spec = tab1_specdata['spec'][:, :, :, :]
 tab1_tim = tab1_specdata['tim'][:]
 tab1_freq = tab1_specdata['freq'] / 1e9
-tab1_spec,tab1_tim_step,tab1_freq_step = DButil.regridspec(tab1_specdata['spec'][:, :, :, :], tab1_tim - tab1_tim[0], tab1_freq, nxmax=ntmaximg,
-                              nymax=nfmaximg)
+tab1_spec, tab1_tim_step, tab1_freq_step = DButil.regridspec(tab1_specdata['spec'][:, :, :, :], tab1_tim - tab1_tim[0],
+                                                             tab1_freq, nxmax=ntmaximg,
+                                                             nymax=nfmaximg)
 dt = np.mean(np.diff(tab1_tim[::tab1_tim_step]))
 df = np.mean(np.diff(tab1_freq[::tab1_freq_step]))
 
@@ -116,8 +117,8 @@ TOOLS = "pan,wheel_zoom,box_zoom,reset,save"
 tab1_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
                       plot_width=config_main['plot_config']['tab_QLook']['dspec_wdth'],
                       plot_height=config_main['plot_config']['tab_QLook']['dspec_hght'],
-                      x_range=(tab1_dtim[0]-dt/2.0, tab1_dtim[-1]+dt/2.0),
-                      y_range=(tab1_freq[0]-df/2.0, tab1_freq[-1]+df/2.0), toolbar_location="above")
+                      x_range=(tab1_dtim[0] - dt / 2.0, tab1_dtim[-1] + dt / 2.0),
+                      y_range=(tab1_freq[0] - df / 2.0, tab1_freq[-1] + df / 2.0), toolbar_location="above")
 tim0_char = Time((tab1_tim[0] / 3600. / 24. + 2400000.5) * 86400. / 3600. / 24., format='jd', scale='utc',
                  precision=3).iso
 tab1_p_dspec.axis.visible = True
@@ -133,9 +134,9 @@ tab1_p_dspec.axis.minor_tick_in = 3
 tab1_p_dspec.axis.major_tick_line_color = "white"
 tab1_p_dspec.axis.minor_tick_line_color = "white"
 
-tab1_r_dspec = tab1_p_dspec.image(image=[tab1_spec_plt], x=tab1_dtim[0]-dt/2.0, y=tab1_freq[0]-df/2.0,
-                                  dw=tab1_dtim[-1] - tab1_dtim[0]+dt,
-                                  dh=tab1_freq[-1] - tab1_freq[0]+df, palette=bokehpalette_jet)
+tab1_r_dspec = tab1_p_dspec.image(image=[tab1_spec_plt], x=tab1_dtim[0] - dt / 2.0, y=tab1_freq[0] - df / 2.0,
+                                  dw=tab1_dtim[-1] - tab1_dtim[0] + dt,
+                                  dh=tab1_freq[-1] - tab1_freq[0] + df, palette=bokehpalette_jet)
 
 tab1_nfreq = len(tab1_freq)
 tab1_ntim = len(tab1_tim)
@@ -161,6 +162,7 @@ tab1_Select_bl = Select(title="Baseline:", value=tab1_bl[0], options=tab1_bl, **
 tab1_Select_pol = Select(title="Polarization:", value="I", options=["RR", "LL", "I", "V"], **tab1_Select_OPT)
 tab1_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"], **tab1_Select_OPT)
 tab1_Select_CleanID = Select(title="CleanID:", value=None, options=[], **tab1_Select_OPT)
+tab1_Select_ImfitID = Select(title="ImfitID:", value=None, options=[], **tab1_Select_OPT)
 
 
 def tab1_update_dspec(attrname, old, new):
@@ -486,6 +488,7 @@ tab1_BUT_CleanStrID = Button(label='ToClean', button_type='success', **tab1_BUT_
 tab1_BUT_CleanStrID.on_click(tab1_update_CleanStrID)
 tab1_BUT_FSviewStrID = Button(label='FSview', button_type='primary', **tab1_BUT_OPT2)
 tab1_BUT_FSviewStrID.on_click(tab1_update_FSviewStrID)
+tab1_BUT_VDSpecStrID = Button(label='VDSpec', button_type='primary', **tab1_BUT_OPT2)
 
 tab1_SPCR_LFT_DataTb_dspec = Spacer(width=10, height=100)
 tab1_SPCR_RGT_DataTb_dspec = Spacer(width=20, height=100)
@@ -514,7 +517,8 @@ tab1_BUT_exit = Button(label='Exit QLook', button_type='danger', **tab1_Select_O
 tab1_BUT_exit.on_click(tab1_exit)
 
 panel1 = column(
-    row(tab1_p_dspec, column(Text_sdodir, But_sdodir, tab1_Select_CleanID, tab1_BUT_FSviewStrID, tab1_Div_FSview)),
+    row(tab1_p_dspec, column(Text_sdodir, But_sdodir, tab1_Select_CleanID, tab1_BUT_FSviewStrID, tab1_Select_ImfitID,
+                             tab1_BUT_VDSpecStrID, tab1_Div_FSview)),
     row(widgetbox(tab1_Select_bl, tab1_Select_pol, tab1_Select_colorspace, tab1_BUT_exit, tab1_Div_exit,
                   **tab1_Select_OPT),
         tab1_SPCR_LFT_DataTb_evt, tab1_SPCR_LFT_DataTb_dspec, column(tab1_DataTb_dspec, tab1_Div_Tb),

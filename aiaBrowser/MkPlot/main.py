@@ -197,7 +197,6 @@ def sdosubmp_region_select(attrname, old, new):
         sdo_RSPmap_quadselround = 0
 
 
-
 def ImgOption_checkbox_handler(new):
     LoadChunk_handler()
 
@@ -855,16 +854,16 @@ p_lighcurve.axis.minor_tick_in = 3
 SRC_lightcurve = ColumnDataSource({'x': [], 'y': []})
 r_lighcurve = p_lighcurve.line(x='x', y='y', alpha=0.8, line_width=1, line_color='black', source=SRC_lightcurve)
 
-BUT_UndoDraw = Button(label='Undo', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
+BUT_UndoDraw = Button(label='Undo', width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'],
                       button_type='warning')
 BUT_UndoDraw.on_click(UndoDraw)
-BUT_ClearDraw = Button(label='ClearDraw', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
+BUT_ClearDraw = Button(label='ClearDraw', width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'],
                        button_type='danger')
 BUT_ClearDraw.on_click(ClearDraw)
-BUT_loadchunk = Button(label='LoadChunk', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
+BUT_loadchunk = Button(label='LoadChunk', width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'],
                        button_type='warning')
 BUT_loadchunk.on_click(LoadChunk_handler)
-BUT_Stackplt = Button(label='StackPlt', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
+BUT_Stackplt = Button(label='StackPlt', width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'],
                       button_type='success')
 BUT_Stackplt.on_click(ViewStackplt)
 
@@ -892,7 +891,8 @@ fitmethod = fitmethoddict['{}'.format(fitMeth_radiogroup.active)]
 ascending = True
 clearpoint = False
 
-Slider_smoothing_factor = Slider(start=0.0, end=1.0, value=1.0, step=0.05, title='smoothing factor')
+Slider_smoothing_factor = Slider(start=0.0, end=1.0, value=1.0, step=0.05, title='smoothing factor',
+                                 width=config_main['plot_config']['tab_MkPlot']['slider_wdth'])
 Slider_smoothing_factor.on_change('value', slider_smoothing_factor_update)
 
 Hideitem_checkbox.on_click(HideItemUpdate)
@@ -900,7 +900,7 @@ fitMeth_radiogroup.on_click(fitMethUpdate)
 
 Div_info = Div(text="""<p><b>Warning</b>: Click <b>Exit</b>
             first before closing the tab</p></b>""", width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
-BUT_default_fitparam = Button(label='Default', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
+BUT_default_fitparam = Button(label='Default', width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'],
                               button_type='primary')
 BUT_default_fitparam.on_click(default_fitparam)
 BUT_exit = Button(label='Exit', width=config_main['plot_config']['tab_MkPlot']['button_wdth'], button_type='danger')
@@ -908,7 +908,7 @@ BUT_exit.on_click(exit_update)
 
 menu_slit = [("Open", "Open"), ("Save As", "Save As"), None, ("Load", "Load"), ("Save", "Save")]
 DropDn_slit = Dropdown(label="Slit File", menu=menu_slit,
-                       width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'])
+                       width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'])
 DropDn_slit.on_change('value', DropDn_slit_handler)
 
 trangesec = (0.0, float(int(np.diff(trange.jd)[0] * 24 * 3600)))
@@ -942,9 +942,8 @@ Select_DiffImg = Select(title="Difference images:", value=DiffImglabelsdict[imag
                         width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
 Select_DiffImg.on_change('value', Select_DiffImg_update)
 
-Slider_datadt = Slider(start=AIAcadence, end=(nsdofile - 1) * AIAcadence, value=AIAcadence, step=AIAcadence,
-                       title='dt [second]',
-                       width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
+Slider_datadt = Slider(start=AIAcadence, end=int(nsdofile - 1) / 2 * AIAcadence, value=AIAcadence, step=AIAcadence,
+                       title='dt [second]', width=config_main['plot_config']['tab_MkPlot']['slider_wdth'])
 Slider_datadt.on_change('value', Slider_datadt_update)
 try:
     LoadSlit(slitfile)
@@ -969,9 +968,9 @@ widgt1p2 = widgetbox(Select_DiffImg, Slider_datadt,
 tab2 = Panel(child=widgt1p2, title="Diff")
 tabs = Tabs(tabs=[tab1, tab2])
 widgt2 = widgetbox(BUT_UndoDraw, DropDn_slit, BUT_loadchunk,
-                   width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'])
+                   width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'])
 widgt3 = widgetbox(BUT_ClearDraw, BUT_default_fitparam, BUT_Stackplt,
-                   width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'])
+                   width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'])
 widgt4 = widgetbox(BUT_exit, Div_info, width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
 loutc3 = column(tabs, row(widgt2, widgt3), widgt4)
 
