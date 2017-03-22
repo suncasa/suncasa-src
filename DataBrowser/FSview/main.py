@@ -70,6 +70,26 @@ bokehpalette_viridis = [colors.rgb2hex(m) for m in colormap_viridis(np.arange(co
 '''
 
 
+def ProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, empfile=' ', fill='█'):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        empfile     - Optional  : empty bar fill character (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + empfile * (length - filledLength)
+    # return '%s |%s| %s%% %s' % (prefix, bar, percent, suffix)
+    return '{} |{}| {}% {}'.format(prefix, bar, percent, suffix)
+
+
 def read_fits(fname):
     hdulist = fits.open(fname)
     hdu = hdulist[0]
@@ -777,9 +797,8 @@ def tab2_panel3_savimgs_handler():
     timselseq = np.unique(dspecDF_select['time'])
     timseq = np.unique(dspecDF0POLsub['time'])
     subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'timestr']
-    if not os.path.exists(outimgdir):
-        os.makedirs(outimgdir)
-    for ll in timseq:
+    nfiles = len(timseq)
+    for sidx, ll in enumerate(timseq):
         timstr = dspecDF0POLsub[dspecDF0POLsub['time'] == ll]['timestr'].iloc[0]
         maponly = True
         centroids = {}
@@ -791,9 +810,13 @@ def tab2_panel3_savimgs_handler():
             centroids['shape_longitude'] = dftmp['shape_longitude'].as_matrix()
             centroids['shape_latitude'] = dftmp['shape_latitude'].as_matrix()
             maponly = False
-        ctplot.plotmap(centroids, aiamap_submap, outfile=outimgdir+timstr.replace(':', '') + '.png', label='VLA ' + timstr,
+        ctplot.plotmap(centroids, aiamap_submap, outfile=outimgdir + timstr.replace(':', '') + '.png',
+                       label='VLA ' + timstr,
                        x_range=[tab3_p_aia_submap.x_range.start, tab3_p_aia_submap.x_range.end],
                        y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end], maponly=maponly)
+        tab3_Div_Tb.text = """<p>{}</p>""".format(
+            ProgressBar(sidx + 1, nfiles, suffix='Output', decimals=0, length=30, empfile='=', fill='#'))
+    tab3_Div_Tb.text = '<p>images saved to <b>{}</b>.</p>'.format(outimgdir)
 
 
 def tab3_BUT_plot_xargs_default():
@@ -1148,6 +1171,8 @@ struct_dir = database_dir + event_id + struct_id
 CleanID = FS_config['datadir']['clean_id']
 CleanID_dir = struct_dir + CleanID
 outimgdir = CleanID_dir + '/img_centroids/'
+if not os.path.exists(outimgdir):
+    os.makedirs(outimgdir)
 FS_dspecDF = CleanID_dir + 'dspecDF-save'
 FS_specfile = FS_config['datadir']['FS_specfile']
 tab2_specdata = np.load(FS_specfile)
