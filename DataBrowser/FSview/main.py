@@ -786,7 +786,8 @@ def tab2_panel3_savimgs_handler():
         else:
             centroids = {}
             centroids['freqran'] = [tab3_p_dspec_vector.y_range.start, tab3_p_dspec_vector.y_range.end]
-        ctplot.plotmap(centroids, aiamap_submap, outfile=dftmp['timestr'][0] + '.png', label=dftmp['timestr'][0],
+        timstr = dspecDF0POLsub[dspecDF0POLsub == ll]['timestr'][0]
+        ctplot.plotmap(centroids, aiamap_submap, outfile=timstr + '.png', label='VLA ' + timstr,
                        x_range=[tab3_p_aia_submap.x_range.start, tab3_p_aia_submap.x_range.end],
                        y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end])
 
