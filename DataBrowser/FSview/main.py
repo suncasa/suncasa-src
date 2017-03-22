@@ -777,6 +777,8 @@ def tab2_panel3_savimgs_handler():
     timselseq = np.unique(dspecDF_select['time'])
     timseq = np.unique(dspecDF0POLsub['time'])
     subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'timestr']
+    if not os.path.exists(outimgdir):
+        os.makedirs(outimgdir)
     for ll in timseq:
         timstr = dspecDF0POLsub[dspecDF0POLsub['time'] == ll]['timestr'].iloc[0]
         maponly = True
@@ -789,7 +791,7 @@ def tab2_panel3_savimgs_handler():
             centroids['shape_longitude'] = dftmp['shape_longitude'].as_matrix()
             centroids['shape_latitude'] = dftmp['shape_latitude'].as_matrix()
             maponly = False
-        ctplot.plotmap(centroids, aiamap_submap, outfile=timstr.replace(':', '') + '.png', label='VLA ' + timstr,
+        ctplot.plotmap(centroids, aiamap_submap, outfile=outimgdir+timstr.replace(':', '') + '.png', label='VLA ' + timstr,
                        x_range=[tab3_p_aia_submap.x_range.start, tab3_p_aia_submap.x_range.end],
                        y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end], maponly=maponly)
 
@@ -1145,6 +1147,7 @@ struct_id = FS_config['datadir']['struct_id']
 struct_dir = database_dir + event_id + struct_id
 CleanID = FS_config['datadir']['clean_id']
 CleanID_dir = struct_dir + CleanID
+outimgdir = CleanID_dir + '/img_centroids/'
 FS_dspecDF = CleanID_dir + 'dspecDF-save'
 FS_specfile = FS_config['datadir']['FS_specfile']
 tab2_specdata = np.load(FS_specfile)
@@ -1857,6 +1860,20 @@ if os.path.exists(FS_dspecDF):
 
         tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
 
+
+        def Buttonaskdir_handler():
+            import Tkinter
+            import tkFileDialog
+            global outimgdir
+            tkRoot = Tkinter.Tk()
+            tkRoot.withdraw()  # Close the root window
+            outimgdir = tkFileDialog.askdirectory(initialdir=outimgdir, parent=tkRoot) + '/'
+            tkRoot.destroy()
+
+
+        But_outdir = Button(label='outpath', width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+        But_outdir.on_click(Buttonaskdir_handler)
+
         lout2_1 = row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
                       widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
                                 tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
@@ -1882,7 +1899,8 @@ if os.path.exists(FS_dspecDF):
                                   toolbar_location='right'), tab3_Div_Tb)
         lout3_3 = widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
                             tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab3_rSlider_threshold,
-                            tab2_Select_vla_pol2, tab2_Select_aia_wave, tab2_panel3_BUT_savimgs, tab2_panel3_BUT_exit,
+                            tab2_Select_vla_pol2, tab2_Select_aia_wave, tab2_panel3_BUT_savimgs, But_outdir,
+                            tab2_panel3_BUT_exit,
                             width=200)
         panel3 = row(lout3_1, lout3_2, lout3_3)
         # tab2 = Panel(child=panel2, title="FS View")
