@@ -840,8 +840,8 @@ if os.path.exists(FS_dspecDF):
         tab3_p_dspec_vector.xaxis.visible = False
         tab3_p_dspec_vectorx.xaxis.visible = False
         tab3_p_dspec_vector.title.text = "Vector Dynamic spectrum (Intensity)"
-        tab3_p_dspec_vectorx.title.text = "Vector Dynamic spectrum (Vx)"
-        tab3_p_dspec_vectory.title.text = "Vector Dynamic spectrum (Vy)"
+        tab3_p_dspec_vectorx.title.text = "Vector Dynamic spectrum (x)"
+        tab3_p_dspec_vectory.title.text = "Vector Dynamic spectrum (y)"
         tab3_p_dspec_vectory.xaxis.axis_label = 'Seconds since ' + tim0_char
         tab3_p_dspec_vector.yaxis.axis_label = 'Frequency [GHz]'
         tab3_p_dspec_vectorx.yaxis.axis_label = 'Frequency [GHz]'

@@ -12,6 +12,7 @@ from astropy.time import Time
 from bokeh.layouts import row, column, widgetbox
 from bokeh.models import (ColumnDataSource, Slider, Button, TextInput, CheckboxGroup, RadioGroup,
                           BoxSelectTool, TapTool, Div, LabelSet, Spacer, Range1d, RadioButtonGroup)
+from bokeh.models.widgets import Dropdown
 from bokeh.models.mappers import LogColorMapper, LinearColorMapper
 from bokeh.plotting import figure, curdoc
 from suncasa.utils import DButil
@@ -37,13 +38,13 @@ def update_imgprofile():
             imgprofiledata = {'xx': xbd.ravel(), 'yy': zz[img_quady_selected, :].ravel()}
             p_imgprofile.xaxis.axis_label = 'Seconds since ' + tim0_char
             imgprofilehoverdata = {'x': xbd[img_quadx_selected], 'y': zz[img_quady_selected, img_quadx_selected],
-                                   'tooltips': [xstr+ystr]}
+                                   'tooltips': [xstr + ystr]}
         else:
             imgprofiledata = {'xx': ybd.ravel(), 'yy': zz[:, img_quadx_selected].ravel()}
             p_imgprofile.xaxis.axis_label = 'distance [arcsec]'
             ystr = '{} [arcsec]'.format(ybd[img_quady_selected][0])
             imgprofilehoverdata = {'x': ybd[img_quady_selected], 'y': zz[img_quady_selected, img_quadx_selected],
-                                   'tooltips': [xstr+ystr]}
+                                   'tooltips': [xstr + ystr]}
         r_imgprofile.data_source.data = imgprofiledata
         r_imgprofile_hover.data_source.data = imgprofilehoverdata
         p_imgprofile.x_range.start, p_imgprofile.x_range.end = imgprofiledata['xx'][0], imgprofiledata['xx'][-1]
@@ -87,7 +88,10 @@ except:
 
 PlotID = MkPlot_args_dict['PlotID']
 try:
-    img_save = database_dir + 'stackplt-' + PlotID + '.npy'
+    if 'stackpltfile' in MkPlot_args_dict.keys():
+        img_save = MkPlot_args_dict['stackpltfile']
+    else:
+        img_save = database_dir + 'stackplt-' + PlotID + '.npy'
     imgdict = np.load(img_save).item()
 except:
     print 'Error: No img-xxxxxxxxxx.npy found!!!'
@@ -213,13 +217,43 @@ RadioButG_XYswitch.on_change('active', SRC_img_quad_update)
 
 SRC_img_quadx.on_change('selected', SRC_img_quad_update)
 SRC_img_quady.on_change('selected', SRC_img_quad_update)
+
+
 # SRC_img_quadtest.on_change('selected', SRC_img_quad_update)
+
+def DropDn_stackplt_handler(attr, old, new):
+    import Tkinter
+    import tkFileDialog
+    if DropDn_stackplt.value == "Open":
+        tkRoot = Tkinter.Tk()
+        tkRoot.withdraw()  # Close the root window
+        fin = tkFileDialog.askopenfilename(initialdir=database_dir, initialfile='stackplt-' + PlotID)
+        if fin:
+            MkPlot_args_dict['stackpltfile'] = fin
+            outfile = database_dir + 'MkPlot_args.json'
+            DButil.updatejsonfile(outfile, MkPlot_args_dict)
+            Div_info.text = """<p><b>Refresh</b> the <b>web page</b> to load new stackplot</p>"""
+    elif DropDn_stackplt.value == "Save As":
+        tkRoot = Tkinter.Tk()
+        tkRoot.withdraw()  # Close the root window
+        fout = tkFileDialog.asksaveasfilename(initialdir=database_dir, initialfile='stackplt-' + PlotID)
+        if fout:
+            os.system('cp {} {}'.format(img_save, fout))
+            Div_info.text = """<p>Stack-plot saved to <b>{}</b></p>.""".format(fout)
+    else:
+        pass
+
+
+menu_stackplt = [("Open", "Open"), ("Save As", "Save As")]
+DropDn_stackplt = Dropdown(label="File", menu=menu_stackplt,
+                           width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'])
+DropDn_stackplt.on_change('value', DropDn_stackplt_handler)
 
 BUT_exit = Button(label='Exit', width=config_main['plot_config']['tab_MkPlot']['button_wdth'], button_type='danger')
 BUT_exit.on_click(exit_update)
 
 # todo dump stackplt data
-lout = row(column(p_img, p_imgprofile), column(RadioButG_XYswitch, BUT_exit, Div_info))
+lout = row(column(p_img, p_imgprofile), column(RadioButG_XYswitch, DropDn_stackplt, BUT_exit, Div_info))
 
 curdoc().add_root(lout)
 curdoc().title = "StackPlt"
