@@ -2,6 +2,7 @@ import json
 import os
 from  casac import *
 import pickle
+
 # import numpy as np
 # import pandas as pd
 # from suncasa.utils import DButil
@@ -17,7 +18,10 @@ if os.path.exists('CASA_imfit_args.json'):
     if 'struct_id' in locals():
         structure_id = struct_id
         if 'clean_id' in locals():
-            cleanIDdir = database_dir + event_id + '/' + struct_id+'/' + clean_id
+            if 'imfit_id' in locals():
+                imfitIDdir = database_dir + event_id + '/' + struct_id + '/' + clean_id + '/' + imfit_id + '/'
+            else:
+                raise ValueError('define a imfit_id!!!')
         else:
             raise ValueError('define a clean_id!!!')
     else:
@@ -42,23 +46,22 @@ if os.path.exists('CASA_imfit_args.json'):
             exec (key + '= {}'.format(val))
         out = pmaxfit()
 
-    imgdir = cleanIDdir + '/Synthesis_Image/'
-    if not os.path.exists(imgdir):
-        os.mkdir(imgdir)
-    with open(imgdir + 'CASA_imfit_out', 'w') as fp:
+    if not os.path.exists(imfitIDdir):
+        os.mkdir(imfitIDdir)
+    with open(imfitIDdir + 'CASA_imfit_out', 'w') as fp:
         pickle.dump(out, fp)
 
-    # todo add deconvolved results
-    # dspecDF2 = DButil.transfitdict2DF(out, gaussfit=gaussfit)
-    # with open(cleanIDdir + '/dspecDF-save', 'rb') as fp:
-    #     dspecDF1 = pickle.load(fp)
-    # for ll in dspecDF1.index:
-    #     tmp = dspecDF1.loc[ll, 'freq']
-    #     dspecDF1.loc[ll, 'freq'] = float('{:.3f}'.format(tmp))
-    # dspecDF = pd.merge(dspecDF1, dspecDF2, how='left', on=['freqstr', 'fits_local'])
-    # with open(cleanIDdir + '/dspecDF-save', 'wb') as fp:
-    #     pickle.dump(dspecDF, fp)
-    # print 'imfit results saved to ' + cleanIDdir + '/dspecDF-save'
+        # todo add deconvolved results
+        # dspecDF2 = DButil.transfitdict2DF(out, gaussfit=gaussfit)
+        # with open(imfitIDdir + '/dspecDF-save', 'rb') as fp:
+        #     dspecDF1 = pickle.load(fp)
+        # for ll in dspecDF1.index:
+        #     tmp = dspecDF1.loc[ll, 'freq']
+        #     dspecDF1.loc[ll, 'freq'] = float('{:.3f}'.format(tmp))
+        # dspecDF = pd.merge(dspecDF1, dspecDF2, how='left', on=['freqstr', 'fits_local'])
+        # with open(imfitIDdir + '/dspecDF-save', 'wb') as fp:
+        #     pickle.dump(dspecDF, fp)
+        # print 'imfit results saved to ' + imfitIDdir + '/dspecDF-save'
 
 else:
     print 'CASA arguments config file not found!!'

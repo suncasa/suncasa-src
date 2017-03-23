@@ -131,7 +131,7 @@ def tab2_vdspec_update():
             spec_plt_L = np.zeros((tab2_nfreq, tab2_ntim))
             if len(pols) > 1:
                 for ll in xrange(tab2_ntim):
-                    hdufile = fits_LOCL_dir + dspecDF0POL.loc[ll, :]['fits_local']
+                    hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
                     if os.path.exists(hdufile):
                         hdu = read_fits(hdufile)
                         hdu_goodchan = goodchan(hdu)
@@ -149,7 +149,7 @@ def tab2_vdspec_update():
                 spec_plt_L[spec_plt_L < 0] = 0
             elif len(pols) == 1:
                 for ll in xrange(tab2_ntim):
-                    hdufile = fits_LOCL_dir + dspecDF0POL.loc[ll, :]['fits_local']
+                    hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
                     if os.path.exists(hdufile):
                         hdu = read_fits(hdufile)
                         hdu_goodchan = goodchan(hdu)
@@ -253,41 +253,8 @@ def tab2_bl_pol_cls_change(bl_index, select_pol):
     tab2_p_dspec_yPro.x_range.end = spec_pol_dict['max'][select_pol]
 
 
-# initial the source of maxfit centroid
-def tab2_SRC_maxfit_centroid_init(dspecDFsel):
-    start_timestamp = time.time()
-    global SRC_maxfit_centroid
-    SRC_maxfit_centroid = {}
-    for ll in np.unique(dspecDFsel['time']):
-        df_tmp = pd.DataFrame(
-            {'freq': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
-        SRC_maxfit_centroid[np.where(abs(tab2_dtim - ll) < 0.02)[0].tolist()[0]] = ColumnDataSource(df_tmp)
-    print("---tab2_SRC_maxfit_centroid_init -- %s seconds ---" % (time.time() - start_timestamp))
-
-
-def aia_submap_wavelength_selection(attrname, old, new):
-    global tab3_r_aia_submap
-    select_wave = tab2_Select_aia_wave.value
-    aiamap = DButil.readsdofile(datadir=SDOdir, wavelength=select_wave, jdtime=xx[0] / 3600. / 24.,
-                                timtol=tab2_dur / 3600. / 24.)
-    print 'wavelength {} selected'.format(select_wave)
-    lengthx = vla_local_pfmap.dw[0] * u.arcsec / 3.0
-    lengthy = vla_local_pfmap.dh[0] * u.arcsec / 3.0
-    x0 = vla_local_pfmap.smap.center.x
-    y0 = vla_local_pfmap.smap.center.y
-    aiamap_submap = aiamap.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
-                                  u.Quantity([y0 - lengthy / 2, y0 + lengthy / 2]))
-    aia_submap_pfmap = PuffinMap(smap=aiamap_submap,
-                                 plot_height=config_main['plot_config']['tab_FSview_FitANLYS'][
-                                     'aia_submap_hght'],
-                                 plot_width=config_main['plot_config']['tab_FSview_FitANLYS'][
-                                     'aia_submap_wdth'],
-                                 webgl=config_main['plot_config']['WebGL'])
-    tab3_r_aia_submap.data_source.data['image'] = aia_submap_pfmap.ImageSource()['data']
-
-
 def slider_LinkImg_update(polonly=False):
-    global hdu, select_vla_pol, dspecDF0POL, tidx_prev
+    global hdu, select_vla_pol, dspecDF0, tidx_prev
     select_vla_pol = tab2_Select_vla_pol.value
     tab2_Slider_time_LinkImg.start = next(
         i for i in xrange(tab2_ntim) if tab2_dtim[i] >= tab2_p_dspec.x_range.start)
@@ -305,8 +272,8 @@ def slider_LinkImg_update(polonly=False):
     tab2_r_dspec_line_y.data_source.data = ColumnDataSource(
         pd.DataFrame({'time': [tab2_dtim[0], tab2_dtim[-1]],
                       'freq': [tab2_freq[fidx], tab2_freq[fidx]]})).data
-    timeidxs = np.unique(dspecDF0POL['time'])
-    fitsfile = dspecDF0POL[dspecDF0POL.time == timeidxs[tidx]].iloc[0]['fits_local']
+    timeidxs = np.unique(dspecDF0['time'])
+    fitsfile = dspecDF0[dspecDF0.time == timeidxs[tidx]].iloc[0]['fits_local']
     hdufile = fits_LOCL_dir + fitsfile
     print hdufile
     if os.path.exists(hdufile):
@@ -348,203 +315,9 @@ def tab3_slider_LinkImg_update(attrname, old, new):
 
 
 def tab2_Select_vla_pol_update(attrname, old, new):
-    global hdu, select_vla_pol, dspecDF0POL, tidx_prev
+    global hdu, select_vla_pol, tidx_prev
     select_vla_pol = tab2_Select_vla_pol.value
-    tab2_Select_vla_pol2.value = select_vla_pol
-    dspecDF0POL = DButil.dspecDFfilter(dspecDF0, select_vla_pol)
-    thresholdrange = (np.floor(dspecDF0POL['peak'].min()), np.ceil(dspecDF0POL['peak'].max()))
-    tab3_rSlider_threshold.start = thresholdrange[0]
-    tab3_rSlider_threshold.end = thresholdrange[1]
-    tab3_rSlider_threshold.range = thresholdrange
-    if tab2_dspec_vector_selected:
-        VdspecDF_update(selected=tab2_dspec_vector_selected)
-    else:
-        VdspecDF_update()
-    for ll in range(len(tab3_dspec_small_CTRLs_OPT['labels_dspec_small'])):
-        RBG_dspec_small_update(ll)
     slider_LinkImg_update()
-
-
-def tab2_Select_vla_pol2_update(attrname, old, new):
-    tab2_Select_vla_pol.value = tab2_Select_vla_pol2.value
-
-
-def tab2_SRC_maxfit_centroid_update(dspecDFsel):
-    start_timestamp = time.time()
-    global SRC_maxfit_centroid, timebin
-    subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'peak']
-    if tab3_BUT_animate_ONOFF.label == 'Animate ON & Go':
-        SRC_maxfit_centroid = {}
-        for ll in np.unique(dspecDFsel['time']):
-            dftmp = dspecDFsel[dspecDFsel.time == ll]
-            dftmp = dftmp.dropna(how='any', subset=subset_label)
-            df_tmp = pd.concat(
-                [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'],
-                 dftmp.loc[:, 'peak']], axis=1)
-            SRC_maxfit_centroid[np.where(abs(tab2_dtim - ll) < 0.02)[0].tolist()[0]] = ColumnDataSource(df_tmp)
-    else:
-        time_dspec = np.unique(dspecDFsel['time'])
-        ntime_dspec = len(time_dspec)
-        if timebin != 1:
-            tidx = np.arange(0, ntime_dspec + 1, timebin)
-            time_seq = time_dspec[0:0 + timebin]
-            dftmp = dspecDFsel[dspecDFsel['time'].isin(time_seq)]
-            dftmp = dftmp.dropna(how='any', subset=subset_label)
-            dftmp_concat = pd.DataFrame(dict(dftmp.mean()), index=[0, ])
-            for ll in tidx[1:]:
-                time_seq = time_dspec[ll:ll + timebin]
-                dftmp = dspecDFsel[dspecDFsel['time'].isin(time_seq)]
-                dftmp = dftmp.dropna(how='any', subset=subset_label)
-                dftmp_concat = dftmp_concat.append(pd.DataFrame(dict(dftmp.mean()), index=[0, ]),
-                                                   ignore_index=True)
-            SRC_maxfit_centroid = ColumnDataSource(
-                dftmp_concat[subset_label].dropna(
-                    how='any'))
-        else:
-            dftmp = dspecDFsel.copy()
-            dftmp = dftmp.dropna(how='any', subset=subset_label)
-            df_tmp = pd.concat(
-                [dftmp.loc[:, 'freq'], dftmp.loc[:, 'shape_longitude'], dftmp.loc[:, 'shape_latitude'],
-                 dftmp.loc[:, 'peak']], axis=1)
-            SRC_maxfit_centroid = ColumnDataSource(df_tmp)
-    print("--- tab2_SRC_maxfit_centroid_update -- %s seconds ---" % (time.time() - start_timestamp))
-
-
-def tab3_aia_submap_cross_selection_change(attrname, old, new):
-    global tab3_dspec_vectorx_img, tab3_dspec_vectory_img
-    global vmax_vx, vmax_vy, vmin_vx, vmin_vy, mean_vx, mean_vy
-    global VdspecDF
-    tab3_aia_submap_cross_selected = tab3_r_aia_submap_cross.data_source.selected['1d']['indices']
-    if tab3_aia_submap_cross_selected:
-        tmpDF = tab3_r_aia_submap_cross.data_source.to_df().iloc[tab3_aia_submap_cross_selected, :]
-        xa0, xa1 = tmpDF['shape_longitude'].min(), tmpDF['shape_longitude'].max()
-        ya0, ya1 = tmpDF['shape_latitude'].min(), tmpDF['shape_latitude'].max()
-        print xa0, xa1, ya0, ya1
-        mean_vx = (xa0 + xa1) / 2
-        mean_vy = (ya0 + ya1) / 2
-        tab3_r_aia_submap_rect.data_source.data['x'] = [mean_vx]
-        tab3_r_aia_submap_rect.data_source.data['y'] = [mean_vy]
-        tab3_r_aia_submap_rect.data_source.data['width'] = [(xa1 - xa0)]
-        tab3_r_aia_submap_rect.data_source.data['height'] = [(ya1 - ya0)]
-        vx = (VdspecDF['shape_longitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
-        vmax_vx, vmin_vx = xa1, xa0
-        vx[vx > vmax_vx] = vmax_vx
-        vx[vx < vmin_vx] = vmin_vx
-        tab3_r_dspec_vectorx.data_source.data['image'] = [vx]
-        vy = (VdspecDF['shape_latitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
-        vmax_vy, vmin_vy = ya1, ya0
-        vy[vy > vmax_vy] = vmax_vy
-        vy[vy < vmin_vy] = vmin_vy
-        tab3_r_dspec_vectory.data_source.data['image'] = [vy]
-        tab3_dspec_small_CTRLs_OPT['vmax_values_last'][1] = xa1
-        tab3_dspec_small_CTRLs_OPT['vmax_values_last'][2] = ya1
-        tab3_dspec_small_CTRLs_OPT['vmin_values_last'][1] = xa0
-        tab3_dspec_small_CTRLs_OPT['vmin_values_last'][2] = ya0
-    else:
-        tab3_r_aia_submap_rect.data_source.data['x'] = [(vmax_vx + vmin_vx) / 2]
-        tab3_r_aia_submap_rect.data_source.data['y'] = [(vmax_vy + vmin_vy) / 2]
-        tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
-        tab3_r_aia_submap_rect.data_source.data['height'] = [(vmax_vy - vmin_vy)]
-
-
-def VdspecDF_init():
-    global VdspecDF, dspecDF0, dspecDF0POL
-    VdspecDF = pd.DataFrame()
-    nrows_dspecDF = len(dspecDF0POL.index)
-    VdspecDF['peak'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0POL.index)
-    VdspecDF['shape_longitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0POL.index)
-    VdspecDF['shape_latitude'] = pd.Series([np.nan] * nrows_dspecDF, index=dspecDF0POL.index)
-
-
-def VdspecDF_update(selected=None):
-    global VdspecDF
-    if selected:
-        VdspecDF.loc[selected, 'shape_longitude'] = dspecDF0POL.loc[selected, 'shape_longitude']
-        VdspecDF.loc[selected, 'shape_latitude'] = dspecDF0POL.loc[selected, 'shape_latitude']
-        VdspecDF.loc[selected, 'peak'] = dspecDF0POL.loc[selected, 'peak']
-    else:
-        VdspecDF.loc[:, 'shape_longitude'] = dspecDF0POL.loc[:, 'shape_longitude']
-        VdspecDF.loc[:, 'shape_latitude'] = dspecDF0POL.loc[:, 'shape_latitude']
-        VdspecDF.loc[:, 'peak'] = dspecDF0POL.loc[:, 'peak']
-
-
-def tab3_SRC_dspec_vector_init():
-    global tab3_dspec_vector_img, tab3_dspec_vectorx_img, tab3_dspec_vectory_img
-    global mean_amp_g, mean_vx, mean_vy, drange_amp_g, drange_vx, drange_vy
-    global vmax_amp_g, vmax_vx, vmax_vy, vmin_amp_g, vmin_vx, vmin_vy
-    start_timestamp = time.time()
-    amp_g = (dspecDF0POL['peak'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
-    mean_amp_g = np.nanmean(amp_g)
-    drange_amp_g = 40.
-    vmax_amp_g, vmin_amp_g = mean_amp_g + drange_amp_g * np.asarray([1., -1.])
-    amp_g[amp_g > vmax_amp_g] = vmax_amp_g
-    amp_g[amp_g < vmin_amp_g] = vmin_amp_g
-    tab3_dspec_vector_img = [amp_g]
-    vx = (dspecDF0POL['shape_longitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
-    mean_vx = np.nanmean(vx)
-    drange_vx = 40.
-    vmax_vx, vmin_vx = mean_vx + drange_vx * np.asarray([1., -1.])
-    vx[vx > vmax_vx] = vmax_vx
-    vx[vx < vmin_vx] = vmin_vx
-    tab3_dspec_vectorx_img = [vx]
-    vy = (dspecDF0POL['shape_latitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
-    mean_vy = np.nanmean(vy)
-    drange_vy = 40.
-    vmax_vy, vmin_vy = mean_vy + drange_vy * np.asarray([1., -1.])
-    vy[vy > vmax_vy] = vmax_vy
-    vy[vy < vmin_vy] = vmin_vy
-    tab3_dspec_vectory_img = [vy]
-    tab3_r_aia_submap_rect.data_source.data['x'] = [(vmax_vx + vmin_vx) / 2]
-    tab3_r_aia_submap_rect.data_source.data['y'] = [(vmax_vy + vmin_vy) / 2]
-    tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
-    tab3_r_aia_submap_rect.data_source.data['height'] = [(vmax_vy - vmin_vy)]
-    print("--- tab3_SRC_dspec_small_init -- %s seconds ---" % (time.time() - start_timestamp))
-
-
-def tab3_SRC_dspec_vector_update():
-    global tab3_r_dspec_vector, tab3_r_dspec_vectorx, tab3_r_dspec_vectory
-    global mean_amp_g, mean_vx, mean_vy, drange_amp_g, drange_vx, drange_vy
-    global vmax_amp_g, vmax_vx, vmax_vy, vmin_amp_g, vmin_vx, vmin_vy
-    global VdspecDF
-    start_timestamp = time.time()
-    amp_g = (VdspecDF['peak'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
-    mean_amp_g = np.nanmean(amp_g)
-    drange_amp_g = 40.
-    vmax_amp_g, vmin_amp_g = mean_amp_g + drange_amp_g * np.asarray([1., -1.])
-    amp_g[amp_g > vmax_amp_g] = vmax_amp_g
-    amp_g[amp_g < vmin_amp_g] = vmin_amp_g
-    tab3_r_dspec_vector.data_source.data['image'] = [amp_g]
-    # todo add threshold selection to the vector dynamic spectrum
-    vx = (VdspecDF['shape_longitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
-    mean_vx = np.nanmean(vx)
-    drange_vx = 40.
-    vmax_vx, vmin_vx = mean_vx + drange_vx * np.asarray([1., -1.])
-    vx[vx > vmax_vx] = vmax_vx
-    vx[vx < vmin_vx] = vmin_vx
-    tab3_r_dspec_vectorx.data_source.data['image'] = [vx]
-    vy = (VdspecDF['shape_latitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
-    mean_vy = np.nanmean(vy)
-    drange_vy = 40.
-    vmax_vy, vmin_vy = mean_vy + drange_vy * np.asarray([1., -1.])
-    vy[vy > vmax_vy] = vmax_vy
-    vy[vy < vmin_vy] = vmin_vy
-    tab3_r_dspec_vectory.data_source.data['image'] = [vy]
-    print("--- tab3_SRC_dspec_small_update -- %s seconds ---" % (time.time() - start_timestamp))
-
-
-def rSlider_threshold_handler(attrname, old, new):
-    global thresholdrange
-    print tab3_p_dspec_vector.x_range.start, tab3_p_dspec_vector.x_range.end
-    thresholdrange = tab3_rSlider_threshold.range
-    tab2_SRC_dspec_vector_square.selected = {'2d': {}, '1d': {'indices': list(
-        dspecDF0POL[dspecDF0POL['peak'] <= thresholdrange[1]][dspecDF0POL['peak'] >= thresholdrange[0]][
-            dspecDF0POL['time'] >= tab3_p_dspec_vector.x_range.start][
-            dspecDF0POL['time'] <= tab3_p_dspec_vector.x_range.end][
-            dspecDF0POL['freq'] >= tab3_p_dspec_vector.y_range.start][
-            dspecDF0POL['freq'] <= tab3_p_dspec_vector.y_range.end].index)},
-                                             '0d': {'indices': [], 'get_view': {}, 'glyph': None}}
-    for ll in range(len(tab3_dspec_small_CTRLs_OPT['labels_dspec_small'])):
-        RBG_dspec_small_update(ll)
 
 
 def tab2_dspec_selection_change(attrname, old, new):
@@ -636,311 +409,6 @@ def tab2_save_region():
         tab2_Div_LinkImg_plot.text = '<p>region saved to <b>{}</b>.</p>'.format(rgnfitsfile)
     else:
         tab2_Div_LinkImg_plot.text = '<p><b>Warning:</b> select a region first.</p>'
-
-
-def dspec_vector_selection_change(selected):
-    global dspecDF_select
-    dspecDF_select = dspecDF0POL.iloc[selected, :]
-    VdspecDF_init()
-    VdspecDF_update(selected=selected)
-    # tab3_SRC_dspec_vector_update(VdspecDF)
-    tab2_SRC_maxfit_centroid_update(dspecDF_select)
-    if tab3_BUT_animate_ONOFF.label == 'Animate OFF & Go':
-        tab3_r_aia_submap_cross.visible = True
-        tab3_r_dspec_vector_line.visible = False
-        tab3_r_dspec_vectorx_line.visible = False
-        tab3_r_dspec_vectory_line.visible = False
-        tab3_r_aia_submap_cross.data_source.data = SRC_maxfit_centroid.data
-
-
-def tab2_dspec_vector_selection_change(attrname, old, new):
-    global tab2_dspec_vector_selected
-    tab2_dspec_vector_selected = tab2_SRC_dspec_vector_square.selected['1d']['indices']
-    if tab2_dspec_vector_selected:
-        dspec_vector_selection_change(tab2_dspec_vector_selected)
-
-
-def RBG_dspec_small_update(idx):
-    global tab3_dspec_small_CTRLs_OPT
-    tab3_dspec_small_CTRLs_OPT['idx_p_dspec_small'] = idx
-    tab3_dspec_small_CTRLs_OPT['radio_button_group_dspec_small_update_flag'] = True
-    mean_values = tab3_dspec_small_CTRLs_OPT['mean_values']
-    drange_values = tab3_dspec_small_CTRLs_OPT['drange_values']
-    vmax_values_last = tab3_dspec_small_CTRLs_OPT['vmax_values_last']
-    vmin_values_last = tab3_dspec_small_CTRLs_OPT['vmin_values_last']
-    tab3_Slider_dspec_small_dmax.start = mean_values[idx] - drange_values[idx]
-    tab3_Slider_dspec_small_dmax.end = mean_values[idx] + 2 * drange_values[idx]
-    tab3_Slider_dspec_small_dmax.value = vmax_values_last[idx]
-    tab3_Slider_dspec_small_dmin.start = mean_values[idx] - 2 * drange_values[
-        idx]
-    tab3_Slider_dspec_small_dmin.end = mean_values[idx] + drange_values[idx]
-    tab3_Slider_dspec_small_dmin.value = vmin_values_last[idx]
-    tab3_dspec_small_CTRLs_OPT['radio_button_group_dspec_small_update_flag'] = False
-
-
-def tab3_RBG_dspec_small_handler(attrname, old, new):
-    idx_p_dspec_small = tab3_RBG_dspec_small.active
-    RBG_dspec_small_update(idx_p_dspec_small)
-
-
-def tab3_BUT_dspec_small_reset_update():
-    global VdspecDF, tab2_nfreq, tab2_ntim, tab3_dspec_small_CTRLs_OPT
-    items_dspec_small = tab3_dspec_small_CTRLs_OPT['items_dspec_small']
-    mean_values = tab3_dspec_small_CTRLs_OPT['mean_values']
-    drange_values = tab3_dspec_small_CTRLs_OPT['drange_values']
-    vmax_values = tab3_dspec_small_CTRLs_OPT['vmax_values']
-    vmin_values = tab3_dspec_small_CTRLs_OPT['vmin_values']
-    source_list = [tab3_r_dspec_vector, tab3_r_dspec_vectorx, tab3_r_dspec_vectory]
-    for ll, item in enumerate(items_dspec_small):
-        TmpData = (VdspecDF[item].copy()).values.reshape(tab2_nfreq, tab2_ntim)
-        TmpData[TmpData > vmax_values[ll]] = vmax_values[ll]
-        TmpData[TmpData < vmin_values[ll]] = vmin_values[ll]
-        source_list[ll].data_source.data['image'] = [TmpData]
-    idx_p_dspec_small = 0
-    tab3_dspec_small_CTRLs_OPT['idx_p_dspec_small'] = idx_p_dspec_small
-    tab3_RBG_dspec_small.active = idx_p_dspec_small
-    tab3_Slider_dspec_small_dmax.start = mean_values[idx_p_dspec_small] - drange_values[idx_p_dspec_small]
-    tab3_Slider_dspec_small_dmax.end = mean_values[idx_p_dspec_small] + 2 * drange_values[idx_p_dspec_small]
-    tab3_Slider_dspec_small_dmax.value = vmax_values[idx_p_dspec_small]
-    tab3_Slider_dspec_small_dmin.start = mean_values[idx_p_dspec_small] - 2 * drange_values[
-        idx_p_dspec_small]
-    tab3_Slider_dspec_small_dmin.end = mean_values[idx_p_dspec_small] + drange_values[idx_p_dspec_small]
-    tab3_Slider_dspec_small_dmin.value = vmin_values[idx_p_dspec_small]
-    tab3_dspec_small_CTRLs_OPT['vmax_values_last'] = [ll for ll in vmax_values]
-    tab3_dspec_small_CTRLs_OPT['vmin_values_last'] = [ll for ll in vmin_values]
-    vmax_vx, vmax_vy = tab3_dspec_small_CTRLs_OPT['vmax_values_last'][1:]
-    vmin_vx, vmin_vy = tab3_dspec_small_CTRLs_OPT['vmin_values_last'][1:]
-    tab3_r_aia_submap_rect.data_source.data['x'] = [(vmax_vx + vmin_vx) / 2]
-    tab3_r_aia_submap_rect.data_source.data['y'] = [(vmax_vy + vmin_vy) / 2]
-    tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
-    tab3_r_aia_submap_rect.data_source.data['height'] = [(vmax_vy - vmin_vy)]
-
-
-def tab3_BUT_dspec_small_resetall_update():
-    VdspecDF_update()
-    tab3_BUT_dspec_small_reset_update()
-    print 'reset all'
-
-
-def tab3_slider_dspec_small_update(attrname, old, new):
-    global VdspecDF, tab2_nfreq, tab2_ntim, tab3_dspec_small_CTRLs_OPT
-    items_dspec_small = tab3_dspec_small_CTRLs_OPT['items_dspec_small']
-    idx_p_dspec_small = tab3_dspec_small_CTRLs_OPT['idx_p_dspec_small']
-    dmax = tab3_Slider_dspec_small_dmax.value
-    dmin = tab3_Slider_dspec_small_dmin.value
-    if not tab3_dspec_small_CTRLs_OPT['radio_button_group_dspec_small_update_flag']:
-        tab3_dspec_small_CTRLs_OPT['vmax_values_last'][idx_p_dspec_small] = dmax
-        tab3_dspec_small_CTRLs_OPT['vmin_values_last'][idx_p_dspec_small] = dmin
-    TmpData = (VdspecDF[items_dspec_small[idx_p_dspec_small]].copy()).values.reshape(tab2_nfreq, tab2_ntim)
-    TmpData[TmpData > dmax] = dmax
-    TmpData[TmpData < dmin] = dmin
-    if idx_p_dspec_small == 0:
-        tab3_r_dspec_vector.data_source.data['image'] = [TmpData]
-    elif idx_p_dspec_small == 1:
-        tab3_r_dspec_vectorx.data_source.data['image'] = [TmpData]
-    elif idx_p_dspec_small == 2:
-        tab3_r_dspec_vectory.data_source.data['image'] = [TmpData]
-    vmax_vx, vmax_vy = tab3_dspec_small_CTRLs_OPT['vmax_values_last'][1:]
-    vmin_vx, vmin_vy = tab3_dspec_small_CTRLs_OPT['vmin_values_last'][1:]
-    tab3_r_aia_submap_rect.data_source.data['x'] = [(vmax_vx + vmin_vx) / 2]
-    tab3_r_aia_submap_rect.data_source.data['y'] = [(vmax_vy + vmin_vy) / 2]
-    tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
-    tab3_r_aia_submap_rect.data_source.data['height'] = [(vmax_vy - vmin_vy)]
-
-
-def tab3_slider_ANLYS_idx_update(attrname, old, new):
-    global tab2_dtim, tab2_freq, tab2_ntim, SRC_maxfit_centroid
-    if tab3_BUT_animate_ONOFF.label == 'Animate ON & Go':
-        tab3_Slider_ANLYS_idx.start = next(
-            i for i in xrange(tab2_ntim) if tab2_dtim[i] >= tab3_p_dspec_vector.x_range.start)
-        tab3_Slider_ANLYS_idx.end = next(
-            i for i in xrange(tab2_ntim - 1, -1, -1) if tab2_dtim[i] <= tab3_p_dspec_vector.x_range.end) + 1
-        indices_time = tab3_Slider_ANLYS_idx.value
-        tab3_r_dspec_vector_line.visible = True
-        tab3_r_dspec_vector_line.data_source.data = ColumnDataSource(
-            pd.DataFrame({'time': [tab2_dtim[indices_time], tab2_dtim[indices_time]],
-                          'freq': [tab2_freq[0], tab2_freq[-1]]})).data
-        try:
-            tab3_r_aia_submap_cross.visible = True
-            tab3_r_aia_submap_cross.data_source.data = SRC_maxfit_centroid[indices_time].data
-        except:
-            tab3_r_aia_submap_cross.visible = False
-    else:
-        tab3_Div_Tb.text = """<p><b>Warning: Animate is OFF!!!</b></p>"""
-
-
-def tab2_panel3_savimgs_handler():
-    dspecDF0POLsub = dspecDF0POL[dspecDF0POL['time'] >= tab3_p_dspec_vector.x_range.start][
-        dspecDF0POL['time'] <= tab3_p_dspec_vector.x_range.end][
-        dspecDF0POL['freq'] >= tab3_p_dspec_vector.y_range.start][
-        dspecDF0POL['freq'] <= tab3_p_dspec_vector.y_range.end]
-    timselseq = np.unique(dspecDF_select['time'])
-    timseq = np.unique(dspecDF0POLsub['time'])
-    subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'timestr']
-    nfiles = len(timseq)
-    for sidx, ll in enumerate(timseq):
-        timstr = dspecDF0POLsub[dspecDF0POLsub['time'] == ll]['timestr'].iloc[0]
-        maponly = True
-        centroids = {}
-        centroids['freqran'] = [tab3_p_dspec_vector.y_range.start, tab3_p_dspec_vector.y_range.end]
-        if ll in timselseq:
-            dftmp = dspecDF_select[dspecDF_select.time == ll][subset_label]
-            dftmp = dftmp.dropna(how='any', subset=subset_label)
-            centroids['freq'] = dftmp['freq'].as_matrix()
-            centroids['shape_longitude'] = dftmp['shape_longitude'].as_matrix()
-            centroids['shape_latitude'] = dftmp['shape_latitude'].as_matrix()
-            maponly = False
-        ctplot.plotmap(centroids, aiamap_submap, outfile=outimgdir + timstr.replace(':', '') + '.png',
-                       label='VLA ' + timstr,
-                       x_range=[tab3_p_aia_submap.x_range.start, tab3_p_aia_submap.x_range.end],
-                       y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end], maponly=maponly)
-        tab3_Div_Tb.text = """<p>{}</p>""".format(
-            DButil.ProgressBar(sidx + 1, nfiles, suffix='Output', decimals=0, length=30, empfill='=', fill='#'))
-    tab3_Div_Tb.text = '<p>images saved to <b>{}</b>.</p>'.format(outimgdir)
-
-
-def tab3_BUT_plot_xargs_default():
-    global tab3_plot_xargs_dict
-    tab3_plot_xargs_dict = OrderedDict()
-    tab3_plot_xargs_dict['timebin'] = "1"
-    tab3_plot_xargs_dict['timeline'] = "False"
-    tab3_Div_plot_xargs_text = '<p>' + ';'.join(
-        "<b>{}</b> = {}".format(key, val) for (key, val) in tab3_plot_xargs_dict.items()) + '</p>'
-    tab3_Div_plot_xargs.text = tab3_Div_plot_xargs_text
-    tab3_Div_Tb.text = '<p><b>Default xargs Restored.</b></p>'
-
-
-def tab3_animate_update():
-    global tab3_animate_step, tab2_dspec_vector_selected
-    if tab3_BUT_animate_ONOFF.label == 'Animate ON & Go':
-        if tab2_dspec_vector_selected:
-            indices_time = tab3_Slider_ANLYS_idx.value + tab3_animate_step
-            if (tab3_animate_step == timebin) and (indices_time > tab3_Slider_ANLYS_idx.end):
-                indices_time = tab3_Slider_ANLYS_idx.start
-            if (tab3_animate_step == -timebin) and (indices_time < tab3_Slider_ANLYS_idx.start):
-                indices_time = tab3_Slider_ANLYS_idx.end
-            tab3_Slider_ANLYS_idx.value = indices_time
-            tab3_Div_Tb.text = """ """
-        else:
-            tab3_Div_Tb.text = """<p><b>Warning: Select time and frequency from the Dynamic Spectrum first!!!</b></p>"""
-    else:
-        tab3_Div_Tb.text = """<p><b>Warning: Animate is OFF!!!</b></p>"""
-
-
-def tab3_animate():
-    global tab2_dspec_vector_selected
-    if tab3_BUT_animate_ONOFF.label == 'Animate ON & Go':
-        if tab3_BUT_PlayCTRL.label == 'Play':
-            if tab2_dspec_vector_selected:
-                tab3_BUT_PlayCTRL.label = 'Pause'
-                tab3_BUT_PlayCTRL.button_type = 'danger'
-                curdoc().add_periodic_callback(tab3_animate_update, 150)
-                tab3_Div_Tb.text = """ """
-            else:
-                tab3_Div_Tb.text = """<p><b>Warning: Select time and frequency from the Dynamic Spectrum first!!!</b></p>"""
-        else:
-            tab3_BUT_PlayCTRL.label = 'Play'
-            tab3_BUT_PlayCTRL.button_type = 'success'
-            curdoc().remove_periodic_callback(tab3_animate_update)
-    else:
-        tab3_Div_Tb.text = """<p><b>Warning: Animate is OFF!!!</b></p>"""
-
-
-def tab3_animate_step_CTRL():
-    global tab3_animate_step, tab2_dspec_vector_selected
-    if tab3_BUT_animate_ONOFF.label == 'Animate ON & Go':
-        if tab2_dspec_vector_selected:
-            if tab3_BUT_PlayCTRL.label == 'Pause':
-                tab3_BUT_PlayCTRL.label = 'Play'
-                tab3_BUT_PlayCTRL.button_type = 'success'
-                curdoc().remove_periodic_callback(tab3_animate_update)
-            idx = tab3_Slider_ANLYS_idx.value + tab3_animate_step
-            if (tab3_animate_step == timebin) and (idx > tab3_Slider_ANLYS_idx.end):
-                idx = tab3_Slider_ANLYS_idx.start
-            elif (tab3_animate_step == -timebin) and (idx < tab3_Slider_ANLYS_idx.start):
-                idx = tab3_Slider_ANLYS_idx.end
-            tab3_Slider_ANLYS_idx.value = idx
-            tab3_Div_Tb.text = """ """
-        else:
-            tab3_Div_Tb.text = """<p><b>Warning: Select time and frequency from the Dynamic Spectrum first!!!</b></p>"""
-    else:
-        tab3_Div_Tb.text = """<p><b>Warning: Animate is OFF!!!</b></p>"""
-
-
-def tab3_animate_FRWD_REVS():
-    global tab3_animate_step
-    if tab3_BUT_animate_ONOFF.label == 'Animate ON & Go':
-        if tab2_dspec_vector_selected:
-            if tab3_animate_step == timebin:
-                tab3_BUT_FRWD_REVS_CTRL.label = 'Reverse'
-                tab3_animate_step = -timebin
-            else:
-                tab3_BUT_FRWD_REVS_CTRL.label = 'Forward'
-                tab3_animate_step = timebin
-            tab3_Div_Tb.text = """ """
-        else:
-            tab3_Div_Tb.text = """<p><b>Warning: Select time and frequency from the Dynamic Spectrum first!!!</b></p>"""
-    else:
-        tab3_Div_Tb.text = """<p><b>Warning: Animate is OFF!!!</b></p>"""
-
-
-def tab3_animate_onoff():
-    if tab2_dspec_vector_selected:
-        global tab3_plot_xargs_dict, timebin, timeline
-        if not 'timebin' in tab3_plot_xargs_dict.keys():
-            tab3_plot_xargs_dict['timebin'] = '1'
-        if not 'timeline' in tab3_plot_xargs_dict.keys():
-            tab3_plot_xargs_dict['timeline'] = 'False'
-        txts = tab3_input_plot_xargs.value.strip()
-        txts = txts.split(';')
-        for txt in txts:
-            txt = txt.strip()
-            txt = txt.split('=')
-            if len(txt) == 2:
-                key, val = txt
-                key, val = key.strip(), val.strip()
-                if key == 'timebin':
-                    if not (0 <= int(val) <= tab2_ntim - 1):
-                        val = '1'
-                    timebin = int(val)
-                if key == 'timeline':
-                    if val not in ['True', 'False']:
-                        val = 'False'
-                    timeline = json.loads(val.lower())
-                tab3_plot_xargs_dict[key.strip()] = val.strip()
-                if key not in ['timebin', 'timeline']:
-                    tab3_plot_xargs_dict.pop(key, None)
-            else:
-                tab3_Div_plot_xargs.text = '<p>Input syntax: <b>timebin</b>=1; <b>linesytle</b>=False;' \
-                                           'Any spaces will be ignored.</p>'
-
-        tab3_Div_plot_xargs_text = '<p>' + ';'.join(
-            "<b>{}</b> = {}".format(key, val) for (key, val) in tab3_plot_xargs_dict.items()) + '</p>'
-        tab3_Div_plot_xargs.text = tab3_Div_plot_xargs_text
-        tab3_animate_step = timebin
-        tab3_Slider_ANLYS_idx.step = timebin
-        if tab3_BUT_animate_ONOFF.label == 'Animate ON & Go':
-            tab3_BUT_animate_ONOFF.label = 'Animate OFF & Go'
-            tab3_r_aia_submap_cross.visible = True
-            tab3_r_aia_submap_line.visible = timeline
-            tab3_r_dspec_vector_line.visible = False
-            tab3_r_dspec_vectorx_line.visible = False
-            tab3_r_dspec_vectory_line.visible = False
-            tab2_SRC_maxfit_centroid_update(dspecDF_select)
-            tab3_r_aia_submap_cross.data_source.data = SRC_maxfit_centroid.data
-        else:
-            tab3_BUT_animate_ONOFF.label = 'Animate ON & Go'
-            tab3_r_aia_submap_cross.visible = True
-            tab3_r_aia_submap_line.visible = False
-            tab3_r_dspec_vector_line.visible = True
-            tab3_r_dspec_vectorx_line.visible = True
-            tab3_r_dspec_vectory_line.visible = True
-            tab2_SRC_maxfit_centroid_update(dspecDF_select)
-            indices_time = tab3_Slider_ANLYS_idx.value
-            tab3_r_aia_submap_cross.data_source.data = SRC_maxfit_centroid[indices_time].data
-            tab3_Div_Tb.text = """ """
-    else:
-        tab3_Div_Tb.text = """<p><b>Warning: Select time and frequency from the Dynamic Spectrum first!!!</b></p>"""
 
 
 def tab2_panel_exit():
@@ -1043,7 +511,7 @@ def tab2_BUT_tImfit_param_delete():
     txts = txts.split(';')
     for key in txts:
         try:
-            if key == 'gaussfit':
+            if key in ['gaussfit', 'event_id', 'struct_id', 'clean_id', 'imfit_id', 'imagefiles']:
                 pass
             else:
                 tab2_tImfit_Param_dict.pop(key)
@@ -1064,6 +532,7 @@ def tab2_BUT_tImfit_param_default():
     tab2_tImfit_Param_dict['event_id'] = "'{}'".format(event_id.replace("/", ""))
     tab2_tImfit_Param_dict['struct_id'] = "'{}'".format(struct_id.replace("/", ""))
     tab2_tImfit_Param_dict['clean_id'] = "'{}'".format(CleanID.replace("/", ""))
+    tab2_tImfit_Param_dict['imfit_id'] = "'{}'".format(DButil.getcurtimstr(prefix='ImfitID_', suffix=''))
     tab2_tImfit_Param_dict['ncpu'] = "10"
     tab2_tImfit_Param_dict['box'] = "''"
     # tab2_tImfit_Param_dict['stokes'] = "'{}'".format(tab2_Select_vla_pol.value)
@@ -1101,39 +570,39 @@ def tab2_BUT_timfit_param_reload():
 
 
 def tab2_BUT_tImfit_update():
-    outfile = CleanID_dir + 'CASA_imfit_args.json'
+    outfile = ImfitID_dir + 'CASA_imfit_args.json'
     DButil.updatejsonfile(outfile, tab2_tImfit_Param_dict)
     os.system('cp {}/DataBrowser/FSview/script_imfit.py {}'.format(suncasa_dir,
-                                                                   CleanID_dir))
+                                                                   ImfitID_dir))
     tab2_Div_tImfit2.text = '<p>CASA pimfit script and arguments config\
-     file saved to <b>{}</b>.</p>'.format(CleanID_dir)
+     file saved to <b>{}</b>.</p>'.format(ImfitID_dir)
     cwd = os.getcwd()
     try:
         tab2_Div_tImfit2.text = '<p>CASA imfit script and arguments config file saved to <b>{}.</b></p>\
-        <p>CASA imfit is in processing.</p>'.format(CleanID_dir)
-        os.chdir(CleanID_dir)
+        <p>CASA imfit is in processing.</p>'.format(ImfitID_dir)
+        os.chdir(ImfitID_dir)
         suncasapy46 = config_main['core']['casapy46']
         suncasapy46 = os.path.expandvars(suncasapy46)
         os.system('{} -c script_imfit.py'.format(suncasapy46))
-        with open(CleanID_dir + '/Synthesis_Image/CASA_imfit_out', 'rb') as f:
+        with open(ImfitID_dir + '/CASA_imfit_out', 'rb') as f:
             out = pickle.load(f)
         exec ('gaussfit = {}'.format(tab2_tImfit_Param_dict['gaussfit']))
         dspecDF2 = DButil.transfitdict2DF(out, gaussfit=gaussfit)
-        with open(CleanID_dir + '/dspecDF-save', 'rb') as fp:
+        with open(CleanID_dir + '/dspecDF-base', 'rb') as fp:
             dspecDF1 = pickle.load(fp)
         for ll in dspecDF1.index:
             tmp = dspecDF1.loc[ll, 'freq']
             dspecDF1.loc[ll, 'freq'] = float('{:.3f}'.format(tmp))
         dspecDF = pd.merge(dspecDF1, dspecDF2, how='left', on=['freqstr', 'fits_local'])
-        with open(CleanID_dir + '/dspecDF-save', 'wb') as fp:
+        with open(ImfitID_dir + '/dspecDF-save', 'wb') as fp:
             pickle.dump(dspecDF, fp)
-        print 'imfit results saved to ' + CleanID_dir + '/dspecDF-save'
+        print 'imfit results saved to ' + ImfitID_dir + '/dspecDF-save'
         tab2_Div_tImfit2.text = '<p>imfit finished, go back to <b>QLook</b> \
         window, select StrID <b>{}</b> and click <b>FSview</b> button again.</p>'.format(struct_id[0:-1])
     except:
         tab2_Div_tImfit2.text = '<p>CASA imfit script and arguments config file \
         saved to <b>{}.</b></p><p>Do imfit with CASA manually.</p>'.format(
-            CleanID_dir) + '<p>When finished, go back to <b>QLook</b> window, \
+            ImfitID_dir) + '<p>When finished, go back to <b>QLook</b> window, \
             select StrID <b>{}</b> and click <b>FSview</b> button again.</p>'.format(struct_id[0:-1])
     os.chdir(cwd)
 
@@ -1150,10 +619,12 @@ struct_id = FS_config['datadir']['struct_id']
 struct_dir = database_dir + event_id + struct_id
 CleanID = FS_config['datadir']['clean_id']
 CleanID_dir = struct_dir + CleanID
+ImfitID = FS_config['datadir']['imfit_id']
+ImfitID_dir = CleanID_dir + ImfitID
 outimgdir = CleanID_dir + '/img_centroids/'
 if not os.path.exists(outimgdir):
     os.makedirs(outimgdir)
-FS_dspecDF = CleanID_dir + 'dspecDF-save'
+FS_dspecDF = CleanID_dir + 'dspecDF-base'
 FS_specfile = FS_config['datadir']['FS_specfile']
 tab2_specdata = np.load(FS_specfile)
 tab2_spec = tab2_specdata['spec']
@@ -1202,55 +673,20 @@ fits_GLOB_dir = CleanID_dir + fits_GLOB
 if os.path.exists(FS_dspecDF):
     with open(FS_dspecDF, 'rb') as f:
         dspecDF0 = pickle.load(f)
-    if DButil.getcolctinDF(dspecDF0, 'peak')[0] > 0:
-        '''
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        #################################### FS_view base ######################################
-        #######################┏━━━┓┏━━━┓╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋┏┓#####################################
-        #######################┃┏━━┛┃┏━┓┃╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋╋┃┃#####################################
-        #######################┃┗━━┓┃┗━━┓┏┓┏┓┏┓┏━━┓┏┓┏┓┏┓┃┗━┓┏━━┓┏━━┓┏━━┓#######################
-        #######################┃┏━━┛┗━━┓┃┃┗┛┃┣┫┃┃━┫┃┗┛┗┛┃┃┏┓┃┃┏┓┃┃━━┫┃┃━┫#######################
-        #######################┃┃╋╋╋┃┗━┛┃┗┓┏┛┃┃┃┃━┫┗┓┏┓┏┛┃┗┛┃┃┏┓┃┣━━┃┃┃━┫#######################
-        #######################┗┛╋╋╋┗━━━┛╋┗┛╋┗┛┗━━┛╋┗┛┗┛╋┗━━┛┗┛┗┛┗━━┛┗━━┛#######################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        '''
-        vlafile = glob.glob(fits_LOCL_dir + '*.fits')
-        tab2_panel2_Div_exit = Div(text="""<p><b>Warning</b>: Click the <b>Exit FSview</b>
+    vlafile = glob.glob(fits_LOCL_dir + '*.fits')
+    if len(vlafile) > 0:
+        tab2_tCLN_Param_dict = DButil.loadjsonfile(CleanID_dir + 'CASA_CLN_args.json')
+        tab2_panel2_Div_exit = Div(text="""<p><b>Warning</b>: Click the <b>Exit FSview</b>\
                                 first before closing the tab</p></b>""",
                                    width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-        # tab2_panel3_Div_exit = Div(text="""<p><b>Warning</b>: Click the <b>Exit FSview</b>
-        #                         first before closing the tab</p></b>""",
-        #                            width=config_plot['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         rmax, rmin = tab2_spec_plt.max(), tab2_spec_plt.min()
 
+        dspecDF_select = dspecDF0
+        '''create the regridded dynamic spectrum plot'''
+        TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
+        downsample_dspecDF(spec_square_rs_tmax=spec_square_rs_tmax, spec_square_rs_fmax=spec_square_rs_fmax)
         '''create the dynamic spectrum plot'''
         TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
-        downsample_dspecDF(spec_square_rs_tmax=spec_square_rs_tmax, spec_square_rs_fmax=spec_square_rs_fmax)
         tab2_SRC_dspec_square = ColumnDataSource(dspecDF0_rs)
         tab2_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
                               plot_width=config_main['plot_config']['tab_FSview_base']['dspec_wdth'],
@@ -1263,8 +699,6 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec.title.text = "Dynamic spectrum"
         tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
         tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
-        # tab2_SRC_dspec_image = ColumnDataSource(
-        #     data={'data': [tab2_spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
         tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0] - tab2_dt / 2.0,
                                           y=tab2_freq[0] - tab2_df / 2.0,
                                           dw=tab2_dur + tab2_dt,
@@ -1274,21 +708,22 @@ if os.path.exists(FS_dspecDF):
         tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=None,
                                             fill_alpha=0.0,
                                             line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
-                                            selection_fill_color=None,
+                                            selection_fill_color='black',
                                             nonselection_fill_alpha=0.0,
                                             selection_line_alpha=0.0, selection_line_color=None,
                                             nonselection_line_alpha=0.0,
                                             size=max(
                                                 config_main['plot_config']['tab_FSview_base'][
-                                                    'dspec_wdth'] / tab2_ntim * spec_rs_step,
+                                                    'dspec_wdth'] / float(tab2_ntim) * spec_rs_step,
                                                 config_main['plot_config']['tab_FSview_base'][
-                                                    'dspec_hght'] / tab2_nfreq * spec_rs_step))
-
+                                                    'dspec_hght'] / float(tab2_nfreq) * spec_rs_step))
         tab2_p_dspec.add_tools(BoxSelectTool(renderers=[tab2_r_square]))
+
         tab2_SRC_dspec_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
         tab2_r_dspec_patch = tab2_p_dspec.patch('xx', 'yy', source=tab2_SRC_dspec_Patch,
                                                 fill_color=None, fill_alpha=0.5, line_color="Magenta",
                                                 line_alpha=1.0, line_width=1)
+
         # tab2_p_dspec.border_fill_color = "silver"
         tab2_p_dspec.border_fill_alpha = 0.4
         tab2_p_dspec.axis.major_tick_out = 0
@@ -1376,11 +811,9 @@ if os.path.exists(FS_dspecDF):
         tab2_BUT_vdspec = Button(label="VEC Dyn Spec",
                                  width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                  button_type="success")
-
         tab2_Select_pol_opt = ['RR', 'LL', 'I', 'V']
 
         tab2_BUT_vdspec.on_click(tab2_vdspec_update)
-
         tab2_ctrls = [tab2_Select_bl, tab2_Select_pol, tab2_Select_colorspace]
         for ctrl in tab2_ctrls:
             ctrl.on_change('value', tab2_update_dspec_image)
@@ -1393,7 +826,7 @@ if os.path.exists(FS_dspecDF):
             var ny = %d;
             var data = {'x': [], 'y': []};
             var cdata = rs.get('data');
-            var rsstep = spec_rs_step.get('data').data[0];
+            var rsstep = spec_rs_step.get('data').data[0]
             var indices = cb_data.index['1d'].indices;
             var idx_offset = indices[0] - (indices[0] %% nx);
             for (i=0; i < nx; i++) {
@@ -1435,26 +868,14 @@ if os.path.exists(FS_dspecDF):
                                        renderers=[tab2_r_square])
         tab2_p_dspec.add_tools(tab2_p_dspec_hover)
 
+        # initial the VLA map contour source
+        tab2_SRC_vlamap_contour = ColumnDataSource(
+            data={'xs': [], 'ys': [], 'line_color': [], 'xt': [], 'yt': [], 'text': []})
+        tab2_SRC_vlamap_peak = ColumnDataSource(
+            data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
+
         # import the vla image
         hdu = read_fits(vlafile[0])
-        pols = DButil.polsfromfitsheader(hdu.header)
-        # initial dspecDF_select and dspecDF0POL
-        dspecDF_select = DButil.dspecDFfilter(dspecDF0, pols[0])
-        dspecDF0POL = dspecDF_select.copy()  # DButil.dspecDFfilter(dspecDF0, pols[0])
-
-        # initial the VLA map contour source
-        tab2_SRC_vlamap_contour = ColumnDataSource(
-            data={'xs': [], 'ys': [], 'line_color': [], 'xt': [], 'yt': [], 'text': []})
-        tab2_SRC_vlamap_peak = ColumnDataSource(
-            data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
-        tab2_SRC_maxfit_centroid_init(dspecDF_select)
-
-        # initial the VLA map contour source
-        tab2_SRC_vlamap_contour = ColumnDataSource(
-            data={'xs': [], 'ys': [], 'line_color': [], 'xt': [], 'yt': [], 'text': []})
-        tab2_SRC_vlamap_peak = ColumnDataSource(
-            data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
-
         hdu_goodchan = goodchan(hdu)
         vla_local_pfmap = PuffinMap(hdu.data[0, hdu_goodchan[0], :, :], hdu.header,
                                     plot_height=config_main['plot_config']['tab_FSview_base']['vla_hght'],
@@ -1473,26 +894,15 @@ if os.path.exists(FS_dspecDF):
         bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
 
-        # try:
+        # aiamap = sunpy.map.Map(filepath)
+        print xx[0] / 3600. / 24., SDOdir
         aiamap = DButil.readsdofile(datadir=SDOdir, wavelength='171', jdtime=xx[0] / 3600. / 24.,
                                     timtol=tab2_dur / 3600. / 24.)
-        # except:
-        # raise SystemExit('No SDO fits found under {}. '.format(SDOdir))
-
-        colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
-        bokehpalette_gray = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-        lengthx = vla_local_pfmap.dw[0] * u.arcsec / 3.0
-        lengthy = vla_local_pfmap.dh[0] * u.arcsec / 3.0
-        x0 = vla_local_pfmap.smap.center.x
-        y0 = vla_local_pfmap.smap.center.y
-        aiamap_submap = aiamap.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
-                                      u.Quantity([y0 - lengthy / 2, y0 + lengthy / 2]))
         MapRES = 256
         dimensions = u.Quantity([MapRES, MapRES], u.pixel)
         aia_resampled_map = aiamap.resample(dimensions)
 
         # plot the global AIA image
-
         aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
                                         plot_height=config_main['plot_config']['tab_FSview_base']['aia_hght'],
                                         plot_width=config_main['plot_config']['tab_FSview_base']['aia_wdth'],
@@ -1501,10 +911,6 @@ if os.path.exists(FS_dspecDF):
         tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg)
         tab2_p_aia.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
                               line_width=2)
-        tab2_p_aia.circle(x='shape_longitude', y='shape_latitude',  # size=10.*dspecDFselect.loc[76,:]['peak']/50.,
-                          radius=3, radius_units='data', source=tab2_SRC_vlamap_peak, fill_alpha=0.8,
-                          fill_color='#7c7e71',
-                          line_color='#7c7e71')
         tab2_p_aia.title.text_font_size = '6pt'
         # tab2_p_aia.border_fill_color = "silver"
         tab2_p_aia.border_fill_alpha = 0.4
@@ -1516,60 +922,16 @@ if os.path.exists(FS_dspecDF):
         tab2_p_aia.axis.minor_tick_line_color = "white"
         tab2_p_aia.grid.grid_line_color = None
         tab2_p_aia.background_fill_color = "black"
+        tab2_r_aia_ImgRgn_patch = tab2_p_aia.patch('xx', 'yy', source=tab2_SRC_ImgRgn_Patch,
+                                                   fill_color=None, fill_alpha=0.5, line_color="white",
+                                                   line_alpha=1, line_width=1)
 
-        # plot the detail AIA image
-        aia_submap_pfmap = PuffinMap(smap=aiamap_submap,
-                                     plot_height=config_main['plot_config']['tab_FSview_FitANLYS']['aia_submap_hght'],
-                                     plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['aia_submap_wdth'],
-                                     webgl=config_main['plot_config']['WebGL'])
-
-        # tab2_SRC_aia_submap_square = ColumnDataSource(ImgDF0)
-        tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
-                                                                        grid_spacing=20 * u.deg,
-                                                                        title='EM sources centroid map')
-        # tab2_r_aia_submap_square = tab3_p_aia_submap.square('xx', 'yy', source=tab2_SRC_aia_submap_square,
-        #                                                     fill_alpha=0.0, fill_color=None,
-        #                                                     line_color=None, line_alpha=0.0, selection_fill_alpha=0.5,
-        #                                                     selection_fill_color=None,
-        #                                                     nonselection_fill_alpha=0.0,
-        #                                                     selection_line_alpha=0.0, selection_line_color=None,
-        #                                                     nonselection_line_alpha=0.0,
-        #                                                     size=4)
-        # tab3_p_aia_submap.add_tools(BoxSelectTool(renderers=[tab2_r_aia_submap_square]))
-
-        # tab3_p_aia_submap.border_fill_color = "silver"
-        tab3_p_aia_submap.border_fill_alpha = 0.4
-        tab3_p_aia_submap.axis.major_tick_out = 0
-        tab3_p_aia_submap.axis.major_tick_in = 5
-        tab3_p_aia_submap.axis.minor_tick_out = 0
-        tab3_p_aia_submap.axis.minor_tick_in = 3
-        tab3_p_aia_submap.axis.major_tick_line_color = "white"
-        tab3_p_aia_submap.axis.minor_tick_line_color = "white"
-        color_mapper = LinearColorMapper(Spectral11)
-
-        tab3_r_aia_submap_cross = tab3_p_aia_submap.cross(x='shape_longitude', y='shape_latitude', size=15,
-                                                          color={'field': 'freq', 'transform': color_mapper},
-                                                          line_width=3,
-                                                          source=SRC_maxfit_centroid[tab2_dtim[0]], line_alpha=0.8)
-        tab3_r_aia_submap_line = tab3_p_aia_submap.line(x='shape_longitude', y='shape_latitude', line_width=3,
-                                                        line_color='black',
-                                                        line_alpha=0.5,
-                                                        source=SRC_maxfit_centroid[tab2_dtim[0]])
-        tab3_p_aia_submap.add_tools(BoxSelectTool(renderers=[tab3_r_aia_submap_cross]))
-        tab3_r_aia_submap_line.visible = False
-        tab3_SRC_aia_submap_rect = ColumnDataSource({'x': [], 'y': [], 'width': [], 'height': []})
-        tab3_r_aia_submap_rect = tab3_p_aia_submap.rect(x='x', y='y', width='width', height='height', fill_alpha=0.1,
-                                                        line_color='black', fill_color='black',
-                                                        source=tab3_SRC_aia_submap_rect)
-
-        tab2_Select_aia_wave = Select(title="Wavelenght:", value='171', options=['94', '131', '171'],
-                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-
-        tab2_Select_aia_wave.on_change('value', aia_submap_wavelength_selection)
         colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
         bokehpalette_sdohmimag = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-        hmimap = aiamap
+        # hmimap = sunpy.map.Map(filepath)
         # todo fix this bug
+        hmimap = aiamap
+        # plot the global HMI image
         hmi_resampled_map = hmimap.resample(dimensions)
         hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
                                         plot_height=config_main['plot_config']['tab_FSview_base']['vla_hght'],
@@ -1582,10 +944,6 @@ if os.path.exists(FS_dspecDF):
                                                              palette=bokehpalette_sdohmimag)
         tab2_p_hmi.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
                               line_width=2)
-        tab2_p_hmi.circle(x='shape_longitude', y='shape_latitude', radius=3, radius_units='data',
-                          source=tab2_SRC_vlamap_peak,
-                          fill_alpha=0.8,
-                          fill_color='#7c7e71', line_color='#7c7e71')
         tab2_p_hmi.yaxis.visible = False
         # tab2_p_hmi.border_fill_color = "silver"
         tab2_p_hmi.border_fill_alpha = 0.4
@@ -1597,7 +955,9 @@ if os.path.exists(FS_dspecDF):
         tab2_p_hmi.axis.minor_tick_line_color = "white"
         tab2_p_hmi.grid.grid_line_color = None
         tab2_p_hmi.background_fill_color = "black"
-
+        tab2_r_hmi_ImgRgn_patch = tab2_p_hmi.patch('xx', 'yy', source=tab2_SRC_ImgRgn_Patch,
+                                                   fill_color=None, fill_alpha=0.5, line_color="white",
+                                                   line_alpha=1, line_width=1)
         # plot the vla image
         tab2_p_vla, tab2_r_vla = vla_local_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
                                                          palette=bokehpalette_SynthesisImg,
@@ -1644,6 +1004,7 @@ if os.path.exists(FS_dspecDF):
                                           width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'] * 2,
                                           callback_policy='mouseup')
 
+        pols = DButil.polsfromfitsheader(hdu.header)
         # pols = ['RR', 'LL', 'I', 'V']
         SRL = set(['RR', 'LL'])
         SXY = set(['XX', 'YY', 'XY', 'YX'])
@@ -1655,9 +1016,6 @@ if os.path.exists(FS_dspecDF):
 
         tab2_Select_vla_pol = Select(title="Polarization:", value=pols[0], options=pols,
                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-        select_vla_pol = tab2_Select_vla_pol.value
-        tab2_Select_vla_pol2 = Select(title="Polarization:", value=tab2_Select_vla_pol.value, options=pols,
-                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
         tab2_source_idx_line_x = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
         tab2_r_dspec_line_x = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
@@ -1666,15 +1024,9 @@ if os.path.exists(FS_dspecDF):
         tab2_r_dspec_line_y = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
                                                 line_color='white', source=tab2_source_idx_line_y)
 
-        tab2_CTRLs_LinkImg = [tab2_Slider_time_LinkImg, tab2_Slider_freq_LinkImg]
-
+        tab2_CTRLs_LinkImg = [tab2_Slider_time_LinkImg, tab2_Slider_freq_LinkImg, tab2_Select_vla_pol]
         for ctrl in tab2_CTRLs_LinkImg:
             ctrl.on_change('value', tab3_slider_LinkImg_update)
-        tab2_Select_vla_pol.on_change('value', tab2_Select_vla_pol_update)
-        tab2_Select_vla_pol2.on_change('value', tab2_Select_vla_pol2_update)
-
-        tab2_LinkImg_HGHT = config_main['plot_config']['tab_FSview_base']['vla_hght']
-        tab2_LinkImg_WDTH = config_main['plot_config']['tab_FSview_base']['vla_wdth']
 
         tab2_BUT_XCorr = Button(label='XCorr',
                                 width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
@@ -1685,742 +1037,92 @@ if os.path.exists(FS_dspecDF):
                                       width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                       button_type='danger')
         tab2_panel2_BUT_exit.on_click(tab2_panel_exit)
-
-        tab2_panel3_BUT_exit = Button(label='Exit FSview',
-                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
-                                      button_type='danger')
-        tab2_panel3_BUT_exit.on_click(tab2_panel_exit)
-
-        tab2_panel3_BUT_savimgs = Button(label='Save images',
-                                         width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
-                                         button_type='primary')
-        tab2_panel3_BUT_savimgs.on_click(tab2_panel3_savimgs_handler)
-
-        tab3_p_dspec_vector = figure(tools='pan,wheel_zoom,box_zoom,save,reset',
-                                     plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
-                                     plot_height=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_hght'],
-                                     x_range=(tab2_dtim[0] - tab2_dt / 2.0, tab2_dtim[-1] + tab2_dt / 2.0),
-                                     y_range=(tab2_freq[0] - tab2_df / 2.0, tab2_freq[-1] + tab2_df / 2.0),
-                                     toolbar_location='above')
-        tab3_p_dspec_vectorx = figure(tools='pan,wheel_zoom,box_zoom,save,reset',
-                                      plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
-                                      plot_height=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_hght'],
-                                      x_range=tab3_p_dspec_vector.x_range,
-                                      y_range=tab3_p_dspec_vector.y_range, toolbar_location='above')
-        tab3_p_dspec_vectory = figure(tools='pan,wheel_zoom,box_zoom,save,reset',
-                                      plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
-                                      plot_height=config_main['plot_config']['tab_FSview_FitANLYS'][
-                                                      'dspec_small_hght'] + 40,
-                                      x_range=tab3_p_dspec_vector.x_range,
-                                      y_range=tab3_p_dspec_vector.y_range, toolbar_location='above')
-        tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
-        tab3_p_dspec_vector.xaxis.visible = False
-        tab3_p_dspec_vectorx.xaxis.visible = False
-        tab3_p_dspec_vector.title.text = "Vector Dynamic spectrum (Intensity)"
-        tab3_p_dspec_vectorx.title.text = "Vector Dynamic spectrum (Vx)"
-        tab3_p_dspec_vectory.title.text = "Vector Dynamic spectrum (Vy)"
-        tab3_p_dspec_vectory.xaxis.axis_label = 'Seconds since ' + tim0_char
-        tab3_p_dspec_vector.yaxis.axis_label = 'Frequency [GHz]'
-        tab3_p_dspec_vectorx.yaxis.axis_label = 'Frequency [GHz]'
-        tab3_p_dspec_vectory.yaxis.axis_label = 'Frequency [GHz]'
-        # tab3_p_dspec_vector.border_fill_color = "silver"
-        tab3_p_dspec_vector.border_fill_alpha = 0.4
-        tab3_p_dspec_vector.axis.major_tick_out = 0
-        tab3_p_dspec_vector.axis.major_tick_in = 5
-        tab3_p_dspec_vector.axis.minor_tick_out = 0
-        tab3_p_dspec_vector.axis.minor_tick_in = 3
-        tab3_p_dspec_vector.axis.major_tick_line_color = "white"
-        tab3_p_dspec_vector.axis.minor_tick_line_color = "white"
-        # tab3_p_dspec_vectorx.border_fill_color = "silver"
-        tab3_p_dspec_vectorx.border_fill_alpha = 0.4
-        tab3_p_dspec_vectorx.axis.major_tick_out = 0
-        tab3_p_dspec_vectorx.axis.major_tick_in = 5
-        tab3_p_dspec_vectorx.axis.minor_tick_out = 0
-        tab3_p_dspec_vectorx.axis.minor_tick_in = 3
-        tab3_p_dspec_vectorx.axis.major_tick_line_color = "white"
-        tab3_p_dspec_vectorx.axis.minor_tick_line_color = "white"
-        # tab3_p_dspec_vectory.border_fill_color = "silver"
-        tab3_p_dspec_vectory.border_fill_alpha = 0.4
-        tab3_p_dspec_vectory.axis.major_tick_out = 0
-        tab3_p_dspec_vectory.axis.major_tick_in = 5
-        tab3_p_dspec_vectory.axis.minor_tick_out = 0
-        tab3_p_dspec_vectory.axis.minor_tick_in = 3
-        tab3_p_dspec_vectory.axis.major_tick_line_color = "white"
-        tab3_p_dspec_vectory.axis.minor_tick_line_color = "white"
-        tab3_p_dspec_vector.add_tools(BoxSelectTool())
-        tab3_p_dspec_vector.add_tools(LassoSelectTool())
-        tab3_p_dspec_vector.select(BoxSelectTool).select_every_mousemove = False
-        tab3_p_dspec_vector.select(LassoSelectTool).select_every_mousemove = False
-        tab3_r_aia_submap_cross.data_source.on_change('selected', tab3_aia_submap_cross_selection_change)
-
-        VdspecDF_init()
-        VdspecDF_update()
-        tab3_SRC_dspec_vector_init()
-        tab3_r_dspec_vector = tab3_p_dspec_vector.image(image=tab3_dspec_vector_img, x=tab2_dtim[0] - tab2_dt / 2.0,
-                                                        y=tab2_freq[0] - tab2_df / 2.0,
-                                                        dw=tab2_dur + tab2_dt,
-                                                        dh=tab2_freq[-1] - tab2_freq[0] + tab2_df,
-                                                        palette=bokehpalette_jet)
-        tab3_r_dspec_vectorx = tab3_p_dspec_vectorx.image(image=tab3_dspec_vectorx_img, x=tab2_dtim[0] - tab2_dt / 2.0,
-                                                          y=tab2_freq[0] - tab2_df / 2.0,
-                                                          dw=tab2_dur + tab2_dt,
-                                                          dh=tab2_freq[-1] - tab2_freq[0] + tab2_df,
-                                                          palette=bokehpalette_jet)
-        tab3_r_dspec_vectory = tab3_p_dspec_vectory.image(image=tab3_dspec_vectory_img, x=tab2_dtim[0] - tab2_dt / 2.0,
-                                                          y=tab2_freq[0] - tab2_df / 2.0,
-                                                          dw=tab2_dur + tab2_dt,
-                                                          dh=tab2_freq[-1] - tab2_freq[0] + tab2_df,
-                                                          palette=bokehpalette_jet)
-        tab3_source_idx_line = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
-        tab3_r_dspec_vector_line = tab3_p_dspec_vector.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
-                                                            line_color='white', source=tab3_source_idx_line)
-        tab3_r_dspec_vectorx_line = tab3_p_dspec_vectorx.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
-                                                              line_color='white',
-                                                              source=tab3_source_idx_line)
-        tab3_r_dspec_vectory_line = tab3_p_dspec_vectory.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
-                                                              line_color='white',
-                                                              source=tab3_source_idx_line)
-        tab2_SRC_dspec_vector_square = ColumnDataSource(dspecDF0POL)
-        tab2_r_dspec_vector_square = tab3_p_dspec_vector.square('time', 'freq', source=tab2_SRC_dspec_vector_square,
-                                                                fill_color=None,
-                                                                fill_alpha=0.0,
-                                                                line_color=None, line_alpha=0.0,
-                                                                selection_fill_alpha=0.2,
-                                                                selection_fill_color='black',
-                                                                nonselection_fill_alpha=0.0,
-                                                                selection_line_alpha=0.0, selection_line_color='white',
-                                                                nonselection_line_alpha=0.0,
-                                                                size=min(
-                                                                    config_main['plot_config']['tab_FSview_FitANLYS'][
-                                                                        'dspec_small_wdth'] / tab2_ntim,
-                                                                    config_main['plot_config']['tab_FSview_FitANLYS'][
-                                                                        'dspec_small_hght'] / tab2_nfreq))
-
         tab2_dspec_selected = None
+
         tab2_SRC_dspec_square.on_change('selected', tab2_dspec_selection_change)
         tab2_vla_square_selected = None
-        tab2_SRC_vla_square.on_change('selected', tab2_vla_square_selection_change)
+        tab2_SRC_vla_square.on_change('selected', tab2_prep_vla_square_selection_change)
         tab2_Select_MapRES = Select(title="Img resolution:", value='{}x{}'.format(MapRES, MapRES),
                                     options=["32x32", "64x64", "128x128", "256x256", "512x512", "1024x1024",
                                              "2048x2048"],
                                     width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+
         tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
         rgnfitsfile = CleanID_dir + "CASA_imfit_region_fits.rgn"
-
         tab2_BUT_SavRgn = Button(label='Save Region',
                                  width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                  button_type='primary')
         tab2_BUT_SavRgn.on_click(tab2_save_region)
-        tab2_dspec_vector_selected = None
-        tab2_SRC_dspec_vector_square.on_change('selected', tab2_dspec_vector_selection_change)
-        tab3_dspec_small_CTRLs_OPT = dict(mean_values=[mean_amp_g, mean_vx, mean_vy],
-                                          drange_values=[drange_amp_g, drange_vx, drange_vy],
-                                          vmax_values=[vmax_amp_g, vmax_vx, vmax_vy],
-                                          vmin_values=[vmin_amp_g, vmin_vx, vmin_vy],
-                                          vmax_values_last=[vmax_amp_g, vmax_vx, vmax_vy],
-                                          vmin_values_last=[vmin_amp_g, vmin_vx, vmin_vy],
-                                          items_dspec_small=['peak', 'shape_longitude', 'shape_latitude'],
-                                          labels_dspec_small=["Flux", "X-pos", "Y-pos"], idx_p_dspec_small=0,
-                                          radio_button_group_dspec_small_update_flag=False)
 
-        tab3_RBG_dspec_small = RadioButtonGroup(labels=tab3_dspec_small_CTRLs_OPT['labels_dspec_small'], active=0)
-        tab3_BUT_dspec_small_reset = Button(label='Reset DRange',
-                                            width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-        tab3_Slider_dspec_small_dmax = Slider(start=mean_amp_g, end=mean_amp_g + 2 * drange_amp_g, value=vmax_amp_g,
-                                              step=1, title='dmax', callback_throttle=250)
-        tab3_Slider_dspec_small_dmin = Slider(start=mean_amp_g - 2 * drange_amp_g, end=mean_amp_g, value=vmin_amp_g,
-                                              step=1, title='dmin', callback_throttle=250)
-        thresholdrange = (np.floor(dspecDF0POL['peak'].min()), np.ceil(dspecDF0POL['peak'].max()))
-        tab3_rSlider_threshold = RangeSlider(start=thresholdrange[0], end=thresholdrange[1], range=thresholdrange,
-                                             step=1, title='flux threshold selection', callback_throttle=250, width=400)
-        tab3_rSlider_threshold.on_change('range', rSlider_threshold_handler)
-        tab3_RBG_dspec_small.on_change('active', tab3_RBG_dspec_small_handler)
-        tab3_BUT_dspec_small_reset.on_click(tab3_BUT_dspec_small_reset_update)
-        tab3_BUT_dspec_small_resetall = Button(label='Reset All',
-                                               width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-        tab3_BUT_dspec_small_resetall.on_click(tab3_BUT_dspec_small_resetall_update)
-        tab3_CTRLs_dspec_small = [tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin]
-        for ctrl in tab3_CTRLs_dspec_small:
-            ctrl.on_change('value', tab3_slider_dspec_small_update)
+        tab2_input_tImfit = TextInput(value="Input the param here", title="pimfit task parameters:",
+                                      width=config_main['plot_config']['tab_FSviewPrep']['input_tCLN_wdth'])
+        tab2_Div_tImfit = Div(text='', width=config_main['plot_config']['tab_FSviewPrep']['tab2_Div_tImfit_wdth'])
+        tab2_Div_tImfit2 = Div(text='', width=config_main['plot_config']['tab_FSviewPrep']['input_tCLN_wdth'])
+        tab2_maxfit_checkbox = CheckboxGroup(labels=["parabolic fit"], active=[0])
+        tab2_maxfit_checkbox.on_click(Domaxfit)
 
-        tab3_RBG_TimeFreq = RadioButtonGroup(labels=["time", "freq"], active=0)
-        tab3_Slider_ANLYS_idx = Slider(start=0, end=tab2_ntim - 1, value=0, step=1, title="time idx", width=450)
-        tab3_Slider_ANLYS_idx.on_change('value', tab3_slider_ANLYS_idx_update)
-        tab3_Div_Tb = Div(text=""" """, width=400)
-        timebin = 1
-        timeline = False
-        tab3_animate_step = timebin
-        tab3_BUT_PlayCTRL = Button(label='Play', width=60, button_type='success')
-        tab3_BUT_PlayCTRL.on_click(tab3_animate)
-        tab3_BUT_StepCTRL = Button(label='Step', width=60, button_type='primary')
-        tab3_BUT_StepCTRL.on_click(tab3_animate_step_CTRL)
-        tab3_BUT_FRWD_REVS_CTRL = Button(label='Forward', width=60, button_type='warning')
-        tab3_BUT_FRWD_REVS_CTRL.on_click(tab3_animate_FRWD_REVS)
-        tab3_BUT_animate_ONOFF = Button(label='Animate ON & Go', width=80)
-        tab3_BUT_animate_ONOFF.on_click(tab3_animate_onoff)
-        tab3_Div_plot_xargs = Div(text='', width=300)
-        tab3_BUT_plot_xargs_default()
-        tab3_SPCR_LFT_BUT_Step = Spacer(width=10, height=10)
-        tab3_SPCR_LFT_BUT_REVS_CTRL = Spacer(width=10, height=10)
-        tab3_SPCR_LFT_BUT_animate_ONOFF = Spacer(width=20, height=10)
-        tab3_input_plot_xargs = TextInput(value='Input the param here', title="Plot parameters:", width=300)
-        # todo add RCP LCP check box
-        tab3_CheckboxGroup_pol = CheckboxGroup(labels=["RCP", "LCP"], active=[0, 1])
+        tab2_BUT_tImfit_param_default()
+        tab2_BUT_tImfit_param_ADD = Button(label='Add to Param',
+                                           width=config_main['plot_config']['tab_FSviewPrep']['button_wdth'],
+                                           button_type='primary')
+        tab2_BUT_tImfit_param_ADD.on_click(tab2_BUT_tImfit_param_add)
+        tab2_BUT_tImfit_param_DEL = Button(label='Delete Param',
+                                           width=config_main['plot_config']['tab_FSviewPrep']['button_wdth'],
+                                           button_type='warning')
+        tab2_BUT_tImfit_param_DEL.on_click(tab2_BUT_tImfit_param_delete)
+        tab2_BUT_tImfit_param_Default = Button(label='Default Param',
+                                               width=config_main['plot_config']['tab_FSviewPrep']['button_wdth'])
+        tab2_BUT_tImfit_param_Default.on_click(tab2_BUT_tImfit_param_default)
+        tab2_SPCR_LFT_BUT_tImfit_param_DEL = Spacer(
+            width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
+        tab2_SPCR_LFT_BUT_tImfit_param_RELOAD = Spacer(
+            width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
+        tab2_SPCR_LFT_BUT_tImfit_param_DEFAULT = Spacer(
+            width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
 
-        tab2_Select_MapRES = Select(title="Img resolution:", value='{}x{}'.format(MapRES, MapRES),
-                                    options=["32x32", "64x64", "128x128", "256x256", "512x512", "1024x1024",
-                                             "2048x2048"],
-                                    width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+        tab2_BUT_tImfit_param_RELOAD = Button(label='reload Param',
+                                              width=config_main['plot_config']['tab_FSviewPrep']['button_wdth'])
+        tab2_BUT_tImfit_param_RELOAD.on_click(tab2_BUT_timfit_param_reload)
+        tab2_SPCR_LFT_BUT_tImfit_param_reload = Spacer(
+            width=config_main['plot_config']['tab_FSviewPrep']['space_wdth20'])
 
-        tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
+        tab2_BUT_tImfit = Button(label='imfit',
+                                 width=config_main['plot_config']['tab_FSviewPrep']['button_wdth'],
+                                 button_type='success')
+        tab2_BUT_tImfit.on_click(tab2_BUT_tImfit_update)
+        tab2_SPCR_ABV_BUT_timfit = Spacer(width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
 
+        tab2_SPCR_LFT_Div_tImfit = Spacer(width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
 
-        def Buttonaskdir_handler():
-            import Tkinter
-            import tkFileDialog
-            global outimgdir
-            tkRoot = Tkinter.Tk()
-            tkRoot.withdraw()  # Close the root window
-            outdir = tkFileDialog.askdirectory(initialdir=outimgdir, parent=tkRoot) + '/'
-            if outdir:
-                outimgdir = outdir
-            tkRoot.destroy()
-
-
-        But_outdir = Button(label='outpath', width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-        But_outdir.on_click(Buttonaskdir_handler)
-
-        lout2_1 = row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
-                      widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
-                                tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
-                                width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'] * 2))
-        # if do_spec_regrid:
-        #     # lout2_2_1 = column(tab2_p_dspec_rs, row(tab2_p_dspec, tab2_p_dspec_yPro), tab2_p_dspec_xPro)
-        #     pass
-        # else:
-        lout2_2_1 = column(row(tab2_p_dspec, tab2_p_dspec_yPro), tab2_p_dspec_xPro)
-        lout2_2_2 = widgetbox(tab2_Select_pol, tab2_Select_bl,
-                              tab2_Select_colorspace, tab2_BUT_XCorr,
-                              tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
-                              width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-        lout2_2 = row(lout2_2_1, lout2_2_2)
-        panel2 = column(lout2_1, lout2_2)
-
-        lout3_1 = column(tab3_p_aia_submap, tab3_Slider_ANLYS_idx,
-                         row(tab3_BUT_PlayCTRL, tab3_SPCR_LFT_BUT_Step, tab3_BUT_StepCTRL,
-                             tab3_SPCR_LFT_BUT_REVS_CTRL,
-                             tab3_BUT_FRWD_REVS_CTRL, tab3_SPCR_LFT_BUT_animate_ONOFF,
-                             tab3_BUT_animate_ONOFF), tab3_input_plot_xargs, tab3_Div_plot_xargs)
-        lout3_2 = column(gridplot([tab3_p_dspec_vector], [tab3_p_dspec_vectorx], [tab3_p_dspec_vectory],
-                                  toolbar_location='right'), tab3_Div_Tb)
-        lout3_3 = widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
-                            tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab3_rSlider_threshold,
-                            tab2_Select_vla_pol2, tab2_Select_aia_wave, But_outdir, tab2_panel3_BUT_savimgs,
-                            tab2_panel3_BUT_exit,
-                            width=200)
-        panel3 = row(lout3_1, lout3_2, lout3_3)
-        # tab2 = Panel(child=panel2, title="FS View")
-        # tab3 = Panel(child=panel3, title="FitANLYS")
-        #
-        # tabs_top = Tabs(tabs=[tab2, tab3])
-
-        lout = column(panel2, panel3)
-
-        # def timeout_callback():
-        #     print 'timeout'
-        #     raise SystemExit
-
+        lout2_1_1 = row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
+                        widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
+                                  tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
+                                  width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'] * 2))
+        lout2_1_2 = row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
+                               tab2_p_dspec_xPro),
+                        widgetbox(tab2_Select_pol, tab2_Select_bl,
+                                  tab2_Select_colorspace, tab2_BUT_XCorr,
+                                  tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
+                                  width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']))
+        lout2_1 = column(lout2_1_1, lout2_1_2)
+        lout2_2 = tab2_SPCR_LFT_Div_tImfit
+        lout2_3 = column(widgetbox(tab2_input_tImfit, tab2_maxfit_checkbox, tab2_Div_tImfit2,
+                                   width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'] * 2),
+                         row(tab2_BUT_tImfit_param_ADD, tab2_SPCR_LFT_BUT_tImfit_param_DEL,
+                             tab2_BUT_tImfit_param_DEL, tab2_SPCR_LFT_BUT_tImfit_param_DEFAULT,
+                             tab2_BUT_tImfit_param_Default, tab2_SPCR_LFT_BUT_tImfit_param_RELOAD,
+                             tab2_BUT_tImfit_param_RELOAD, tab2_SPCR_ABV_BUT_timfit, tab2_BUT_tImfit),
+                         tab2_Div_tImfit)
+        lout = row(lout2_1, lout2_2, lout2_3)
 
         curdoc().add_root(lout)
         curdoc().title = "FSview"
     else:
-        '''
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        #################################### FS_view_prep ######################################
-        #######################┏━━━┓┏━━━┓#######################################################
-        #######################┃┏━━┛┃┏━┓┃#######################################################
-        #######################┃┗━━┓┃┗━━┓┏┓┏┓┏┓┏━━┓┏┓┏┓┏┓┏━━┓┏━┓┏━━┓┏━━┓########################
-        #######################┃┏━━┛┗━━┓┃┃┗┛┃┣┫┃┃━┫┃┗┛┗┛┃┃┏┓┃┃┏┛┃┃━┫┃┏┓┃########################
-        #######################┃┃╋╋╋┃┗━┛┃┗┓┏┛┃┃┃┃━┫┗┓┏┓┏┛┃┗┛┃┃┃╋┃┃━┫┃┗┛┃########################
-        #######################┗┛╋╋╋┗━━━┛╋┗┛╋┗┛┗━━┛╋┗┛┗┛╋┃┏━┛┗┛╋┗━━┛┃┏━┛########################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        ########################################################################################
-        '''
-        vlafile = glob.glob(fits_LOCL_dir + '*.fits')
-        if len(vlafile) > 0:
-            tab2_tCLN_Param_dict = DButil.loadjsonfile(CleanID_dir + 'CASA_CLN_args.json')
-            tab2_panel2_Div_exit = Div(text="""<p><b>Warning</b>: Click the <b>Exit FSview</b>\
-                                    first before closing the tab</p></b>""",
-                                       width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-            rmax, rmin = tab2_spec_plt.max(), tab2_spec_plt.min()
-
-            dspecDF0POL = dspecDF0
-            dspecDF_select = dspecDF0
-            '''create the regridded dynamic spectrum plot'''
-            TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
-            downsample_dspecDF(spec_square_rs_tmax=spec_square_rs_tmax, spec_square_rs_fmax=spec_square_rs_fmax)
-            '''create the dynamic spectrum plot'''
-            TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
-            tab2_SRC_dspec_square = ColumnDataSource(dspecDF0_rs)
-            tab2_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
-                                  plot_width=config_main['plot_config']['tab_FSview_base']['dspec_wdth'],
-                                  plot_height=config_main['plot_config']['tab_FSview_base']['dspec_hght'],
-                                  x_range=(tab2_dtim[0] - tab2_dt / 2.0, tab2_dtim[-1] + tab2_dt / 2.0),
-                                  y_range=(tab2_freq[0] - tab2_df / 2.0, tab2_freq[-1] + tab2_df / 2.0),
-                                  toolbar_location="above")
-            tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
-            tab2_p_dspec.axis.visible = True
-            tab2_p_dspec.title.text = "Dynamic spectrum"
-            tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
-            tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
-            tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0] - tab2_dt / 2.0,
-                                              y=tab2_freq[0] - tab2_df / 2.0,
-                                              dw=tab2_dur + tab2_dt,
-                                              dh=tab2_freq[-1] - tab2_freq[0] + tab2_df, palette=bokehpalette_jet)
-
-            # make the dspec data source selectable
-            tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=None,
-                                                fill_alpha=0.0,
-                                                line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
-                                                selection_fill_color='black',
-                                                nonselection_fill_alpha=0.0,
-                                                selection_line_alpha=0.0, selection_line_color=None,
-                                                nonselection_line_alpha=0.0,
-                                                size=max(
-                                                    config_main['plot_config']['tab_FSview_base'][
-                                                        'dspec_wdth'] / float(tab2_ntim) * spec_rs_step,
-                                                    config_main['plot_config']['tab_FSview_base'][
-                                                        'dspec_hght'] / float(tab2_nfreq) * spec_rs_step))
-            tab2_p_dspec.add_tools(BoxSelectTool(renderers=[tab2_r_square]))
-
-            tab2_SRC_dspec_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
-            tab2_r_dspec_patch = tab2_p_dspec.patch('xx', 'yy', source=tab2_SRC_dspec_Patch,
-                                                    fill_color=None, fill_alpha=0.5, line_color="Magenta",
-                                                    line_alpha=1.0, line_width=1)
-
-            # tab2_p_dspec.border_fill_color = "silver"
-            tab2_p_dspec.border_fill_alpha = 0.4
-            tab2_p_dspec.axis.major_tick_out = 0
-            tab2_p_dspec.axis.major_tick_in = 5
-            tab2_p_dspec.axis.minor_tick_out = 0
-            tab2_p_dspec.axis.minor_tick_in = 3
-            tab2_p_dspec.axis.major_tick_line_color = "white"
-            tab2_p_dspec.axis.minor_tick_line_color = "white"
-
-            tab2_Select_pol = Select(title="Polarization:", value='I', options=['RR', 'LL', 'I', 'V'],
-                                     width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-            tab2_Select_bl = Select(title="Baseline:", value=tab2_bl[0], options=tab2_bl,
-                                    width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-            tab2_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
-                                            width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-
-            tab2_p_dspec_xPro = figure(tools='', webgl=config_main['plot_config']['WebGL'],
-                                       plot_width=config_main['plot_config']['tab_FSview_base']['dspec_xPro_wdth'],
-                                       plot_height=config_main['plot_config']['tab_FSview_base']['dspec_xPro_hght'],
-                                       x_range=tab2_p_dspec.x_range, y_range=(spec_plt_min, spec_plt_max),
-                                       title="Time profile", toolbar_location=None)
-            tab2_SRC_dspec_xPro = ColumnDataSource({'x': [], 'y': []})
-            tab2_SRC_dspec_xPro_hover = ColumnDataSource({'x': [], 'y': [], 'tooltips': []})
-            r_dspec_xPro = tab2_p_dspec_xPro.line(x='x', y='y', alpha=1.0, line_width=1, source=tab2_SRC_dspec_xPro)
-            r_dspec_xPro_c = tab2_p_dspec_xPro.circle(x='x', y='y', size=5, fill_alpha=0.2, fill_color='grey',
-                                                      line_color=None,
-                                                      source=tab2_SRC_dspec_xPro)
-            r_dspec_xPro_hover = tab2_p_dspec_xPro.circle(x='x', y='y', size=5, fill_alpha=0.5, fill_color='firebrick',
-                                                          line_color='firebrick', source=tab2_SRC_dspec_xPro_hover)
-            l_dspec_xPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
-                                          source=tab2_SRC_dspec_xPro_hover,
-                                          render_mode='canvas')
-            l_dspec_xPro_hover.text_font_size = '10pt'
-            tab2_p_dspec_xPro.add_layout(l_dspec_xPro_hover)
-            tab2_p_dspec_xPro.title.text_font_size = '6pt'
-            tab2_p_dspec_xPro.background_fill_color = "beige"
-            tab2_p_dspec_xPro.background_fill_alpha = 0.4
-            tab2_p_dspec_xPro.xaxis.axis_label = 'Seconds since ' + tim0_char
-            tab2_p_dspec_xPro.yaxis.axis_label_text_font_size = '5px'
-            tab2_p_dspec_xPro.yaxis.axis_label = 'Intensity [sfu]'
-            # tab2_p_dspec_xPro.border_fill_color = "silver"
-            tab2_p_dspec_xPro.border_fill_alpha = 0.4
-            tab2_p_dspec_xPro.axis.major_tick_out = 0
-            tab2_p_dspec_xPro.axis.major_tick_in = 5
-            tab2_p_dspec_xPro.axis.minor_tick_out = 0
-            tab2_p_dspec_xPro.axis.minor_tick_in = 3
-            tab2_p_dspec_xPro.axis.major_tick_line_color = "black"
-            tab2_p_dspec_xPro.axis.minor_tick_line_color = "black"
-
-            tab2_p_dspec_yPro = figure(tools='', webgl=config_main['plot_config']['WebGL'],
-                                       plot_width=config_main['plot_config']['tab_FSview_base']['dspec_yPro_wdth'],
-                                       plot_height=config_main['plot_config']['tab_FSview_base']['dspec_yPro_hght'],
-                                       x_range=(spec_plt_min, spec_plt_max), y_range=tab2_p_dspec.y_range,
-                                       title="Frequency profile", toolbar_location=None)
-            tab2_SRC_dspec_yPro = ColumnDataSource({'x': [], 'y': []})
-            tab2_SRC_dspec_yPro_hover = ColumnDataSource({'x': [], 'y': [], 'tooltips': []})
-            r_dspec_yPro = tab2_p_dspec_yPro.line(x='x', y='y', alpha=1.0, line_width=1, source=tab2_SRC_dspec_yPro)
-            r_dspec_yPro_c = tab2_p_dspec_yPro.circle(x='x', y='y', size=5, fill_alpha=0.2, fill_color='grey',
-                                                      line_color=None,
-                                                      source=tab2_SRC_dspec_yPro)
-            r_dspec_yPro_hover = tab2_p_dspec_yPro.circle(x='x', y='y', size=5, fill_alpha=0.5, fill_color='firebrick',
-                                                          line_color='firebrick', source=tab2_SRC_dspec_yPro_hover)
-            l_dspec_yPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
-                                          source=tab2_SRC_dspec_yPro_hover,
-                                          render_mode='canvas')
-            l_dspec_yPro_hover.text_font_size = '10pt'
-            tab2_p_dspec_yPro.add_layout(l_dspec_yPro_hover)
-            tab2_p_dspec_yPro.title.text_font_size = '6pt'
-            tab2_p_dspec_yPro.yaxis.visible = False
-            tab2_p_dspec_yPro.background_fill_color = "beige"
-            tab2_p_dspec_yPro.background_fill_alpha = 0.4
-            tab2_p_dspec_yPro.xaxis.axis_label = 'Intensity [sfu]'
-            tab2_p_dspec_yPro.yaxis.axis_label_text_font_size = '5px'
-            # tab2_p_dspec_yPro.border_fill_color = "silver"
-            tab2_p_dspec_yPro.border_fill_alpha = 0.4
-            tab2_p_dspec_yPro.min_border_bottom = 0
-            tab2_p_dspec_yPro.min_border_left = 0
-            tab2_p_dspec_yPro.axis.major_tick_out = 0
-            tab2_p_dspec_yPro.axis.major_tick_in = 5
-            tab2_p_dspec_yPro.axis.minor_tick_out = 0
-            tab2_p_dspec_yPro.axis.minor_tick_in = 3
-            tab2_p_dspec_yPro.axis.major_tick_line_color = "black"
-            tab2_p_dspec_yPro.axis.minor_tick_line_color = "black"
-
-            tab2_BUT_vdspec = Button(label="VEC Dyn Spec",
-                                     width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
-                                     button_type="success")
-            tab2_Select_pol_opt = ['RR', 'LL', 'I', 'V']
-
-            tab2_BUT_vdspec.on_click(tab2_vdspec_update)
-            tab2_ctrls = [tab2_Select_bl, tab2_Select_pol, tab2_Select_colorspace]
-            for ctrl in tab2_ctrls:
-                ctrl.on_change('value', tab2_update_dspec_image)
-
-            # # Add a hover tool
-            tooltips = None
-
-            hover_JScode = """
-                var nx = %d;
-                var ny = %d;
-                var data = {'x': [], 'y': []};
-                var cdata = rs.get('data');
-                var rsstep = spec_rs_step.get('data').data[0]
-                var indices = cb_data.index['1d'].indices;
-                var idx_offset = indices[0] - (indices[0] %% nx);
-                for (i=0; i < nx; i++) {
-                    data['x'].push(cdata.time[i+idx_offset]);
-                    data['y'].push(cdata.dspec[i+idx_offset]);
-                }
-                rdx.set('data', data);
-                idx_offset = indices[0] %% nx;
-                data = {'x': [], 'y': []};
-                for (i=0; i < ny; i++) {
-                    data['x'].push(cdata.dspec[i*nx+idx_offset]);
-                    data['y'].push(cdata.freq[i*nx+idx_offset]);
-                }
-                rdy.set('data', data);
-                var time = cdata.timestr[indices[0]]+' '
-                var freq = cdata.freq[indices[0]].toFixed(3)+'[GHz] '
-                var dspec = cdata.dspec[indices[0]].toFixed(3)+ '[sfu]'
-                var tooltips = freq + time + dspec
-                data = {'x': [], 'y': [], 'tooltips': []};
-                data['x'].push(cdata.time[indices[0]]);
-                data['y'].push(cdata.dspec[indices[0]]);
-                data['tooltips'].push(tooltips);
-                rdx_hover.set('data', data);
-                tooltips = time + freq + dspec
-                data = {'x': [], 'y': [], 'tooltips': []};
-                data['x'].push(cdata.dspec[indices[0]]);
-                data['y'].push(cdata.freq[indices[0]]);
-                data['tooltips'].push(tooltips);
-                rdy_hover.set('data', data);
-                """ % (tab2_ntim / spec_rs_step, tab2_nfreq - 1)
-
-            tab2_p_dspec_hover_callback = CustomJS(
-                args={'rs': ColumnDataSource(dspecDF0_rs), 'rdx': r_dspec_xPro.data_source,
-                      'rdy': r_dspec_yPro.data_source,
-                      'rdx_hover': r_dspec_xPro_hover.data_source,
-                      'rdy_hover': r_dspec_yPro_hover.data_source,
-                      'spec_rs_step': ColumnDataSource({'data': [spec_rs_step]})}, code=hover_JScode)
-            tab2_p_dspec_hover = HoverTool(tooltips=tooltips, callback=tab2_p_dspec_hover_callback,
-                                           renderers=[tab2_r_square])
-            tab2_p_dspec.add_tools(tab2_p_dspec_hover)
-
-            # initial the VLA map contour source
-            tab2_SRC_vlamap_contour = ColumnDataSource(
-                data={'xs': [], 'ys': [], 'line_color': [], 'xt': [], 'yt': [], 'text': []})
-            tab2_SRC_vlamap_peak = ColumnDataSource(
-                data={'dspec': [], 'shape_longitude': [], 'shape_latitude': [], 'peak': []})
-
-            # import the vla image
-            hdu = read_fits(vlafile[0])
-            hdu_goodchan = goodchan(hdu)
-            vla_local_pfmap = PuffinMap(hdu.data[0, hdu_goodchan[0], :, :], hdu.header,
-                                        plot_height=config_main['plot_config']['tab_FSview_base']['vla_hght'],
-                                        plot_width=config_main['plot_config']['tab_FSview_base']['vla_wdth'],
-                                        webgl=config_main['plot_config']['WebGL'])
-            # plot the contour of vla image
-            mapx, mapy = vla_local_pfmap.meshgrid()
-            mapx, mapy = mapx.value, mapy.value
-            mapvlasize = mapy.shape
-            tab2_SRC_vlamap_contour = DButil.get_contour_data(mapx, mapy, vla_local_pfmap.smap.data)
-            # mapx2, mapy2 = vla_local_pfmap.meshgrid(rescale=0.5)
-            # mapx2, mapy2 = mapx2.value, mapy2.value
-            ImgDF0 = pd.DataFrame({'xx': mapx.ravel(), 'yy': mapy.ravel()})
-            tab2_SRC_vla_square = ColumnDataSource(ImgDF0)
-            colormap = cm.get_cmap("cubehelix")  # choose any matplotlib colormap here
-            bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-            tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
-
-            # aiamap = sunpy.map.Map(filepath)
-            print xx[0] / 3600. / 24., SDOdir
-            aiamap = DButil.readsdofile(datadir=SDOdir, wavelength='171', jdtime=xx[0] / 3600. / 24.,
-                                        timtol=tab2_dur / 3600. / 24.)
-            MapRES = 256
-            dimensions = u.Quantity([MapRES, MapRES], u.pixel)
-            aia_resampled_map = aiamap.resample(dimensions)
-
-            # plot the global AIA image
-            aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
-                                            plot_height=config_main['plot_config']['tab_FSview_base']['aia_hght'],
-                                            plot_width=config_main['plot_config']['tab_FSview_base']['aia_wdth'],
-                                            webgl=config_main['plot_config']['WebGL'])
-
-            tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg)
-            tab2_p_aia.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
-                                  line_width=2)
-            tab2_p_aia.title.text_font_size = '6pt'
-            # tab2_p_aia.border_fill_color = "silver"
-            tab2_p_aia.border_fill_alpha = 0.4
-            tab2_p_aia.axis.major_tick_out = 0
-            tab2_p_aia.axis.major_tick_in = 5
-            tab2_p_aia.axis.minor_tick_out = 0
-            tab2_p_aia.axis.minor_tick_in = 3
-            tab2_p_aia.axis.major_tick_line_color = "white"
-            tab2_p_aia.axis.minor_tick_line_color = "white"
-            tab2_p_aia.grid.grid_line_color = None
-            tab2_p_aia.background_fill_color = "black"
-            tab2_r_aia_ImgRgn_patch = tab2_p_aia.patch('xx', 'yy', source=tab2_SRC_ImgRgn_Patch,
-                                                       fill_color=None, fill_alpha=0.5, line_color="white",
-                                                       line_alpha=1, line_width=1)
-
-            colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
-            bokehpalette_sdohmimag = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-            # hmimap = sunpy.map.Map(filepath)
-            # todo fix this bug
-            hmimap = aiamap
-            # plot the global HMI image
-            hmi_resampled_map = hmimap.resample(dimensions)
-            hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
-                                            plot_height=config_main['plot_config']['tab_FSview_base']['vla_hght'],
-                                            plot_width=config_main['plot_config']['tab_FSview_base']['vla_wdth'],
-                                            webgl=config_main['plot_config']['WebGL'])
-
-            tab2_p_hmi, tab2_r_hmi = hmi_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
-                                                                 x_range=tab2_p_aia.x_range,
-                                                                 y_range=tab2_p_aia.y_range,
-                                                                 palette=bokehpalette_sdohmimag)
-            tab2_p_hmi.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
-                                  line_width=2)
-            tab2_p_hmi.yaxis.visible = False
-            # tab2_p_hmi.border_fill_color = "silver"
-            tab2_p_hmi.border_fill_alpha = 0.4
-            tab2_p_hmi.axis.major_tick_out = 0
-            tab2_p_hmi.axis.major_tick_in = 5
-            tab2_p_hmi.axis.minor_tick_out = 0
-            tab2_p_hmi.axis.minor_tick_in = 3
-            tab2_p_hmi.axis.major_tick_line_color = "white"
-            tab2_p_hmi.axis.minor_tick_line_color = "white"
-            tab2_p_hmi.grid.grid_line_color = None
-            tab2_p_hmi.background_fill_color = "black"
-            tab2_r_hmi_ImgRgn_patch = tab2_p_hmi.patch('xx', 'yy', source=tab2_SRC_ImgRgn_Patch,
-                                                       fill_color=None, fill_alpha=0.5, line_color="white",
-                                                       line_alpha=1, line_width=1)
-            # plot the vla image
-            tab2_p_vla, tab2_r_vla = vla_local_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
-                                                             palette=bokehpalette_SynthesisImg,
-                                                             x_range=tab2_p_aia.x_range,
-                                                             y_range=tab2_p_aia.y_range)
-            tab2_p_vla.title.text_font_size = '6pt'
-            tab2_p_vla.yaxis.visible = False
-            # tab2_p_vla.border_fill_color = "silver"
-            tab2_p_vla.border_fill_alpha = 0.4
-            tab2_p_vla.axis.major_tick_out = 0
-            tab2_p_vla.axis.major_tick_in = 5
-            tab2_p_vla.axis.minor_tick_out = 0
-            tab2_p_vla.axis.minor_tick_in = 3
-            tab2_p_vla.axis.major_tick_line_color = "white"
-            tab2_p_vla.axis.minor_tick_line_color = "white"
-            tab2_p_vla.grid.grid_line_color = None
-            tab2_p_vla.background_fill_color = "black"
-            tab2_r_vla_square = tab2_p_vla.square('xx', 'yy', source=tab2_SRC_vla_square,
-                                                  fill_alpha=0.0, fill_color=None,
-                                                  line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
-                                                  selection_fill_color=None,
-                                                  nonselection_fill_alpha=0.0,
-                                                  selection_line_alpha=0.0, selection_line_color=None,
-                                                  nonselection_line_alpha=0.0,
-                                                  size=4)
-            tab2_p_vla.add_tools(BoxSelectTool(renderers=[tab2_r_vla_square]))
-            tab2_r_vla_multi_line = tab2_p_vla.multi_line(xs='xs', ys='ys', line_color='line_color',
-                                                          source=tab2_SRC_vlamap_contour, alpha=0.7, line_width=2)
-
-            tab2_r_vla_ImgRgn_patch = tab2_p_vla.patch('xx', 'yy', source=tab2_SRC_ImgRgn_Patch,
-                                                       fill_color=None, fill_alpha=0.5, line_color="white",
-                                                       line_alpha=1, line_width=1)
-
-            tab2_LinkImg_HGHT = config_main['plot_config']['tab_FSview_base']['vla_hght']
-            tab2_LinkImg_WDTH = config_main['plot_config']['tab_FSview_base']['vla_wdth']
-
-            tab2_Div_LinkImg_plot = Div(text=""" """,
-                                        width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-
-            tab2_Slider_time_LinkImg = Slider(start=0, end=tab2_ntim - 1, value=0, step=1, title="time idx",
-                                              width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'] * 2,
-                                              callback_policy='mouseup')
-            tab2_Slider_freq_LinkImg = Slider(start=0, end=tab2_nfreq - 1, value=0, step=1, title="freq idx",
-                                              width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'] * 2,
-                                              callback_policy='mouseup')
-
-            pols = DButil.polsfromfitsheader(hdu.header)
-            # pols = ['RR', 'LL', 'I', 'V']
-            SRL = set(['RR', 'LL'])
-            SXY = set(['XX', 'YY', 'XY', 'YX'])
-            Spol = set(pols)
-            if hdu.header['NAXIS4'] == 2 and len(SRL.intersection(Spol)) == 2:
-                pols = pols + ['I', 'V']
-            if hdu.header['NAXIS4'] == 4 and len(SXY.intersection(Spol)) == 4:
-                pols = pols + ['I', 'V']
-
-            tab2_Select_vla_pol = Select(title="Polarization:", value=pols[0], options=pols,
-                                         width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-
-            tab2_source_idx_line_x = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
-            tab2_r_dspec_line_x = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
-                                                    line_color='white', source=tab2_source_idx_line_x)
-            tab2_source_idx_line_y = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
-            tab2_r_dspec_line_y = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
-                                                    line_color='white', source=tab2_source_idx_line_y)
-
-            tab2_CTRLs_LinkImg = [tab2_Slider_time_LinkImg, tab2_Slider_freq_LinkImg, tab2_Select_vla_pol]
-            for ctrl in tab2_CTRLs_LinkImg:
-                ctrl.on_change('value', tab3_slider_LinkImg_update)
-
-            tab2_BUT_XCorr = Button(label='XCorr',
-                                    width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
-                                    button_type='warning')
-            tab2_BUT_XCorr.on_click(tab2_panel_XCorr_update)
-
-            tab2_panel2_BUT_exit = Button(label='Exit FSview',
-                                          width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
-                                          button_type='danger')
-            tab2_panel2_BUT_exit.on_click(tab2_panel_exit)
-            tab2_dspec_selected = None
-
-            tab2_SRC_dspec_square.on_change('selected', tab2_dspec_selection_change)
-            tab2_vla_square_selected = None
-            tab2_SRC_vla_square.on_change('selected', tab2_prep_vla_square_selection_change)
-            tab2_Select_MapRES = Select(title="Img resolution:", value='{}x{}'.format(MapRES, MapRES),
-                                        options=["32x32", "64x64", "128x128", "256x256", "512x512", "1024x1024",
-                                                 "2048x2048"],
-                                        width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-
-            tab2_Select_MapRES.on_change('value', tab2_update_MapRES)
-            rgnfitsfile = CleanID_dir + "CASA_imfit_region_fits.rgn"
-            tab2_BUT_SavRgn = Button(label='Save Region',
-                                     width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
-                                     button_type='primary')
-            tab2_BUT_SavRgn.on_click(tab2_save_region)
-
-            tab2_input_tImfit = TextInput(value="Input the param here", title="pimfit task parameters:",
-                                          width=config_main['plot_config']['tab_FSviewPrep']['input_tCLN_wdth'])
-            tab2_Div_tImfit = Div(text='', width=config_main['plot_config']['tab_FSviewPrep']['tab2_Div_tImfit_wdth'])
-            tab2_Div_tImfit2 = Div(text='', width=config_main['plot_config']['tab_FSviewPrep']['input_tCLN_wdth'])
-            tab2_maxfit_checkbox = CheckboxGroup(labels=["parabolic fit"], active=[0])
-            tab2_maxfit_checkbox.on_click(Domaxfit)
-
-            tab2_BUT_tImfit_param_default()
-            tab2_BUT_tImfit_param_ADD = Button(label='Add to Param',
-                                               width=config_main['plot_config']['tab_FSviewPrep']['button_wdth'],
-                                               button_type='primary')
-            tab2_BUT_tImfit_param_ADD.on_click(tab2_BUT_tImfit_param_add)
-            tab2_BUT_tImfit_param_DEL = Button(label='Delete Param',
-                                               width=config_main['plot_config']['tab_FSviewPrep']['button_wdth'],
-                                               button_type='warning')
-            tab2_BUT_tImfit_param_DEL.on_click(tab2_BUT_tImfit_param_delete)
-            tab2_BUT_tImfit_param_Default = Button(label='Default Param',
-                                                   width=config_main['plot_config']['tab_FSviewPrep']['button_wdth'])
-            tab2_BUT_tImfit_param_Default.on_click(tab2_BUT_tImfit_param_default)
-            tab2_SPCR_LFT_BUT_tImfit_param_DEL = Spacer(
-                width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
-            tab2_SPCR_LFT_BUT_tImfit_param_RELOAD = Spacer(
-                width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
-            tab2_SPCR_LFT_BUT_tImfit_param_DEFAULT = Spacer(
-                width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
-
-            tab2_BUT_tImfit_param_RELOAD = Button(label='reload Param',
-                                                  width=config_main['plot_config']['tab_FSviewPrep']['button_wdth'])
-            tab2_BUT_tImfit_param_RELOAD.on_click(tab2_BUT_timfit_param_reload)
-            tab2_SPCR_LFT_BUT_tImfit_param_reload = Spacer(
-                width=config_main['plot_config']['tab_FSviewPrep']['space_wdth20'])
-
-            tab2_BUT_tImfit = Button(label='imfit',
-                                     width=config_main['plot_config']['tab_FSviewPrep']['button_wdth'],
-                                     button_type='success')
-            tab2_BUT_tImfit.on_click(tab2_BUT_tImfit_update)
-            tab2_SPCR_ABV_BUT_timfit = Spacer(width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
-
-            tab2_SPCR_LFT_Div_tImfit = Spacer(width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
-
-            lout2_1_1 = row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
-                            widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
-                                      tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
-                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'] * 2))
-            lout2_1_2 = row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
-                                   tab2_p_dspec_xPro),
-                            widgetbox(tab2_Select_pol, tab2_Select_bl,
-                                      tab2_Select_colorspace, tab2_BUT_XCorr,
-                                      tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
-                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']))
-            lout2_1 = column(lout2_1_1, lout2_1_2)
-            lout2_2 = tab2_SPCR_LFT_Div_tImfit
-            lout2_3 = column(widgetbox(tab2_input_tImfit, tab2_maxfit_checkbox, tab2_Div_tImfit2,
-                                       width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']*1.5),
-                             row(tab2_BUT_tImfit_param_ADD, tab2_SPCR_LFT_BUT_tImfit_param_DEL,
-                                 tab2_BUT_tImfit_param_DEL, tab2_SPCR_LFT_BUT_tImfit_param_DEFAULT,
-                                 tab2_BUT_tImfit_param_Default, tab2_SPCR_LFT_BUT_tImfit_param_RELOAD,
-                                 tab2_BUT_tImfit_param_RELOAD, tab2_SPCR_ABV_BUT_timfit, tab2_BUT_tImfit),
-                             tab2_Div_tImfit)
-            lout = row(lout2_1, lout2_2, lout2_3)
-
-            curdoc().add_root(lout)
-            curdoc().title = "FSview"
-        else:
-            tab_panel_Div_info = Div(
-                text="""<p><b>Warning</b>: Synthesis images not found!!!</p>""",
-                width=config_main['plot_config']['tab_FSview_base']['dspec_wdth'])
-            lout = tab_panel_Div_info
-            curdoc().add_root(lout)
-            curdoc().title = "FSview"
+        tab_panel_Div_info = Div(
+            text="""<p><b>Warning</b>: Synthesis images not found!!!</p>""",
+            width=config_main['plot_config']['tab_FSview_base']['dspec_wdth'])
+        lout = tab_panel_Div_info
+        curdoc().add_root(lout)
+        curdoc().title = "FSview"
 else:
     raise SystemExit

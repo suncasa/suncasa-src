@@ -294,7 +294,7 @@ tab1_selected_StrID_entry = None
 
 def tab1_selection_StrID_entry(attrname, old, new):
     global tab1_selected_StrID_entry
-    global CleanIDdir, CleanIDdirdict
+    global CleanIDdir, ImfitIDdir, CleanIDdirdict
     tab1_selected_StrID_entry = tab1_SRC_StrIDPatch.selected['1d']['indices']
     StrID = StrIDList.iloc[tab1_selected_StrID_entry[0]]
     struct_id = StrID['str_id'][0] + '/'
@@ -304,6 +304,15 @@ def tab1_selection_StrID_entry(attrname, old, new):
         tab1_Select_CleanID.options = [os.path.basename(ll) for ll in CleanIDdirdict['items']]
         tab1_Select_CleanID.value = os.path.basename(CleanIDdirdict['latest'])
         CleanIDdir = CleanIDdirdict['latest']
+        ImfitIDdirdict = DButil.getlatestfile(directory=CleanIDdir,prefix='ImfitID_')
+        if ImfitIDdirdict:
+            tab1_Select_ImfitID.options = [os.path.basename(ll) for ll in ImfitIDdirdict['items']]
+            tab1_Select_ImfitID.value = os.path.basename(ImfitIDdirdict['latest'])
+            ImfitIDdir = ImfitIDdirdict['latest']
+        else:
+            tab1_Select_ImfitID.options = []
+            tab1_Select_ImfitID.value = ''
+            ImfitIDdir = ''
     else:
         tab1_Select_CleanID.options = []
         tab1_Select_CleanID.value = ''
@@ -332,10 +341,11 @@ def tab1_update_deleteStrID():
         tab1_Div_Tb.text = """<p><b>Warning: No StrID selected. Select one StrID first!!!</b></p>"""
 
 
-def dumpCurrFS(StrID, cleanid):
+def dumpCurrFS(StrID, IDdict):
     out_json = event_dir + 'CurrFS.json'
     struct_id = StrID['str_id'][0] + '/'
-    FS_config = {'datadir': {'event_id': event_id, 'struct_id': struct_id, 'clean_id': cleanid + '/',
+    FS_config = {'datadir': {'event_id': event_id, 'struct_id': struct_id, 'clean_id': IDdict['cleanid'] + '/',
+                             'imfit_id': IDdict['imfitid'] + '/',
                              'FS_specfile': event_dir + struct_id + StrID['str_id'][0] + '_' + StrID['date'][
                                  0] + 'T' + str(StrID['timeran'][0]).translate(None, ':') + '.spec.npz'}}
     DButil.updatejsonfile(out_json, FS_config)
@@ -352,13 +362,13 @@ def tab1_update_CleanStrID():
         out_json = event_dir + StrID['str_id'][0] + '.json'
         StrID.to_json(out_json)
         struct_id = StrID['str_id'][0] + '/'
-        FS_config = dumpCurrFS(StrID, Text_CleanID.value)
+        FS_config = dumpCurrFS(StrID, {'cleanid': Text_CleanID.value, 'imfitid': ''})
         FS_specfile = FS_config['datadir']['FS_specfile']
-        CleanIDdir = event_dir + struct_id + Text_CleanID.value
+        CleanIDdir = event_dir + struct_id + Text_CleanID.value + '/'
         print CleanIDdir
         if not os.path.exists(CleanIDdir):
             os.makedirs(CleanIDdir)
-        FS_dspecDF = CleanIDdir + '/dspecDF-save'
+        FS_dspecDF = CleanIDdir + 'dspecDF-base'
         if not os.path.exists(FS_specfile):
             time0, time1 = StrID['time'][0], StrID['time'][1]
             freq0, freq1 = StrID['freq'][0], StrID['freq'][-1]
@@ -403,17 +413,43 @@ def tab1_update_FSviewStrID():
         StrID = StrIDList.iloc[tab1_selected_StrID_entry[0]]
         struct_id = StrID['str_id'][0] + '/'
         CleanID = tab1_Select_CleanID.value
-        dumpCurrFS(StrID, CleanID)
+        ImfitID = tab1_Select_ImfitID.value
+        dumpCurrFS(StrID, {'cleanid': CleanID, 'imfitid': ImfitID})
         CleanIDdir = event_dir + struct_id + CleanID + '/'
-        FS_dspecDF = CleanIDdir + 'dspecDF-save'
+        FS_dspecDF = CleanIDdir + 'dspecDF-base'
         if CleanIDdir != '' and os.path.exists(FS_dspecDF):
-            tab1_Div_FSview.text = """<p>Check the <b>FS_view</b> in the <b>new tab</b></p>"""
+            tab1_Div_FSview.text = """<p>Check the <b>VDSpec</b> in the <b>new tab</b></p>"""
             port = DButil.getfreeport()
             print 'bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port)
             os.system('bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port))
             ports.append(port)
         else:
             tab1_Div_FSview.text = """<p>Click <b>ToClean </b> to make synthesis images first!!</p>"""
+    else:
+        tab1_Div_FSview.text = """<p><b>Warning: No StrID selected. Select one StrID first!!!</b></p>"""
+
+
+def tab1_update_VDSpecStrID():
+    global dftmp
+    global ports
+    if tab1_selected_StrID_entry:
+        StrIDList = pd.read_json(event_dir + 'StrID_list_tmp.json')
+        StrIDList = StrIDList.sort_values(by='timeran', ascending=1)
+        StrID = StrIDList.iloc[tab1_selected_StrID_entry[0]]
+        struct_id = StrID['str_id'][0] + '/'
+        CleanID = tab1_Select_CleanID.value
+        ImfitID = tab1_Select_ImfitID.value
+        dumpCurrFS(StrID, {'cleanid': CleanID, 'imfitid': ImfitID})
+        ImfitIDdir = event_dir + struct_id + CleanID + '/' + ImfitID + '/'
+        FS_dspecDF = ImfitIDdir + 'dspecDF-save'
+        if CleanIDdir != '' and os.path.exists(FS_dspecDF):
+            tab1_Div_FSview.text = """<p>Check the <b>VDSpec</b> in the <b>new tab</b></p>"""
+            port = DButil.getfreeport()
+            print 'bokeh serve {}DataBrowser/FSview/VDSpec --show --port {} &'.format(suncasa_dir, port)
+            os.system('bokeh serve {}DataBrowser/FSview/VDSpec --show --port {} &'.format(suncasa_dir, port))
+            ports.append(port)
+        else:
+            tab1_Div_FSview.text = """<p>Click <b>FSview </b> to extract images information first!!</p>"""
     else:
         tab1_Div_FSview.text = """<p><b>Warning: No StrID selected. Select one StrID first!!!</b></p>"""
 
@@ -489,6 +525,7 @@ tab1_BUT_CleanStrID.on_click(tab1_update_CleanStrID)
 tab1_BUT_FSviewStrID = Button(label='FSview', button_type='primary', **tab1_BUT_OPT2)
 tab1_BUT_FSviewStrID.on_click(tab1_update_FSviewStrID)
 tab1_BUT_VDSpecStrID = Button(label='VDSpec', button_type='primary', **tab1_BUT_OPT2)
+tab1_BUT_VDSpecStrID.on_click(tab1_update_VDSpecStrID)
 
 tab1_SPCR_LFT_DataTb_dspec = Spacer(width=10, height=100)
 tab1_SPCR_RGT_DataTb_dspec = Spacer(width=20, height=100)

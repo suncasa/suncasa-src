@@ -137,7 +137,7 @@ struct_dir = database_dir + event_id + struct_id
 CleanID = FS_config['datadir']['clean_id']
 CleanID_dir = struct_dir + CleanID
 FS_specfile = FS_config['datadir']['FS_specfile']
-FS_dspecDF = CleanID_dir + 'dspecDF-save'
+FS_dspecDF = CleanID_dir + 'dspecDF-base'
 tab2_specdata = np.load(FS_specfile)
 tab2_spec = tab2_specdata['spec']
 tab2_npol = tab2_specdata['npol']
@@ -638,9 +638,9 @@ def tab2_BUT_tCLN_param_save():
                                'dspec': tab2_spec_plt.flatten(),
                                'fits_local': fits_local,
                                'fits_global': fits_global})
-    with open(CleanID_dir + 'dspecDF-save', 'wb') as fp:
+    with open(FS_dspecDF, 'wb') as fp:
         pickle.dump(dspecDFout, fp)
-    tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}</b>. '.format(
+    tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-base saved to <b>{}</b>. '.format(
         CleanID_dir) + 'Click the <b>clean</b> button to clean. When finished, \
         go back to <b>QLook</b> window, select StrID <b>{}</b> and \
         click <b>FSview</b> button again.</p>'.format(
@@ -650,7 +650,7 @@ def tab2_BUT_tCLN_param_save():
 def tab2_BUT_tCLN_clean():
     cwd = os.getcwd()
     try:
-        tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}.</b></p>\
+        tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-base saved to <b>{}.</b></p>\
         <p>CASA clean is in processing.</p>'.format(CleanID_dir)
         os.chdir(CleanID_dir)
         suncasapy46 = config_main['core']['casapy46']
@@ -660,7 +660,7 @@ def tab2_BUT_tCLN_clean():
             click <b>FSview</b> button again.</p>'.format(
             struct_id[0:-1])
     except:
-        tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}.</b></p>\
+        tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-base saved to <b>{}.</b></p>\
         <p>Do image clean with CASA manually.</p>'.format(CleanID_dir) + '<p>When finished,\
          go back to <b>QLook</b> window, select StrID <b>{}</b>\
           and click <b>FSview</b> button again.</p>'.format(struct_id[0:-1])
