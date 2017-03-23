@@ -571,7 +571,8 @@ def tab2_BUT_timfit_param_reload():
 
 def tab2_BUT_tImfit_update():
     global ImfitID_dir
-    ImfitID_dir = CleanID_dir + tab2_tImfit_Param_dict['imfit_id'] + '/'
+    exec ('imfit_id= {}'.format(tab2_tImfit_Param_dict['imfit_id']))
+    ImfitID_dir = CleanID_dir + imfit_id + '/'
     if not os.path.exists(ImfitID_dir):
         os.makedirs(ImfitID_dir)
     outfile = ImfitID_dir + 'CASA_imfit_args.json'
