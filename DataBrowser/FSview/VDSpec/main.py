@@ -475,6 +475,8 @@ def tab2_panel3_savimgs_handler():
 
 
 def tab2_panel3_dumpdata_handler():
+    import Tkinter
+    import tkFileDialog
     dspecDF0POLsub = dspecDF0POL[dspecDF0POL['time'] >= tab3_p_dspec_vector.x_range.start][
         dspecDF0POL['time'] <= tab3_p_dspec_vector.x_range.end][
         dspecDF0POL['freq'] >= tab3_p_dspec_vector.y_range.start][
@@ -482,9 +484,15 @@ def tab2_panel3_dumpdata_handler():
     centroidsdict = {'time': dspecDF0POLsub['timestr'].as_matrix(), 'freq': dspecDF0POLsub['freq'].as_matrix(),
                      'peak': dspecDF0POLsub['peak'].as_matrix(), 'x': dspecDF0POLsub['shape_longitude'].as_matrix(),
                      'y': dspecDF0POLsub['shape_latitude'].as_matrix()}
-    centroids_save = outimgdir + 'centroids{}.npy'.format(tab2_Select_vla_pol.value)
-    np.save(centroids_save, centroidsdict)
-    tab3_Div_Tb.text = '<p>centroids info saved to <b>{}</b>.</p>'.format(centroids_save)
+    centroids_save = 'centroids{}.npy'.format(tab2_Select_vla_pol.value)
+    tkRoot = Tkinter.Tk()
+    tkRoot.withdraw()  # Close the root window
+    out_path = tkFileDialog.asksaveasfilename(initialdir=outimgdir, initialfile=centroids_save)
+    tkRoot.destroy()
+    if not out_path:
+        out_path = outimgdir + centroids_save
+    np.save(out_path, centroidsdict)
+    tab3_Div_Tb.text = '<p>centroids info saved to <b>{}</b>.</p>'.format(out_path)
 
 
 def tab3_BUT_plot_xargs_default():
@@ -988,7 +996,7 @@ if os.path.exists(FS_dspecDF):
         lout3_3 = widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
                             tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab3_rSlider_threshold,
                             tab2_Select_vla_pol, tab2_Select_aia_wave, But_outdir, tab2_panel3_BUT_savimgs,
-                            tab2_panel3_BUT_exit, tab2_panel2_Div_exit,
+                            tab2_panel3_BUT_dumpdata, tab2_panel3_BUT_exit, tab2_panel2_Div_exit,
                             width=200)
         # todo dump vdspec data
         # todo add dspec and contour to saveimage
