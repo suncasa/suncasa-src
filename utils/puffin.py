@@ -59,8 +59,8 @@ class PuffinMap:
         """
         dx, dy = self.smap.scale.x.value, self.smap.scale.y.value
         self.dx, self.dy = dx, dy
-        x0, x1 = self.smap.xrange.value[0] - dx / 2.0, self.smap.xrange.value[1] - dx / 2.0
-        y0, y1 = self.smap.yrange.value[0] - dy / 2.0, self.smap.yrange.value[1] - dy / 2.0
+        x0, x1 = self.smap.xrange.value[0] - dx / 2.0, self.smap.xrange.value[1] + dx / 2.0
+        y0, y1 = self.smap.yrange.value[0] - dy / 2.0, self.smap.yrange.value[1] + dy / 2.0
         self.x, self.y = [x0], [y0]
         self.dw, self.dh = [x1 - x0], [y1 - y0]
         self.x_range = [x0, x1]
@@ -179,8 +179,8 @@ class PuffinMap:
             colormapper = LinearColorMapper(palette=palette)
 
         if ignore_coord:
-            x_range = [0 - 0.5, self.smap.data.shape[0] - 0.5]
-            y_range = [0 - 0.5, self.smap.data.shape[1] - 0.5]
+            x_range = [0 - 0.5, self.smap.data.shape[0] + 0.5]
+            y_range = [0 - 0.5, self.smap.data.shape[1] + 0.5]
             p_xaxis_visible = False
             p_yaxis_visible = False
             p_xaxis_axislabel = ''
