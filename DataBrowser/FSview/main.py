@@ -17,7 +17,7 @@ from bokeh.layouts import row, column, widgetbox, gridplot
 from bokeh.models import (ColumnDataSource, CustomJS, Slider, Button, TextInput, RadioButtonGroup, CheckboxGroup,
                           BoxSelectTool, LassoSelectTool, HoverTool, Spacer, LabelSet, Div)
 from bokeh.models.mappers import LinearColorMapper
-from bokeh.models.widgets import Select
+from bokeh.models.widgets import Select, RangeSlider
 from bokeh.palettes import Spectral11
 from bokeh.plotting import figure, curdoc
 import glob
@@ -43,6 +43,7 @@ elif platform == "win32":
 
 '''load config file'''
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
+DButil.initconfig(suncasa_dir)
 '''load config file'''
 config_main = DButil.loadjsonfile(suncasa_dir + 'DataBrowser/config.json')
 database_dir = config_main['datadir']['database']
@@ -269,8 +270,8 @@ def aia_submap_wavelength_selection(attrname, old, new):
     aiamap = DButil.readsdofile(datadir=SDOdir, wavelength=select_wave, jdtime=xx[0] / 3600. / 24.,
                                 timtol=tab2_dur / 3600. / 24.)
     print 'wavelength {} selected'.format(select_wave)
-    lengthx = vla_local_pfmap.dw[0] * u.arcsec
-    lengthy = vla_local_pfmap.dh[0] * u.arcsec
+    lengthx = vla_local_pfmap.dw[0] * u.arcsec / 3.0
+    lengthy = vla_local_pfmap.dh[0] * u.arcsec / 3.0
     x0 = vla_local_pfmap.smap.center.x
     y0 = vla_local_pfmap.smap.center.y
     aiamap_submap = aiamap.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
@@ -284,10 +285,9 @@ def aia_submap_wavelength_selection(attrname, old, new):
     tab3_r_aia_submap.data_source.data['image'] = aia_submap_pfmap.ImageSource()['data']
 
 
-def tab3_slider_LinkImg_update(attrname, old, new):
+def slider_LinkImg_update(polonly=False):
     global hdu, select_vla_pol, dspecDF0POL, tidx_prev
     select_vla_pol = tab2_Select_vla_pol.value
-    dspecDF0POL = DButil.dspecDFfilter(dspecDF0, select_vla_pol)
     tab2_Slider_time_LinkImg.start = next(
         i for i in xrange(tab2_ntim) if tab2_dtim[i] >= tab2_p_dspec.x_range.start)
     tab2_Slider_time_LinkImg.end = next(
@@ -310,7 +310,8 @@ def tab3_slider_LinkImg_update(attrname, old, new):
     print hdufile
     if os.path.exists(hdufile):
         if tidx != tidx_prev:
-            hdu = read_fits(hdufile)
+            if not polonly or not 'hdu' in globals():
+                hdu = read_fits(hdufile)
         hdu_goodchan = goodchan(hdu)
         freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
         freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
@@ -339,6 +340,32 @@ def tab3_slider_LinkImg_update(attrname, old, new):
     else:
         tab2_Div_LinkImg_plot.text = '<p><b>{}</b> not found.</p>'.format(fitsfile)
     tidx_prev = tidx
+
+
+def tab3_slider_LinkImg_update(attrname, old, new):
+    slider_LinkImg_update()
+
+
+def tab2_Select_vla_pol_update(attrname, old, new):
+    global hdu, select_vla_pol, dspecDF0POL, tidx_prev
+    select_vla_pol = tab2_Select_vla_pol.value
+    tab2_Select_vla_pol2.value = select_vla_pol
+    dspecDF0POL = DButil.dspecDFfilter(dspecDF0, select_vla_pol)
+    thresholdrange = (np.floor(dspecDF0POL['peak'].min()), np.ceil(dspecDF0POL['peak'].max()))
+    tab3_rSlider_threshold.start = thresholdrange[0]
+    tab3_rSlider_threshold.end = thresholdrange[1]
+    tab3_rSlider_threshold.range = thresholdrange
+    if tab2_dspec_vector_selected:
+        VdspecDF_update(selected=tab2_dspec_vector_selected)
+    else:
+        VdspecDF_update()
+    for ll in range(len(tab3_dspec_small_CTRLs_OPT['labels_dspec_small'])):
+        RBG_dspec_small_update(ll)
+    slider_LinkImg_update()
+
+
+def tab2_Select_vla_pol2_update(attrname, old, new):
+    tab2_Select_vla_pol.value = tab2_Select_vla_pol2.value
 
 
 def tab2_SRC_maxfit_centroid_update(dspecDFsel):
@@ -504,6 +531,21 @@ def tab3_SRC_dspec_vector_update():
     print("--- tab3_SRC_dspec_small_update -- %s seconds ---" % (time.time() - start_timestamp))
 
 
+def rSlider_threshold_handler(attrname, old, new):
+    global thresholdrange
+    print tab3_p_dspec_vector.x_range.start, tab3_p_dspec_vector.x_range.end
+    thresholdrange = tab3_rSlider_threshold.range
+    tab2_SRC_dspec_vector_square.selected = {'2d': {}, '1d': {'indices': list(
+        dspecDF0POL[dspecDF0POL['peak'] <= thresholdrange[1]][dspecDF0POL['peak'] >= thresholdrange[0]][
+            dspecDF0POL['time'] >= tab3_p_dspec_vector.x_range.start][
+            dspecDF0POL['time'] <= tab3_p_dspec_vector.x_range.end][
+            dspecDF0POL['freq'] >= tab3_p_dspec_vector.y_range.start][
+            dspecDF0POL['freq'] <= tab3_p_dspec_vector.y_range.end].index)},
+                                             '0d': {'indices': [], 'get_view': {}, 'glyph': None}}
+    for ll in range(len(tab3_dspec_small_CTRLs_OPT['labels_dspec_small'])):
+        RBG_dspec_small_update(ll)
+
+
 def tab2_dspec_selection_change(attrname, old, new):
     global tab2_dspec_selected, tidx_prev
     tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
@@ -595,41 +637,49 @@ def tab2_save_region():
         tab2_Div_LinkImg_plot.text = '<p><b>Warning:</b> select a region first.</p>'
 
 
+def dspec_vector_selection_change(selected):
+    global dspecDF_select
+    dspecDF_select = dspecDF0POL.iloc[selected, :]
+    VdspecDF_init()
+    VdspecDF_update(selected=selected)
+    # tab3_SRC_dspec_vector_update(VdspecDF)
+    tab2_SRC_maxfit_centroid_update(dspecDF_select)
+    if tab3_BUT_animate_ONOFF.label == 'Animate OFF & Go':
+        tab3_r_aia_submap_cross.visible = True
+        tab3_r_dspec_vector_line.visible = False
+        tab3_r_dspec_vectorx_line.visible = False
+        tab3_r_dspec_vectory_line.visible = False
+        tab3_r_aia_submap_cross.data_source.data = SRC_maxfit_centroid.data
+
+
 def tab2_dspec_vector_selection_change(attrname, old, new):
     global tab2_dspec_vector_selected
     tab2_dspec_vector_selected = tab2_SRC_dspec_vector_square.selected['1d']['indices']
     if tab2_dspec_vector_selected:
-        global dspecDF_select
-        dspecDF_select = dspecDF0POL.iloc[tab2_dspec_vector_selected, :]
-        VdspecDF_init()
-        VdspecDF_update(selected=tab2_dspec_vector_selected)
-        # tab3_SRC_dspec_vector_update(VdspecDF)
-        tab2_SRC_maxfit_centroid_update(dspecDF_select)
-        if tab3_BUT_animate_ONOFF.label == 'Animate OFF & Go':
-            tab3_r_aia_submap_cross.visible = True
-            tab3_r_dspec_vector_line.visible = False
-            tab3_r_dspec_vectorx_line.visible = False
-            tab3_r_dspec_vectory_line.visible = False
-            tab3_r_aia_submap_cross.data_source.data = SRC_maxfit_centroid.data
+        dspec_vector_selection_change(tab2_dspec_vector_selected)
 
 
-def tab3_RBG_dspec_small_update(attrname, old, new):
-    idx_p_dspec_small = tab3_RBG_dspec_small.active
+def RBG_dspec_small_update(idx):
     global tab3_dspec_small_CTRLs_OPT
-    tab3_dspec_small_CTRLs_OPT['idx_p_dspec_small'] = idx_p_dspec_small
+    tab3_dspec_small_CTRLs_OPT['idx_p_dspec_small'] = idx
     tab3_dspec_small_CTRLs_OPT['radio_button_group_dspec_small_update_flag'] = True
     mean_values = tab3_dspec_small_CTRLs_OPT['mean_values']
     drange_values = tab3_dspec_small_CTRLs_OPT['drange_values']
     vmax_values_last = tab3_dspec_small_CTRLs_OPT['vmax_values_last']
     vmin_values_last = tab3_dspec_small_CTRLs_OPT['vmin_values_last']
-    tab3_Slider_dspec_small_dmax.start = mean_values[idx_p_dspec_small] - drange_values[idx_p_dspec_small]
-    tab3_Slider_dspec_small_dmax.end = mean_values[idx_p_dspec_small] + 2 * drange_values[idx_p_dspec_small]
-    tab3_Slider_dspec_small_dmax.value = vmax_values_last[idx_p_dspec_small]
-    tab3_Slider_dspec_small_dmin.start = mean_values[idx_p_dspec_small] - 2 * drange_values[
-        idx_p_dspec_small]
-    tab3_Slider_dspec_small_dmin.end = mean_values[idx_p_dspec_small] + drange_values[idx_p_dspec_small]
-    tab3_Slider_dspec_small_dmin.value = vmin_values_last[idx_p_dspec_small]
+    tab3_Slider_dspec_small_dmax.start = mean_values[idx] - drange_values[idx]
+    tab3_Slider_dspec_small_dmax.end = mean_values[idx] + 2 * drange_values[idx]
+    tab3_Slider_dspec_small_dmax.value = vmax_values_last[idx]
+    tab3_Slider_dspec_small_dmin.start = mean_values[idx] - 2 * drange_values[
+        idx]
+    tab3_Slider_dspec_small_dmin.end = mean_values[idx] + drange_values[idx]
+    tab3_Slider_dspec_small_dmin.value = vmin_values_last[idx]
     tab3_dspec_small_CTRLs_OPT['radio_button_group_dspec_small_update_flag'] = False
+
+
+def tab3_RBG_dspec_small_handler(attrname, old, new):
+    idx_p_dspec_small = tab3_RBG_dspec_small.active
+    RBG_dspec_small_update(idx_p_dspec_small)
 
 
 def tab3_BUT_dspec_small_reset_update():
@@ -1395,8 +1445,8 @@ if os.path.exists(FS_dspecDF):
 
         colormap = cm.get_cmap("gray")  # choose any matplotlib colormap here
         bokehpalette_gray = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
-        lengthx = vla_local_pfmap.dw[0] * u.arcsec / 2
-        lengthy = vla_local_pfmap.dh[0] * u.arcsec / 2
+        lengthx = vla_local_pfmap.dw[0] * u.arcsec / 3.0
+        lengthy = vla_local_pfmap.dh[0] * u.arcsec / 3.0
         x0 = vla_local_pfmap.smap.center.x
         y0 = vla_local_pfmap.smap.center.y
         aiamap_submap = aiamap.submap(u.Quantity([x0 - lengthx / 2, x0 + lengthx / 2]),
@@ -1580,13 +1630,12 @@ if os.path.exists(FS_dspecDF):
         tab2_r_dspec_line_y = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
                                                 line_color='white', source=tab2_source_idx_line_y)
 
-        tab2_CTRLs_LinkImg = [tab2_Slider_time_LinkImg, tab2_Slider_freq_LinkImg, tab2_Select_vla_pol]
+        tab2_CTRLs_LinkImg = [tab2_Slider_time_LinkImg, tab2_Slider_freq_LinkImg]
 
         for ctrl in tab2_CTRLs_LinkImg:
             ctrl.on_change('value', tab3_slider_LinkImg_update)
-        # tab2_Slider_time_LinkImg.on_change('value', tab3_slider_LinkImg_update)
-        # tab2_Slider_freq_LinkImg.on_change('value', tab3_slider_LinkImg_update)
-        # tab2_Select_vla_pol.on_change('value', tab3_slider_LinkImg_update)
+        tab2_Select_vla_pol.on_change('value', tab2_Select_vla_pol_update)
+        tab2_Select_vla_pol2.on_change('value', tab2_Select_vla_pol2_update)
 
         tab2_LinkImg_HGHT = config_main['plot_config']['tab_FSview_base']['vla_hght']
         tab2_LinkImg_WDTH = config_main['plot_config']['tab_FSview_base']['vla_wdth']
@@ -1730,12 +1779,14 @@ if os.path.exists(FS_dspecDF):
         tab3_BUT_dspec_small_reset = Button(label='Reset DRange',
                                             width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         tab3_Slider_dspec_small_dmax = Slider(start=mean_amp_g, end=mean_amp_g + 2 * drange_amp_g, value=vmax_amp_g,
-                                              step=1,
-                                              title='dmax', callback_throttle=250)
+                                              step=1, title='dmax', callback_throttle=250)
         tab3_Slider_dspec_small_dmin = Slider(start=mean_amp_g - 2 * drange_amp_g, end=mean_amp_g, value=vmin_amp_g,
-                                              step=1,
-                                              title='dmin', callback_throttle=250)
-        tab3_RBG_dspec_small.on_change('active', tab3_RBG_dspec_small_update)
+                                              step=1, title='dmin', callback_throttle=250)
+        thresholdrange = (np.floor(dspecDF0POL['peak'].min()), np.ceil(dspecDF0POL['peak'].max()))
+        tab3_rSlider_threshold = RangeSlider(start=thresholdrange[0], end=thresholdrange[1], range=thresholdrange,
+                                             step=1, title='flux threshold selection', callback_throttle=250, width=400)
+        tab3_rSlider_threshold.on_change('range', rSlider_threshold_handler)
+        tab3_RBG_dspec_small.on_change('active', tab3_RBG_dspec_small_handler)
         tab3_BUT_dspec_small_reset.on_click(tab3_BUT_dspec_small_reset_update)
         tab3_BUT_dspec_small_resetall = Button(label='Reset All',
                                                width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
@@ -1799,11 +1850,8 @@ if os.path.exists(FS_dspecDF):
         lout3_2 = column(gridplot([tab3_p_dspec_vector], [tab3_p_dspec_vectorx], [tab3_p_dspec_vectory],
                                   toolbar_location='right'), tab3_Div_Tb)
         lout3_3 = widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
-                            tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab2_Select_vla_pol2,
-                            tab2_Select_aia_wave,
-                            tab2_panel3_BUT_exit,
-                            # tab2_panel3_Div_exit,
-                            width=200)
+                            tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab3_rSlider_threshold,
+                            tab2_Select_vla_pol2, tab2_Select_aia_wave, tab2_panel3_BUT_exit, width=200)
         panel3 = row(lout3_1, lout3_2, lout3_3)
         # tab2 = Panel(child=panel2, title="FS View")
         # tab3 = Panel(child=panel3, title="FitANLYS")

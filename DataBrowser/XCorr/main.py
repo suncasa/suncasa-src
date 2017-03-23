@@ -59,6 +59,7 @@ def exit_update():
 
 '''load config file'''
 suncasa_dir = os.path.expandvars("${SUNCASA}") + '/'
+DButil.initconfig(suncasa_dir)
 '''load config file'''
 with open(suncasa_dir + 'DataBrowser/config.json', 'r') as fp:
     config_main = json.load(fp)
