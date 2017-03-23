@@ -227,7 +227,7 @@ def DropDn_stackplt_handler(attr, old, new):
     if DropDn_stackplt.value == "Open":
         tkRoot = Tkinter.Tk()
         tkRoot.withdraw()  # Close the root window
-        fin = tkFileDialog.askopenfilename(initialdir=database_dir, initialfile='stackplt-' + PlotID)
+        fin = tkFileDialog.askopenfilename(initialdir=database_dir, initialfile='stackplt-' + PlotID + '.npy')
         if fin:
             MkPlot_args_dict['stackpltfile'] = fin
             outfile = database_dir + 'MkPlot_args.json'
@@ -236,9 +236,10 @@ def DropDn_stackplt_handler(attr, old, new):
     elif DropDn_stackplt.value == "Save As":
         tkRoot = Tkinter.Tk()
         tkRoot.withdraw()  # Close the root window
-        fout = tkFileDialog.asksaveasfilename(initialdir=database_dir, initialfile='stackplt-' + PlotID)
+        fout = tkFileDialog.asksaveasfilename(initialdir=database_dir, initialfile='stackplt-' + PlotID + '.npy')
         if fout:
-            os.system('cp {} {}'.format(img_save, fout))
+            imgdict
+            np.save(fout, imgdict)
             Div_info.text = """<p>Stack-plot saved to <b>{}</b></p>.""".format(fout)
     else:
         pass
