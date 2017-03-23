@@ -621,9 +621,6 @@ CleanID = FS_config['datadir']['clean_id']
 CleanID_dir = struct_dir + CleanID
 ImfitID = FS_config['datadir']['imfit_id']
 ImfitID_dir = CleanID_dir + ImfitID
-outimgdir = CleanID_dir + '/img_centroids/'
-if not os.path.exists(outimgdir):
-    os.makedirs(outimgdir)
 FS_dspecDF = CleanID_dir + 'dspecDF-base'
 FS_specfile = FS_config['datadir']['FS_specfile']
 tab2_specdata = np.load(FS_specfile)
