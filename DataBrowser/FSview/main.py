@@ -570,6 +570,8 @@ def tab2_BUT_timfit_param_reload():
 
 
 def tab2_BUT_tImfit_update():
+    global ImfitID_dir
+    ImfitID_dir = CleanID_dir + tab2_tImfit_Param_dict['imfit_id'] + '/'
     outfile = ImfitID_dir + 'CASA_imfit_args.json'
     DButil.updatejsonfile(outfile, tab2_tImfit_Param_dict)
     os.system('cp {}/DataBrowser/FSview/script_imfit.py {}'.format(suncasa_dir,
@@ -619,8 +621,6 @@ struct_id = FS_config['datadir']['struct_id']
 struct_dir = database_dir + event_id + struct_id
 CleanID = FS_config['datadir']['clean_id']
 CleanID_dir = struct_dir + CleanID
-ImfitID = FS_config['datadir']['imfit_id']
-ImfitID_dir = CleanID_dir + ImfitID
 FS_dspecDF = CleanID_dir + 'dspecDF-base'
 FS_specfile = FS_config['datadir']['FS_specfile']
 tab2_specdata = np.load(FS_specfile)

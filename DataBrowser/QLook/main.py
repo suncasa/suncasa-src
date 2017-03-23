@@ -418,7 +418,7 @@ def tab1_update_FSviewStrID():
         CleanIDdir = event_dir + struct_id + CleanID + '/'
         FS_dspecDF = CleanIDdir + 'dspecDF-base'
         if CleanIDdir != '' and os.path.exists(FS_dspecDF):
-            tab1_Div_FSview.text = """<p>Check the <b>VDSpec</b> in the <b>new tab</b></p>"""
+            tab1_Div_FSview.text = """<p>Check the <b>FSview</b> in the <b>new tab</b></p>"""
             port = DButil.getfreeport()
             print 'bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port)
             os.system('bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port))
