@@ -95,8 +95,11 @@ bl_index = 0
 # tab1_spec = tab1_specdata['spec'][:, :, :, :]
 tab1_tim = tab1_specdata['tim'][:]
 tab1_freq = tab1_specdata['freq'] / 1e9
-tab1_spec = DButil.regridspec(tab1_specdata['spec'][:, :, :, :], tab1_tim - tab1_tim[0], tab1_freq, nxmax=ntmaximg,
-                              nymax=nfmaximg)
+tab1_spec, tab1_tim_step, tab1_freq_step = DButil.regridspec(tab1_specdata['spec'][:, :, :, :], tab1_tim - tab1_tim[0],
+                                                             tab1_freq, nxmax=ntmaximg,
+                                                             nymax=nfmaximg)
+dt = np.mean(np.diff(tab1_tim[::tab1_tim_step]))
+df = np.mean(np.diff(tab1_freq[::tab1_freq_step]))
 
 if tab1_pol == 'RR':
     tab1_spec_plt = tab1_spec[0, bl_index, :, :]
@@ -114,8 +117,8 @@ TOOLS = "pan,wheel_zoom,box_zoom,reset,save"
 tab1_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
                       plot_width=config_main['plot_config']['tab_QLook']['dspec_wdth'],
                       plot_height=config_main['plot_config']['tab_QLook']['dspec_hght'],
-                      x_range=(tab1_dtim[0], tab1_dtim[-1]),
-                      y_range=(tab1_freq[0], tab1_freq[-1]), toolbar_location="above")
+                      x_range=(tab1_dtim[0] - dt / 2.0, tab1_dtim[-1] + dt / 2.0),
+                      y_range=(tab1_freq[0] - df / 2.0, tab1_freq[-1] + df / 2.0), toolbar_location="above")
 tim0_char = Time((tab1_tim[0] / 3600. / 24. + 2400000.5) * 86400. / 3600. / 24., format='jd', scale='utc',
                  precision=3).iso
 tab1_p_dspec.axis.visible = True
@@ -131,9 +134,9 @@ tab1_p_dspec.axis.minor_tick_in = 3
 tab1_p_dspec.axis.major_tick_line_color = "white"
 tab1_p_dspec.axis.minor_tick_line_color = "white"
 
-tab1_r_dspec = tab1_p_dspec.image(image=[tab1_spec_plt], x=tab1_dtim[0], y=tab1_freq[0],
-                                  dw=tab1_dtim[-1] - tab1_dtim[0],
-                                  dh=tab1_freq[-1] - tab1_freq[0], palette=bokehpalette_jet)
+tab1_r_dspec = tab1_p_dspec.image(image=[tab1_spec_plt], x=tab1_dtim[0] - dt / 2.0, y=tab1_freq[0] - df / 2.0,
+                                  dw=tab1_dtim[-1] - tab1_dtim[0] + dt,
+                                  dh=tab1_freq[-1] - tab1_freq[0] + df, palette=bokehpalette_jet)
 
 tab1_nfreq = len(tab1_freq)
 tab1_ntim = len(tab1_tim)
@@ -159,6 +162,7 @@ tab1_Select_bl = Select(title="Baseline:", value=tab1_bl[0], options=tab1_bl, **
 tab1_Select_pol = Select(title="Polarization:", value="I", options=["RR", "LL", "I", "V"], **tab1_Select_OPT)
 tab1_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"], **tab1_Select_OPT)
 tab1_Select_CleanID = Select(title="CleanID:", value=None, options=[], **tab1_Select_OPT)
+tab1_Select_ImfitID = Select(title="ImfitID:", value=None, options=[], **tab1_Select_OPT)
 
 
 def tab1_update_dspec(attrname, old, new):
@@ -290,7 +294,7 @@ tab1_selected_StrID_entry = None
 
 def tab1_selection_StrID_entry(attrname, old, new):
     global tab1_selected_StrID_entry
-    global CleanIDdir, CleanIDdirdict
+    global CleanIDdir, ImfitIDdir, CleanIDdirdict
     tab1_selected_StrID_entry = tab1_SRC_StrIDPatch.selected['1d']['indices']
     StrID = StrIDList.iloc[tab1_selected_StrID_entry[0]]
     struct_id = StrID['str_id'][0] + '/'
@@ -300,6 +304,15 @@ def tab1_selection_StrID_entry(attrname, old, new):
         tab1_Select_CleanID.options = [os.path.basename(ll) for ll in CleanIDdirdict['items']]
         tab1_Select_CleanID.value = os.path.basename(CleanIDdirdict['latest'])
         CleanIDdir = CleanIDdirdict['latest']
+        ImfitIDdirdict = DButil.getlatestfile(directory=CleanIDdir,prefix='ImfitID_')
+        if ImfitIDdirdict:
+            tab1_Select_ImfitID.options = [os.path.basename(ll) for ll in ImfitIDdirdict['items']]
+            tab1_Select_ImfitID.value = os.path.basename(ImfitIDdirdict['latest'])
+            ImfitIDdir = ImfitIDdirdict['latest']
+        else:
+            tab1_Select_ImfitID.options = []
+            tab1_Select_ImfitID.value = ''
+            ImfitIDdir = ''
     else:
         tab1_Select_CleanID.options = []
         tab1_Select_CleanID.value = ''
@@ -328,10 +341,11 @@ def tab1_update_deleteStrID():
         tab1_Div_Tb.text = """<p><b>Warning: No StrID selected. Select one StrID first!!!</b></p>"""
 
 
-def dumpCurrFS(StrID, cleanid):
+def dumpCurrFS(StrID, IDdict):
     out_json = event_dir + 'CurrFS.json'
     struct_id = StrID['str_id'][0] + '/'
-    FS_config = {'datadir': {'event_id': event_id, 'struct_id': struct_id, 'clean_id': cleanid + '/',
+    FS_config = {'datadir': {'event_id': event_id, 'struct_id': struct_id, 'clean_id': IDdict['cleanid'] + '/',
+                             'imfit_id': IDdict['imfitid'] + '/',
                              'FS_specfile': event_dir + struct_id + StrID['str_id'][0] + '_' + StrID['date'][
                                  0] + 'T' + str(StrID['timeran'][0]).translate(None, ':') + '.spec.npz'}}
     DButil.updatejsonfile(out_json, FS_config)
@@ -348,13 +362,13 @@ def tab1_update_CleanStrID():
         out_json = event_dir + StrID['str_id'][0] + '.json'
         StrID.to_json(out_json)
         struct_id = StrID['str_id'][0] + '/'
-        FS_config = dumpCurrFS(StrID, Text_CleanID.value)
+        FS_config = dumpCurrFS(StrID, {'cleanid': Text_CleanID.value, 'imfitid': ''})
         FS_specfile = FS_config['datadir']['FS_specfile']
-        CleanIDdir = event_dir + struct_id + Text_CleanID.value
+        CleanIDdir = event_dir + struct_id + Text_CleanID.value + '/'
         print CleanIDdir
         if not os.path.exists(CleanIDdir):
             os.makedirs(CleanIDdir)
-        FS_dspecDF = CleanIDdir + '/dspecDF-save'
+        FS_dspecDF = CleanIDdir + 'dspecDF-base'
         if not os.path.exists(FS_specfile):
             time0, time1 = StrID['time'][0], StrID['time'][1]
             freq0, freq1 = StrID['freq'][0], StrID['freq'][-1]
@@ -399,17 +413,43 @@ def tab1_update_FSviewStrID():
         StrID = StrIDList.iloc[tab1_selected_StrID_entry[0]]
         struct_id = StrID['str_id'][0] + '/'
         CleanID = tab1_Select_CleanID.value
-        dumpCurrFS(StrID, CleanID)
+        ImfitID = tab1_Select_ImfitID.value
+        dumpCurrFS(StrID, {'cleanid': CleanID, 'imfitid': ImfitID})
         CleanIDdir = event_dir + struct_id + CleanID + '/'
-        FS_dspecDF = CleanIDdir + 'dspecDF-save'
+        FS_dspecDF = CleanIDdir + 'dspecDF-base'
         if CleanIDdir != '' and os.path.exists(FS_dspecDF):
-            tab1_Div_FSview.text = """<p>Check the <b>FS_view</b> in the <b>new tab</b></p>"""
+            tab1_Div_FSview.text = """<p>Check the <b>FSview</b> in the <b>new tab</b></p>"""
             port = DButil.getfreeport()
             print 'bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port)
             os.system('bokeh serve {}DataBrowser/FSview --show --port {} &'.format(suncasa_dir, port))
             ports.append(port)
         else:
             tab1_Div_FSview.text = """<p>Click <b>ToClean </b> to make synthesis images first!!</p>"""
+    else:
+        tab1_Div_FSview.text = """<p><b>Warning: No StrID selected. Select one StrID first!!!</b></p>"""
+
+
+def tab1_update_VDSpecStrID():
+    global dftmp
+    global ports
+    if tab1_selected_StrID_entry:
+        StrIDList = pd.read_json(event_dir + 'StrID_list_tmp.json')
+        StrIDList = StrIDList.sort_values(by='timeran', ascending=1)
+        StrID = StrIDList.iloc[tab1_selected_StrID_entry[0]]
+        struct_id = StrID['str_id'][0] + '/'
+        CleanID = tab1_Select_CleanID.value
+        ImfitID = tab1_Select_ImfitID.value
+        dumpCurrFS(StrID, {'cleanid': CleanID, 'imfitid': ImfitID})
+        ImfitIDdir = event_dir + struct_id + CleanID + '/' + ImfitID + '/'
+        FS_dspecDF = ImfitIDdir + 'dspecDF-save'
+        if CleanIDdir != '' and os.path.exists(FS_dspecDF):
+            tab1_Div_FSview.text = """<p>Check the <b>VDSpec</b> in the <b>new tab</b></p>"""
+            port = DButil.getfreeport()
+            print 'bokeh serve {}DataBrowser/FSview/VDSpec --show --port {} &'.format(suncasa_dir, port)
+            os.system('bokeh serve {}DataBrowser/FSview/VDSpec --show --port {} &'.format(suncasa_dir, port))
+            ports.append(port)
+        else:
+            tab1_Div_FSview.text = """<p>Click <b>FSview </b> to extract images information first!!</p>"""
     else:
         tab1_Div_FSview.text = """<p><b>Warning: No StrID selected. Select one StrID first!!!</b></p>"""
 
@@ -484,6 +524,8 @@ tab1_BUT_CleanStrID = Button(label='ToClean', button_type='success', **tab1_BUT_
 tab1_BUT_CleanStrID.on_click(tab1_update_CleanStrID)
 tab1_BUT_FSviewStrID = Button(label='FSview', button_type='primary', **tab1_BUT_OPT2)
 tab1_BUT_FSviewStrID.on_click(tab1_update_FSviewStrID)
+tab1_BUT_VDSpecStrID = Button(label='VDSpec', button_type='primary', **tab1_BUT_OPT2)
+tab1_BUT_VDSpecStrID.on_click(tab1_update_VDSpecStrID)
 
 tab1_SPCR_LFT_DataTb_dspec = Spacer(width=10, height=100)
 tab1_SPCR_RGT_DataTb_dspec = Spacer(width=20, height=100)
@@ -512,7 +554,8 @@ tab1_BUT_exit = Button(label='Exit QLook', button_type='danger', **tab1_Select_O
 tab1_BUT_exit.on_click(tab1_exit)
 
 panel1 = column(
-    row(tab1_p_dspec, column(Text_sdodir, But_sdodir, tab1_Select_CleanID, tab1_BUT_FSviewStrID, tab1_Div_FSview)),
+    row(tab1_p_dspec, column(Text_sdodir, But_sdodir, tab1_Select_CleanID, tab1_BUT_FSviewStrID, tab1_Select_ImfitID,
+                             tab1_BUT_VDSpecStrID, tab1_Div_FSview)),
     row(widgetbox(tab1_Select_bl, tab1_Select_pol, tab1_Select_colorspace, tab1_BUT_exit, tab1_Div_exit,
                   **tab1_Select_OPT),
         tab1_SPCR_LFT_DataTb_evt, tab1_SPCR_LFT_DataTb_dspec, column(tab1_DataTb_dspec, tab1_Div_Tb),

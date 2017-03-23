@@ -137,7 +137,7 @@ struct_dir = database_dir + event_id + struct_id
 CleanID = FS_config['datadir']['clean_id']
 CleanID_dir = struct_dir + CleanID
 FS_specfile = FS_config['datadir']['FS_specfile']
-FS_dspecDF = CleanID_dir + 'dspecDF-save'
+FS_dspecDF = CleanID_dir + 'dspecDF-base'
 tab2_specdata = np.load(FS_specfile)
 tab2_spec = tab2_specdata['spec']
 tab2_npol = tab2_specdata['npol']
@@ -237,7 +237,8 @@ tab2_SRC_dspec_square = ColumnDataSource(dspecDF0_rs)
 tab2_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
                       plot_width=config_main['plot_config']['tab_ToClean']['dspec_wdth'],
                       plot_height=config_main['plot_config']['tab_ToClean']['dspec_hght'],
-                      x_range=(tab2_dtim[0], tab2_dtim[-1]), y_range=(tab2_freq[0], tab2_freq[-1]),
+                      x_range=(tab2_dtim[0] - tab2_dt / 2.0, tab2_dtim[-1] + tab2_dt / 2.0),
+                      y_range=(tab2_freq[0] - tab2_df / 2.0, tab2_freq[-1] + tab2_df / 2.0),
                       toolbar_location="above")
 tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
 tab2_p_dspec.axis.visible = True
@@ -245,9 +246,9 @@ tab2_p_dspec.title.text = "Dynamic spectrum"
 tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
 tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
 # tab2_SRC_dspec_image = ColumnDataSource(data={'data': [tab2_spec_plt], 'xx': [tab2_dtim], 'yy': [tab2_freq]})
-tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0], y=tab2_freq[0],
-                                  dw=tab2_dtim[-1] - tab2_dtim[0],
-                                  dh=tab2_freq[-1] - tab2_freq[0], palette=bokehpalette_jet)
+tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0] - tab2_dt / 2.0, y=tab2_freq[0] - tab2_df / 2.0,
+                                  dw=tab2_dtim[-1] - tab2_dtim[0] + tab2_dt,
+                                  dh=tab2_freq[-1] - tab2_freq[0] + tab2_df, palette=bokehpalette_jet)
 
 # make the dspec data source selectable
 tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=None, fill_alpha=0.0,
@@ -637,9 +638,9 @@ def tab2_BUT_tCLN_param_save():
                                'dspec': tab2_spec_plt.flatten(),
                                'fits_local': fits_local,
                                'fits_global': fits_global})
-    with open(CleanID_dir + 'dspecDF-save', 'wb') as fp:
+    with open(FS_dspecDF, 'wb') as fp:
         pickle.dump(dspecDFout, fp)
-    tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}</b>. '.format(
+    tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-base saved to <b>{}</b>. '.format(
         CleanID_dir) + 'Click the <b>clean</b> button to clean. When finished, \
         go back to <b>QLook</b> window, select StrID <b>{}</b> and \
         click <b>FSview</b> button again.</p>'.format(
@@ -649,7 +650,7 @@ def tab2_BUT_tCLN_param_save():
 def tab2_BUT_tCLN_clean():
     cwd = os.getcwd()
     try:
-        tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}.</b></p>\
+        tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-base saved to <b>{}.</b></p>\
         <p>CASA clean is in processing.</p>'.format(CleanID_dir)
         os.chdir(CleanID_dir)
         suncasapy46 = config_main['core']['casapy46']
@@ -659,7 +660,7 @@ def tab2_BUT_tCLN_clean():
             click <b>FSview</b> button again.</p>'.format(
             struct_id[0:-1])
     except:
-        tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-save saved to <b>{}.</b></p>\
+        tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-base saved to <b>{}.</b></p>\
         <p>Do image clean with CASA manually.</p>'.format(CleanID_dir) + '<p>When finished,\
          go back to <b>QLook</b> window, select StrID <b>{}</b>\
           and click <b>FSview</b> button again.</p>'.format(struct_id[0:-1])

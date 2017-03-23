@@ -80,7 +80,7 @@ try:
     img_save = database_dir + 'stackplt-' + PlotID + '.npy'
     imgdict = np.load(img_save).item()
 except:
-    print 'Error: No img-xxxxxxxxxx.npz found!!!'
+    print 'Error: No img-xxxxxxxxxx.npy found!!!'
     raise SystemExit
 
 zz = imgdict['zz']
@@ -201,6 +201,7 @@ SRC_img_quady.on_change('selected', SRC_img_quad_update)
 BUT_exit = Button(label='Exit', width=config_main['plot_config']['tab_MkPlot']['button_wdth'], button_type='danger')
 BUT_exit.on_click(exit_update)
 
+#todo dump stackplt data
 lout = row(column(p_img, p_imgprofile), column(RadioButG_XYswitch, BUT_exit, Div_info))
 
 curdoc().add_root(lout)
