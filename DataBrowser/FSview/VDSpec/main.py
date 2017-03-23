@@ -481,9 +481,14 @@ def tab2_panel3_dumpdata_handler():
         dspecDF0POL['time'] <= tab3_p_dspec_vector.x_range.end][
         dspecDF0POL['freq'] >= tab3_p_dspec_vector.y_range.start][
         dspecDF0POL['freq'] <= tab3_p_dspec_vector.y_range.end]
-    centroidsdict = {'time': dspecDF0POLsub['timestr'].as_matrix(), 'freq': dspecDF0POLsub['freq'].as_matrix(),
-                     'peak': dspecDF0POLsub['peak'].as_matrix(), 'x': dspecDF0POLsub['shape_longitude'].as_matrix(),
-                     'y': dspecDF0POLsub['shape_latitude'].as_matrix()}
+    tarr = np.unique(dspecDF0POLsub['time'].as_matrix() + timestart)
+    farr = np.unique(dspecDF0POLsub['freq'].as_matrix())
+    nt = len(tarr)
+    nf = len(farr)
+    parr = dspecDF0POLsub['peak'].as_matrix().reshape(nf, nt)
+    xarr = dspecDF0POLsub['shape_longitude'].as_matrix().reshape(nf, nt)
+    yarr = dspecDF0POLsub['shape_latitude'].as_matrix().reshape(nf, nt)
+    centroidsdict = {'time': tarr, 'freq': farr, 'peak': parr, 'x': xarr, 'y': yarr}
     centroids_save = 'centroids{}.npy'.format(tab2_Select_vla_pol.value)
     tkRoot = Tkinter.Tk()
     tkRoot.withdraw()  # Close the root window

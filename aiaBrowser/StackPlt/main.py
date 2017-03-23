@@ -80,7 +80,7 @@ try:
     img_save = database_dir + 'stackplt-' + PlotID + '.npy'
     imgdict = np.load(img_save).item()
 except:
-    print 'Error: No img-xxxxxxxxxx.npz found!!!'
+    print 'Error: No img-xxxxxxxxxx.npy found!!!'
     raise SystemExit
 
 zz = imgdict['zz']
