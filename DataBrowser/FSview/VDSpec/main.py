@@ -86,7 +86,6 @@ def goodchan(hdu):
     return hdu_goodchan
 
 
-
 # initial the source of maxfit centroid
 def tab2_SRC_maxfit_centroid_init(dspecDFsel):
     start_timestamp = time.time()
@@ -120,7 +119,6 @@ def aia_submap_wavelength_selection(attrname, old, new):
     tab3_r_aia_submap.data_source.data['image'] = aia_submap_pfmap.ImageSource()['data']
 
 
-
 def tab2_Select_vla_pol_update(attrname, old, new):
     global hdu, select_vla_pol, dspecDF0POL, tidx_prev
     select_vla_pol = tab2_Select_vla_pol.value
@@ -135,8 +133,6 @@ def tab2_Select_vla_pol_update(attrname, old, new):
         VdspecDF_update()
     for ll in range(len(tab3_dspec_small_CTRLs_OPT['labels_dspec_small'])):
         RBG_dspec_small_update(ll)
-
-
 
 
 def tab2_SRC_maxfit_centroid_update(dspecDFsel):
@@ -317,9 +313,6 @@ def rSlider_threshold_handler(attrname, old, new):
         RBG_dspec_small_update(ll)
 
 
-
-
-
 def dspec_vector_selection_change(selected):
     global dspecDF_select
     dspecDF_select = dspecDF0POL.iloc[selected, :]
@@ -479,6 +472,19 @@ def tab2_panel3_savimgs_handler():
         tab3_Div_Tb.text = """<p>{}</p>""".format(
             DButil.ProgressBar(sidx + 1, nfiles, suffix='Output', decimals=0, length=30, empfill='=', fill='#'))
     tab3_Div_Tb.text = '<p>images saved to <b>{}</b>.</p>'.format(outimgdir)
+
+
+def tab2_panel3_dumpdata_handler():
+    dspecDF0POLsub = dspecDF0POL[dspecDF0POL['time'] >= tab3_p_dspec_vector.x_range.start][
+        dspecDF0POL['time'] <= tab3_p_dspec_vector.x_range.end][
+        dspecDF0POL['freq'] >= tab3_p_dspec_vector.y_range.start][
+        dspecDF0POL['freq'] <= tab3_p_dspec_vector.y_range.end]
+    centroidsdict = {'time': dspecDF0POLsub['timestr'].as_matrix(), 'freq': dspecDF0POLsub['freq'].as_matrix(),
+                     'peak': dspecDF0POLsub['peak'].as_matrix(), 'x': dspecDF0POLsub['shape_longitude'].as_matrix(),
+                     'y': dspecDF0POLsub['shape_latitude'].as_matrix()}
+    centroids_save = outimgdir + 'centroids{}.npy'.format(tab2_Select_vla_pol.value)
+    np.save(centroids_save, centroidsdict)
+    tab3_Div_Tb.text = '<p>centroids info saved to <b>{}</b>.</p>'.format(centroids_save)
 
 
 def tab3_BUT_plot_xargs_default():
@@ -668,7 +674,6 @@ elif isinstance(tab2_specdata['bl'].tolist(), list):
 else:
     raise ValueError('Please check the data of {}'.format(FS_specfile))
 
-
 tab2_dtim = tab2_tim - tab2_tim[0]
 tab2_dur = tab2_dtim[-1] - tab2_dtim[0]
 tim_map = ((np.tile(tab2_tim, tab2_nfreq).reshape(tab2_nfreq, tab2_ntim) / 3600. / 24. + 2400000.5)) * 86400.
@@ -768,7 +773,6 @@ if os.path.exists(FS_dspecDF):
 
         tab2_Select_aia_wave.on_change('value', aia_submap_wavelength_selection)
 
-
         # pols = ['RR', 'LL', 'I', 'V']
         SRL = set(['RR', 'LL'])
         SXY = set(['XX', 'YY', 'XY', 'YX'])
@@ -782,12 +786,10 @@ if os.path.exists(FS_dspecDF):
                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         select_vla_pol = tab2_Select_vla_pol.value
 
-
         tab2_Select_vla_pol.on_change('value', tab2_Select_vla_pol_update)
 
         tab2_LinkImg_HGHT = config_main['plot_config']['tab_FSview_base']['vla_hght']
         tab2_LinkImg_WDTH = config_main['plot_config']['tab_FSview_base']['vla_wdth']
-
 
         tab2_panel3_BUT_exit = Button(label='Exit FSview',
                                       width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
@@ -798,6 +800,11 @@ if os.path.exists(FS_dspecDF):
                                          width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                          button_type='primary')
         tab2_panel3_BUT_savimgs.on_click(tab2_panel3_savimgs_handler)
+
+        tab2_panel3_BUT_dumpdata = Button(label='Dump data',
+                                          width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                                          button_type='success')
+        tab2_panel3_BUT_dumpdata.on_click(tab2_panel3_dumpdata_handler)
 
         tab3_p_dspec_vector = figure(tools='pan,wheel_zoom,box_zoom,save,reset',
                                      plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
@@ -970,8 +977,6 @@ if os.path.exists(FS_dspecDF):
 
         But_outdir = Button(label='outpath', width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         But_outdir.on_click(Buttonaskdir_handler)
-
-
 
         lout3_1 = column(tab3_p_aia_submap, tab3_Slider_ANLYS_idx,
                          row(tab3_BUT_PlayCTRL, tab3_SPCR_LFT_BUT_Step, tab3_BUT_StepCTRL,
