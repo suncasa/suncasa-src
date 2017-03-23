@@ -11,7 +11,7 @@ import bokeh.palettes as bp
 from astropy.time import Time
 from bokeh.layouts import row, column, widgetbox
 from bokeh.models import (ColumnDataSource, Slider, Button, TextInput, CheckboxGroup, RadioGroup,
-                          BoxSelectTool, TapTool, Div, Spacer, Range1d, RadioButtonGroup)
+                          BoxSelectTool, TapTool, Div, LabelSet, Spacer, Range1d, RadioButtonGroup)
 from bokeh.models.mappers import LogColorMapper, LinearColorMapper
 from bokeh.plotting import figure, curdoc
 from suncasa.utils import DButil
@@ -29,17 +29,27 @@ def exit_update():
 def update_imgprofile():
     img_quadx_selected = SRC_img_quadx.selected['1d']['indices']
     img_quady_selected = SRC_img_quady.selected['1d']['indices']
+    xstr = Time(xbd[img_quadx_selected] / (24. * 3600) + x[0], format='jd', scale='utc', precision=0,
+                out_subfmt='date_hms').iso[0]
+    ystr = ' {:.1f} [arcsec]'.format(ybd[img_quady_selected][0])
     if len(img_quadx_selected) > 0 and len(img_quady_selected) > 0:
         if RadioButG_XYswitch.active == 0:
             imgprofiledata = {'xx': xbd.ravel(), 'yy': zz[img_quady_selected, :].ravel()}
             p_imgprofile.xaxis.axis_label = 'Seconds since ' + tim0_char
+            imgprofilehoverdata = {'x': xbd[img_quadx_selected], 'y': zz[img_quady_selected, img_quadx_selected],
+                                   'tooltips': [xstr+ystr]}
         else:
             imgprofiledata = {'xx': ybd.ravel(), 'yy': zz[:, img_quadx_selected].ravel()}
             p_imgprofile.xaxis.axis_label = 'distance [arcsec]'
+            ystr = '{} [arcsec]'.format(ybd[img_quady_selected][0])
+            imgprofilehoverdata = {'x': ybd[img_quady_selected], 'y': zz[img_quady_selected, img_quadx_selected],
+                                   'tooltips': [xstr+ystr]}
         r_imgprofile.data_source.data = imgprofiledata
+        r_imgprofile_hover.data_source.data = imgprofilehoverdata
         p_imgprofile.x_range.start, p_imgprofile.x_range.end = imgprofiledata['xx'][0], imgprofiledata['xx'][-1]
     else:
         r_imgprofile.data_source.data = {'xx': [], 'yy': []}
+        r_imgprofile_hover.data_source.data = {'x': [], 'y': [], 'tooltips': []}
 
 
 # def XYswitch_update(attrname, old, new):
@@ -80,7 +90,7 @@ try:
     img_save = database_dir + 'stackplt-' + PlotID + '.npy'
     imgdict = np.load(img_save).item()
 except:
-    print 'Error: No img-xxxxxxxxxx.npz found!!!'
+    print 'Error: No img-xxxxxxxxxx.npy found!!!'
     raise SystemExit
 
 zz = imgdict['zz']
@@ -118,7 +128,7 @@ p_img.axis.major_tick_line_color = "white"
 p_img.axis.minor_tick_line_color = "white"
 if imgdict['observatory'] == 'SDO' and imgdict['instrument'] == 'AIA':
     palette = getAIApalette(wavelngth)
-    clrange = DButil.sdo_aia_scale_dict(wavelength=wavelngth,imagetype=imagetype)
+    clrange = DButil.sdo_aia_scale_dict(wavelength=wavelngth, imagetype=imagetype)
     if clrange['log']:
         colormapper = LogColorMapper(palette=palette, low=clrange['low'], high=clrange['high'])
     else:
@@ -190,6 +200,13 @@ p_imgprofile.axis.minor_tick_out = 0
 p_imgprofile.axis.minor_tick_in = 3
 SRC_imgprofile = ColumnDataSource({'xx': [], 'yy': []})
 r_imgprofile = p_imgprofile.line(x='xx', y='yy', alpha=0.8, line_width=1, line_color='black', source=SRC_imgprofile)
+SRC_imgprofile_hover = ColumnDataSource({'x': [], 'y': [], 'tooltips': []})
+r_imgprofile_hover = p_imgprofile.circle(x='x', y='y', size=5, fill_alpha=0.5, fill_color='firebrick',
+                                         line_color='firebrick', source=SRC_imgprofile_hover)
+l_imgprofile_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
+                              source=SRC_imgprofile_hover,
+                              render_mode='canvas')
+p_imgprofile.add_layout(l_imgprofile_hover)
 
 RadioButG_XYswitch = RadioButtonGroup(labels=["X profile", "Y profile"], active=0)
 RadioButG_XYswitch.on_change('active', SRC_img_quad_update)
@@ -201,6 +218,7 @@ SRC_img_quady.on_change('selected', SRC_img_quad_update)
 BUT_exit = Button(label='Exit', width=config_main['plot_config']['tab_MkPlot']['button_wdth'], button_type='danger')
 BUT_exit.on_click(exit_update)
 
+# todo dump stackplt data
 lout = row(column(p_img, p_imgprofile), column(RadioButG_XYswitch, BUT_exit, Div_info))
 
 curdoc().add_root(lout)

@@ -66,7 +66,7 @@ def Running_diff_img(sdompdict, ratio=False):
             else:
                 sdompdict['submc'].maps[sidx].data = smap.data - maps[sidx - datastep].data
         Div_info.text = """<p>{}</p>""".format(
-            ProgressBar(sidx + 1, nsdofile, suffix='Update', decimals=0, length=14, empfile='=', fill='#'))
+            DButil.ProgressBar(sidx + 1, nsdofile, suffix='Update', decimals=0, length=14, empfill='=', fill='#'))
     return sdompdict
 
 
@@ -82,7 +82,7 @@ def Base_diff_img(sdompdict, ratio=False):
             else:
                 sdompdict['submc'].maps[sidx].data = smap.data - maps[0].data
         Div_info.text = """<p>{}</p>""".format(
-            ProgressBar(sidx + 1, nsdofile, suffix='Update', decimals=0, length=14, empfile='=', fill='#'))
+            DButil.ProgressBar(sidx + 1, nsdofile, suffix='Update', decimals=0, length=14, empfill='=', fill='#'))
     return sdompdict
 
 
@@ -197,26 +197,6 @@ def sdosubmp_region_select(attrname, old, new):
         sdo_RSPmap_quadselround = 0
 
 
-def ProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, empfile=' ', fill='█'):
-    """
-    Call in a loop to create terminal progress bar
-    @params:
-        iteration   - Required  : current iteration (Int)
-        total       - Required  : total iterations (Int)
-        prefix      - Optional  : prefix string (Str)
-        suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : positive number of decimals in percent complete (Int)
-        length      - Optional  : character length of bar (Int)
-        fill        - Optional  : bar fill character (Str)
-        empfile     - Optional  : empty bar fill character (Str)
-    """
-    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
-    filledLength = int(length * iteration // total)
-    bar = fill * filledLength + empfile * (length - filledLength)
-    # return '%s |%s| %s%% %s' % (prefix, bar, percent, suffix)
-    return '{} |{}| {}% {}'.format(prefix, bar, percent, suffix)
-
-
 def ImgOption_checkbox_handler(new):
     LoadChunk_handler()
 
@@ -231,7 +211,7 @@ def LoadChunk():
         sdosubmplist.append(sdosubmptmp)
         timestamps.append(Time(sdosubmptmp.meta['date-obs'].replace('T', ' '), format='iso', scale='utc').jd)
         Div_info.text = """<p>{}</p>""".format(
-            ProgressBar(sidx + 1, nsdofile + 1, suffix='Load', decimals=0, length=16, empfile='=', fill='#'))
+            DButil.ProgressBar(sidx + 1, nsdofile + 1, suffix='Load', decimals=0, length=16, empfill='=', fill='#'))
     mc = sunpy.map.Map(sdosubmplist, cube=True)
     sdompdict = {'FOV': [x0, y0, x1, y1], 'subFOV': [x0, y0, x1, y1], 'mc': mc, 'time': np.array(timestamps)}
     sdompdict['submc'] = LoadSubChunk(sdompdict)
@@ -239,7 +219,7 @@ def LoadChunk():
                           sdompdict['time'] <= trange.jd[0] + Slider_trange.range[1] / 24. / 3600)
     sdompdict['mask'] = mask
     Div_info.text = """<p>{}</p>""".format(
-        ProgressBar(nsdofile + 1, nsdofile + 1, suffix='Load', decimals=0, length=16, empfile='=', fill='#'))
+        DButil.ProgressBar(nsdofile + 1, nsdofile + 1, suffix='Load', decimals=0, length=16, empfill='=', fill='#'))
     return sdompdict
 
 
@@ -254,7 +234,7 @@ def LoadSubChunk(sdompdict):
             sdosubmptmp = DButil.smapradialfilter(sdosubmptmp, grid=grid)
         sdosubmplist.append(sdosubmptmp)
         Div_info.text = """<p>{}</p>""".format(
-            ProgressBar(sidx + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, empfile='=', fill='#'))
+            DButil.ProgressBar(sidx + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, empfill='=', fill='#'))
     if 0 in ImgOption_checkbox.active:
         submc = mapcube_solar_derotate(sunpy.map.Map(sdosubmplist, cube=True))
     else:
@@ -262,7 +242,7 @@ def LoadSubChunk(sdompdict):
     # if imagetype != 'image':
     #     DiffImg_update()
     Div_info.text = """<p>{}</p>""".format(
-        ProgressBar(nsdofile + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, empfile='=', fill='#'))
+        DButil.ProgressBar(nsdofile + 1, nsdofile + 1, suffix='Update', decimals=0, length=14, empfill='=', fill='#'))
     return submc
 
 
@@ -660,7 +640,7 @@ def trange_update(updatemask=True):
                 sdosubmpdict['time'] >= trange.jd[0] + (Slider_trange.range[0] - 6.0) / 24. / 3600,
                 sdosubmpdict['time'] <= trange.jd[0] + (Slider_trange.range[1] + 6.0) / 24. / 3600)
         maskidx = np.where(sdosubmpdict['mask'])[0]
-        print updatemask, sdosubmpdict['mask']
+        # print updatemask, sdosubmpdict['mask']
         sdofileinbound = [maskidx[0], maskidx[-1]]
         Slider_sdoidx.value = sdofileinbound[0] + 1
         # if Select_DiffImg.value != 'No diff images':
@@ -874,16 +854,16 @@ p_lighcurve.axis.minor_tick_in = 3
 SRC_lightcurve = ColumnDataSource({'x': [], 'y': []})
 r_lighcurve = p_lighcurve.line(x='x', y='y', alpha=0.8, line_width=1, line_color='black', source=SRC_lightcurve)
 
-BUT_UndoDraw = Button(label='Undo', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
+BUT_UndoDraw = Button(label='Undo', width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'],
                       button_type='warning')
 BUT_UndoDraw.on_click(UndoDraw)
-BUT_ClearDraw = Button(label='ClearDraw', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
+BUT_ClearDraw = Button(label='ClearDraw', width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'],
                        button_type='danger')
 BUT_ClearDraw.on_click(ClearDraw)
-BUT_loadchunk = Button(label='LoadChunk', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
+BUT_loadchunk = Button(label='LoadChunk', width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'],
                        button_type='warning')
 BUT_loadchunk.on_click(LoadChunk_handler)
-BUT_Stackplt = Button(label='StackPlt', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
+BUT_Stackplt = Button(label='StackPlt', width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'],
                       button_type='success')
 BUT_Stackplt.on_click(ViewStackplt)
 
@@ -911,7 +891,8 @@ fitmethod = fitmethoddict['{}'.format(fitMeth_radiogroup.active)]
 ascending = True
 clearpoint = False
 
-Slider_smoothing_factor = Slider(start=0.0, end=1.0, value=1.0, step=0.05, title='smoothing factor')
+Slider_smoothing_factor = Slider(start=0.0, end=1.0, value=1.0, step=0.05, title='smoothing factor',
+                                 width=config_main['plot_config']['tab_MkPlot']['slider_wdth'])
 Slider_smoothing_factor.on_change('value', slider_smoothing_factor_update)
 
 Hideitem_checkbox.on_click(HideItemUpdate)
@@ -919,7 +900,7 @@ fitMeth_radiogroup.on_click(fitMethUpdate)
 
 Div_info = Div(text="""<p><b>Warning</b>: Click <b>Exit</b>
             first before closing the tab</p></b>""", width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
-BUT_default_fitparam = Button(label='Default', width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'],
+BUT_default_fitparam = Button(label='Default', width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'],
                               button_type='primary')
 BUT_default_fitparam.on_click(default_fitparam)
 BUT_exit = Button(label='Exit', width=config_main['plot_config']['tab_MkPlot']['button_wdth'], button_type='danger')
@@ -927,7 +908,7 @@ BUT_exit.on_click(exit_update)
 
 menu_slit = [("Open", "Open"), ("Save As", "Save As"), None, ("Load", "Load"), ("Save", "Save")]
 DropDn_slit = Dropdown(label="Slit File", menu=menu_slit,
-                       width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'])
+                       width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'])
 DropDn_slit.on_change('value', DropDn_slit_handler)
 
 trangesec = (0.0, float(int(np.diff(trange.jd)[0] * 24 * 3600)))
@@ -961,9 +942,8 @@ Select_DiffImg = Select(title="Difference images:", value=DiffImglabelsdict[imag
                         width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
 Select_DiffImg.on_change('value', Select_DiffImg_update)
 
-Slider_datadt = Slider(start=AIAcadence, end=(nsdofile - 1) * AIAcadence, value=AIAcadence, step=AIAcadence,
-                       title='dt [second]',
-                       width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
+Slider_datadt = Slider(start=AIAcadence, end=int(nsdofile - 1) / 2 * AIAcadence, value=AIAcadence, step=AIAcadence,
+                       title='dt [second]', width=config_main['plot_config']['tab_MkPlot']['slider_wdth'])
 Slider_datadt.on_change('value', Slider_datadt_update)
 try:
     LoadSlit(slitfile)
@@ -988,9 +968,9 @@ widgt1p2 = widgetbox(Select_DiffImg, Slider_datadt,
 tab2 = Panel(child=widgt1p2, title="Diff")
 tabs = Tabs(tabs=[tab1, tab2])
 widgt2 = widgetbox(BUT_UndoDraw, DropDn_slit, BUT_loadchunk,
-                   width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'])
+                   width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'])
 widgt3 = widgetbox(BUT_ClearDraw, BUT_default_fitparam, BUT_Stackplt,
-                   width=config_main['plot_config']['tab_MkPlot']['button_wdth_half'])
+                   width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'])
 widgt4 = widgetbox(BUT_exit, Div_info, width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
 loutc3 = column(tabs, row(widgt2, widgt3), widgt4)
 

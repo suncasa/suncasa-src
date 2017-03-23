@@ -7,12 +7,15 @@ import pickle
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
+
 def initconfig(suncasa_dir):
     if not os.path.exists(suncasa_dir + 'DataBrowser/config.json'):
-        os.system('cp {} {}'.format(suncasa_dir + 'DataBrowser/config_init.json',suncasa_dir + 'DataBrowser/config.json'))
+        os.system(
+            'cp {} {}'.format(suncasa_dir + 'DataBrowser/config_init.json', suncasa_dir + 'DataBrowser/config.json'))
         return True
     else:
         return False
+
 
 # def mkunidir(dirlist, isdir=True):
 #     '''
@@ -30,6 +33,26 @@ def initconfig(suncasa_dir):
 #     for ll in dirs:
 #         if not os.path.exists(ll):
 #             os.makedirs(ll)
+
+def ProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, empfill=' ', fill='#'):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        empfill     - Optional  : empty bar fill character (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + empfill * (length - filledLength)
+    # return '%s |%s| %s%% %s' % (prefix, bar, percent, suffix)
+    return '{} |{}| {}% {}'.format(prefix, bar, percent, suffix)
+
 
 def getcurtimstr(prefix='CleanID_', suffix=''):
     import time
@@ -208,9 +231,9 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
         if imagetype == 'image':
             return {'low': 10, 'high': 2000, 'log': True}
         elif imagetype == 'RDimage':
-            return {'low': -600, 'high': 600, 'log': False}
+            return {'low': -300, 'high': 300, 'log': False}
         elif imagetype == 'BDimage':
-            return {'low': -600, 'high': 600, 'log': False}
+            return {'low': -300, 'high': 300, 'log': False}
         elif imagetype == 'RDRimage':
             return {'low': -1.5, 'high': 1.5, 'log': False}
         elif imagetype == 'BDRimage':
@@ -338,9 +361,16 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
                     [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
                      for
                      ll in sdofits], format='iso', scale='utc')
-                sdofitspathnew = [x for (y,x) in sorted(zip(sdotimeline.jd,sdofitspath))]
+                sdofitspathnew = [x for (y, x) in sorted(zip(sdotimeline.jd, sdofitspath))]
+                sdofitsnew = [os.path.basename(ll) for ll in sdofitspathnew]
+                sdotimelinenew = Time(
+                    [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
+                     for
+                     ll in sdofitsnew], format='iso', scale='utc')
                 sdofile = list(np.array(sdofitspathnew)[
-                                   np.where(np.logical_and(jdtime[0] < sdotimeline.jd, sdotimeline.jd < jdtime[1]))[0]])
+                                   np.where(
+                                       np.logical_and(jdtime[0] < sdotimelinenew.jd, sdotimelinenew.jd < jdtime[1]))[
+                                       0]])
                 return sdofile
     else:
         jdtimstr = Time(jdtime, format='jd').iso
@@ -674,13 +704,13 @@ def dspecDFfilter(dspecDF, pol):
         return dspecDF
 
 
-def dspecDF2text(DFfile,outfile=None):
+def dspecDF2text(DFfile, outfile=None):
     if DFfile:
         if os.path.exists(DFfile):
             if outfile:
                 with open(DFfile, 'rb') as f:
                     dspecDF0 = pickle.load(f)
-                dspecDF0.drop(['dspec', 'fits_global', 'fits_local'],axis=1,inplace=True)
+                dspecDF0.drop(['dspec', 'fits_global', 'fits_local'], axis=1, inplace=True)
                 dspecDF0.to_csv(outfile, sep='\t')
             else:
                 raise ValueError('provide output file name!')
@@ -688,7 +718,6 @@ def dspecDF2text(DFfile,outfile=None):
             raise ValueError('input file "{}" does not existed!'.format(DFfile))
     else:
         raise ValueError('provide input file name!')
-
 
 
 def smapmeshgrid2(smap, rescale=1.0):
@@ -778,7 +807,7 @@ def regridspec(spec, x, y, nxmax=None, nymax=None, interp=False):
             if nf > nymax:
                 ystep = int(float(nf) / nymax)
         specnew = spec[:, :, ::ystep, ::xstep]
-    return specnew
+    return [specnew, xstep, ystep]
 
 
 def get_contour_data(X, Y, Z, levels=[0.5, 0.7, 0.9]):

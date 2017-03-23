@@ -126,7 +126,8 @@
     "tab_MkPlot": {
       "space_wdth80": 80,
       "button_wdth": 200,
-      "button_wdth_half": 100,
+      "button_wdth_small": 100,
+      "slider_wdth": 300,
       "aia_submap_sz_max": 500,
       "space_wdth20": 20,
       "aia_submap_wdth": 700,
