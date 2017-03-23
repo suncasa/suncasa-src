@@ -572,6 +572,8 @@ def tab2_BUT_timfit_param_reload():
 def tab2_BUT_tImfit_update():
     global ImfitID_dir
     ImfitID_dir = CleanID_dir + tab2_tImfit_Param_dict['imfit_id'] + '/'
+    if os.path.exists(ImfitID_dir):
+        os.makedirs(ImfitID_dir)
     outfile = ImfitID_dir + 'CASA_imfit_args.json'
     DButil.updatejsonfile(outfile, tab2_tImfit_Param_dict)
     os.system('cp {}/DataBrowser/FSview/script_imfit.py {}'.format(suncasa_dir,
