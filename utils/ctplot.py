@@ -49,7 +49,13 @@ def contour1chn(vlafile, aiafile, chn=0, pol=0, x_range=[], y_range=[], levels=[
                                u.Quantity(y_range * u.arcsec))
     hdulist = fits.open(vlafile)
     hdu = hdulist[0]
-    vladata = hdu.data[pol, chn, :, :]
+    dims =  hdu.data.shape
+    if len(dims) == 2:
+        vladata = hdu.data
+    elif len(dims) == 4:
+        vladata = hdu.data[pol, chn, :, :]
+    else:
+        raise ValueError('check you import vla fits file')
     vlamap = sunpy.map.Map((vladata, hdu.header))
     cmap = sunpy.map.CompositeMap(aiamap)
     cmap.add_map(vlamap, levels=np.array(levels) * np.nanmax(vlamap.data))
