@@ -139,6 +139,8 @@ def tab2_ClickMode_handler():
     if But_ClickMode.label == "ClickMode: Single":
         But_ClickMode.label = "ClickMode: Double"
         clickmode = 'singleclick'
+        if tab2_BUT_XCorr.label =='GoXCorr':
+            tab2_BUT_XCorr.label = 'XCorr'
     elif But_ClickMode.label == "ClickMode: Double":
         But_ClickMode.label = "ClickMode: Single"
         clickmode = 'doubleclick'

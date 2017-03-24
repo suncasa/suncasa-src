@@ -750,14 +750,14 @@ r_sdo_RSPmap_quadx = p_sdomap.quad('left', 'right', 'top', 'bottom', source=SRC_
                                    fill_alpha=0.0, fill_color=None,
                                    line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
                                    selection_fill_color=None,
-                                   nonselection_fill_alpha=0.5,nonselection_fill_color='black',
+                                   nonselection_fill_alpha=0.0,nonselection_fill_color=None,
                                    selection_line_alpha=0.0, selection_line_color=None,
                                    nonselection_line_alpha=0.0)
 r_sdo_RSPmap_quady = p_sdomap.quad('left', 'right', 'top', 'bottom', source=SRC_sdo_RSPmap_quady,
                                    fill_alpha=0.0, fill_color=None,
                                    line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
                                    selection_fill_color=None,
-                                   nonselection_fill_alpha=0.5,nonselection_fill_color='black',
+                                   nonselection_fill_alpha=0.0,nonselection_fill_color=None,
                                    selection_line_alpha=0.0, selection_line_color=None,
                                    nonselection_line_alpha=0.0)
 p_sdomap.add_tools(TapTool(renderers=[r_sdo_RSPmap_quadx, r_sdo_RSPmap_quady]))
