@@ -326,35 +326,10 @@ def tab2_Select_vla_pol_update(attrname, old, new):
     slider_LinkImg_update()
 
 
-# def tab2_dspec_selection_change(attrname, old, new):
-#     global tab2_dspec_selected, tidx_prev
-#     tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
-#     if tab2_dspec_selected:
-#         global dspecDF_select, DFidx_selected
-#         dspecDF_select = dspecDF0_rs.iloc[tab2_dspec_selected, :]
-#         # print len(dspecDF0_rs.index)
-#         DFidx_selected = dspecDF_select.index[len(dspecDF_select) / 2]
-#         # DFidx_selected = dspecDF_select.index[0]
-#         tidx = int(['{:.3f}'.format(ll) for ll in tab2_dtim].index(
-#             '{:.3f}'.format(dspecDF0.loc[DFidx_selected, :]['time'])))
-#         fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
-#             '{:.3f}'.format(dspecDF0.loc[DFidx_selected, :]['freq'])))
-#         tab2_Slider_time_LinkImg.value = tidx
-#         tab2_Slider_freq_LinkImg.value = fidx
-#         if len(tab2_dspec_selected) > 100:
-#             x0, x1 = dspecDF_select['time'].min(), dspecDF_select['time'].max()
-#             y0, y1 = dspecDF_select['freq'].min(), dspecDF_select['freq'].max()
-#             tab2_r_dspec_patch.data_source.data = ColumnDataSource(
-#                 pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
-#         else:
-#             tab2_r_dspec_patch.data_source.data = ColumnDataSource(
-#                 pd.DataFrame({'xx': [], 'yy': []})).data
 
 def tab2_dspec_selection_change(attrname, old, new):
     global tapPointDF_dspec, dspecDF_select
     global SRC_dspec_quadselround
-    print tab2_SRC_dspec_quadx.selected['1d']['indices'], tab2_SRC_dspec_quady.selected['1d']['indices']
-    print clickmode
     if clickmode == 'singleclick':
         tab2_SRC_dspec_quadx_selected = tab2_SRC_dspec_quadx.selected['1d']['indices']
         tab2_SRC_dspec_quady_selected = tab2_SRC_dspec_quady.selected['1d']['indices']
@@ -380,9 +355,15 @@ def tab2_dspec_selection_change(attrname, old, new):
                                           'y': [tab2_freq[quady_selected]],
                                           'tooltips': tooltips}
             r_dspec_yPro_hover.data_source.data = tab2_dspec_yPro_hover_data
+        elif len(tab2_SRC_dspec_quadx_selected) == 0 and len(tab2_SRC_dspec_quady_selected) == 0:
+            r_dspec_xPro.data_source.data = {'x': [], 'y': []}
+            r_dspec_xPro_hover.data_source.data = {'x': [], 'y': [], 'tooltips': []}
+            r_dspec_yPro.data_source.data = {'x': [], 'y': []}
+            r_dspec_yPro_hover.data_source.data = {'x': [], 'y': [], 'tooltips': []}
+            tab2_r_dspec_line_x.data_source.data = {'time': [], 'freq': []}
+            tab2_r_dspec_line_y.data_source.data = {'time': [], 'freq': []}
     elif clickmode == 'doubleclick':
         SRC_dspec_quadselround += 1
-        print SRC_dspec_quadselround
         if SRC_dspec_quadselround == 2:
             SRC_dspec_quadselround = 0
             tab2_SRC_dspec_quadx_selected = tab2_SRC_dspec_quadx.selected['1d']['indices']
@@ -810,6 +791,12 @@ if os.path.exists(FS_dspecDF):
                                                 fill_color=None, fill_alpha=0.0, line_color="Magenta",
                                                 line_alpha=0.8, line_width=1)
 
+        tab2_source_idx_line_x = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
+        tab2_r_dspec_line_x = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
+                                                line_color='white', source=tab2_source_idx_line_x)
+        tab2_source_idx_line_y = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
+        tab2_r_dspec_line_y = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
+                                                line_color='white', source=tab2_source_idx_line_y)
         # tab2_p_dspec.border_fill_color = "silver"
         tab2_p_dspec.border_fill_alpha = 0.4
         tab2_p_dspec.axis.major_tick_out = 0
@@ -1041,12 +1028,6 @@ if os.path.exists(FS_dspecDF):
         tab2_Select_vla_pol = Select(title="Polarization:", value=pols[0], options=pols,
                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
-        tab2_source_idx_line_x = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
-        tab2_r_dspec_line_x = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
-                                                line_color='white', source=tab2_source_idx_line_x)
-        tab2_source_idx_line_y = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
-        tab2_r_dspec_line_y = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
-                                                line_color='white', source=tab2_source_idx_line_y)
 
         tab2_CTRLs_LinkImg = [tab2_Slider_time_LinkImg, tab2_Slider_freq_LinkImg, tab2_Select_vla_pol]
         for ctrl in tab2_CTRLs_LinkImg:
