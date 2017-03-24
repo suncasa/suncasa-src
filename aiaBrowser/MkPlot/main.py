@@ -180,7 +180,7 @@ def sdosubmp_region_select(attrname, old, new):
                     'ys': [[mapy_sdo_RSPmap[0, sdo_RSPmap_quadx_selected[0]],
                             mapy_sdo_RSPmap[-1, sdo_RSPmap_quadx_selected[0]]],
                            [mapy_sdo_RSPmap[sdo_RSPmap_quady_selected[0], sdo_RSPmap_quadx_selected[0]]] * 2]}
-            if len(tapPointDF_sdo_RSPmap.index) == 2:
+            elif len(tapPointDF_sdo_RSPmap.index) == 2:
                 x0, x1 = tapPointDF_sdo_RSPmap['xx'].min(), tapPointDF_sdo_RSPmap['xx'].max()
                 y0, y1 = tapPointDF_sdo_RSPmap['yy'].min(), tapPointDF_sdo_RSPmap['yy'].max()
                 if x1 > x0 + mapx_sdo_RSPmap[0, 1] - mapx_sdo_RSPmap[0, 0] and y1 > y0 + mapy_sdo_RSPmap[0, 1] - \
@@ -750,14 +750,14 @@ r_sdo_RSPmap_quadx = p_sdomap.quad('left', 'right', 'top', 'bottom', source=SRC_
                                    fill_alpha=0.0, fill_color=None,
                                    line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
                                    selection_fill_color=None,
-                                   nonselection_fill_alpha=0.0,
+                                   nonselection_fill_alpha=0.5,nonselection_fill_color='black',
                                    selection_line_alpha=0.0, selection_line_color=None,
                                    nonselection_line_alpha=0.0)
 r_sdo_RSPmap_quady = p_sdomap.quad('left', 'right', 'top', 'bottom', source=SRC_sdo_RSPmap_quady,
                                    fill_alpha=0.0, fill_color=None,
                                    line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
                                    selection_fill_color=None,
-                                   nonselection_fill_alpha=0.0,
+                                   nonselection_fill_alpha=0.5,nonselection_fill_color='black',
                                    selection_line_alpha=0.0, selection_line_color=None,
                                    nonselection_line_alpha=0.0)
 p_sdomap.add_tools(TapTool(renderers=[r_sdo_RSPmap_quadx, r_sdo_RSPmap_quady]))
