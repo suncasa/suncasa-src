@@ -98,10 +98,12 @@ ports = []
 def tab2_panel_XCorr_update():
     global clickmode
     if tab2_BUT_XCorr.label == 'XCorr':
+        clickmode = 'doubleclick'
         But_ClickMode.label = 'ClickMode: Double'
         tab2_BUT_XCorr.label = 'GoXCorr'
         tab2_panel_Div_exit.text = '<p><b>click two points in dynamic spectrum to select time and frequency range.</b></p>'
     elif 'GoXCorr':
+        clickmode = 'singleclick'
         But_ClickMode.label = 'ClickMode: Single'
         tab2_BUT_XCorr.label = 'XCorr'
         global dspecDF_select

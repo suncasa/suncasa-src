@@ -188,10 +188,12 @@ def tab2_panel_XCorr_update():
     global clickmode
     if tab2_BUT_XCorr.label == 'XCorr':
         clickmode = 'doubleclick'
+        But_ClickMode.label = 'ClickMode: Double'
         tab2_BUT_XCorr.label = 'GoXCorr'
         tab2_Div_LinkImg_plot.text = '<p><b>click two points in dynamic spectrum to select time and frequency range.</b></p>'
     elif 'GoXCorr':
         clickmode = 'singleclick'
+        But_ClickMode.label = 'ClickMode: Single'
         tab2_BUT_XCorr.label = 'XCorr'
         global dspecDF_select
         time0, time1 = Time((dspecDF_select['time'].min() + timestart) / 3600. / 24., format='jd'), Time(
@@ -325,6 +327,14 @@ def tab2_Select_vla_pol_update(attrname, old, new):
     select_vla_pol = tab2_Select_vla_pol.value
     slider_LinkImg_update()
 
+def tab2_ClickMode_handler():
+    global clickmode
+    if But_ClickMode.label == "ClickMode: Single":
+        But_ClickMode.label = "ClickMode: Double"
+        clickmode = 'singleclick'
+    elif But_ClickMode.label == "ClickMode: Double":
+        But_ClickMode.label = "ClickMode: Single"
+        clickmode = 'doubleclick'
 
 
 def tab2_dspec_selection_change(attrname, old, new):
@@ -1028,7 +1038,6 @@ if os.path.exists(FS_dspecDF):
         tab2_Select_vla_pol = Select(title="Polarization:", value=pols[0], options=pols,
                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
-
         tab2_CTRLs_LinkImg = [tab2_Slider_time_LinkImg, tab2_Slider_freq_LinkImg, tab2_Select_vla_pol]
         for ctrl in tab2_CTRLs_LinkImg:
             ctrl.on_change('value', tab3_slider_LinkImg_update)
@@ -1098,6 +1107,11 @@ if os.path.exists(FS_dspecDF):
 
         tab2_SPCR_LFT_Div_tImfit = Spacer(width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
 
+        But_ClickMode = Button(label="ClickMode: Double",
+                               width=config_main['plot_config']['tab_ToClean']['widgetbox_wdth1'],
+                               button_type="primary")
+        But_ClickMode.on_click(tab2_ClickMode_handler)
+
         lout2_1_1 = row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
                         widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
                                   tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
@@ -1105,7 +1119,7 @@ if os.path.exists(FS_dspecDF):
         lout2_1_2 = row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
                                tab2_p_dspec_xPro),
                         widgetbox(tab2_Select_pol, tab2_Select_bl,
-                                  tab2_Select_colorspace, tab2_BUT_XCorr,
+                                  tab2_Select_colorspace, But_ClickMode, tab2_BUT_XCorr,
                                   tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
                                   width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']))
         lout2_1 = column(lout2_1_1, lout2_1_2)
