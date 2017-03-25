@@ -451,27 +451,46 @@ def tab2_panel3_savimgs_handler():
         dspecDF0POL['freq'] <= tab3_p_dspec_vector.y_range.end]
     timselseq = np.unique(dspecDF_select['time'])
     timseq = np.unique(dspecDF0POLsub['time'])
-    subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'timestr']
-    nfiles = len(timseq)
-    for sidx, ll in enumerate(timseq):
-        timstr = dspecDF0POLsub[dspecDF0POLsub['time'] == ll]['timestr'].iloc[0]
-        maponly = True
+    subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'timestr','peak']
+    if tab3_BUT_animate_ONOFF.label == 'Animate ON & Go':
+        nfiles = len(timseq)
+        for sidx, ll in enumerate(timseq):
+            timstr = dspecDF0POLsub[dspecDF0POLsub['time'] == ll]['timestr'].iloc[0]
+            maponly = True
+            centroids = {}
+            centroids['freqran'] = [tab3_p_dspec_vector.y_range.start, tab3_p_dspec_vector.y_range.end]
+            if ll in timselseq:
+                dftmp = dspecDF_select[dspecDF_select.time == ll][subset_label]
+                dftmp = dftmp.dropna(how='any', subset=subset_label)
+                centroids['freq'] = dftmp['freq'].as_matrix()
+                centroids['shape_longitude'] = dftmp['shape_longitude'].as_matrix()
+                centroids['shape_latitude'] = dftmp['shape_latitude'].as_matrix()
+                centroids['peak'] = dftmp['peak'].as_matrix()
+                maponly = False
+            ctplot.plotmap(centroids, aiamap_submap, outfile=outimgdir + timstr.replace(':', '') + '.png',
+                           label='VLA ' + timstr,
+                           x_range=[tab3_p_aia_submap.x_range.start, tab3_p_aia_submap.x_range.end],
+                           y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end], maponly=maponly)
+            tab3_Div_Tb.text = """<p>{}</p>""".format(
+                DButil.ProgressBar(sidx + 1, nfiles, suffix='Output', decimals=0, length=30, empfill='=', fill='#'))
+        tab3_Div_Tb.text = '<p>images saved to <b>{}</b>.</p>'.format(outimgdir)
+    else:
+        timstr = dspecDF0POLsub['timestr'].iloc[0]
         centroids = {}
         centroids['freqran'] = [tab3_p_dspec_vector.y_range.start, tab3_p_dspec_vector.y_range.end]
-        if ll in timselseq:
-            dftmp = dspecDF_select[dspecDF_select.time == ll][subset_label]
-            dftmp = dftmp.dropna(how='any', subset=subset_label)
-            centroids['freq'] = dftmp['freq'].as_matrix()
-            centroids['shape_longitude'] = dftmp['shape_longitude'].as_matrix()
-            centroids['shape_latitude'] = dftmp['shape_latitude'].as_matrix()
-            maponly = False
+        dftmp = dspecDF_select[subset_label]
+        dftmp = dftmp.dropna(how='any', subset=subset_label)
+        dftmp = dftmp.sort(['freq'], ascending=[True])
+        centroids['freq'] = dftmp['freq'].as_matrix()
+        centroids['shape_longitude'] = dftmp['shape_longitude'].as_matrix()
+        centroids['shape_latitude'] = dftmp['shape_latitude'].as_matrix()
+        centroids['peak'] = dftmp['peak'].as_matrix()
+        maponly = False
         ctplot.plotmap(centroids, aiamap_submap, outfile=outimgdir + timstr.replace(':', '') + '.png',
                        label='VLA ' + timstr,
                        x_range=[tab3_p_aia_submap.x_range.start, tab3_p_aia_submap.x_range.end],
                        y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end], maponly=maponly)
-        tab3_Div_Tb.text = """<p>{}</p>""".format(
-            DButil.ProgressBar(sidx + 1, nfiles, suffix='Output', decimals=0, length=30, empfill='=', fill='#'))
-    tab3_Div_Tb.text = '<p>images saved to <b>{}</b>.</p>'.format(outimgdir)
+        tab3_Div_Tb.text = '<p>images saved to <b>{}</b>.</p>'.format(outimgdir)
 
 
 def tab2_panel3_dumpdata_handler():
@@ -819,18 +838,18 @@ if os.path.exists(FS_dspecDF):
                                           button_type='success')
         tab2_panel3_BUT_dumpdata.on_click(tab2_panel3_dumpdata_handler)
 
-        tab3_p_dspec_vector = figure(tools='pan,wheel_zoom,box_zoom,save,reset',
+        tab3_p_dspec_vector = figure(tools='pan,wheel_zoom,box_zoom,save,resize,reset',
                                      plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
                                      plot_height=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_hght'],
                                      x_range=(tab2_dtim[0] - tab2_dt / 2.0, tab2_dtim[-1] + tab2_dt / 2.0),
                                      y_range=(tab2_freq[0] - tab2_df / 2.0, tab2_freq[-1] + tab2_df / 2.0),
                                      toolbar_location='above')
-        tab3_p_dspec_vectorx = figure(tools='pan,wheel_zoom,box_zoom,save,reset',
+        tab3_p_dspec_vectorx = figure(tools='pan,wheel_zoom,box_zoom,save,resize,reset',
                                       plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
                                       plot_height=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_hght'],
                                       x_range=tab3_p_dspec_vector.x_range,
                                       y_range=tab3_p_dspec_vector.y_range, toolbar_location='above')
-        tab3_p_dspec_vectory = figure(tools='pan,wheel_zoom,box_zoom,save,reset',
+        tab3_p_dspec_vectory = figure(tools='pan,wheel_zoom,box_zoom,save,resize,reset',
                                       plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
                                       plot_height=config_main['plot_config']['tab_FSview_FitANLYS'][
                                                       'dspec_small_hght'] + 40,

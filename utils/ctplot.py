@@ -49,7 +49,7 @@ def contour1chn(vlafile, aiafile, chn=0, pol=0, x_range=[], y_range=[], levels=[
                                u.Quantity(y_range * u.arcsec))
     hdulist = fits.open(vlafile)
     hdu = hdulist[0]
-    dims =  hdu.data.shape
+    dims = hdu.data.shape
     if len(dims) == 2:
         vladata = hdu.data
     elif len(dims) == 4:
@@ -79,7 +79,8 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
     ax = plt.subplot(projection=aiamap)
     im = aiamap.plot()
     if label:
-        ax.text(0.98,0.98, label, horizontalalignment='right', verticalalignment='top',color='white', transform=ax.transAxes,fontsize=14)
+        ax.text(0.98, 0.98, label, horizontalalignment='right', verticalalignment='top', color='white',
+                transform=ax.transAxes, fontsize=14)
     # # Prevent the image from being re-scaled while overplotting.
     ax.set_autoscale_on(False)
 
@@ -89,10 +90,10 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
             nchan = len(vlafile['freq'])
             for idx, chan in enumerate(vlafile['freq']):
                 x, y = [vlafile['shape_longitude'][idx], vlafile['shape_latitude'][idx]] * u.arcsec
-                plt.plot(x.to(u.deg), y.to(u.deg), '+', transform=ax.get_transform('world'),
-                         color=cm.jet(int((chan - freqs[0]) / (freqs[-1] - freqs[0]) * 255)),
-                         zorder=nchan + zorder * idx,
-                         **kwargs)
+                s = vlafile['peak'][idx] ** 2 / 50.0
+                plt.scatter(x.to(u.deg), y.to(u.deg), transform=ax.get_transform('world'),
+                            facecolor=cm.jet(int((chan - freqs[0]) / (freqs[-1] - freqs[0]) * 255)), edgecolor='black',
+                            s=s, zorder=nchan + zorder * idx, **kwargs)
     else:
         hdulist = fits.open(vlafile)
         hdu = hdulist[0]
@@ -114,9 +115,10 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
                         maxxy = maxfit(vlamap, mapxy=[mapx, mapy])
                         if maxxy:
                             x, y = maxxy * u.arcsec
-                            plt.plot(x.to(u.deg), y.to(u.deg), '+', transform=ax.get_transform('world'),
-                                     color=cm.jet(int(float(chan) / nfreq * 255)), zorder=nchan + zorder * idx,
-                                     **kwargs)
+                            plt.scatter(x.to(u.deg), y.to(u.deg), transform=ax.get_transform('world'),
+                                        facecolor=cm.jet(int(float(chan) / nfreq * 255)), edgecolor='black',
+                                        s=np.nanmax(vladata) ** 2 / 50.0,
+                                        zorder=nchan + zorder * idx, **kwargs)
             elif plotstyle == 'contour':
                 for idx, chan in enumerate(chans):
                     vladata = hdu.data[pol, chan, :, :]
