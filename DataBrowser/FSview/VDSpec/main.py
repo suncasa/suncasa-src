@@ -457,8 +457,14 @@ def tab2_panel3_savimgs_handler():
         farr = np.unique(dspecDF0POLsub['freq'].as_matrix())
         nt = len(tarr)
         nf = len(farr)
+        if tab2_SRC_dspec_vector_square.selected['1d']['indices']:
+            dspecDF0POLsubnew = dspecDF0POLsub['peak']
+            dspecDF0POLsubnew.iloc[:] = np.nan
+            dspecDF0POLsubnew.loc[dspecDF_select.index] = dspecDF_select['peak']
+            dspecDF0POLsub['peak'] = dspecDF0POLsubnew
         parr = dspecDF0POLsub['peak'].as_matrix().reshape(nf, nt)
-        dspecdata = {'time': tarr, 'freq': farr, 'peak': parr}
+        parr = np.ma.masked_where(np.isnan(parr), parr)
+        dspecdata = {'time': tarr, 'freq': farr, 'peak': parr, 'drange': [np.nanmin(parr), np.nanmax(parr)]}
     timselseq = np.unique(dspecDF_select['time'])
     timseq = np.unique(dspecDF0POLsub['time'])
     subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'timestr', 'peak', 'time']
@@ -1075,7 +1081,7 @@ if os.path.exists(FS_dspecDF):
         Select_Figfmt = Select(title="Figure format:", value='png', options=['png', 'jpeg', 'eps', 'pdf'],
                                width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         Select_Figdpi = Select(title="Figure resolution [dpi]:", value='100',
-                               options=['50','100', '200', '400', '600', '800', '1000', '1200'],
+                               options=['50', '100', '200', '400', '600', '800', '1000', '1200'],
                                width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         Select_Figsize = Select(title="Figure Size [inch]:", value='10x8',
                                 options=['16x9', '12x9', '10x8', '10x10', '8x10', '9x12', '9x16'],

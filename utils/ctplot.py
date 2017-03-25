@@ -81,8 +81,8 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
     if type(vlafile) == dict:
         if dspecdata:
             if dspecdata['stack'] == 'Vstack':
-                gs = gridspec.GridSpec(4, 1, width_ratios=[1], height_ratios=[1, 0.02, 0.5, 0.02])
-                fig = plt.figure(figsize=(8, 12))
+                gs = gridspec.GridSpec(2, 2, width_ratios=[1, 0.02], height_ratios=[1, 0.5])
+                fig = plt.figure(figsize=(9, 12))
             elif dspecdata['stack'] == 'Hstack':
                 gs = gridspec.GridSpec(1, 4, width_ratios=[1, 0.02, 1.5, 0.02], height_ratios=[1])
                 fig = plt.figure(figsize=(18, 8))
@@ -121,7 +121,10 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
         else:
             tim = dspecdata['time']
             dt = np.mean(np.diff(tim))
-            ax3.pcolormesh(tim, dspecdata['freq'], dspecdata['peak'], cmap='jet', vmin=0, vmax=60)
+            cmapspec = cm.jet
+            cmapspec.set_bad('white', 1.0)
+            normspec = colors.Normalize(vmin=dspecdata['drange'][0], vmax=dspecdata['drange'][1])
+            ax3.pcolormesh(tim, dspecdata['freq'], dspecdata['peak'], cmap=cmapspec, norm=normspec)
             ax3.add_patch(patches.Rectangle((vlafile['t'], dspecdata['freq'][0]), dt,
                                             dspecdata['freq'][-1] - dspecdata['freq'][0], facecolor='black',
                                             edgecolor='white', alpha=0.3))
@@ -132,30 +135,28 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
             newlabels = [Time(lb / 24. / 3600., format='jd').iso.split(' ')[1] for lb in labels]
             ax3.set_xticklabels(newlabels, rotation=45)
             if dspecdata['stack'] == 'Vstack':
-                fig.tight_layout(h_pad=0, pad=3)
+                fig.tight_layout(h_pad=3, pad=3)
                 ax3.set_ylabel('Frequency [GHz]')
-                cmap = cm.jet
-                norm = colors.Normalize(vmin=freqs[0], vmax=freqs[-1])
-                cb1 = colorbar.ColorbarBase(ax2, cmap=cmap, norm=norm, orientation='horizontal')
-                norm = colors.Normalize(vmin=0, vmax=60)
-                cb2 = colorbar.ColorbarBase(ax4, cmap=cmap, norm=norm, orientation='horizontal')
+                pos1 = ax1.get_position()
+                pos2 = ax2.get_position()
+                pos4 = ax4.get_position()
+                pos2new = [pos2.x0 - (1.0 - pos1.x1) / 2, pos2.y0, pos2.width, pos2.height]
+                ax2.set_position(pos2new)
+                pos4new = [pos4.x0 - (1.0 - pos1.x1) / 2, pos4.y0, pos4.width, pos4.height]
+                ax4.set_position(pos4new)
             elif dspecdata['stack'] == 'Hstack':
                 fig.tight_layout(w_pad=0, pad=5)
                 ax3.set_yticklabels([])
-                pos1 = ax1.get_position()
                 pos2 = ax2.get_position()
-                pos3 = ax3.get_position()
-                pos2new = [pos2.x0 - (pos3.x0 - pos1.x1)/4, pos2.y0, pos2.width, pos2.height]
+                pos4 = ax4.get_position()
+                pos2new = [pos2.x0 - 0.03, pos2.y0, pos2.width, pos2.height]
                 ax2.set_position(pos2new)
-                # pos1 = ax1.get_position()
-                # pos2 = ax2.get_position()
-                # cax1 = fig.add_axes([pos1.x1 - (pos2.x0 - pos1.x1) * 2.0, pos1.y0, 0.01, pos1.y1 - pos1.y0])
-                # cax2 = fig.add_axes([pos2.x1 - (1 - pos2.x1), pos2.y0, 0.01, pos2.y1 - pos2.y0])
-                cmap = cm.jet
-                norm = colors.Normalize(vmin=freqs[0], vmax=freqs[-1])
-                cb1 = colorbar.ColorbarBase(ax2, cmap=cmap, norm=norm, orientation='vertical')
-                norm = colors.Normalize(vmin=0, vmax=60)
-                cb2 = colorbar.ColorbarBase(ax4, cmap=cmap, norm=norm, orientation='vertical')
+                pos4new = [pos4.x0 - 0.01, pos4.y0, pos4.width, pos4.height]
+                ax4.set_position(pos4new)
+            cmap = cm.jet
+            norm = colors.Normalize(vmin=freqs[0], vmax=freqs[-1])
+            cb1 = colorbar.ColorbarBase(ax2, cmap=cmap, norm=norm, orientation='vertical')
+            cb2 = colorbar.ColorbarBase(ax4, cmap=cmapspec, norm=normspec, orientation='vertical')
             if type(vlafile) == dict:
                 cb1.set_label(vlafile['ColorMapper']['title'])
             else:
