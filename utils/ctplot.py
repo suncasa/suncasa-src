@@ -1,9 +1,11 @@
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import matplotlib.colorbar as colorbar
 import matplotlib.cm as cm
 import matplotlib.colors as colors
 import astropy.units as u
 from astropy.io import fits
+from astropy.time import Time
 import numpy as np
 import sunpy.map
 from suncasa.utils import DButil
@@ -63,8 +65,9 @@ def contour1chn(vlafile, aiafile, chn=0, pol=0, x_range=[], y_range=[], levels=[
 
 
 def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[], y_range=[], levels=[0.9],
-            plotstyle='centroid',
-            zorder=-1, maponly=False, **kwargs):
+            plotstyle='centroid', figsize=(10, 8), figdpi=100,
+            zorder=-1, maponly=False, dspecdata={}, **kwargs):
+    import matplotlib.gridspec as gridspec
     if outfile:
         plt.ioff()
     if type(aiafile) != sunpy.map.sources.sdo.AIAMap:
@@ -75,26 +78,98 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
         aiamap = aiamap.submap(u.Quantity(x_range * u.arcsec),
                                u.Quantity(y_range * u.arcsec))
 
-    fig = plt.figure()
-    ax = plt.subplot(projection=aiamap)
-    im = aiamap.plot()
-    if label:
-        ax.text(0.98, 0.98, label, horizontalalignment='right', verticalalignment='top', color='white',
-                transform=ax.transAxes, fontsize=14)
-    # # Prevent the image from being re-scaled while overplotting.
-    ax.set_autoscale_on(False)
-
     if type(vlafile) == dict:
-        freqs = vlafile['freqran']
+        if dspecdata:
+            if dspecdata['stack'] == 'Vstack':
+                gs = gridspec.GridSpec(4, 1, width_ratios=[1], height_ratios=[1, 0.02, 0.5, 0.02])
+                fig = plt.figure(figsize=(8, 12))
+            elif dspecdata['stack'] == 'Hstack':
+                gs = gridspec.GridSpec(1, 4, width_ratios=[1, 0.02, 1.5, 0.02], height_ratios=[1])
+                fig = plt.figure(figsize=(18, 8))
+            ax1 = plt.subplot(gs[0], projection=aiamap)
+            ax2 = plt.subplot(gs[1])
+            ax3 = plt.subplot(gs[2])
+            ax4 = plt.subplot(gs[3])
+        else:
+            gs = gridspec.GridSpec(1, 2, width_ratios=[1, 0.05], height_ratios=[1])
+            fig = plt.figure(figsize=figsize)
+            ax1 = plt.subplot(gs[0], projection=aiamap)
+            ax2 = plt.subplot(gs[1])
+        aiamap.plot(axes=ax1)
+        ax1.set_autoscale_on(False)
+
+        if label:
+            ax1.text(0.98, 0.98, label, horizontalalignment='right', verticalalignment='top', color='white',
+                     transform=ax1.transAxes, fontsize=14)
+        freqs = vlafile['ColorMapper']['crange']
         if not maponly:
-            nchan = len(vlafile['freq'])
-            for idx, chan in enumerate(vlafile['freq']):
-                x, y = [vlafile['shape_longitude'][idx], vlafile['shape_latitude'][idx]] * u.arcsec
-                s = vlafile['peak'][idx] ** 2 / 50.0
-                plt.scatter(x.to(u.deg), y.to(u.deg), transform=ax.get_transform('world'),
+            nchan = len(vlafile['ColorMapper']['c'])
+            for idx, chan in enumerate(vlafile['ColorMapper']['c']):
+                x, y = [vlafile['x'][idx], vlafile['y'][idx]] * u.arcsec
+                s = vlafile['s'][idx]
+                ax1.scatter(x.to(u.deg), y.to(u.deg), transform=ax1.get_transform('world'),
                             facecolor=cm.jet(int((chan - freqs[0]) / (freqs[-1] - freqs[0]) * 255)), edgecolor='black',
                             s=s, zorder=nchan + zorder * idx, **kwargs)
+        if not dspecdata:
+            cmap = cm.jet
+            norm = colors.Normalize(vmin=freqs[0], vmax=freqs[-1])
+            cb1 = colorbar.ColorbarBase(ax2, cmap=cmap, norm=norm, orientation='vertical')
+            if type(vlafile) == dict:
+                cb1.set_label(vlafile['ColorMapper']['title'])
+            else:
+                cb1.set_label('Frequency [GHz]')
+        else:
+            tim = dspecdata['time']
+            dt = np.mean(np.diff(tim))
+            ax3.pcolormesh(tim, dspecdata['freq'], dspecdata['peak'], cmap='jet', vmin=0, vmax=60)
+            ax3.add_patch(patches.Rectangle((vlafile['t'], dspecdata['freq'][0]), dt,
+                                            dspecdata['freq'][-1] - dspecdata['freq'][0], facecolor='black',
+                                            edgecolor='white', alpha=0.3))
+            ax3.set_xlim(tim[0], tim[-1] + dt)
+            ax3.set_ylim(dspecdata['freq'][0], dspecdata['freq'][-1])
+            ax3.set_title('Vector Dynamic spectrum')
+            labels = ax3.get_xticks().tolist()
+            newlabels = [Time(lb / 24. / 3600., format='jd').iso.split(' ')[1] for lb in labels]
+            ax3.set_xticklabels(newlabels, rotation=45)
+            if dspecdata['stack'] == 'Vstack':
+                fig.tight_layout(h_pad=0, pad=3)
+                ax3.set_ylabel('Frequency [GHz]')
+                cmap = cm.jet
+                norm = colors.Normalize(vmin=freqs[0], vmax=freqs[-1])
+                cb1 = colorbar.ColorbarBase(ax2, cmap=cmap, norm=norm, orientation='horizontal')
+                norm = colors.Normalize(vmin=0, vmax=60)
+                cb2 = colorbar.ColorbarBase(ax4, cmap=cmap, norm=norm, orientation='horizontal')
+            elif dspecdata['stack'] == 'Hstack':
+                fig.tight_layout(w_pad=0, pad=5)
+                ax3.set_yticklabels([])
+                pos1 = ax1.get_position()
+                pos2 = ax2.get_position()
+                pos3 = ax3.get_position()
+                pos2new = [pos2.x0 - (pos3.x0 - pos1.x1)/4, pos2.y0, pos2.width, pos2.height]
+                ax2.set_position(pos2new)
+                # pos1 = ax1.get_position()
+                # pos2 = ax2.get_position()
+                # cax1 = fig.add_axes([pos1.x1 - (pos2.x0 - pos1.x1) * 2.0, pos1.y0, 0.01, pos1.y1 - pos1.y0])
+                # cax2 = fig.add_axes([pos2.x1 - (1 - pos2.x1), pos2.y0, 0.01, pos2.y1 - pos2.y0])
+                cmap = cm.jet
+                norm = colors.Normalize(vmin=freqs[0], vmax=freqs[-1])
+                cb1 = colorbar.ColorbarBase(ax2, cmap=cmap, norm=norm, orientation='vertical')
+                norm = colors.Normalize(vmin=0, vmax=60)
+                cb2 = colorbar.ColorbarBase(ax4, cmap=cmap, norm=norm, orientation='vertical')
+            if type(vlafile) == dict:
+                cb1.set_label(vlafile['ColorMapper']['title'])
+            else:
+                cb1.set_label('Frequency [GHz]')
+            cb2.set_label('Max intensity [Jy/beam]')
     else:
+        fig = plt.figure(figsize=figsize)
+        ax1 = plt.subplot(projection=aiamap)
+        aiamap.plot()
+        if label:
+            ax1.text(0.98, 0.98, label, horizontalalignment='right', verticalalignment='top', color='white',
+                     transform=ax1.transAxes, fontsize=14)
+        # # Prevent the image from being re-scaled while overplotting.
+        ax1.set_autoscale_on(False)
         hdulist = fits.open(vlafile)
         hdu = hdulist[0]
         if not maponly:
@@ -115,9 +190,9 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
                         maxxy = maxfit(vlamap, mapxy=[mapx, mapy])
                         if maxxy:
                             x, y = maxxy * u.arcsec
-                            plt.scatter(x.to(u.deg), y.to(u.deg), transform=ax.get_transform('world'),
+                            plt.scatter(x.to(u.deg), y.to(u.deg), transform=ax1.get_transform('world'),
                                         facecolor=cm.jet(int(float(chan) / nfreq * 255)), edgecolor='black',
-                                        s=np.nanmax(vladata) ** 2 / 50.0,
+                                        s=np.nanmax(vladata),
                                         zorder=nchan + zorder * idx, **kwargs)
             elif plotstyle == 'contour':
                 for idx, chan in enumerate(chans):
@@ -127,20 +202,28 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
                     if SRC_vlamap_contour.data['xs']:
                         xs = SRC_vlamap_contour.data['xs'][0] * u.arcsec
                         ys = SRC_vlamap_contour.data['ys'][0] * u.arcsec
-                        plt.plot(xs.to(u.deg), ys.to(u.deg), transform=ax.get_transform('world'),
+                        plt.plot(xs.to(u.deg), ys.to(u.deg), transform=ax1.get_transform('world'),
                                  color=cm.jet(int(float(chan) / nfreq * 255)), zorder=nchan + zorder * idx, **kwargs)
 
         freqs = (hdu.header['CRVAL3'] + np.arange(nfreq) * hdu.header['CDELT3']) / 1e9
-
-    fig.subplots_adjust(right=0.8)
-    ax1 = fig.add_axes([0.85, 0.15, 0.05, 0.7])
-    cmap = cm.jet
-    norm = colors.Normalize(vmin=freqs[0], vmax=freqs[-1])
-    cb = colorbar.ColorbarBase(ax1, cmap=cmap, norm=norm, orientation='vertical')
-    cb.set_label('Frequency [GHz]')
+        fig.subplots_adjust(right=0.8)
+        cax1 = fig.add_axes([0.85, 0.1, 0.05, 0.8])
+        cmap = cm.jet
+        norm = colors.Normalize(vmin=freqs[0], vmax=freqs[-1])
+        cb1 = colorbar.ColorbarBase(cax1, cmap=cmap, norm=norm, orientation='vertical')
+        cb1.set_label('Frequency [GHz]')
 
     if outfile:
         if outfile.endswith('.eps'):
-            fig.savefig(outfile, format='eps')
-        if outfile.endswith('.png'):
-            fig.savefig(outfile, format='png')
+            fig.savefig(outfile, format='eps', dpi=int(figdpi))
+        elif outfile.endswith('.pdf'):
+            fig.savefig(outfile, format='pdf', dpi=int(figdpi))
+        elif outfile.endswith('.png'):
+            fig.savefig(outfile, format='png', dpi=int(figdpi))
+        elif outfile.endswith('.jpeg'):
+            fig.savefig(outfile, format='jpeg', dpi=int(figdpi))
+        elif outfile.endswith('.jpg'):
+            fig.savefig(outfile, format='jpg', dpi=int(figdpi))
+        else:
+            raise ValueError(
+                'Can not save {}. Provide a filename with extension of eps, pdf, png or jpeg.'.format(outfile))
