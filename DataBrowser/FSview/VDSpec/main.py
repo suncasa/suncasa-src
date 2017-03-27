@@ -17,7 +17,7 @@ from bokeh.layouts import row, column, widgetbox, gridplot
 from bokeh.models import (ColumnDataSource, CustomJS, Slider, Button, TextInput, RadioButtonGroup, CheckboxGroup,
                           BoxSelectTool, LassoSelectTool, HoverTool, Spacer, LabelSet, Div)
 from bokeh.models.mappers import LinearColorMapper
-from bokeh.models.widgets import Select, RangeSlider
+from bokeh.models.widgets import Select, RangeSlider, Panel, Tabs, RadioGroup
 from bokeh.palettes import Spectral11
 from bokeh.plotting import figure, curdoc
 import glob
@@ -25,6 +25,8 @@ from astropy.time import Time
 from suncasa.utils.puffin import PuffinMap
 from suncasa.utils import DButil
 from suncasa.utils import ctplot
+import Tkinter
+import tkFileDialog
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -445,33 +447,116 @@ def tab3_slider_ANLYS_idx_update(attrname, old, new):
 
 
 def tab2_panel3_savimgs_handler():
+    global outimgdir
     dspecDF0POLsub = dspecDF0POL[dspecDF0POL['time'] >= tab3_p_dspec_vector.x_range.start][
         dspecDF0POL['time'] <= tab3_p_dspec_vector.x_range.end][
         dspecDF0POL['freq'] >= tab3_p_dspec_vector.y_range.start][
         dspecDF0POL['freq'] <= tab3_p_dspec_vector.y_range.end]
+    if Select_addplot.value != 'None':
+        tarr = np.unique(dspecDF0POLsub['time'].as_matrix() + timestart)
+        farr = np.unique(dspecDF0POLsub['freq'].as_matrix())
+        nt = len(tarr)
+        nf = len(farr)
+        if tab2_SRC_dspec_vector_square.selected['1d']['indices']:
+            dspecDF0POLsubnew = dspecDF0POLsub['peak']
+            dspecDF0POLsubnew.iloc[:] = np.nan
+            dspecDF0POLsubnew.loc[dspecDF_select.index] = dspecDF_select['peak']
+            dspecDF0POLsub['peak'] = dspecDF0POLsubnew
+        parr = dspecDF0POLsub['peak'].as_matrix().reshape(nf, nt)
+        parr = np.ma.masked_where(np.isnan(parr), parr)
+        dspecdata = {'time': tarr, 'freq': farr, 'peak': parr, 'drange': [np.nanmin(parr), np.nanmax(parr)]}
     timselseq = np.unique(dspecDF_select['time'])
     timseq = np.unique(dspecDF0POLsub['time'])
-    subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'timestr']
-    nfiles = len(timseq)
-    for sidx, ll in enumerate(timseq):
-        timstr = dspecDF0POLsub[dspecDF0POLsub['time'] == ll]['timestr'].iloc[0]
-        maponly = True
+    subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'timestr', 'peak', 'time']
+    figsize = Select_Figsize.value.split('x')
+    figsize = (int(figsize[0]), int(figsize[1]))
+    alpha = Slider_scatterplt_alpha.value
+    tkRoot = Tkinter.Tk()
+    tkRoot.withdraw()  # Close the root window
+    if Output_radiogroup.active == 0:
+        outdir = tkFileDialog.askdirectory(initialdir=outimgdir, parent=tkRoot) + '/'
+        if outdir:
+            outimgdir = outdir
+        nfiles = len(timseq)
         centroids = {}
-        centroids['freqran'] = [tab3_p_dspec_vector.y_range.start, tab3_p_dspec_vector.y_range.end]
-        if ll in timselseq:
-            dftmp = dspecDF_select[dspecDF_select.time == ll][subset_label]
-            dftmp = dftmp.dropna(how='any', subset=subset_label)
-            centroids['freq'] = dftmp['freq'].as_matrix()
-            centroids['shape_longitude'] = dftmp['shape_longitude'].as_matrix()
-            centroids['shape_latitude'] = dftmp['shape_latitude'].as_matrix()
-            maponly = False
-        ctplot.plotmap(centroids, aiamap_submap, outfile=outimgdir + timstr.replace(':', '') + '.png',
-                       label='VLA ' + timstr,
+        centroids['ColorMapper'] = {'crange': [tab3_p_dspec_vector.y_range.start, tab3_p_dspec_vector.y_range.end],
+                                    'title': 'Frequency [GHz]'}
+        for sidx, ll in enumerate(timseq):
+            timstr = dspecDF0POLsub[dspecDF0POLsub['time'] == ll]['timestr'].iloc[0]
+            maponly = True
+            centroids['t'] = ll + timestart
+            if ll in timselseq:
+                dftmp = dspecDF_select[dspecDF_select.time == ll][subset_label]
+                dftmp = dftmp.dropna(how='any', subset=subset_label)
+                centroids['ColorMapper']['c'] = dftmp['freq'].as_matrix()
+                centroids['x'] = dftmp['shape_longitude'].as_matrix()
+                centroids['y'] = dftmp['shape_latitude'].as_matrix()
+                centroids['s'] = dftmp['peak'].as_matrix()
+                maponly = False
+            if Select_addplot.value == 'None':
+                ctplot.plotmap(centroids, aiamap_submap,
+                               outfile=outimgdir + timstr.replace(':', '') + '.{}'.format(Select_Figfmt.value),
+                               label='VLA {} '.format(tab2_Select_vla_pol.value) + timstr,
+                               x_range=[tab3_p_aia_submap.x_range.start, tab3_p_aia_submap.x_range.end],
+                               y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end],
+                               maponly=maponly,
+                               zorder=1, figdpi=Select_Figdpi.value, figsize=figsize, alpha=alpha)
+            elif Select_addplot.value == 'Vertical stack':
+                dspecdata['stack'] = 'Vstack'
+                ctplot.plotmap(centroids, aiamap_submap,
+                               outfile=outimgdir + timstr.replace(':', '') + '.{}'.format(Select_Figfmt.value),
+                               label='VLA {} '.format(tab2_Select_vla_pol.value) + timstr,
+                               x_range=[tab3_p_aia_submap.x_range.start, tab3_p_aia_submap.x_range.end],
+                               y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end],
+                               maponly=maponly,
+                               zorder=1, figdpi=Select_Figdpi.value, figsize=figsize, alpha=alpha,
+                               dspecdata=dspecdata)
+            elif Select_addplot.value == 'Horizontal stack':
+                dspecdata['stack'] = 'Hstack'
+                ctplot.plotmap(centroids, aiamap_submap,
+                               outfile=outimgdir + timstr.replace(':', '') + '.{}'.format(Select_Figfmt.value),
+                               label='VLA {} '.format(tab2_Select_vla_pol.value) + timstr,
+                               x_range=[tab3_p_aia_submap.x_range.start, tab3_p_aia_submap.x_range.end],
+                               y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end],
+                               maponly=maponly,
+                               zorder=1, figdpi=Select_Figdpi.value, figsize=figsize, alpha=alpha,
+                               dspecdata=dspecdata)
+            tab3_Div_Tb.text = """<p>{}</p>""".format(
+                DButil.ProgressBar(sidx + 1, nfiles, suffix='Output', decimals=0, length=30, empfill='=', fill='#'))
+        tab3_Div_Tb.text = '<p>images saved to <b>{}</b>.</p>'.format(outimgdir)
+    elif Output_radiogroup.active == 1:
+        timstr = dspecDF0POLsub['timestr'].iloc[0]
+        fout = tkFileDialog.asksaveasfilename(initialdir=outimgdir,
+                                              initialfile=timstr.replace(':', '') + '.{}'.format(Select_Figfmt.value))
+        print fout
+        if not fout:
+            fout = outimgdir + timstr.replace(':', '') + '.{}'.format(Select_Figfmt.value)
+        centroids = {}
+        dftmp = dspecDF_select[subset_label]
+        dftmp = dftmp.dropna(how='any', subset=subset_label)
+        if Select_colorcode.value == 'Frequency':
+            dftmp = dftmp.sort(['freq'], ascending=[True])
+            centroids['ColorMapper'] = {'crange': [tab3_p_dspec_vector.y_range.start, tab3_p_dspec_vector.y_range.end],
+                                        'c': dftmp['freq'].as_matrix(), 'title': 'Frequency [GHz]'}
+            label = 'VLA {} '.format(tab2_Select_vla_pol.value) + timstr + '-' + dspecDF0POLsub['timestr'].iloc[-1]
+        elif Select_colorcode.value == 'Time':
+            dftmp = dftmp.sort(['time'], ascending=[True])
+            centroids['ColorMapper'] = {
+                'crange': [0.0, tab3_p_dspec_vector.x_range.end - tab3_p_dspec_vector.x_range.start],
+                'c': dftmp['time'].as_matrix(), 'title': 'Time since {} UT [second]'.format(timstr)}
+            label = 'VLA {} {:.2f}-{:.2f} GHz'.format(tab2_Select_vla_pol.value, tab3_p_dspec_vector.y_range.start,
+                                                      tab3_p_dspec_vector.y_range.end)
+        centroids['x'] = dftmp['shape_longitude'].as_matrix()
+        centroids['y'] = dftmp['shape_latitude'].as_matrix()
+        centroids['s'] = dftmp['peak'].as_matrix()
+        maponly = False
+        ctplot.plotmap(centroids, aiamap_submap,
+                       outfile=fout,
+                       label=label,
                        x_range=[tab3_p_aia_submap.x_range.start, tab3_p_aia_submap.x_range.end],
-                       y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end], maponly=maponly)
-        tab3_Div_Tb.text = """<p>{}</p>""".format(
-            DButil.ProgressBar(sidx + 1, nfiles, suffix='Output', decimals=0, length=30, empfill='=', fill='#'))
-    tab3_Div_Tb.text = '<p>images saved to <b>{}</b>.</p>'.format(outimgdir)
+                       y_range=[tab3_p_aia_submap.y_range.start, tab3_p_aia_submap.y_range.end], maponly=maponly,
+                       zorder=1, figdpi=Select_Figdpi.value, figsize=figsize, alpha=alpha)
+        tab3_Div_Tb.text = '<p>images saved to <b>{}</b>.</p>'.format(outimgdir)
 
 
 def tab2_panel3_dumpdata_handler():
@@ -819,18 +904,18 @@ if os.path.exists(FS_dspecDF):
                                           button_type='success')
         tab2_panel3_BUT_dumpdata.on_click(tab2_panel3_dumpdata_handler)
 
-        tab3_p_dspec_vector = figure(tools='pan,wheel_zoom,box_zoom,save,reset',
+        tab3_p_dspec_vector = figure(tools='pan,wheel_zoom,box_zoom,save,resize,reset',
                                      plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
                                      plot_height=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_hght'],
                                      x_range=(tab2_dtim[0] - tab2_dt / 2.0, tab2_dtim[-1] + tab2_dt / 2.0),
                                      y_range=(tab2_freq[0] - tab2_df / 2.0, tab2_freq[-1] + tab2_df / 2.0),
                                      toolbar_location='above')
-        tab3_p_dspec_vectorx = figure(tools='pan,wheel_zoom,box_zoom,save,reset',
+        tab3_p_dspec_vectorx = figure(tools='pan,wheel_zoom,box_zoom,save,resize,reset',
                                       plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
                                       plot_height=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_hght'],
                                       x_range=tab3_p_dspec_vector.x_range,
                                       y_range=tab3_p_dspec_vector.y_range, toolbar_location='above')
-        tab3_p_dspec_vectory = figure(tools='pan,wheel_zoom,box_zoom,save,reset',
+        tab3_p_dspec_vectory = figure(tools='pan,wheel_zoom,box_zoom,save,resize,reset',
                                       plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['dspec_small_wdth'],
                                       plot_height=config_main['plot_config']['tab_FSview_FitANLYS'][
                                                       'dspec_small_hght'] + 40,
@@ -972,24 +1057,39 @@ if os.path.exists(FS_dspecDF):
         tab3_SPCR_LFT_BUT_REVS_CTRL = Spacer(width=10, height=10)
         tab3_SPCR_LFT_BUT_animate_ONOFF = Spacer(width=20, height=10)
         tab3_input_plot_xargs = TextInput(value='Input the param here', title="Plot parameters:", width=300)
-        # todo add RCP LCP check box
-        tab3_CheckboxGroup_pol = CheckboxGroup(labels=["RCP", "LCP"], active=[0, 1])
 
 
-        def Buttonaskdir_handler():
-            import Tkinter
-            import tkFileDialog
-            global outimgdir
-            tkRoot = Tkinter.Tk()
-            tkRoot.withdraw()  # Close the root window
-            outdir = tkFileDialog.askdirectory(initialdir=outimgdir, parent=tkRoot) + '/'
-            if outdir:
-                outimgdir = outdir
-            tkRoot.destroy()
+        def Output_radiogroup_handler(attrname, old, new):
+            if Output_radiogroup.active == 0:
+                Select_colorcode.value = 'Frequency'
 
 
-        But_outdir = Button(label='outpath', width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-        But_outdir.on_click(Buttonaskdir_handler)
+        Output_radiogroup = RadioGroup(
+            labels=["Plot by time", "All in one"], active=0,
+            width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+        Output_radiogroup.on_change('active', Output_radiogroup_handler)
+
+
+        def Select_colorcode_handler(attrname, old, new):
+            if Output_radiogroup.active == 0:
+                Select_colorcode.value = 'Frequency'
+
+
+        Select_colorcode = Select(title="Colorcode by:", value='Frequency', options=['Frequency', 'Time'],
+                                  width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+        Select_colorcode.on_change('value', Select_colorcode_handler)
+        Select_Figfmt = Select(title="Figure format:", value='png', options=['png', 'jpeg', 'eps', 'pdf'],
+                               width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+        Select_Figdpi = Select(title="Figure resolution [dpi]:", value='100',
+                               options=['50', '100', '200', '400', '600', '800', '1000', '1200'],
+                               width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+        Select_Figsize = Select(title="Figure Size [inch]:", value='10x8',
+                                options=['16x9', '12x9', '10x8', '10x10', '8x10', '9x12', '9x16'],
+                                width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
+        Slider_scatterplt_alpha = Slider(start=0.0, end=1.0, value=1.0, step=0.1, title='Scatter alpha')
+        Select_addplot = Select(title="add dynamic spectrum:", value='None',
+                                options=['None', 'Horizontal stack', 'Vertical stack'],
+                                width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
         lout3_1 = column(tab3_p_aia_submap, tab3_Slider_ANLYS_idx,
                          row(tab3_BUT_PlayCTRL, tab3_SPCR_LFT_BUT_Step, tab3_BUT_StepCTRL,
@@ -998,15 +1098,21 @@ if os.path.exists(FS_dspecDF):
                              tab3_BUT_animate_ONOFF), tab3_input_plot_xargs, tab3_Div_plot_xargs)
         lout3_2 = column(gridplot([tab3_p_dspec_vector], [tab3_p_dspec_vectorx], [tab3_p_dspec_vectory],
                                   toolbar_location='right'), tab3_Div_Tb)
-        lout3_3 = widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
+        widgtp1 = widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
                             tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab3_rSlider_threshold,
-                            tab2_Select_vla_pol, tab2_Select_aia_wave, But_outdir, tab2_panel3_BUT_savimgs,
-                            tab2_panel3_BUT_dumpdata, tab2_panel3_BUT_exit, tab2_panel2_Div_exit,
+                            tab2_Select_vla_pol, tab2_Select_aia_wave, tab2_panel3_BUT_exit, tab2_panel2_Div_exit,
                             width=200)
-        # todo dump vdspec data
-        # todo add dspec and contour to saveimage
 
-        lout = row(lout3_1, lout3_2, lout3_3)
+        tab1 = Panel(child=widgtp1, title="Plot")
+        widgtp2 = widgetbox(Output_radiogroup, Select_colorcode, Slider_scatterplt_alpha,
+                            Select_Figfmt, Select_Figsize,
+                            Select_Figdpi, Select_addplot,
+                            tab2_panel3_BUT_savimgs, tab2_panel3_BUT_dumpdata,
+                            width=200)
+        tab2 = Panel(child=widgtp2, title="Output")
+        tabs = Tabs(tabs=[tab1, tab2])
+
+        lout = row(lout3_1, lout3_2, tabs)
 
         curdoc().add_root(lout)
         curdoc().title = "VDSpec"
