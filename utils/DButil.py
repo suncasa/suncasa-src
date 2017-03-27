@@ -814,40 +814,44 @@ def get_contour_data(X, Y, Z, levels=[0.5, 0.7, 0.9]):
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
     from bokeh.models import (ColumnDataSource)
-    cs = plt.contour(X, Y, Z, levels=(np.array(levels) * np.nanmax(Z)).tolist(), cmap=cm.Greys_r)
-    # dx = X[0,1]-X[0,0]
-    # dy = Y[1,0]-Y[0,0]
-    xs = []
-    ys = []
-    xt = []
-    yt = []
-    col = []
-    text = []
-    isolevelid = 0
-    for isolevel in cs.collections:
-        # isocol = isolevel.get_color()[0]
-        # thecol = 3 * [None]
-        theiso = '{:.0f}%'.format(cs.get_array()[isolevelid] / Z.max() * 100)
-        isolevelid += 1
-        # for i in xrange(3):
-        # thecol[i] = int(255 * isocol[i])
-        thecol = '#%02x%02x%02x' % (220, 220, 220)
-        # thecol = '#03FFF9'
+    try:
+        cs = plt.contour(X, Y, Z, levels=(np.array(levels) * np.nanmax(Z)).tolist(), cmap=cm.Greys_r)
+        # dx = X[0,1]-X[0,0]
+        # dy = Y[1,0]-Y[0,0]
+        xs = []
+        ys = []
+        xt = []
+        yt = []
+        col = []
+        text = []
+        isolevelid = 0
+        for isolevel in cs.collections:
+            # isocol = isolevel.get_color()[0]
+            # thecol = 3 * [None]
+            theiso = '{:.0f}%'.format(cs.get_array()[isolevelid] / Z.max() * 100)
+            isolevelid += 1
+            # for i in xrange(3):
+            # thecol[i] = int(255 * isocol[i])
+            thecol = '#%02x%02x%02x' % (220, 220, 220)
+            # thecol = '#03FFF9'
 
-        for path in isolevel.get_paths():
-            v = path.vertices
-            # x = v[:, 0]+dx
-            # y = v[:, 1]+dy
-            x = v[:, 0]
-            y = v[:, 1]
-            xs.append(x.tolist())
-            ys.append(y.tolist())
-            xt.append(x[len(x) / 2])
-            yt.append(y[len(y) / 2])
-            text.append(theiso)
-            col.append(thecol)
+            for path in isolevel.get_paths():
+                v = path.vertices
+                # x = v[:, 0]+dx
+                # y = v[:, 1]+dy
+                x = v[:, 0]
+                y = v[:, 1]
+                xs.append(x.tolist())
+                ys.append(y.tolist())
+                xt.append(x[len(x) / 2])
+                yt.append(y[len(y) / 2])
+                text.append(theiso)
+                col.append(thecol)
 
-    source = ColumnDataSource(data={'xs': xs, 'ys': ys, 'line_color': col, 'xt': xt, 'yt': yt, 'text': text})
+        source = ColumnDataSource(data={'xs': xs, 'ys': ys, 'line_color': col, 'xt': xt, 'yt': yt, 'text': text})
+    except:
+        source = ColumnDataSource(data={'xs': [], 'ys': [], 'line_color': [], 'xt': [], 'yt': [], 'text': []})
+
     return source
 
 

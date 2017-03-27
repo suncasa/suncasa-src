@@ -15,7 +15,7 @@ import scipy.ndimage as sn
 from math import radians, cos, sin
 from bokeh.layouts import row, column, widgetbox, gridplot
 from bokeh.models import (ColumnDataSource, CustomJS, Slider, Button, TextInput, RadioButtonGroup, CheckboxGroup,
-                          BoxSelectTool, LassoSelectTool, HoverTool, Spacer, LabelSet, Div)
+                          BoxSelectTool, LassoSelectTool, HoverTool, TapTool, Spacer, LabelSet, Div)
 from bokeh.models.mappers import LinearColorMapper
 from bokeh.models.widgets import Select, RangeSlider
 from bokeh.palettes import Spectral11
@@ -24,7 +24,6 @@ import glob
 from astropy.time import Time
 from suncasa.utils.puffin import PuffinMap
 from suncasa.utils import DButil
-from suncasa.utils import ctplot
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -116,17 +115,12 @@ def make_spec_plt(spec_plt_R, spec_plt_L):
 def tab2_vdspec_update():
     global tab2_Select_pol_opt, spec_pol_dict
     select_pol = tab2_Select_pol.value
-    tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
     if tab2_BUT_vdspec.label == "VEC Dyn Spec":
-        if tab2_vla_square_selected:
+        if len(tab2_r_vla_ImgRgn_patch.data_source.data['xx']) > 0:
             tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum in calculating...</b></p>'
             tab2_Select_pol_opt = tab2_Select_pol.options
             tab2_Select_pol.options = pols
             tab2_BUT_vdspec.label = "Dyn Spec"
-            idxmax = max(tab2_vla_square_selected)
-            idxmin = min(tab2_vla_square_selected)
-            x0pix, x1pix = idxmin % mapvlasize[0], idxmax % mapvlasize[0]
-            y0pix, y1pix = idxmin / mapvlasize[0], idxmax / mapvlasize[0]
             spec_plt_R = np.zeros((tab2_nfreq, tab2_ntim))
             spec_plt_L = np.zeros((tab2_nfreq, tab2_ntim))
             if len(pols) > 1:
@@ -186,9 +180,17 @@ ports = []
 
 
 def tab2_panel_XCorr_update():
-    # from scipy.interpolate import splev, splrep
-    global tab2_dspec_selected, dspecDF_select
-    if tab2_dspec_selected and len(tab2_dspec_selected) > 50:
+    global clickmode
+    if tab2_BUT_XCorr.label == 'XCorr':
+        clickmode = 'doubleclick'
+        But_ClickMode.label = 'ClickMode: Double'
+        tab2_BUT_XCorr.label = 'GoXCorr'
+        tab2_Div_LinkImg_plot.text = '<p><b>click two points in dynamic spectrum to select time and frequency range.</b></p>'
+    elif 'GoXCorr':
+        clickmode = 'singleclick'
+        But_ClickMode.label = 'ClickMode: Single'
+        tab2_BUT_XCorr.label = 'XCorr'
+        global dspecDF_select
         time0, time1 = Time((dspecDF_select['time'].min() + timestart) / 3600. / 24., format='jd'), Time(
             (dspecDF_select['time'].max() + timestart) / 3600. / 24., format='jd')
         freq0, freq1 = dspecDF_select['freq'].min(), dspecDF_select['freq'].max()
@@ -213,6 +215,7 @@ def tab2_panel_XCorr_update():
         print 'bokeh serve {}DataBrowser/XCorr --show --port {} &'.format(suncasa_dir, port)
         os.system('bokeh serve {}DataBrowser/XCorr --show --port {} &'.format(suncasa_dir, port))
         ports.append(port)
+        tab2_r_dspec_patch.data_source.data = {'xx': [], 'yy': []}
 
 
 def tab2_update_dspec_image(attrname, old, new):
@@ -246,7 +249,7 @@ def tab2_bl_pol_cls_change(bl_index, select_pol):
         tab2_r_dspec.data_source.data['image'] = [np.log(tmp)]
     else:
         tab2_r_dspec.data_source.data['image'] = [spec_pol_dict['spec'][select_pol]]
-    tab2_SRC_dspec_square.data['dspec'] = spec_pol_dict['spec'][select_pol].flatten()
+    # tab2_SRC_dspec_square.data['dspec'] = spec_pol_dict['spec'][select_pol].flatten()
     tab2_p_dspec_xPro.y_range.start = spec_pol_dict['min'][select_pol]
     tab2_p_dspec_xPro.y_range.end = spec_pol_dict['max'][select_pol]
     tab2_p_dspec_yPro.x_range.start = spec_pol_dict['min'][select_pol]
@@ -320,43 +323,80 @@ def tab2_Select_vla_pol_update(attrname, old, new):
     slider_LinkImg_update()
 
 
+def tab2_ClickMode_handler():
+    global clickmode
+    if But_ClickMode.label == "ClickMode: Single":
+        But_ClickMode.label = "ClickMode: Double"
+        clickmode = 'singleclick'
+    elif But_ClickMode.label == "ClickMode: Double":
+        But_ClickMode.label = "ClickMode: Single"
+        clickmode = 'doubleclick'
+
+
 def tab2_dspec_selection_change(attrname, old, new):
-    global tab2_dspec_selected, tidx_prev
-    tab2_dspec_selected = tab2_SRC_dspec_square.selected['1d']['indices']
-    if tab2_dspec_selected:
-        global dspecDF_select, DFidx_selected
-        dspecDF_select = dspecDF0_rs.iloc[tab2_dspec_selected, :]
-        # print len(dspecDF0_rs.index)
-        DFidx_selected = dspecDF_select.index[len(dspecDF_select) / 2]
-        # DFidx_selected = dspecDF_select.index[0]
-        tidx = int(['{:.3f}'.format(ll) for ll in tab2_dtim].index(
-            '{:.3f}'.format(dspecDF0.loc[DFidx_selected, :]['time'])))
-        fidx = int(['{:.3f}'.format(ll) for ll in tab2_freq].index(
-            '{:.3f}'.format(dspecDF0.loc[DFidx_selected, :]['freq'])))
-        tab2_Slider_time_LinkImg.value = tidx
-        tab2_Slider_freq_LinkImg.value = fidx
-        if len(tab2_dspec_selected) > 100:
-            x0, x1 = dspecDF_select['time'].min(), dspecDF_select['time'].max()
-            y0, y1 = dspecDF_select['freq'].min(), dspecDF_select['freq'].max()
-            tab2_r_dspec_patch.data_source.data = ColumnDataSource(
-                pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
-        else:
-            tab2_r_dspec_patch.data_source.data = ColumnDataSource(
-                pd.DataFrame({'xx': [], 'yy': []})).data
-
-
-def tab2_vla_square_selection_change(attrname, old, new):
-    global x0, x1, y0, y1
-    tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
-    if tab2_vla_square_selected:
-        ImgDF = ImgDF0.iloc[tab2_vla_square_selected, :]
-        x0, x1 = ImgDF['xx'].min(), ImgDF['xx'].max()
-        y0, y1 = ImgDF['yy'].min(), ImgDF['yy'].max()
-        tab2_r_vla_ImgRgn_patch.data_source.data = ColumnDataSource(
-            pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
-    else:
-        tab2_r_vla_ImgRgn_patch.data_source.data = ColumnDataSource(
-            pd.DataFrame({'xx': [], 'yy': []})).data
+    global tapPointDF_dspec, dspecDF_select
+    global SRC_dspec_quadselround
+    if clickmode == 'singleclick':
+        tab2_r_dspec_patch.data_source.data = {'xx': [], 'yy': []}
+        tab2_SRC_dspec_quadx_selected = tab2_SRC_dspec_quadx.selected['1d']['indices']
+        tab2_SRC_dspec_quady_selected = tab2_SRC_dspec_quady.selected['1d']['indices']
+        if len(tab2_SRC_dspec_quadx_selected) > 0 and len(tab2_SRC_dspec_quady_selected) > 0:
+            quadx_selected = tab2_SRC_dspec_quadx_selected[0]
+            quady_selected = tab2_SRC_dspec_quady_selected[0]
+            tab2_Slider_time_LinkImg.value = quadx_selected
+            tab2_Slider_freq_LinkImg.value = quady_selected
+            idx = quady_selected * tab2_ntim + quadx_selected
+            tmp = tab2_r_dspec.data_source.data['image'][0]
+            timstr = dspecDF0['timestr'].iloc[idx]
+            freqstr = dspecDF0['freqstr'].iloc[idx] + ' [GHz]'
+            tooltips = ['{} {}'.format(timstr, freqstr)]
+            tab2_dspec_xPro_data = {'x': tab2_dtim, 'y': tmp[quady_selected, :]}
+            r_dspec_xPro.data_source.data = tab2_dspec_xPro_data
+            tab2_dspec_xPro_hover_data = {'x': [tab2_dtim[quadx_selected]], 'y':
+                [tmp[quady_selected, quadx_selected]],
+                                          'tooltips': tooltips}
+            r_dspec_xPro_hover.data_source.data = tab2_dspec_xPro_hover_data
+            tab2_dspec_yPro_data = {'x': tmp[:, quadx_selected], 'y': tab2_freq}
+            r_dspec_yPro.data_source.data = tab2_dspec_yPro_data
+            tab2_dspec_yPro_hover_data = {'x': [tmp[quady_selected, quadx_selected]],
+                                          'y': [tab2_freq[quady_selected]],
+                                          'tooltips': tooltips}
+            r_dspec_yPro_hover.data_source.data = tab2_dspec_yPro_hover_data
+        elif len(tab2_SRC_dspec_quadx_selected) == 0 and len(tab2_SRC_dspec_quady_selected) == 0:
+            r_dspec_xPro.data_source.data = {'x': [], 'y': []}
+            r_dspec_xPro_hover.data_source.data = {'x': [], 'y': [], 'tooltips': []}
+            r_dspec_yPro.data_source.data = {'x': [], 'y': []}
+            r_dspec_yPro_hover.data_source.data = {'x': [], 'y': [], 'tooltips': []}
+            tab2_r_dspec_line_x.data_source.data = {'time': [], 'freq': []}
+            tab2_r_dspec_line_y.data_source.data = {'time': [], 'freq': []}
+    elif clickmode == 'doubleclick':
+        SRC_dspec_quadselround += 1
+        if SRC_dspec_quadselround == 2:
+            SRC_dspec_quadselround = 0
+            tab2_SRC_dspec_quadx_selected = tab2_SRC_dspec_quadx.selected['1d']['indices']
+            tab2_SRC_dspec_quady_selected = tab2_SRC_dspec_quady.selected['1d']['indices']
+            tab2_SRC_dspec_quadx.selected = {'0d': {'glyph': None, 'indices': []}, '1d': {'indices': []}, '2d': {}}
+            tab2_SRC_dspec_quady.selected = {'0d': {'glyph': None, 'indices': []}, '1d': {'indices': []}, '2d': {}}
+            if len(tab2_SRC_dspec_quadx_selected) > 0 and len(tab2_SRC_dspec_quady_selected) > 0:
+                quadx_selected = tab2_SRC_dspec_quadx_selected[0]
+                quady_selected = tab2_SRC_dspec_quady_selected[0]
+                tapPointDF_dspec = tapPointDF_dspec.append(pd.Series(
+                    {'xx': tab2_dtim[quadx_selected], 'yy': tab2_freq[quady_selected]}), ignore_index=True)
+                if len(tapPointDF_dspec.index) == 1:
+                    tab2_r_dspec_lines.data_source.data = {
+                        'xs': [[tab2_dtim[quadx_selected]] * 2, [tab2_dtim[0], tab2_dtim[-1]]],
+                        'ys': [[tab2_freq[0], tab2_freq[-1]], [tab2_freq[quady_selected]] * 2]}
+                    tab2_r_dspec_patch.data_source.data = {'xx': [], 'yy': []}
+                elif len(tapPointDF_dspec.index) == 2:
+                    x0, x1 = tapPointDF_dspec['xx'].min(), tapPointDF_dspec['xx'].max()
+                    y0, y1 = tapPointDF_dspec['yy'].min(), tapPointDF_dspec['yy'].max()
+                    tab2_r_dspec_patch.data_source.data = {'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]}
+                    tab2_r_dspec_lines.data_source.data = {'xs': [], 'ys': []}
+                    dspecDF_select = \
+                        dspecDF0_rs[dspecDF0_rs['time'] >= x0][dspecDF0_rs['time'] <= x1][
+                            dspecDF0_rs['freq'] >= y0][
+                            dspecDF0_rs['freq'] <= y1]
+                    tapPointDF_dspec = pd.DataFrame({'xx': [], 'yy': []})
 
 
 def tab2_update_MapRES(attrname, old, new):
@@ -380,8 +420,7 @@ def tab2_update_MapRES(attrname, old, new):
 
 
 def tab2_save_region():
-    tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
-    if tab2_vla_square_selected:
+    if len(tab2_r_vla_ImgRgn_patch.data_source.data['xx']) > 0:
         pangle = hdu.header['p_angle']
         x0Deg, x1Deg, y0Deg, y1Deg = (x0 - hdu.header['CRVAL1']) / 3600., (
             x1 - hdu.header['CRVAL1']) / 3600., (
@@ -425,37 +464,60 @@ def tab2_panel_exit():
     raise SystemExit
 
 
-def tab2_prep_vla_square_selection_change(attrname, old, new):
+def tab2_vla_region_select(attrname, old, new):
+    global tapPointDF_vla, SRC_vla_quadselround
     global x0, x1, y0, y1
-    tab2_vla_square_selected = tab2_SRC_vla_square.selected['1d']['indices']
-    if tab2_vla_square_selected:
-        ImgDF = ImgDF0.iloc[tab2_vla_square_selected, :]
-        x0, x1 = ImgDF['xx'].min(), ImgDF['xx'].max()
-        y0, y1 = ImgDF['yy'].min(), ImgDF['yy'].max()
-        tab2_r_vla_ImgRgn_patch.data_source.data = ColumnDataSource(
-            pd.DataFrame({'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]})).data
-        idxmax = max(tab2_vla_square_selected)
-        idxmin = min(tab2_vla_square_selected)
-        x0pix, x1pix = idxmin % mapvlasize[0], idxmax % mapvlasize[0]
-        y0pix, y1pix = idxmin / mapvlasize[0], idxmax / mapvlasize[0]
-        tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, y0pix, x1pix, y1pix)
-        if tab2_tImfit_Param_dict['gaussfit'] == 'True':
-            tab2_BUT_tImfit.label = 'pimfit'
-            tab2_maxfit_checkbox.active = []
-            tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
-            on an image region(s)</b></p>' + ' '.join(
-                "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+    global x0pix, x1pix, y0pix, y1pix
+    SRC_vla_quadselround += 1
+    if SRC_vla_quadselround == 2:
+        vla_quadx_selected = SRC_vla_quadx.selected['1d']['indices']
+        vla_quady_selected = SRC_vla_quady.selected['1d']['indices']
+        SRC_vla_quadx.selected = {'0d': {'glyph': None, 'indices': []}, '1d': {'indices': []}, '2d': {}}
+        SRC_vla_quady.selected = {'0d': {'glyph': None, 'indices': []}, '1d': {'indices': []}, '2d': {}}
+        if len(vla_quadx_selected) > 0 and len(vla_quady_selected) > 0:
+            tapPointDF_vla = tapPointDF_vla.append(
+                pd.Series({'xx': mapx[vla_quady_selected[0], vla_quadx_selected[0]],
+                           'yy': mapy[vla_quady_selected[0], vla_quadx_selected[0]],
+                           'idx': vla_quadx_selected[0], 'idy': vla_quady_selected[0]}),
+                ignore_index=True)
+            if len(tapPointDF_vla.index) == 1:
+                r_vla_line.data_source.data = {
+                    'xs': [[mapx[vla_quady_selected[0], vla_quadx_selected[0]]] * 2,
+                           [mapx[vla_quady_selected[0], 0],
+                            mapx[vla_quady_selected[0], -1]]],
+                    'ys': [[mapy[0, vla_quadx_selected[0]],
+                            mapy[-1, vla_quadx_selected[0]]],
+                           [mapy[vla_quady_selected[0], vla_quadx_selected[0]]] * 2]}
+            elif len(tapPointDF_vla.index) == 2:
+                x0, x1 = tapPointDF_vla['xx'].min(), tapPointDF_vla['xx'].max()
+                y0, y1 = tapPointDF_vla['yy'].min(), tapPointDF_vla['yy'].max()
+                if x1 > x0 + mapx[0, 1] - mapx[0, 0] and y1 > y0 + mapy[0, 1] - \
+                        mapy[0, 0]:
+                    ## select at least 4 points
+                    tab2_r_vla_ImgRgn_patch.data_source.data = {'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]}
+                    x0pix, x1pix = int(tapPointDF_vla['idx'].min()), int(tapPointDF_vla['idx'].max())
+                    y0pix, y1pix = int(tapPointDF_vla['idy'].min()), int(tapPointDF_vla['idy'].max())
+                    tab2_tImfit_Param_dict['box'] = "'{},{},{},{}'".format(x0pix, y0pix, x1pix, y1pix)
+                    if tab2_tImfit_Param_dict['gaussfit'] == 'True':
+                        tab2_BUT_tImfit.label = 'pimfit'
+                        tab2_maxfit_checkbox.active = []
+                        tab2_Div_tImfit_text = '<p><b>#  imfit :: Fit one or more elliptical Gaussian components \
+                        on an image region(s)</b></p>' + ' '.join(
+                            "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+                    else:
+                        tab2_tImfit_Param_dict['gaussfit'] = 'False'
+                        tab2_BUT_tImfit.label = 'pmaxfit'
+                        tab2_maxfit_checkbox.active = [0]
+                        tab2_Div_tImfit_text = '<p><b>#  maxfit :: do one parabolic fit components \
+                        on an image region(s)</b></p>' + ' '.join(
+                            "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
+                    tab2_Div_tImfit.text = tab2_Div_tImfit_text
+                tapPointDF_vla = pd.DataFrame({'xx': [], 'yy': [], 'idx': [], 'idy': []})
+                r_vla_line.data_source.data = {'xs': [], 'ys': []}
         else:
-            tab2_tImfit_Param_dict['gaussfit'] = 'False'
-            tab2_BUT_tImfit.label = 'pmaxfit'
-            tab2_maxfit_checkbox.active = [0]
-            tab2_Div_tImfit_text = '<p><b>#  maxfit :: do one parabolic fit components \
-            on an image region(s)</b></p>' + ' '.join(
-                "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tImfit_Param_dict.items())
-        tab2_Div_tImfit.text = tab2_Div_tImfit_text
-    else:
-        tab2_r_vla_ImgRgn_patch.data_source.data = ColumnDataSource(
-            pd.DataFrame({'xx': [], 'yy': []})).data
+            tab2_r_vla_ImgRgn_patch.data_source.data = ColumnDataSource(
+                pd.DataFrame({'xx': [], 'yy': []})).data
+        SRC_vla_quadselround = 0
 
 
 def Domaxfit(new):
@@ -645,6 +707,9 @@ elif isinstance(tab2_specdata['bl'].tolist(), list):
 else:
     raise ValueError('Please check the data of {}'.format(FS_specfile))
 
+clickmode = 'singleclick'
+SRC_dspec_quadselround = 0
+SRC_vla_quadselround = 0
 bl_index = 0
 tab2_pol = 'I'
 sz_spec = tab2_spec.shape
@@ -675,7 +740,6 @@ if os.path.exists(FS_dspecDF):
         dspecDF0 = pickle.load(f)
     vlafile = glob.glob(fits_LOCL_dir + '*.fits')
     if len(vlafile) > 0:
-        tab2_tCLN_Param_dict = DButil.loadjsonfile(CleanID_dir + 'CASA_CLN_args.json')
         tab2_panel2_Div_exit = Div(text="""<p><b>Warning</b>: Click the <b>Exit FSview</b>\
                                 first before closing the tab</p></b>""",
                                    width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
@@ -684,9 +748,10 @@ if os.path.exists(FS_dspecDF):
         dspecDF_select = dspecDF0
         '''create the regridded dynamic spectrum plot'''
         TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
-        downsample_dspecDF(spec_square_rs_tmax=spec_square_rs_tmax, spec_square_rs_fmax=spec_square_rs_fmax)
+        # downsample_dspecDF(spec_square_rs_tmax=spec_square_rs_tmax, spec_square_rs_fmax=spec_square_rs_fmax)
+        dspecDF0_rs = dspecDF0.copy()
         '''create the dynamic spectrum plot'''
-        TOOLS = "crosshair,pan,wheel_zoom,tap,box_zoom,reset,save"
+        TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
         tab2_SRC_dspec_square = ColumnDataSource(dspecDF0_rs)
         tab2_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
                               plot_width=config_main['plot_config']['tab_FSview_base']['dspec_wdth'],
@@ -704,26 +769,50 @@ if os.path.exists(FS_dspecDF):
                                           dw=tab2_dur + tab2_dt,
                                           dh=tab2_freq[-1] - tab2_freq[0] + tab2_df, palette=bokehpalette_jet)
 
-        # make the dspec data source selectable
-        tab2_r_square = tab2_p_dspec.square('time', 'freq', source=tab2_SRC_dspec_square, fill_color=None,
-                                            fill_alpha=0.0,
-                                            line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
-                                            selection_fill_color='black',
-                                            nonselection_fill_alpha=0.0,
-                                            selection_line_alpha=0.0, selection_line_color=None,
-                                            nonselection_line_alpha=0.0,
-                                            size=max(
-                                                config_main['plot_config']['tab_FSview_base'][
-                                                    'dspec_wdth'] / float(tab2_ntim) * spec_rs_step,
-                                                config_main['plot_config']['tab_FSview_base'][
-                                                    'dspec_hght'] / float(tab2_nfreq) * spec_rs_step))
-        tab2_p_dspec.add_tools(BoxSelectTool(renderers=[tab2_r_square]))
+        xLFE = tab2_dtim - tab2_dt / 2.0
+        xRTE = np.append(xLFE[1:], xLFE[-1] + tab2_dt)
+        yBTE = tab2_freq - tab2_df / 2.0
+        yTPE = np.append(yBTE[1:], yBTE[-1] + tab2_df)
+        tab2_SRC_dspec_quadx = ColumnDataSource(
+            {'left': xLFE.ravel(), 'right': xRTE.ravel(), 'bottom': np.repeat(yBTE[0], tab2_ntim),
+             'top': np.repeat(yBTE[-1] + tab2_df, tab2_ntim)})
+        tab2_SRC_dspec_quady = ColumnDataSource(
+            {'left': np.repeat(xLFE[0], tab2_nfreq), 'right': np.repeat(xLFE[-1] + tab2_dt, tab2_nfreq),
+             'bottom': yBTE.ravel(),
+             'top': yTPE.ravel()})
+        tab2_r_dspec_quadx = tab2_p_dspec.quad('left', 'right', 'top', 'bottom', source=tab2_SRC_dspec_quadx,
+                                               fill_alpha=0.0, fill_color=None,
+                                               line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
+                                               selection_fill_color=None,
+                                               nonselection_fill_alpha=0.0,
+                                               selection_line_alpha=0.0, selection_line_color=None,
+                                               nonselection_line_alpha=0.0)
+        tab2_r_dspec_quady = tab2_p_dspec.quad('left', 'right', 'top', 'bottom', source=tab2_SRC_dspec_quady,
+                                               fill_alpha=0.0, fill_color=None,
+                                               line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
+                                               selection_fill_color=None,
+                                               nonselection_fill_alpha=0.0,
+                                               selection_line_alpha=0.0, selection_line_color=None,
+                                               nonselection_line_alpha=0.0)
+        tab2_p_dspec.add_tools(TapTool(renderers=[tab2_r_dspec_quadx, tab2_r_dspec_quady]))
+        tab2_SRC_dspec_quadx.on_change('selected', tab2_dspec_selection_change)
+        tab2_SRC_dspec_quady.on_change('selected', tab2_dspec_selection_change)
 
+        tapPointDF_dspec = pd.DataFrame({'xx': [], 'yy': []})
+        tab2_SRC_dspec_lines = ColumnDataSource({'xs': [], 'ys': []})
+        tab2_r_dspec_lines = tab2_p_dspec.multi_line('xs', 'ys', source=tab2_SRC_dspec_lines, line_color='Magenta',
+                                                     line_width=1, alpha=0.8)
         tab2_SRC_dspec_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
         tab2_r_dspec_patch = tab2_p_dspec.patch('xx', 'yy', source=tab2_SRC_dspec_Patch,
-                                                fill_color=None, fill_alpha=0.5, line_color="Magenta",
-                                                line_alpha=1.0, line_width=1)
+                                                fill_color=None, fill_alpha=0.0, line_color="Magenta",
+                                                line_alpha=0.8, line_width=1)
 
+        tab2_source_idx_line_x = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
+        tab2_r_dspec_line_x = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
+                                                line_color='white', source=tab2_source_idx_line_x)
+        tab2_source_idx_line_y = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
+        tab2_r_dspec_line_y = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
+                                                line_color='white', source=tab2_source_idx_line_y)
         # tab2_p_dspec.border_fill_color = "silver"
         tab2_p_dspec.border_fill_alpha = 0.4
         tab2_p_dspec.axis.major_tick_out = 0
@@ -747,7 +836,8 @@ if os.path.exists(FS_dspecDF):
                                    title="Time profile", toolbar_location=None)
         tab2_SRC_dspec_xPro = ColumnDataSource({'x': [], 'y': []})
         tab2_SRC_dspec_xPro_hover = ColumnDataSource({'x': [], 'y': [], 'tooltips': []})
-        r_dspec_xPro = tab2_p_dspec_xPro.line(x='x', y='y', alpha=1.0, line_width=1, source=tab2_SRC_dspec_xPro)
+        r_dspec_xPro = tab2_p_dspec_xPro.line(x='x', y='y', alpha=1.0, line_width=1, line_color='black',
+                                              source=tab2_SRC_dspec_xPro)
         r_dspec_xPro_c = tab2_p_dspec_xPro.circle(x='x', y='y', size=5, fill_alpha=0.2, fill_color='grey',
                                                   line_color=None,
                                                   source=tab2_SRC_dspec_xPro)
@@ -758,11 +848,7 @@ if os.path.exists(FS_dspecDF):
                                       render_mode='canvas')
         l_dspec_xPro_hover.text_font_size = '10pt'
         tab2_p_dspec_xPro.add_layout(l_dspec_xPro_hover)
-        tab2_p_dspec_xPro.title.text_font_size = '6pt'
-        tab2_p_dspec_xPro.background_fill_color = "beige"
-        tab2_p_dspec_xPro.background_fill_alpha = 0.4
         tab2_p_dspec_xPro.xaxis.axis_label = 'Seconds since ' + tim0_char
-        tab2_p_dspec_xPro.yaxis.axis_label_text_font_size = '5px'
         tab2_p_dspec_xPro.yaxis.axis_label = 'Intensity [sfu]'
         # tab2_p_dspec_xPro.border_fill_color = "silver"
         tab2_p_dspec_xPro.border_fill_alpha = 0.4
@@ -770,8 +856,6 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec_xPro.axis.major_tick_in = 5
         tab2_p_dspec_xPro.axis.minor_tick_out = 0
         tab2_p_dspec_xPro.axis.minor_tick_in = 3
-        tab2_p_dspec_xPro.axis.major_tick_line_color = "black"
-        tab2_p_dspec_xPro.axis.minor_tick_line_color = "black"
 
         tab2_p_dspec_yPro = figure(tools='', webgl=config_main['plot_config']['WebGL'],
                                    plot_width=config_main['plot_config']['tab_FSview_base']['dspec_yPro_wdth'],
@@ -780,7 +864,8 @@ if os.path.exists(FS_dspecDF):
                                    title="Frequency profile", toolbar_location=None)
         tab2_SRC_dspec_yPro = ColumnDataSource({'x': [], 'y': []})
         tab2_SRC_dspec_yPro_hover = ColumnDataSource({'x': [], 'y': [], 'tooltips': []})
-        r_dspec_yPro = tab2_p_dspec_yPro.line(x='x', y='y', alpha=1.0, line_width=1, source=tab2_SRC_dspec_yPro)
+        r_dspec_yPro = tab2_p_dspec_yPro.line(x='x', y='y', alpha=1.0, line_width=1, line_color='black',
+                                              source=tab2_SRC_dspec_yPro)
         r_dspec_yPro_c = tab2_p_dspec_yPro.circle(x='x', y='y', size=5, fill_alpha=0.2, fill_color='grey',
                                                   line_color=None,
                                                   source=tab2_SRC_dspec_yPro)
@@ -791,12 +876,8 @@ if os.path.exists(FS_dspecDF):
                                       render_mode='canvas')
         l_dspec_yPro_hover.text_font_size = '10pt'
         tab2_p_dspec_yPro.add_layout(l_dspec_yPro_hover)
-        tab2_p_dspec_yPro.title.text_font_size = '6pt'
         tab2_p_dspec_yPro.yaxis.visible = False
-        tab2_p_dspec_yPro.background_fill_color = "beige"
-        tab2_p_dspec_yPro.background_fill_alpha = 0.4
         tab2_p_dspec_yPro.xaxis.axis_label = 'Intensity [sfu]'
-        tab2_p_dspec_yPro.yaxis.axis_label_text_font_size = '5px'
         # tab2_p_dspec_yPro.border_fill_color = "silver"
         tab2_p_dspec_yPro.border_fill_alpha = 0.4
         tab2_p_dspec_yPro.min_border_bottom = 0
@@ -805,8 +886,6 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec_yPro.axis.major_tick_in = 5
         tab2_p_dspec_yPro.axis.minor_tick_out = 0
         tab2_p_dspec_yPro.axis.minor_tick_in = 3
-        tab2_p_dspec_yPro.axis.major_tick_line_color = "black"
-        tab2_p_dspec_yPro.axis.minor_tick_line_color = "black"
 
         tab2_BUT_vdspec = Button(label="VEC Dyn Spec",
                                  width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
@@ -817,56 +896,6 @@ if os.path.exists(FS_dspecDF):
         tab2_ctrls = [tab2_Select_bl, tab2_Select_pol, tab2_Select_colorspace]
         for ctrl in tab2_ctrls:
             ctrl.on_change('value', tab2_update_dspec_image)
-
-        # # Add a hover tool
-        tooltips = None
-
-        hover_JScode = """
-            var nx = %d;
-            var ny = %d;
-            var data = {'x': [], 'y': []};
-            var cdata = rs.get('data');
-            var rsstep = spec_rs_step.get('data').data[0]
-            var indices = cb_data.index['1d'].indices;
-            var idx_offset = indices[0] - (indices[0] %% nx);
-            for (i=0; i < nx; i++) {
-                data['x'].push(cdata.time[i+idx_offset]);
-                data['y'].push(cdata.dspec[i+idx_offset]);
-            }
-            rdx.set('data', data);
-            idx_offset = indices[0] %% nx;
-            data = {'x': [], 'y': []};
-            for (i=0; i < ny; i++) {
-                data['x'].push(cdata.dspec[i*nx+idx_offset]);
-                data['y'].push(cdata.freq[i*nx+idx_offset]);
-            }
-            rdy.set('data', data);
-            var time = cdata.timestr[indices[0]]+' '
-            var freq = cdata.freq[indices[0]].toFixed(3)+'[GHz] '
-            var dspec = cdata.dspec[indices[0]].toFixed(3)+ '[sfu]'
-            var tooltips = freq + time + dspec
-            data = {'x': [], 'y': [], 'tooltips': []};
-            data['x'].push(cdata.time[indices[0]]);
-            data['y'].push(cdata.dspec[indices[0]]);
-            data['tooltips'].push(tooltips);
-            rdx_hover.set('data', data);
-            tooltips = time + freq + dspec
-            data = {'x': [], 'y': [], 'tooltips': []};
-            data['x'].push(cdata.dspec[indices[0]]);
-            data['y'].push(cdata.freq[indices[0]]);
-            data['tooltips'].push(tooltips);
-            rdy_hover.set('data', data);
-            """ % (tab2_ntim / spec_rs_step, tab2_nfreq - 1)
-
-        tab2_p_dspec_hover_callback = CustomJS(
-            args={'rs': ColumnDataSource(dspecDF0_rs), 'rdx': r_dspec_xPro.data_source,
-                  'rdy': r_dspec_yPro.data_source,
-                  'rdx_hover': r_dspec_xPro_hover.data_source,
-                  'rdy_hover': r_dspec_yPro_hover.data_source,
-                  'spec_rs_step': ColumnDataSource({'data': [spec_rs_step]})}, code=hover_JScode)
-        tab2_p_dspec_hover = HoverTool(tooltips=tooltips, callback=tab2_p_dspec_hover_callback,
-                                       renderers=[tab2_r_square])
-        tab2_p_dspec.add_tools(tab2_p_dspec_hover)
 
         # initial the VLA map contour source
         tab2_SRC_vlamap_contour = ColumnDataSource(
@@ -882,14 +911,12 @@ if os.path.exists(FS_dspecDF):
                                     plot_width=config_main['plot_config']['tab_FSview_base']['vla_wdth'],
                                     webgl=config_main['plot_config']['WebGL'])
         # plot the contour of vla image
-        mapx, mapy = vla_local_pfmap.meshgrid()
+        mapx, mapy = vla_local_pfmap.meshgrid(rescale=1.0)
         mapx, mapy = mapx.value, mapy.value
         mapvlasize = mapy.shape
         tab2_SRC_vlamap_contour = DButil.get_contour_data(mapx, mapy, vla_local_pfmap.smap.data)
-        # mapx2, mapy2 = vla_local_pfmap.meshgrid(rescale=0.5)
-        # mapx2, mapy2 = mapx2.value, mapy2.value
-        ImgDF0 = pd.DataFrame({'xx': mapx.ravel(), 'yy': mapy.ravel()})
-        tab2_SRC_vla_square = ColumnDataSource(ImgDF0)
+        # ImgDF0 = pd.DataFrame({'xx': mapx.ravel(), 'yy': mapy.ravel()})
+        # tab2_SRC_vla_square = ColumnDataSource(ImgDF0)
         colormap = cm.get_cmap("cubehelix")  # choose any matplotlib colormap here
         bokehpalette_SynthesisImg = [colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
         tab2_SRC_ImgRgn_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
@@ -975,21 +1002,48 @@ if os.path.exists(FS_dspecDF):
         tab2_p_vla.axis.minor_tick_line_color = "white"
         tab2_p_vla.grid.grid_line_color = None
         tab2_p_vla.background_fill_color = "black"
-        tab2_r_vla_square = tab2_p_vla.square('xx', 'yy', source=tab2_SRC_vla_square,
-                                              fill_alpha=0.0, fill_color=None,
-                                              line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
-                                              selection_fill_color=None,
-                                              nonselection_fill_alpha=0.0,
-                                              selection_line_alpha=0.0, selection_line_color=None,
-                                              nonselection_line_alpha=0.0,
-                                              size=4)
-        tab2_p_vla.add_tools(BoxSelectTool(renderers=[tab2_r_vla_square]))
+
+        tapPointDF_vla = pd.DataFrame(
+            {'xx': [], 'yy': [], 'idx': [], 'idy': []})  ## the selected point to fit in aia submap
+        dx = np.mean(np.diff(mapx[0, :]))
+        dy = np.mean(np.diff(mapy[:, 0]))
+        xLFE = mapx[0, :] - dx / 2.0
+        xRTE = np.append(xLFE[1:], xLFE[-1] + dx)
+        yBTE = mapy[:, 0] - dy / 2.0
+        yTPE = np.append(yBTE[1:], yBTE[-1] + dy)
+        SRC_vla_quadx = ColumnDataSource(
+            {'left': xLFE.ravel(), 'right': xRTE.ravel(), 'bottom': np.repeat(yBTE[0], mapvlasize[1]),
+             'top': np.repeat(yBTE[-1] + dy, mapvlasize[1])})
+        SRC_vla_quady = ColumnDataSource(
+            {'left': np.repeat(xLFE[0], mapvlasize[0]), 'right': np.repeat(xLFE[-1] + dx, mapvlasize[0]),
+             'bottom': yBTE.ravel(),
+             'top': yTPE.ravel()})
+        r_vla_quadx = tab2_p_vla.quad('left', 'right', 'top', 'bottom', source=SRC_vla_quadx,
+                                      fill_alpha=0.0, fill_color=None,
+                                      line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
+                                      selection_fill_color=None,
+                                      nonselection_fill_alpha=0.0, nonselection_fill_color=None,
+                                      selection_line_alpha=0.0, selection_line_color=None,
+                                      nonselection_line_alpha=0.0)
+        r_vla_quady = tab2_p_vla.quad('left', 'right', 'top', 'bottom', source=SRC_vla_quady,
+                                      fill_alpha=0.0, fill_color=None,
+                                      line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
+                                      selection_fill_color=None,
+                                      nonselection_fill_alpha=0.0, nonselection_fill_color=None,
+                                      selection_line_alpha=0.0, selection_line_color=None,
+                                      nonselection_line_alpha=0.0)
+        tab2_p_vla.add_tools(TapTool(renderers=[r_vla_quadx, r_vla_quady]))
+        SRC_vla_quadx.on_change('selected', tab2_vla_region_select)
+        SRC_vla_quady.on_change('selected', tab2_vla_region_select)
+
         tab2_r_vla_multi_line = tab2_p_vla.multi_line(xs='xs', ys='ys', line_color='line_color',
                                                       source=tab2_SRC_vlamap_contour, alpha=0.7, line_width=2)
 
         tab2_r_vla_ImgRgn_patch = tab2_p_vla.patch('xx', 'yy', source=tab2_SRC_ImgRgn_Patch,
                                                    fill_color=None, fill_alpha=0.5, line_color="white",
                                                    line_alpha=1, line_width=1)
+        SRC_vla_lines = ColumnDataSource({'xs': [], 'ys': []})
+        r_vla_line = tab2_p_vla.multi_line('xs', 'ys', source=SRC_vla_lines, line_color='cyan', line_width=1, alpha=0.8)
 
         tab2_LinkImg_HGHT = config_main['plot_config']['tab_FSview_base']['vla_hght']
         tab2_LinkImg_WDTH = config_main['plot_config']['tab_FSview_base']['vla_wdth']
@@ -1017,13 +1071,6 @@ if os.path.exists(FS_dspecDF):
         tab2_Select_vla_pol = Select(title="Polarization:", value=pols[0], options=pols,
                                      width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
-        tab2_source_idx_line_x = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
-        tab2_r_dspec_line_x = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
-                                                line_color='white', source=tab2_source_idx_line_x)
-        tab2_source_idx_line_y = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
-        tab2_r_dspec_line_y = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
-                                                line_color='white', source=tab2_source_idx_line_y)
-
         tab2_CTRLs_LinkImg = [tab2_Slider_time_LinkImg, tab2_Slider_freq_LinkImg, tab2_Select_vla_pol]
         for ctrl in tab2_CTRLs_LinkImg:
             ctrl.on_change('value', tab3_slider_LinkImg_update)
@@ -1037,11 +1084,10 @@ if os.path.exists(FS_dspecDF):
                                       width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
                                       button_type='danger')
         tab2_panel2_BUT_exit.on_click(tab2_panel_exit)
-        tab2_dspec_selected = None
 
-        tab2_SRC_dspec_square.on_change('selected', tab2_dspec_selection_change)
-        tab2_vla_square_selected = None
-        tab2_SRC_vla_square.on_change('selected', tab2_prep_vla_square_selection_change)
+        # tab2_SRC_dspec_square.on_change('selected', tab2_dspec_selection_change)
+        # tab2_vla_square_selected = None
+        # tab2_SRC_vla_square.on_change('selected', tab2_vla_region_select)
         tab2_Select_MapRES = Select(title="Img resolution:", value='{}x{}'.format(MapRES, MapRES),
                                     options=["32x32", "64x64", "128x128", "256x256", "512x512", "1024x1024",
                                              "2048x2048"],
@@ -1094,6 +1140,11 @@ if os.path.exists(FS_dspecDF):
 
         tab2_SPCR_LFT_Div_tImfit = Spacer(width=config_main['plot_config']['tab_FSviewPrep']['space_wdth10'])
 
+        But_ClickMode = Button(label="ClickMode: Double",
+                               width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'],
+                               button_type="primary")
+        But_ClickMode.on_click(tab2_ClickMode_handler)
+
         lout2_1_1 = row(gridplot([[tab2_p_aia, tab2_p_hmi, tab2_p_vla]], toolbar_location='right'),
                         widgetbox(tab2_Select_MapRES, tab2_Select_vla_pol, tab2_Slider_time_LinkImg,
                                   tab2_Slider_freq_LinkImg, tab2_BUT_vdspec, tab2_BUT_SavRgn, tab2_Div_LinkImg_plot,
@@ -1101,7 +1152,7 @@ if os.path.exists(FS_dspecDF):
         lout2_1_2 = row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
                                tab2_p_dspec_xPro),
                         widgetbox(tab2_Select_pol, tab2_Select_bl,
-                                  tab2_Select_colorspace, tab2_BUT_XCorr,
+                                  tab2_Select_colorspace, But_ClickMode, tab2_BUT_XCorr,
                                   tab2_panel2_BUT_exit, tab2_panel2_Div_exit,
                                   width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth']))
         lout2_1 = column(lout2_1_1, lout2_1_2)

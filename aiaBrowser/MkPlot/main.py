@@ -180,7 +180,7 @@ def sdosubmp_region_select(attrname, old, new):
                     'ys': [[mapy_sdo_RSPmap[0, sdo_RSPmap_quadx_selected[0]],
                             mapy_sdo_RSPmap[-1, sdo_RSPmap_quadx_selected[0]]],
                            [mapy_sdo_RSPmap[sdo_RSPmap_quady_selected[0], sdo_RSPmap_quadx_selected[0]]] * 2]}
-            if len(tapPointDF_sdo_RSPmap.index) == 2:
+            elif len(tapPointDF_sdo_RSPmap.index) == 2:
                 x0, x1 = tapPointDF_sdo_RSPmap['xx'].min(), tapPointDF_sdo_RSPmap['xx'].max()
                 y0, y1 = tapPointDF_sdo_RSPmap['yy'].min(), tapPointDF_sdo_RSPmap['yy'].max()
                 if x1 > x0 + mapx_sdo_RSPmap[0, 1] - mapx_sdo_RSPmap[0, 0] and y1 > y0 + mapy_sdo_RSPmap[0, 1] - \
@@ -274,6 +274,32 @@ def LoadChunk_handler():
     else:
         trange_update()
     update_sdosubmp_image(Slider_sdoidx.value - 1)
+
+
+def LoadChunkfromfile(fin):
+    global sdosubmpdict
+    global x0, x1, y0, y1
+    if os.path.exists(fin):
+        tmp = pickle.load(open(fin, 'rb'))
+        sdosubmpdict = tmp['chunk']
+        x0 = tmp['x0']
+        x1 = tmp['x1']
+        y0 = tmp['y0']
+        y1 = tmp['y1']
+        update_sdosubmp_region(x0, x1, y0, y1)
+        update_sdosubmp_image(Slider_sdoidx.value - 1)
+        Div_info.text = """<p><b>Chunk </b> in {} <b>loaded</b>.</p>""".format(fin)
+    else:
+        Div_info.text = """<p>No chunk file found!!</p>"""
+
+
+def DumpChunk(fout):
+    if sdosubmpdict:
+        with open(fout, 'wb') as fp:
+            pickle.dump({'chunk': sdosubmpdict, 'x0': x0, 'x1': x1, 'y0': y0, 'y1': y1}, fp)
+        Div_info.text = """<p><b>Chunk dumped </b> to {}.</p>""".format(fout)
+    else:
+        Div_info.text = """<p>load the <b>chunk</b> first!!!</p>"""
 
 
 def Slider_sdoidxstep_update(attrname, old, new):
@@ -449,7 +475,10 @@ def slider_smoothing_factor_update(attrname, old, new):
                              float(Text_SlitLgth.value), s=np.exp(
                 Slider_smoothing_factor.value * (np.log(smoth_factor1) - np.log(smoth_factor0))) * smoth_factor0,
                              method=fitmethod)
+        getimprofile(sdosubmp, cutslitplt)
         pushslit2plt(cutslitplt, clearpoint=clearpoint)
+        if len(tapPointDF_sdosubmp_canvas.index) == 1:
+            r_lighcurve.data_source.data = {'x': [], 'y': []}
 
 
 def UndoDraw():
@@ -477,6 +506,7 @@ def ClearDraw():
 
 
 def getimprofile(smap, cutslit, plot=True):
+    global ctslit
     num = len(cutslit['xcen'])
     if num > 1:
         ctslit = cutslit.copy()
@@ -568,7 +598,7 @@ def LoadSlit(fin):
 
 def SaveSlit(fout):
     if cutslitplt:
-        cutslitdict = {'tapPointDF_sdosubmp_canvas': tapPointDF_sdosubmp_canvas,
+        cutslitdict = {'cutslit': ctslit, 'tapPointDF_sdosubmp_canvas': tapPointDF_sdosubmp_canvas,
                        'ascending': ascending, 'fitmethod': fitmethod, 'smoth_factor1': smoth_factor1,
                        'smoth_factor2': smoth_factor1, 'smoth_factor': Slider_smoothing_factor.value,
                        'Cutwdth': Text_Cutwdth.value, 'CutAng': Text_CutAng.value,
@@ -654,23 +684,45 @@ def trange_change_handler(attr, old, new):
 
 
 def DropDn_slit_handler(attr, old, new):
-    global slitfile
-    if DropDn_slit.value == "Open":
+    global slitfile, chunkfile
+    if DropDn_slit.value == "Open slit":
         tkRoot = Tkinter.Tk()
         tkRoot.withdraw()  # Close the root window
         fin = tkFileDialog.askopenfilename(initialdir=database_dir, initialfile='cutslit-' + PlotID)
-        LoadSlit(fin)
-        slitfile = fin
-    elif DropDn_slit.value == "Save As":
+        if fin:
+            LoadSlit(fin)
+            slitfile = fin
+    elif DropDn_slit.value == "Save slit as":
         tkRoot = Tkinter.Tk()
         tkRoot.withdraw()  # Close the root window
         fout = tkFileDialog.asksaveasfilename(initialdir=database_dir, initialfile='cutslit-' + PlotID)
-        SaveSlit(fout)
-        slitfile = fout
-    elif DropDn_slit.value == "Load":
+        if fout:
+            SaveSlit(fout)
+            slitfile = fout
+    elif DropDn_slit.value == "Load slit":
         LoadSlit(slitfile)
-    elif DropDn_slit.value == "Save":
+    elif DropDn_slit.value == "Save slit":
         SaveSlit(slitfile)
+    elif DropDn_slit.value == "Open chunk":
+        tkRoot = Tkinter.Tk()
+        tkRoot.withdraw()  # Close the root window
+        fin = tkFileDialog.askopenfilename(initialdir=database_dir,
+                                           initialfile='chunk-{}-'.format(MkPlot_args_dict['wavelength']) + PlotID)
+        if fin:
+            LoadChunkfromfile(fin)
+            chunkfile = fin
+    elif DropDn_slit.value == "Dump chunk As":
+        tkRoot = Tkinter.Tk()
+        tkRoot.withdraw()  # Close the root window
+        fout = tkFileDialog.asksaveasfilename(initialdir=database_dir,
+                                              initialfile='chunk-{}-'.format(MkPlot_args_dict['wavelength']) + PlotID)
+        if fout:
+            DumpChunk(fout)
+            chunkfile = fout
+    elif DropDn_slit.value == "Load chunk":
+        LoadChunkfromfile(chunkfile)
+    elif DropDn_slit.value == "Dump chunk":
+        DumpChunk(chunkfile)
     else:
         pass
 
@@ -714,6 +766,7 @@ sdofileidxstep = 1
 smoth_factor0 = 0
 smoth_factor1 = 0
 slitfile = database_dir + 'cutslit-' + PlotID
+chunkfile = database_dir + 'chunk-{}-'.format(MkPlot_args_dict['wavelength']) + PlotID
 cutslitplt = {}
 sdosubmpdict = {}
 AIAcadence = config_main['plot_config']['tab_MkPlot']['AIA_cadence'][MkPlot_args_dict['wavelength']]
@@ -750,14 +803,14 @@ r_sdo_RSPmap_quadx = p_sdomap.quad('left', 'right', 'top', 'bottom', source=SRC_
                                    fill_alpha=0.0, fill_color=None,
                                    line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
                                    selection_fill_color=None,
-                                   nonselection_fill_alpha=0.0,
+                                   nonselection_fill_alpha=0.0, nonselection_fill_color=None,
                                    selection_line_alpha=0.0, selection_line_color=None,
                                    nonselection_line_alpha=0.0)
 r_sdo_RSPmap_quady = p_sdomap.quad('left', 'right', 'top', 'bottom', source=SRC_sdo_RSPmap_quady,
                                    fill_alpha=0.0, fill_color=None,
                                    line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
                                    selection_fill_color=None,
-                                   nonselection_fill_alpha=0.0,
+                                   nonselection_fill_alpha=0.0, nonselection_fill_color=None,
                                    selection_line_alpha=0.0, selection_line_color=None,
                                    nonselection_line_alpha=0.0)
 p_sdomap.add_tools(TapTool(renderers=[r_sdo_RSPmap_quadx, r_sdo_RSPmap_quady]))
@@ -906,8 +959,10 @@ BUT_default_fitparam.on_click(default_fitparam)
 BUT_exit = Button(label='Exit', width=config_main['plot_config']['tab_MkPlot']['button_wdth'], button_type='danger')
 BUT_exit.on_click(exit_update)
 
-menu_slit = [("Open", "Open"), ("Save As", "Save As"), None, ("Load", "Load"), ("Save", "Save")]
-DropDn_slit = Dropdown(label="Slit File", menu=menu_slit,
+menu_slit = [("Open slit", "Open slit"), ("Save slit as", "Save slit as"), ("Load slit", "Load slit"),
+             ("Save slit", "Save slit"), None, ("Open chunk", "Open chunk"), ("Dump chunk as", "Dump chunk as"),
+             ("Load chunk", "Load chunk"), ("Dump chunk", "Dump chunk")]
+DropDn_slit = Dropdown(label="File", menu=menu_slit,
                        width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'])
 DropDn_slit.on_change('value', DropDn_slit_handler)
 
