@@ -8,7 +8,7 @@ __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
 def getspwfromfreq(vis,freqrange):
-    from  casac import *
+    from taskinit import ms
     ms.open(vis)
     axisInfo = ms.getdata(["axis_info"], ifraxis=True)
     spwInfo = ms.getspectralwindowinfo()
