@@ -117,9 +117,9 @@ def tab1_selection_StrID_entry(attrname, old, new):
     else:
         tab1_Select_CleanID.options = []
         tab1_Select_CleanID.value = ''
-        Text_CleanID.value = DButil.getcurtimstr()
         CleanIDdir = ''
         tab1_Div_FSview.text = """<p>Click <b>ToClean </b> to make synthesis images first!!</p>"""
+    Text_CleanID.value = DButil.getcurtimstr()
 
 
 def tab1_update_deleteStrID():
