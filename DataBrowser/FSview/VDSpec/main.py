@@ -91,7 +91,7 @@ def goodchan(hdu):
 def getsubmap_region():
     exec ('boxrgn = {}'.format(tab2_tImfit_Param_dict['box']))
     if boxrgn:
-        x0pix, y0pix, x1pix, y1pix = boxrgn
+        x0pix, y0pix, x1pix, y1pix = boxrgn.split(',')
         x0, y0 = DButil.canvaspix_to_data(vla_local_pfmap.smap, x0pix, y0pix, value=False)
         x1, y1 = DButil.canvaspix_to_data(vla_local_pfmap.smap, x1pix, y1pix, value=False)
         patch_size = max(x1 - x0, y1 - y0)
@@ -104,7 +104,6 @@ def getsubmap_region():
         x0, x1 = xc - lengthx / 2, xc + lengthx / 2
         y0, y1 = yc - lengthy / 2, yc + lengthy / 2
     return aiamap.submap(u.Quantity([x0, x1]), u.Quantity([y0, y1]))
-
 
 
 # initial the source of maxfit centroid
@@ -837,7 +836,6 @@ if os.path.exists(FS_dspecDF):
         # try:
         aiamap = DButil.readsdofile(datadir=SDOdir, wavelength='171', jdtime=xx[0] / 3600. / 24.,
                                     timtol=tab2_dur / 3600. / 24.)
-
 
         # except:
         # raise SystemExit('No SDO fits found under {}. '.format(SDOdir))
