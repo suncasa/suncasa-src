@@ -91,8 +91,7 @@ def goodchan(hdu):
 def getsubmap_region():
     exec ('boxrgn = {}'.format(tab2_tImfit_Param_dict['box']))
     if boxrgn:
-        x0pix, y0pix, x1pix, y1pix = boxrgn.split(',')
-        print x0pix, y0pix, x1pix, y1pix
+        x0pix, y0pix, x1pix, y1pix =  [int(ll) for ll in boxrgn.split(',')]
         x0, y0 = DButil.canvaspix_to_data(vla_local_pfmap.smap, x0pix, y0pix)
         x0, y0 = x0 * u.arcsec, y0 * u.arcsec
         x1, y1 = DButil.canvaspix_to_data(vla_local_pfmap.smap, x1pix, y1pix)
