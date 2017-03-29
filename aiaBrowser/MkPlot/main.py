@@ -373,9 +373,9 @@ def sdosubmp_quad_selection_change(attrname, old, new):
         SRC_sdosubmp_canvas_quadx.selected = {'0d': {'glyph': None, 'indices': []}, '1d': {'indices': []}, '2d': {}}
         SRC_sdosubmp_canvas_quady.selected = {'0d': {'glyph': None, 'indices': []}, '1d': {'indices': []}, '2d': {}}
         if len(sdosubmp_quadx_selected) > 0 and len(sdosubmp_quady_selected) > 0:
-            tapPointDF_sdosubmp_canvas = tapPointDF_sdosubmp_canvas.append(
-                pd.Series({'xx': mapx_sdosubmp[sdosubmp_quady_selected[0], sdosubmp_quadx_selected[0]],
-                           'yy': mapy_sdosubmp[sdosubmp_quady_selected[0], sdosubmp_quadx_selected[0]]}),
+            tapPointDF_sdosubmp_canvas = tapPointDF_sdosubmp_canvas.append(pd.Series(
+                {'xx': mapx_sdosubmp[sdosubmp_quady_selected[0], sdosubmp_quadx_selected[0]],
+                 'yy': mapy_sdosubmp[sdosubmp_quady_selected[0], sdosubmp_quadx_selected[0]]}),
                 ignore_index=True)
             if len(tapPointDF_sdosubmp_canvas.index) == 2:
                 if tapPointDF_sdosubmp_canvas.loc[tapPointDF_sdosubmp_canvas.index[0], 'xx'] > \
@@ -385,6 +385,10 @@ def sdosubmp_quad_selection_change(attrname, old, new):
             cutslitplt = MakeSlit(tapPointDF_sdosubmp_canvas)
             getimprofile(sdosubmp, cutslitplt)
             pushslit2plt(cutslitplt, clearpoint=clearpoint)
+            xphy, yphy = DButil.canvaspix_to_data(sdosubmp,
+                                                  tapPointDF_sdosubmp_canvas.tail(1)['xx'].values[0] * Canvas_scaleX,
+                                                  tapPointDF_sdosubmp_canvas.tail(1)['yy'].values[0] * Canvas_scaleY)
+            Div_submapcoord.text = """x:{:.2f}, y:{:.2f} [arcsec]""".format(xphy, yphy)
         sdosubmp_quadselround = 0
 
 
@@ -451,6 +455,7 @@ def pushslit2plt(cutslit, clearpoint=False):
         r_sdosubmp_cross.data_source.data = {'xx': [], 'yy': []}
     else:
         r_sdosubmp_cross.data_source.data = ColumnDataSource(tapPointDF_sdosubmp_canvas).data
+        # Div_submapcoord.text = """x:{}, y:{} [arcsec]""".format(cutslit['xcen'][-1], cutslit['ycen'][-1])
 
 
 def clearslitplt():
@@ -490,6 +495,10 @@ def UndoDraw():
         pushslit2plt(cutslitplt, clearpoint=clearpoint)
         if len(tapPointDF_sdosubmp_canvas.index) == 1:
             r_lighcurve.data_source.data = {'x': [], 'y': []}
+        xphy, yphy = DButil.canvaspix_to_data(sdosubmp,
+                                              tapPointDF_sdosubmp_canvas.tail(1)['xx'].values[0] * Canvas_scaleX,
+                                              tapPointDF_sdosubmp_canvas.tail(1)['yy'].values[0] * Canvas_scaleY)
+        Div_submapcoord.text = """x:{:.2f}, y:{:.2f} [arcsec]""".format(xphy, yphy)
     else:
         ClearDraw()
 
@@ -503,6 +512,7 @@ def ClearDraw():
     cutslitplt = {'xcen': [], 'ycen': [], 'xs0': [], 'ys0': [], 'xs1': [], 'ys1': [], 'cutwidth': [],
                   'posangs': [], 'posangs2': [], 'dist': []}
     r_lighcurve.data_source.data = {'x': [], 'y': []}
+    Div_submapcoord.text=""""""
 
 
 def getimprofile(smap, cutslit, plot=True):
@@ -520,9 +530,6 @@ def getimprofile(smap, cutslit, plot=True):
                     ctslit[key] = ctslit[key] * Canvas_scale
         intens = np.zeros(num)
         for ll in xrange(num):
-            # x, y = DButil.canvaspix_to_data(sdosubmp, np.array([xs0, xs1]),
-            #                                 np.array([ys0, ys1]))
-            # xpix, ypix = DButil.data_to_mappixel(sdosubmp, x, y)
             inten = DButil.improfile(smap.data, [ctslit['xs0'][ll], ctslit['xs1'][ll]],
                                      [ctslit['ys0'][ll], ctslit['ys1'][ll]], interp='nearest')
             intens[ll] = np.mean(inten)
@@ -531,8 +538,6 @@ def getimprofile(smap, cutslit, plot=True):
         if plot:
             r_lighcurve.data_source.data = intensdist
         return intensdist
-        # p_lighcurve.x_range = Range1d(0, cutslit['dist'][-1])
-        # p_lighcurve.y_range = Range1d(0, np.max(intens))
 
 
 def HideItemUpdate(new):
@@ -951,6 +956,7 @@ Slider_smoothing_factor.on_change('value', slider_smoothing_factor_update)
 Hideitem_checkbox.on_click(HideItemUpdate)
 fitMeth_radiogroup.on_click(fitMethUpdate)
 
+Div_submapcoord = Div(text="""""", width=config_main['plot_config']['tab_MkPlot']['aia_submap_wdth'])
 Div_info = Div(text="""<p><b>Warning</b>: Click <b>Exit</b>
             first before closing the tab</p></b>""", width=config_main['plot_config']['tab_MkPlot']['button_wdth'])
 BUT_default_fitparam = Button(label='Default', width=config_main['plot_config']['tab_MkPlot']['button_wdth_small'],
@@ -1012,7 +1018,7 @@ lbutt_play = row(ButtonsPlayCTRL.buttons[0], ButtonsPlayCTRL.buttons[1], Buttons
 widgt0 = widgetbox(Slider_trange, Slider_sdoidx, Slider_sdoidxstep,
                    width=config_main['plot_config']['tab_MkPlot']['aia_RSPmap_wdth'])
 loutc1 = column(p_sdomap, p_lighcurve, widgt0, lbutt_play)
-loutc2 = p_sdosubmp
+loutc2 = column(p_sdosubmp, Div_submapcoord)
 widgt1p1 = widgetbox(Select_aia_wave, Text_SlitLgth, Text_Cutwdth, Text_CutAng,
                      Slider_smoothing_factor,
                      Hideitem_checkbox, fitMeth_radiogroup, ImgOption_checkbox,
