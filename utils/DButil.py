@@ -511,7 +511,7 @@ def improfile(z, xi, yi, interp='cubic'):
     return zi
 
 
-def canvaspix_to_data(smap, x, y, value=True):
+def canvaspix_to_data(smap, x, y):
     import astropy.units as u
     '''
     Convert canvas pixel coordinates in MkPlot to data (world) coordinates by using

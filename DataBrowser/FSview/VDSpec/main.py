@@ -92,8 +92,10 @@ def getsubmap_region():
     exec ('boxrgn = {}'.format(tab2_tImfit_Param_dict['box']))
     if boxrgn:
         x0pix, y0pix, x1pix, y1pix = boxrgn.split(',')
-        x0, y0 = DButil.canvaspix_to_data(vla_local_pfmap.smap, x0pix, y0pix, value=False)
-        x1, y1 = DButil.canvaspix_to_data(vla_local_pfmap.smap, x1pix, y1pix, value=False)
+        x0, y0 = DButil.canvaspix_to_data(vla_local_pfmap.smap, x0pix, y0pix)
+        x0, y0 = x0 * u.arcsec, y0 * u.arcsec
+        x1, y1 = DButil.canvaspix_to_data(vla_local_pfmap.smap, x1pix, y1pix)
+        x1, y1 = x1 * u.arcsec, y1 * u.arcsec
         patch_size = max(x1 - x0, y1 - y0)
         x1, y0 = x0 + patch_size, y1 - patch_size
     else:
@@ -101,8 +103,8 @@ def getsubmap_region():
         lengthy = vla_local_pfmap.dh[0] * u.arcsec / 3.0
         length = max(lengthx, lengthy)
         xc, yc = vla_local_pfmap.smap.center.x, vla_local_pfmap.smap.center.y
-        x0, x1 = xc - lengthx / 2, xc + lengthx / 2
-        y0, y1 = yc - lengthy / 2, yc + lengthy / 2
+        x0, x1 = xc - length / 2, xc + length / 2
+        y0, y1 = yc - length / 2, yc + length / 2
     return aiamap.submap(u.Quantity([x0, x1]), u.Quantity([y0, y1]))
 
 
