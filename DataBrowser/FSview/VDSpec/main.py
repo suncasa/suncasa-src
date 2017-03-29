@@ -15,7 +15,7 @@ import scipy.ndimage as sn
 from math import radians, cos, sin
 from bokeh.layouts import row, column, widgetbox, gridplot
 from bokeh.models import (ColumnDataSource, CustomJS, Slider, Button, TextInput, RadioButtonGroup, CheckboxGroup,
-                          BoxSelectTool, LassoSelectTool, HoverTool, Spacer, LabelSet, Div)
+                          BoxSelectTool, LassoSelectTool, HoverTool, TapTool, Spacer, LabelSet, Div)
 from bokeh.models.mappers import LinearColorMapper
 from bokeh.models.widgets import Select, RangeSlider, Panel, Tabs, RadioGroup
 from bokeh.palettes import Spectral11
@@ -193,41 +193,101 @@ def tab2_SRC_maxfit_centroid_update(dspecDFsel):
     print("--- tab2_SRC_maxfit_centroid_update -- %s seconds ---" % (time.time() - start_timestamp))
 
 
-def tab3_aia_submap_cross_selection_change(attrname, old, new):
+def aia_submap_region_select(attrname, old, new):
+    global tapPointDF_aia_submap, aia_submap_quadselround
     global tab3_dspec_vectorx_img, tab3_dspec_vectory_img
     global vmax_vx, vmax_vy, vmin_vx, vmin_vy, mean_vx, mean_vy
-    global VdspecDF
-    tab3_aia_submap_cross_selected = tab3_r_aia_submap_cross.data_source.selected['1d']['indices']
-    if tab3_aia_submap_cross_selected:
-        tmpDF = tab3_r_aia_submap_cross.data_source.to_df().iloc[tab3_aia_submap_cross_selected, :]
-        xa0, xa1 = tmpDF['shape_longitude'].min(), tmpDF['shape_longitude'].max()
-        ya0, ya1 = tmpDF['shape_latitude'].min(), tmpDF['shape_latitude'].max()
-        print xa0, xa1, ya0, ya1
-        mean_vx = (xa0 + xa1) / 2
-        mean_vy = (ya0 + ya1) / 2
-        tab3_r_aia_submap_rect.data_source.data['x'] = [mean_vx]
-        tab3_r_aia_submap_rect.data_source.data['y'] = [mean_vy]
-        tab3_r_aia_submap_rect.data_source.data['width'] = [(xa1 - xa0)]
-        tab3_r_aia_submap_rect.data_source.data['height'] = [(ya1 - ya0)]
-        vx = (VdspecDF['shape_longitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
-        vmax_vx, vmin_vx = xa1, xa0
-        vx[vx > vmax_vx] = vmax_vx
-        vx[vx < vmin_vx] = vmin_vx
-        tab3_r_dspec_vectorx.data_source.data['image'] = [vx]
-        vy = (VdspecDF['shape_latitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
-        vmax_vy, vmin_vy = ya1, ya0
-        vy[vy > vmax_vy] = vmax_vy
-        vy[vy < vmin_vy] = vmin_vy
-        tab3_r_dspec_vectory.data_source.data['image'] = [vy]
-        tab3_dspec_small_CTRLs_OPT['vmax_values_last'][1] = xa1
-        tab3_dspec_small_CTRLs_OPT['vmax_values_last'][2] = ya1
-        tab3_dspec_small_CTRLs_OPT['vmin_values_last'][1] = xa0
-        tab3_dspec_small_CTRLs_OPT['vmin_values_last'][2] = ya0
-    else:
-        tab3_r_aia_submap_rect.data_source.data['x'] = [(vmax_vx + vmin_vx) / 2]
-        tab3_r_aia_submap_rect.data_source.data['y'] = [(vmax_vy + vmin_vy) / 2]
-        tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
-        tab3_r_aia_submap_rect.data_source.data['height'] = [(vmax_vy - vmin_vy)]
+    aia_submap_quadselround += 1
+    if aia_submap_quadselround == 2:
+        aia_submap_quadx_selected = SRC_aia_submap_quadx.selected['1d']['indices']
+        aia_submap_quady_selected = SRC_aia_submap_quady.selected['1d']['indices']
+        SRC_aia_submap_quadx.selected = {'0d': {'glyph': None, 'indices': []}, '1d': {'indices': []}, '2d': {}}
+        SRC_aia_submap_quady.selected = {'0d': {'glyph': None, 'indices': []}, '1d': {'indices': []}, '2d': {}}
+        if len(aia_submap_quadx_selected) > 0 and len(aia_submap_quady_selected) > 0:
+            tapPointDF_aia_submap = tapPointDF_aia_submap.append(
+                pd.Series({'xx': mapx_aia_submap[aia_submap_quady_selected[0], aia_submap_quadx_selected[0]],
+                           'yy': mapy_aia_submap[aia_submap_quady_selected[0], aia_submap_quadx_selected[0]]}),
+                ignore_index=True)
+            if len(tapPointDF_aia_submap.index) == 1:
+                r_aia_submap_line.data_source.data = {
+                    'xs': [[mapx_aia_submap[aia_submap_quady_selected[0], aia_submap_quadx_selected[0]]] * 2,
+                           [mapx_aia_submap[aia_submap_quady_selected[0], 0],
+                            mapx_aia_submap[aia_submap_quady_selected[0], -1]]],
+                    'ys': [[mapy_aia_submap[0, aia_submap_quadx_selected[0]],
+                            mapy_aia_submap[-1, aia_submap_quadx_selected[0]]],
+                           [mapy_aia_submap[aia_submap_quady_selected[0], aia_submap_quadx_selected[0]]] * 2]}
+            elif len(tapPointDF_aia_submap.index) == 2:
+                xa0, xa1 = tapPointDF_aia_submap['xx'].min(), tapPointDF_aia_submap['xx'].max()
+                ya0, ya1 = tapPointDF_aia_submap['yy'].min(), tapPointDF_aia_submap['yy'].max()
+                if xa1 > xa0 + mapx_aia_submap[0, 1] - mapx_aia_submap[0, 0] and ya1 > ya0 + mapy_aia_submap[0, 1] - \
+                        mapy_aia_submap[0, 0]:
+                    ## select at least 4 points
+                    print xa0, xa1, ya0, ya1
+                    mean_vx = (xa0 + xa1) / 2
+                    mean_vy = (ya0 + ya1) / 2
+                    tab3_r_aia_submap_rect.data_source.data['x'] = [mean_vx]
+                    tab3_r_aia_submap_rect.data_source.data['y'] = [mean_vy]
+                    tab3_r_aia_submap_rect.data_source.data['width'] = [(xa1 - xa0)]
+                    tab3_r_aia_submap_rect.data_source.data['height'] = [(ya1 - ya0)]
+                    vx = (VdspecDF['shape_longitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
+                    vmax_vx, vmin_vx = xa1, xa0
+                    vx[vx > vmax_vx] = vmax_vx
+                    vx[vx < vmin_vx] = vmin_vx
+                    tab3_r_dspec_vectorx.data_source.data['image'] = [vx]
+                    vy = (VdspecDF['shape_latitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
+                    vmax_vy, vmin_vy = ya1, ya0
+                    vy[vy > vmax_vy] = vmax_vy
+                    vy[vy < vmin_vy] = vmin_vy
+                    tab3_r_dspec_vectory.data_source.data['image'] = [vy]
+                    tab3_dspec_small_CTRLs_OPT['vmax_values_last'][1] = xa1
+                    tab3_dspec_small_CTRLs_OPT['vmax_values_last'][2] = ya1
+                    tab3_dspec_small_CTRLs_OPT['vmin_values_last'][1] = xa0
+                    tab3_dspec_small_CTRLs_OPT['vmin_values_last'][2] = ya0
+                # else:
+                #     tab3_r_aia_submap_rect.data_source.data['x'] = [(vmax_vx + vmin_vx) / 2]
+                #     tab3_r_aia_submap_rect.data_source.data['y'] = [(vmax_vy + vmin_vy) / 2]
+                #     tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
+                #     tab3_r_aia_submap_rect.data_source.data['height'] = [(vmax_vy - vmin_vy)]
+                tapPointDF_aia_submap = pd.DataFrame({'xx': [], 'yy': []})
+                r_aia_submap_line.data_source.data = {'xs': [], 'ys': []}
+        aia_submap_quadselround = 0
+
+
+# def tab3_aia_submap_cross_selection_change(attrname, old, new):
+#     global tab3_dspec_vectorx_img, tab3_dspec_vectory_img
+#     global vmax_vx, vmax_vy, vmin_vx, vmin_vy, mean_vx, mean_vy
+#     global VdspecDF
+#     tab3_aia_submap_cross_selected = tab3_r_aia_submap_cross.data_source.selected['1d']['indices']
+#     if tab3_aia_submap_cross_selected:
+#         tmpDF = tab3_r_aia_submap_cross.data_source.to_df().iloc[tab3_aia_submap_cross_selected, :]
+#         xa0, xa1 = tmpDF['shape_longitude'].min(), tmpDF['shape_longitude'].max()
+#         ya0, ya1 = tmpDF['shape_latitude'].min(), tmpDF['shape_latitude'].max()
+#         print xa0, xa1, ya0, ya1
+#         mean_vx = (xa0 + xa1) / 2
+#         mean_vy = (ya0 + ya1) / 2
+#         tab3_r_aia_submap_rect.data_source.data['x'] = [mean_vx]
+#         tab3_r_aia_submap_rect.data_source.data['y'] = [mean_vy]
+#         tab3_r_aia_submap_rect.data_source.data['width'] = [(xa1 - xa0)]
+#         tab3_r_aia_submap_rect.data_source.data['height'] = [(ya1 - ya0)]
+#         vx = (VdspecDF['shape_longitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
+#         vmax_vx, vmin_vx = xa1, xa0
+#         vx[vx > vmax_vx] = vmax_vx
+#         vx[vx < vmin_vx] = vmin_vx
+#         tab3_r_dspec_vectorx.data_source.data['image'] = [vx]
+#         vy = (VdspecDF['shape_latitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
+#         vmax_vy, vmin_vy = ya1, ya0
+#         vy[vy > vmax_vy] = vmax_vy
+#         vy[vy < vmin_vy] = vmin_vy
+#         tab3_r_dspec_vectory.data_source.data['image'] = [vy]
+#         tab3_dspec_small_CTRLs_OPT['vmax_values_last'][1] = xa1
+#         tab3_dspec_small_CTRLs_OPT['vmax_values_last'][2] = ya1
+#         tab3_dspec_small_CTRLs_OPT['vmin_values_last'][1] = xa0
+#         tab3_dspec_small_CTRLs_OPT['vmin_values_last'][2] = ya0
+#     else:
+#         tab3_r_aia_submap_rect.data_source.data['x'] = [(vmax_vx + vmin_vx) / 2]
+#         tab3_r_aia_submap_rect.data_source.data['y'] = [(vmax_vy + vmin_vy) / 2]
+#         tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
+#         tab3_r_aia_submap_rect.data_source.data['height'] = [(vmax_vy - vmin_vy)]
 
 
 def VdspecDF_init():
@@ -734,7 +794,7 @@ def tab3_animate_onoff():
         if tab3_BUT_animate_ONOFF.label == 'Animate ON & Go':
             tab3_BUT_animate_ONOFF.label = 'Animate OFF & Go'
             tab3_r_aia_submap_cross.visible = True
-            tab3_r_aia_submap_line.visible = timeline
+            tab3_r_aia_submap_timeline.visible = timeline
             tab3_r_dspec_vector_line.visible = False
             tab3_r_dspec_vectorx_line.visible = False
             tab3_r_dspec_vectory_line.visible = False
@@ -743,7 +803,7 @@ def tab3_animate_onoff():
         else:
             tab3_BUT_animate_ONOFF.label = 'Animate ON & Go'
             tab3_r_aia_submap_cross.visible = True
-            tab3_r_aia_submap_line.visible = False
+            tab3_r_aia_submap_timeline.visible = False
             tab3_r_dspec_vector_line.visible = True
             tab3_r_dspec_vectorx_line.visible = True
             tab3_r_dspec_vectory_line.visible = True
@@ -790,6 +850,7 @@ tab2_freq = [float('{:.03f}'.format(ll)) for ll in tab2_freq]
 tab2_df = np.median(np.diff(tab2_freq))
 tab2_ntim = len(tab2_tim)
 tab2_nfreq = len(tab2_freq)
+aia_submap_quadselround = 0
 
 if isinstance(tab2_specdata['bl'].tolist(), str):
     tab2_bl = tab2_specdata['bl'].item().split(';')
@@ -866,6 +927,44 @@ if os.path.exists(FS_dspecDF):
         tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,
                                                                         grid_spacing=20 * u.deg,
                                                                         title='EM sources centroid map')
+        SRC_aia_submap_line = ColumnDataSource({'xs': [], 'ys': []})
+        r_aia_submap_line = tab3_p_aia_submap.multi_line('xs', 'ys', source=SRC_aia_submap_line, line_color='cyan',
+                                                         line_width=1,
+                                                         alpha=0.8)
+        mapx_aia_submap, mapy_aia_submap = aia_submap_pfmap.meshgrid(rescale=1.0)
+        mapx_aia_submap, mapy_aia_submap = mapx_aia_submap.value, mapy_aia_submap.value
+        ndy, ndx = mapx_aia_submap.shape
+        tapPointDF_aia_submap = pd.DataFrame({'xx': [], 'yy': []})  ## the selected point to fit in aia submap
+        dx = np.mean(np.diff(mapx_aia_submap[0, :]))
+        dy = np.mean(np.diff(mapy_aia_submap[:, 0]))
+        xLFE = mapx_aia_submap[0, :] - dx / 2.0
+        xRTE = np.append(xLFE[1:], xLFE[-1] + dx)
+        yBTE = mapy_aia_submap[:, 0] - dy / 2.0
+        yTPE = np.append(yBTE[1:], yBTE[-1] + dy)
+        SRC_aia_submap_quadx = ColumnDataSource(
+            {'left': xLFE.ravel(), 'right': xRTE.ravel(), 'bottom': np.repeat(yBTE[0], ndx),
+             'top': np.repeat(yBTE[-1] + dy, ndx)})
+        SRC_aia_submap_quady = ColumnDataSource(
+            {'left': np.repeat(xLFE[0], ndy), 'right': np.repeat(xLFE[-1] + dx, ndy), 'bottom': yBTE.ravel(),
+             'top': yTPE.ravel()})
+        r_aia_submap_quadx = tab3_p_aia_submap.quad('left', 'right', 'top', 'bottom', source=SRC_aia_submap_quadx,
+                                                    fill_alpha=0.0, fill_color=None,
+                                                    line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
+                                                    selection_fill_color=None,
+                                                    nonselection_fill_alpha=0.0, nonselection_fill_color=None,
+                                                    selection_line_alpha=0.0, selection_line_color=None,
+                                                    nonselection_line_alpha=0.0)
+        r_aia_submap_quady = tab3_p_aia_submap.quad('left', 'right', 'top', 'bottom', source=SRC_aia_submap_quady,
+                                                    fill_alpha=0.0, fill_color=None,
+                                                    line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
+                                                    selection_fill_color=None,
+                                                    nonselection_fill_alpha=0.0, nonselection_fill_color=None,
+                                                    selection_line_alpha=0.0, selection_line_color=None,
+                                                    nonselection_line_alpha=0.0)
+        tab3_p_aia_submap.add_tools(TapTool(renderers=[r_aia_submap_quadx, r_aia_submap_quady]))
+
+        SRC_aia_submap_quadx.on_change('selected', aia_submap_region_select)
+        SRC_aia_submap_quady.on_change('selected', aia_submap_region_select)
 
         tab3_p_aia_submap.border_fill_alpha = 0.4
         tab3_p_aia_submap.axis.major_tick_out = 0
@@ -880,12 +979,12 @@ if os.path.exists(FS_dspecDF):
                                                           color={'field': 'freq', 'transform': color_mapper},
                                                           line_width=3,
                                                           source=SRC_maxfit_centroid[tab2_dtim[0]], line_alpha=0.8)
-        tab3_r_aia_submap_line = tab3_p_aia_submap.line(x='shape_longitude', y='shape_latitude', line_width=3,
-                                                        line_color='black',
-                                                        line_alpha=0.5,
-                                                        source=SRC_maxfit_centroid[tab2_dtim[0]])
-        tab3_p_aia_submap.add_tools(BoxSelectTool(renderers=[tab3_r_aia_submap_cross]))
-        tab3_r_aia_submap_line.visible = False
+        tab3_r_aia_submap_timeline = tab3_p_aia_submap.line(x='shape_longitude', y='shape_latitude', line_width=3,
+                                                            line_color='black',
+                                                            line_alpha=0.5,
+                                                            source=SRC_maxfit_centroid[tab2_dtim[0]])
+        # tab3_p_aia_submap.add_tools(BoxSelectTool(renderers=[tab3_r_aia_submap_cross]))
+        tab3_r_aia_submap_timeline.visible = False
         tab3_SRC_aia_submap_rect = ColumnDataSource({'x': [], 'y': [], 'width': [], 'height': []})
         tab3_r_aia_submap_rect = tab3_p_aia_submap.rect(x='x', y='y', width='width', height='height', fill_alpha=0.1,
                                                         line_color='black', fill_color='black',
@@ -984,7 +1083,7 @@ if os.path.exists(FS_dspecDF):
         tab3_p_dspec_vector.add_tools(LassoSelectTool())
         tab3_p_dspec_vector.select(BoxSelectTool).select_every_mousemove = False
         tab3_p_dspec_vector.select(LassoSelectTool).select_every_mousemove = False
-        tab3_r_aia_submap_cross.data_source.on_change('selected', tab3_aia_submap_cross_selection_change)
+        # tab3_r_aia_submap_cross.data_source.on_change('selected', tab3_aia_submap_cross_selection_change)
 
         VdspecDF_init()
         VdspecDF_update()
