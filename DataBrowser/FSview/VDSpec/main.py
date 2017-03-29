@@ -505,6 +505,7 @@ def tab3_slider_ANLYS_idx_update(attrname, old, new):
 
 def tab2_panel3_savimgs_handler():
     global outimgdir
+    tab3_Div_Tb.text = """"""
     dspecDF0POLsub = dspecDF0POL[dspecDF0POL['time'] >= tab3_p_dspec_vector.x_range.start][
         dspecDF0POL['time'] <= tab3_p_dspec_vector.x_range.end][
         dspecDF0POL['freq'] >= tab3_p_dspec_vector.y_range.start][
