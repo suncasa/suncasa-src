@@ -117,7 +117,6 @@ def tab2_vdspec_update():
     select_pol = tab2_Select_pol.value
     if tab2_BUT_vdspec.label == "VEC Dyn Spec":
         if len(tab2_r_vla_ImgRgn_patch.data_source.data['xx']) > 0:
-            tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum in calculating...</b></p>'
             tab2_Select_pol_opt = tab2_Select_pol.options
             tab2_Select_pol.options = pols
             tab2_BUT_vdspec.label = "Dyn Spec"
@@ -139,8 +138,13 @@ def tab2_vdspec_update():
                             np.nanmean(vla_l, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
                         spec_plt_L[idxfreq:idxfreq + nfreq_hdu, ll] = \
                             np.nanmean(vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
+                    tab2_Div_LinkImg_plot.text = """<p><b>Vec Dspec in calculating...</b></p><p>{}</p>""".format(
+                        DButil.ProgressBar(ll + 1, tab2_ntim + 1, decimals=0, length=16, empfill='=',fill='#'))
                 spec_plt_R[spec_plt_R < 0] = 0
                 spec_plt_L[spec_plt_L < 0] = 0
+                tab2_Div_LinkImg_plot.text = """<p><b>Vec Dspec in calculating...</b></p><p>{}</p>""".format(
+                    DButil.ProgressBar(tab2_ntim + 1, tab2_ntim + 1, decimals=0, length=16, empfill='=',
+                                       fill='#'))
             elif len(pols) == 1:
                 for ll in xrange(tab2_ntim):
                     hdufile = fits_LOCL_dir + dspecDF0.loc[ll, :]['fits_local']
@@ -154,9 +158,14 @@ def tab2_vdspec_update():
                         vladata = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                         vlaflux = np.nanmean(vladata, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
                         spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = vlaflux
+                    tab2_Div_LinkImg_plot.text = """<p><b>Vec Dspec in calculating...</b></p><p>{}</p>""".format(
+                        DButil.ProgressBar(ll + 1, tab2_ntim + 1, decimals=0, length=16, empfill='=',fill='#'))
                 spec_plt_R[spec_plt_R < 0] = 0
                 spec_plt_L = spec_plt_R
-            tab2_Div_LinkImg_plot.text = '<p><b>Vector dynamic spectrum calculated.</b></p>'
+                tab2_Div_LinkImg_plot.text = """<p><b>Vec Dspec in calculating...</b></p><p>{}</p>""".format(
+                    DButil.ProgressBar(tab2_ntim + 1, tab2_ntim + 1, decimals=0, length=16, empfill='=',
+                                       fill='#'))
+            tab2_Div_LinkImg_plot.text = '<p><b>Vec Dspec calculated.</b></p>'
             spec_pol_dict = make_spec_plt(spec_plt_R, spec_plt_L)
             tab2_bl_pol_cls_change(None, select_pol)
             tab2_p_dspec.title.text = "Vector Dynamic spectrum"
