@@ -523,12 +523,8 @@ def canvaspix_to_data(smap, x, y):
     :return: world coordinates
     '''
     xynew = smap.pixel_to_data(x * u.pix, y * u.pix)
-    if value:
-        xnew = xynew[0].value
-        ynew = xynew[1].value
-    else:
-        xnew = xynew[0]
-        ynew = xynew[1]
+    xnew = xynew[0].value
+    ynew = xynew[1].value
     return [xnew, ynew]
 
 def data_to_mappixel(smap, x, y):
