@@ -655,7 +655,7 @@ def tab2_BUT_tImfit_update():
     cwd = os.getcwd()
     try:
         tab2_Div_tImfit2.text = '<p>CASA imfit script and arguments config file saved to <b>{}.</b></p>\
-        <p>CASA imfit is in processing.</p>'.format(ImfitID_dir)
+        <p>CASA imfit is <b>in processing</b>.</p>'.format(ImfitID_dir)
         os.chdir(ImfitID_dir)
         suncasapy46 = config_main['core']['casapy46']
         suncasapy46 = os.path.expandvars(suncasapy46)

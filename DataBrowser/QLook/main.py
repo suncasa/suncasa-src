@@ -92,10 +92,22 @@ def tab1_update_addStrID():
                                 range in the dynamic spectrum first!!!</b></p>"""
 
 
+def tab1_Select_CleanID_handler(attrname, old, new):
+    global ImfitIDdir
+    ImfitIDdirdict = DButil.getlatestfile(directory=CleanIDdir,prefix='ImfitID_')
+    if ImfitIDdirdict:
+        tab1_Select_ImfitID.options = [os.path.basename(ll) for ll in ImfitIDdirdict['items']]
+        tab1_Select_ImfitID.value = os.path.basename(ImfitIDdirdict['latest'])
+        ImfitIDdir = ImfitIDdirdict['latest']
+    else:
+        tab1_Select_ImfitID.options = []
+        tab1_Select_ImfitID.value = ''
+        ImfitIDdir = ''
+
 
 def tab1_selection_StrID_entry(attrname, old, new):
     global tab1_selected_StrID_entry
-    global CleanIDdir, ImfitIDdir, CleanIDdirdict
+    global CleanIDdir, CleanIDdirdict
     tab1_selected_StrID_entry = tab1_SRC_StrIDPatch.selected['1d']['indices']
     StrID = StrIDList.iloc[tab1_selected_StrID_entry[0]]
     struct_id = StrID['str_id'][0] + '/'
@@ -105,15 +117,6 @@ def tab1_selection_StrID_entry(attrname, old, new):
         tab1_Select_CleanID.options = [os.path.basename(ll) for ll in CleanIDdirdict['items']]
         tab1_Select_CleanID.value = os.path.basename(CleanIDdirdict['latest'])
         CleanIDdir = CleanIDdirdict['latest']
-        ImfitIDdirdict = DButil.getlatestfile(directory=CleanIDdir,prefix='ImfitID_')
-        if ImfitIDdirdict:
-            tab1_Select_ImfitID.options = [os.path.basename(ll) for ll in ImfitIDdirdict['items']]
-            tab1_Select_ImfitID.value = os.path.basename(ImfitIDdirdict['latest'])
-            ImfitIDdir = ImfitIDdirdict['latest']
-        else:
-            tab1_Select_ImfitID.options = []
-            tab1_Select_ImfitID.value = ''
-            ImfitIDdir = ''
     else:
         tab1_Select_CleanID.options = []
         tab1_Select_CleanID.value = ''
@@ -432,6 +435,8 @@ tab1_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["l
 tab1_Select_CleanID = Select(title="CleanID:", value=None, options=[], **tab1_Select_OPT)
 tab1_Select_ImfitID = Select(title="ImfitID:", value=None, options=[], **tab1_Select_OPT)
 
+
+tab1_Select_CleanID.on_change('value',tab1_Select_CleanID_handler)
 
 tab1_ctrls = [tab1_Select_bl, tab1_Select_pol, tab1_Select_colorspace]
 for ctrl in tab1_ctrls:
