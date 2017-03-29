@@ -91,7 +91,7 @@ def goodchan(hdu):
 def getsubmap_region():
     exec ('boxrgn = {}'.format(tab2_tImfit_Param_dict['box']))
     if boxrgn:
-        x0pix, y0pix, x1pix, y1pix =  [int(ll) for ll in boxrgn.split(',')]
+        x0pix, y0pix, x1pix, y1pix = [int(ll) for ll in boxrgn.split(',')]
         x0, y0 = DButil.canvaspix_to_data(vla_local_pfmap.smap, x0pix, y0pix)
         x0, y0 = x0 * u.arcsec, y0 * u.arcsec
         x1, y1 = DButil.canvaspix_to_data(vla_local_pfmap.smap, x1pix, y1pix)
@@ -316,15 +316,16 @@ def tab3_SRC_dspec_vector_update():
 
 
 def rSlider_threshold_handler(attrname, old, new):
-    global thresholdrange
+    global thresholdrange, thresholdseleted
     print tab3_p_dspec_vector.x_range.start, tab3_p_dspec_vector.x_range.end
     thresholdrange = tab3_rSlider_threshold.range
-    tab2_SRC_dspec_vector_square.selected = {'2d': {}, '1d': {'indices': list(
+    thresholdseleted = list(
         dspecDF0POL[dspecDF0POL['peak'] <= thresholdrange[1]][dspecDF0POL['peak'] >= thresholdrange[0]][
             dspecDF0POL['time'] >= tab3_p_dspec_vector.x_range.start][
             dspecDF0POL['time'] <= tab3_p_dspec_vector.x_range.end][
             dspecDF0POL['freq'] >= tab3_p_dspec_vector.y_range.start][
-            dspecDF0POL['freq'] <= tab3_p_dspec_vector.y_range.end].index)},
+            dspecDF0POL['freq'] <= tab3_p_dspec_vector.y_range.end].index)
+    tab2_SRC_dspec_vector_square.selected = {'2d': {}, '1d': {'indices': thresholdseleted},
                                              '0d': {'indices': [], 'get_view': {}, 'glyph': None}}
     for ll in range(len(tab3_dspec_small_CTRLs_OPT['labels_dspec_small'])):
         RBG_dspec_small_update(ll)
@@ -332,9 +333,12 @@ def rSlider_threshold_handler(attrname, old, new):
 
 def dspec_vector_selection_change(selected):
     global dspecDF_select
-    dspecDF_select = dspecDF0POL.iloc[selected, :]
+    setselthr = set(thresholdseleted)
+    setseltool = set(selected)
+    selectintsect = list(setselthr.intersection(setseltool))
+    dspecDF_select = dspecDF0POL.iloc[selectintsect, :]
     VdspecDF_init()
-    VdspecDF_update(selected=selected)
+    VdspecDF_update(selected=selectintsect)
     # tab3_SRC_dspec_vector_update(VdspecDF)
     tab2_SRC_maxfit_centroid_update(dspecDF_select)
     if tab3_BUT_animate_ONOFF.label == 'Animate OFF & Go':
@@ -350,6 +354,8 @@ def tab2_dspec_vector_selection_change(attrname, old, new):
     tab2_dspec_vector_selected = tab2_SRC_dspec_vector_square.selected['1d']['indices']
     if tab2_dspec_vector_selected:
         dspec_vector_selection_change(tab2_dspec_vector_selected)
+    else:
+        dspec_vector_selection_change(thresholdseleted)
 
 
 def RBG_dspec_small_update(idx):
@@ -409,8 +415,13 @@ def tab3_BUT_dspec_small_reset_update():
 
 
 def tab3_BUT_dspec_small_resetall_update():
+    global thresholdseleted
     VdspecDF_update()
     tab3_BUT_dspec_small_reset_update()
+    tab3_rSlider_threshold.range = (tab3_rSlider_threshold.start, tab3_rSlider_threshold.end)
+    thresholdseleted = list(dspecDF0POL.index)
+    tab2_SRC_dspec_vector_square.selected = {'2d': {}, '1d': {'indices': thresholdseleted},
+                                             '0d': {'indices': [], 'get_view': {}, 'glyph': None}}
     print 'reset all'
 
 
@@ -1018,7 +1029,10 @@ if os.path.exists(FS_dspecDF):
                                                                     config_main['plot_config']['tab_FSview_FitANLYS'][
                                                                         'dspec_small_hght'] / tab2_nfreq))
 
-        tab2_dspec_vector_selected = None
+        thresholdseleted = list(dspecDF0POL.index)
+        tab2_SRC_dspec_vector_square.selected = {'2d': {}, '1d': {'indices': thresholdseleted},
+                                                 '0d': {'indices': [], 'get_view': {}, 'glyph': None}}
+        tab2_dspec_vector_selected = thresholdseleted
         tab2_SRC_dspec_vector_square.on_change('selected', tab2_dspec_vector_selection_change)
         tab3_dspec_small_CTRLs_OPT = dict(mean_values=[mean_amp_g, mean_vx, mean_vy],
                                           drange_values=[drange_amp_g, drange_vx, drange_vy],
