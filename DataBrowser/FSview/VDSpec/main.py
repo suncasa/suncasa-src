@@ -253,43 +253,6 @@ def aia_submap_region_select(attrname, old, new):
         aia_submap_quadselround = 0
 
 
-# def tab3_aia_submap_cross_selection_change(attrname, old, new):
-#     global tab3_dspec_vectorx_img, tab3_dspec_vectory_img
-#     global vmax_vx, vmax_vy, vmin_vx, vmin_vy, mean_vx, mean_vy
-#     global VdspecDF
-#     tab3_aia_submap_cross_selected = tab3_r_aia_submap_cross.data_source.selected['1d']['indices']
-#     if tab3_aia_submap_cross_selected:
-#         tmpDF = tab3_r_aia_submap_cross.data_source.to_df().iloc[tab3_aia_submap_cross_selected, :]
-#         xa0, xa1 = tmpDF['shape_longitude'].min(), tmpDF['shape_longitude'].max()
-#         ya0, ya1 = tmpDF['shape_latitude'].min(), tmpDF['shape_latitude'].max()
-#         print xa0, xa1, ya0, ya1
-#         mean_vx = (xa0 + xa1) / 2
-#         mean_vy = (ya0 + ya1) / 2
-#         tab3_r_aia_submap_rect.data_source.data['x'] = [mean_vx]
-#         tab3_r_aia_submap_rect.data_source.data['y'] = [mean_vy]
-#         tab3_r_aia_submap_rect.data_source.data['width'] = [(xa1 - xa0)]
-#         tab3_r_aia_submap_rect.data_source.data['height'] = [(ya1 - ya0)]
-#         vx = (VdspecDF['shape_longitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
-#         vmax_vx, vmin_vx = xa1, xa0
-#         vx[vx > vmax_vx] = vmax_vx
-#         vx[vx < vmin_vx] = vmin_vx
-#         tab3_r_dspec_vectorx.data_source.data['image'] = [vx]
-#         vy = (VdspecDF['shape_latitude'].copy()).values.reshape(tab2_nfreq, tab2_ntim)
-#         vmax_vy, vmin_vy = ya1, ya0
-#         vy[vy > vmax_vy] = vmax_vy
-#         vy[vy < vmin_vy] = vmin_vy
-#         tab3_r_dspec_vectory.data_source.data['image'] = [vy]
-#         tab3_dspec_small_CTRLs_OPT['vmax_values_last'][1] = xa1
-#         tab3_dspec_small_CTRLs_OPT['vmax_values_last'][2] = ya1
-#         tab3_dspec_small_CTRLs_OPT['vmin_values_last'][1] = xa0
-#         tab3_dspec_small_CTRLs_OPT['vmin_values_last'][2] = ya0
-#     else:
-#         tab3_r_aia_submap_rect.data_source.data['x'] = [(vmax_vx + vmin_vx) / 2]
-#         tab3_r_aia_submap_rect.data_source.data['y'] = [(vmax_vy + vmin_vy) / 2]
-#         tab3_r_aia_submap_rect.data_source.data['width'] = [(vmax_vx - vmin_vx)]
-#         tab3_r_aia_submap_rect.data_source.data['height'] = [(vmax_vy - vmin_vy)]
-
-
 def VdspecDF_init():
     global VdspecDF, dspecDF0, dspecDF0POL
     VdspecDF = pd.DataFrame()
@@ -376,29 +339,37 @@ def tab3_SRC_dspec_vector_update():
 
 
 def rSlider_threshold_handler(attrname, old, new):
-    global thresholdrange, thresholdseleted
+    global thresholdrange, dspec_vector_sq_seleted_curr
     print tab3_p_dspec_vector.x_range.start, tab3_p_dspec_vector.x_range.end
     thresholdrange = tab3_rSlider_threshold.range
-    thresholdseleted = list(
+    dspec_vector_sq_seleted_curr = list(
         dspecDF0POL[dspecDF0POL['peak'] <= thresholdrange[1]][dspecDF0POL['peak'] >= thresholdrange[0]][
             dspecDF0POL['time'] >= tab3_p_dspec_vector.x_range.start][
             dspecDF0POL['time'] <= tab3_p_dspec_vector.x_range.end][
             dspecDF0POL['freq'] >= tab3_p_dspec_vector.y_range.start][
             dspecDF0POL['freq'] <= tab3_p_dspec_vector.y_range.end].index)
-    tab2_SRC_dspec_vector_square.selected = {'2d': {}, '1d': {'indices': thresholdseleted},
+    tab2_SRC_dspec_vector_square.selected = {'2d': {}, '1d': {'indices': dspec_vector_sq_seleted_curr},
                                              '0d': {'indices': [], 'get_view': {}, 'glyph': None}}
     for ll in range(len(tab3_dspec_small_CTRLs_OPT['labels_dspec_small'])):
         RBG_dspec_small_update(ll)
 
 
 def dspec_vector_selection_change(selected):
-    global dspecDF_select
-    setselthr = set(thresholdseleted)
+    global dspecDF_select, dspec_vector_sq_seleted_curr
+    setselcurr = set(dspec_vector_sq_seleted_curr)
     setseltool = set(selected)
-    selectintsect = list(setselthr.intersection(setseltool))
-    dspecDF_select = dspecDF0POL.iloc[selectintsect, :]
+    if Selection_RBG.active == 0:
+        selectnew = selected
+    elif Selection_RBG.active == 1:
+        selectnew = list(setselcurr.union(setseltool))
+    elif Selection_RBG.active == 2:
+        selectnew = list(setselcurr.difference(setseltool))
+    elif Selection_RBG.active == 3:
+        selectnew = list(setselcurr.intersection(setseltool))
+    dspecDF_select = dspecDF0POL.iloc[selectnew, :]
+    dspec_vector_sq_seleted_curr = selectnew
     VdspecDF_init()
-    VdspecDF_update(selected=selectintsect)
+    VdspecDF_update(selected=selectnew)
     # tab3_SRC_dspec_vector_update(VdspecDF)
     tab2_SRC_maxfit_centroid_update(dspecDF_select)
     if tab3_BUT_animate_ONOFF.label == 'Animate OFF & Go':
@@ -415,7 +386,7 @@ def tab2_dspec_vector_selection_change(attrname, old, new):
     if tab2_dspec_vector_selected:
         dspec_vector_selection_change(tab2_dspec_vector_selected)
     else:
-        dspec_vector_selection_change(thresholdseleted)
+        dspec_vector_selection_change(dspec_vector_sq_seleted_curr)
 
 
 def RBG_dspec_small_update(idx):
@@ -475,12 +446,12 @@ def tab3_BUT_dspec_small_reset_update():
 
 
 def tab3_BUT_dspec_small_resetall_update():
-    global thresholdseleted
+    global dspec_vector_sq_seleted_curr
     VdspecDF_update()
     tab3_BUT_dspec_small_reset_update()
     tab3_rSlider_threshold.range = (tab3_rSlider_threshold.start, tab3_rSlider_threshold.end)
-    thresholdseleted = list(dspecDF0POL.index)
-    tab2_SRC_dspec_vector_square.selected = {'2d': {}, '1d': {'indices': thresholdseleted},
+    dspec_vector_sq_seleted_curr = list(dspecDF0POL.index)
+    tab2_SRC_dspec_vector_square.selected = {'2d': {}, '1d': {'indices': dspec_vector_sq_seleted_curr},
                                              '0d': {'indices': [], 'get_view': {}, 'glyph': None}}
     print 'reset all'
 
@@ -1128,10 +1099,10 @@ if os.path.exists(FS_dspecDF):
                                                                     config_main['plot_config']['tab_FSview_FitANLYS'][
                                                                         'dspec_small_hght'] / tab2_nfreq))
 
-        thresholdseleted = list(dspecDF0POL.index)
-        tab2_SRC_dspec_vector_square.selected = {'2d': {}, '1d': {'indices': thresholdseleted},
+        dspec_vector_sq_seleted_curr = list(dspecDF0POL.index)
+        tab2_SRC_dspec_vector_square.selected = {'2d': {}, '1d': {'indices': dspec_vector_sq_seleted_curr},
                                                  '0d': {'indices': [], 'get_view': {}, 'glyph': None}}
-        tab2_dspec_vector_selected = thresholdseleted
+        tab2_dspec_vector_selected = dspec_vector_sq_seleted_curr
         tab2_SRC_dspec_vector_square.on_change('selected', tab2_dspec_vector_selection_change)
         tab3_dspec_small_CTRLs_OPT = dict(mean_values=[mean_amp_g, mean_vx, mean_vy],
                                           drange_values=[drange_amp_g, drange_vx, drange_vy],
@@ -1218,6 +1189,8 @@ if os.path.exists(FS_dspecDF):
                                 options=['None', 'Horizontal stack', 'Vertical stack'],
                                 width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
+        Selection_RBG = RadioButtonGroup(labels=["New", "Add to", "Subtract to", "Intersect with"], active=3)
+
         lout3_1 = column(tab3_p_aia_submap, tab3_Slider_ANLYS_idx,
                          row(tab3_BUT_PlayCTRL, tab3_SPCR_LFT_BUT_Step, tab3_BUT_StepCTRL,
                              tab3_SPCR_LFT_BUT_REVS_CTRL,
@@ -1225,17 +1198,18 @@ if os.path.exists(FS_dspecDF):
                              tab3_BUT_animate_ONOFF), tab3_input_plot_xargs, tab3_Div_plot_xargs)
         lout3_2 = column(gridplot([tab3_p_dspec_vector], [tab3_p_dspec_vectorx], [tab3_p_dspec_vectory],
                                   toolbar_location='right'), tab3_Div_Tb)
-        widgtp1 = widgetbox(tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax, tab3_Slider_dspec_small_dmin,
+        widgtp1 = widgetbox(Selection_RBG, tab3_RBG_dspec_small, tab3_Slider_dspec_small_dmax,
+                            tab3_Slider_dspec_small_dmin,
                             tab3_BUT_dspec_small_reset, tab3_BUT_dspec_small_resetall, tab3_rSlider_threshold,
                             tab2_Select_vla_pol, tab2_Select_aia_wave, tab2_panel3_BUT_exit, tab2_panel2_Div_exit,
-                            width=200)
+                            width=400)
 
         tab1 = Panel(child=widgtp1, title="Plot")
         widgtp2 = widgetbox(Output_radiogroup, Select_colorcode, Slider_scatterplt_alpha,
                             Select_Figfmt, Select_Figsize,
                             Select_Figdpi, Select_addplot,
                             tab2_panel3_BUT_savimgs, tab2_panel3_BUT_dumpdata,
-                            width=200)
+                            width=400)
         tab2 = Panel(child=widgtp2, title="Output")
         tabs = Tabs(tabs=[tab1, tab2])
 
