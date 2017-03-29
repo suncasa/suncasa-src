@@ -1189,7 +1189,7 @@ if os.path.exists(FS_dspecDF):
                                 options=['None', 'Horizontal stack', 'Vertical stack'],
                                 width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
-        Selection_RBG = RadioButtonGroup(labels=["New", "Add to", "Subtract to", "Intersect with"], active=3)
+        Selection_RBG = RadioButtonGroup(labels=["New", "Add To", "Subtract To", "Intersect With"], active=3)
 
         lout3_1 = column(tab3_p_aia_submap, tab3_Slider_ANLYS_idx,
                          row(tab3_BUT_PlayCTRL, tab3_SPCR_LFT_BUT_Step, tab3_BUT_StepCTRL,
