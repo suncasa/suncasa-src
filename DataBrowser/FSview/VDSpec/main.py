@@ -352,6 +352,7 @@ def rSlider_threshold_handler(attrname, old, new):
                                              '0d': {'indices': [], 'get_view': {}, 'glyph': None}}
     for ll in range(len(tab3_dspec_small_CTRLs_OPT['labels_dspec_small'])):
         RBG_dspec_small_update(ll)
+    tab3_Div_Tb.text = """<p><b>selection updated based on threshold range.</b></p>"""
 
 
 def dspec_vector_selection_change(selected):
@@ -1190,7 +1191,7 @@ if os.path.exists(FS_dspecDF):
                                 options=['None', 'Horizontal stack', 'Vertical stack'],
                                 width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
-        Selection_RBG = RadioButtonGroup(labels=["New", "Add To", "Subtract To", "Intersect With"], active=3)
+        Selection_RBG = RadioButtonGroup(labels=["New", "Add To", "Subtract From", "Intersect With"], active=3)
 
         lout3_1 = column(tab3_p_aia_submap, tab3_Slider_ANLYS_idx,
                          row(tab3_BUT_PlayCTRL, tab3_SPCR_LFT_BUT_Step, tab3_BUT_StepCTRL,
