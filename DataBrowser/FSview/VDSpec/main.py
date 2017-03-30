@@ -1182,8 +1182,8 @@ if os.path.exists(FS_dspecDF):
         Select_colorcode.on_change('value', Select_colorcode_handler)
         Select_Figfmt = Select(title="Figure format:", value='png', options=['png', 'jpeg', 'eps', 'pdf'],
                                width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
-        Select_Figdpi = Select(title="Figure resolution [dpi]:", value='100',
-                               options=['50', '100', '200', '400', '600', '800', '1000', '1200'],
+        Select_Figdpi = Select(title="Figure resolution [dpi]:", value='50',
+                               options=['30', '50', '100', '200', '400', '600', '800', '1000', '1200'],
                                width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
         Select_Figsize = Select(title="Figure Size [inch]:", value='10x8',
                                 options=['16x9', '12x9', '10x8', '10x10', '8x10', '9x12', '9x16'],
