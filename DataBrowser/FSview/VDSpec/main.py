@@ -365,6 +365,8 @@ def dspec_vector_selection_change(selected):
         selectnew = list(setselcurr.union(setseltool))
     elif Selection_RBG.active == 2:
         selectnew = list(setselcurr.difference(setseltool))
+        if len(selectnew) == 0:
+            selectnew = dspec_vector_sq_seleted_curr
     elif Selection_RBG.active == 3:
         selectnew = list(setselcurr.intersection(setseltool))
     dspecDF_select = dspecDF0POL.iloc[selectnew, :]
