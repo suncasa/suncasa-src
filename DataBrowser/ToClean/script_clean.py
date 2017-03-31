@@ -26,6 +26,7 @@ if os.path.exists('CASA_CLN_args.json'):
         freqInfo_ravel = freqInfo.ravel()
         timeInfo = axisInfo["axis_info"]["time_axis"]['MJDseconds']
         mstimran = ms.range(["time"])
+        ms.close()
     else:
         raise ValueError('define a vis file!!!')
 

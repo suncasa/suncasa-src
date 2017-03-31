@@ -7,6 +7,33 @@ import pickle
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
+def getspwfromfreq(vis,freqrange):
+    from taskinit import ms
+    ms.open(vis)
+    axisInfo = ms.getdata(["axis_info"], ifraxis=True)
+    spwInfo = ms.getspectralwindowinfo()
+    freqInfo = axisInfo["axis_info"]["freq_axis"]["chan_freq"].swapaxes(0, 1) / 1e9
+    freqInfo_ravel = freqInfo.ravel()
+    timeInfo = axisInfo["axis_info"]["time_axis"]['MJDseconds']
+    mstimran = ms.range(["time"])
+    ms.close()
+    freq0, freq1 = freqrange.split(' ')[0].split('~')
+    freq0, freq1 = float(freq0), float(freq1)
+    for ll in [freq0, freq1]:
+        if not freqInfo_ravel[0] <= ll <= freqInfo_ravel[-1]:
+            raise ValueError('Selected frequency out of range!!!')
+    freqIdx0 = np.where(freqInfo == freq0)
+    freqIdx1 = np.where(freqInfo == freq1)
+    sz_freqInfo = freqInfo.shape
+    ms_spw = ['{}'.format(ll) for ll in xrange(freqIdx0[0], freqIdx1[0] + 1)]
+    if len(ms_spw) == 1:
+        ms_chan = ['{}~{}'.format(freqIdx0[1][0], freqIdx1[1][0])]
+    else:
+        ms_chan = ['{}~{}'.format(freqIdx0[1][0], sz_freqInfo[1] - 1)] \
+                  + ['0~{}'.format(sz_freqInfo[1] - 1) for ll in xrange(freqIdx0[0] + 1, freqIdx1[0])]
+        ms_chan.append('0~{}'.format(freqIdx1[1][0]))
+    spw = ','.join('{}:{}'.format(t[0], t[1]) for t in zip(ms_spw, ms_chan))
+    return spw
 
 def initconfig(suncasa_dir):
     if not os.path.exists(suncasa_dir + 'DataBrowser/config.json'):
@@ -499,7 +526,6 @@ def canvaspix_to_data(smap, x, y):
     xnew = xynew[0].value
     ynew = xynew[1].value
     return [xnew, ynew]
-
 
 def data_to_mappixel(smap, x, y):
     import astropy.units as u

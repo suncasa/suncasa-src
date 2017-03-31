@@ -24,6 +24,8 @@ import glob
 from astropy.time import Time
 from suncasa.utils.puffin import PuffinMap
 from suncasa.utils import DButil
+import Tkinter
+import tkFileDialog
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -349,8 +351,14 @@ def tab2_BUT_tCLN_param_default():
 
 def tab2_BUT_tCLN_param_reload():
     global tab2_tCLN_Param_dict
-    with open(CleanID_dir + 'CASA_CLN_args.json', 'r') as fp:
-        tab2_tCLN_Param_dict = json.load(fp)
+    tkRoot = Tkinter.Tk()
+    tkRoot.withdraw()  # Close the root window
+    fin = tkFileDialog.askopenfilename(initialdir=CleanID_dir,
+                                       initialfile='CASA_CLN_args.json')
+    if fin.endswith('.json'):
+        tab2_tCLN_Param_dict = DButil.loadjsonfile(fin)
+    else:
+        tab2_tCLN_Param_dict = DButil.loadjsonfile(CleanID_dir + 'CASA_CLN_args.json')
     tab2_Div_tCLN_text = '<p><b>#  ptclean :: Parallelized clean in consecutive time steps</b></p>' + ' '.join(
         "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tCLN_Param_dict.items())
     tab2_Div_tCLN.text = tab2_Div_tCLN_text
