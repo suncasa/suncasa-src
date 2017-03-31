@@ -513,20 +513,26 @@ def tab2_panel3_savimgs_handler():
         dspecDF0POL['time'] <= tab3_p_dspec_vector.x_range.end][
         dspecDF0POL['freq'] >= tab3_p_dspec_vector.y_range.start][
         dspecDF0POL['freq'] <= tab3_p_dspec_vector.y_range.end]
+    dspecDF_selectsub = dspecDF_select[dspecDF_select['time'] >= tab3_p_dspec_vector.x_range.start][
+        dspecDF_select['time'] <= tab3_p_dspec_vector.x_range.end][
+        dspecDF_select['freq'] >= tab3_p_dspec_vector.y_range.start][
+        dspecDF_select['freq'] <= tab3_p_dspec_vector.y_range.end]
     if Select_addplot.value != 'None':
-        tarr = np.unique(dspecDF0POLsub['time'].as_matrix() + timestart)
-        farr = np.unique(dspecDF0POLsub['freq'].as_matrix())
+        tarr = np.unique(dspecDF0POLsub['time'].as_matrix() + timestart) - tab2_dt / 2.0
+        farr = np.unique(dspecDF0POLsub['freq'].as_matrix()) - tab2_df / 2.0
         nt = len(tarr)
         nf = len(farr)
+        tarr = np.append(tarr, tarr[-1] + tab2_dt)
+        farr = np.append(farr, farr[-1] + tab2_df)
         if tab2_SRC_dspec_vector_square.selected['1d']['indices']:
             dspecDF0POLsubnew = dspecDF0POLsub['peak']
             dspecDF0POLsubnew.iloc[:] = np.nan
-            dspecDF0POLsubnew.loc[dspecDF_select.index] = dspecDF_select['peak']
+            dspecDF0POLsubnew.loc[dspecDF_selectsub.index] = dspecDF_selectsub['peak']
             dspecDF0POLsub['peak'] = dspecDF0POLsubnew
         parr = dspecDF0POLsub['peak'].as_matrix().reshape(nf, nt)
         parr = np.ma.masked_where(np.isnan(parr), parr)
         dspecdata = {'time': tarr, 'freq': farr, 'peak': parr, 'drange': [np.nanmin(parr), np.nanmax(parr)]}
-    timselseq = np.unique(dspecDF_select['time'])
+    timselseq = np.unique(dspecDF_selectsub['time'])
     timseq = np.unique(dspecDF0POLsub['time'])
     subset_label = ['freq', 'shape_longitude', 'shape_latitude', 'timestr', 'peak', 'time']
     figsize = Select_Figsize.value.split('x')
@@ -545,9 +551,9 @@ def tab2_panel3_savimgs_handler():
         for sidx, ll in enumerate(timseq):
             timstr = dspecDF0POLsub[dspecDF0POLsub['time'] == ll]['timestr'].iloc[0]
             maponly = True
-            centroids['t'] = ll + timestart
+            centroids['t'] = ll + timestart - tab2_dt / 2.0
             if ll in timselseq:
-                dftmp = dspecDF_select[dspecDF_select.time == ll][subset_label]
+                dftmp = dspecDF_selectsub[dspecDF_selectsub.time == ll][subset_label]
                 dftmp = dftmp.dropna(how='any', subset=subset_label)
                 centroids['ColorMapper']['c'] = dftmp['freq'].as_matrix()
                 centroids['x'] = dftmp['shape_longitude'].as_matrix()
@@ -593,7 +599,7 @@ def tab2_panel3_savimgs_handler():
         if not fout:
             fout = outimgdir + timstr.replace(':', '') + '.{}'.format(Select_Figfmt.value)
         centroids = {}
-        dftmp = dspecDF_select[subset_label]
+        dftmp = dspecDF_selectsub[subset_label]
         dftmp = dftmp.dropna(how='any', subset=subset_label)
         if Select_colorcode.value == 'Frequency':
             dftmp = dftmp.sort(['freq'], ascending=[True])
