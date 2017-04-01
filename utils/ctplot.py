@@ -105,9 +105,9 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
             vlafile['s'] = np.array(vlafile['s'])[cargsort]
             im1 = ax1.scatter(vlafile['x'], vlafile['y'], c=vlafile['ColorMapper']['c'], s=vlafile['s'],
                               vmin=clrange[0],
-                              vmax=clrange[-1], **kwargs)
+                              vmax=clrange[-1], cmap=cm.jet, **kwargs)
         else:
-            im1 = ax1.scatter([], [], c=[], s=[], vmin=clrange[0], vmax=clrange[-1], **kwargs)
+            im1 = ax1.scatter([], [], c=[], s=[], vmin=clrange[0], vmax=clrange[-1], cmap=cm.jet, **kwargs)
         if not dspecdata:
             cb1 = plt.colorbar(im1, orientation='vertical', ax=ax1)
             if type(vlafile) == dict:
