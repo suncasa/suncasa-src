@@ -98,6 +98,7 @@ if os.path.exists('CASA_CLN_args.json'):
     # inp(ptclean)
     out = ptclean()
 
+    os.system('cp ptclean.last {}'.format(cleanIDdir))
     imgdir = cleanIDdir + 'Synthesis_Image/'
     if not os.path.exists(imgdir):
         os.mkdir(imgdir)

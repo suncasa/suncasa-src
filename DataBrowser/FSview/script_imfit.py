@@ -38,6 +38,7 @@ if os.path.exists('CASA_imfit_args.json'):
         for key, val in CASA_imfit_args.items():
             exec (key + '= {}'.format(val))
         out = pimfit()
+        os.system('cp pimfit.last {}/'.format(imfitIDdir))
     else:
         default('pmaxfit')
         with open('CASA_imfit_args.json', 'r') as fp:
@@ -45,6 +46,7 @@ if os.path.exists('CASA_imfit_args.json'):
         for key, val in CASA_imfit_args.items():
             exec (key + '= {}'.format(val))
         out = pmaxfit()
+        os.system('cp pmaxfit.last {}/'.format(imfitIDdir))
 
     if not os.path.exists(imfitIDdir):
         os.mkdir(imfitIDdir)
