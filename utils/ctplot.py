@@ -65,7 +65,7 @@ def contour1chn(vlafile, aiafile, chn=0, pol=0, x_range=[], y_range=[], levels=[
 
 
 def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[], y_range=[], levels=[0.9],
-            plotstyle='centroid', figsize=(10, 8), figdpi=100,
+            plotstyle='centroid', figsize=(10, 8), figdpi=100, width=[5, 5],
             zorder=1, maponly=False, dspecdata={}, **kwargs):
     if outfile:
         plt.ioff()
@@ -170,7 +170,7 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
                     vladata = hdu.data[pol, chan, :, :]
                     if np.nanmax(vladata):
                         vlamap.data = vladata
-                        maxxy = maxfit(vlamap, mapxy=[mapx, mapy])
+                        maxxy = maxfit(vlamap, mapxy=[mapx, mapy], width=width)
                         if maxxy:
                             x, y = maxxy
                             pltdata['x'].append(x)

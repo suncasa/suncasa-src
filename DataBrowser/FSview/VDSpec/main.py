@@ -610,7 +610,7 @@ def tab2_panel3_savimgs_handler():
             dftmp = dftmp.sort(['time'], ascending=[True])
             centroids['ColorMapper'] = {
                 'crange': [0.0, tab3_p_dspec_vector.x_range.end - tab3_p_dspec_vector.x_range.start],
-                'c': dftmp['time'].as_matrix(), 'title': 'Time since {} UT [second]'.format(timstr)}
+                'c': dftmp['time'].as_matrix() - timseq[0], 'title': 'Time since {} UT [second]'.format(timstr)}
             label = 'VLA {} {:.2f}-{:.2f} GHz'.format(tab2_Select_vla_pol.value, tab3_p_dspec_vector.y_range.start,
                                                       tab3_p_dspec_vector.y_range.end)
         centroids['x'] = dftmp['shape_longitude'].as_matrix()
