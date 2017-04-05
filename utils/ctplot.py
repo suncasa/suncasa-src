@@ -184,7 +184,7 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
                 pltdata['c'] = np.array(pltdata['c'])[cargsort]
                 pltdata['s'] = np.array(pltdata['s'])[cargsort]
                 im1 = ax1.scatter(pltdata['x'], pltdata['y'], c=pltdata['c'], s=pltdata['s'], vmin=clrange[0],
-                                  vmax=clrange[-1], **kwargs)
+                                  vmax=clrange[-1], cmap=cm.jet, **kwargs)
                 cb1 = plt.colorbar(im1, orientation='vertical', ax=ax1)
             elif plotstyle == 'contour':
                 nchan = len(chans)
