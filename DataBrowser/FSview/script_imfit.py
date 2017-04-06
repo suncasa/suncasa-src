@@ -45,6 +45,8 @@ if os.path.exists('CASA_imfit_args.json'):
             CASA_imfit_args = json.load(fp)
         for key, val in CASA_imfit_args.items():
             exec (key + '= {}'.format(val))
+        if not 'width' in locals():
+            width = 5
         out = pmaxfit()
         os.system('cp pmaxfit.last {}/'.format(imfitIDdir))
 
