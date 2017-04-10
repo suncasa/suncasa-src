@@ -641,11 +641,22 @@ def tab2_panel3_dumpdata_handler():
         dspecDF0POL['time'] <= tab3_p_dspec_vector.x_range.end][
         dspecDF0POL['freq'] >= tab3_p_dspec_vector.y_range.start][
         dspecDF0POL['freq'] <= tab3_p_dspec_vector.y_range.end]
+    dspecDF_selectsub = dspecDF_select[dspecDF_select['time'] >= tab3_p_dspec_vector.x_range.start][
+        dspecDF_select['time'] <= tab3_p_dspec_vector.x_range.end][
+        dspecDF_select['freq'] >= tab3_p_dspec_vector.y_range.start][
+        dspecDF_select['freq'] <= tab3_p_dspec_vector.y_range.end]
     tarr = np.unique(dspecDF0POLsub['time'].as_matrix() + timestart)
     farr = np.unique(dspecDF0POLsub['freq'].as_matrix())
     nt = len(tarr)
     nf = len(farr)
+    if tab2_SRC_dspec_vector_square.selected['1d']['indices']:
+        dspecDF0POLsubnew = dspecDF0POLsub['peak']
+        dspecDF0POLsubnew.iloc[:] = np.nan
+        dspecDF0POLsubnew.loc[dspecDF_selectsub.index] = dspecDF_selectsub['peak']
+        dspecDF0POLsub['peak'] = dspecDF0POLsubnew
     parr = dspecDF0POLsub['peak'].as_matrix().reshape(nf, nt)
+    parr = np.ma.masked_where(np.isnan(parr), parr)
+    # parr = dspecDF0POLsub['peak'].as_matrix().reshape(nf, nt)
     xarr = dspecDF0POLsub['shape_longitude'].as_matrix().reshape(nf, nt)
     yarr = dspecDF0POLsub['shape_latitude'].as_matrix().reshape(nf, nt)
     centroidsdict = {'time': tarr, 'freq': farr, 'peak': parr, 'x': xarr, 'y': yarr}
