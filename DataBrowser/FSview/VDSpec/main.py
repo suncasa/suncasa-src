@@ -6,6 +6,7 @@ from collections import OrderedDict
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
+from PyQt5.QtWidgets import QFileDialog
 import matplotlib.cm as cm
 import matplotlib.colors as colors
 import numpy as np
@@ -538,10 +539,16 @@ def tab2_panel3_savimgs_handler():
     figsize = Select_Figsize.value.split('x')
     figsize = (int(figsize[0]), int(figsize[1]))
     alpha = Slider_scatterplt_alpha.value
-    tkRoot = Tkinter.Tk()
-    tkRoot.withdraw()  # Close the root window
     if Output_radiogroup.active == 0:
-        outdir = tkFileDialog.askdirectory(initialdir=outimgdir, parent=tkRoot) + '/'
+        if platform != "darwin":
+            try:
+                tkRoot = Tkinter.Tk()
+                tkRoot.withdraw()  # Close the root window
+                outdir = tkFileDialog.askdirectory(initialdir=outimgdir, parent=tkRoot) + '/'
+            except:
+                pass
+        else:
+            outdir = ''
         if outdir:
             outimgdir = outdir
         nfiles = len(timseq)
@@ -593,8 +600,9 @@ def tab2_panel3_savimgs_handler():
         tab3_Div_Tb.text = '<p>images saved to <b>{}</b>.</p>'.format(outimgdir)
     elif Output_radiogroup.active == 1:
         timstr = dspecDF0POLsub['timestr'].iloc[0]
-        fout = tkFileDialog.asksaveasfilename(initialdir=outimgdir,
-                                              initialfile=timstr.replace(':', '') + '.{}'.format(Select_Figfmt.value))
+        # fout = tkFileDialog.asksaveasfilename(initialdir=outimgdir,
+        #                                       initialfile=timstr.replace(':', '') + '.{}'.format(Select_Figfmt.value))
+        fout = ''
         print fout
         if not fout:
             fout = outimgdir + timstr.replace(':', '') + '.{}'.format(Select_Figfmt.value)
@@ -642,10 +650,16 @@ def tab2_panel3_dumpdata_handler():
     yarr = dspecDF0POLsub['shape_latitude'].as_matrix().reshape(nf, nt)
     centroidsdict = {'time': tarr, 'freq': farr, 'peak': parr, 'x': xarr, 'y': yarr}
     centroids_save = 'centroids{}.npy'.format(tab2_Select_vla_pol.value)
-    tkRoot = Tkinter.Tk()
-    tkRoot.withdraw()  # Close the root window
-    out_path = tkFileDialog.asksaveasfilename(initialdir=outimgdir, initialfile=centroids_save)
-    tkRoot.destroy()
+    if platform != "darwin":
+        try:
+            tkRoot = Tkinter.Tk()
+            tkRoot.withdraw()  # Close the root window
+            out_path = tkFileDialog.asksaveasfilename(initialdir=outimgdir, initialfile=centroids_save)
+            tkRoot.destroy()
+        except:
+            pass
+    else:
+        out_path = ''
     if not out_path:
         out_path = outimgdir + centroids_save
     np.save(out_path, centroidsdict)

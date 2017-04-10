@@ -1,3 +1,4 @@
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.colorbar as colorbar
@@ -10,6 +11,7 @@ import numpy as np
 import sunpy.map
 from suncasa.utils import DButil
 from suncasa.utils.puffin import PuffinMap
+
 
 
 def maxfit(smap, width=[5, 5], mapxy=None):
