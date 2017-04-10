@@ -6,7 +6,7 @@ from collections import OrderedDict
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
-from PyQt5.QtWidgets import QFileDialog
+# from PyQt5.QtWidgets import QFileDialog
 import matplotlib.cm as cm
 import matplotlib.colors as colors
 import numpy as np
