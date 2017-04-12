@@ -1,8 +1,4 @@
-# # add to crontab file
-# # cronjob to convert UDB data to CASA Measurement Sets every 10 minutes
-# */10 * * * * cd /home/user/workdir; >/dev/null 2>&1
-
-
+#!/common/casa/casa-release-4.7.0-1-el6/lib/casa/bin/casa
 from datetime import datetime as dt
 import glob
 import os
@@ -24,4 +20,6 @@ if files2import:
 	importeovsa(idbfiles=files2import, timebin="0s", width=1,
 	            visprefix=outpath, nocreatms=False, doconcat=False, modelms="")
 
-
+# # add to crontab file
+# # cronjob to convert UDB data to CASA Measurement Sets every 10 minutes
+# */10 * * * * touch /data1/eovsa/fits/UDBms/LOG/UDB2MS$(date +\%Y\%m\%d).log;/bin/tcsh /home/user/sjyu/udb2ms.csh >> /data1/eovsa/fits/UDBms/LOG/UDB2MS$(date +\%Y\%m\%d).log 2>&1
