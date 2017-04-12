@@ -212,7 +212,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
     '''
     if wavelength == '94':
         if imagetype == 'image':
-            return {'low': 0.1, 'high': 150, 'log': True}
+            return {'low': 0.1, 'high': 3000, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -30, 'high': 30, 'log': False}
         elif imagetype == 'BDimage':
@@ -223,7 +223,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '131':
         if imagetype == 'image':
-            return {'low': 0.5, 'high': 500, 'log': True}
+            return {'low': 0.5, 'high': 5000, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -100, 'high': 100, 'log': False}
         elif imagetype == 'BDimage':
@@ -256,7 +256,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '211':
         if imagetype == 'image':
-            return {'low': 10, 'high': 2000, 'log': True}
+            return {'low': 10, 'high': 8000, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -300, 'high': 300, 'log': False}
         elif imagetype == 'BDimage':
@@ -267,7 +267,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '304':
         if imagetype == 'image':
-            return {'low': 1, 'high': 1000, 'log': True}
+            return {'low': 1, 'high': 5000, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -300, 'high': 300, 'log': False}
         elif imagetype == 'BDimage':
@@ -278,7 +278,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '335':
         if imagetype == 'image':
-            return {'low': 0.1, 'high': 50, 'log': True}
+            return {'low': 0.1, 'high': 500, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -15, 'high': 15, 'log': False}
         elif imagetype == 'BDimage':

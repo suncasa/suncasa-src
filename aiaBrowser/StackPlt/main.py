@@ -131,9 +131,9 @@ p_img.axis.minor_tick_in = 3
 p_img.axis.major_tick_line_color = "white"
 p_img.axis.minor_tick_line_color = "white"
 if imgdict['observatory'] == 'SDO' and imgdict['instrument'] == 'AIA':
-    # palette = getAIApalette(wavelngth)
+    palette = getAIApalette(wavelngth)
     colormap_jet = cm.get_cmap("jet")  # choose any matplotlib colormap here
-    palette = [colors.rgb2hex(m) for m in colormap_jet(np.arange(colormap_jet.N))]
+    # palette = [colors.rgb2hex(m) for m in colormap_jet(np.arange(colormap_jet.N))]
     clrange = DButil.sdo_aia_scale_dict(wavelength=wavelngth, imagetype=imagetype)
     if clrange['log']:
         colormapper = LogColorMapper(palette=palette, low=clrange['low'], high=clrange['high'])
