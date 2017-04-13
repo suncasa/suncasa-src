@@ -19,7 +19,8 @@ files2import = [inpath + ll for ll in list(set(idbfiles) - set(msfiles))]
 if files2import:
 	importeovsa(idbfiles=files2import, timebin="0s", width=1,
 	            visprefix=outpath, nocreatms=False, doconcat=False, modelms="")
-
+else:
+	print 'No new UDB files found. Quit.'
 # # add to crontab file
 # # cronjob to convert UDB data to CASA Measurement Sets every 10 minutes
 # */10 * * * * touch /data1/eovsa/fits/UDBms/LOG/UDB2MS$(date +\%Y\%m\%d).log;/bin/tcsh /home/user/sjyu/udb2ms.csh >> /data1/eovsa/fits/UDBms/LOG/UDB2MS$(date +\%Y\%m\%d).log 2>&1
