@@ -99,7 +99,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, fi
         casalog.post('IDB File {0} is readed in --- {1:10.2f} seconds ---'.format(filename, (time.time() - time0)))
 
         msname = list(filename.split('/')[-1])
-        msname = visprefix + ''.join(msname) + '-{:d}m.ms'.format(int((times[-1] - times[0]) / 60 + inttime))
+        msname = visprefix + ''.join(msname) + '.ms'
 
         if not nocreatms:
             modelms = ipe.creatms(filename, visprefix)
