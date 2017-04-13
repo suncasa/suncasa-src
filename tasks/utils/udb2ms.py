@@ -5,12 +5,13 @@ import os
 
 tnow = dt.now()
 yy = tnow.strftime("%Y")
+ym = tnow.strftime("%Y%m")
 ymd = tnow.strftime("%Y%m%d")
 inpath = '/data1/eovsa/fits/UDB/{}/'.format(yy)
 idbfiles = [os.path.basename(ll) for ll in glob.glob('{}UDB{}*'.format(inpath, ymd))]
 
 
-outpath = '/data1/eovsa/fits/UDBms/{}/'.format(yy)
+outpath = '/data1/eovsa/fits/UDBms/{}/'.format(ym)
 if not os.path.exists(outpath):
     os.makedirs(outpath)
 msfiles = [os.path.basename(ll).split('-')[0] for ll in glob.glob('{}UDB{}*'.format(outpath, ymd))]
