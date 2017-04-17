@@ -659,7 +659,8 @@ def tab2_panel3_dumpdata_handler():
     # parr = dspecDF0POLsub['peak'].as_matrix().reshape(nf, nt)
     xarr = dspecDF0POLsub['shape_longitude'].as_matrix().reshape(nf, nt)
     yarr = dspecDF0POLsub['shape_latitude'].as_matrix().reshape(nf, nt)
-    centroidsdict = {'time': tarr, 'freq': farr, 'peak': parr, 'x': xarr, 'y': yarr}
+    fitsarr = dspecDF0POLsub['fits_local'].as_matrix().reshape(nf, nt)
+    centroidsdict = {'time': tarr, 'freq': farr, 'peak': parr, 'x': xarr, 'y': yarr, 'fitsarr': fitsarr}
     centroids_save = 'centroids{}.npy'.format(tab2_Select_vla_pol.value)
     if platform != "darwin":
         try:
