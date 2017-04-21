@@ -234,7 +234,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '171':
         if imagetype == 'image':
-            return {'low': 20, 'high': 5000, 'log': True}
+            return {'low': 20, 'high': 15000, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -400, 'high': 400, 'log': False}
         elif imagetype == 'BDimage':
@@ -267,7 +267,8 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '304':
         if imagetype == 'image':
-            return {'low': 1, 'high': 5000, 'log': True}
+            # return {'low': 1, 'high': 5000, 'log': True}
+            return {'low': 1, 'high': 500, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -300, 'high': 300, 'log': False}
         elif imagetype == 'BDimage':
@@ -278,7 +279,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '335':
         if imagetype == 'image':
-            return {'low': 0.1, 'high': 500, 'log': True}
+            return {'low': 0.1, 'high': 800, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -15, 'high': 15, 'log': False}
         elif imagetype == 'BDimage':
@@ -300,7 +301,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '1700':
         if imagetype == 'image':
-            return {'low': 300, 'high': 5000, 'log': True}
+            return {'low': 300, 'high': 10000, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -1500, 'high': 1500, 'log': False}
         elif imagetype == 'BDimage':
