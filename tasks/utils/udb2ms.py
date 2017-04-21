@@ -14,7 +14,7 @@ idbfiles = [os.path.basename(ll) for ll in glob.glob('{}UDB{}*'.format(inpath, y
 outpath = '/data1/eovsa/fits/UDBms/{}/'.format(ym)
 if not os.path.exists(outpath):
     os.makedirs(outpath)
-msfiles = [os.path.basename(ll).split('-')[0] for ll in glob.glob('{}UDB{}*.ms'.format(outpath, ymd))]
+msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB{}*.ms'.format(outpath, ymd))]
 
 files2import = [inpath + ll for ll in list(set(idbfiles) - set(msfiles))]
 if files2import:
