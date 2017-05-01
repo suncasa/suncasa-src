@@ -48,7 +48,7 @@ if os.path.exists('CASA_imfit_args.json'):
         if not 'width' in locals():
             width = 5
         out = pmaxfit()
-        os.system('cp pmaxfit.last {}/'.format(imfitIDdir))
+        # os.system('cp pmaxfit.last {}/'.format(imfitIDdir))
 
     if not os.path.exists(imfitIDdir):
         os.mkdir(imfitIDdir)
