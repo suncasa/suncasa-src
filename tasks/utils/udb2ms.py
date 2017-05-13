@@ -18,8 +18,12 @@ msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB{}*.ms'.
 
 files2import = [inpath + ll for ll in list(set(idbfiles) - set(msfiles))]
 if files2import:
-	importeovsa(idbfiles=files2import, timebin="0s", width=1,
-	            visprefix=outpath, nocreatms=False, doconcat=False, modelms="")
+	for ll in files2import:
+		try:
+			importeovsa(idbfiles=[ll], timebin="0s", width=1,
+						visprefix=outpath, nocreatms=False, doconcat=False, modelms="")
+		except:
+			print 'error occurs when converting {}'.format(ll)
 else:
 	print 'No new UDB files found. Quit.'
 # # add to crontab file

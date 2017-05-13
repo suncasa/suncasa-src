@@ -90,10 +90,10 @@ def getlatestfile(directory='./', prefix='CleanID_', suffix=''):
     filelist = glob.glob('{}/{}*{}'.format(directory, prefix, suffix))
     if len(filelist) > 0:
         latest_file = max(filelist, key=os.path.getctime)
-        print latest_file
+        print(latest_file)
         return {'items': filelist, 'latest': latest_file, 'idx': filelist.index(latest_file)}
     else:
-        print 'No file found!'
+        print('No file found!')
         return None
 
 
@@ -724,10 +724,10 @@ def dspecDFfilter(dspecDF, pol):
         if getcolctinDF(dspecDF, 'shape_majoraxis')[0] > 0:
             for ll in colnlistgaus:
                 dspecDF1[ll] = dspecDF.copy()[ll + pol]
-        print 'dspedDF is filtered'
+        print('dspedDF is filtered')
         return dspecDF1
     else:
-        print 'dspedDF no need filter'
+        print('dspedDF no need filter')
         return dspecDF
 
 
@@ -882,14 +882,14 @@ def get_contour_data(X, Y, Z, levels=[0.5, 0.7, 0.9]):
     return source
 
 
-def twoD_Gaussian((x, y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
-    xo = float(xo)
-    yo = float(yo)
-    a = (np.cos(theta) ** 2) / (2 * sigma_x ** 2) + (np.sin(theta) ** 2) / (2 * sigma_y ** 2)
-    b = -(np.sin(2 * theta)) / (4 * sigma_x ** 2) + (np.sin(2 * theta)) / (4 * sigma_y ** 2)
-    c = (np.sin(theta) ** 2) / (2 * sigma_x ** 2) + (np.cos(theta) ** 2) / (2 * sigma_y ** 2)
-    g = offset + amplitude * np.exp(- (a * ((x - xo) ** 2) + 2 * b * (x - xo) * (y - yo) + c * ((y - yo) ** 2)))
-    return g.ravel()
+# def twoD_Gaussian((x, y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
+#     xo = float(xo)
+#     yo = float(yo)
+#     a = (np.cos(theta) ** 2) / (2 * sigma_x ** 2) + (np.sin(theta) ** 2) / (2 * sigma_y ** 2)
+#     b = -(np.sin(2 * theta)) / (4 * sigma_x ** 2) + (np.sin(2 * theta)) / (4 * sigma_y ** 2)
+#     c = (np.sin(theta) ** 2) / (2 * sigma_x ** 2) + (np.cos(theta) ** 2) / (2 * sigma_y ** 2)
+#     g = offset + amplitude * np.exp(- (a * ((x - xo) ** 2) + 2 * b * (x - xo) * (y - yo) + c * ((y - yo) ** 2)))
+#     return g.ravel()
 
 
 def c_correlate(a, v):
