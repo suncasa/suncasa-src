@@ -7,7 +7,6 @@ import time
 import aipy
 import eovsapy.read_idb as ri
 from eovsapy.util import Time
-# from taskinit import *
 from taskinit import tb, casalog
 from split_cli import split_cli as split
 from concat_cli import concat_cli as concat
