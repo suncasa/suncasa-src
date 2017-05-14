@@ -49,7 +49,8 @@ def get_band_edge(nband=34):
 def get_band(sfreq=None, sdf=None):
     # Input the frequencies from UV
     # return a dictionary contains the band information:
-    # freq, df
+    # freq : center frequency of channels
+    # df :  frequency resolution
     # list of channel index 'cidx': the length of the list is the number of channels in this band
     # list of channel index in a band with filled gap 'cidxstd': the index of channels in this band
     # and the grouped index list cidxstd_group
@@ -201,7 +202,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
         stokes = 'XX YY XY YX'
 
         sm.setspwindow(spwname='band{:02d}'.format(cband['band']),
-                       freq='{:22.19f}'.format(cband['freq'][0]) + 'GHz',
+                       freq='{:22.19f}'.format(cband['freq'][0]-cband['df']/2.0) + 'GHz',
                        deltafreq='{:22.19f}'.format(cband['df']) + 'GHz',
                        freqresolution='{:22.19f}'.format(cband['df']) + 'GHz',
                        nchannels=nchannels,
