@@ -312,9 +312,13 @@ def pimporteovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, noc
     # results = pd.DataFrame({'succeeded': [], 'msfile': [], 'durtim': []})
     # for r in res:
     #     results = results.append(pd.DataFrame({'succeeded': [r[0]], 'msfile': [r[1]], 'durtim': [r[2]]}))
-    results = []
-    for r in res:
-        results = results.append({'succeeded': [r[0]], 'msfile': [r[1]], 'durtim': [r[2]]})
+    try:
+        results = [{'succeeded': [r[0]], 'msfile': [r[1]], 'durtim': [r[2]]} for r in res]
+        return results
+    except:
+        print 'errors occurred when creating the output summary.'
+    # for r in res:
+    #     results = results.append({'succeeded': [r[0]], 'msfile': [r[1]], 'durtim': [r[2]]})
 
     if doconcat:
         msname = list(os.path.basename(filelist[0]))
