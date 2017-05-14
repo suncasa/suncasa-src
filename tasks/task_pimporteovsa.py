@@ -1,7 +1,7 @@
 import os
 # import gc
 import numpy as np
-import pandas as pd
+# import pandas as pd
 import scipy.constants as constants
 import time
 import aipy
@@ -309,9 +309,12 @@ def pimporteovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, noc
     timelapse = t1 - t0
     print 'It took %f secs to complete' % timelapse
 
-    results = pd.DataFrame({'succeeded': [], 'msfile': [], 'durtim': []})
+    # results = pd.DataFrame({'succeeded': [], 'msfile': [], 'durtim': []})
+    # for r in res:
+    #     results = results.append(pd.DataFrame({'succeeded': [r[0]], 'msfile': [r[1]], 'durtim': [r[2]]}))
+    results = []
     for r in res:
-        results = results.append(pd.DataFrame({'succeeded': [r[0]], 'msfile': [r[1]], 'durtim': [r[2]]}))
+        results = results.append({'succeeded': [r[0]], 'msfile': [r[1]], 'durtim': [r[2]]})
 
     if doconcat:
         msname = list(os.path.basename(filelist[0]))
