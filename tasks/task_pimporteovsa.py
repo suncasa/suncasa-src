@@ -15,9 +15,6 @@ from functools import partial
 from suncasa.utils import impteovsa as ipe
 
 
-# from parallel.parallel_data_helper import ParallelDataHelper
-
-
 
 def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, fileidx):
     from taskinit import tb, casalog
@@ -242,28 +239,6 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, fi
 def pimporteovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, nocreatms=False, doconcat=False,
                  modelms=''):
     casalog.origin('pimporteovsa')
-
-    # # Initialize the helper class
-    # pdh = ParallelDataHelper("importeovsa", locals())
-    #
-    # # Validate input and output parameters
-    # try:
-    #     pdh.setupIO()
-    # except Exception, instance:
-    #     casalog.post('%s' % instance, 'ERROR')
-    #     return False
-    # import glob
-    # idbfiles = glob.glob('IDB*_unrot')[:4]
-    # ncpu = 4
-    # timebin = None
-    # width = None
-    # visprefix = None
-    # nocreatms = False
-    # doconcat = False
-    # modelms = ''
-    # if not (type(ncpu) is int):
-    #     casalog.post('ncpu should be an integer')
-    #     ncpu = 8
 
     if type(idbfiles) == Time:
         filelist = ri.get_trange_files(idbfiles)

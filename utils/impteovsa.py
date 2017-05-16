@@ -6,7 +6,6 @@ import os
 import scipy.constants as constants
 from taskinit import sm, me, casalog
 
-
 def jd2mjds(tjd=None):
     tmjds = (tjd - 2400000.5) * 24. * 3600.
     return tmjds
@@ -37,6 +36,7 @@ def get_band_edge(nband=34):
         idx_start_freq.append(ntmp)
 
     return np.asarray(idx_start_freq)
+
 
 
 def get_band(sfreq=None, sdf=None):
