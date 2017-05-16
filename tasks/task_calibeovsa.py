@@ -21,8 +21,10 @@ def callibeovsa(vis, caltype=None, docalib=False):
         caltype = ['refcal']
     if not os.path.exists(vis):
         casalog.post("Input visibility does not exist. Aborting...")
-    if vis[-1] == '/':
+    if vis.endswith('/'):
         vis= vis[:-1]
+    if not vis[-3:] in ['.ms','.MS']:
+        casalog.post("Invalid visibility. Aborting...")
     # if not caltable:
     #    caltable=[os.path.basename(vis).replace('.ms','.'+c) for c in caltype]
 
