@@ -41,6 +41,7 @@ def callibeovsa(vis, caltype=None, docalib=False):
     nant = tb.nrows()
     antname = tb.getcol('NAME')
     antlist = [str(ll) for ll in range(len(antname))]
+    tb.close
 
     # get time stamp, use the beginning of the file
     ms.open(vis)

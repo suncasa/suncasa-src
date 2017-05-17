@@ -128,7 +128,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
     source_id = uv['source'].replace('\x00', '')
     chan_band = get_band(sfreq=sfreq, sdf=sdf)
     msname = list(idbfile.split('/')[-1])
-    msname = outpath + ''.join(msname) + '-10m.ms'
+    msname = outpath + ''.join(msname) + '_tmp.ms'
 
     if os.path.exists(msname):
         os.system("rm -fr %s" % msname)

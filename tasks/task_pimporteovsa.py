@@ -80,9 +80,9 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, fi
             l += 1
             out[k, :, l / (npairs * npol), bl2ord[i0, j0]] = data.data
             flag[k, :, l / (npairs * npol), bl2ord[i0, j0]] = data.mask
-            if i != j:
-                if k == 3:
-                    uvwarray[:, l / (npairs * npol), bl2ord[i0, j0]] = -uvw * constants.speed_of_light / 1e9
+            # if i != j:
+            if k == 3:
+                uvwarray[:, l / (npairs * npol), bl2ord[i0, j0]] = -uvw * constants.speed_of_light / 1e9
 
         nrows = time_steps * npairs
         out = out.reshape(npol, nf, nrows)
