@@ -1,7 +1,6 @@
 import os
-# import gc
+import gc
 import numpy as np
-# import pandas as pd
 import scipy.constants as constants
 import time
 import aipy
@@ -10,21 +9,62 @@ from eovsapy.util import Time
 from taskinit import tb, casalog
 from split_cli import split_cli as split
 from concat_cli import concat_cli as concat
-import multiprocessing as mp
-from functools import partial
 from suncasa.utils import impteovsa as ipe
+import pdb
 
 
+def importeovsa(idbfiles, timebin=None, width=None, visprefix=None, nocreatms=False, doconcat=False, modelms=''):
+    casalog.origin('importeovsa')
 
-def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, fileidx):
-    from taskinit import tb, casalog
-    filename = filelist[fileidx]
-    uv = aipy.miriad.UV(filename)
-    # if filename.split('/')[-1][0:3] == 'UDB':
-    #     uv_str = uv_hex_rm(uv)
-    # else:
-    #     uv_str = uv
-    try:
+    # # Initialize the helper class
+    # pdh = ParallelDataHelper("importeovsa", locals())
+    #
+    # # Validate input and output parameters
+    # try:
+    #     pdh.setupIO()
+    # except Exception, instance:
+    #     casalog.post('%s' % instance, 'ERROR')
+    #     return False
+
+
+    if type(idbfiles) == Time:
+        filelist = ri.get_trange_files(idbfiles)
+    else:
+        # If input type is not Time, assume that it is the list of files to read
+        filelist = idbfiles
+
+    if type(filelist) == str:
+        filelist = [filelist]
+
+    for f in filelist:
+        if not os.path.exists(f):
+            casalog.post("Some files in filelist are invalid. Aborting...")
+            return False
+    if not visprefix:
+        visprefix = './'
+    if not timebin:
+        timebin = '0s'
+    if not width:
+        width = 1
+
+    if not modelms:
+        if nocreatms:
+            filename = filelist[0]
+            modelms = ipe.creatms(filename, visprefix)
+    else:
+        if not os.path.exists(modelms):
+            if nocreatms:
+                filename = filelist[0]
+                modelms = ipe.creatms(filename, visprefix)
+
+    msfile = []
+    time_concat = []
+    for filename in filelist:
+        uv = aipy.miriad.UV(filename)
+        # if filename.split('/')[-1][0:3] == 'UDB':
+        #     uv_str = uv_hex_rm(uv)
+        # else:
+        #     uv_str = uv
         uv.select('antennae', 0, 1, include=True)
         uv.select('polarization', -5, -5, include=True)
         times = []
@@ -38,11 +78,11 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, fi
         inttime = np.median((times - np.roll(times, 1))[1:]) / 60
 
         time_steps = len(times)
-        durtim = int((times[-1] - times[0]) / 60 + inttime)
+        time_concat.append(int((times[-1] - times[0]) / 60 + inttime))
         time0 = time.time()
 
         if 'antlist' in uv.vartable:
-            ants = uv['antlist'].replace('\x00', '')
+            ants = uv['antlist'].replace('\x00','')
             antlist = map(int, ants.split())
         else:
             antlist = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
@@ -52,7 +92,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, fi
         nf = len(good_idx)
         npol = uv['npol']
         nants = uv['nants']
-        source_id = uv['source'].replace('\x00', '')
+        source_id = uv['source'].replace('\x00','')
         sfreq = uv['sfreq'][good_idx]
         sdf = uv['sdf'][good_idx]
         ra, dec = uv['ra'], uv['dec']
@@ -80,9 +120,9 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, fi
             l += 1
             out[k, :, l / (npairs * npol), bl2ord[i0, j0]] = data.data
             flag[k, :, l / (npairs * npol), bl2ord[i0, j0]] = data.mask
-            if i != j:
-                if k == 3:
-                    uvwarray[:, l / (npairs * npol), bl2ord[i0, j0]] = -uvw * constants.speed_of_light / 1e9
+            # if i != j:
+            if k == 3:
+                uvwarray[:, l / (npairs * npol), bl2ord[i0, j0]] = -uvw * constants.speed_of_light / 1e9
 
         nrows = time_steps * npairs
         out = out.reshape(npol, nf, nrows)
@@ -191,10 +231,12 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, fi
         # tb.putcol('SPECTRAL_WINDOW_ID', spw_id)
         tb.close()
 
+        # pdb.set_trace()
         casalog.post('----------------------------------------')
         casalog.post("Updating the POLARIZATION table of" '%s' % msname)
         casalog.post('----------------------------------------')
         tb.open(msname + '/POLARIZATION/', nomodify=False)
+        print tb.nrows()
         tb.removerows(rownrs=np.arange(1, nband, dtype=int))
         tb.close()
 
@@ -218,97 +260,31 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, fi
         # FIELD: DELAY_DIR, PHASE_DIR, REFERENCE_DIR, NAME
 
 
-        # del out, flag, uvwarray, uv, timearr, sigma
-        # gc.collect()  #
+        del out, flag, uvwarray, uv, timearr, sigma
+        gc.collect()  #
 
         if not (timebin == '0s' and width == 1):
             split(vis=msname, outputvis=msname + '.split', datacolumn='data', timebin=timebin, width=width,
                   keepflags=False)
             os.system('rm -rf {}'.format(msname))
-            msfile = msname + '.split'
+            msfile.append(msname + '.split')
         else:
-            msfile = msname
+            msfile.append(msname)
         casalog.post("finished in --- %s seconds ---" % (time.time() - time0))
 
-        return [True, msfile, durtim]
-    except:
-        print 'error in processing idb file: ' + filename
-        return [False, '', 0]
-
-
-def pimporteovsa(idbfiles, ncpu=8, timebin=None, width=None, visprefix=None, nocreatms=False, doconcat=False,
-                 modelms=''):
-    casalog.origin('pimporteovsa')
-
-    if type(idbfiles) == Time:
-        filelist = ri.get_trange_files(idbfiles)
-    else:
-        # If input type is not Time, assume that it is the list of files to read
-        filelist = idbfiles
-
-    if type(filelist) == str:
-        filelist = [filelist]
-
-    for f in filelist:
-        if not os.path.exists(f):
-            casalog.post("Some files in filelist are invalid. Aborting...")
-            # return False
-    if not visprefix:
-        visprefix = './'
-    if not timebin:
-        timebin = '0s'
-    if not width:
-        width = 1
-
-    if not modelms:
-        if nocreatms:
-            filename = filelist[0]
-            modelms = ipe.creatms(filename, visprefix)
-    else:
-        if not os.path.exists(modelms):
-            if nocreatms:
-                filename = filelist[0]
-                modelms = ipe.creatms(filename, visprefix)
-
-    iterable = range(len(filelist))
-    imppart = partial(importeovsa_iter, filelist, timebin, width, visprefix, nocreatms, modelms)
-
-    t0 = time.time()
-    casalog.post('Perform importeovsa in parallel ...')
-    pool = mp.Pool(ncpu)
-    res = pool.map(imppart, iterable)
-    pool.close()
-    pool.join()
-
-    t1 = time.time()
-    timelapse = t1 - t0
-    print 'It took %f secs to complete' % timelapse
-
-    # results = pd.DataFrame({'succeeded': [], 'msfile': [], 'durtim': []})
-    # for r in res:
-    #     results = results.append(pd.DataFrame({'succeeded': [r[0]], 'msfile': [r[1]], 'durtim': [r[2]]}))
-    try:
-        results = [{'succeeded': [r[0]], 'msfile': [r[1]], 'durtim': [r[2]]} for r in res]
-        return results
-    except:
-        print 'errors occurred when creating the output summary.'
-    # for r in res:
-    #     results = results.append({'succeeded': [r[0]], 'msfile': [r[1]], 'durtim': [r[2]]})
-
     if doconcat:
-        msname = list(os.path.basename(filelist[0]))
-        concatvis = visprefix + ''.join(msname) + '-{:d}m.ms'.format(int(results['durtim'].sum()))
-        msfile = results.loc[results['succeeded'] == True, :].msfile.tolist()
+        msname = list(filelist[0].split('/')[-1])
+        concatvis = visprefix + ''.join(msname) + '-{:d}m.ms'.format(int(sum(time_concat)))
         concat(vis=msfile, concatvis=concatvis, timesort=True)
         # Change all observation ids to be the same (zero)
-        tb.open(concatvis + '/OBSERVATION', nomodify=False)
-        nobs = tb.nrows()
-        tb.removerows([i + 1 for i in range(nobs - 1)])
+        tb.open(concatvis+'/OBSERVATION',nomodify=False)
+        nobs=tb.nrows()
+        tb.removerows([i+1 for i in range(nobs-1)])
         tb.close()
-        tb.open(concatvis, nomodify=False)
-        obsid = tb.getcol('OBSERVATION_ID')
-        newobsid = np.zeros(len(obsid), dtype='int')
-        tb.putcol('OBSERVATION_ID', newobsid)
+        tb.open(concatvis,nomodify=False)
+        obsid=tb.getcol('OBSERVATION_ID')
+        newobsid=np.zeros(len(obsid),dtype='int')
+        tb.putcol('OBSERVATION_ID',newobsid)
         tb.close()
         for ll in msfile:
             os.system('rm -rf {}'.format(ll))
