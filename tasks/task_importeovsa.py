@@ -19,10 +19,6 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     from taskinit import tb, casalog
     filename = filelist[fileidx]
     uv = aipy.miriad.UV(filename)
-    # if filename.split('/')[-1][0:3] == 'UDB':
-    #     uv_str = uv_hex_rm(uv)
-    # else:
-    #     uv_str = uv
     # try:
     msname0 = list(filename.split('/')[-1])
     msname = visprefix + ''.join(msname0) + '.ms'
