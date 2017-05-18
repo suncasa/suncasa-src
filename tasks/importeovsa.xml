@@ -100,7 +100,7 @@ importeovsa(idbfiles,
 
         <param type="int" name="ncpu">
             <description>Number of cpu cores to use</description>
-            <value>8</value>
+            <value>1</value>
         </param>
 
         <!-- SELECTION parameters -->

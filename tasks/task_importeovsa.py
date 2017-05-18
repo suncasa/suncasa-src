@@ -232,6 +232,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         casalog.post("Updating the main table of" '%s' % msname_scl)
         casalog.post('----------------------------------------')
         for l, cband in enumerate(chan_band):
+            time1 = time.time()
             for row in range(nrows):
                 tb.putcell('DATA', (row + l * nrows), out2[:, cband['cidx'][0]:cband['cidx'][-1] + 1, row])
             casalog.post(
