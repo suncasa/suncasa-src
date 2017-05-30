@@ -1,9 +1,10 @@
-#!/common/casa/casa-release-4.7.0-1-el6/lib/casa/bin/casa
+#!/common/casa/casa-release-4.7.2-el6/bin/casa
 from datetime import datetime as dt
 import glob
 import os
 
 tnow = dt.now()
+# tnow = dt(2017, 5, 17)
 yy = tnow.strftime("%Y")
 ym = tnow.strftime("%Y%m")
 ymd = tnow.strftime("%Y%m%d")
@@ -18,7 +19,7 @@ msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB{}*.ms'.
 files2import = [inpath + ll for ll in list(set(idbfiles) - set(msfiles))]
 if files2import:
     importeovsa(idbfiles=files2import, ncpu=1, timebin="0s", width=1,
-                 visprefix=outpath, nocreatms=False, doconcat=False, modelms="")
+                visprefix=outpath, nocreatms=False, doconcat=False, modelms="",doscaling=False)
 else:
     print 'No new UDB files found. Quit.'
     # # add to crontab file

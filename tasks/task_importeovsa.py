@@ -5,8 +5,8 @@ import numpy as np
 import scipy.constants as constants
 import time
 import aipy
-import eovsapy.read_idb as ri
-from eovsapy.util import Time
+# import eovsapy.read_idb as ri
+# from eovsapy.util import Time
 from taskinit import tb, casalog
 from split_cli import split_cli as split
 from concat_cli import concat_cli as concat
@@ -271,11 +271,11 @@ def importeovsa(idbfiles, ncpu=1, timebin=None, width=None, visprefix=None, nocr
                  modelms='', doscaling=False):
     casalog.origin('importeovsa')
 
-    if type(idbfiles) == Time:
-        filelist = ri.get_trange_files(idbfiles)
-    else:
-        # If input type is not Time, assume that it is the list of files to read
-        filelist = idbfiles
+    # if type(idbfiles) == Time:
+    #     filelist = ri.get_trange_files(idbfiles)
+    # else:
+    #     # If input type is not Time, assume that it is the list of files to read
+    filelist = idbfiles
 
     if type(filelist) == str:
         filelist = [filelist]
