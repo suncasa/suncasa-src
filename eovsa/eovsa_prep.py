@@ -388,7 +388,7 @@ def getbeam(imagefile=None, beamfile=None):
 
 
 def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsfile=None, beamfile=None, \
-          offsetfile=None, toTb=None, scl100=None, verbose=False):
+          offsetfile=None, toTb=None, scl100=None, verbose=False, p_ang = True):
     if not imagefile:
         raise ValueError, 'Please specify input image'
     if not reftime:
@@ -468,11 +468,13 @@ def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsf
         try:
             # this works for pyfits version of CASA 4.7.0 but not CASA 4.6.0
             header.update('exptime',hel['exptime'])
-            header.update('p_angle',hel['p0'])
+            if p_ang:
+                header.update('p_angle',hel['p0'])
         except:
             # this works for astropy.io.fits
             header.append(('exptime',hel['exptime']))
-            header.append(('p_angle',hel['p0']))
+            if p_ang:
+                header.append(('p_angle',hel['p0']))
 
         # header.update('comment', 'Fits header updated to heliocentric coordinates by Bin Chen')
 
