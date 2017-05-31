@@ -465,16 +465,16 @@ def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsf
         header['ctype1'] = 'HPLN-TAN'
         header['ctype2'] = 'HPLT-TAN'
         header['date-obs'] = hel['date-obs']
+        if not p_ang:
+            hel['p0'] = 0
         try:
             # this works for pyfits version of CASA 4.7.0 but not CASA 4.6.0
             header.update('exptime',hel['exptime'])
-            if p_ang:
-                header.update('p_angle',hel['p0'])
+            header.update('p_angle',hel['p0'])
         except:
             # this works for astropy.io.fits
             header.append(('exptime',hel['exptime']))
-            if p_ang:
-                header.append(('p_angle',hel['p0']))
+            header.append(('p_angle',hel['p0']))
 
         # header.update('comment', 'Fits header updated to heliocentric coordinates by Bin Chen')
 
