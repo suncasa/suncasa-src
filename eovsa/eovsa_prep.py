@@ -399,8 +399,6 @@ def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsf
         raise ValueError, 'Number of input images does not equal to number of helio coord headers!'
     if len(imagefile) != len(fitsfile):
         raise ValueError, 'Number of input images does not equal to number of output fits files!'
-    # get restoring beam info
-    (bmajs, bmins, bpas, beamunits, bpaunits) = getbeam(imagefile=imagefile, beamfile=beamfile)
     nimg = len(imagefile)
     if verbose:
         print str(nimg) + ' images to process...'
@@ -410,9 +408,6 @@ def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsf
             print 'processing image #' + str(n)
         fitsf = fitsfile[n]
         hel = helio[n]
-        bmaj = bmajs[n]
-        bmin = bmins[n]
-        beamunit = beamunits[n]
         if not os.path.exists(img):
             raise ValueError, 'Please specify input image'
         if os.path.exists(fitsf):
@@ -483,6 +478,11 @@ def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsf
 
         # update intensity units, i.e. to brightness temperature?
         if toTb:
+            # get restoring beam info
+            (bmajs, bmins, bpas, beamunits, bpaunits) = getbeam(imagefile=imagefile, beamfile=beamfile)
+            bmaj = bmajs[n]
+            bmin = bmins[n]
+            beamunit = beamunits[n]
             data = hdu[0].data  # remember the data order is reversed due to the FITS convension
             dim = data.ndim
             sz = data.shape
