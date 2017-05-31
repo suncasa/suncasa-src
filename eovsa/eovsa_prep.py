@@ -388,7 +388,7 @@ def getbeam(imagefile=None, beamfile=None):
 
 
 def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsfile=None, beamfile=None, \
-          offsetfile=None, toTb=None, scl100=None, verbose=False, p_ang = True):
+          offsetfile=None, toTb=None, scl100=None, verbose=False, p_ang = False):
     if not imagefile:
         raise ValueError, 'Please specify input image'
     if not reftime:
