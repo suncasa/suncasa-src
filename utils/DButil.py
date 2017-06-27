@@ -241,7 +241,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '131':
         if imagetype == 'image':
-            return {'low': 0.5, 'high': 5000, 'log': True}
+            return {'low': 0.5, 'high': 10000, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -100, 'high': 100, 'log': False}
         elif imagetype == 'BDimage':
@@ -285,7 +285,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '304':
         if imagetype == 'image':
-            return {'low': 1, 'high': 5000, 'log': True}
+            return {'low': 1, 'high': 10000, 'log': True}
             # return {'low': 1, 'high': 500, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -300, 'high': 300, 'log': False}
@@ -328,6 +328,8 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
         elif imagetype == 'BDRimage':
             return {'low': -1.5, 'high': 1.5, 'log': False}
+    else:
+        return None
 
 
 def sdo_aia_scale(image=None, wavelength=None):
@@ -373,6 +375,8 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
     from datetime import date
     from datetime import timedelta as td
 
+    wavelength = str(wavelength)
+    wavelength = wavelength.lower()
     if timtol < 12. / 3600 / 24:
         timtol = 12. / 3600 / 24
     if isinstance(jdtime, list) or isinstance(jdtime, tuple) or type(jdtime) == np.ndarray:
@@ -462,7 +466,7 @@ def paramspline(x, y, length, s=0):
 
 
 def polyfit(x, y, length, deg):
-    xs = np.linspace(x.min(), x.max(), length)
+    xs = np.linspace(np.nanmin(x), np.nanmax(x), length)
     z = np.polyfit(x=x, y=y, deg=deg)
     p = np.poly1d(z)
     ys = p(xs)

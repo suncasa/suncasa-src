@@ -72,6 +72,7 @@ bokehpalette_viridis = [colors.rgb2hex(m) for m in colormap_viridis(np.arange(co
 def read_fits(fname):
     hdulist = fits.open(fname)
     hdu = hdulist[0]
+    # hdulist.close()
     return hdu
 
 

@@ -14,16 +14,18 @@ from eovsapy import cal_header as ch
 from eovsapy import stateframe as stf
 from eovsapy import dbutil as db
 
+
 def calibeovsa(vis, caltype=None, docalib=False):
     casalog.origin('eovsacalib')
     if not caltype:
         casalog.post("Caltype not provided. Try to generate all that is applicable.")
+        # caltype = ['refcal','phacal'] ## use this line after the phacal is applied
         caltype = ['refcal']
     if not os.path.exists(vis):
         casalog.post("Input visibility does not exist. Aborting...")
     if vis.endswith('/'):
-        vis= vis[:-1]
-    if not vis[-3:] in ['.ms','.MS']:
+        vis = vis[:-1]
+    if not vis[-3:] in ['.ms', '.MS']:
         casalog.post("Invalid visibility. Please provide a proper visibility file ending with .ms")
     # if not caltable:
     #    caltable=[os.path.basename(vis).replace('.ms','.'+c) for c in caltype]
@@ -40,7 +42,7 @@ def calibeovsa(vis, caltype=None, docalib=False):
     tb.open(vis + '/ANTENNA')
     nant = tb.nrows()
     antname = tb.getcol('NAME')
-    antlist = [str(ll) for ll in range(len(antname)-1)]
+    antlist = [str(ll) for ll in range(len(antname) - 1)]
     antennas = ','.join(antlist)
     tb.close()
 
@@ -49,22 +51,29 @@ def calibeovsa(vis, caltype=None, docalib=False):
     summary = ms.summary()
     ms.close()
     btime = Time(summary['BeginTime'], format='mjd')
-    print "Beginning time of this scan " + btime.iso
+    etime = Time(summary['EndTime'], format='mjd')
+    print "This scan observed from {} to {} UTC".format(btime.iso, etime.iso)
     gaintables = []
+    if 'phacal' in caltype:
+        phacal_bf = ra.sql2phacalX(btime)
+        phacal_in = ra.sql2phacalX([btime, etime])
+        phacal_af = ra.sql2phacalX(etime, reverse=True)
+        pass
     if ('refpha' in caltype) or ('refamp' in caltype) or ('refcal' in caltype):
-        refcal = ra.sql2refcal(btime)
+        refcal = ra.sql2refcalX(btime)
         pha = refcal['pha']  # shape is 15 (nant) x 2 (npol) x 34 (nband)
         amp = refcal['amp']
         ref_t = refcal['timestamp']
         # check if there is any ROACH reboot between the reference calibration found and the current data
-        t_rbts=db.get_reboot(Time([ref_t,btime]))
+        t_rbts = db.get_reboot(Time([ref_t, btime]))
         if not t_rbts:
-            casalog.post("Reference calibration is derived from observation at "+ref_t.iso)
+            casalog.post("Reference calibration is derived from observation at " + ref_t.iso)
             print "Reference calibration is derived from observation at " + ref_t.iso
         else:
-            casalog.post("Oh crap! Roach reboot detected between the reference calibration time "+ref_t.iso + ' and the current observation at '+btime.iso)
+            casalog.post(
+                "Oh crap! Roach reboot detected between the reference calibration time " + ref_t.iso + ' and the current observation at ' + btime.iso)
             casalog.post("Aborting...")
-            print "Oh crap! Roach reboot detected between the reference calibration time "+ref_t.iso + ' and the current observation at '+btime.iso
+            print "Oh crap! Roach reboot detected between the reference calibration time " + ref_t.iso + ' and the current observation at ' + btime.iso
             print "Aborting..."
 
         para_pha = []
