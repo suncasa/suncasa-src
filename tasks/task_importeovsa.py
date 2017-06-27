@@ -345,6 +345,8 @@ def importeovsa(idbfiles, ncpu=1, timebin=None, width=None, visprefix=None, nocr
         msname = os.path.basename(filelist[0])
         concatvis = visprefix + ''.join(msname) + '-{:d}m.ms'.format(int(np.sum(results['durtim'])))
         msfile = list(np.array(results['msfile'])[np.where(np.array(results['succeeded']) == True)])
+        for ll in msfile:
+            clearcal(ll, addmodel=True)
         concat(vis=msfile, concatvis=concatvis, timesort=True)
         # Change all observation ids to be the same (zero)
         tb.open(concatvis + '/OBSERVATION', nomodify=False)

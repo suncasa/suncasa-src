@@ -3,11 +3,27 @@ import glob
 import os
 import json
 import pickle
+from functools import wraps
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
-def getspwfromfreq(vis,freqrange):
+
+def my_timer(orig_func):
+    import time
+
+    @wraps(orig_func)
+    def wrapper(*args, **kwargs):
+        t1 = time.time()
+        result = orig_func(*args, **kwargs)
+        t2 = time.time() - t1
+        print('{} ran in: {} sec'.format(orig_func.__name__, t2))
+        return result
+
+    return wrapper
+
+
+def getspwfromfreq(vis, freqrange):
     from taskinit import ms
     ms.open(vis)
     axisInfo = ms.getdata(["axis_info"], ifraxis=True)
@@ -34,6 +50,7 @@ def getspwfromfreq(vis,freqrange):
         ms_chan.append('0~{}'.format(freqIdx1[1][0]))
     spw = ','.join('{}:{}'.format(t[0], t[1]) for t in zip(ms_spw, ms_chan))
     return spw
+
 
 def initconfig(suncasa_dir):
     if not os.path.exists(suncasa_dir + 'DataBrowser/config.json'):
@@ -210,6 +227,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
     :param wavelength:
     :return: byte scaled image data
     '''
+    wavelength = str(wavelength)
     if wavelength == '94':
         if imagetype == 'image':
             return {'low': 0.1, 'high': 3000, 'log': True}
@@ -223,7 +241,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '131':
         if imagetype == 'image':
-            return {'low': 0.5, 'high': 5000, 'log': True}
+            return {'low': 0.5, 'high': 10000, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -100, 'high': 100, 'log': False}
         elif imagetype == 'BDimage':
@@ -234,7 +252,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '171':
         if imagetype == 'image':
-            return {'low': 20, 'high': 15000, 'log': True}
+            return {'low': 20, 'high': 5000, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -400, 'high': 400, 'log': False}
         elif imagetype == 'BDimage':
@@ -267,8 +285,8 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '304':
         if imagetype == 'image':
-            # return {'low': 1, 'high': 5000, 'log': True}
-            return {'low': 1, 'high': 500, 'log': True}
+            return {'low': 1, 'high': 10000, 'log': True}
+            # return {'low': 1, 'high': 500, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -300, 'high': 300, 'log': False}
         elif imagetype == 'BDimage':
@@ -310,6 +328,8 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
         elif imagetype == 'BDRimage':
             return {'low': -1.5, 'high': 1.5, 'log': False}
+    else:
+        return None
 
 
 def sdo_aia_scale(image=None, wavelength=None):
@@ -355,6 +375,8 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
     from datetime import date
     from datetime import timedelta as td
 
+    wavelength = str(wavelength)
+    wavelength = wavelength.lower()
     if timtol < 12. / 3600 / 24:
         timtol = 12. / 3600 / 24
     if isinstance(jdtime, list) or isinstance(jdtime, tuple) or type(jdtime) == np.ndarray:
@@ -444,7 +466,7 @@ def paramspline(x, y, length, s=0):
 
 
 def polyfit(x, y, length, deg):
-    xs = np.linspace(x.min(), x.max(), length)
+    xs = np.linspace(np.nanmin(x), np.nanmax(x), length)
     z = np.polyfit(x=x, y=y, deg=deg)
     p = np.poly1d(z)
     ys = p(xs)
@@ -528,6 +550,7 @@ def canvaspix_to_data(smap, x, y):
     ynew = xynew[1].value
     return [xnew, ynew]
 
+
 def data_to_mappixel(smap, x, y):
     import astropy.units as u
     '''
@@ -577,11 +600,12 @@ def freqsfromfitsheader(header):
         raise ValueError
 
 
-def transfitdict2DF(datain, gaussfit=True):
+def transfitdict2DF(datain, gaussfit=True, getcentroid=False):
     '''
     convert the results from pimfit or pmaxfit tasks to pandas DataFrame structure.
     :param datain: The component list from pimfit or pmaxfit tasks
     :param gaussfit: True if the results is from pimfit, otherwise False.
+    :param getcentroid: If True returns the centroid
     :return: the pandas DataFrame structure.
     '''
     import pandas as pd
@@ -632,9 +656,13 @@ def transfitdict2DF(datain, gaussfit=True):
                             fluxpeak = datain['outputs'][tidx][ppit]['results'][comp]['peak']['value']
                         else:
                             fluxpeak = datain['outputs'][tidx][ppit]['results'][comp]['flux']['value'][0]
-                        longitude = datain['outputs'][tidx][ppit]['results'][comp]['shape']['direction']['m0'][
+                        if getcentroid:
+                            mkey = 'centroid'
+                        else:
+                            mkey = 'shape'
+                        longitude = datain['outputs'][tidx][ppit]['results'][comp][mkey]['direction']['m0'][
                                         'value'] * ra2arcsec
-                        latitude = datain['outputs'][tidx][ppit]['results'][comp]['shape']['direction']['m1'][
+                        latitude = datain['outputs'][tidx][ppit]['results'][comp][mkey]['direction']['m1'][
                                        'value'] * ra2arcsec
                         longitude_err = \
                             datain['outputs'][tidx][ppit]['results'][comp]['shape']['direction']['error']['longitude'][

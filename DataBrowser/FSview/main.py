@@ -72,6 +72,7 @@ bokehpalette_viridis = [colors.rgb2hex(m) for m in colormap_viridis(np.arange(co
 def read_fits(fname):
     hdulist = fits.open(fname)
     hdu = hdulist[0]
+    # hdulist.close()
     return hdu
 
 
@@ -607,6 +608,7 @@ def tab2_BUT_tImfit_param_default():
     tab2_tImfit_Param_dict['ncpu'] = "10"
     tab2_tImfit_Param_dict['box'] = "''"
     tab2_tImfit_Param_dict['width'] = "5"
+    tab2_tImfit_Param_dict['getcentroid'] = "False"
     # tab2_tImfit_Param_dict['stokes'] = "'{}'".format(tab2_Select_vla_pol.value)
     tab2_tImfit_Param_dict['mask'] = "''"
     tab2_tImfit_Param_dict['imagefiles'] = "[{}]".format(vlafileliststr)
@@ -664,7 +666,9 @@ def tab2_BUT_tImfit_update():
         with open(ImfitID_dir + '/CASA_imfit_out', 'rb') as f:
             out = pickle.load(f)
         exec ('gaussfit = {}'.format(tab2_tImfit_Param_dict['gaussfit']))
-        dspecDF2 = DButil.transfitdict2DF(out, gaussfit=gaussfit)
+        exec ('getcentroid = {}'.format(tab2_tImfit_Param_dict['getcentroid']))
+
+        dspecDF2 = DButil.transfitdict2DF(out, gaussfit=gaussfit, getcentroid = getcentroid)
         with open(CleanID_dir + '/dspecDF-base', 'rb') as fp:
             dspecDF1 = pickle.load(fp)
         for ll in dspecDF1.index:
