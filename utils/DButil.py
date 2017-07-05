@@ -4,6 +4,7 @@ import os
 import json
 import pickle
 from functools import wraps
+import astropy.units as u
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -211,6 +212,7 @@ def normalize_aiamap(smap):
             data = smap.data
             data[~np.isnan(data)] = data[~np.isnan(
                 data)] / smap.exposure_time.value
+            data[data < 0] = 0
             smap.data = data
             smap.meta['exptime'] = 1.0
             return smap
@@ -220,6 +222,41 @@ def normalize_aiamap(smap):
         raise ValueError('check your input map. There are some errors in it.')
 
 
+def sdo_aia_scale_hdr(smap):
+    wavelnth = '{:0.0f}'.format(smap.wavelength.value)
+    pxscale_x, pxscal_y = smap.scale
+    pxscale = (pxscale_x + pxscal_y) / 2
+    r_sun = smap.rsun_obs / pxscale
+    x = np.arange(smap.dimensions.x.value)
+    y = np.arange(smap.dimensions.y.value)
+    xx, yy = np.meshgrid(x, y) * u.pix
+    crpix1, crpix2 = smap.data_to_pixel(0*u.arcsec,0*u.arcsec)
+    rdist = np.sqrt((xx - (crpix1-1.0*u.pix)) ** 2 + (yy - (crpix2-1.0*u.pix)) ** 2)
+    ind_disk = np.where(rdist <= r_sun)
+    ind_limb = np.where(rdist < r_sun)
+    rdist[ind_disk] = r_sun
+    rfilter = rdist / r_sun - 1
+    rfilter = rfilter.value
+    if wavelnth == '94':
+        smap.data = smap.data * np.exp(rfilter * 4)
+    elif wavelnth == '131':
+        smap.data = smap.data * (np.sqrt(rfilter * 5) + 1)
+    elif wavelnth == '171':
+        smap.data = smap.data * np.exp(rfilter * 5)
+    elif wavelnth == '193':
+        smap.data = smap.data * np.exp(rfilter * 3)
+    elif wavelnth == '211':
+        smap.data = smap.data * np.exp(rfilter * 3)
+    elif wavelnth == '304':
+        smap.data = smap.data * np.exp(rfilter * 5)
+    elif wavelnth == '335':
+        smap.data = smap.data * np.exp(rfilter * 3)
+    elif wavelnth == '6173':
+        pass
+    elif wavelnth == '1':
+        pass
+    return smap
+
 def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
     '''
     rescale the aia image
@@ -227,7 +264,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
     :param wavelength:
     :return: byte scaled image data
     '''
-    wavelength = str(wavelength)
+    wavelength = '{:0.0f}'.format(wavelength)
     if wavelength == '94':
         if imagetype == 'image':
             return {'low': 0.1, 'high': 3000, 'log': True}
