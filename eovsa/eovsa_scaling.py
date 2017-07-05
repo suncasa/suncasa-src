@@ -12,8 +12,12 @@ from importeovsa_cli import importeovsa_cli as importeovsa
 
 def mk_udbms(trange=None, outpath=None, projid='NormalObserving', srcid='Sun', doscaling=True):
     '''
-
+        usage: outfiles = mk_udbms(Time('2017-07-02 15:00'))
     :param trange:
+    :param outpath:
+    :param projid:
+    :param srcid:
+    :param doscaling:
     :return:
     '''
     if trange is None:
