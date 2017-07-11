@@ -656,35 +656,35 @@ def tab2_BUT_tImfit_update():
     tab2_Div_tImfit2.text = '<p>CASA pimfit script and arguments config\
      file saved to <b>{}</b>.</p>'.format(ImfitID_dir)
     cwd = os.getcwd()
-    try:
-        tab2_Div_tImfit2.text = '<p>CASA imfit script and arguments config file saved to <b>{}.</b></p>\
-        <p>CASA imfit is <b>in processing</b>.</p>'.format(ImfitID_dir)
-        os.chdir(ImfitID_dir)
-        suncasapy46 = config_main['core']['casapy46']
-        suncasapy46 = os.path.expandvars(suncasapy46)
-        os.system('{} -c script_imfit.py'.format(suncasapy46))
-        with open(ImfitID_dir + '/CASA_imfit_out', 'rb') as f:
-            out = pickle.load(f)
-        exec ('gaussfit = {}'.format(tab2_tImfit_Param_dict['gaussfit']))
-        exec ('getcentroid = {}'.format(tab2_tImfit_Param_dict['getcentroid']))
+    # try:
+    tab2_Div_tImfit2.text = '<p>CASA imfit script and arguments config file saved to <b>{}.</b></p>\
+    <p>CASA imfit is <b>in processing</b>.</p>'.format(ImfitID_dir)
+    os.chdir(ImfitID_dir)
+    suncasapy46 = config_main['core']['casapy46']
+    suncasapy46 = os.path.expandvars(suncasapy46)
+    os.system('{} -c script_imfit.py'.format(suncasapy46))
+    with open(ImfitID_dir + '/CASA_imfit_out', 'rb') as f:
+        out = pickle.load(f)
+    exec ('gaussfit = {}'.format(tab2_tImfit_Param_dict['gaussfit']))
+    exec ('getcentroid = {}'.format(tab2_tImfit_Param_dict['getcentroid']))
 
-        dspecDF2 = DButil.transfitdict2DF(out, gaussfit=gaussfit, getcentroid = getcentroid)
-        with open(CleanID_dir + '/dspecDF-base', 'rb') as fp:
-            dspecDF1 = pickle.load(fp)
-        for ll in dspecDF1.index:
-            tmp = dspecDF1.loc[ll, 'freq']
-            dspecDF1.loc[ll, 'freq'] = float('{:.3f}'.format(tmp))
-        dspecDF = pd.merge(dspecDF1, dspecDF2, how='left', on=['freqstr', 'fits_local'])
-        with open(ImfitID_dir + '/dspecDF-save', 'wb') as fp:
-            pickle.dump(dspecDF, fp)
-        print 'imfit results saved to ' + ImfitID_dir + '/dspecDF-save'
-        tab2_Div_tImfit2.text = '<p>imfit finished, go back to <b>QLook</b> \
-        window, select StrID <b>{}</b> and click <b>FSview</b> button again.</p>'.format(struct_id[0:-1])
-    except:
-        tab2_Div_tImfit2.text = '<p>CASA imfit script and arguments config file \
-        saved to <b>{}.</b></p><p>Do imfit with CASA manually.</p>'.format(
-            ImfitID_dir) + '<p>When finished, go back to <b>QLook</b> window, \
-            select StrID <b>{}</b> and click <b>FSview</b> button again.</p>'.format(struct_id[0:-1])
+    dspecDF2 = DButil.transfitdict2DF(out, gaussfit=gaussfit, getcentroid = getcentroid)
+    with open(CleanID_dir + '/dspecDF-base', 'rb') as fp:
+        dspecDF1 = pickle.load(fp)
+    for ll in dspecDF1.index:
+        tmp = dspecDF1.loc[ll, 'freq']
+        dspecDF1.loc[ll, 'freq'] = float('{:.3f}'.format(tmp))
+    dspecDF = pd.merge(dspecDF1, dspecDF2, how='left', on=['freqstr', 'fits_local'])
+    with open(ImfitID_dir + '/dspecDF-save', 'wb') as fp:
+        pickle.dump(dspecDF, fp)
+    print 'imfit results saved to ' + ImfitID_dir + '/dspecDF-save'
+    tab2_Div_tImfit2.text = '<p>imfit finished, go back to <b>QLook</b> \
+    window, select StrID <b>{}</b> and click <b>FSview</b> button again.</p>'.format(struct_id[0:-1])
+    # except:
+    #     tab2_Div_tImfit2.text = '<p>CASA imfit script and arguments config file \
+    #     saved to <b>{}.</b></p><p>Do imfit with CASA manually.</p>'.format(
+    #         ImfitID_dir) + '<p>When finished, go back to <b>QLook</b> window, \
+    #         select StrID <b>{}</b> and click <b>FSview</b> button again.</p>'.format(struct_id[0:-1])
     os.chdir(cwd)
 
 
