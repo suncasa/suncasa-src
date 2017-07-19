@@ -132,15 +132,25 @@ def tab2_vdspec_update():
                         nfreq_hdu = hdu_goodchan[-1] - hdu_goodchan[0] + 1
                         freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
                         freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
-                        idxfreq = freq.index(freq_ref)
+                        try:
+                            idxfreq = freq.index(freq_ref)
+                        except:
+                            idxfreq = (float(freq_ref) - float(freq[0])) / float('{:.3f}'.format(tab2_df))
+                            idxfreq = int(np.round(idxfreq))
                         vla_l = hdu.data[0, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
                         vla_r = hdu.data[1, :, y0pix:y1pix + 1, x0pix:x1pix + 1]
-                        spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                            np.nanmean(vla_l, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
-                        spec_plt_L[idxfreq:idxfreq + nfreq_hdu, ll] = \
-                            np.nanmean(vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
+                        if idxfreq >= 0:
+                            spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = \
+                                np.nanmean(vla_l, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
+                            spec_plt_L[idxfreq:idxfreq + nfreq_hdu, ll] = \
+                                np.nanmean(vla_r, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
+                        else:
+                            spec_plt_R[0:idxfreq + nfreq_hdu, ll] = \
+                                np.nanmean(vla_l, axis=(-1, -2))[hdu_goodchan[0] - idxfreq:hdu_goodchan[-1] + 1]
+                            spec_plt_L[0:idxfreq + nfreq_hdu, ll] = \
+                                np.nanmean(vla_r, axis=(-1, -2))[hdu_goodchan[0] - idxfreq:hdu_goodchan[-1] + 1]
                     tab2_Div_LinkImg_plot.text = """<p><b>Vec Dspec in calculating...</b></p><p>{}</p>""".format(
-                        DButil.ProgressBar(ll + 1, tab2_ntim + 1, decimals=0, length=16, empfill='=',fill='#'))
+                        DButil.ProgressBar(ll + 1, tab2_ntim + 1, decimals=0, length=16, empfill='=', fill='#'))
                 spec_plt_R[spec_plt_R < 0] = 0
                 spec_plt_L[spec_plt_L < 0] = 0
                 tab2_Div_LinkImg_plot.text = """<p><b>Vec Dspec in calculating...</b></p><p>{}</p>""".format(
@@ -160,7 +170,7 @@ def tab2_vdspec_update():
                         vlaflux = np.nanmean(vladata, axis=(-1, -2))[hdu_goodchan[0]:hdu_goodchan[-1] + 1]
                         spec_plt_R[idxfreq:idxfreq + nfreq_hdu, ll] = vlaflux
                     tab2_Div_LinkImg_plot.text = """<p><b>Vec Dspec in calculating...</b></p><p>{}</p>""".format(
-                        DButil.ProgressBar(ll + 1, tab2_ntim + 1, decimals=0, length=16, empfill='=',fill='#'))
+                        DButil.ProgressBar(ll + 1, tab2_ntim + 1, decimals=0, length=16, empfill='=', fill='#'))
                 spec_plt_R[spec_plt_R < 0] = 0
                 spec_plt_L = spec_plt_R
                 tab2_Div_LinkImg_plot.text = """<p><b>Vec Dspec in calculating...</b></p><p>{}</p>""".format(
@@ -296,7 +306,11 @@ def slider_LinkImg_update(polonly=False):
         hdu_goodchan = goodchan(hdu)
         freq_ref = '{:.3f}'.format(hdu.header['CRVAL3'] / 1e9)
         freq = ['{:.3f}'.format(fq) for fq in tab2_freq]
-        idxfreq = freq.index(freq_ref)
+        try:
+            idxfreq = freq.index(freq_ref)
+        except:
+            idxfreq = (float(freq_ref) - float(freq[0])) / float('{:.3f}'.format(tab2_df))
+            idxfreq = int(np.round(idxfreq))
         fidx_hdu = fidx - idxfreq
         print 'tidx,tidx_prev,fidx:', tidx, tidx_prev, fidx_hdu
         if hdu_goodchan[0] <= fidx_hdu <= hdu_goodchan[-1]:
@@ -660,15 +674,19 @@ def tab2_BUT_tImfit_update():
     tab2_Div_tImfit2.text = '<p>CASA imfit script and arguments config file saved to <b>{}.</b></p>\
     <p>CASA imfit is <b>in processing</b>.</p>'.format(ImfitID_dir)
     os.chdir(ImfitID_dir)
-    suncasapy46 = config_main['core']['casapy46']
-    suncasapy46 = os.path.expandvars(suncasapy46)
-    os.system('{} -c script_imfit.py'.format(suncasapy46))
-    with open(ImfitID_dir + '/CASA_imfit_out', 'rb') as f:
-        out = pickle.load(f)
     exec ('gaussfit = {}'.format(tab2_tImfit_Param_dict['gaussfit']))
     exec ('getcentroid = {}'.format(tab2_tImfit_Param_dict['getcentroid']))
+    if gaussfit:
+        suncasapy = config_main['core']['casapy47']
+    else:
+        suncasapy = config_main['core']['casapy46']
+    suncasapy = os.path.expandvars(suncasapy)
+    print suncasapy
+    os.system('{} -c script_imfit.py'.format(suncasapy))
+    with open(ImfitID_dir + '/CASA_imfit_out', 'rb') as f:
+        out = pickle.load(f)
 
-    dspecDF2 = DButil.transfitdict2DF(out, gaussfit=gaussfit, getcentroid = getcentroid)
+    dspecDF2 = DButil.transfitdict2DF(out, gaussfit=gaussfit, getcentroid=getcentroid)
     with open(CleanID_dir + '/dspecDF-base', 'rb') as fp:
         dspecDF1 = pickle.load(fp)
     for ll in dspecDF1.index:
