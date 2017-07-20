@@ -388,7 +388,7 @@ def getbeam(imagefile=None, beamfile=None):
 
 
 def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsfile=None, beamfile=None, \
-          offsetfile=None, toTb=None, scl100=None, verbose=False, p_ang = False):
+          offsetfile=None, toTb=None, scl100=None, verbose=False, p_ang = False, overwrite = True):
     if not imagefile:
         raise ValueError, 'Please specify input image'
     if not reftime:
@@ -410,13 +410,13 @@ def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsf
         hel = helio[n]
         if not os.path.exists(img):
             raise ValueError, 'Please specify input image'
-        if os.path.exists(fitsf):
-            raise ValueError, 'Specified fits file already exists!'
+        if os.path.exists(fitsf) and not overwrite:
+            raise ValueError, 'Specified fits file already exists and overwrite is set to False. Aborting...'
         else:
             p0 = hel['p0']
             ia.open(img)
             imr = ia.rotate(pa=str(-p0) + 'deg')
-            imr.tofits(fitsf, history=False)
+            imr.tofits(fitsf, history=False, overwrite=overwrite)
             imr.close()
             sum = ia.summary()
             ia.close()

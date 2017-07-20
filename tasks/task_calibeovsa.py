@@ -16,6 +16,7 @@ from eovsapy import cal_header as ch
 from eovsapy import stateframe as stf
 from eovsapy import dbutil as db
 from matplotlib import pyplot as plt
+import pdb
 
 # check if the calibration table directory is defined
 caltbdir=os.getenv('EOVSACAL')
@@ -29,7 +30,7 @@ if not imgdir:
     print 'Use default path on pipeline'
     imgdir = '/data1/bchen/solar/image/'
 
-def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=True, flagant='3,11,13~15', stokes=None):
+def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=True, flagant='13~15', stokes=None):
     casalog.origin('eovsacalib')
     if not caltype:
         casalog.post("Caltype not provided. Perform reference phase calibration and daily phase calibration.")
@@ -152,16 +153,16 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=True, 
 
         if 'phacal' in caltype:
             phacals = np.array(ra.sql2phacalX([bt, et], neat=True, verbose=False))
-            t_phas = Time([phacal['t_pha'] for phacal in phacals])
-            # sort the array in ascending order by t_pha
-            sinds = t_phas.mjd.argsort()
-            t_phas = t_phas[sinds]
-            phacals = phacals[sinds]
-            caltbs_phambd=[]
-            # first generate all phacal calibration tables if not already exist
-            if len(phacals) == 0:
+            if not phacals or len(phacals) == 0:
                 print "Found no phacal records in SQL database, will skip phase calibration"
             else:
+                t_phas = Time([phacal['t_pha'] for phacal in phacals])
+                # sort the array in ascending order by t_pha
+                sinds = t_phas.mjd.argsort()
+                t_phas = t_phas[sinds]
+                phacals = phacals[sinds]
+                caltbs_phambd=[]
+                # first generate all phacal calibration tables if not already exist
                 for i, phacal in enumerate(phacals):
                     # filter out phase cals with reference time stamp >30 min away from the provided refcal time
                     if (phacal['t_ref'].jd-refcal['timestamp'].jd) > 30./1440.:
@@ -179,41 +180,41 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=True, 
                         if not os.path.exists(caltb_phambd):
                             gencal(vis=vis, caltable=caltb_phambd, caltype='mbd', pol='X,Y', antenna=antennas,
                                    parameter=phambd_ns.flatten().tolist())
-            # now decides which table to apply depending on the interpolation method ("neatest" or "linear")
-            if interp == 'nearest':
-                tbind = np.argmin(np.abs(t_phas.mjd - t_mid.mjd))
-                dt = np.min(np.abs(t_phas.mjd - t_mid.mjd)) * 24.
-                print "Selected nearest phase calibration table at " + t_phas[tbind].iso
-                gaintables.append(caltbs_phambd[tbind])
-            if interp == 'linear':
-                #bphacal = ra.sql2phacalX(btime)
-                #ephacal = ra.sql2phacalX(etime,reverse=True)
-                bt_ind, = np.where(t_phas.mjd < btime.mjd)
-                et_ind, = np.where(t_phas.mjd > etime.mjd)
-                if len(bt_ind) == 0 and len(et_ind) == 0:
-                    print "No phacal found before or after the ms data within the day of observation"
-                    print "Skipping daily phase calibration"
-                elif len(bt_ind) > 0 and len(et_ind) == 0:
-                    gaintables.append(caltbs_phambd[bt_ind[-1]])
-                elif len(bt_ind) == 0 and len(et_ind) > 0:
-                    gaintables.append(caltbs_phambd[et_ind[0]])
-                elif len(bt_ind) > 0 and len(et_ind) > 0:
-                    bphacal = phacals[bt_ind[-1]]
-                    ephacal = phacals[et_ind[0]]
-                    #generate a new table interpolating between two daily phase calibrations
-                    t_pha_mean=Time(np.mean([bphacal['t_pha'].mjd,ephacal['t_pha'].mjd]),format='mjd')
-                    phambd_ns = (bphacal['pslope'] + ephacal['pslope'])/2.
-                    for n in range(2): phambd_ns[:, n] -= phambd_ns[0, n]
-                    # set all flagged values to be zero 
-                    phambd_ns[np.where(bphacal['flag']==1)]=0.
-                    phambd_ns[np.where(ephacal['flag']==1)]=0.
-                    caltb_phambd_interp = dirname + t_pha_mean.isot[:-4].replace(':','').replace('-','')+'.phambd'
-                    if not os.path.exists(caltb_phambd_interp):
-                        gencal(vis=vis, caltable=caltb_phambd_interp, caltype='mbd', pol='X,Y', antenna=antennas,
-                               parameter=phambd_ns.flatten().tolist())
-                    print "Using phase calibration table interpolated between records at " + \
-                          bphacal['t_pha'].iso + ' and ' + ephacal['t_pha'].iso
-                    gaintables.append(caltb_phambd_interp)
+                # now decides which table to apply depending on the interpolation method ("neatest" or "linear")
+                if interp == 'nearest':
+                    tbind = np.argmin(np.abs(t_phas.mjd - t_mid.mjd))
+                    dt = np.min(np.abs(t_phas.mjd - t_mid.mjd)) * 24.
+                    print "Selected nearest phase calibration table at " + t_phas[tbind].iso
+                    gaintables.append(caltbs_phambd[tbind])
+                if interp == 'linear':
+                    #bphacal = ra.sql2phacalX(btime)
+                    #ephacal = ra.sql2phacalX(etime,reverse=True)
+                    bt_ind, = np.where(t_phas.mjd < btime.mjd)
+                    et_ind, = np.where(t_phas.mjd > etime.mjd)
+                    if len(bt_ind) == 0 and len(et_ind) == 0:
+                        print "No phacal found before or after the ms data within the day of observation"
+                        print "Skipping daily phase calibration"
+                    elif len(bt_ind) > 0 and len(et_ind) == 0:
+                        gaintables.append(caltbs_phambd[bt_ind[-1]])
+                    elif len(bt_ind) == 0 and len(et_ind) > 0:
+                        gaintables.append(caltbs_phambd[et_ind[0]])
+                    elif len(bt_ind) > 0 and len(et_ind) > 0:
+                        bphacal = phacals[bt_ind[-1]]
+                        ephacal = phacals[et_ind[0]]
+                        #generate a new table interpolating between two daily phase calibrations
+                        t_pha_mean=Time(np.mean([bphacal['t_pha'].mjd,ephacal['t_pha'].mjd]),format='mjd')
+                        phambd_ns = (bphacal['pslope'] + ephacal['pslope'])/2.
+                        for n in range(2): phambd_ns[:, n] -= phambd_ns[0, n]
+                        # set all flagged values to be zero 
+                        phambd_ns[np.where(bphacal['flag']==1)]=0.
+                        phambd_ns[np.where(ephacal['flag']==1)]=0.
+                        caltb_phambd_interp = dirname + t_pha_mean.isot[:-4].replace(':','').replace('-','')+'.phambd'
+                        if not os.path.exists(caltb_phambd_interp):
+                            gencal(vis=vis, caltable=caltb_phambd_interp, caltype='mbd', pol='X,Y', antenna=antennas,
+                                   parameter=phambd_ns.flatten().tolist())
+                        print "Using phase calibration table interpolated between records at " + \
+                              bphacal['t_pha'].iso + ' and ' + ephacal['t_pha'].iso
+                        gaintables.append(caltb_phambd_interp)
 
     if docalib:
         clearcal(vis)
