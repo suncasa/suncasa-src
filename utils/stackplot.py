@@ -354,7 +354,6 @@ class CutslitBuilder:
         self.slitline1.figure.canvas.draw()
 
 
-
 class Stackplot:
     instrum_meta = {'SDO/AIA': {'scale': 0.6 * u.arcsec / u.pix}}
     suncasadb = os.getenv('SUNCASADB')
@@ -456,8 +455,8 @@ class Stackplot:
         mp_info = self.mapcube_info(mapcube)
         if not outfile:
             outfile = 'mapcube_{0}_{1}_{2}'.format(mapcube[0].meta['wavelnth'],
-                                                   trange[0].isot[:-4].replace(':', ''),
-                                                   trange[1].isot[:-4].replace(':', ''))
+                                                   self.trange[0].isot[:-4].replace(':', ''),
+                                                   self.trange[1].isot[:-4].replace(':', ''))
         with open(outfile, 'wb') as sf:
             print('Saving mapcube to {}'.format(outfile))
             pickle.dump({'mp': mapcube, 'trange': mp_info['trange'], 'fov': mp_info['fov'], 'binpix': mp_info['binpix'],
@@ -565,6 +564,8 @@ class Stackplot:
             for idx, smap in enumerate(tqdm(mapcube_plot)):
                 smap = DButil.sdo_aia_scale_hdr(smap)
                 mapcube_plot[idx].data = smap.data
+        for idx, smap in enumerate(tqdm(mapcube_plot)):
+            mapcube_plot[idx].data[np.where(smap.data < 1)] = 1
         self.mapcube_plot = mapcube_plot
         # sp = stackplot(parent_obj = self, mapcube = mapcube_plot)
         fig_mapcube = plt.figure(figsize=(8, 7))
@@ -629,7 +630,6 @@ class Stackplot:
             plt.subplots_adjust(bottom=0.10)
             dims = mapcube_plot[0].dimensions
             diagpix = int(np.sqrt(dims[0] ** 2 + dims[1] ** 2).value)
-            self.cutslitbd = CutslitBuilder(ax, cutwidth=20, cutang=np.pi / 60, cutlength=150)
             axcolor = 'lightgoldenrodyellow'
             # axStackplt = plt.axes([0.8, 0.02, 0.10, 0.05], facecolor=axcolor)
             # bStackplt = Button(axStackplt, 'StackPlt')
@@ -641,6 +641,8 @@ class Stackplot:
             sCutang = Slider(axCutang, 'Angle[deg]', 0.0, 90.0, valinit=3.0, valfmt='%.1f')
             axCutlngth = plt.axes([0.65, 0.06, 0.10, 0.01], facecolor=axcolor)
             sCutlngth = Slider(axCutlngth, 'Length[pix]', 20, int(diagpix * 4), valinit=150, valfmt='%0.0f')
+            self.cutslitbd = CutslitBuilder(ax, cutwidth=sCutwdth.val, cutang=sCutang.val / 180. * np.pi,
+                                            cutlength=sCutlngth.val)
 
             # def bStackplt_update(event):
             #     # print bStackplt.val
@@ -681,20 +683,23 @@ class Stackplot:
         return
 
     def cutslit_fromfile(self, infile):
-        with open('{}'.format(infile), 'rb') as sf:
-            cutslit = pickle.load(sf)
-        self.cutslitbd.clickedpoints.set_data(cutslit['x'], cutslit['y'])
-        self.cutslitbd.clickedpoints.figure.canvas.draw()
-        self.cutslitbd.cutslitplt = cutslit['cutslit']
-        self.cutslitbd.slitline.set_data(cutslit['cutslit']['xcen'], cutslit['cutslit']['ycen'])
-        self.cutslitbd.slitline0.set_data(cutslit['cutslit']['xs0'], cutslit['cutslit']['ys0'])
-        self.cutslitbd.slitline1.set_data(cutslit['cutslit']['xs1'], cutslit['cutslit']['ys1'])
-        self.cutslitbd.slitline.figure.canvas.draw()
-        self.cutslitbd.slitline0.figure.canvas.draw()
-        self.cutslitbd.slitline1.figure.canvas.draw()
+        if self.cutslitbd:
+            with open('{}'.format(infile), 'rb') as sf:
+                cutslit = pickle.load(sf)
+            self.cutslitbd.clickedpoints.set_data(cutslit['x'], cutslit['y'])
+            self.cutslitbd.clickedpoints.figure.canvas.draw()
+            self.cutslitbd.cutslitplt = cutslit['cutslit']
+            self.cutslitbd.slitline.set_data(cutslit['cutslit']['xcen'], cutslit['cutslit']['ycen'])
+            self.cutslitbd.slitline0.set_data(cutslit['cutslit']['xs0'], cutslit['cutslit']['ys0'])
+            self.cutslitbd.slitline1.set_data(cutslit['cutslit']['xs1'], cutslit['cutslit']['ys1'])
+            self.cutslitbd.slitline.figure.canvas.draw()
+            self.cutslitbd.slitline0.figure.canvas.draw()
+            self.cutslitbd.slitline1.figure.canvas.draw()
+        else:
+            print('plot_mapcube first before loading cutslit from file!')
 
     def cutslit_tofile(self, outfile=None, cutslit=None):
-        if cutslit:
+        if not cutslit:
             cutslit = {'x': self.cutslitbd.clickedpoints.get_xdata(), 'y': self.cutslitbd.clickedpoints.get_ydata(),
                        'cutslit': self.cutslitbd.cutslitplt}
         with open('{}'.format(outfile), 'wb') as sf:
@@ -758,7 +763,10 @@ class Stackplot:
             ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, smap.meta['t_obs']))
             vspan_xy = vspan.get_xy()
             vspan_xy[np.array([0, 1, 4]), 0] = self.tplt[frm].plot_date
-            vspan_xy[np.array([2, 3]), 0] = self.tplt[frm].plot_date + dtplot
+            if frm<len(self.tplt)-1:
+                vspan_xy[np.array([2, 3]), 0] = self.tplt[frm+1].plot_date
+            else:
+                vspan_xy[np.array([2, 3]), 0] = self.tplt[frm].plot_date
             vspan.set_xy(vspan_xy)
             fig_mapcube.canvas.draw()
 
