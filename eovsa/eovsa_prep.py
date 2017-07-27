@@ -21,6 +21,7 @@ except:
 
 def read_horizons(vis):
     import urllib2
+    import ssl
     if not os.path.exists(vis):
         print 'Input ms data '+vis+' does not exist! '
         return -1
@@ -32,7 +33,8 @@ def read_horizons(vis):
         etime = Time(summary['EndTime'], format='mjd')
         print "Beginning time of this scan " + btime.iso
         print "End time of this scan " + etime.iso
-        f=urllib2.urlopen("http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='-81@399'&COMMAND='10'&START_TIME='"+btime.iso.replace(' ',',')+"'&STOP_TIME='"+etime.iso[:-4].replace(' ',',')+"'&STEP_SIZE='1m'&SKIP_DAYLT='NO'")
+        context = ssl._create_unverified_context()
+        f = urllib2.urlopen("http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='-81@399'&COMMAND='10'&START_TIME='"+btime.iso.replace(' ',',')+"'&STOP_TIME='"+etime.iso[:-4].replace(' ',',')+"'&STEP_SIZE='1m'&SKIP_DAYLT='NO'", context=context)
     except:
         print 'error in reading ms file: '+vis
         return -1
