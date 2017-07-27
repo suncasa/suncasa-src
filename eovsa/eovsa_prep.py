@@ -21,6 +21,8 @@ except:
 
 def read_horizons(vis):
     import urllib2
+    import ssl
+    ssl._create_default_https_context = ssl._create_unverified_context
     if not os.path.exists(vis):
         print 'Input ms data '+vis+' does not exist! '
         return -1
