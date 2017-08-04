@@ -15,6 +15,7 @@ from flagdata_cli import flagdata_cli as flagdata
 from eovsapy import cal_header as ch
 from eovsapy import stateframe as stf
 from matplotlib import pyplot as plt
+import pdb
 from eovsapy import dbutil as db
 
 # check if the calibration table directory is defined
@@ -29,8 +30,7 @@ if not imgdir:
     print 'Use default path on pipeline'
     imgdir = '/data1/bchen/solar/image/'
 
-
-def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=True, flagant='3,11,13~15', stokes=None):
+def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=True, flagant='13~15', stokes=None):
     casalog.origin('eovsacalib')
     if not caltype:
         casalog.post("Caltype not provided. Perform reference phase calibration and daily phase calibration.")
@@ -70,7 +70,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=True, 
     t_mid = Time((btime.mjd + etime.mjd) / 2., format='mjd')
     print "This scan observed from {} to {} UTC".format(btime.iso, etime.iso)
     gaintables = []
-    if ('refpha' in caltype) or ('refamp' in caltype) or ('refcal' in caltype) or ('autoamp' in caltype):
+    if ('refpha' in caltype) or ('refamp' in caltype) or ('refcal' in caltype):
         refcal = ra.sql2refcalX(btime)
         pha = refcal['pha']  # shape is 15 (nant) x 2 (npol) x 34 (nband)
         pha[np.where(refcal['flag'] == 1)] = 0.
@@ -100,136 +100,17 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=True, 
             print "Oh crap! Roach reboot detected between the reference calibration time " + t_ref.iso + ' and the current observation at ' + btime.iso
             print "Aborting..."
 
-    if 'autoamp' in caltype:
-        # caltb_autoamp = dirname + os.path.basename(vis)[:-3] + '.autoamp'
-        caltb_autoamp = os.path.basename(vis)[:-3] + '.autoamp'
-        try:
-            tmpfile = 'tmp.ms'
-            if os.path.exists(tmpfile):
-                os.system('rm -rf {}'.format(tmpfile))
-            split(vis=vis, outputvis=tmpfile, correlation='XX,YY', datacolumn='data')
-            bandpass(vis=tmpfile, caltable=caltb_autoamp, solint='int', refant='eo01', minblperant=1, minsnr=0,
-                     bandtype='B', docallib=False)
-            nbl = nant * (nant - 1) / 2
-            npair = nbl + nant
-            nsolint = int(np.round(
-                (summary['EndTime'] - summary['BeginTime']) * 24 * 3600 / summary['scan_0']['0'][
-                    'IntegrationTime']))
-            nrows_ms = nsolint * npair
-            tb.open(vis)
-            amp_auto = []
-            for ll in range(nspw):
-                ant1 = tb.getcol('ANTENNA1', ll * nrows_ms, nrows_ms)
-                ant2 = tb.getcol('ANTENNA2', ll * nrows_ms, nrows_ms)
-                autoidx, = np.where(ant1 == ant2)
-                autoidx += ll * nrows_ms
-                ampt = []
-                for l in autoidx:
-                    ampt.append(tb.getcell('DATA', l))
-                amp_auto.append(np.sqrt(np.abs(ampt)))
-            tb.close()
-            nrows_caltb = nsolint * nant
-            tb.open(caltb_autoamp, nomodify=False)
-            for ll in range(nspw):
-                cparam = np.moveaxis(np.array(amp_auto[ll]), 0, 2)
-                print cparam.shape
-                tb.putcol('CPARAM', cparam + 0j, ll * nrows_caltb, nrows_caltb)
-                paramerr = tb.getcol('PARAMERR', ll * nrows_caltb, nrows_caltb)
-                paramerr = paramerr*0
-                paramerr = np.vstack([paramerr,paramerr])
-                tb.putcol('PARAMERR', paramerr, ll * nrows_caltb, nrows_caltb)
-                ant1 = tb.getcol('ANTENNA1', ll * nrows_caltb, nrows_caltb)
-                flagidx, = np.where(ant1 >= 13)
-                flag = tb.getcol('FLAG', ll * nrows_caltb, nrows_caltb)
-                flag = np.vstack([flag, flag])
-                flag[:] = False
-                flag[:, :, flagidx] = True
-                tb.putcol('FLAG', flag, ll * nrows_caltb, nrows_caltb)
-                snr = tb.getcol('SNR', ll * nrows_caltb, nrows_caltb)
-                snr = np.vstack([snr, snr])
-                snr[:] = 100.0
-                snr[:, :, flagidx] = 0.0
-                tb.putcol('SNR', snr, ll * nrows_caltb, nrows_caltb)
-            tb.close()
-            os.system('rm -rf {}'.format(tmpfile))
-            casalog.post("Scaling calibration is derived for {}".format(vis))
-            print "Scaling calibration is derived for {}".format(vis)
-        except:
-            casalog.post("Fail to derive Scaling calibration for {}".format(vis))
-            print "Fail to derive Scaling calibration for {}".format(vis)
-        # pols = ['XX,YY', 'XY,YX']
-        # # caltbs_autoamp = [dirname + os.path.basename(vis)[:-3] + '_{}.autoamp'.format(ll.replace(',', '')) for ll in
-        # # pols]
-        # caltbs_autoamp = [os.path.basename(vis)[:-3] + '_{}.autoamp'.format(ll.replace(',', '')) for ll in
-        #                   pols]
-        # for p, pol in enumerate(pols):
-        #     try:
-        #         tmpfile = 'tmp{}.ms'.format(pol.replace(',', ''))
-        #         if os.path.exists(tmpfile):
-        #             os.system('rm -rf {}'.format(tmpfile))
-        #         os.system('rm -rf {}'.format(caltbs_autoamp[p]))
-        #         split(vis=vis, outputvis=tmpfile, correlation=pol, datacolumn='data')
-        #         if p == 0:
-        #             bandpass(vis=tmpfile, caltable=caltbs_autoamp[p], solint='int', refant='eo01', minblperant=1,
-        #                      minsnr=0,
-        #                      bandtype='B', docallib=False)
-        #             nbl = nant * (nant - 1) / 2
-        #             npair = nbl + nant
-        #             nsolint = int(np.round(
-        #                 (summary['EndTime'] - summary['BeginTime']) * 24 * 3600 / summary['scan_0']['0'][
-        #                     'IntegrationTime']))
-        #             nrows_ms = nsolint * npair
-        #             tb.open(vis)
-        #             amp_auto = []
-        #             for ll in range(nspw):
-        #                 ant1 = tb.getcol('ANTENNA1', ll * nrows_ms, nrows_ms)
-        #                 ant2 = tb.getcol('ANTENNA2', ll * nrows_ms, nrows_ms)
-        #                 autoidx, = np.where(ant1 == ant2)
-        #                 autoidx += ll * nrows_ms
-        #                 ampt = []
-        #                 for l in autoidx:
-        #                     ampt.append(tb.getcell('DATA', l))
-        #                 amp_auto.append(np.sqrt(np.abs(ampt)))
-        #             tb.close()
-        #             # os.system('rm -rf {}'.format(tmpfile))
-        #         else:
-        #             os.system('cp -r {} {}'.format(caltbs_autoamp[0], caltbs_autoamp[p]))
-        #         nrows_caltb = nsolint * nant
-        #         tb.open(caltbs_autoamp[p], nomodify=False)
-        #         for ll in range(nspw):
-        #             cparam = np.moveaxis(np.array(amp_auto[ll]), 0, 2)[p * 2:p * 2 + 2]
-        #             tb.putcol('CPARAM', cparam + 0j, ll * nrows_caltb, nrows_caltb)
-        #             paramerr = tb.getcol('PARAMERR', ll * nrows_caltb, nrows_caltb)
-        #             tb.putcol('PARAMERR', paramerr * 0, ll * nrows_caltb, nrows_caltb)
-        #             ant1 = tb.getcol('ANTENNA1', ll * nrows_caltb, nrows_caltb)
-        #             flagidx, = np.where(ant1 >= 13)
-        #             flag = tb.getcol('FLAG', ll * nrows_caltb, nrows_caltb)
-        #             flag[:] = False
-        #             flag[:, :, flagidx] = True
-        #             tb.putcol('FLAG', flag, ll * nrows_caltb, nrows_caltb)
-        #             snr = tb.getcol('SNR', ll * nrows_caltb, nrows_caltb)
-        #             snr[:] = 100.0
-        #             snr[:, :, flagidx] = 0.0
-        #             tb.putcol('SNR', snr, ll * nrows_caltb, nrows_caltb)
-        #         tb.close()
-        #         casalog.post("Scaling calibration of pol {} is derived for {}".format(pol, vis))
-        #         print "Scaling calibration of pol {} is derived for {}".format(pol, vis)
-        #     except:
-        #         caltbs_autoamp.pop(p)
-        #         casalog.post("Fail to derive Scaling calibration of pol {} for {}".format(pol, vis))
-        #         print "Fail to derive Scaling calibration of pol {} for {}".format(pol, vis)
-
-    para_pha = []
-    para_amp = []
-    calpha = np.zeros((nspw, 15, 2))
-    calamp = np.zeros((nspw, 15, 2))
-    for s in range(nspw):
-        for n in range(15):
-            for p in range(2):
-                calpha[s, n, p] = pha[n, p, bd[s]]
-                calamp[s, n, p] = amp[n, p, bd[s]]
-                para_pha.append(np.degrees(pha[n, p, bd[s]]))
-                para_amp.append(amp[n, p, bd[s]])
+        para_pha = []
+        para_amp = []
+        calpha = np.zeros((nspw, 15, 2))
+        calamp = np.zeros((nspw, 15, 2))
+        for s in range(nspw):
+            for n in range(15):
+                for p in range(2):
+                    calpha[s, n, p] = pha[n, p, bd[s]]
+                    calamp[s, n, p] = amp[n, p, bd[s]]
+                    para_pha.append(np.degrees(pha[n, p, bd[s]]))
+                    para_amp.append(amp[n, p, bd[s]])
 
     if ('refpha' in caltype) or ('refcal' in caltype):
         # caltb_pha = os.path.basename(vis).replace('.ms', '.refpha')
@@ -247,6 +128,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=True, 
                    pol='X,Y', spw='0~' + str(nspw - 1), parameter=para_amp)
         gaintables.append(caltb_amp)
 
+    #calibration for the change of delay center between refcal time and beginning of scan -- hopefully none!  
     xml, buf = ch.read_calX(4, t=[t_ref, btime], verbose=False)
     if buf:
         dly_t2 = Time(stf.extract(buf[0], xml['Timestamp']), format='lv')
@@ -257,7 +139,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=True, 
         dlycen_ns_diff = dlycen_ns2 - dlycen_ns1
         for n in range(2):
             dlycen_ns_diff[:, n] -= dlycen_ns_diff[0, n]
-        print 'Multi-band delay is derived from delay center at {} & {}'.format(dly_t1.iso, dly_t2.iso)
+        print 'Multi-band delay is derived from delay center difference at {} & {}'.format(dly_t1.iso, dly_t2.iso)
         # print '=====Delays relative to Ant 14====='
         # for i, dl in enumerate(dlacen_ns_diff[:, 0] - dlacen_ns_diff[13, 0]):
         #     ant = antlist[i]
@@ -272,16 +154,16 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=True, 
 
     if 'phacal' in caltype:
         phacals = np.array(ra.sql2phacalX([bt, et], neat=True, verbose=False))
-        t_phas = Time([phacal['t_pha'] for phacal in phacals])
-        # sort the array in ascending order by t_pha
-        sinds = t_phas.mjd.argsort()
-        t_phas = t_phas[sinds]
-        phacals = phacals[sinds]
-        caltbs_phambd = []
-        # first generate all phacal calibration tables if not already exist
-        if len(phacals) == 0:
+        if not phacals or len(phacals) == 0:
             print "Found no phacal records in SQL database, will skip phase calibration"
         else:
+            # first generate all phacal calibration tables if not already exist
+            t_phas = Time([phacal['t_pha'] for phacal in phacals])
+            # sort the array in ascending order by t_pha
+            sinds = t_phas.mjd.argsort()
+            t_phas = t_phas[sinds]
+            phacals = phacals[sinds]
+            caltbs_phambd = []
             for i, phacal in enumerate(phacals):
                 # filter out phase cals with reference time stamp >30 min away from the provided refcal time
                 if (phacal['t_ref'].jd - refcal['timestamp'].jd) > 30. / 1440.:
@@ -299,99 +181,99 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=True, 
                     if not os.path.exists(caltb_phambd):
                         gencal(vis=vis, caltable=caltb_phambd, caltype='mbd', pol='X,Y', antenna=antennas,
                                parameter=phambd_ns.flatten().tolist())
-        # now decides which table to apply depending on the interpolation method ("neatest" or "linear")
-        if interp == 'nearest':
-            tbind = np.argmin(np.abs(t_phas.mjd - t_mid.mjd))
-            dt = np.min(np.abs(t_phas.mjd - t_mid.mjd)) * 24.
-            print "Selected nearest phase calibration table at " + t_phas[tbind].iso
-            gaintables.append(caltbs_phambd[tbind])
-        if interp == 'linear':
-            # bphacal = ra.sql2phacalX(btime)
-            # ephacal = ra.sql2phacalX(etime,reverse=True)
-            bt_ind, = np.where(t_phas.mjd < btime.mjd)
-            et_ind, = np.where(t_phas.mjd > etime.mjd)
-            if len(bt_ind) == 0 and len(et_ind) == 0:
-                print "No phacal found before or after the ms data within the day of observation"
-                print "Skipping daily phase calibration"
-            elif len(bt_ind) > 0 and len(et_ind) == 0:
-                gaintables.append(caltbs_phambd[bt_ind[-1]])
-            elif len(bt_ind) == 0 and len(et_ind) > 0:
-                gaintables.append(caltbs_phambd[et_ind[0]])
-            elif len(bt_ind) > 0 and len(et_ind) > 0:
-                bphacal = phacals[bt_ind[-1]]
-                ephacal = phacals[et_ind[0]]
-                # generate a new table interpolating between two daily phase calibrations
-                t_pha_mean = Time(np.mean([bphacal['t_pha'].mjd, ephacal['t_pha'].mjd]), format='mjd')
-                phambd_ns = (bphacal['pslope'] + ephacal['pslope']) / 2.
-                for n in range(2): phambd_ns[:, n] -= phambd_ns[0, n]
-                # set all flagged values to be zero
-                phambd_ns[np.where(bphacal['flag'] == 1)] = 0.
-                phambd_ns[np.where(ephacal['flag'] == 1)] = 0.
-                caltb_phambd_interp = dirname + t_pha_mean.isot[:-4].replace(':', '').replace('-', '') + '.phambd'
-                if not os.path.exists(caltb_phambd_interp):
-                    gencal(vis=vis, caltable=caltb_phambd_interp, caltype='mbd', pol='X,Y', antenna=antennas,
-                           parameter=phambd_ns.flatten().tolist())
-                print "Using phase calibration table interpolated between records at " + \
-                      bphacal['t_pha'].iso + ' and ' + ephacal['t_pha'].iso
-                gaintables.append(caltb_phambd_interp)
 
+            # now decides which table to apply depending on the interpolation method ("neatest" or "linear")
+            if interp == 'nearest':
+                tbind = np.argmin(np.abs(t_phas.mjd - t_mid.mjd))
+                dt = np.min(np.abs(t_phas.mjd - t_mid.mjd)) * 24.
+                print "Selected nearest phase calibration table at " + t_phas[tbind].iso
+                gaintables.append(caltbs_phambd[tbind])
+            if interp == 'linear':
+                # bphacal = ra.sql2phacalX(btime)
+                # ephacal = ra.sql2phacalX(etime,reverse=True)
+                bt_ind, = np.where(t_phas.mjd < btime.mjd)
+                et_ind, = np.where(t_phas.mjd > etime.mjd)
+                if len(bt_ind) == 0 and len(et_ind) == 0:
+                    print "No phacal found before or after the ms data within the day of observation"
+                    print "Skipping daily phase calibration"
+                elif len(bt_ind) > 0 and len(et_ind) == 0:
+                    gaintables.append(caltbs_phambd[bt_ind[-1]])
+                elif len(bt_ind) == 0 and len(et_ind) > 0:
+                    gaintables.append(caltbs_phambd[et_ind[0]])
+                elif len(bt_ind) > 0 and len(et_ind) > 0:
+                    bphacal = phacals[bt_ind[-1]]
+                    ephacal = phacals[et_ind[0]]
+                    # generate a new table interpolating between two daily phase calibrations
+                    t_pha_mean = Time(np.mean([bphacal['t_pha'].mjd, ephacal['t_pha'].mjd]), format='mjd')
+                    phambd_ns = (bphacal['pslope'] + ephacal['pslope']) / 2.
+                    for n in range(2): phambd_ns[:, n] -= phambd_ns[0, n]
+                    # set all flagged values to be zero
+                    phambd_ns[np.where(bphacal['flag'] == 1)] = 0.
+                    phambd_ns[np.where(ephacal['flag'] == 1)] = 0.
+                    caltb_phambd_interp = dirname + t_pha_mean.isot[:-4].replace(':', '').replace('-', '') + '.phambd'
+                    if not os.path.exists(caltb_phambd_interp):
+                        gencal(vis=vis, caltable=caltb_phambd_interp, caltype='mbd', pol='X,Y', antenna=antennas,
+                               parameter=phambd_ns.flatten().tolist())
+                    print "Using phase calibration table interpolated between records at " + \
+                          bphacal['t_pha'].iso + ' and ' + ephacal['t_pha'].iso
+                    gaintables.append(caltb_phambd_interp)
 
-if docalib:
-    clearcal(vis)
-    applycal(vis=vis, gaintable=gaintables, applymode='calflag', calwt=False)
-    # delete the interpolated phase calibration table
-    try:
-        caltb_phambd_interp
-    except:
-        pass
-    else:
-        if os.path.exists(caltb_phambd_interp):
-            shutil.rmtree(caltb_phambd_interp)
-if flagant:
-    flagdata(vis=vis, antenna=flagant)
-
-if doimage:
-    from suncasa.eovsa import eovsa_prep as ep
-    from sunpy import map as smap
-
-    antenna = '0~12'
-    if not stokes:
-        stokes = 'XX'
-    (yr, mon, day) = (bt.datetime.year, bt.datetime.month, bt.datetime.day)
-    dirname = imgdir + str(yr) + '/' + str(mon).zfill(2) + '/' + str(day).zfill(2) + '/'
-    if not os.path.exists(dirname):
-        os.makedirs(dirname)
-    bds = ['1~3']
-    nbd = len(bds)
-    imgs = []
-    for bd in bds:
-        imname = dirname + os.path.basename(vis).replace('.ms', '.bd' + str(bd).zfill(2))
-        print 'Cleaning image: ' + imname
+    if docalib:
+        clearcal(vis)
+        applycal(vis=vis, gaintable=gaintables, applymode='calflag', calwt=False)
+        # delete the interpolated phase calibration table
         try:
-            clean(vis=vis, imagename=imname, antenna=antenna, spw=bd, imsize=[512],
-                  cell=['5.0arcsec'], stokes=stokes, niter=500)
+            caltb_phambd_interp
         except:
-            print 'clean not successfull for band ' + str(bd)
+            pass
         else:
-            imgs.append(imname + '.image')
-        junks = ['.flux', '.mask', '.model', '.psf', '.residual']
-        for junk in junks:
-            if os.path.exists(imname + junk):
-                shutil.rmtree(imname + junk)
+            if os.path.exists(caltb_phambd_interp):
+                shutil.rmtree(caltb_phambd_interp)
+    if flagant:
+        flagdata(vis=vis, antenna=flagant)
 
-    reftime = [btime.iso + '~' + etime.iso] * nbd
-    fitsfiles = [img.replace('.image', '.fits') for img in imgs]
-    ep.imreg(vis=vis, reftime=reftime, imagefile=imgs, fitsfile=fitsfiles)
-    plt.figure(figsize=(6, 6))
-    for i, fitsfile in enumerate(fitsfiles):
-        plt.subplot(1, nbd, i + 1)
-        eomap = smap.Map(fitsfile)
-        sz = eomap.data.shape
-        if len(sz) == 4:
-            eomap.data = eomap.data.reshape((sz[2], sz[3]))
-        eomap.plot_settings['cmap'] = plt.get_cmap('jet')
-        eomap.plot()
-        eomap.draw_limb()
-        eomap.draw_grid()
+    if doimage:
+        from suncasa.eovsa import eovsa_prep as ep
+        from sunpy import map as smap
 
-    plt.show()
+        antenna = '0~12'
+        if not stokes:
+            stokes = 'XX'
+        (yr, mon, day) = (bt.datetime.year, bt.datetime.month, bt.datetime.day)
+        dirname = imgdir + str(yr) + '/' + str(mon).zfill(2) + '/' + str(day).zfill(2) + '/'
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        bds = ['1~3']
+        nbd = len(bds)
+        imgs = []
+        for bd in bds:
+            imname = dirname + os.path.basename(vis).replace('.ms', '.bd' + str(bd).zfill(2))
+            print 'Cleaning image: ' + imname
+            try:
+                clean(vis=vis, imagename=imname, antenna=antenna, spw=bd, imsize=[512],
+                      cell=['5.0arcsec'], stokes=stokes, niter=500)
+            except:
+                print 'clean not successfull for band ' + str(bd)
+            else:
+                imgs.append(imname + '.image')
+            junks = ['.flux', '.mask', '.model', '.psf', '.residual']
+            for junk in junks:
+                if os.path.exists(imname + junk):
+                    shutil.rmtree(imname + junk)
+
+        reftime = [btime.iso + '~' + etime.iso] * nbd
+        fitsfiles = [img.replace('.image', '.fits') for img in imgs]
+        ep.imreg(vis=vis, reftime=reftime, imagefile=imgs, fitsfile=fitsfiles)
+        plt.figure(figsize=(6, 6))
+        for i, fitsfile in enumerate(fitsfiles):
+            plt.subplot(1, nbd, i + 1)
+            eomap = smap.Map(fitsfile)
+            sz = eomap.data.shape
+            if len(sz) == 4:
+                eomap.data = eomap.data.reshape((sz[2], sz[3]))
+            eomap.plot_settings['cmap'] = plt.get_cmap('jet')
+            eomap.plot()
+            eomap.draw_limb()
+            eomap.draw_grid()
+
+        plt.show()
