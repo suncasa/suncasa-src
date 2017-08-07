@@ -5,9 +5,7 @@ from math import *
 # import jdutil
 import bisect
 import pdb
-from taskinit import ms 
-from taskinit import iatool
-from taskinit import qa
+from taskinit import ms, tb, qa, iatool
 from astropy.time import Time
 
 try:
@@ -25,7 +23,7 @@ def read_horizons(vis):
     import urllib2
     import ssl
     if not os.path.exists(vis):
-        print 'Input ms data '+vis+' does not exist! '
+        print 'Input ms data ' + vis + ' does not exist! '
         return -1
     try:
         ms.open(vis)
@@ -33,12 +31,27 @@ def read_horizons(vis):
         ms.close()
         btime = Time(summary['BeginTime'], format='mjd')
         etime = Time(summary['EndTime'], format='mjd')
+        ## alternative way to avoid conflicts with importeovsa, if needed -- more time consuming
+        # tb.open(vis + '/OBSERVATION')
+        # trs = {'BegTime': [], 'EndTime': []}
+        # for ll in range(tb.nrows()):
+        #    tim0, tim1 = Time(tb.getcell('TIME_RANGE', ll) / 24 / 3600, format='mjd')
+        #    trs['BegTime'].append(tim0)
+        #    trs['EndTime'].append(tim1)
+        # tb.close()
+        # trs['BegTime'] = Time(trs['BegTime'])
+        # trs['EndTime'] = Time(trs['EndTime'])
+        # btime = np.min(trs['BegTime'])
+        # etime = np.max(trs['EndTime'])
         print "Beginning time of this scan " + btime.iso
         print "End time of this scan " + etime.iso
         context = ssl._create_unverified_context()
-        f = urllib2.urlopen("http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='-81@399'&COMMAND='10'&START_TIME='"+btime.iso.replace(' ',',')+"'&STOP_TIME='"+etime.iso[:-4].replace(' ',',')+"'&STEP_SIZE='1m'&SKIP_DAYLT='NO'", context=context)
+        f = urllib2.urlopen(
+            "http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='-81@399'&COMMAND='10'&START_TIME='" + btime.iso.replace(
+                ' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ', ',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'",
+            context=context)
     except:
-        print 'error in reading ms file: '+vis+' to obtain the ephemeris!'
+        print 'error in reading ms file: ' + vis + ' to obtain the ephemeris!'
         return -1
     # inputs:
     #   ephemfile:
@@ -62,7 +75,7 @@ def read_horizons(vis):
     lines = f.readlines()
     f.close()
     nline = len(lines)
-    istart=0
+    istart = 0
     for i in range(nline):
         line = lines[i]
         if line[0:5] == '$$SOE':  # start recording
@@ -72,26 +85,27 @@ def read_horizons(vis):
     newlines = lines[istart:iend]
     nrec = len(newlines)
     ephem_ = []
-    t=[]
-    ra=[]
-    dec=[]
-    p0=[]
-    delta=[]
+    t = []
+    ra = []
+    dec = []
+    p0 = []
+    delta = []
     for line in newlines:
-        items=line.split(',')
-        #t.append({'unit':'mjd','value':Time(float(items[1]),format='jd').mjd})
-        #ra.append({'unit': 'rad', 'value': np.radians(float(items[4]))}) 
-        #dec.append({'unit': 'rad', 'value': np.radians(float(items[5]))}) 
-        #p0.append({'unit': 'deg', 'value': float(items[6])})
-        #delta.append({'unit': 'au', 'value': float(items[8])})
-        t.append(Time(float(items[1]),format='jd').mjd)
-        ra.append(np.radians(float(items[4]))) 
-        dec.append(np.radians(float(items[5]))) 
+        items = line.split(',')
+        # t.append({'unit':'mjd','value':Time(float(items[1]),format='jd').mjd})
+        # ra.append({'unit': 'rad', 'value': np.radians(float(items[4]))})
+        # dec.append({'unit': 'rad', 'value': np.radians(float(items[5]))})
+        # p0.append({'unit': 'deg', 'value': float(items[6])})
+        # delta.append({'unit': 'au', 'value': float(items[8])})
+        t.append(Time(float(items[1]), format='jd').mjd)
+        ra.append(np.radians(float(items[4])))
+        dec.append(np.radians(float(items[5])))
         p0.append(float(items[6]))
         delta.append(float(items[8]))
     # convert list of dictionary to a dictionary of arrays
     ephem = {'time': t, 'ra': ra, 'dec': dec, 'p0': p0, 'delta': delta}
     return ephem
+
 
 def read_msinfo(vis=None, msinfofile=None):
     # read MS information #
@@ -136,6 +150,7 @@ def read_msinfo(vis=None, msinfofile=None):
                  ras=ras, decs=decs)
     return msinfo
 
+
 def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None, correct_phac=False):
     '''1. Take a solar ms database, read the scan and field information, find out the pointings (in RA and DEC)
        2. Compare with the ephemeris of the solar disk center (in RA and DEC)
@@ -178,9 +193,9 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
     if not vis or not os.path.exists(vis):
         raise ValueError, 'Please provide information of the MS database!'
     if not ephem:
-        ephem=read_horizons(vis)
+        ephem = read_horizons(vis)
     if not msinfo:
-        msinfo0=read_msinfo(vis)
+        msinfo0 = read_msinfo(vis)
     else:
         if isinstance(msinfo, str):
             try:
@@ -208,7 +223,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
     # find out phase center infomation in ms according to the input time or timerange #
     if not reftime:
         raise ValueError, 'Please specify a reference time of the image'
-    if type(reftime)==str:
+    if type(reftime) == str:
         reftime = [reftime]
     if (not isinstance(reftime, list)):
         print 'input "reftime" is not a valid list. Abort...'
@@ -327,8 +342,9 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
         helio.append(helio0)
     return helio
 
+
 def getbeam(imagefile=None, beamfile=None):
-    ia=iatool()
+    ia = iatool()
     if not imagefile:
         raise ValueError, 'Please specify input images'
     bmaj = []
@@ -393,8 +409,8 @@ def getbeam(imagefile=None, beamfile=None):
 
 
 def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsfile=None, beamfile=None, \
-          offsetfile=None, toTb=None, scl100=None, verbose=False, p_ang = False, overwrite = True):
-    ia=iatool()
+          offsetfile=None, toTb=None, scl100=None, verbose=False, p_ang=False, overwrite=True):
+    ia = iatool()
     if not imagefile:
         raise ValueError, 'Please specify input image'
     if not reftime:
@@ -408,7 +424,7 @@ def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsf
     nimg = len(imagefile)
     if verbose:
         print str(nimg) + ' images to process...'
-    helio = ephem_to_helio(vis,ephem=ephem,msinfo=msinfo,reftime=reftime)
+    helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=reftime)
     for n, img in enumerate(imagefile):
         if verbose:
             print 'processing image #' + str(n)
@@ -475,12 +491,12 @@ def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsf
             hel['p0'] = 0
         try:
             # this works for pyfits version of CASA 4.7.0 but not CASA 4.6.0
-            header.update('exptime',hel['exptime'])
-            header.update('p_angle',hel['p0'])
+            header.update('exptime', hel['exptime'])
+            header.update('p_angle', hel['p0'])
         except:
             # this works for astropy.io.fits
-            header.append(('exptime',hel['exptime']))
-            header.append(('p_angle',hel['p0']))
+            header.append(('exptime', hel['exptime']))
+            header.append(('p_angle', hel['p0']))
 
         # header.update('comment', 'Fits header updated to heliocentric coordinates by Bin Chen')
 
