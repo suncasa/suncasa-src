@@ -407,4 +407,4 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
             msname = os.path.basename(vis[0])
             msname = msname.split('.')[0] + '_concat.ms'
             visprefix = os.path.dirname(vis[0]) + '/'
-            ce.concateovsa(msname, vis, visprefix, keep_orig_ms=keep_orig_ms, cols2rm=["MODEL_DATA"])
+            ce.concateovsa(msname, vis, visprefix, doclearcal=False, keep_orig_ms=keep_orig_ms, cols2rm=["MODEL_DATA"])
