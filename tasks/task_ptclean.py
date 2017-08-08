@@ -163,10 +163,13 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, usephacenter, overwrite,
     freq = timfreq['axis_info']['freq_axis']['chan_freq'].flatten()
     ms.close()
 
-    if twidth < 1 or twidth > len(tim):
-        casalog.post('twidth not between 1 and # of time pixels in the dataset. Change to 1')
+    if twidth < 1:
+        casalog.post('twidth less than 1. Change to 1')
         twidth = 1
 
+    if twidth > len(tim):
+        casalog.post('twidth greater than # of time pixels in the dataset. Change to the timerange of the entire dateset')
+        twidth = len(tim)
     # find out the start and end time index according to the parameter timerange
     # if not defined (empty string), use start and end from the entire time of the ms
     if not timerange:
