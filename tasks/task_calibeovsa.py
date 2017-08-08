@@ -13,6 +13,7 @@ from eovsapy import cal_header as ch
 from eovsapy import stateframe as stf
 from matplotlib import pyplot as plt
 from eovsapy import dbutil as db
+from importeovsa_cli import importeovsa_cli as importeovsa
 
 # check if the calibration table directory is defined
 caltbdir = os.getenv('EOVSACAL')
@@ -38,7 +39,8 @@ if not udbdir:
 
 
 def trange2ms(trange=None, verbose=False, doscaling=True):
-    '''This finds all solar UDBms files within a timerange
+    '''This finds all solar UDBms files within a timerange; If the UDBms file does not exist 
+       in EOVSAUDBMSSCL, create one by calling importeovsa
 
        Required inputs:
        trange - can be 1) a single Time() object: use the entire day
@@ -111,8 +113,8 @@ def trange2ms(trange=None, verbose=False, doscaling=True):
         return [outpath + ll + '.ms' for ll in sorted(list(msfiles))]
 
 
-def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False, flagant='13~15', stokes=None,
-               doconcat=False, keep_orig_ms=True):
+def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, flagant='13~15', qlookimage=False, stokes=None,
+               doconcat=False, msoutdir='./', keep_orig_ms=True):
     '''
 
     :param vis: can be 1) a single Time() object: use the entire day
@@ -122,7 +124,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
     :param caltype:
     :param interp:
     :param docalib:
-    :param doimage:
+    :param qlookimage:
     :param flagant:
     :param stokes:
     :param doconcat:
@@ -131,7 +133,6 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
 
     if type(vis) == Time:
         vis = trange2ms(trange=vis)
-
     if type(vis) == str:
         vis = [vis]
 
@@ -140,7 +141,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
             vis[idx] = f[:-1]
 
     for msfile in vis:
-        casalog.origin('eovsacalib')
+        casalog.origin('calibeovsa')
         if not caltype:
             casalog.post("Caltype not provided. Perform reference phase calibration and daily phase calibration.")
             caltype = ['refpha', 'phacal']  ## use this line after the phacal is applied
@@ -352,10 +353,14 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
             else:
                 if os.path.exists(caltb_phambd_interp):
                     shutil.rmtree(caltb_phambd_interp)
-        if flagant:
-            flagdata(vis=msfile, antenna=flagant)
+        if doflag:
+            if flagant:
+                try:
+                    flagdata(vis=msfile, antenna=flagant)
+                except:
+                    print "Something wrong with flagant. Abort..."
 
-        if doimage:
+        if qlookimage:
             from suncasa.eovsa import eovsa_prep as ep
             from sunpy import map as smap
 
@@ -406,5 +411,8 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
             from suncasa.eovsa import concateovsa as ce
             msname = os.path.basename(vis[0])
             msname = msname.split('.')[0] + '_concat.ms'
-            visprefix = os.path.dirname(vis[0]) + '/'
+            visprefix = msoutdir+'/'
             ce.concateovsa(msname, vis, visprefix, doclearcal=False, keep_orig_ms=keep_orig_ms, cols2rm=["MODEL_DATA"])
+            return [visprefix+msname]
+    else:
+        return vis

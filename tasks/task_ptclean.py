@@ -1,7 +1,8 @@
 import os
 from taskinit import *
 import numpy as np
-from suncasa.vla import vla_prep
+#from suncasa.vla import vla_prep
+from suncasa.eovsa import eovsa_prep as ep
 import shutil
 import multiprocessing as mp
 from functools import partial
@@ -11,7 +12,7 @@ import pdb
 
 
 def clean_iter(tim, freq, vis, imageprefix,
-               ncpu, twidth, doreg, overwrite, ephemfile, ephem, msinfofile,
+               ncpu, twidth, doreg, usephacenter, ephem, msinfo, overwrite,
                outlierfile, field, spw, selectdata,
                uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
                wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
@@ -27,7 +28,8 @@ def clean_iter(tim, freq, vis, imageprefix,
     from taskinit import qa
     # from  __casac__.quanta import quanta as qa
     from __main__ import default, inp
-    from clean import clean
+    #from clean import clean
+    from clean_cli import clean_cli as clean
     bt = btidx  # 0
     if bt + twidth < len(tim) - 1:
         et = btidx + twidth - 1
@@ -55,12 +57,12 @@ def clean_iter(tim, freq, vis, imageprefix,
     btstr = qa.time(qa.quantity(bt_d, 's'), prec=9, form='fits')[0]
     print 'cleaning timerange: ' + timerange
 
-    try:
-        image0 = btstr.replace(':', '').replace('-', '')
-        imname = imageprefix + image0
-        if overwrite or (len(glob.glob(imname + '*'))==0):
-            # inp(taskname = 'clean')
-            os.system('rm -rf {}*'.format(imname))
+    image0 = btstr.replace(':', '').replace('-', '')
+    imname = imageprefix + image0
+    if overwrite or (len(glob.glob(imname + '*'))==0):
+        # inp(taskname = 'clean')
+        os.system('rm -rf {}*'.format(imname))
+        try:
             clean(vis=vis, imagename=imname, outlierfile=outlierfile, field=field,
                   spw=spw, selectdata=selectdata, timerange=timerange, uvrange=uvrange,
                   antenna=antenna, scan=scan, observation=str(observation), intent=intent,
@@ -87,35 +89,42 @@ def clean_iter(tim, freq, vis, imageprefix,
             for clnjunk in clnjunks:
                 if os.path.exists(imname + clnjunk):
                     shutil.rmtree(imname + clnjunk)
-        else:
-            print imname+' existed. Clean task aborted.'
+        except:
+            print('error in cleaning image: ' + btstr)
+            return [False, btstr, '']
+    else:
+        print imname+' exists. Clean task aborted.'
 
-        if doreg and not os.path.isfile(imname+'.fits'):
+    if doreg and not os.path.isfile(imname+'.fits'):
+        ephem.keys()
+        msinfo.keys()
+        try:
             # check if ephemfile and msinfofile exist
             if not ephem:
-                print("ephemeris info does not exist!")
-                return
+                print("ephemeris info does not exist, querying from JPL Horizons on the fly")
+                ephem = ep.read_horizons(vis)
+            if not msinfo:
+                print("ms info not provided, generating one on the fly")
+                msinfo = ep.read_msinfo(vis)
             reftime = [timerange]
-            helio = vla_prep.ephem_to_helio(msinfo=msinfofile, ephem=ephem, reftime=reftime)
             imagefile = [imname + '.image']
             fitsfile = [imname + '.fits']
-            vla_prep.imreg(imagefile=imagefile, fitsfile=fitsfile, helio=helio, toTb=False, scl100=True)
+            ep.imreg(vis=vis,ephem=ephem, msinfo=msinfo, reftime=reftime, imagefile=imagefile, fitsfile=fitsfile, 
+                         toTb=False, scl100=False, usephacenter=usephacenter)
             if os.path.exists(imname + '.fits'):
                 return [True, btstr, imname + '.fits']
             else:
                 return [False, btstr, '']
+        except:
+            print('error in registering image: ' + btstr)
+            return [False, btstr, '']
+    else:
+        if os.path.exists(imname + '.image'):
+            return [True, btstr, imname + '.image']
         else:
-            if os.path.exists(imname + '.image'):
-                return [True, btstr, imname + '.image']
-            else:
-                return [False, btstr, '']
+            return [False, btstr, '']
 
-    except:
-        print('error in processing image: ' + btstr)
-        return [False, btstr, '']
-
-
-def ptclean(vis, imageprefix, ncpu, twidth, doreg, overwrite, ephemfile, msinfofile,
+def ptclean(vis, imageprefix, ncpu, twidth, doreg, usephacenter, overwrite,
             outlierfile, field, spw, selectdata, timerange,
             uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
             wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
@@ -132,13 +141,15 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, overwrite, ephemfile, msinfof
         ncpu = 8
 
     if doreg:
-        # check if ephemfile and msinfofile exist
+        # check if ephem and msinfo exist. If not, generate one on the fly
         try:
-            ephem = vla_prep.read_horizons(ephemfile=ephemfile)
+            ephem = ep.read_horizons(vis)
         except ValueError:
-            print("error in reading ephemeris file")
-        if not os.path.isfile(msinfofile):
-            print("msinfofile does not exist!")
+            print("error in obtaining ephemeris")
+        try:
+            msinfo = ep.read_msinfo(vis)
+        except ValueError:
+            print("error in getting ms info")
     else:
         ephem = None
 
@@ -152,10 +163,13 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, overwrite, ephemfile, msinfof
     freq = timfreq['axis_info']['freq_axis']['chan_freq'].flatten()
     ms.close()
 
-    if twidth < 1 or twidth > len(tim):
-        casalog.post('twidth not between 1 and # of time pixels in the dataset. Change to 1')
+    if twidth < 1:
+        casalog.post('twidth less than 1. Change to 1')
         twidth = 1
 
+    if twidth > len(tim):
+        casalog.post('twidth greater than # of time pixels in the dataset. Change to the timerange of the entire dateset')
+        twidth = len(tim)
     # find out the start and end time index according to the parameter timerange
     # if not defined (empty string), use start and end from the entire time of the ms
     if not timerange:
@@ -196,7 +210,7 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, overwrite, ephemfile, msinfof
     res = []
     # partition
     clnpart = partial(clean_iter, tim, freq, vis,
-                      imageprefix, ncpu, twidth, doreg, overwrite, ephemfile, ephem, msinfofile,
+                      imageprefix, ncpu, twidth, doreg, usephacenter, ephem, msinfo, overwrite,
                       outlierfile, field, spw, selectdata,
                       uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
                       wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
