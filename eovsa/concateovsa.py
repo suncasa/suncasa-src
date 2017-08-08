@@ -25,7 +25,10 @@ def concateovsa(msname, msfiles, visprefix='./', keep_orig_ms=False, cols2rm = [
     colnames = tb.colnames()
     for l in range(len(cols2rm)):
         if cols2rm[l] in colnames:
-            tb.removecols(cols2rm[l])
+            try:
+                tb.removecols(cols2rm[l])
+            except:
+                pass
     tb.close()
     if not keep_orig_ms:
         for ll in msfiles:

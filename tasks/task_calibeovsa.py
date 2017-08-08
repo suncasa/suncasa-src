@@ -112,7 +112,7 @@ def trange2ms(trange=None, verbose=False, doscaling=True):
 
 
 def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False, flagant='13~15', stokes=None,
-               doconcat=True, keep_orig_ms=True):
+               doconcat=False, keep_orig_ms=True):
     '''
 
     :param vis: can be 1) a single Time() object: use the entire day
@@ -132,7 +132,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
     if type(vis) == Time:
         vis = trange2ms(trange=vis)
     if type(vis) == str:
-        vis = list(vis)
+        vis = [vis]
 
     for idx, f in enumerate(vis):
         if f[-1] == '/':
@@ -146,6 +146,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
             # caltype = ['refcal']
         if not os.path.exists(msfile):
             casalog.post("Input visibility does not exist. Aborting...")
+            continue
         if msfile.endswith('/'):
             msfile = msfile[:-1]
         if not msfile[-3:] in ['.ms', '.MS']:
@@ -400,8 +401,9 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
             plt.show()
 
     if doconcat:
-        from suncasa.eovsa import concateovsa as ce
-        msname = os.path.basename(vis[0])
-        msname = msname.split('.')[0] + '_concat.ms'
-        visprefix = os.path.dirname(vis[0]) + '/'
-        ce.concateovsa(msname, vis, visprefix, keep_orig_ms=keep_orig_ms, cols2rm=["CORRECTED_DATA"])
+        if len(vis) > 1:
+            from suncasa.eovsa import concateovsa as ce
+            msname = os.path.basename(vis[0])
+            msname = msname.split('.')[0] + '_concat.ms'
+            visprefix = os.path.dirname(vis[0]) + '/'
+            ce.concateovsa(msname, vis, visprefix, keep_orig_ms=keep_orig_ms, cols2rm=["MODEL_DATA"])
