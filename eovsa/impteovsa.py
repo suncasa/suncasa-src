@@ -4,8 +4,7 @@ import aipy
 import time
 import os
 import scipy.constants as constants
-from taskinit import sm, me, casalog
-
+from taskinit import smtool, me, casalog
 
 def jd2mjds(tjd=None):
     tmjds = (tjd - 2400000.5) * 24. * 3600.
@@ -42,7 +41,8 @@ def get_band_edge(nband=34):
 def get_band(sfreq=None, sdf=None):
     # Input the frequencies from UV
     # return a dictionary contains the band information:
-    # freq, df
+    # freq : center frequency of channels
+    # df :  frequency resolution
     # list of channel index 'cidx': the length of the list is the number of channels in this band
     # list of channel index in a band with filled gap 'cidxstd': the index of channels in this band
     # and the grouped index list cidxstd_group
@@ -127,12 +127,13 @@ def creatms(idbfile, outpath, timebin=None, width=None):
     source_id = uv['source'].replace('\x00', '')
     chan_band = get_band(sfreq=sfreq, sdf=sdf)
     msname = list(idbfile.split('/')[-1])
-    msname = outpath + ''.join(msname) + '-10m.ms'
+    msname = outpath + ''.join(msname) + '_tmp.ms'
 
     if os.path.exists(msname):
         os.system("rm -fr %s" % msname)
 
     """ Creates an empty measurement set using CASA simulate (sm) tool. """
+    sm = smtool()
     sm.open(msname)
 
     enu = np.reshape(uv['antpos'], (16, 3)) * constants.speed_of_light / 1e9
@@ -192,15 +193,15 @@ def creatms(idbfile, outpath, timebin=None, width=None):
     for l, cband in enumerate(chan_band):
         nchannels = len(cband['cidx'])
         stokes = 'XX YY XY YX'
-
         sm.setspwindow(spwname='band{:02d}'.format(cband['band']),
-                       freq='{:22.19f}'.format(cband['freq'][0]) + 'GHz',
+                       freq='{:22.19f}'.format(cband['freq'][0] - cband['df'] / 2.0) + 'GHz',
                        deltafreq='{:22.19f}'.format(cband['df']) + 'GHz',
                        freqresolution='{:22.19f}'.format(cband['df']) + 'GHz',
                        nchannels=nchannels,
                        stokes=stokes)
 
     for l, cband in enumerate(chan_band):
+        print('sm-band{}'.format(cband['band']))
         sm.observe(source_id, 'band{:02d}'.format(cband['band']),
                    starttime=start_time, stoptime=end_time,
                    project=project,
@@ -212,6 +213,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
         raise RuntimeError('Failed to create MS. Look at the log file. '
                            'Double check you settings.')
 
+    sm.close()
     modelms = msname + '.MSmodel'
     os.system('mv {} {}'.format(msname, modelms))
 

@@ -10,7 +10,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 <!--                                                          -->
 
 <task type="function" name="pmaxfit" category="analysis">
-pmaxfit(imagefiles, ncpu=8, box='')
+pmaxfit(imagefiles, ncpu=8, box='', width=5)
 
     <shortdescription>Find maximum and do parabolic fit in the sky</shortdescription>
 
@@ -74,6 +74,11 @@ pmaxfit(imagefiles, ncpu=8, box='')
             <description>Rectangular region(s) to select in direction plane. See "help par.box" for details. Default is to use the entire direction plane.</description>
             <value/>
             <example>box='100,120,200,200'</example>
+        </param>
+
+        <param type="int" name="width">
+          <description>Half-width of fit grid</description>
+          <value>5</value>
         </param>
         CONSTRAINTS
         <constraints>

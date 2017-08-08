@@ -7,139 +7,170 @@ xsi:schemaLocation="http://casa.nrao.edu/schema/casa.xsd
 file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 
 
-    <task type="function" name="importeovsa" category="Import/export">
-        importeovsa(idbfiles,
-        timebin=None,
-        width=None,
-        visprefix=None,
-        nocreatms=False,
-        doconcat=False,
-        modelms=''):
+<task type="function" name="importeovsa" category="Import/export">
+<!--importeovsa(idbfiles='',-->
+        <!--ncpu=1,-->
+        <!--timebin=None,-->
+        <!--width=None,-->
+        <!--visprefix=None,-->
+        <!--nocreatms=False,-->
+        <!--doconcat=False,-->
+        <!--modelms='',-->
+        <!--doscaling=False,-->
+        <!--keep_nsclms=False):-->
 
-        <shortdescription>Import EOVSA idb file(s) to a measurement set or multiple measurement set</shortdescription>
+    <shortdescription>Parallelized import EOVSA idb file(s) to a measurement set or multiple measurement set.</shortdescription>
 
-        <description>
-            Imports an arbitrary number of EOVSA idb-format data sets into
-            a casa measurement set.  If more than one band is present, they
-            will be put in the same measurement set but in a separate spectral
-            window.
-        </description>
+    <description>
+        Parallelized imports an arbitrary number of EOVSA idb-format data sets into
+        a casa measurement set. If more than one band is present, they
+        will be put in the same measurement set but in a separate spectral
+        window.
+    </description>
 
-        <example>
+    <example>
 
-            Imports an arbitrary number of EOVSA idb-format data sets into
-            a casa measurement set.  If more than one band is present, they
-            will be put in the same measurement set but in a separate spectral
-            window.
+        Parallelized imports an arbitrary number of EOVSA idb-format data sets into
+        a casa measurement set. If more than one band is present, they
+        will be put in the same measurement set but in a separate spectral
+        window.
 
-            Detailed Keyword arguments:
+        Detailed Keyword arguments:
 
-            idbfiles -- Name of input EOVSA idb file(s) or observation time range
-                    default: none.  Must be supplied
-                    example: idbfiles = 'IDB20160524000518'
-                    example: idbfiles=['IDB20160524000518','IDB20160524000528']
-                    example: idbfiles=['2016-08-09 12:10:00','2016-08-09 12:50:00']
+        idbfiles -- Name of input EOVSA idb file(s)
+        default: none. Must be supplied
+        example: idbfiles = 'IDB20160524000518'
+        example: idbfiles=['IDB20160524000518','IDB20160524000528']
 
-            visprefix -- Prefix of vis names (may include the path)
-            default: none;
-            example: visprefix='sun/']
+        ncpu -- Number of cpu cores to use
+        default: 8
 
-
-            --- Data Selection ---
-
-            nocreatms -- If copying a new MS file instead of create one from MS simulator.
-            default: False
-
-            modelms -- Name of the standard Measurement Set. IF modelms is not provided, use
-            '/home/user/sjyu/20160531/ms/sun/SUN/SUN_20160531T142234-10m.1s.ms' as a standard MS.
-
-            doconcat -- If outputing one single MS file
+        visprefix -- Prefix of vis names (may include the path)
+        default: none;
+        example: visprefix='sun/']
 
 
-            --- Channel averaging parameter ---
+        --- Data Selection ---
 
-            width -- Number of input channels to average to create an output
-            channel. If a list is given, each bin will apply to one spw in
-            the selection.
-            default: 1 =&gt; no channel averaging.
-            options: (int) or [int]
+        nocreatms -- If copying a new MS file instead of create one from MS simulator.
+        default: False
 
-            example: chanbin=[2,3] =&gt; average 2 channels of 1st selected
-            spectral window and 3 in the second one.
+        modelms -- Name of the standard Measurement Set. IF modelms is not provided, use
+        '/home/user/sjyu/20160531/ms/sun/SUN/SUN_20160531T142234-10m.1s.ms' as a standard MS.
 
-
-            --- Time averaging parameters ---
-
-            timebin -- Bin width for time averaging. When timebin is greater than 0s,
-            the task will average data in time. Flagged data will be included
-            in the average calculation, unless the parameter keepflags is set to False.
-            In this case only partially flagged rows will be used in the average.
-            default: '0s'
-
-            <!--combine &#45;&#45; Let the timebin span across scan, state or both.-->
-            <!--State is equivalent to sub-scans. One scan may have several-->
-            <!--state ids. For ALMA MSs, the sub-scans are limited to about-->
-            <!--30s duration each. In these cases, the task will automatically-->
-            <!--add state to the combine parameter. To see the number of states-->
-            <!--in an MS, use the msmd tool. See help msmd.-->
+        doconcat -- If outputing one single MS file
 
 
-        </example>
+        --- Channel averaging parameter ---
 
-        <input>
-            <param type="any" name="idbfiles" mustexist="true">
-                <description>Name of input EOVSA idb file(s) or observation time range.</description>
-                <any type="variant" limittypes="string stringArray"/>
-                <value type="string"></value>
-            </param>
+        width -- Number of input channels to average to create an output
+        channel. If a list is given, each bin will apply to one spw in
+        the selection.
+        default: 1 =&gt; no channel averaging.
+        options: (int) or [int]
+
+        example: chanbin=[2,3] =&gt; average 2 channels of 1st selected
+        spectral window and 3 in the second one.
 
 
-            <!-- SELECTION parameters -->
-            <!-- TIME AVERAGING parameters -->
-            <param type="string" name="timebin">
-                <description>Bin width for time averaging</description>
-                <value type="string">0s</value>
-            </param>
+        --- Time averaging parameters ---
 
-            <!-- CHANNEL AVERAGING parameters -->
-            <param type="any" name="width">
-                <description>Width of output channel relative to MS channel (# to average)</description>
-                <any type="variant" limittypes="string stringArray int intArray"/>
-                <value type="int">1</value>
-            </param>
+        timebin -- Bin width for time averaging. When timebin is greater than 0s,
+        the task will average data in time. Flagged data will be included
+        in the average calculation, unless the parameter keepflags is set to False.
+        In this case only partially flagged rows will be used in the average.
+        default: '0s'
 
-            <param type="string" name="visprefix">
-                <description>Prefix of vis names (may include the path).</description>
-                <any type="variant" limittypes="string"/>
-                <value type="string"></value>
-            </param>
+        <!--combine &#45;&#45; Let the timebin span across scan, state or both.-->
+        <!--State is equivalent to sub-scans. One scan may have several-->
+        <!--state ids. For ALMA MSs, the sub-scans are limited to about-->
+        <!--30s duration each. In these cases, the task will automatically-->
+        <!--add state to the combine parameter. To see the number of states-->
+        <!--in an MS, use the msmd tool. See help msmd.-->
 
-            <param type="bool" name="nocreatms">
-                <description>If setting nocreatms True, will simulate a model measurement set for the first idb file and copy the model for the rest of idl files in list. If False, will simulate a new measurement set for every idbfile in list.</description>
-                <value>False</value>
-            </param>
 
-            <param type="bool" name="doconcat">
-                <description>If concatenate multi casa measurement sets to one file.</description>
-                <value>False</value>
-            </param>
+    </example>
 
-            <param type="string" name="modelms">
-                <description>Name of input model measurement set file. If modelms is assigned, no simulation will start.</description>
-                <any type="variant" limittypes="string"/>
-                <value type="string"></value>
-            </param>
+    <input>
+        <param type="any" name="idbfiles" mustexist="true">
+            <description>Name of input EOVSA idb file(s) or observation time range.</description>
+            <any type="variant" limittypes="string stringArray"/>
+            <value type="string"></value>
+        </param>
 
-            CONSTRAINTS
-            <constraints>
-                <!--<when param="timebin">-->
-                <!--<notequals type="string" value="0s">-->
-                <!--<default param="combine">-->
-                <!--<value type="string"></value>-->
-                <!--</default>-->
-                <!--</notequals>-->
-                <!--</when>-->
-            </constraints>
-        </input>
-    </task>
+        <param type="int" name="ncpu">
+            <description>Number of cpu cores to use</description>
+            <value>1</value>
+        </param>
+
+        <!-- SELECTION parameters -->
+        <!-- TIME AVERAGING parameters -->
+        <param type="string" name="timebin">
+            <description>Bin width for time averaging</description>
+            <value type="string">0s</value>
+        </param>
+
+        <!-- CHANNEL AVERAGING parameters -->
+        <param type="any" name="width">
+            <description>Width of output channel relative to MS channel (# to average)</description>
+            <any type="variant" limittypes="string stringArray int intArray"/>
+            <value type="int">1</value>
+        </param>
+
+        <param type="string" name="visprefix">
+            <description>Prefix of vis names (may include the path).</description>
+            <any type="variant" limittypes="string"/>
+            <value type="string"></value>
+        </param>
+
+        <param type="bool" name="nocreatms">
+            <description>If setting nocreatms True, will simulate a model measurement set for the first idb file and copy the model for the rest of idl files in list. If False, will simulate a new measurement set for every idbfile in list.</description>
+            <value>False</value>
+        </param>
+
+        <param type="bool" name="doconcat">
+            <description>If concatenate multi casa measurement sets to one file.</description>
+            <value>False</value>
+        </param>
+
+        <param type="string" name="modelms">
+            <description>Name of input model measurement set file. If modelms is assigned, no simulation will start.</description>
+            <any type="variant" limittypes="string"/>
+            <value type="string"></value>
+        </param>
+
+        <param type="bool" name="doscaling">
+            <description>If creating a new MS file with the amplitude of visibility data rescaled.</description>
+            <value>False</value>
+        </param>
+
+        <param type="bool" name="keep_nsclms" subparam="true">
+            <description>Keep the no scaling measurement sets</description>
+            <value>False</value>
+        </param>
+
+        <!--CONSTRAINTS-->
+        <constraints>
+            <when param="doscaling">
+                <equals type="bool" value="True">
+                    <default param="keep_nsclms">
+                        <value type="bool">False</value>
+                    </default>
+                </equals>
+                <equals type="bool" value="False"/>
+            </when>
+        </constraints>
+
+        <!--CONSTRAINTS-->
+        <!--<constraints>-->
+            <!--&lt;!&ndash;<when param="timebin">&ndash;&gt;-->
+            <!--&lt;!&ndash;<notequals type="string" value="0s">&ndash;&gt;-->
+            <!--&lt;!&ndash;<default param="combine">&ndash;&gt;-->
+            <!--&lt;!&ndash;<value type="string"></value>&ndash;&gt;-->
+            <!--&lt;!&ndash;</default>&ndash;&gt;-->
+            <!--&lt;!&ndash;</notequals>&ndash;&gt;-->
+            <!--&lt;!&ndash;</when>&ndash;&gt;-->
+        <!--</constraints>-->
+    </input>
+</task>
 </casaxml>

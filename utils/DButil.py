@@ -3,11 +3,28 @@ import glob
 import os
 import json
 import pickle
+from functools import wraps
+import astropy.units as u
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
-def getspwfromfreq(vis,freqrange):
+
+def my_timer(orig_func):
+    import time
+
+    @wraps(orig_func)
+    def wrapper(*args, **kwargs):
+        t1 = time.time()
+        result = orig_func(*args, **kwargs)
+        t2 = time.time() - t1
+        print('{} ran in: {} sec'.format(orig_func.__name__, t2))
+        return result
+
+    return wrapper
+
+
+def getspwfromfreq(vis, freqrange):
     from taskinit import ms
     ms.open(vis)
     axisInfo = ms.getdata(["axis_info"], ifraxis=True)
@@ -34,6 +51,7 @@ def getspwfromfreq(vis,freqrange):
         ms_chan.append('0~{}'.format(freqIdx1[1][0]))
     spw = ','.join('{}:{}'.format(t[0], t[1]) for t in zip(ms_spw, ms_chan))
     return spw
+
 
 def initconfig(suncasa_dir):
     if not os.path.exists(suncasa_dir + 'DataBrowser/config.json'):
@@ -90,10 +108,10 @@ def getlatestfile(directory='./', prefix='CleanID_', suffix=''):
     filelist = glob.glob('{}/{}*{}'.format(directory, prefix, suffix))
     if len(filelist) > 0:
         latest_file = max(filelist, key=os.path.getctime)
-        print latest_file
+        print(latest_file)
         return {'items': filelist, 'latest': latest_file, 'idx': filelist.index(latest_file)}
     else:
-        print 'No file found!'
+        print('No file found!')
         return None
 
 
@@ -194,6 +212,7 @@ def normalize_aiamap(smap):
             data = smap.data
             data[~np.isnan(data)] = data[~np.isnan(
                 data)] / smap.exposure_time.value
+            data[data < 0] = 0
             smap.data = data
             smap.meta['exptime'] = 1.0
             return smap
@@ -203,6 +222,41 @@ def normalize_aiamap(smap):
         raise ValueError('check your input map. There are some errors in it.')
 
 
+def sdo_aia_scale_hdr(smap):
+    wavelnth = '{:0.0f}'.format(smap.wavelength.value)
+    pxscale_x, pxscal_y = smap.scale
+    pxscale = (pxscale_x + pxscal_y) / 2
+    r_sun = smap.rsun_obs / pxscale
+    x = np.arange(smap.dimensions.x.value)
+    y = np.arange(smap.dimensions.y.value)
+    xx, yy = np.meshgrid(x, y) * u.pix
+    crpix1, crpix2 = smap.data_to_pixel(0*u.arcsec,0*u.arcsec)
+    rdist = np.sqrt((xx - (crpix1-1.0*u.pix)) ** 2 + (yy - (crpix2-1.0*u.pix)) ** 2)
+    ind_disk = np.where(rdist <= r_sun)
+    ind_limb = np.where(rdist < r_sun)
+    rdist[ind_disk] = r_sun
+    rfilter = rdist / r_sun - 1
+    rfilter = rfilter.value
+    if wavelnth == '94':
+        smap.data = smap.data * np.exp(rfilter * 4)
+    elif wavelnth == '131':
+        smap.data = smap.data * (np.sqrt(rfilter * 5) + 1)
+    elif wavelnth == '171':
+        smap.data = smap.data * np.exp(rfilter * 5)
+    elif wavelnth == '193':
+        smap.data = smap.data * np.exp(rfilter * 3)
+    elif wavelnth == '211':
+        smap.data = smap.data * np.exp(rfilter * 3)
+    elif wavelnth == '304':
+        smap.data = smap.data * np.exp(rfilter * 5)
+    elif wavelnth == '335':
+        smap.data = smap.data * np.exp(rfilter * 3)
+    elif wavelnth == '6173':
+        pass
+    elif wavelnth == '1':
+        pass
+    return smap
+
 def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
     '''
     rescale the aia image
@@ -210,9 +264,10 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
     :param wavelength:
     :return: byte scaled image data
     '''
+    wavelength = '{:0.0f}'.format(wavelength)
     if wavelength == '94':
         if imagetype == 'image':
-            return {'low': 0.1, 'high': 150, 'log': True}
+            return {'low': 0.1, 'high': 3000, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -30, 'high': 30, 'log': False}
         elif imagetype == 'BDimage':
@@ -223,7 +278,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '131':
         if imagetype == 'image':
-            return {'low': 0.5, 'high': 500, 'log': True}
+            return {'low': 0.5, 'high': 10000, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -100, 'high': 100, 'log': False}
         elif imagetype == 'BDimage':
@@ -256,7 +311,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '211':
         if imagetype == 'image':
-            return {'low': 10, 'high': 2000, 'log': True}
+            return {'low': 10, 'high': 8000, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -300, 'high': 300, 'log': False}
         elif imagetype == 'BDimage':
@@ -267,7 +322,8 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '304':
         if imagetype == 'image':
-            return {'low': 1, 'high': 1000, 'log': True}
+            return {'low': 1, 'high': 10000, 'log': True}
+            # return {'low': 1, 'high': 500, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -300, 'high': 300, 'log': False}
         elif imagetype == 'BDimage':
@@ -278,7 +334,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '335':
         if imagetype == 'image':
-            return {'low': 0.1, 'high': 50, 'log': True}
+            return {'low': 0.1, 'high': 800, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -15, 'high': 15, 'log': False}
         elif imagetype == 'BDimage':
@@ -300,7 +356,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '1700':
         if imagetype == 'image':
-            return {'low': 300, 'high': 5000, 'log': True}
+            return {'low': 300, 'high': 10000, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -1500, 'high': 1500, 'log': False}
         elif imagetype == 'BDimage':
@@ -309,6 +365,8 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
         elif imagetype == 'BDRimage':
             return {'low': -1.5, 'high': 1.5, 'log': False}
+    else:
+        return None
 
 
 def sdo_aia_scale(image=None, wavelength=None):
@@ -354,6 +412,8 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
     from datetime import date
     from datetime import timedelta as td
 
+    wavelength = str(wavelength)
+    wavelength = wavelength.lower()
     if timtol < 12. / 3600 / 24:
         timtol = 12. / 3600 / 24
     if isinstance(jdtime, list) or isinstance(jdtime, tuple) or type(jdtime) == np.ndarray:
@@ -443,7 +503,7 @@ def paramspline(x, y, length, s=0):
 
 
 def polyfit(x, y, length, deg):
-    xs = np.linspace(x.min(), x.max(), length)
+    xs = np.linspace(np.nanmin(x), np.nanmax(x), length)
     z = np.polyfit(x=x, y=y, deg=deg)
     p = np.poly1d(z)
     ys = p(xs)
@@ -527,6 +587,7 @@ def canvaspix_to_data(smap, x, y):
     ynew = xynew[1].value
     return [xnew, ynew]
 
+
 def data_to_mappixel(smap, x, y):
     import astropy.units as u
     '''
@@ -576,11 +637,12 @@ def freqsfromfitsheader(header):
         raise ValueError
 
 
-def transfitdict2DF(datain, gaussfit=True):
+def transfitdict2DF(datain, gaussfit=True, getcentroid=False):
     '''
     convert the results from pimfit or pmaxfit tasks to pandas DataFrame structure.
     :param datain: The component list from pimfit or pmaxfit tasks
     :param gaussfit: True if the results is from pimfit, otherwise False.
+    :param getcentroid: If True returns the centroid
     :return: the pandas DataFrame structure.
     '''
     import pandas as pd
@@ -631,9 +693,13 @@ def transfitdict2DF(datain, gaussfit=True):
                             fluxpeak = datain['outputs'][tidx][ppit]['results'][comp]['peak']['value']
                         else:
                             fluxpeak = datain['outputs'][tidx][ppit]['results'][comp]['flux']['value'][0]
-                        longitude = datain['outputs'][tidx][ppit]['results'][comp]['shape']['direction']['m0'][
+                        if getcentroid:
+                            mkey = 'centroid'
+                        else:
+                            mkey = 'shape'
+                        longitude = datain['outputs'][tidx][ppit]['results'][comp][mkey]['direction']['m0'][
                                         'value'] * ra2arcsec
-                        latitude = datain['outputs'][tidx][ppit]['results'][comp]['shape']['direction']['m1'][
+                        latitude = datain['outputs'][tidx][ppit]['results'][comp][mkey]['direction']['m1'][
                                        'value'] * ra2arcsec
                         longitude_err = \
                             datain['outputs'][tidx][ppit]['results'][comp]['shape']['direction']['error']['longitude'][
@@ -723,10 +789,10 @@ def dspecDFfilter(dspecDF, pol):
         if getcolctinDF(dspecDF, 'shape_majoraxis')[0] > 0:
             for ll in colnlistgaus:
                 dspecDF1[ll] = dspecDF.copy()[ll + pol]
-        print 'dspedDF is filtered'
+        print('dspedDF is filtered')
         return dspecDF1
     else:
-        print 'dspedDF no need filter'
+        print('dspedDF no need filter')
         return dspecDF
 
 
@@ -881,14 +947,14 @@ def get_contour_data(X, Y, Z, levels=[0.5, 0.7, 0.9]):
     return source
 
 
-def twoD_Gaussian((x, y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
-    xo = float(xo)
-    yo = float(yo)
-    a = (np.cos(theta) ** 2) / (2 * sigma_x ** 2) + (np.sin(theta) ** 2) / (2 * sigma_y ** 2)
-    b = -(np.sin(2 * theta)) / (4 * sigma_x ** 2) + (np.sin(2 * theta)) / (4 * sigma_y ** 2)
-    c = (np.sin(theta) ** 2) / (2 * sigma_x ** 2) + (np.cos(theta) ** 2) / (2 * sigma_y ** 2)
-    g = offset + amplitude * np.exp(- (a * ((x - xo) ** 2) + 2 * b * (x - xo) * (y - yo) + c * ((y - yo) ** 2)))
-    return g.ravel()
+# def twoD_Gaussian((x, y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
+#     xo = float(xo)
+#     yo = float(yo)
+#     a = (np.cos(theta) ** 2) / (2 * sigma_x ** 2) + (np.sin(theta) ** 2) / (2 * sigma_y ** 2)
+#     b = -(np.sin(2 * theta)) / (4 * sigma_x ** 2) + (np.sin(2 * theta)) / (4 * sigma_y ** 2)
+#     c = (np.sin(theta) ** 2) / (2 * sigma_x ** 2) + (np.cos(theta) ** 2) / (2 * sigma_y ** 2)
+#     g = offset + amplitude * np.exp(- (a * ((x - xo) ** 2) + 2 * b * (x - xo) * (y - yo) + c * ((y - yo) ** 2)))
+#     return g.ravel()
 
 
 def c_correlate(a, v):

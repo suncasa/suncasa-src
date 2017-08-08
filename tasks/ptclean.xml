@@ -51,19 +51,14 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 	    <value>False</value>
     </param>
 
-    <param type="bool" name="overwrite">
-	    <description>True if overwrite the image</description>
+    <param type="bool" name="usephacenter" subparam="true">
+	    <description>True if use the phacenter information from the measurement set (e.g., VLA); False to assume the phase center is at the solar disk center (EOVSA) </description>
 	    <value>False</value>
     </param>
 
-    <param type="string" name="ephemfile" subparam="true">
-	    <description>emphemeris file generated from vla_prep.read_horizons()</description>
-	    <value type="string"></value>
-    </param>
-
-    <param type="string" name="msinfofile" subparam="true">
-	    <description>time-dependent phase center information generated from vla_prep.read_msinfo()</description>
-	    <value type="string"></value>
+    <param type="bool" name="overwrite">
+	    <description>True if overwrite the image</description>
+	    <value>False</value>
     </param>
 
     <param type="string" name="outlierfile">
@@ -518,8 +513,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 	    <when param="doreg">
 		<equals type="bool" value="False"/>
 		<equals type="bool" value="True">
-		      <default param="ephemfile"><value type="string"></value></default>
-		      <default param="msinfofile"><value type="string"></value></default>
+		      <default param="usephacenter"><value>True</value></default>
 	        </equals>
             </when>
             <when param="selectdata">
