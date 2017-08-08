@@ -5,10 +5,12 @@ from concat_cli import concat_cli as concat
 from clearcal_cli import clearcal_cli as clearcal
 
 
-def concateovsa(msname, msfiles, visprefix='./', keep_orig_ms=False, cols2rm = ["MODEL_DATA", "CORRECTED_DATA"]):
+def concateovsa(msname, msfiles, visprefix='./', doclearcal=True, keep_orig_ms=False,
+                cols2rm=["MODEL_DATA", "CORRECTED_DATA"]):
     concatvis = visprefix + msname
-    for ll in msfiles:
-        clearcal(ll, addmodel=True)
+    if doclearcal:
+        for ll in msfiles:
+            clearcal(ll, addmodel=True)
     concat(vis=msfiles, concatvis=concatvis, timesort=True)
     # Change all observation ids to be the same (zero)
     tb.open(concatvis + '/OBSERVATION', nomodify=False)
