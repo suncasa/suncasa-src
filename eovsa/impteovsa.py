@@ -193,7 +193,6 @@ def creatms(idbfile, outpath, timebin=None, width=None):
     for l, cband in enumerate(chan_band):
         nchannels = len(cband['cidx'])
         stokes = 'XX YY XY YX'
-
         sm.setspwindow(spwname='band{:02d}'.format(cband['band']),
                        freq='{:22.19f}'.format(cband['freq'][0] - cband['df'] / 2.0) + 'GHz',
                        deltafreq='{:22.19f}'.format(cband['df']) + 'GHz',
@@ -202,6 +201,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
                        stokes=stokes)
 
     for l, cband in enumerate(chan_band):
+        print('sm-band{}'.format(cband['band']))
         sm.observe(source_id, 'band{:02d}'.format(cband['band']),
                    starttime=start_time, stoptime=end_time,
                    project=project,
@@ -213,6 +213,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
         raise RuntimeError('Failed to create MS. Look at the log file. '
                            'Double check you settings.')
 
+    sm.close()
     modelms = msname + '.MSmodel'
     os.system('mv {} {}'.format(msname, modelms))
 
