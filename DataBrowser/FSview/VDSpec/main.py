@@ -660,7 +660,14 @@ def tab2_panel3_dumpdata_handler():
     xarr = dspecDF0POLsub['shape_longitude'].as_matrix().reshape(nf, nt)
     yarr = dspecDF0POLsub['shape_latitude'].as_matrix().reshape(nf, nt)
     fitsarr = dspecDF0POLsub['fits_local'].as_matrix().reshape(nf, nt)
-    centroidsdict = {'time': tarr, 'freq': farr, 'peak': parr, 'x': xarr, 'y': yarr, 'fitsarr': fitsarr}
+    if 'shape_majoraxis' in dspecDF0POLsub.columns:
+        majorax = dspecDF0POLsub['shape_majoraxis'].as_matrix().reshape(nf, nt)
+        minorax = dspecDF0POLsub['shape_minoraxis'].as_matrix().reshape(nf, nt)
+        pangle = dspecDF0POLsub['shape_positionangle'].as_matrix().reshape(nf, nt)
+        centroidsdict = {'time': tarr, 'freq': farr, 'peak': parr, 'x': xarr, 'y': yarr, 'fitsarr': fitsarr,
+                         'majorax': majorax, 'minorax': minorax, 'pangle': pangle}
+    else:
+        centroidsdict = {'time': tarr, 'freq': farr, 'peak': parr, 'x': xarr, 'y': yarr, 'fitsarr': fitsarr}
     centroids_save = 'centroids{}.npy'.format(tab2_Select_vla_pol.value)
     if platform != "darwin":
         try:
@@ -670,8 +677,8 @@ def tab2_panel3_dumpdata_handler():
             tkRoot.destroy()
         except:
             pass
-    else:
-        out_path = ''
+        else:
+            out_path = ''
     if not out_path:
         out_path = outimgdir + centroids_save
     np.save(out_path, centroidsdict)

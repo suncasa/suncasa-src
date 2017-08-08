@@ -26,23 +26,23 @@ def read_horizons(vis):
         print 'Input ms data ' + vis + ' does not exist! '
         return -1
     try:
-        ms.open(vis)
-        summary = ms.summary()
-        ms.close()
-        btime = Time(summary['BeginTime'], format='mjd')
-        etime = Time(summary['EndTime'], format='mjd')
-        ## alternative way to avoid conflicts with importeovsa, if needed -- more time consuming
-        # tb.open(vis + '/OBSERVATION')
-        # trs = {'BegTime': [], 'EndTime': []}
-        # for ll in range(tb.nrows()):
-        #    tim0, tim1 = Time(tb.getcell('TIME_RANGE', ll) / 24 / 3600, format='mjd')
-        #    trs['BegTime'].append(tim0)
-        #    trs['EndTime'].append(tim1)
-        # tb.close()
-        # trs['BegTime'] = Time(trs['BegTime'])
-        # trs['EndTime'] = Time(trs['EndTime'])
-        # btime = np.min(trs['BegTime'])
-        # etime = np.max(trs['EndTime'])
+        # ms.open(vis)
+        # summary = ms.summary()
+        # ms.close()
+        # btime = Time(summary['BeginTime'], format='mjd')
+        # etime = Time(summary['EndTime'], format='mjd')
+        ## stop using ms.summary to avoid conflicts with importeovsa
+        tb.open(vis + '/OBSERVATION')
+        trs = {'BegTime': [], 'EndTime': []}
+        for ll in range(tb.nrows()):
+            tim0, tim1 = Time(tb.getcell('TIME_RANGE', ll) / 24 / 3600, format='mjd')
+            trs['BegTime'].append(tim0)
+            trs['EndTime'].append(tim1)
+        tb.close()
+        trs['BegTime'] = Time(trs['BegTime'])
+        trs['EndTime'] = Time(trs['EndTime'])
+        btime = np.min(trs['BegTime'])
+        etime = np.max(trs['EndTime'])
         print "Beginning time of this scan " + btime.iso
         print "End time of this scan " + etime.iso
         context = ssl._create_unverified_context()
@@ -150,7 +150,8 @@ def read_msinfo(vis=None, msinfofile=None):
                  ras=ras, decs=decs)
     return msinfo
 
-def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None, usephacenter=False):
+
+def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None, correct_phac=False):
     '''1. Take a solar ms database, read the scan and field information, find out the pointings (in RA and DEC)
        2. Compare with the ephemeris of the solar disk center (in RA and DEC)
        3. Generate VLA pointings in heliocentric coordinates
@@ -164,7 +165,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                     the date of the first scan
            polyfit: ONLY works for MS database with only one source with continously tracking; 
                     not recommanded unless scan length is too long and want to have very high accuracy
-           usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris. 
+           correct_phac: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris. 
                                  Otherwise assume the phasecenter is correctly pointed to the solar disk center
                                  (EOVSA case)
      
@@ -330,7 +331,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
         helio0['dec_fld'] = dec_b  # dec of the field, used as the refenrence in e.g., clean
         helio0['raoff'] = raoff
         helio0['decoff'] = decoff
-        if usephacenter:
+        if correct_phac:
             helio0['refx'] = refx
             helio0['refy'] = refy
         else:
@@ -408,8 +409,8 @@ def getbeam(imagefile=None, beamfile=None):
 
 
 def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsfile=None, beamfile=None, \
-          offsetfile=None, toTb=None, scl100=None, verbose=False, p_ang = False, overwrite = True, usephacenter=False):
-    ia=iatool()
+          offsetfile=None, toTb=None, scl100=None, verbose=False, p_ang=False, overwrite=True):
+    ia = iatool()
     if not imagefile:
         raise ValueError, 'Please specify input image'
     if not reftime:
@@ -423,7 +424,7 @@ def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsf
     nimg = len(imagefile)
     if verbose:
         print str(nimg) + ' images to process...'
-    helio = ephem_to_helio(vis,ephem=ephem,msinfo=msinfo,reftime=reftime,usephacenter=usephacenter)
+    helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=reftime)
     for n, img in enumerate(imagefile):
         if verbose:
             print 'processing image #' + str(n)
