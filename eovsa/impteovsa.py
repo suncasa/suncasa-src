@@ -4,7 +4,7 @@ import aipy
 import time
 import os
 import scipy.constants as constants
-from taskinit import sm, me, casalog
+from taskinit import smtool, me, casalog
 
 def jd2mjds(tjd=None):
     tmjds = (tjd - 2400000.5) * 24. * 3600.
@@ -36,7 +36,6 @@ def get_band_edge(nband=34):
         idx_start_freq.append(ntmp)
 
     return np.asarray(idx_start_freq)
-
 
 
 def get_band(sfreq=None, sdf=None):
@@ -134,6 +133,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
         os.system("rm -fr %s" % msname)
 
     """ Creates an empty measurement set using CASA simulate (sm) tool. """
+    sm = smtool()
     sm.open(msname)
 
     enu = np.reshape(uv['antpos'], (16, 3)) * constants.speed_of_light / 1e9
@@ -193,7 +193,6 @@ def creatms(idbfile, outpath, timebin=None, width=None):
     for l, cband in enumerate(chan_band):
         nchannels = len(cband['cidx'])
         stokes = 'XX YY XY YX'
-
         sm.setspwindow(spwname='band{:02d}'.format(cband['band']),
                        freq='{:22.19f}'.format(cband['freq'][0] - cband['df'] / 2.0) + 'GHz',
                        deltafreq='{:22.19f}'.format(cband['df']) + 'GHz',
@@ -202,6 +201,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
                        stokes=stokes)
 
     for l, cband in enumerate(chan_band):
+        print('sm-band{}'.format(cband['band']))
         sm.observe(source_id, 'band{:02d}'.format(cband['band']),
                    starttime=start_time, stoptime=end_time,
                    project=project,
@@ -213,6 +213,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
         raise RuntimeError('Failed to create MS. Look at the log file. '
                            'Double check you settings.')
 
+    sm.close()
     modelms = msname + '.MSmodel'
     os.system('mv {} {}'.format(msname, modelms))
 

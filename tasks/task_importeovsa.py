@@ -13,26 +13,8 @@ from concat_cli import concat_cli as concat
 from clearcal_cli import clearcal_cli as clearcal
 import multiprocessing as mp
 from functools import partial
-from suncasa.utils import impteovsa as ipe
-
-
-def concateovsa(msname, msfiles, visprefix, durtim, suffix=''):
-    concatvis = visprefix + msname + '-{:d}m{}.ms'.format(durtim, suffix)
-    for ll in msfiles:
-        clearcal(ll, addmodel=True)
-    concat(vis=msfiles, concatvis=concatvis, timesort=True)
-    # Change all observation ids to be the same (zero)
-    tb.open(concatvis + '/OBSERVATION', nomodify=False)
-    nobs = tb.nrows()
-    tb.removerows([i + 1 for i in range(nobs - 1)])
-    tb.close()
-    tb.open(concatvis, nomodify=False)
-    obsid = tb.getcol('OBSERVATION_ID')
-    newobsid = np.zeros(len(obsid), dtype='int')
-    tb.putcol('OBSERVATION_ID', newobsid)
-    tb.close()
-    for ll in msfiles:
-        os.system('rm -rf {}'.format(ll))
+from suncasa.eovsa import impteovsa as ipe
+from suncasa.eovsa import concateovsa as ce
 
 
 def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, doscaling, keep_nsclms, fileidx):
@@ -111,7 +93,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
                     out2[:, :, :, bl2ord[i, j]] = out[:, :, :, bl2ord[i, j]] / np.sqrt(
                         np.abs(out[:, :, :, bl2ord[i, i]]) * np.abs(out[:, :, :, bl2ord[j, j]]))
         out2 = out2.reshape(npol, nf, nrows)
-        msname_scl = visprefix + ''.join(msname0) + '_scl.ms'
+
 
     out = out.reshape(npol, nf, nrows)
     flag = flag.reshape(npol, nf, nrows)
@@ -247,12 +229,11 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     # del out, flag, uvwarray, uv, timearr, sigma
     # gc.collect()  #
     if doscaling:
-        # os.system('cp -r {} {}'.format(msname, msname_scl))
         if keep_nsclms:
+            msname_scl = visprefix + ''.join(msname0) + '_scl.ms'
             os.system('cp -r {} {}'.format(msname, msname_scl))
         else:
-            os.system('mv {} {}'.format(msname, msname_scl))
-            # msname_scl = msname
+            msname_scl = msname
         tb.open(msname_scl, nomodify=False)
         casalog.post('----------------------------------------')
         casalog.post("Updating the main table of" '%s' % msname_scl)
@@ -300,10 +281,22 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
     if type(filelist) == str:
         filelist = [filelist]
 
+    filelist_tmp = []
     for f in filelist:
         if not os.path.exists(f):
-            casalog.post("Some files in filelist are invalid. Aborting...")
-            # return False
+            casalog.post("Warning: {} not exist.".format(f))
+        else:
+            filelist_tmp.append(f)
+
+    filelist = filelist_tmp
+    if not filelist:
+        casalog.post("No file in idbfiles list exists. Abort.")
+        return False
+
+    for idx, f in enumerate(filelist):
+        if f[-1] == '/':
+            filelist[idx] = f[:-1]
+
     if not visprefix:
         visprefix = './'
     if not timebin:
@@ -362,14 +355,16 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
 
 
     if doconcat:
+        msname = os.path.basename(filelist[0])
         if doscaling:
-            msname = os.path.basename(filelist[0])
             msfiles = list(np.array(results['msfile_scl'])[np.where(np.array(results['succeeded']) == True)])
             durtim = int(results['durtim'].sum())
-            concateovsa(msname, msfiles, durtim, suffix='_scl')
+            if keep_nsclms:
+                ce.concateovsa(msname + '-{:d}m{}.ms'.format(durtim, '_scl'), msfiles, visprefix)
+            else:
+                ce.concateovsa(msname + '-{:d}m{}.ms'.format(durtim, '_scl'), msfiles, visprefix)
         else:
-            msname = os.path.basename(filelist[0])
             msfiles = list(np.array(results['msfile'])[np.where(np.array(results['succeeded']) == True)])
             durtim = int(results['durtim'].sum())
-            concateovsa(msname, msfiles, durtim, suffix='')
+            ce.concateovsa(msname + '-{:d}m{}.ms'.format(durtim, ''), msfiles, visprefix)
         return True
