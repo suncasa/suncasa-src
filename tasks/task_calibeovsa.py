@@ -93,8 +93,8 @@ def trange2ms(trange=None, verbose=False, doscaling=True):
             ncpu = 10
         if ncpu > len(filelist):
             ncpu = len(filelist)
-        inpath = '{}{}/'.format(udbdir,tdatetime.strftime("%Y"))
-        importeovsa(idbfiles=[inpath+ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
+        inpath = '{}{}/'.format(udbdir, tdatetime.strftime("%Y"))
+        importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
                     visprefix=outpath, nocreatms=False, doconcat=False, modelms="", doscaling=doscaling,
                     keep_nsclms=False)
 
@@ -105,13 +105,14 @@ def trange2ms(trange=None, verbose=False, doscaling=True):
     filelist = sorted(list(filelist))
 
     if verbose:
-        return {'udbfile': sorted(udbfilelist), 'udb2ms': filelist, 'ms': sorted(list(msfiles))}
+        return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': filelist,
+                'ms': [ll + '.ms' for ll in sorted(list(msfiles))]}
     else:
-        return sorted(list(msfiles))
+        return [outpath + ll + '.ms' for ll in sorted(list(msfiles))]
 
 
 def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False, flagant='13~15', stokes=None,
-               doconcat=True):
+               doconcat=True, keep_orig_ms=True):
     '''
 
     :param vis: can be 1) a single Time() object: use the entire day
@@ -130,6 +131,12 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
 
     if type(vis) == Time:
         vis = trange2ms(trange=vis)
+    if type(vis) == str:
+        vis = list(vis)
+
+    for idx, f in enumerate(vis):
+        if f[-1] == '/':
+            vis[idx] = f[:-1]
 
     for msfile in vis:
         casalog.origin('eovsacalib')
@@ -323,7 +330,8 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
                         # set all flagged values to be zero
                         phambd_ns[np.where(bphacal['flag'] == 1)] = 0.
                         phambd_ns[np.where(ephacal['flag'] == 1)] = 0.
-                        caltb_phambd_interp = dirname + t_pha_mean.isot[:-4].replace(':', '').replace('-', '') + '.phambd'
+                        caltb_phambd_interp = dirname + t_pha_mean.isot[:-4].replace(':', '').replace('-',
+                                                                                                      '') + '.phambd'
                         if not os.path.exists(caltb_phambd_interp):
                             gencal(vis=msfile, caltable=caltb_phambd_interp, caltype='mbd', pol='X,Y', antenna=antennas,
                                    parameter=phambd_ns.flatten().tolist())
@@ -390,3 +398,10 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
                 eomap.draw_grid()
 
             plt.show()
+
+    if doconcat:
+        from suncasa.eovsa import concateovsa as ce
+        msname = os.path.basename(vis[0])
+        msname = msname.split('.')[0] + '_concat.ms'
+        visprefix = os.path.dirname(vis[0]) + '/'
+        ce.concateovsa(msname, vis, visprefix, keep_orig_ms=keep_orig_ms, cols2rm=["CORRECTED_DATA"])

@@ -360,11 +360,11 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
             msfiles = list(np.array(results['msfile_scl'])[np.where(np.array(results['succeeded']) == True)])
             durtim = int(results['durtim'].sum())
             if keep_nsclms:
-                ce.concateovsa(msname, msfiles, durtim, suffix='_scl')
+                ce.concateovsa(msname + '-{:d}m{}.ms'.format(durtim, '_scl'), msfiles, visprefix)
             else:
-                ce.concateovsa(msname, msfiles, durtim, suffix='')
+                ce.concateovsa(msname + '-{:d}m{}.ms'.format(durtim, '_scl'), msfiles, visprefix)
         else:
             msfiles = list(np.array(results['msfile'])[np.where(np.array(results['succeeded']) == True)])
             durtim = int(results['durtim'].sum())
-            ce.concateovsa(msname, msfiles, durtim, suffix='')
+            ce.concateovsa(msname + '-{:d}m{}.ms'.format(durtim, ''), msfiles, visprefix)
         return True
