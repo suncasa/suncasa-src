@@ -18,109 +18,12 @@ from importeovsa_cli import importeovsa_cli as importeovsa
 # check if the calibration table directory is defined
 caltbdir = os.getenv('EOVSACAL')
 imgdir = os.getenv('EOVSAIMG')
-udbmsscldir = os.getenv('EOVSAUDBMSSCL')
-udbdir = os.getenv('EOVSAUDB')
-if not caltbdir:
-    print 'Environmental variable for EOVSA calibration table path not defined'
-    print 'Use default path on pipeline'
-    caltbdir = '/data1/eovsa/caltable/'
-if not imgdir:
-    print 'Environmental variable for EOVSA image path not defined'
-    print 'Use default path on pipeline'
-    imgdir = '/data1/bchen/solar/image/'
-if not udbmsscldir:
-    print 'Environmental variable for EOVSA udbms path not defined'
-    print 'Use default path on pipeline'
-    udbmsscldir = '/data1/eovsa/fits/UDBms_scl/'
-if not udbdir:
-    print 'Environmental variable for EOVSA udb path not defined'
-    print 'Use default path on pipeline'
-    udbdir = '/data1/eovsa/fits/UDB/'
 
-
-def trange2ms(trange=None, verbose=False, doscaling=True):
-    '''This finds all solar UDBms files within a timerange; If the UDBms file does not exist 
-       in EOVSAUDBMSSCL, create one by calling importeovsa
-
-       Required inputs:
-       trange - can be 1) a single Time() object: use the entire day
-                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
-                       4) a list of UDBms files
-                       3) None -- use current date Time.now()
-    '''
-    import glob
-    import pytz
-    if trange is None:
-        trange = Time.now()
-    if type(trange) == list:
-        try:
-            trange = Time(trange)
-        except:
-            print('trange format not recognised. Abort....')
-            return None
-    local_tz = pytz.timezone('America/Los_Angeles')
-    try:
-        if len(trange) > 1:
-            trange = Time([trange[0], trange[-1]])
-            tdatetime = trange[0].to_datetime()
-        else:
-            tdatetime = trange[0].to_datetime()
-            btime = Time(local_tz.localize(tdatetime, is_dst=None).astimezone(pytz.utc))
-            etime = Time(btime.mjd + 1.0, format='mjd')
-            trange = Time([btime, etime])
-    except:
-        tdatetime = trange.to_datetime()
-        btime = Time(local_tz.localize(tdatetime, is_dst=None).astimezone(pytz.utc))
-        etime = Time(btime.mjd + 1.0, format='mjd')
-        trange = Time([btime, etime])
-
-    sclist = ra.findfiles(trange, projid='NormalObserving', srcid='Sun')
-    udbfilelist = sclist['scanlist']
-    udbfilelist = [os.path.basename(ll) for ll in udbfilelist]
-    outpath = '{}{}/'.format(udbmsscldir, tdatetime.strftime("%Y%m"))
-    if not os.path.exists(outpath):
-        os.makedirs(outpath)
-        msfiles = []
-    else:
-        msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
-    udbfilelist_set = set(udbfilelist)
-    msfiles = udbfilelist_set.intersection(msfiles)
-    filelist = udbfilelist_set - msfiles
-    filelist = sorted(list(filelist))
-
-    if filelist:
-        import multiprocessing as mp
-        ncpu = mp.cpu_count()
-        if ncpu > 10:
-            ncpu = 10
-        if ncpu > len(filelist):
-            ncpu = len(filelist)
-        inpath = '{}{}/'.format(udbdir, tdatetime.strftime("%Y"))
-        importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
-                    visprefix=outpath, nocreatms=False, doconcat=False, modelms="", doscaling=doscaling,
-                    keep_nsclms=False)
-
-    msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
-    udbfilelist_set = set(udbfilelist)
-    msfiles = udbfilelist_set.intersection(msfiles)
-    filelist = udbfilelist_set - msfiles
-    filelist = sorted(list(filelist))
-
-    if verbose:
-        return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': filelist,
-                'ms': [ll + '.ms' for ll in sorted(list(msfiles))]}
-    else:
-        return [outpath + ll + '.ms' for ll in sorted(list(msfiles))]
-
-
-def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, flagant='13~15', qlookimage=False, stokes=None,
-               doconcat=False, msoutdir='./', keep_orig_ms=True):
+def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, flagant='13~15', 
+               doimage=False, stokes=None, doconcat=False, msoutdir='./', keep_orig_ms=True):
     '''
 
-    :param vis: can be 1) a single Time() object: use the entire day
-                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
-                       4) a single UDBms file or a list of UDBms file(s)
-                       3) None -- use current date Time.now()
+    :param vis: a single UDBms file or a list of UDBms files(s) 
     :param caltype:
     :param interp:
     :param docalib:
@@ -131,8 +34,6 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
     :return:
     '''
 
-    if type(vis) == Time:
-        vis = trange2ms(trange=vis)
     if type(vis) == str:
         vis = [vis]
 
@@ -360,7 +261,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
                 except:
                     print "Something wrong with flagant. Abort..."
 
-        if qlookimage:
+        if doimage:
             from suncasa.eovsa import eovsa_prep as ep
             from sunpy import map as smap
 
