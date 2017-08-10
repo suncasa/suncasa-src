@@ -16,7 +16,6 @@ from functools import partial
 from suncasa.eovsa import impteovsa as ipe
 from suncasa.eovsa import concateovsa as ce
 
-
 def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, doscaling, keep_nsclms, fileidx):
     from taskinit import tb, casalog
     filename = filelist[fileidx]
