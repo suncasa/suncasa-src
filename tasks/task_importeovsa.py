@@ -123,7 +123,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         time1 = time.time()
         nchannels = len(cband['cidx'])
         for row in range(nrows):
-            if not doscaling:
+            if not doscaling or keep_nsclms:
                 tb.putcell('DATA', (row + l * nrows), out[:, cband['cidx'][0]:cband['cidx'][-1] + 1, row])
             tb.putcell('FLAG', (row + l * nrows), flag[:, cband['cidx'][0]:cband['cidx'][-1] + 1, row])
         casalog.post('---spw {0:02d} is updated in --- {1:10.2f} seconds ---'.format((l + 1), time.time() - time1))
