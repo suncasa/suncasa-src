@@ -95,7 +95,9 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
                     out2[:, :, :, bl2ord[i, j]] = out[:, :, :, bl2ord[i, j]] / np.sqrt(
                         np.abs(out[:, :, :, bl2ord[i, i]]) * np.abs(out[:, :, :, bl2ord[j, j]]))
         out2 = out2.reshape(npol, nf, nrows)
-
+        out2[np.isnan(out2)] = 0
+        out2[np.isinf(out2)] = 0
+    # out2 = ma.masked_array(ma.masked_invalid(out2), fill_value=0.0)
     out = out.reshape(npol, nf, nrows)
     flag = flag.reshape(npol, nf, nrows)
     uvwarray = uvwarray.reshape(3, nrows)
