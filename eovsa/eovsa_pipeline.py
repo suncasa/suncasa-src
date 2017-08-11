@@ -204,7 +204,7 @@ def plt_qlook_image(imres, plotdir=None, verbose=True):
         plt.ioff()
         fig=plt.figure(figsize=(12,4))
         if verbose:
-            print 'Plotting image at: ',plttimes[i]
+            print 'Plotting image at: ', btimes_sort[i,0].iso
             suci = suc_sort[i]
         for n in range(nspw):
             image = images_sort[i, n]
@@ -224,19 +224,19 @@ def plt_qlook_image(imres, plotdir=None, verbose=True):
             else:
                 #make an empty map
                 data = np.zeros(512,512)
-                header = {"DATE-OBS": Time(plttimes[i]).iso, "EXPTIME": 0.,
+                header = {"DATE-OBS": btimes_sort[i,0].isot, "EXPTIME": 0.,
                         "CDELT1": 5., "NAXIS1": 512, "CRVAL1": 0., "CRPIX1": 257, "CUNIT1": "arcsec", "CTYPE1": "HPLN-TAN",
                         "CDELT2": 5., "NAXIS2": 512, "CRVAL2": 0., "CRPIX2": 257, "CUNIT2": "arcsec", "CTYPE2": "HPLN-TAN",
-                        "HGLT_OBS": 0., "HGLN_OBS": 0., "RSUN_OBS": sun.solar_semidiameter_angular_size(Time(plttimes[i])).value,
+                        "HGLT_OBS": 0., "HGLN_OBS": 0., "RSUN_OBS": sun.solar_semidiameter_angular_size(btimes_sort[i,0]).value,
                         "RSUN_REF": sun.constants.radius.value,
-                        "DSUN_OBS": sun.sunearth_distance(Time(plttimes[i])).to(u.meter).value,
+                        "DSUN_OBS": sun.sunearth_distance(btimes_sort[i,0]).to(u.meter).value,
                           }
                 eomap = smap.Map(data, header)
                 eomap.plot_settings['cmap'] = plt.get_cmap('jet')
                 eomap.plot()
                 eomap.draw_limb()
                 eomap.draw_grid()
-        timestr=Time(plttime[i]).isot.replace(':','').replace('-','')
+        timestr=btimes_sort[i,0].isot.replace(':','').replace('-','')
         plt.savefig(plotdir+timestr+'.png')
         plt.close()
 

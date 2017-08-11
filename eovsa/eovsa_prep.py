@@ -509,7 +509,6 @@ def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsf
             header.append(('hgln_obs', 0.))
             header.append(('hglt_obs', sun.heliographic_solar_center(Time(hel['date-obs']))[1].value))
 
-        pdb.set_trace()
         # header.update('comment', 'Fits header updated to heliocentric coordinates by Bin Chen')
 
         # update intensity units, i.e. to brightness temperature?
