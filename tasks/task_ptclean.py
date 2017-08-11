@@ -112,12 +112,13 @@ def clean_iter(tim, freq, vis, imageprefix, imagesuffix,
             ep.imreg(vis=vis,ephem=ephem, msinfo=msinfo, reftime=reftime, imagefile=imagefile, fitsfile=fitsfile, 
                          toTb=False, scl100=False, usephacenter=usephacenter)
             if os.path.exists(imname + '.fits'):
+                shutil.rmtree(imname + '.image')
                 return [True, btstr, etstr, imname + '.fits']
             else:
                 return [False, btstr, etstr, '']
         except:
             print('error in registering image: ' + btstr)
-            return [False, btstr, etstr, '']
+            return [False, btstr, etstr, imname + '.image']
     else:
         if os.path.exists(imname + '.image'):
             return [True, btstr, etstr, imname + '.image']

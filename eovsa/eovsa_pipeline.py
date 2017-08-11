@@ -9,6 +9,8 @@ import numpy as np
 udbmsscldir = os.getenv('EOVSAUDBMSSCL')
 udbmsdir = os.getenv('EOVSAUDBMS')
 udbdir = os.getenv('EOVSAUDB')
+qlookfitsdir = os.getenv('EOVSAQLOOKFITS')
+qlookfigdir = os.getenv('EOVSAQLOOKFIG')
 
 if not udbmsdir:
     print 'Environmental variable for EOVSA udbms path not defined'
@@ -22,6 +24,10 @@ if not udbdir:
     print 'Environmental variable for EOVSA udb path not defined'
     print 'Use default path on pipeline'
     udbdir = '/data1/eovsa/fits/UDB/'
+if not qlookfitsdir:
+    qlookfitsdir='/data1/eovsa/qlookfits/'
+if not qlookfigdir:
+    qlookfigdir='/common/webplots/qlookimg_10m/'
 
 def trange2ms(trange=None, doimport=False, verbose=False, doscaling=True):
     '''This finds all solar UDBms files within a timerange; If the UDBms file does not exist 
@@ -123,11 +129,21 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=True):
 
     if verbose:
         return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': filelist,
-                'ms': [outpath + ll + '.ms' for ll in sorted(list(msfiles))]}
+                'ms': [outpath + ll + '.ms' for ll in sorted(list(msfiles))], 
+                'tstlist':sclist['tstlist'], 'tedlist':sclist['tedlist']}
     else:
-        return {'ms': [outpath + ll + '.ms' for ll in sorted(list(msfiles))]}
+        return {'ms': [outpath + ll + '.ms' for ll in sorted(list(msfiles))], 
+                'tstlist':sclist['tstlist'], 'tedlist':sclist['tedlist']}
 
-def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=5, twidth=30, stokes=None, antenna='0~12', spws=['1~3','5~7','9~11'], savejpg=True, imagedir=None):
+def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=10, stokes=None, antenna='0~12', 
+                   imagedir=None, spws=['1~2','3~4','5~6','7~8','9~10','11~13','14~16','17~20','21~25'],
+                   doplot=True, figdir=None):
+
+    from matplotlib import pyplot as plt
+    from sunpy import map as smap
+    from sunpy import sun
+    import numpy as np
+    import astropy.units as u
         
     ''' 
        trange: can be 1) a single Time() object: use the entire day
@@ -136,9 +152,13 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=5, twidth=30, sto
                       4) None -- use current date Time.now()
     '''
     if type(trange) == Time:
-        invis = trange2ms(trange=trange, doimport=doimport)['ms']
+        mslist = trange2ms(trange=trange, doimport=doimport)['ms']
+        invis = mslist['ms']
+        tsts = [l.to_datetime() for l in mslist['tstlist']]
+        subdir = [tst.strftime("%Y/%m/%d/") for tst in tsts] 
     if type(trange) == str:
         invis = [trange]
+        subdir = ['/']
 
     for idx, f in enumerate(invis):
         if f[-1] == '/':
@@ -154,18 +174,20 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=5, twidth=30, sto
         stokes = 'XX'
      
     if not imagedir:
-        imagedir='./'
+        imagedir=qlookfitsdir
     imres = {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': [], 'Spw': [], 'Vis': []}
-    for msfile in vis:
+    for n, msfile in enumerate(vis):
+        imagedir = imagedir + subdir[n]
         for spw in spws:
-            imagesuffix='.spw'+spw.replace('~','-')
-            res=ptclean(vis=msfile, imageprefix=imagedir, imagesuffix=imagesuffix, twidth=twidth, spw=spw, ncpu=ncpu, niter=200, imsize=[512], cell=['5arcsec'], 
-                    stokes=stokes, doreg=True, usephacenter=False)
             spwran = [s.zfill(2) for s in spw.split('~')]
             if len(spwran) == 2:
                 spwstr = spwran[0]+'~'+spwran[1]
             else:
                 spwstr = spwran[0]
+            imagesuffix='.spw'+spwstr.replace('~','-')
+            res=ptclean(vis=msfile, imageprefix=imagedir, imagesuffix=imagesuffix, twidth=twidth, 
+                        spw=spw, ncpu=ncpu, niter=200, imsize=[512], cell=['5arcsec'], 
+                        stokes=stokes, doreg=True, usephacenter=False, restoringbeam=['25arcsec'])
 
             imres['Succeeded'] += res['Succeeded']
             imres['BeginTime'] += res['BeginTime']
@@ -173,75 +195,95 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=5, twidth=30, sto
             imres['ImageName'] += res['ImageName']
             imres['Spw'] += [spwstr]*len(res['ImageName'])
             imres['Vis'] += [msfile]*len(res['ImageName'])
-            
+
+    if doplot and imres:
+        nspw = len(set(imres['Spw']))
+        plttimes = list(set(imres['BeginTime']))
+        ntime = len(plttimes)
+        # sort the imres according to time
+        images = np.array(imres['ImageName'])
+        btimes = Time(imres['BeginTime'])
+        etimes = Time(imres['EndTime'])
+        spws = np.array(imres['Spw'])
+        suc = np.array(imres['Succeeded'])
+        inds = btimes.argsort()
+        images_sort = images[inds].reshape(ntime,nspw)
+        btimes_sort = btimes[inds].reshape(ntime,nspw)
+        suc_sort = suc[inds].reshape(ntime,nspw)
+        spws_sort = spws[inds].reshape(ntime,nspw)
+        if verbose:
+            print '{0:d} figures to plot'.format(ntime)
+        for i in range(ntime): 
+        #for i in range(1): 
+            plt.ioff()
+            fig=plt.figure(figsize=(9,9))
+            plttime=btimes_sort[i,0]
+            fig.suptitle('EOVSA @ '+plttime.iso[:19])
+            if verbose:
+                print 'Plotting image at: ', plttime.iso
+                suci = suc_sort[i]
+            for n in range(nspw):
+                plt.ioff()
+                image = images_sort[i, n]
+                fig.add_subplot(3, nspw/3, n+1)
+                if suci[n]:
+                    try:
+                        eomap = smap.Map(image)
+                    except:
+                        continue
+                    sz = eomap.data.shape
+                    if len(sz) == 4:
+                        eomap.data = eomap.data.reshape((sz[2], sz[3]))
+                    eomap.plot_settings['cmap'] = plt.get_cmap('jet')
+                    eomap.plot()
+                    eomap.draw_limb()
+                    eomap.draw_grid()
+                    ax=plt.gca()
+                    ax.set_xlim([-1050,1050])
+                    ax.set_ylim([-1050,1050])
+                    ax.set_title('spw '+spws_sort[i,n])
+                    #ax.text(0.01,0.02, plttime.isot,transform=ax.transAxes,color='white')
+                    if n != 6:
+                        ax.set_xlabel('')
+                        ax.set_ylabel('')
+                        ax.set_xticklabels([''])
+                        ax.set_yticklabels([''])
+                else:
+                    #make an empty map
+                    data = np.zeros((512,512))
+                    header = {"DATE-OBS": plttime.isot, "EXPTIME": 0.,
+                            "CDELT1": 5., "NAXIS1": 512, "CRVAL1": 0., "CRPIX1": 257, "CUNIT1": "arcsec", "CTYPE1": "HPLN-TAN",
+                            "CDELT2": 5., "NAXIS2": 512, "CRVAL2": 0., "CRPIX2": 257, "CUNIT2": "arcsec", "CTYPE2": "HPLT-TAN",
+                            "HGLT_OBS": sun.heliographic_solar_center(plttime)[1].value, 
+                            "HGLN_OBS": 0., 
+                            "RSUN_OBS": sun.solar_semidiameter_angular_size(plttime).value,
+                            "RSUN_REF": sun.constants.radius.value,
+                            "DSUN_OBS": sun.sunearth_distance(plttime).to(u.meter).value,
+                              }
+                    eomap = smap.Map(data, header)
+                    eomap.plot_settings['cmap'] = plt.get_cmap('jet')
+                    eomap.plot()
+                    eomap.draw_limb()
+                    eomap.draw_grid()
+                    ax=plt.gca()
+                    ax.set_xlim([-1050,1050])
+                    ax.set_ylim([-1050,1050])
+                    ax.set_title('spw '+spws_sort[i,n])
+                    #ax.text(0.01,0.02, plttime.isot,transform=ax.transAxes,color='white')
+                    if n != 6:
+                        ax.set_xlabel('')
+                        ax.set_ylabel('')
+                        ax.set_xticklabels([''])
+                        ax.set_yticklabels([''])
+            timestr=plttime.isot.replace(':','').replace('-','')[:19]
+            fig_tdt= plttime.to_datetime()
+            fig_subdir = fig_tdt.strftime("%Y/%m/%d/")  
+            plt.savefig(qlookfigdir+fig_subdir+timestr+'.png')
+            plt.close()
+
     return imres
 
-def plt_qlook_image(imres, plotdir=None, verbose=True):
-    from matplotlib import pyplot as plt
-    from sunpy import map as smap
-    from sunpy import sun
-    import numpy as np
-    import astropy.units as u
-    if not plotdir:
-        plotdir='./'
-    nspw = len(set(imres['Spw']))
-    plttimes = list(set(imres['BeginTime']))
-    ntime = len(plttimes)
-    # sort the imres according to time
-    images = np.array(imres['ImageName'])
-    btimes = Time(imres['BeginTime'])
-    etimes = Time(imres['EndTime'])
-    spws = np.array(imres['Spw'])
-    suc = np.array(imres['Succeeded'])
-    inds = btimes.argsort()
-    images_sort = images[inds].reshape(ntime,nspw)
-    btimes_sort = btimes[inds].reshape(ntime,nspw)
-    suc_sort = suc[inds].reshape(ntime,nspw)
-    spws_sort = spws[inds].reshape(ntime,nspw)
-    if verbose:
-        print '{0:d} figures to plot'.format(ntime)
-    for i in range(ntime): 
-        plt.ioff()
-        fig=plt.figure(figsize=(12,4))
-        if verbose:
-            print 'Plotting image at: ', btimes_sort[i,0].iso
-            suci = suc_sort[i]
-        for n in range(nspw):
-            image = images_sort[i, n]
-            fig.add_subplot(1, nspw, n)
-            if suci[n]:
-                try:
-                    eomap = smap.Map(image)
-                except:
-                    continue
-                sz = eomap.data.shape
-                if len(sz) == 4:
-                    eomap.data = eomap.data.reshape((sz[2], sz[3]))
-                eomap.plot_settings['cmap'] = plt.get_cmap('jet')
-                eomap.plot()
-                eomap.draw_limb()
-                eomap.draw_grid()
-            else:
-                #make an empty map
-                data = np.zeros(512,512)
-                header = {"DATE-OBS": btimes_sort[i,0].isot, "EXPTIME": 0.,
-                        "CDELT1": 5., "NAXIS1": 512, "CRVAL1": 0., "CRPIX1": 257, "CUNIT1": "arcsec", "CTYPE1": "HPLN-TAN",
-                        "CDELT2": 5., "NAXIS2": 512, "CRVAL2": 0., "CRPIX2": 257, "CUNIT2": "arcsec", "CTYPE2": "HPLN-TAN",
-                        "HGLT_OBS": 0., "HGLN_OBS": 0., "RSUN_OBS": sun.solar_semidiameter_angular_size(btimes_sort[i,0]).value,
-                        "RSUN_REF": sun.constants.radius.value,
-                        "DSUN_OBS": sun.sunearth_distance(btimes_sort[i,0]).to(u.meter).value,
-                          }
-                eomap = smap.Map(data, header)
-                eomap.plot_settings['cmap'] = plt.get_cmap('jet')
-                eomap.plot()
-                eomap.draw_limb()
-                eomap.draw_grid()
-        timestr=btimes_sort[i,0].isot.replace(':','').replace('-','')
-        plt.savefig(plotdir+timestr+'.png')
-        plt.close()
 
 
 
-
-
-    
+        
