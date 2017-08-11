@@ -18,6 +18,14 @@ from importeovsa_cli import importeovsa_cli as importeovsa
 # check if the calibration table directory is defined
 caltbdir = os.getenv('EOVSACAL')
 imgdir = os.getenv('EOVSAIMG')
+if not caltbdir:
+    print 'Environmental variable for EOVSA calibration table path not defined'
+    print 'Use default path on pipeline'
+    caltbdir = '/data1/eovsa/caltable/'
+if not imgdir:
+    print 'Environmental variable for EOVSA image path not defined'
+    print 'Use default path on pipeline'
+    imgdir = '/data1/bchen/solar/image/'
 
 def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, flagant='13~15', 
                doimage=False, stokes=None, doconcat=False, msoutdir='./', keep_orig_ms=True):
