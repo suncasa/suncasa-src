@@ -1,6 +1,7 @@
 import os
 # import gc
 import numpy as np
+import numpy.ma as ma
 # import pandas as pd
 import scipy.constants as constants
 import time
@@ -15,6 +16,7 @@ import multiprocessing as mp
 from functools import partial
 from suncasa.eovsa import impteovsa as ipe
 from suncasa.eovsa import concateovsa as ce
+
 
 def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, doscaling, keep_nsclms, fileidx):
     from taskinit import tb, casalog
@@ -76,6 +78,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         # Assumes uv['pol'] is one of -5, -6, -7, -8
         k = -5 - uv['pol']
         l += 1
+        data = ma.masked_array(data, fill_value=0.0)
         out[k, :, l / (npairs * npol), bl2ord[i0, j0]] = data.data
         flag[k, :, l / (npairs * npol), bl2ord[i0, j0]] = data.mask
         # if i != j:
@@ -92,7 +95,6 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
                     out2[:, :, :, bl2ord[i, j]] = out[:, :, :, bl2ord[i, j]] / np.sqrt(
                         np.abs(out[:, :, :, bl2ord[i, i]]) * np.abs(out[:, :, :, bl2ord[j, j]]))
         out2 = out2.reshape(npol, nf, nrows)
-
 
     out = out.reshape(npol, nf, nrows)
     flag = flag.reshape(npol, nf, nrows)
