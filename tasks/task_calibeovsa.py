@@ -312,7 +312,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
             from suncasa.eovsa import concateovsa as ce
             msname = os.path.basename(vis[0])
             msname = msname.split('.')[0] + '_concat.ms'
-            visprefix = msoutdir+'/' 
+            visprefix = msoutdir+'/'
             ce.concateovsa(msname, vis, visprefix, doclearcal=False, keep_orig_ms=keep_orig_ms, cols2rm=["MODEL_DATA"])
             return [visprefix+msname]
     else:
