@@ -7,6 +7,8 @@ import bisect
 import pdb
 from taskinit import ms, tb, qa, iatool
 from astropy.time import Time
+from sunpy import sun
+import astropy.units as u
 
 try:
     from astropy.io import fits as pyfits
@@ -485,18 +487,29 @@ def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsf
         header['crval2'] = crval2
         header['ctype1'] = 'HPLN-TAN'
         header['ctype2'] = 'HPLT-TAN'
-        header['date-obs'] = hel['date-obs']
+        header['date-obs'] = hel['date-obs'] #begin time of the image
         if not p_ang:
             hel['p0'] = 0
         try:
             # this works for pyfits version of CASA 4.7.0 but not CASA 4.6.0
             header.update('exptime', hel['exptime'])
             header.update('p_angle', hel['p0'])
+            header.update('dsun_obs', sun.sunearth_distance(Time(hel['date-obs'])).to(u.meter).value)
+            header.update('rsun_obs', sun.solar_semidiameter_angular_size(Time(hel['date-obs'])).value)
+            header.update('rsun_ref', sun.constants.radius.value)
+            header.update('hgln_obs', 0.)
+            header.update('hglt_obs', sun.heliographic_solar_center(Time(hel['date-obs']))[1].value)
         except:
             # this works for astropy.io.fits
             header.append(('exptime', hel['exptime']))
             header.append(('p_angle', hel['p0']))
+            header.append(('dsun_obs', sun.sunearth_distance(Time(hel['date-obs'])).to(u.meter).value))
+            header.append(('rsun_obs', sun.solar_semidiameter_angular_size(Time(hel['date-obs'])).value))
+            header.append(('rsun_ref', sun.constants.radius.value))
+            header.append(('hgln_obs', 0.))
+            header.append(('hglt_obs', sun.heliographic_solar_center(Time(hel['date-obs']))[1].value))
 
+        pdb.set_trace()
         # header.update('comment', 'Fits header updated to heliocentric coordinates by Bin Chen')
 
         # update intensity units, i.e. to brightness temperature?

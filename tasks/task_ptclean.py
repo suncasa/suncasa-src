@@ -10,8 +10,7 @@ from time import time
 import glob
 import pdb
 
-
-def clean_iter(tim, freq, vis, imageprefix,
+def clean_iter(tim, freq, vis, imageprefix, imagesuffix, 
                ncpu, twidth, doreg, usephacenter, ephem, msinfo, overwrite,
                outlierfile, field, spw, selectdata,
                uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
@@ -55,10 +54,11 @@ def clean_iter(tim, freq, vis, imageprefix,
                 qa.time(qa.quantity(et_d, 's'), prec=9)[0]
     tmid = (bt_d + et_d) / 2.
     btstr = qa.time(qa.quantity(bt_d, 's'), prec=9, form='fits')[0]
+    etstr = qa.time(qa.quantity(et_d, 's'), prec=9, form='fits')[0]
     print 'cleaning timerange: ' + timerange
 
     image0 = btstr.replace(':', '').replace('-', '')
-    imname = imageprefix + image0
+    imname = imageprefix + image0 + imagesuffix
     if overwrite or (len(glob.glob(imname + '*'))==0):
         # inp(taskname = 'clean')
         os.system('rm -rf {}*'.format(imname))
@@ -91,7 +91,7 @@ def clean_iter(tim, freq, vis, imageprefix,
                     shutil.rmtree(imname + clnjunk)
         except:
             print('error in cleaning image: ' + btstr)
-            return [False, btstr, '']
+            return [False, btstr, etstr, '']
     else:
         print imname+' exists. Clean task aborted.'
 
@@ -112,19 +112,19 @@ def clean_iter(tim, freq, vis, imageprefix,
             ep.imreg(vis=vis,ephem=ephem, msinfo=msinfo, reftime=reftime, imagefile=imagefile, fitsfile=fitsfile, 
                          toTb=False, scl100=False, usephacenter=usephacenter)
             if os.path.exists(imname + '.fits'):
-                return [True, btstr, imname + '.fits']
+                return [True, btstr, etstr, imname + '.fits']
             else:
-                return [False, btstr, '']
+                return [False, btstr, etstr, '']
         except:
             print('error in registering image: ' + btstr)
-            return [False, btstr, '']
+            return [False, btstr, etstr, '']
     else:
         if os.path.exists(imname + '.image'):
-            return [True, btstr, imname + '.image']
+            return [True, btstr, etstr, imname + '.image']
         else:
-            return [False, btstr, '']
+            return [False, btstr, etstr, '']
 
-def ptclean(vis, imageprefix, ncpu, twidth, doreg, usephacenter, overwrite,
+def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, overwrite,
             outlierfile, field, spw, selectdata, timerange,
             uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
             wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
@@ -210,7 +210,7 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, usephacenter, overwrite,
     res = []
     # partition
     clnpart = partial(clean_iter, tim, freq, vis,
-                      imageprefix, ncpu, twidth, doreg, usephacenter, ephem, msinfo, overwrite,
+                      imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, ephem, msinfo, overwrite,
                       outlierfile, field, spw, selectdata,
                       uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
                       wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
@@ -241,10 +241,11 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, usephacenter, overwrite,
     timelapse = t1 - t0
     print 'It took %f secs to complete' % timelapse
     # repackage this into a single dictionary
-    results = {'succeeded': [], 'timestamps': [], 'imagenames': []}
+    results = {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': []}
     for r in res:
-        results['succeeded'].append(r[0])
-        results['timestamps'].append(r[1])
-        results['imagenames'].append(r[2])
+        results['Succeeded'].append(r[0])
+        results['BeginTime'].append(r[1])
+        results['EndTime'].append(r[2])
+        results['ImageName'].append(r[3])
 
     return results
