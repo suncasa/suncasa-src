@@ -106,8 +106,8 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=True):
 
     inpath = '{}{}/'.format(udbdir, tdatetime.strftime("%Y"))
     if filelist and doimport:
-        import multiprocessing as mp
-        ncpu = mp.cpu_count()
+        import multiprocessing as mprocs
+        ncpu = mprocs.cpu_count()
         if ncpu > 10:
             ncpu = 10
         if ncpu > len(filelist):
