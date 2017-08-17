@@ -34,17 +34,10 @@ def read_horizons(vis):
         #btime = Time(summary['BeginTime'], format='mjd')
         #etime = Time(summary['EndTime'], format='mjd')
         ## alternative way to avoid conflicts with importeovsa, if needed -- more time consuming
-        tb.open(vis + '/OBSERVATION')
-        trs = {'BegTime': [], 'EndTime': []}
-        for ll in range(tb.nrows()):
-           tim0, tim1 = Time(tb.getcell('TIME_RANGE', ll) / 24 / 3600, format='mjd')
-           trs['BegTime'].append(tim0)
-           trs['EndTime'].append(tim1)
+        tb.open(vis)
+        btime = Time(tb.getcell('TIME',0)/24./3600.,format='mjd')
+        etime = Time(tb.getcell('TIME', tb.nrows()-1) / 24. / 3600., format='mjd')
         tb.close()
-        trs['BegTime'] = Time(trs['BegTime'])
-        trs['EndTime'] = Time(trs['EndTime'])
-        btime = np.min(trs['BegTime'])
-        etime = np.max(trs['EndTime'])
         print "Beginning time of this scan " + btime.iso
         print "End time of this scan " + etime.iso
         try:

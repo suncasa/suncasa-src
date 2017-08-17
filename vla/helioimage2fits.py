@@ -43,17 +43,10 @@ def read_horizons(vis):
         elif metadata.observatorynames()[0] == 'ALMA': # do not implement yet
             observatory_code = '-81'
         ms.close()
-        tb.open(vis + '/OBSERVATION')
-        trs = {'BegTime': [], 'EndTime': []}
-        for ll in range(tb.nrows()):
-            tim0, tim1 = Time(tb.getcell('TIME_RANGE', ll) / 24 / 3600, format='mjd')
-            trs['BegTime'].append(tim0)
-            trs['EndTime'].append(tim1)
+        tb.open(vis)
+        btime = Time(tb.getcell('TIME',0)/24./3600.,format='mjd')
+        etime = Time(tb.getcell('TIME', tb.nrows()-1) / 24. / 3600., format='mjd')
         tb.close()
-        trs['BegTime'] = Time(trs['BegTime'])
-        trs['EndTime'] = Time(trs['EndTime'])
-        btime = np.min(trs['BegTime'])
-        etime = np.max(trs['EndTime'])
         print "Beginning time of this scan " + btime.iso
         print "End time of this scan " + etime.iso
         cmdstr = "http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
@@ -250,6 +243,9 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
     inttimes = msinfo0['inttimes']
     ras = msinfo0['ras']
     decs = msinfo0['decs']
+    if 'observatory' in msinfo0.keys():
+        if msinfo0['observatory'] == 'EOVSA':
+            usephacenter = False
     if type(ras) is list:
         ra_rads = [ra['value'] for ra in ras]
     elif type(ras) is dict:
@@ -320,16 +316,16 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
             dt = tref_d - btimes[ind - 1]
             if ind < len(btimes):
                 scanlen = btimes[ind] - btimes[ind - 1]
-                (ra_b, ra_e) = (ras[ind - 1]['value'], ras[ind]['value'])
-                (dec_b, dec_e) = (decs[ind - 1]['value'], decs[ind]['value'])
+                (ra_b, ra_e) = (ra_rads[ind - 1], ra_rads[ind])
+                (dec_b, dec_e) = (dec_rads[ind - 1], dec_rads[ind])
             if ind >= len(btimes):
                 scanlen = btimes[ind - 1] - btimes[ind - 2]
-                (ra_b, ra_e) = (ras[ind - 2]['value'], ras[ind - 1]['value'])
-                (dec_b, dec_e) = (decs[ind - 2]['value'], decs[ind - 1]['value'])
+                (ra_b, ra_e) = (ra_rads[ind - 2], ra_rads[ind - 1])
+                (dec_b, dec_e) = (dec_rads[ind - 2], dec_rads[ind - 1])
         if ind == 1:  # only one scan exists (e.g., imported from AIPS)
-            ra_b = ras[ind - 1]['value']
+            ra_b = ra_rads[ind - 1]
             ra_e = ra_b
-            dec_b = decs[ind - 1]['value']
+            dec_b = dec_rads[ind - 1]
             dec_e = dec_b
             scanlen = 10.  # radom value
             dt = 0.
@@ -473,8 +469,6 @@ def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsf
     nimg = len(imagefile)
     if verbose:
         print str(nimg) + ' images to process...'
-    if msinfo['observatory'] == 'EOVSA':
-        usephacenter = False
     helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=reftime, usephacenter=usephacenter)
     for n, img in enumerate(imagefile):
         if verbose:
