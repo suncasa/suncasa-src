@@ -14,8 +14,8 @@ def make_ephem(vis, ephemfile=None):
     print "Beginning time of this scan " + btime.iso
     print "End time of this scan " + etime.iso
 
-    btime = Time((btime.mjd - 1.0 / 60 / 24), format='mjd')
-    etime = Time((etime.mjd + 1.0 / 60 / 24), format='mjd')
+    btime = Time((btime.mjd - 1.0/60./24.), format='mjd')
+    etime = Time((etime.mjd + 1.0/60./24.), format='mjd')
     startdate = btime.iso.replace(' ', ',')[:-7]
     enddate = etime.iso.replace(' ', ',')[:-7]
     cmd = ["COMMAND= '10'", "CENTER= '-5@399'", "MAKE_EPHEM= 'YES'", "TABLE_TYPE= 'OBSERVER'",

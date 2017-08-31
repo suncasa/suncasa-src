@@ -40,12 +40,12 @@ def read_horizons(vis):
             observatory_code = '-5'
         elif metadata.observatorynames()[0] == 'EOVSA':
             observatory_code = '-81'
-        elif metadata.observatorynames()[0] == 'ALMA': # do not implement yet
+        elif metadata.observatorynames()[0] == 'ALMA':  # do not implement yet
             observatory_code = '-81'
         ms.close()
         tb.open(vis)
-        btime = Time(tb.getcell('TIME',0)/24./3600.,format='mjd')
-        etime = Time(tb.getcell('TIME', tb.nrows()-1) / 24. / 3600., format='mjd')
+        btime = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
+        etime = Time(tb.getcell('TIME', tb.nrows() - 1) / 24. / 3600., format='mjd')
         tb.close()
         print "Beginning time of this scan " + btime.iso
         print "End time of this scan " + etime.iso
@@ -114,7 +114,7 @@ def read_horizons(vis):
     return ephem
 
 
-def read_msinfo(vis=None, msinfofile=None):
+def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
     import glob
     # read MS information #
     msinfo = dict.fromkeys(['vis', 'scans', 'fieldids', 'btimes', 'btimestr', 'inttimes', 'ras', 'decs', 'observatory'])
@@ -135,24 +135,27 @@ def read_msinfo(vis=None, msinfofile=None):
     ephem_file = glob.glob(vis + '/FIELD/EPHEM*SUN.tab')
     if ephem_file:
         print('Loading ephemeris info from {}'.format(ephem_file[0]))
-        from scipy.interpolate import interp1d
         tb.open(ephem_file[0])
         col_ra = tb.getcol('RA')
         col_dec = tb.getcol('DEC')
-        btimes = tb.getcol('MJD')
-        # f_ra = interp1d(col_mjd, col_ra)
-        # f_dec = interp1d(col_mjd, col_dec)
-        # for idx, scanid in enumerate(scanids):
-        #     btimes.append(scans[scanid]['0']['BeginTime'])
-        #     etimes.append(scans[scanid]['0']['EndTime'])
-        #     fieldid = scans[scanid]['0']['FieldId']
-        #     fieldids.append(fieldid)
-        #     inttimes.append(scans[scanid]['0']['IntegrationTime'])
-        # midtim = (np.array(btimes)+np.array(etimes))/2.0
-        # ras = f_ra(midtim)
-        # decs = f_dec(midtim)
-        ras = qa.convert(qa.quantity(col_ra, 'deg'), 'rad')
-        decs = qa.convert(qa.quantity(col_dec, 'deg'), 'rad')
+        col_mjd = tb.getcol('MJD')
+        if use_scan_time:
+            from scipy.interpolate import interp1d
+            f_ra = interp1d(col_mjd, col_ra)
+            f_dec = interp1d(col_mjd, col_dec)
+            for idx, scanid in enumerate(scanids):
+                btimes.append(scans[scanid]['0']['BeginTime'])
+                etimes.append(scans[scanid]['0']['EndTime'])
+                fieldid = scans[scanid]['0']['FieldId']
+                fieldids.append(fieldid)
+                inttimes.append(scans[scanid]['0']['IntegrationTime'])
+            ras = f_ra(np.array(btimes))
+            decs = f_dec(np.array(btimes))
+            ras = qa.convert(qa.quantity(ras, 'deg'), 'rad')
+            decs = qa.convert(qa.quantity(decs, 'deg'), 'rad')
+        else:
+            ras = qa.convert(qa.quantity(col_ra, 'deg'), 'rad')
+            decs = qa.convert(qa.quantity(col_dec, 'deg'), 'rad')
     else:
         for idx, scanid in enumerate(scanids):
             btimes.append(scans[scanid]['0']['BeginTime'])
@@ -252,6 +255,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
         ra_rads = ras['value']
     else:
         print('Type of msinfo0["ras"] unrecognized.')
+        return 0
     if type(decs) is list:
         dec_rads = [dec['value'] for dec in decs]
     elif type(decs) is dict:
