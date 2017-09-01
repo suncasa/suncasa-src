@@ -4,7 +4,7 @@ import numpy as np
 #from suncasa.vla import vla_prep
 from suncasa.eovsa import eovsa_prep as ep
 import shutil
-import multiprocessing as mp
+import multiprocessing as mprocs
 from functools import partial
 from time import time
 import glob
@@ -229,7 +229,7 @@ def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, ov
     para = 1
     if para:
         casalog.post('Perform clean in parallel ...')
-        pool = mp.Pool(ncpu)
+        pool = mprocs.Pool(ncpu)
         # res = pool.map_async(clnpart, iterable)
         res = pool.map(clnpart, iterable)
         pool.close()

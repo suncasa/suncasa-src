@@ -18,18 +18,18 @@ from importeovsa_cli import importeovsa_cli as importeovsa
 # check if the calibration table directory is defined
 caltbdir = os.getenv('EOVSACAL')
 imgdir = os.getenv('EOVSAIMG')
-
 if not caltbdir:
     print 'Environmental variable for EOVSA calibration table path not defined'
     print 'Use default path on pipeline'
     caltbdir = '/data1/eovsa/caltable/'
 if not imgdir:
     print 'Environmental variable for EOVSA image path not defined'
-    print 'Use current directory'
-    imgdir = './'
+    print 'Use default path on pipeline'
+    imgdir = '/data1/bchen/solar/image/'
 
-def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, flagant='13~15', 
-               doimage=False, stokes=None, doconcat=False, msoutdir='./', keep_orig_ms=True):
+
+def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, flagant='13~15', doimage=False,
+               stokes=None, doconcat=False, msoutdir='./', keep_orig_ms=True):
     '''
 
     :param vis: a single UDBms file or a list of UDBms files(s) 
@@ -150,15 +150,15 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
             # check if the calibration table already exists
             caltb_pha = dirname + t_ref.isot[:-4].replace(':', '').replace('-', '') + '.refpha'
             if not os.path.exists(caltb_pha):
-                gencal(vis=msfile, caltable=caltb_pha, caltype='ph', antenna=antennas, \
-                       pol='X,Y', spw='0~' + str(nspw - 1), parameter=para_pha)
+                gencal(vis=msfile, caltable=caltb_pha, caltype='ph', antenna=antennas, pol='X,Y',
+                       spw='0~' + str(nspw - 1), parameter=para_pha)
             gaintables.append(caltb_pha)
         if ('refamp' in caltype) or ('refcal' in caltype):
             # caltb_amp = os.path.basename(vis).replace('.ms', '.refamp')
             caltb_amp = dirname + t_ref.isot[:-4].replace(':', '').replace('-', '') + '.refamp'
             if not os.path.exists(caltb_amp):
-                gencal(vis=msfile, caltable=caltb_amp, caltype='amp', antenna=antennas, \
-                       pol='X,Y', spw='0~' + str(nspw - 1), parameter=para_amp)
+                gencal(vis=msfile, caltable=caltb_amp, caltype='amp', antenna=antennas, pol='X,Y',
+                       spw='0~' + str(nspw - 1), parameter=para_amp)
             gaintables.append(caltb_amp)
 
         # calibration for the change of delay center between refcal time and beginning of scan -- hopefully none!
@@ -248,8 +248,8 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
                         if not os.path.exists(caltb_phambd_interp):
                             gencal(vis=msfile, caltable=caltb_phambd_interp, caltype='mbd', pol='X,Y', antenna=antennas,
                                    parameter=phambd_ns.flatten().tolist())
-                        print "Using phase calibration table interpolated between records at " + \
-                              bphacal['t_pha'].iso + ' and ' + ephacal['t_pha'].iso
+                        print "Using phase calibration table interpolated between records at " + bphacal[
+                            't_pha'].iso + ' and ' + ephacal['t_pha'].iso
                         gaintables.append(caltb_phambd_interp)
 
         if docalib:
@@ -288,8 +288,8 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
                 imname = dirname + os.path.basename(msfile).replace('.ms', '.bd' + str(bd).zfill(2))
                 print 'Cleaning image: ' + imname
                 try:
-                    clean(vis=msfile, imagename=imname, antenna=antenna, spw=bd, imsize=[512],
-                          cell=['5.0arcsec'], stokes=stokes, niter=500)
+                    clean(vis=msfile, imagename=imname, antenna=antenna, spw=bd, imsize=[512], cell=['5.0arcsec'],
+                          stokes=stokes, niter=500)
                 except:
                     print 'clean not successfull for band ' + str(bd)
                 else:
@@ -321,8 +321,8 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
             from suncasa.eovsa import concateovsa as ce
             msname = os.path.basename(vis[0])
             msname = msname.split('.')[0] + '_concat.ms'
-            visprefix = msoutdir+'/'
+            visprefix = msoutdir + '/'
             ce.concateovsa(msname, vis, visprefix, doclearcal=False, keep_orig_ms=keep_orig_ms, cols2rm=["MODEL_DATA"])
-            return [visprefix+msname]
+            return [visprefix + msname]
     else:
         return vis

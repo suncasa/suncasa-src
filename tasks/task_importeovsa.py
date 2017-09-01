@@ -12,7 +12,7 @@ from taskinit import tb, casalog
 from split_cli import split_cli as split
 from concat_cli import concat_cli as concat
 from clearcal_cli import clearcal_cli as clearcal
-import multiprocessing as mp
+import multiprocessing as mprocs
 from functools import partial
 from suncasa.eovsa import impteovsa as ipe
 from suncasa.eovsa import concateovsa as ce
@@ -322,7 +322,7 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
 
     t0 = time.time()
     casalog.post('Perform importeovsa in parallel with {} CPUs...'.format(ncpu))
-    pool = mp.Pool(ncpu)
+    pool = mprocs.Pool(ncpu)
     res = pool.map(imppart, iterable)
     pool.close()
     pool.join()

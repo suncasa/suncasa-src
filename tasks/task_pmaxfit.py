@@ -3,7 +3,7 @@ import numpy.ma as ma
 import os, struct
 from time import time
 from taskinit import casalog
-import multiprocessing as mp
+import multiprocessing as mprocs
 from suncasa.utils import DButil
 
 
@@ -103,7 +103,7 @@ def pmaxfit(imagefiles, ncpu, box, width):
     t0 = time()
     if para:
         casalog.post('Perform maxfit in parallel ...')
-        pool = mp.Pool(ncpu)
+        pool = mprocs.Pool(ncpu)
         # res = pool.map_async(maxfit_part, iterable)
         res = pool.map(maxfit_part, iterable)
         pool.close()
