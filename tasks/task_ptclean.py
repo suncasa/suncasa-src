@@ -2,7 +2,8 @@ import os
 from taskinit import *
 import numpy as np
 #from suncasa.vla import vla_prep
-from suncasa.eovsa import eovsa_prep as ep
+#from suncasa.eovsa import eovsa_prep as ep
+from suncasa.utils import helioimage2fits as hf
 import shutil
 import multiprocessing as mprocs
 from functools import partial
@@ -11,7 +12,7 @@ import glob
 import pdb
 
 def clean_iter(tim, freq, vis, imageprefix, imagesuffix, 
-               ncpu, twidth, doreg, usephacenter, ephem, msinfo, overwrite,
+               ncpu, twidth, doreg, usephacenter, reftime, ephem, msinfo, overwrite,
                outlierfile, field, spw, selectdata,
                uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
                wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
@@ -50,8 +51,8 @@ def clean_iter(tim, freq, vis, imageprefix, imagesuffix,
     # bt_d=tim[bt]
     # et_d=tim[et]+0.005
 
-    timerange = qa.time(qa.quantity(bt_d, 's'), prec=9)[0] + '~' + \
-                qa.time(qa.quantity(et_d, 's'), prec=9)[0]
+    timerange = qa.time(qa.quantity(bt_d, 's'), prec=9, form='ymd')[0] + '~' + \
+                qa.time(qa.quantity(et_d, 's'), prec=9, form='ymd')[0]
     tmid = (bt_d + et_d) / 2.
     btstr = qa.time(qa.quantity(bt_d, 's'), prec=9, form='fits')[0]
     etstr = qa.time(qa.quantity(et_d, 's'), prec=9, form='fits')[0]
@@ -96,20 +97,17 @@ def clean_iter(tim, freq, vis, imageprefix, imagesuffix,
         print imname+' exists. Clean task aborted.'
 
     if doreg and not os.path.isfile(imname+'.fits'):
-        ephem.keys()
-        msinfo.keys()
+        #ephem.keys()
+        #msinfo.keys()
         try:
             # check if ephemfile and msinfofile exist
             if not ephem:
                 print("ephemeris info does not exist, querying from JPL Horizons on the fly")
-                ephem = ep.read_horizons(vis)
+                ephem = hf.read_horizons(vis)
             if not msinfo:
                 print("ms info not provided, generating one on the fly")
-                msinfo = ep.read_msinfo(vis)
-            reftime = [timerange]
-            imagefile = [imname + '.image']
-            fitsfile = [imname + '.fits']
-            ep.imreg(vis=vis,ephem=ephem, msinfo=msinfo, reftime=reftime, imagefile=imagefile, fitsfile=fitsfile, 
+                msinfo = hf.read_msinfo(vis)
+            hf.imreg(vis=vis, ephem=ephem, msinfo=msinfo, timerange=timerange, reftime=reftime, imagefile=imname+'.image', fitsfile=imname+'.fits', 
                          toTb=False, scl100=False, usephacenter=usephacenter)
             if os.path.exists(imname + '.fits'):
                 shutil.rmtree(imname + '.image')
@@ -125,7 +123,7 @@ def clean_iter(tim, freq, vis, imageprefix, imagesuffix,
         else:
             return [False, btstr, etstr, '']
 
-def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, overwrite,
+def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, overwrite,
             outlierfile, field, spw, selectdata, timerange,
             uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
             wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
@@ -144,11 +142,11 @@ def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, ov
     if doreg:
         # check if ephem and msinfo exist. If not, generate one on the fly
         try:
-            ephem = ep.read_horizons(vis)
+            ephem = hf.read_horizons(vis)
         except ValueError:
             print("error in obtaining ephemeris")
         try:
-            msinfo = ep.read_msinfo(vis)
+            msinfo = hf.read_msinfo(vis)
         except ValueError:
             print("error in getting ms info")
     else:
@@ -211,7 +209,7 @@ def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, ov
     res = []
     # partition
     clnpart = partial(clean_iter, tim, freq, vis,
-                      imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, ephem, msinfo, overwrite,
+                      imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, ephem, msinfo, overwrite,
                       outlierfile, field, spw, selectdata,
                       uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
                       wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
