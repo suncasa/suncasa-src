@@ -32,7 +32,12 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
     </param>
 
     <param type="string" name="imageprefix">
-      <description>Prefix of image names (may include the path)</description>
+      <description>Prefix of output image names (usually useful in defining the output path)</description>
+      <value></value>
+    </param>
+
+    <param type="string" name="imagesuffix">
+      <description>Suffix of output image names (usually useful in specifyting the image type, version, etc.)</description>
       <value></value>
     </param>
 
@@ -54,6 +59,11 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
     <param type="bool" name="usephacenter" subparam="true">
 	    <description>True if use the phacenter information from the measurement set (e.g., VLA); False to assume the phase center is at the solar disk center (EOVSA) </description>
 	    <value>False</value>
+    </param>
+
+    <param type="string" name="reftime" subparam="true">
+        <description>Reference time of the J2000 coordinates associated with the ephemeris target. e.g., "2012/03/03/12:00". This is used for helioimage2fits.py to find the solar x y offset in order to register the image. If not set, use the actual timerange of the image (default) </description>
+	    <value></value>
     </param>
 
     <param type="bool" name="overwrite">
@@ -514,6 +524,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 		<equals type="bool" value="False"/>
 		<equals type="bool" value="True">
 		      <default param="usephacenter"><value>True</value></default>
+		      <default param="reftime"><value type="string"></value></default>
 	        </equals>
             </when>
             <when param="selectdata">

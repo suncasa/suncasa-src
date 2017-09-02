@@ -2,17 +2,17 @@ import os
 from taskinit import *
 import numpy as np
 #from suncasa.vla import vla_prep
-from suncasa.eovsa import eovsa_prep as ep
+#from suncasa.eovsa import eovsa_prep as ep
+from suncasa.utils import helioimage2fits as hf
 import shutil
-import multiprocessing as mp
+import multiprocessing as mprocs
 from functools import partial
 from time import time
 import glob
 import pdb
 
-
-def clean_iter(tim, freq, vis, imageprefix,
-               ncpu, twidth, doreg, usephacenter, ephem, msinfo, overwrite,
+def clean_iter(tim, freq, vis, imageprefix, imagesuffix, 
+               ncpu, twidth, doreg, usephacenter, reftime, ephem, msinfo, overwrite,
                outlierfile, field, spw, selectdata,
                uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
                wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
@@ -51,14 +51,15 @@ def clean_iter(tim, freq, vis, imageprefix,
     # bt_d=tim[bt]
     # et_d=tim[et]+0.005
 
-    timerange = qa.time(qa.quantity(bt_d, 's'), prec=9)[0] + '~' + \
-                qa.time(qa.quantity(et_d, 's'), prec=9)[0]
+    timerange = qa.time(qa.quantity(bt_d, 's'), prec=9, form='ymd')[0] + '~' + \
+                qa.time(qa.quantity(et_d, 's'), prec=9, form='ymd')[0]
     tmid = (bt_d + et_d) / 2.
     btstr = qa.time(qa.quantity(bt_d, 's'), prec=9, form='fits')[0]
+    etstr = qa.time(qa.quantity(et_d, 's'), prec=9, form='fits')[0]
     print 'cleaning timerange: ' + timerange
 
     image0 = btstr.replace(':', '').replace('-', '')
-    imname = imageprefix + image0
+    imname = imageprefix + image0 + imagesuffix
     if overwrite or (len(glob.glob(imname + '*'))==0):
         # inp(taskname = 'clean')
         os.system('rm -rf {}*'.format(imname))
@@ -91,40 +92,38 @@ def clean_iter(tim, freq, vis, imageprefix,
                     shutil.rmtree(imname + clnjunk)
         except:
             print('error in cleaning image: ' + btstr)
-            return [False, btstr, '']
+            return [False, btstr, etstr, '']
     else:
         print imname+' exists. Clean task aborted.'
 
     if doreg and not os.path.isfile(imname+'.fits'):
-        ephem.keys()
-        msinfo.keys()
+        #ephem.keys()
+        #msinfo.keys()
         try:
             # check if ephemfile and msinfofile exist
             if not ephem:
                 print("ephemeris info does not exist, querying from JPL Horizons on the fly")
-                ephem = ep.read_horizons(vis)
+                ephem = hf.read_horizons(vis)
             if not msinfo:
                 print("ms info not provided, generating one on the fly")
-                msinfo = ep.read_msinfo(vis)
-            reftime = [timerange]
-            imagefile = [imname + '.image']
-            fitsfile = [imname + '.fits']
-            ep.imreg(vis=vis,ephem=ephem, msinfo=msinfo, reftime=reftime, imagefile=imagefile, fitsfile=fitsfile, 
+                msinfo = hf.read_msinfo(vis)
+            hf.imreg(vis=vis, ephem=ephem, msinfo=msinfo, timerange=timerange, reftime=reftime, imagefile=imname+'.image', fitsfile=imname+'.fits', 
                          toTb=False, scl100=False, usephacenter=usephacenter)
             if os.path.exists(imname + '.fits'):
-                return [True, btstr, imname + '.fits']
+                shutil.rmtree(imname + '.image')
+                return [True, btstr, etstr, imname + '.fits']
             else:
-                return [False, btstr, '']
+                return [False, btstr, etstr, '']
         except:
             print('error in registering image: ' + btstr)
-            return [False, btstr, '']
+            return [False, btstr, etstr, imname + '.image']
     else:
         if os.path.exists(imname + '.image'):
-            return [True, btstr, imname + '.image']
+            return [True, btstr, etstr, imname + '.image']
         else:
-            return [False, btstr, '']
+            return [False, btstr, etstr, '']
 
-def ptclean(vis, imageprefix, ncpu, twidth, doreg, usephacenter, overwrite,
+def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, overwrite,
             outlierfile, field, spw, selectdata, timerange,
             uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
             wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
@@ -143,11 +142,11 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, usephacenter, overwrite,
     if doreg:
         # check if ephem and msinfo exist. If not, generate one on the fly
         try:
-            ephem = ep.read_horizons(vis)
+            ephem = hf.read_horizons(vis)
         except ValueError:
             print("error in obtaining ephemeris")
         try:
-            msinfo = ep.read_msinfo(vis)
+            msinfo = hf.read_msinfo(vis)
         except ValueError:
             print("error in getting ms info")
     else:
@@ -163,10 +162,13 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, usephacenter, overwrite,
     freq = timfreq['axis_info']['freq_axis']['chan_freq'].flatten()
     ms.close()
 
-    if twidth < 1 or twidth > len(tim):
-        casalog.post('twidth not between 1 and # of time pixels in the dataset. Change to 1')
+    if twidth < 1:
+        casalog.post('twidth less than 1. Change to 1')
         twidth = 1
 
+    if twidth > len(tim):
+        casalog.post('twidth greater than # of time pixels in the dataset. Change to the timerange of the entire dateset')
+        twidth = len(tim)
     # find out the start and end time index according to the parameter timerange
     # if not defined (empty string), use start and end from the entire time of the ms
     if not timerange:
@@ -207,7 +209,7 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, usephacenter, overwrite,
     res = []
     # partition
     clnpart = partial(clean_iter, tim, freq, vis,
-                      imageprefix, ncpu, twidth, doreg, usephacenter, ephem, msinfo, overwrite,
+                      imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, ephem, msinfo, overwrite,
                       outlierfile, field, spw, selectdata,
                       uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
                       wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
@@ -225,7 +227,7 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, usephacenter, overwrite,
     para = 1
     if para:
         casalog.post('Perform clean in parallel ...')
-        pool = mp.Pool(ncpu)
+        pool = mprocs.Pool(ncpu)
         # res = pool.map_async(clnpart, iterable)
         res = pool.map(clnpart, iterable)
         pool.close()
@@ -238,10 +240,11 @@ def ptclean(vis, imageprefix, ncpu, twidth, doreg, usephacenter, overwrite,
     timelapse = t1 - t0
     print 'It took %f secs to complete' % timelapse
     # repackage this into a single dictionary
-    results = {'succeeded': [], 'timestamps': [], 'imagenames': []}
+    results = {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': []}
     for r in res:
-        results['succeeded'].append(r[0])
-        results['timestamps'].append(r[1])
-        results['imagenames'].append(r[2])
+        results['Succeeded'].append(r[0])
+        results['BeginTime'].append(r[1])
+        results['EndTime'].append(r[2])
+        results['ImageName'].append(r[3])
 
     return results

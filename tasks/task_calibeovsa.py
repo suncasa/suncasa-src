@@ -13,12 +13,11 @@ from eovsapy import cal_header as ch
 from eovsapy import stateframe as stf
 from matplotlib import pyplot as plt
 from eovsapy import dbutil as db
+from importeovsa_cli import importeovsa_cli as importeovsa
 
 # check if the calibration table directory is defined
 caltbdir = os.getenv('EOVSACAL')
 imgdir = os.getenv('EOVSAIMG')
-udbmsscldir = os.getenv('EOVSAUDBMSSCL')
-udbdir = os.getenv('EOVSAUDB')
 if not caltbdir:
     print 'Environmental variable for EOVSA calibration table path not defined'
     print 'Use default path on pipeline'
@@ -27,125 +26,39 @@ if not imgdir:
     print 'Environmental variable for EOVSA image path not defined'
     print 'Use default path on pipeline'
     imgdir = '/data1/bchen/solar/image/'
-if not udbmsscldir:
-    print 'Environmental variable for EOVSA udbms path not defined'
-    print 'Use default path on pipeline'
-    udbmsscldir = '/data1/eovsa/fits/UDBms_scl/'
-if not udbdir:
-    print 'Environmental variable for EOVSA udb path not defined'
-    print 'Use default path on pipeline'
-    udbdir = '/data1/eovsa/fits/UDB/'
 
 
-def trange2ms(trange=None, verbose=False, doscaling=True):
-    '''This finds all solar UDBms files within a timerange
-
-       Required inputs:
-       trange - can be 1) a single Time() object: use the entire day
-                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
-                       4) a list of UDBms files
-                       3) None -- use current date Time.now()
-    '''
-    import glob
-    import pytz
-    if trange is None:
-        trange = Time.now()
-    if type(trange) == list:
-        try:
-            trange = Time(trange)
-        except:
-            print('trange format not recognised. Abort....')
-            return None
-    local_tz = pytz.timezone('America/Los_Angeles')
-    try:
-        if len(trange) > 1:
-            trange = Time([trange[0], trange[-1]])
-            tdatetime = trange[0].to_datetime()
-        else:
-            tdatetime = trange[0].to_datetime()
-            btime = Time(local_tz.localize(tdatetime, is_dst=None).astimezone(pytz.utc))
-            etime = Time(btime.mjd + 1.0, format='mjd')
-            trange = Time([btime, etime])
-    except:
-        tdatetime = trange.to_datetime()
-        btime = Time(local_tz.localize(tdatetime, is_dst=None).astimezone(pytz.utc))
-        etime = Time(btime.mjd + 1.0, format='mjd')
-        trange = Time([btime, etime])
-
-    sclist = ra.findfiles(trange, projid='NormalObserving', srcid='Sun')
-    udbfilelist = sclist['scanlist']
-    udbfilelist = [os.path.basename(ll) for ll in udbfilelist]
-    outpath = '{}{}/'.format(udbmsscldir, tdatetime.strftime("%Y%m"))
-    if not os.path.exists(outpath):
-        os.makedirs(outpath)
-        msfiles = []
-    else:
-        msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
-    udbfilelist_set = set(udbfilelist)
-    msfiles = udbfilelist_set.intersection(msfiles)
-    filelist = udbfilelist_set - msfiles
-    filelist = sorted(list(filelist))
-
-    if filelist:
-        import multiprocessing as mp
-        ncpu = mp.cpu_count()
-        if ncpu > 10:
-            ncpu = 10
-        if ncpu > len(filelist):
-            ncpu = len(filelist)
-        inpath = '{}{}/'.format(udbdir, tdatetime.strftime("%Y"))
-        importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
-                    visprefix=outpath, nocreatms=False, doconcat=False, modelms="", doscaling=doscaling,
-                    keep_nsclms=False)
-
-    msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
-    udbfilelist_set = set(udbfilelist)
-    msfiles = udbfilelist_set.intersection(msfiles)
-    filelist = udbfilelist_set - msfiles
-    filelist = sorted(list(filelist))
-
-    if verbose:
-        return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': filelist,
-                'ms': [ll + '.ms' for ll in sorted(list(msfiles))]}
-    else:
-        return [outpath + ll + '.ms' for ll in sorted(list(msfiles))]
-
-
-def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False, flagant='13~15', stokes=None,
-               doconcat=True, keep_orig_ms=True):
+def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, flagant='13~15', doimage=False,
+               stokes=None, doconcat=False, msoutdir='./', keep_orig_ms=True):
     '''
 
-    :param vis: can be 1) a single Time() object: use the entire day
-                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
-                       4) a single UDBms file or a list of UDBms file(s)
-                       3) None -- use current date Time.now()
+    :param vis: a single UDBms file or a list of UDBms files(s) 
     :param caltype:
     :param interp:
     :param docalib:
-    :param doimage:
+    :param qlookimage:
     :param flagant:
     :param stokes:
     :param doconcat:
     :return:
     '''
 
-    if type(vis) == Time:
-        vis = trange2ms(trange=vis)
     if type(vis) == str:
-        vis = list(vis)
+        vis = [vis]
 
     for idx, f in enumerate(vis):
         if f[-1] == '/':
             vis[idx] = f[:-1]
 
     for msfile in vis:
-        casalog.origin('eovsacalib')
+        casalog.origin('calibeovsa')
         if not caltype:
             casalog.post("Caltype not provided. Perform reference phase calibration and daily phase calibration.")
             caltype = ['refpha', 'phacal']  ## use this line after the phacal is applied
             # caltype = ['refcal']
         if not os.path.exists(msfile):
             casalog.post("Input visibility does not exist. Aborting...")
+            continue
         if msfile.endswith('/'):
             msfile = msfile[:-1]
         if not msfile[-3:] in ['.ms', '.MS']:
@@ -237,15 +150,15 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
             # check if the calibration table already exists
             caltb_pha = dirname + t_ref.isot[:-4].replace(':', '').replace('-', '') + '.refpha'
             if not os.path.exists(caltb_pha):
-                gencal(vis=msfile, caltable=caltb_pha, caltype='ph', antenna=antennas, \
-                       pol='X,Y', spw='0~' + str(nspw - 1), parameter=para_pha)
+                gencal(vis=msfile, caltable=caltb_pha, caltype='ph', antenna=antennas, pol='X,Y',
+                       spw='0~' + str(nspw - 1), parameter=para_pha)
             gaintables.append(caltb_pha)
         if ('refamp' in caltype) or ('refcal' in caltype):
             # caltb_amp = os.path.basename(vis).replace('.ms', '.refamp')
             caltb_amp = dirname + t_ref.isot[:-4].replace(':', '').replace('-', '') + '.refamp'
             if not os.path.exists(caltb_amp):
-                gencal(vis=msfile, caltable=caltb_amp, caltype='amp', antenna=antennas, \
-                       pol='X,Y', spw='0~' + str(nspw - 1), parameter=para_amp)
+                gencal(vis=msfile, caltable=caltb_amp, caltype='amp', antenna=antennas, pol='X,Y',
+                       spw='0~' + str(nspw - 1), parameter=para_amp)
             gaintables.append(caltb_amp)
 
         # calibration for the change of delay center between refcal time and beginning of scan -- hopefully none!
@@ -335,8 +248,8 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
                         if not os.path.exists(caltb_phambd_interp):
                             gencal(vis=msfile, caltable=caltb_phambd_interp, caltype='mbd', pol='X,Y', antenna=antennas,
                                    parameter=phambd_ns.flatten().tolist())
-                        print "Using phase calibration table interpolated between records at " + \
-                              bphacal['t_pha'].iso + ' and ' + ephacal['t_pha'].iso
+                        print "Using phase calibration table interpolated between records at " + bphacal[
+                            't_pha'].iso + ' and ' + ephacal['t_pha'].iso
                         gaintables.append(caltb_phambd_interp)
 
         if docalib:
@@ -350,8 +263,12 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
             else:
                 if os.path.exists(caltb_phambd_interp):
                     shutil.rmtree(caltb_phambd_interp)
-        if flagant:
-            flagdata(vis=msfile, antenna=flagant)
+        if doflag:
+            if flagant:
+                try:
+                    flagdata(vis=msfile, antenna=flagant)
+                except:
+                    print "Something wrong with flagant. Abort..."
 
         if doimage:
             from suncasa.eovsa import eovsa_prep as ep
@@ -371,8 +288,8 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
                 imname = dirname + os.path.basename(msfile).replace('.ms', '.bd' + str(bd).zfill(2))
                 print 'Cleaning image: ' + imname
                 try:
-                    clean(vis=msfile, imagename=imname, antenna=antenna, spw=bd, imsize=[512],
-                          cell=['5.0arcsec'], stokes=stokes, niter=500)
+                    clean(vis=msfile, imagename=imname, antenna=antenna, spw=bd, imsize=[512], cell=['5.0arcsec'],
+                          stokes=stokes, niter=500)
                 except:
                     print 'clean not successfull for band ' + str(bd)
                 else:
@@ -400,8 +317,12 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doimage=False,
             plt.show()
 
     if doconcat:
-        from suncasa.eovsa import concateovsa as ce
-        msname = os.path.basename(vis[0])
-        msname = msname.split('.')[0] + '_concat.ms'
-        visprefix = os.path.dirname(vis[0]) + '/'
-        ce.concateovsa(msname, vis, visprefix, keep_orig_ms=keep_orig_ms, cols2rm=["CORRECTED_DATA"])
+        if len(vis) > 1:
+            from suncasa.eovsa import concateovsa as ce
+            msname = os.path.basename(vis[0])
+            msname = msname.split('.')[0] + '_concat.ms'
+            visprefix = msoutdir + '/'
+            ce.concateovsa(msname, vis, visprefix, doclearcal=False, keep_orig_ms=keep_orig_ms, cols2rm=["MODEL_DATA"])
+            return [visprefix + msname]
+    else:
+        return vis

@@ -1,6 +1,7 @@
 import os
 # import gc
 import numpy as np
+import numpy.ma as ma
 # import pandas as pd
 import scipy.constants as constants
 import time
@@ -11,7 +12,7 @@ from taskinit import tb, casalog
 from split_cli import split_cli as split
 from concat_cli import concat_cli as concat
 from clearcal_cli import clearcal_cli as clearcal
-import multiprocessing as mp
+import multiprocessing as mprocs
 from functools import partial
 from suncasa.eovsa import impteovsa as ipe
 from suncasa.eovsa import concateovsa as ce
@@ -77,6 +78,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         # Assumes uv['pol'] is one of -5, -6, -7, -8
         k = -5 - uv['pol']
         l += 1
+        data = ma.masked_array(data, fill_value=0.0)
         out[k, :, l / (npairs * npol), bl2ord[i0, j0]] = data.data
         flag[k, :, l / (npairs * npol), bl2ord[i0, j0]] = data.mask
         # if i != j:
@@ -93,8 +95,9 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
                     out2[:, :, :, bl2ord[i, j]] = out[:, :, :, bl2ord[i, j]] / np.sqrt(
                         np.abs(out[:, :, :, bl2ord[i, i]]) * np.abs(out[:, :, :, bl2ord[j, j]]))
         out2 = out2.reshape(npol, nf, nrows)
-
-
+        out2[np.isnan(out2)] = 0
+        out2[np.isinf(out2)] = 0
+    # out2 = ma.masked_array(ma.masked_invalid(out2), fill_value=0.0)
     out = out.reshape(npol, nf, nrows)
     flag = flag.reshape(npol, nf, nrows)
     uvwarray = uvwarray.reshape(3, nrows)
@@ -124,7 +127,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         time1 = time.time()
         nchannels = len(cband['cidx'])
         for row in range(nrows):
-            if not doscaling:
+            if not doscaling or keep_nsclms:
                 tb.putcell('DATA', (row + l * nrows), out[:, cband['cidx'][0]:cband['cidx'][-1] + 1, row])
             tb.putcell('FLAG', (row + l * nrows), flag[:, cband['cidx'][0]:cband['cidx'][-1] + 1, row])
         casalog.post('---spw {0:02d} is updated in --- {1:10.2f} seconds ---'.format((l + 1), time.time() - time1))
@@ -319,7 +322,7 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
 
     t0 = time.time()
     casalog.post('Perform importeovsa in parallel with {} CPUs...'.format(ncpu))
-    pool = mp.Pool(ncpu)
+    pool = mprocs.Pool(ncpu)
     res = pool.map(imppart, iterable)
     pool.close()
     pool.join()
@@ -362,7 +365,7 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
             if keep_nsclms:
                 ce.concateovsa(msname + '-{:d}m{}.ms'.format(durtim, '_scl'), msfiles, visprefix)
             else:
-                ce.concateovsa(msname + '-{:d}m{}.ms'.format(durtim, '_scl'), msfiles, visprefix)
+                ce.concateovsa(msname + '-{:d}m{}.ms'.format(durtim, ''), msfiles, visprefix)
         else:
             msfiles = list(np.array(results['msfile'])[np.where(np.array(results['succeeded']) == True)])
             durtim = int(results['durtim'].sum())

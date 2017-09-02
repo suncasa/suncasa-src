@@ -28,28 +28,33 @@ def read_horizons(vis):
         print 'Input ms data ' + vis + ' does not exist! '
         return -1
     try:
-        #ms.open(vis)
-        #summary = ms.summary()
-        #ms.close()
-        #btime = Time(summary['BeginTime'], format='mjd')
-        #etime = Time(summary['EndTime'], format='mjd')
+        # ms.open(vis)
+        # summary = ms.summary()
+        # ms.close()
+        # btime = Time(summary['BeginTime'], format='mjd')
+        # etime = Time(summary['EndTime'], format='mjd')
         ## alternative way to avoid conflicts with importeovsa, if needed -- more time consuming
+        ms.open(vis)
+        metadata = ms.metadata()
+        if metadata.observatorynames()[0] == 'EVLA':
+            observatory_code = '-5'
+        elif metadata.observatorynames()[0] == 'EOVSA':
+            observatory_code = '-81'
+        elif metadata.observatorynames()[0] == 'ALMA':  
+            observatory_code = '-7'
+        ms.close()
         tb.open(vis)
-        btime = Time(tb.getcell('TIME',0)/24./3600.,format='mjd')
-        etime = Time(tb.getcell('TIME', tb.nrows()-1) / 24. / 3600., format='mjd')
+        btime = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
+        etime = Time(tb.getcell('TIME', tb.nrows() - 1) / 24. / 3600., format='mjd')
         tb.close()
         print "Beginning time of this scan " + btime.iso
         print "End time of this scan " + etime.iso
+        cmdstr = "http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(observatory_code) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',',') + "'&STEP_SIZE='1 m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
         try:
             context = ssl._create_unverified_context()
-            f = urllib2.urlopen(
-                "http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='-81@399'&COMMAND='10'&START_TIME='" + btime.iso.replace(
-                    ' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ', ',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'",
-                context=context)
+            f = urllib2.urlopen(cmdstr, context=context)
         except:
-            f = urllib2.urlopen(
-                "http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='-81@399'&COMMAND='10'&START_TIME='" + btime.iso.replace(
-                    ' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ', ',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'")
+            f = urllib2.urlopen(cmdstr)
     except:
         print 'error in reading ms file: ' + vis + ' to obtain the ephemeris!'
         return -1
@@ -107,11 +112,13 @@ def read_horizons(vis):
     return ephem
 
 
-def read_msinfo(vis=None, msinfofile=None):
+def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
+    import glob
     # read MS information #
-    msinfo = dict.fromkeys(['vis', 'scans', 'fieldids', 'btimes', 'btimestr', \
-                            'inttimes', 'ras', 'decs'])
+    msinfo = dict.fromkeys(['vis', 'scans', 'fieldids', 'btimes', 'btimestr', 'inttimes', 'ras', 'decs', 'observatory'])
     ms.open(vis)
+    metadata = ms.metadata()
+    observatory = metadata.observatorynames()[0]
     scans = ms.getscansummary()
     scanids = sorted(scans.keys(), key=lambda x: int(x))
     nscanid = len(scanids)
@@ -123,19 +130,43 @@ def read_msinfo(vis=None, msinfofile=None):
     dirs = []
     ras = []
     decs = []
-    for i in range(nscanid):
-        btimes.append(scans[scanids[i]]['0']['BeginTime'])
-        etimes.append(scans[scanids[i]]['0']['EndTime'])
-        fieldid = scans[scanids[i]]['0']['FieldId']
-        fieldids.append(fieldid)
-        dir = ms.getfielddirmeas('PHASE_DIR', fieldid)
-        dirs.append(dir)
-        ras.append(dir['m0'])
-        decs.append(dir['m1'])
-        inttimes.append(scans[scanids[i]]['0']['IntegrationTime'])
+    ephem_file = glob.glob(vis + '/FIELD/EPHEM*SUN.tab')
+    if ephem_file:
+        print('Loading ephemeris info from {}'.format(ephem_file[0]))
+        tb.open(ephem_file[0])
+        col_ra = tb.getcol('RA')
+        col_dec = tb.getcol('DEC')
+        col_mjd = tb.getcol('MJD')
+        if use_scan_time:
+            from scipy.interpolate import interp1d
+            f_ra = interp1d(col_mjd, col_ra)
+            f_dec = interp1d(col_mjd, col_dec)
+            for idx, scanid in enumerate(scanids):
+                btimes.append(scans[scanid]['0']['BeginTime'])
+                etimes.append(scans[scanid]['0']['EndTime'])
+                fieldid = scans[scanid]['0']['FieldId']
+                fieldids.append(fieldid)
+                inttimes.append(scans[scanid]['0']['IntegrationTime'])
+            ras = f_ra(np.array(btimes))
+            decs = f_dec(np.array(btimes))
+            ras = qa.convert(qa.quantity(ras, 'deg'), 'rad')
+            decs = qa.convert(qa.quantity(decs, 'deg'), 'rad')
+        else:
+            ras = qa.convert(qa.quantity(col_ra, 'deg'), 'rad')
+            decs = qa.convert(qa.quantity(col_dec, 'deg'), 'rad')
+    else:
+        for idx, scanid in enumerate(scanids):
+            btimes.append(scans[scanid]['0']['BeginTime'])
+            etimes.append(scans[scanid]['0']['EndTime'])
+            fieldid = scans[scanid]['0']['FieldId']
+            fieldids.append(fieldid)
+            inttimes.append(scans[scanid]['0']['IntegrationTime'])
+            dir = ms.getfielddirmeas('PHASE_DIR', fieldid)
+            dirs.append(dir)
+            ras.append(dir['m0'])
+            decs.append(dir['m1'])
     ms.close()
-    btimestr = [qa.time(qa.quantity(btimes[i], 'd'), form='fits', prec=10)[0] \
-                for i in range(nscanid)]
+    btimestr = [qa.time(qa.quantity(btimes[idx], 'd'), form='fits', prec=10)[0] for idx in range(nscanid)]
     msinfo['vis'] = vis
     msinfo['scans'] = scans
     msinfo['fieldids'] = fieldids
@@ -144,11 +175,12 @@ def read_msinfo(vis=None, msinfofile=None):
     msinfo['inttimes'] = inttimes
     msinfo['ras'] = ras
     msinfo['decs'] = decs
+    msinfo['observatory'] = observatory
     if msinfofile:
-        np.savez(msinfofile, vis=vis, scans=scans, fieldids=fieldids, \
-                 btimes=btimes, btimestr=btimestr, inttimes=inttimes, \
-                 ras=ras, decs=decs)
+        np.savez(msinfofile, vis=vis, scans=scans, fieldids=fieldids, btimes=btimes, btimestr=btimestr,
+                 inttimes=inttimes, ras=ras, decs=decs, observatory=observatory)
     return msinfo
+
 
 def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None, usephacenter=False):
     '''1. Take a solar ms database, read the scan and field information, find out the pointings (in RA and DEC)
@@ -162,12 +194,12 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                     or a time range (e.g., '2012/03/03/12:00:00~2012/03/03/13:00:00'. If the latter,
                     take the midpoint of the timerange for reference. If no date specified, take
                     the date of the first scan
-           polyfit: ONLY works for MS database with only one source with continously tracking; 
+           polyfit: ONLY works for MS database with only one source with continously tracking;
                     not recommanded unless scan length is too long and want to have very high accuracy
-           usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris. 
+           usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris.
                                  Otherwise assume the phasecenter is correctly pointed to the solar disk center
                                  (EOVSA case)
-     
+
        return value:
            helio: a list of VLA pointing information
                    reftimestr: reference time, in FITS format string
@@ -212,8 +244,22 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
     inttimes = msinfo0['inttimes']
     ras = msinfo0['ras']
     decs = msinfo0['decs']
-    ra_rads = [ra['value'] for ra in ras]
-    dec_rads = [dec['value'] for dec in decs]
+    if 'observatory' in msinfo0.keys():
+        if msinfo0['observatory'] == 'EOVSA':
+            usephacenter = False
+    if type(ras) is list:
+        ra_rads = [ra['value'] for ra in ras]
+    elif type(ras) is dict:
+        ra_rads = ras['value']
+    else:
+        print('Type of msinfo0["ras"] unrecognized.')
+        return 0
+    if type(decs) is list:
+        dec_rads = [dec['value'] for dec in decs]
+    elif type(decs) is dict:
+        dec_rads = decs['value']
+    else:
+        print('Type of msinfo0["decs"] unrecognized.')
     # fit 2nd order polynomial fits to the RAs and DECs #
     if polyfit:
         cra = np.polyfit(btimes, ra_rads, 2)
@@ -230,38 +276,47 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
     nreftime = len(reftime)
     helio = []
     for reftime0 in reftime:
-        helio0 = dict.fromkeys(['reftimestr', 'reftime', \
-                                'ra', 'dec', 'ra_fld', 'dec_fld', \
-                                'raoff', 'decoff', 'refx', 'refy', 'p0'])
+        helio0 = dict.fromkeys(
+            ['reftimestr', 'reftime', 'ra', 'dec', 'ra_fld', 'dec_fld', 'raoff', 'decoff', 'refx', 'refy', 'p0'])
         helio0['reftimestr'] = reftime0
         if '~' in reftime0:
             # if reftime0 is specified as a timerange
-            [tbg0, tend0] = reftime0.split('~')
-            tbg_d = qa.getvalue(qa.convert(qa.totime(tbg0), 'd'))[0]
-            tend_d = qa.getvalue(qa.convert(qa.totime(tend0), 'd'))[0]
-            tdur_s = (tend_d - tbg_d) * 3600. * 24.
-            # if no date is specified, add up the date of the first scan
-            if tend_d < 1.:
-                if tend_d >= tbg_d:
-                    tend_d += int(btimes[0])
-                else:
-                    tend_d += int(btimes[0]) + 1
-            if tbg_d < 1.:
-                tbg_d += int(btimes[0])
-            tref_d = (tbg_d + tend_d) / 2.
+            try:
+                [tbg0, tend0] = reftime0.split('~')
+                tbg_d = qa.getvalue(qa.convert(qa.totime(tbg0), 'd'))[0]
+                tend_d = qa.getvalue(qa.convert(qa.totime(tend0), 'd'))[0]
+                tdur_s = (tend_d - tbg_d) * 3600. * 24.
+                # if no date is specified, add up the date of the first scan
+                if tend_d < 1.:
+                    if tend_d >= tbg_d:
+                        tend_d += int(btimes[0])
+                    else:
+                        tend_d += int(btimes[0]) + 1
+                if tbg_d < 1.:
+                    tbg_d += int(btimes[0])
+                tref_d = (tbg_d + tend_d) / 2.
+            except:
+                print 'Error in converting the input reftime: '+str(reftime0)+'. Aborting...'
         else:
             # if reftime0 is specified as a single value
-            tref_d = qa.getvalue(qa.convert(qa.totime(reftime0), 'd'))
-            # if no date is specified, add up the date of the first scan
-            if tref_d < 1.:
-                tref_d += int(btimes[0])
-            tbg_d = tref_d
-            # use the intergration time
-            ind = bisect.bisect_left(btimes, tref_d)
-            tdur_s = inttims[ind - 1]
+            try:
+                tref_d = qa.getvalue(qa.convert(qa.totime(reftime0), 'd'))[0]
+                # if no date is specified, add up the date of the first scan
+                if tref_d < 1.:
+                    tref_d += int(btimes[0])
+                tbg_d = tref_d
+                # use the intergration time
+                #ind = bisect.bisect_left(btimes, tref_d)
+                #if msinfo0['etimes']:
+                #    tdur_s = inttimes[ind - 1]
+                #else:
+                #    tdur_s = np.mean(inttimes)
+                tdur_s = 1.
+            except:
+                print 'Error in converting the input reftime: '+str(reftime0)+'. Aborting...'
         helio0['reftime'] = tref_d
-        helio0['date-obs'] = qa.time(qa.quantity(tbg_d, 'd'), form='fits', prec=10)[0]
-        helio0['exptime'] = tdur_s
+        #helio0['date-obs'] = qa.time(qa.quantity(tbg_d, 'd'), form='fits', prec=10)[0]
+        #helio0['exptime'] = tdur_s
 
         # find out phase center RA and DEC in the measurement set according to the reference time
         # if polyfit, then use the 2nd order polynomial coeffs
@@ -270,16 +325,16 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
             dt = tref_d - btimes[ind - 1]
             if ind < len(btimes):
                 scanlen = btimes[ind] - btimes[ind - 1]
-                (ra_b, ra_e) = (ras[ind - 1]['value'], ras[ind]['value'])
-                (dec_b, dec_e) = (decs[ind - 1]['value'], decs[ind]['value'])
+                (ra_b, ra_e) = (ra_rads[ind - 1], ra_rads[ind])
+                (dec_b, dec_e) = (dec_rads[ind - 1], dec_rads[ind])
             if ind >= len(btimes):
                 scanlen = btimes[ind - 1] - btimes[ind - 2]
-                (ra_b, ra_e) = (ras[ind - 2]['value'], ras[ind - 1]['value'])
-                (dec_b, dec_e) = (decs[ind - 2]['value'], decs[ind - 1]['value'])
+                (ra_b, ra_e) = (ra_rads[ind - 2], ra_rads[ind - 1])
+                (dec_b, dec_e) = (dec_rads[ind - 2], dec_rads[ind - 1])
         if ind == 1:  # only one scan exists (e.g., imported from AIPS)
-            ra_b = ras[ind - 1]['value']
+            ra_b = ra_rads[ind - 1]
             ra_e = ra_b
-            dec_b = decs[ind - 1]['value']
+            dec_b = dec_rads[ind - 1]
             dec_e = dec_b
             scanlen = 10.  # radom value
             dt = 0.
@@ -407,27 +462,75 @@ def getbeam(imagefile=None, beamfile=None):
     return bmaj, bmin, bpa, beamunit, bpaunit
 
 
-def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsfile=None, beamfile=None, \
-          offsetfile=None, toTb=None, scl100=None, verbose=False, p_ang = False, overwrite = True, usephacenter=False):
-    ia=iatool()
+def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, reftime=None, fitsfile=None, beamfile=None, \
+          offsetfile=None, toTb=None, scl100=None, verbose=False, p_ang=False, overwrite=True, usephacenter=True):
+    ''' 
+    main routine to register CASA images
+           Required Inputs:
+               vis: STRING. CASA measurement set from which the image is derived
+               imagefile: STRING or LIST. name of the input CASA image
+               timerange: STRING or LIST. timerange used to generate the CASA image, must have the same length as the input images. 
+                          Each element should be in CASA standard time format, e.g., '2012/03/03/12:00:00~2012/03/03/13:00:00'
+           Optional Inputs:
+               msinfo: DICTIONARY. CASA MS information, output from read_msinfo. If not provided, generate one from the supplied vis
+               ephem: DICTIONARY. solar ephem, output from read_horizons. 
+                      If not provided, query JPL Horizons based on time info of the vis (internet connection required)
+               fitsfile: STRING or LIST. name of the output registered fits files
+               reftime: STRING or LIST. Each element should be in CASA standard time format, e.g., '2012/03/03/12:00:00'
+               offsetfile: optionally provide an offset with a series of solar x and y offsets with timestamps 
+               toTb: Bool. Convert the default Jy/beam to brightness temperature?
+               scl100: Bool. If True, scale the image values up by 100 (to compensate VLA 20 dB attenuator)
+               verbose: Bool. Show more diagnostic info if True.
+               usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris.
+                                     Otherwise assume the phasecenter is correctly pointed to the solar disk center
+                                     (EOVSA case)
+    '''
+
+    ia = iatool()
     if not imagefile:
         raise ValueError, 'Please specify input image'
-    if not reftime:
-        raise ValueError, 'Please specify reference time corresponding to the input image'
+    if not timerange:
+        raise ValueError, 'Please specify timerange of the input image'
+    if type(imagefile) == str:
+        imagefile = [imagefile]
+    if type(timerange) == str:
+        timerange = [timerange]
     if not fitsfile:
         fitsfile = [img + '.fits' for img in imagefile]
-    if len(imagefile) != len(reftime):
-        raise ValueError, 'Number of input images does not equal to number of helio coord headers!'
-    if len(imagefile) != len(fitsfile):
+    if type(fitsfile) == str:
+        fitsfile = [fitsfile]
+    nimg=len(imagefile)
+    if len(timerange) != nimg:
+        raise ValueError, 'Number of input images does not equal to number of timeranges!'
+    if len(fitsfile) != nimg:
         raise ValueError, 'Number of input images does not equal to number of output fits files!'
     nimg = len(imagefile)
     if verbose:
         print str(nimg) + ' images to process...'
-    helio = ephem_to_helio(vis,ephem=ephem,msinfo=msinfo,reftime=reftime,usephacenter=usephacenter)
+    if reftime: #use as reference time to find solar disk RA and DEC to register the image, but not the actual timerange associated with the image
+        if type(reftime) == str:
+            reftime = [reftime] * nimg
+        if len(reftime) != nimg:
+            raise ValueError, 'Number of reference times does not match that of input images!'
+        helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=reftime, usephacenter=usephacenter)
+    else:
+        #use the supplied timerange to register the image
+        helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=timerange, usephacenter=usephacenter)
     for n, img in enumerate(imagefile):
         if verbose:
             print 'processing image #' + str(n)
         fitsf = fitsfile[n]
+        timeran=timerange[n]
+        #obtain duration of the image as FITS header exptime
+        try:
+            [tbg0, tend0] = timeran.split('~')
+            tbg_d = qa.getvalue(qa.convert(qa.totime(tbg0), 'd'))[0]
+            tend_d = qa.getvalue(qa.convert(qa.totime(tend0), 'd'))[0]
+            tdur_s = (tend_d - tbg_d) * 3600. * 24.
+            dateobs = qa.time(qa.quantity(tbg_d, 'd'), form='fits', prec=10)[0]
+        except:
+            print 'Error in converting the input timerange: '+str(timeran)+'. Proceeding to the next image...'
+            continue
         hel = helio[n]
         if not os.path.exists(img):
             raise ValueError, 'Please specify input image'
@@ -439,11 +542,11 @@ def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsf
             imr = ia.rotate(pa=str(-p0) + 'deg')
             imr.tofits(fitsf, history=False, overwrite=overwrite)
             imr.close()
-            sum = ia.summary()
+            imsum = ia.summary()
             ia.close()
         # construct the standard fits header
         # RA and DEC of the reference pixel crpix1 and crpix2
-        (imra, imdec) = (sum['refval'][0], sum['refval'][1])
+        (imra, imdec) = (imsum['refval'][0], imsum['refval'][1])
         # find out the difference of the image center to the CASA phase center
         # RA and DEC difference in arcseconds
         ddec = degrees((imdec - hel['dec_fld'])) * 3600.
@@ -485,27 +588,33 @@ def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsf
         header['crval2'] = crval2
         header['ctype1'] = 'HPLN-TAN'
         header['ctype2'] = 'HPLT-TAN'
-        header['date-obs'] = hel['date-obs'] #begin time of the image
+        header['date-obs'] = dateobs  # begin time of the image
         if not p_ang:
             hel['p0'] = 0
         try:
             # this works for pyfits version of CASA 4.7.0 but not CASA 4.6.0
-            header.update('exptime', hel['exptime'])
+            if tdur_s:
+                header.update('exptime', tdur_s)
+            else:
+                header.update('exptime', 1.)
             header.update('p_angle', hel['p0'])
-            header.update('dsun_obs', sun.sunearth_distance(Time(hel['date-obs'])).to(u.meter).value)
-            header.update('rsun_obs', sun.solar_semidiameter_angular_size(Time(hel['date-obs'])).value)
+            header.update('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value)
+            header.update('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value)
             header.update('rsun_ref', sun.constants.radius.value)
             header.update('hgln_obs', 0.)
-            header.update('hglt_obs', sun.heliographic_solar_center(Time(hel['date-obs']))[1].value)
+            header.update('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value)
         except:
             # this works for astropy.io.fits
-            header.append(('exptime', hel['exptime']))
+            if tdur_s:
+                header.append(('exptime', tdur_s))
+            else:
+                header.append(('exptime', 1.))
             header.append(('p_angle', hel['p0']))
-            header.append(('dsun_obs', sun.sunearth_distance(Time(hel['date-obs'])).to(u.meter).value))
-            header.append(('rsun_obs', sun.solar_semidiameter_angular_size(Time(hel['date-obs'])).value))
+            header.append(('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value))
+            header.append(('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value))
             header.append(('rsun_ref', sun.constants.radius.value))
             header.append(('hgln_obs', 0.))
-            header.append(('hglt_obs', sun.heliographic_solar_center(Time(hel['date-obs']))[1].value))
+            header.append(('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value))
 
         # header.update('comment', 'Fits header updated to heliocentric coordinates by Bin Chen')
 
@@ -527,8 +636,7 @@ def imreg(vis=None, ephem=None, msinfo=None, reftime=None, imagefile=None, fitsf
             if header['BUNIT'].lower() == 'jy/beam':
                 header['BUNIT'] = 'K'
                 for i in range(sz[faxis_ind]):
-                    nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * \
-                                                   (i + 1 - header['CRPIX' + faxis])
+                    nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * (i + 1 - header['CRPIX' + faxis])
                     if header['CUNIT' + faxis] == 'KHz':
                         nu *= 1e3
                     if header['CUNIT' + faxis] == 'MHz':

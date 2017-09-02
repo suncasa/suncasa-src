@@ -66,10 +66,10 @@ def read_horizons(ephemfile=None):
         ephem0['time'] = mjd
         ephem0['rastr'] = line[23:36]
         ephem0['decstr'] = line[37:50]
-        ephem0['ra'] = {'unit': 'rad', 'value': radians((long(line[23:25]) + long(line[26:28]) / 60. + \
-                                                         float(line[29:36]) / 3600.) * 15.)}  # in rad
-        ephem0['dec'] = {'unit': 'rad', 'value': radians(long(line[38:40]) + long(line[41:43]) / 60. + \
-                                                         float(line[44:50]) / 3600.)}  # in rad
+        ephem0['ra'] = {'unit': 'rad', 'value': radians(
+            (long(line[23:25]) + long(line[26:28]) / 60. + float(line[29:36]) / 3600.) * 15.)}  # in rad
+        ephem0['dec'] = {'unit': 'rad', 'value': radians(
+            long(line[38:40]) + long(line[41:43]) / 60. + float(line[44:50]) / 3600.)}  # in rad
         ephem0['p0'] = {'unit': 'deg', 'value': float(line[51:59])}
         ephem0['delta'] = {'unit': 'au', 'value': float(line[70:86])}
         ephem0['delta_dot'] = {'unit': 'km/s', 'value': float(line[88:98])}
@@ -88,8 +88,7 @@ def read_horizons(ephemfile=None):
 
 def read_msinfo(msfile=None, msinfofile=None):
     # read MS information #
-    msinfo = dict.fromkeys(['msfile', 'scans', 'fieldids', 'btimes', 'btimestr', \
-                            'inttimes', 'ras', 'decs'])
+    msinfo = dict.fromkeys(['msfile', 'scans', 'fieldids', 'btimes', 'btimestr', 'inttimes', 'ras', 'decs'])
     ms.open(msfile)
     scans = ms.getscansummary()
     scanids = sorted(scans.keys(), key=lambda x: int(x))
@@ -113,8 +112,7 @@ def read_msinfo(msfile=None, msinfofile=None):
         decs.append(dir['m1'])
         inttimes.append(scans[scanids[i]]['0']['IntegrationTime'])
     ms.close()
-    btimestr = [qa.time(qa.quantity(btimes[i], 'd'), form='fits', prec=10)[0] \
-                for i in range(nscanid)]
+    btimestr = [qa.time(qa.quantity(btimes[i], 'd'), form='fits', prec=10)[0] for i in range(nscanid)]
     msinfo['msfile'] = msfile
     msinfo['scans'] = scans
     msinfo['fieldids'] = fieldids
@@ -124,9 +122,8 @@ def read_msinfo(msfile=None, msinfofile=None):
     msinfo['ras'] = ras
     msinfo['decs'] = decs
     if msinfofile:
-        np.savez(msinfofile, msfile=msfile, scans=scans, fieldids=fieldids, \
-                 btimes=btimes, btimestr=btimestr, inttimes=inttimes, \
-                 ras=ras, decs=decs)
+        np.savez(msinfofile, msfile=msfile, scans=scans, fieldids=fieldids, btimes=btimes, btimestr=btimestr,
+                 inttimes=inttimes, ras=ras, decs=decs)
     return msinfo
 
 
@@ -201,9 +198,8 @@ def ephem_to_helio(msinfo=None, ephem=None, reftime=None, polyfit=None):
     nreftime = len(reftime)
     helio = []
     for reftime0 in reftime:
-        helio0 = dict.fromkeys(['reftimestr', 'reftime', \
-                                'ra', 'dec', 'ra_fld', 'dec_fld', \
-                                'raoff', 'decoff', 'refx', 'refy', 'p0'])
+        helio0 = dict.fromkeys(
+            ['reftimestr', 'reftime', 'ra', 'dec', 'ra_fld', 'dec_fld', 'raoff', 'decoff', 'refx', 'refy', 'p0'])
         helio0['reftimestr'] = reftime0
         if '~' in reftime0:
             # if reftime0 is specified as a timerange
@@ -373,8 +369,8 @@ def getbeam(imagefile=None, beamfile=None):
     return bmaj, bmin, bpa, beamunit, bpaunit
 
 
-def imreg(imagefile=None, fitsfile=None, beamfile=None, helio=None, \
-          offsetfile=None, toTb=None, scl100=None, verbose=False):
+def imreg(imagefile=None, fitsfile=None, beamfile=None, helio=None, offsetfile=None, toTb=None, scl100=None,
+          verbose=False):
     if not imagefile:
         raise ValueError, 'Please specify input image'
     if not helio:
@@ -458,12 +454,12 @@ def imreg(imagefile=None, fitsfile=None, beamfile=None, helio=None, \
         header['date-obs'] = hel['date-obs']
         try:
             # this works for pyfits version of CASA 4.7.0 but not CASA 4.6.0
-            header.update('exptime',hel['exptime'])
-            header.update('p_angle',hel['p0'])
+            header.update('exptime', hel['exptime'])
+            header.update('p_angle', hel['p0'])
         except:
             # this works for astropy.io.fits
-            header.append(('exptime',hel['exptime']))
-            header.append(('p_angle',hel['p0']))
+            header.append(('exptime', hel['exptime']))
+            header.append(('p_angle', hel['p0']))
 
         # header.update('comment', 'Fits header updated to heliocentric coordinates by Bin Chen')
 
@@ -480,8 +476,7 @@ def imreg(imagefile=None, fitsfile=None, beamfile=None, helio=None, \
             if header['BUNIT'].lower() == 'jy/beam':
                 header['BUNIT'] = 'K'
                 for i in range(sz[faxis_ind]):
-                    nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * \
-                                                   (i + 1 - header['CRPIX' + faxis])
+                    nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * (i + 1 - header['CRPIX' + faxis])
                     if header['CUNIT' + faxis] == 'KHz':
                         nu *= 1e3
                     if header['CUNIT' + faxis] == 'MHz':
