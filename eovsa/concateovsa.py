@@ -10,7 +10,7 @@ def concateovsa(msname, msfiles, visprefix='./', doclearcal=True, keep_orig_ms=F
     concatvis = visprefix + msname
     if doclearcal:
         for ll in msfiles:
-            clearcal(ll, addmodel=True)
+            clearcal(vis=str(ll), addmodel=True)
     concat(vis=msfiles, concatvis=concatvis, timesort=True)
     # Change all observation ids to be the same (zero)
     tb.open(concatvis + '/OBSERVATION', nomodify=False)

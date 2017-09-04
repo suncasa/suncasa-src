@@ -11,7 +11,48 @@ import numpy as np
 import sunpy.map
 from suncasa.utils import DButil
 from suncasa.utils.puffin import PuffinMap
+from IPython import embed
 
+def add_scalebar(length, x, y, ax, align='right', label='', label_position='below', yoff=-0.005, fontsize=None, **kwargs):
+    '''
+    :param length : length of scalebar in data coordinate
+    :param x,y : in the coordinate system of the Axes; (0,0) is bottom left of the axes, and (1,1) is top right of the axes.
+    :param ax:
+    :param text:
+    :param yoff : Yoffset of the label in the coordinate system of the Axes
+    :return:
+    '''
+    x, y = ax.transData.inverted().transform(ax.transAxes.transform([x, y]))
+    if align == 'right':
+        x0, y0 = x - length, y
+        x1, y1 = x, y
+    elif align == 'left':
+        x0, y0 = x, y
+        x1, y1 = x + length, y
+    elif align == 'middle':
+        x0, y0 = x - length / 2.0, y
+        x1, y1 = x + length / 2.0, y
+    kwargs_text = {}
+    if 'c' or 'color' in kwargs.keys():
+        try:
+            kwargs_text['color'] = kwargs['c']
+        except:
+            kwargs_text['color'] = kwargs['color']
+    else:
+        kwargs['c'] = 'white'
+        kwargs_text['color'] = 'white'
+    if fontsize is not None:
+        kwargs_text['fontsize'] = fontsize
+    ax.plot([x0, x1], [y0, y1], **kwargs)
+    xtext, ytext = ax.transAxes.inverted().transform(ax.transData.transform([(x0 + x1) / 2.0, y0]))
+    if label_position == 'above':
+        verticalalign = 'bottom'
+    if label_position == 'below':
+        verticalalign = 'top'
+        ytext = ytext + yoff
+
+    ax.text(xtext, ytext, label, horizontalalignment='center', verticalalignment=verticalalign, transform=ax.transAxes,
+            **kwargs_text)
 
 
 def maxfit(smap, width=[5, 5], mapxy=None):
@@ -49,8 +90,7 @@ def maxfit(smap, width=[5, 5], mapxy=None):
 def contour1chn(vlafile, aiafile, chn=0, pol=0, x_range=[], y_range=[], levels=[0.2, 0.4, 0.6, 0.8]):
     aiamap = sunpy.map.Map(aiafile)
     if x_range and y_range:
-        aiamap = aiamap.submap(u.Quantity(x_range * u.arcsec),
-                               u.Quantity(y_range * u.arcsec))
+        aiamap = aiamap.submap(u.Quantity(x_range * u.arcsec), u.Quantity(y_range * u.arcsec))
     hdulist = fits.open(vlafile)
     hdu = hdulist[0]
     dims = hdu.data.shape
@@ -66,9 +106,13 @@ def contour1chn(vlafile, aiafile, chn=0, pol=0, x_range=[], y_range=[], levels=[
     cmap.peek()
 
 
-def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[], y_range=[], levels=[0.9],
-            plotstyle='centroid', figsize=(10, 8), figdpi=100, width=[5, 5],
-            zorder=1, maponly=False, dspecdata={}, **kwargs):
+def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], chan_mask=None, x_range=[], y_range=[],
+                      levels=[0.9], plotstyle='centroid', figsize=(10, 8), figdpi=100, width=[5, 5], zorder=1,
+                      maponly=False, dspecdata={}, thrshd=None, cmap='jet', plt_clbar=True,
+                      aiaplt_args={'axes': None, 'cmap': None, 'vmax': None, 'vmin': None}, **kwargs):
+    cmap = cm.get_cmap(cmap)
+    if aiaplt_args['cmap'] is None:
+        aiaplt_args.pop('cmap', None)
     if outfile:
         plt.ioff()
     if type(aiafile) != sunpy.map.sources.sdo.AIAMap:
@@ -76,8 +120,7 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
     else:
         aiamap = aiafile
     if x_range and y_range:
-        aiamap = aiamap.submap(u.Quantity(x_range * u.arcsec),
-                               u.Quantity(y_range * u.arcsec))
+        aiamap = aiamap.submap(u.Quantity(x_range * u.arcsec), u.Quantity(y_range * u.arcsec))
 
     if type(vlafile) == dict:
         if dspecdata:
@@ -88,9 +131,12 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
                 fig = plt.figure(figsize=(20, 8))
                 plt.subplot(1, 2, 1)
         else:
-            fig = plt.figure(figsize=figsize)
-            plt.subplot()
-        aiamap.plot()
+            if aiaplt_args['axes'] is None:
+                fig = plt.figure(figsize=figsize)
+                plt.subplot()
+            else:
+                fig = plt.gcf()
+        aiamap.plot(**aiaplt_args)
         ax1 = plt.gca()
         ax1.set_autoscale_on(False)
 
@@ -106,20 +152,23 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
             vlafile['ColorMapper']['c'] = np.array(vlafile['ColorMapper']['c'])[cargsort]
             vlafile['s'] = np.array(vlafile['s'])[cargsort]
             im1 = ax1.scatter(vlafile['x'], vlafile['y'], c=vlafile['ColorMapper']['c'], s=vlafile['s'],
-                              vmin=clrange[0],
-                              vmax=clrange[-1], cmap=cm.jet, **kwargs)
+                              vmin=clrange[0], vmax=clrange[-1], cmap=cmap, **kwargs)
         else:
-            im1 = ax1.scatter([], [], c=[], s=[], vmin=clrange[0], vmax=clrange[-1], cmap=cm.jet, **kwargs)
+            im1 = ax1.scatter([], [], c=[], s=[], vmin=clrange[0], vmax=clrange[-1], cmap=cmap, **kwargs)
         if not dspecdata:
-            cb1 = plt.colorbar(im1, orientation='vertical', ax=ax1)
-            if type(vlafile) == dict:
-                cb1.set_label(vlafile['ColorMapper']['title'])
-            else:
-                cb1.set_label('Frequency [GHz]')
+            if plt_clbar:
+                cb1 = plt.colorbar(im1, orientation='vertical', ax=ax1)
+                if type(vlafile) == dict:
+                    if 'title' in vlafile['ColorMapper'].keys():
+                        cb1.set_label(vlafile['ColorMapper']['title'])
+                    else:
+                        cb1.set_label('Frequency [GHz]')
+                else:
+                    cb1.set_label('Frequency [GHz]')
         else:
             tim = dspecdata['time']
             dt = np.mean(np.diff(tim))
-            cmapspec = cm.jet
+            cmapspec = cmap
             cmapspec.set_bad('white', 1.0)
             normspec = colors.Normalize(vmin=dspecdata['drange'][0], vmax=dspecdata['drange'][1])
             if dspecdata['stack'] == 'Vstack':
@@ -137,18 +186,27 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
             labels = ax2.get_xticks().tolist()
             newlabels = [Time(lb / 24. / 3600., format='jd').iso.split(' ')[1] for lb in labels]
             ax2.set_xticklabels(newlabels, rotation=45)
-            cb1 = plt.colorbar(im1, orientation='vertical', ax=ax1)
-            cb2 = plt.colorbar(im2, orientation='vertical', ax=ax2)
-            if type(vlafile) == dict:
-                cb1.set_label(vlafile['ColorMapper']['title'])
-            else:
-                cb1.set_label('Frequency [GHz]')
-            cb2.set_label('Max intensity [Jy/beam]')
+            if plt_clbar:
+                cb1 = plt.colorbar(im1, orientation='vertical', ax=ax1)
+                if type(vlafile) == dict:
+                    if 'title' in vlafile['ColorMapper'].keys():
+                        cb1.set_label(vlafile['ColorMapper']['title'])
+                    else:
+                        cb1.set_label('Frequency [GHz]')
+                else:
+                    cb1.set_label('Frequency [GHz]')
+                cb2 = plt.colorbar(im2, orientation='vertical', ax=ax2)
+                cb2.set_label('Max intensity [Jy/beam]')
     else:
-        fig = plt.figure(figsize=figsize)
-        plt.subplot()
-        aiamap.plot()
+        if aiaplt_args['axes'] is None:
+            fig = plt.figure(figsize=figsize)
+            plt.subplot()
+        else:
+            fig = plt.gcf()
+        aiamap.plot(**aiaplt_args)
         ax1 = plt.gca()
+        # ax1.xaxis.set_ticks_position('top')
+        # ax1.yaxis.set_ticks_position('right')
         if label:
             ax1.text(0.98, 0.98, label, horizontalalignment='right', verticalalignment='top', color='white',
                      transform=ax1.transAxes, fontsize=14)
@@ -156,7 +214,7 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
         ax1.set_autoscale_on(False)
         hdulist = fits.open(vlafile)
         hdu = hdulist[0]
-        nfreq = hdu.data[pol, :, :, :].shape[1]
+        nfreq = hdu.data.shape[1]
         if not maponly:
             vladata = hdu.data[pol, 0, :, :]
             vlamap = sunpy.map.Map((vladata, hdu.header))
@@ -186,26 +244,45 @@ def plotmap(vlafile, aiafile, outfile='', label='', pol=0, chans=[], x_range=[],
                 pltdata['c'] = np.array(pltdata['c'])[cargsort]
                 pltdata['s'] = np.array(pltdata['s'])[cargsort]
                 im1 = ax1.scatter(pltdata['x'], pltdata['y'], c=pltdata['c'], s=pltdata['s'], vmin=clrange[0],
-                                  vmax=clrange[-1], cmap=cm.jet, **kwargs)
-                cb1 = plt.colorbar(im1, orientation='vertical', ax=ax1)
+                                  vmax=clrange[-1], cmap=cmap, **kwargs)
+                if plt_clbar:
+                    cb1 = plt.colorbar(im1, orientation='vertical', ax=ax1)
+                    cb1.set_label('Frequency [GHz]')
             elif plotstyle == 'contour':
                 nchan = len(chans)
                 for idx, chan in enumerate(chans):
+                    if chan_mask is not None:
+                        freq = (hdu.header['CRVAL3'] + chan * hdu.header['CDELT3']) / 1e9
+                        if freq not in chan_mask:
+                            continue
                     vladata = hdu.data[pol, chan, :, :]
                     vlamap = sunpy.map.Map((vladata, hdu.header))
                     SRC_vlamap_contour = DButil.get_contour_data(mapx, mapy, vlamap.data, levels=levels)
                     if SRC_vlamap_contour.data['xs']:
-                        x, y = SRC_vlamap_contour.data['xs'][0], SRC_vlamap_contour.data['ys'][0]
-                        plt.plot(x, y, color=cm.jet(int(float(chan) / nfreq * 255)), zorder=nchan + zorder * idx,
-                                 **kwargs)
-                fig.subplots_adjust(right=0.8)
-                cax1 = fig.add_axes([0.85, 0.1, 0.02, 0.8])
-                cmap = cm.jet
-                norm = colors.Normalize(vmin=clrange[0], vmax=clrange[-1])
-                cb1 = colorbar.ColorbarBase(cax1, cmap=cmap, norm=norm, orientation='vertical')
-            cb1.set_label('Frequency [GHz]')
+                        for ii, xs in enumerate(SRC_vlamap_contour.data['xs']):
+                            x, y = xs, SRC_vlamap_contour.data['ys'][ii]
+                            if not thrshd or np.nanmax(vladata) >= thrshd:
+                                plt.plot(x, y, color=cmap(int(float(chan) / nfreq * 255)), zorder=nchan + zorder * idx,
+                                         **kwargs)
+                if plt_clbar:
+                    fig.subplots_adjust(right=0.8)
+                    cax1 = fig.add_axes([0.85, 0.1, 0.01, 0.8])
+                    norm = colors.Normalize(vmin=clrange[0], vmax=clrange[-1])
+                    cb1 = colorbar.ColorbarBase(cax1, cmap=cmap, norm=norm, orientation='vertical')
+                    cb1.set_label('Frequency [GHz]')
+    try:
+        cb1.ax.set_aspect(40)
+        cb1.ax.tick_params(direction='in')
+    except:
+        pass
+    try:
+        cb2.ax.set_aspect(40)
+        cb2.ax.tick_params(direction='in')
+    except:
+        pass
 
-    fig.tight_layout(pad=3)
+    if aiaplt_args['axes'] is None:
+        fig.tight_layout(pad=3)
     if outfile:
         if outfile.endswith('.eps'):
             fig.savefig(outfile, format='eps', dpi=int(figdpi))

@@ -264,7 +264,8 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
     :param wavelength:
     :return: byte scaled image data
     '''
-    wavelength = '{:0.0f}'.format(wavelength)
+    if type(wavelength) is not  str:
+        wavelength = '{:0.0f}'.format(wavelength)
     if wavelength == '94':
         if imagetype == 'image':
             return {'low': 0.1, 'high': 3000, 'log': True}
@@ -939,6 +940,8 @@ def get_contour_data(X, Y, Z, levels=[0.5, 0.7, 0.9]):
                 yt.append(y[len(y) / 2])
                 text.append(theiso)
                 col.append(thecol)
+        for coll in cs.collections:
+            coll.remove()
 
         source = ColumnDataSource(data={'xs': xs, 'ys': ys, 'line_color': col, 'xt': xt, 'yt': yt, 'text': text})
     except:
