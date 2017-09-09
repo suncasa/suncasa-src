@@ -358,17 +358,26 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
         dec0 = ephem['dec']
         p0 = ephem['p0']
         delta0 = ephem['delta']
-        ind = bisect.bisect_left(time0, tref_d)
-        dt0 = time0[ind] - time0[ind - 1]
-        dt_ref = tref_d - time0[ind - 1]
-        dra0 = ra0[ind] - ra0[ind - 1]
-        ddec0 = dec0[ind] - dec0[ind - 1]
-        dp0 = p0[ind] - p0[ind - 1]
-        ddelta0 = delta0[ind] - delta0[ind - 1]
-        ra0 = ra0[ind - 1] + dra0 / dt0 * dt_ref
-        dec0 = dec0[ind - 1] + ddec0 / dt0 * dt_ref
-        p0 = p0[ind - 1] + dp0 / dt0 * dt_ref
-        delta0 = delta0[ind - 1] + ddelta0 / dt0 * dt_ref
+        if len(time0) > 1:
+            ind = bisect.bisect_left(time0, tref_d)
+            dt0 = time0[ind] - time0[ind - 1]
+            dt_ref = tref_d - time0[ind - 1]
+            dra0 = ra0[ind] - ra0[ind - 1]
+            ddec0 = dec0[ind] - dec0[ind - 1]
+            dp0 = p0[ind] - p0[ind - 1]
+            ddelta0 = delta0[ind] - delta0[ind - 1]
+            ra0 = ra0[ind - 1] + dra0 / dt0 * dt_ref
+            dec0 = dec0[ind - 1] + ddec0 / dt0 * dt_ref
+            p0 = p0[ind - 1] + dp0 / dt0 * dt_ref
+            delta0 = delta0[ind - 1] + ddelta0 / dt0 * dt_ref
+        else:
+            try:
+                ra0=ra0[0]
+                dec0=dec0[0]
+                p0=p0[0]
+                delta0=delta0[0]
+            except:
+                print "Error in retrieving info from ephemeris!"
         if ra0 < 0:
             ra0 += 2. * np.pi
 
