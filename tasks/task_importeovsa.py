@@ -361,7 +361,7 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
         msname = os.path.basename(filelist[0])
         if doscaling:
             msfiles = list(np.array(results['msfile_scl'])[np.where(np.array(results['succeeded']) == True)])
-            durtim = int(results['durtim'].sum())
+            durtim = int(np.array(results['durtim']).sum())
             if keep_nsclms:
                 ce.concateovsa(msname + '-{:d}m{}.ms'.format(durtim, '_scl'), msfiles, visprefix)
             else:

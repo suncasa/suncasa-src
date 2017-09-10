@@ -24,6 +24,91 @@ def my_timer(orig_func):
     return wrapper
 
 
+
+def smooth(x, window_len=11, window='hanning'):
+    """smooth the data using a window with requested size.
+
+    This method is based on the convolution of a scaled window with the signal.
+    The signal is prepared by introducing reflected copies of the signal
+    (with the window size) in both ends so that transient parts are minimized
+    in the begining and end part of the output signal.
+
+    input:
+        x: the input signal
+        window_len: the dimension of the smoothing window; should be an odd integer
+        window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
+            flat window will produce a moving average smoothing.
+
+    output:
+        the smoothed signal
+
+    example:
+
+    t=linspace(-2,2,0.1)
+    x=sin(t)+randn(len(t))*0.1
+    y=smooth(x)
+
+    see also:
+
+    numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
+    scipy.signal.lfilter
+
+    TODO: the window parameter could be the window itself if an array instead of a string
+    NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
+    """
+
+    if x.ndim != 1:
+        raise ValueError, "smooth only accepts 1 dimension arrays."
+
+    if x.size < window_len:
+        raise ValueError, "Input vector needs to be bigger than window size."
+
+    if window_len < 3:
+        return x
+
+    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+        raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
+
+    s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
+    # print(len(s))
+    if window == 'flat':  # moving average
+        w = np.ones(window_len, 'd')
+    else:
+        w = eval('np.' + window + '(window_len)')
+
+    y = np.convolve(w / w.sum(), s, mode='same')
+    y = y[window_len - 1:-(window_len - 1)]
+    return y
+
+
+def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num=0, crf=15, fps=10, overwrite = False):
+    import subprocess, os
+    imgs = glob.glob(imgprefix + '*.' + img_ext)
+    if imgs:
+        imgs = sorted(imgs)
+        tmpdir = '{}img_tmp/'.format(imgprefix)
+        if not os.path.exists(tmpdir):
+            os.makedirs(tmpdir)
+        for idx, ll in enumerate(imgs):
+            os.system('cp {} {}img_tmp/{:04d}.{}'.format(ll, imgprefix, idx, img_ext))
+        outd = {'r': fps, 's': size, 'start_number': start_num, 'crf': crf}
+        if size is None:
+            outd.pop('s')
+        if overwrite:
+            ow = '-y'
+        else:
+            ow=''
+        outdstr = ' '.join(['-{} {}'.format(k, v) for k, v in outd.iteritems()])
+        cmd = 'ffmpeg -f image2 -i {}img_tmp/%04d.png -vcodec libx264 -pix_fmt yuv420p {} '.format(imgprefix,
+                                                                                                   outdstr) + '{0} {1}.mp4'.format(ow,
+            outname)
+        print cmd
+        subprocess.check_output(['bash', '-c', cmd])
+        os.system('rm -rf {}'.format(tmpdir))
+    else:
+        print('Images not found!')
+
+
 def getspwfromfreq(vis, freqrange):
     from taskinit import ms
     ms.open(vis)
@@ -46,8 +131,8 @@ def getspwfromfreq(vis, freqrange):
     if len(ms_spw) == 1:
         ms_chan = ['{}~{}'.format(freqIdx0[1][0], freqIdx1[1][0])]
     else:
-        ms_chan = ['{}~{}'.format(freqIdx0[1][0], sz_freqInfo[1] - 1)] \
-                  + ['0~{}'.format(sz_freqInfo[1] - 1) for ll in xrange(freqIdx0[0] + 1, freqIdx1[0])]
+        ms_chan = ['{}~{}'.format(freqIdx0[1][0], sz_freqInfo[1] - 1)] + ['0~{}'.format(sz_freqInfo[1] - 1) for ll in
+                                                                          xrange(freqIdx0[0] + 1, freqIdx1[0])]
         ms_chan.append('0~{}'.format(freqIdx1[1][0]))
     spw = ','.join('{}:{}'.format(t[0], t[1]) for t in zip(ms_spw, ms_chan))
     return spw
@@ -210,8 +295,7 @@ def normalize_aiamap(smap):
     try:
         if smap.observatory == 'SDO' and smap.instrument[0:3] == 'AIA':
             data = smap.data
-            data[~np.isnan(data)] = data[~np.isnan(
-                data)] / smap.exposure_time.value
+            data[~np.isnan(data)] = data[~np.isnan(data)] / smap.exposure_time.value
             data[data < 0] = 0
             smap.data = data
             smap.meta['exptime'] = 1.0
@@ -230,8 +314,8 @@ def sdo_aia_scale_hdr(smap):
     x = np.arange(smap.dimensions.x.value)
     y = np.arange(smap.dimensions.y.value)
     xx, yy = np.meshgrid(x, y) * u.pix
-    crpix1, crpix2 = smap.data_to_pixel(0*u.arcsec,0*u.arcsec)
-    rdist = np.sqrt((xx - (crpix1-1.0*u.pix)) ** 2 + (yy - (crpix2-1.0*u.pix)) ** 2)
+    crpix1, crpix2 = smap.data_to_pixel(0 * u.arcsec, 0 * u.arcsec)
+    rdist = np.sqrt((xx - (crpix1 - 1.0 * u.pix)) ** 2 + (yy - (crpix2 - 1.0 * u.pix)) ** 2)
     ind_disk = np.where(rdist <= r_sun)
     ind_limb = np.where(rdist < r_sun)
     rdist[ind_disk] = r_sun
@@ -257,6 +341,7 @@ def sdo_aia_scale_hdr(smap):
         pass
     return smap
 
+
 def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
     '''
     rescale the aia image
@@ -264,7 +349,8 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
     :param wavelength:
     :return: byte scaled image data
     '''
-    wavelength = '{:0.0f}'.format(wavelength)
+    if type(wavelength) is not str:
+        wavelength = '{:0.0f}'.format(wavelength)
     if wavelength == '94':
         if imagetype == 'image':
             return {'low': 0.1, 'high': 3000, 'log': True}
@@ -445,19 +531,15 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
                                 datadir, jdtimestr[0], jdtimestr[1]))
                 sdofits = [os.path.basename(ll) for ll in sdofitspath]
                 sdotimeline = Time(
-                    [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
-                     for
+                    [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for
                      ll in sdofits], format='iso', scale='utc')
                 sdofitspathnew = [x for (y, x) in sorted(zip(sdotimeline.jd, sdofitspath))]
                 sdofitsnew = [os.path.basename(ll) for ll in sdofitspathnew]
                 sdotimelinenew = Time(
-                    [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
-                     for
+                    [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for
                      ll in sdofitsnew], format='iso', scale='utc')
-                sdofile = list(np.array(sdofitspathnew)[
-                                   np.where(
-                                       np.logical_and(jdtime[0] < sdotimelinenew.jd, sdotimelinenew.jd < jdtime[1]))[
-                                       0]])
+                sdofile = list(np.array(sdofitspathnew)[np.where(
+                    np.logical_and(jdtime[0] < sdotimelinenew.jd, sdotimelinenew.jd < jdtime[1]))[0]])
                 return sdofile
     else:
         jdtimstr = Time(jdtime, format='jd').iso
@@ -468,9 +550,8 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
             raise ValueError('No SDO file found under {}.'.format(datadir))
         sdofits = [os.path.basename(ll) for ll in sdofitspath]
         sdotimeline = Time(
-            [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2)
-             for
-             ll in sdofits], format='iso', scale='utc')
+            [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in
+             sdofits], format='iso', scale='utc')
         if timtol < np.min(np.abs(sdotimeline.jd - jdtime)):
             raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
         idxaia = np.argmin(np.abs(sdotimeline.jd - jdtime))
@@ -939,6 +1020,8 @@ def get_contour_data(X, Y, Z, levels=[0.5, 0.7, 0.9]):
                 yt.append(y[len(y) / 2])
                 text.append(theiso)
                 col.append(thecol)
+        for coll in cs.collections:
+            coll.remove()
 
         source = ColumnDataSource(data={'xs': xs, 'ys': ys, 'line_color': col, 'xt': xt, 'yt': yt, 'text': text})
     except:
@@ -1029,8 +1112,7 @@ class ButtonsPlayCTRL():
     '''
     __slots__ = ['buttons']
 
-    def __init__(self, plot_width=None, *args,
-                 **kwargs):
+    def __init__(self, plot_width=None, *args, **kwargs):
         from bokeh.models import Button
         BUT_first = Button(label='<<', width=plot_width, button_type='primary')
         BUT_prev = Button(label='|<', width=plot_width, button_type='warning')
