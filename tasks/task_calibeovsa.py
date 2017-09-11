@@ -57,7 +57,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
         casalog.origin('calibeovsa')
         if not caltype:
             casalog.post("Caltype not provided. Perform reference phase calibration and daily phase calibration.")
-            caltype = ['refpha', 'phacal', 'autoamp']  ## use this line after the phacal is applied
+            caltype = ['refpha', 'phacal', 'accal']  ## use this line after the phacal is applied
             # caltype = ['refcal']
         if not os.path.exists(msfile):
             casalog.post("Input visibility does not exist. Aborting...")
@@ -150,41 +150,44 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
                         para_pha.append(np.degrees(pha[n, p, bd[s]]))
                         para_amp.append(amp[n, p, bd[s]])
 
-        if 'autoamp' in caltype:
+        if 'accal' in caltype:
             calfac = pc.get_calfac(Time(t_mid.iso.split(' ')[0] + 'T23:59:59'))
             t_bp = Time(calfac['timestamp'], format='lv')
-            accalfac = calfac['accalfac']  # (ant x pol x freq)
-            caltb_autoamp = dirname + t_bp.isot[:-4].replace(':', '').replace('-', '') + '.bandpass'
-            # tmpfile = 'tmp.ms'
-            # if os.path.exists(tmpfile):
-            #     os.system('rm -rf {}'.format(tmpfile))
-            # split(vis=msfile, outputvis=tmpfile, correlation='XX,YY', datacolumn='data')
-            if not os.path.exists(caltb_autoamp):
-                bandpass(vis=msfile, caltable=caltb_autoamp, solint='inf', refant='eo01', minblperant=1, minsnr=0,
-                         bandtype='B', docallib=False)
-                tb.open(caltb_autoamp, nomodify=False)  # (ant x spw)
-                bd_chanidx = np.hstack([[0], bd_nchan.cumsum()])
-                for ll in range(nspw):
-                    cparam = np.zeros((2, bd_nchan[ll], nant))
-                    cparam[:, :, :-3] = 1.0 / np.moveaxis(accalfac[:, :, bd_chanidx[ll]:bd_chanidx[ll + 1]], 0, 2)
-                    tb.putcol('CPARAM', cparam + 0j, ll * nant, nant)
-                    paramerr = tb.getcol('PARAMERR', ll * nant, nant)
-                    paramerr = paramerr * 0
-                    tb.putcol('PARAMERR', paramerr, ll * nant, nant)
-                    bpflag = tb.getcol('FLAG', ll * nant, nant)
-                    bpant1 = tb.getcol('ANTENNA1', ll * nant, nant)
-                    bpflagidx, = np.where(bpant1 >= 13)
-                    bpflag[:] = False
-                    bpflag[:, :, bpflagidx] = True
-                    tb.putcol('FLAG', bpflag, ll * nant, nant)
-                    bpsnr = tb.getcol('SNR', ll * nant, nant)
-                    bpsnr[:] = 100.0
-                    bpsnr[:, :, bpflagidx] = 0.0
-                    tb.putcol('SNR', bpsnr, ll * nant, nant)
-                tb.close()
-                casalog.post("Scaling calibration is derived for {}".format(msfile))
-                print "Scaling calibration is derived for {}".format(msfile)
-            gaintables.append(caltb_autoamp)
+            if int(t_mid.mjd) == int(t_bp.mjd):
+                accalfac = calfac['accalfac']  # (ant x pol x freq)
+                caltb_autoamp = dirname + t_bp.isot[:-4].replace(':', '').replace('-', '') + '.bandpass'
+                if not os.path.exists(caltb_autoamp):
+                    bandpass(vis=msfile, caltable=caltb_autoamp, solint='inf', refant='eo01', minblperant=1, minsnr=0,
+                             bandtype='B', docallib=False)
+                    tb.open(caltb_autoamp, nomodify=False)  # (ant x spw)
+                    bd_chanidx = np.hstack([[0], bd_nchan.cumsum()])
+                    for ll in range(nspw):
+                        cparam = np.zeros((2, bd_nchan[ll], nant))
+                        cparam[:, :, :-3] = 1.0 / np.moveaxis(accalfac[:, :, bd_chanidx[ll]:bd_chanidx[ll + 1]], 0, 2)
+                        tb.putcol('CPARAM', cparam + 0j, ll * nant, nant)
+                        paramerr = tb.getcol('PARAMERR', ll * nant, nant)
+                        paramerr = paramerr * 0
+                        tb.putcol('PARAMERR', paramerr, ll * nant, nant)
+                        bpflag = tb.getcol('FLAG', ll * nant, nant)
+                        bpant1 = tb.getcol('ANTENNA1', ll * nant, nant)
+                        bpflagidx, = np.where(bpant1 >= 13)
+                        bpflag[:] = False
+                        bpflag[:, :, bpflagidx] = True
+                        tb.putcol('FLAG', bpflag, ll * nant, nant)
+                        bpsnr = tb.getcol('SNR', ll * nant, nant)
+                        bpsnr[:] = 100.0
+                        bpsnr[:, :, bpflagidx] = 0.0
+                        tb.putcol('SNR', bpsnr, ll * nant, nant)
+                    tb.close()
+                    msg_prompt = "Scaling calibration is derived for {}".format(msfile)
+                    casalog.post(msg_prompt)
+                    print msg_prompt
+                gaintables.append(caltb_autoamp)
+            else:
+                msg_prompt = "No TPCAL is available on {}. No scaling calibration is derived for {}".format(
+                    t_mid.datetime.strftime('%b %d, %Y'), msfile)
+                casalog.post(msg_prompt)
+                print msg_prompt
 
         if ('refpha' in caltype) or ('refcal' in caltype):
             # caltb_pha = os.path.basename(vis).replace('.ms', '.refpha')
