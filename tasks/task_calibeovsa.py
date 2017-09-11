@@ -228,7 +228,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
 
         if 'phacal' in caltype:
             phacals = np.array(ra.sql2phacalX([bt, et], neat=True, verbose=False))
-            if not phacals or len(phacals) == 0:
+            if not phacals.any() or len(phacals) == 0:
                 print "Found no phacal records in SQL database, will skip phase calibration"
             else:
                 # first generate all phacal calibration tables if not already exist
