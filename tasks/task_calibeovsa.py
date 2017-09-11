@@ -108,7 +108,6 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
         print "This scan observed from {} to {} UTC".format(btime.iso, etime.iso)
         gaintables = []
 
-
         if ('refpha' in caltype) or ('refamp' in caltype) or ('refcal' in caltype):
             refcal = ra.sql2refcalX(btime)
             pha = refcal['pha']  # shape is 15 (nant) x 2 (npol) x 34 (nband)
@@ -151,10 +150,10 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
                         para_pha.append(np.degrees(pha[n, p, bd[s]]))
                         para_amp.append(amp[n, p, bd[s]])
 
-        if ('autoamp' in caltype) or ('refcal' in caltype):
+        if 'autoamp' in caltype:
             calfac = pc.get_calfac(Time(t_mid.iso.split(' ')[0] + 'T23:59:59'))
-            t_bp = Time(calfac['timestamp'],format='lv')
-            accalfac = calfac['accalfac'] # (ant x pol x freq)
+            t_bp = Time(calfac['timestamp'], format='lv')
+            accalfac = calfac['accalfac']  # (ant x pol x freq)
             caltb_autoamp = dirname + t_bp.isot[:-4].replace(':', '').replace('-', '') + '.bandpass'
             # tmpfile = 'tmp.ms'
             # if os.path.exists(tmpfile):
@@ -167,7 +166,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
                 bd_chanidx = np.hstack([[0], bd_nchan.cumsum()])
                 for ll in range(nspw):
                     cparam = np.zeros((2, bd_nchan[ll], nant))
-                    cparam[:, :, :-3] = 1.0/np.moveaxis(accalfac[:, :, bd_chanidx[ll]:bd_chanidx[ll + 1]], 0, 2)
+                    cparam[:, :, :-3] = 1.0 / np.moveaxis(accalfac[:, :, bd_chanidx[ll]:bd_chanidx[ll + 1]], 0, 2)
                     tb.putcol('CPARAM', cparam + 0j, ll * nant, nant)
                     paramerr = tb.getcol('PARAMERR', ll * nant, nant)
                     paramerr = paramerr * 0
