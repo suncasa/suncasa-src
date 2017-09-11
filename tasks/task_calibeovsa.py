@@ -15,7 +15,7 @@ from eovsapy import cal_header as ch
 from eovsapy import stateframe as stf
 from matplotlib import pyplot as plt
 from eovsapy import dbutil as db
-import pipeline_cal as pc
+from eovsapy import pipeline_cal as pc
 from importeovsa_cli import importeovsa_cli as importeovsa
 
 # check if the calibration table directory is defined
@@ -153,8 +153,9 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
 
         if ('autoamp' in caltype) or ('refcal' in caltype):
             calfac = pc.get_calfac(Time(t_mid.iso.split(' ')[0] + 'T23:59:59'))
+            t_bp = Time(calfac['timestamp'],format='lv')
             accalfac = calfac['accalfac'] # (ant x pol x freq)
-            caltb_autoamp = dirname + t_ref.isot[:-4].replace(':', '').replace('-', '') + '.bandpass'
+            caltb_autoamp = dirname + t_bp.isot[:-4].replace(':', '').replace('-', '') + '.bandpass'
             # tmpfile = 'tmp.ms'
             # if os.path.exists(tmpfile):
             #     os.system('rm -rf {}'.format(tmpfile))
