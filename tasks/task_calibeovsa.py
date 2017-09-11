@@ -8,11 +8,14 @@ from gencal_cli import gencal_cli as gencal
 from clearcal_cli import clearcal_cli as clearcal
 from applycal_cli import applycal_cli as applycal
 from clean_cli import clean_cli as clean
+from split_cli import split_cli as split
+from bandpass_cli import bandpass_cli as bandpass
 from flagdata_cli import flagdata_cli as flagdata
 from eovsapy import cal_header as ch
 from eovsapy import stateframe as stf
 from matplotlib import pyplot as plt
 from eovsapy import dbutil as db
+from eovsapy import pipeline_cal as pc
 from importeovsa_cli import importeovsa_cli as importeovsa
 
 # check if the calibration table directory is defined
@@ -54,7 +57,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
         casalog.origin('calibeovsa')
         if not caltype:
             casalog.post("Caltype not provided. Perform reference phase calibration and daily phase calibration.")
-            caltype = ['refpha', 'phacal']  ## use this line after the phacal is applied
+            caltype = ['refpha', 'phacal', 'accal']  ## use this line after the phacal is applied
             # caltype = ['refcal']
         if not os.path.exists(msfile):
             casalog.post("Input visibility does not exist. Aborting...")
@@ -70,6 +73,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
         tb.open(msfile + '/SPECTRAL_WINDOW')
         nspw = tb.nrows()
         bdname = tb.getcol('NAME')
+        bd_nchan = tb.getcol('NUM_CHAN')
         bd = [int(b[4:]) - 1 for b in bdname]  # band index from 0 to 33
         # nchans = tb.getcol('NUM_CHAN')
         # reffreqs = tb.getcol('REF_FREQUENCY')
@@ -103,6 +107,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
         t_mid = Time((btime.mjd + etime.mjd) / 2., format='mjd')
         print "This scan observed from {} to {} UTC".format(btime.iso, etime.iso)
         gaintables = []
+
         if ('refpha' in caltype) or ('refamp' in caltype) or ('refcal' in caltype):
             refcal = ra.sql2refcalX(btime)
             pha = refcal['pha']  # shape is 15 (nant) x 2 (npol) x 34 (nband)
@@ -144,6 +149,45 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
                         calamp[s, n, p] = amp[n, p, bd[s]]
                         para_pha.append(np.degrees(pha[n, p, bd[s]]))
                         para_amp.append(amp[n, p, bd[s]])
+
+        if 'accal' in caltype:
+            calfac = pc.get_calfac(Time(t_mid.iso.split(' ')[0] + 'T23:59:59'))
+            t_bp = Time(calfac['timestamp'], format='lv')
+            if int(t_mid.mjd) == int(t_bp.mjd):
+                accalfac = calfac['accalfac']  # (ant x pol x freq)
+                caltb_autoamp = dirname + t_bp.isot[:-4].replace(':', '').replace('-', '') + '.bandpass'
+                if not os.path.exists(caltb_autoamp):
+                    bandpass(vis=msfile, caltable=caltb_autoamp, solint='inf', refant='eo01', minblperant=1, minsnr=0,
+                             bandtype='B', docallib=False)
+                    tb.open(caltb_autoamp, nomodify=False)  # (ant x spw)
+                    bd_chanidx = np.hstack([[0], bd_nchan.cumsum()])
+                    for ll in range(nspw):
+                        cparam = np.zeros((2, bd_nchan[ll], nant))
+                        cparam[:, :, :-3] = 1.0 / np.moveaxis(accalfac[:, :, bd_chanidx[ll]:bd_chanidx[ll + 1]], 0, 2)
+                        tb.putcol('CPARAM', cparam + 0j, ll * nant, nant)
+                        paramerr = tb.getcol('PARAMERR', ll * nant, nant)
+                        paramerr = paramerr * 0
+                        tb.putcol('PARAMERR', paramerr, ll * nant, nant)
+                        bpflag = tb.getcol('FLAG', ll * nant, nant)
+                        bpant1 = tb.getcol('ANTENNA1', ll * nant, nant)
+                        bpflagidx, = np.where(bpant1 >= 13)
+                        bpflag[:] = False
+                        bpflag[:, :, bpflagidx] = True
+                        tb.putcol('FLAG', bpflag, ll * nant, nant)
+                        bpsnr = tb.getcol('SNR', ll * nant, nant)
+                        bpsnr[:] = 100.0
+                        bpsnr[:, :, bpflagidx] = 0.0
+                        tb.putcol('SNR', bpsnr, ll * nant, nant)
+                    tb.close()
+                    msg_prompt = "Scaling calibration is derived for {}.".format(msfile)
+                    casalog.post(msg_prompt)
+                    print msg_prompt
+                gaintables.append(caltb_autoamp)
+            else:
+                msg_prompt = "Caution: No TPCAL is available on {}. No scaling calibration is derived for {}.".format(
+                    t_mid.datetime.strftime('%b %d, %Y'), msfile)
+                casalog.post(msg_prompt)
+                print msg_prompt
 
         if ('refpha' in caltype) or ('refcal' in caltype):
             # caltb_pha = os.path.basename(vis).replace('.ms', '.refpha')
@@ -187,7 +231,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
 
         if 'phacal' in caltype:
             phacals = np.array(ra.sql2phacalX([bt, et], neat=True, verbose=False))
-            if not phacals or len(phacals) == 0:
+            if not phacals.any() or len(phacals) == 0:
                 print "Found no phacal records in SQL database, will skip phase calibration"
             else:
                 # first generate all phacal calibration tables if not already exist
@@ -322,7 +366,8 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
             msname = os.path.basename(vis[0])
             msname = msname.split('.')[0] + '_concat.ms'
             visprefix = msoutdir + '/'
-            ce.concateovsa(msname, vis, visprefix, doclearcal=False, keep_orig_ms=keep_orig_ms, cols2rm=["MODEL_DATA", "CORRECTED_DATA"])
+            ce.concateovsa(msname, vis, visprefix, doclearcal=False, keep_orig_ms=keep_orig_ms,
+                           cols2rm=["MODEL_DATA", "CORRECTED_DATA"])
             return [visprefix + msname]
     else:
         return vis
