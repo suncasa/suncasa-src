@@ -179,12 +179,12 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
                         bpsnr[:, :, bpflagidx] = 0.0
                         tb.putcol('SNR', bpsnr, ll * nant, nant)
                     tb.close()
-                    msg_prompt = "Scaling calibration is derived for {}".format(msfile)
+                    msg_prompt = "Scaling calibration is derived for {}.".format(msfile)
                     casalog.post(msg_prompt)
                     print msg_prompt
                 gaintables.append(caltb_autoamp)
             else:
-                msg_prompt = "No TPCAL is available on {}. No scaling calibration is derived for {}".format(
+                msg_prompt = "Caution: No TPCAL is available on {}. No scaling calibration is derived for {}.".format(
                     t_mid.datetime.strftime('%b %d, %Y'), msfile)
                 casalog.post(msg_prompt)
                 print msg_prompt
