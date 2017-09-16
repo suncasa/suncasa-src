@@ -20,22 +20,17 @@ from importeovsa_cli import importeovsa_cli as importeovsa
 
 # check if the calibration table directory is defined
 caltbdir = os.getenv('EOVSACAL')
-imgdir = os.getenv('EOVSAIMG')
 if not caltbdir:
     print 'Environmental variable for EOVSA calibration table path not defined'
     print 'Use default path on pipeline'
     caltbdir = '/data1/eovsa/caltable/'
-if not imgdir:
-    print 'Environmental variable for EOVSA image path not defined'
-    print 'Use default path on pipeline'
-    imgdir = '/data1/bchen/solar/image/'
 
-
-def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, flagant='13~15', doimage=False,
-               stokes=None, doconcat=False, msoutdir='./', keep_orig_ms=True):
+def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, flagant=None, doimage=False,
+               imagedir=None, timerange=None, antenna=None, spw=None, stokes=None, 
+               doconcat=False, msoutdir=None, keep_orig_ms=True):
     '''
 
-    :param vis: a single UDBms file or a list of UDBms files(s) 
+    :param vis: EOVSA visibility dataset(s) to be calibrated 
     :param caltype:
     :param interp:
     :param docalib:
@@ -57,7 +52,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
         casalog.origin('calibeovsa')
         if not caltype:
             casalog.post("Caltype not provided. Perform reference phase calibration and daily phase calibration.")
-            caltype = ['refpha', 'phacal', 'accal']  ## use this line after the phacal is applied
+            caltype = ['refpha', 'phacal', 'fluxcal']  ## use this line after the phacal is applied
             # caltype = ['refcal']
         if not os.path.exists(msfile):
             casalog.post("Input visibility does not exist. Aborting...")
@@ -150,7 +145,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
                         para_pha.append(np.degrees(pha[n, p, bd[s]]))
                         para_amp.append(amp[n, p, bd[s]])
 
-        if 'accal' in caltype:
+        if 'fluxcal' in caltype:
             calfac = pc.get_calfac(Time(t_mid.iso.split(' ')[0] + 'T23:59:59'))
             t_bp = Time(calfac['timestamp'], format='lv')
             if int(t_mid.mjd) == int(t_bp.mjd):
@@ -318,22 +313,33 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
             from suncasa.eovsa import eovsa_prep as ep
             from sunpy import map as smap
 
-            antenna = '0~12'
+            if not antenna:
+                antenna = '0~12'
             if not stokes:
                 stokes = 'XX'
-            (yr, mon, day) = (bt.datetime.year, bt.datetime.month, bt.datetime.day)
-            dirname = imgdir + str(yr) + '/' + str(mon).zfill(2) + '/' + str(day).zfill(2) + '/'
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
-            bds = ['1~3']
+            if not timerange:
+                timerange = ''
+            if not spw:
+                spw = '1~3'
+            if not imagedir:
+                imagedir='.'
+            #(yr, mon, day) = (bt.datetime.year, bt.datetime.month, bt.datetime.day)
+            #dirname = imagedir + str(yr) + '/' + str(mon).zfill(2) + '/' + str(day).zfill(2) + '/'
+            #if not os.path.exists(dirname):
+            #    os.makedirs(dirname)
+            bds = [spw]
             nbd = len(bds)
             imgs = []
             for bd in bds:
-                imname = dirname + os.path.basename(msfile).replace('.ms', '.bd' + str(bd).zfill(2))
+                if '~' in bd:
+                    bdstr=bd.replace('~','-')
+                else:
+                    bdstr=str(bd).zfill(2)
+                imname = imagedir + '/' + os.path.basename(msfile).replace('.ms', '.bd' + bandstr
                 print 'Cleaning image: ' + imname
                 try:
-                    clean(vis=msfile, imagename=imname, antenna=antenna, spw=bd, imsize=[512], cell=['5.0arcsec'],
-                          stokes=stokes, niter=500)
+                    clean(vis=msfile, imagename=imname, antenna=antenna, spw=bd, timerange=timerange,
+                          imsize=[512], cell=['5.0arcsec'], stokes=stokes, niter=500)
                 except:
                     print 'clean not successfull for band ' + str(bd)
                 else:

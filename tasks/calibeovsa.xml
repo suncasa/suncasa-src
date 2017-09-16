@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" ?>
+
+<casaxml xmlns="http://casa.nrao.edu/schema/psetTypes.html"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://casa.nrao.edu/schema/casa.xsd
+file:///opt/casa/code/xmlcasa/xml/casa.xsd">
+
+
+<task type="function" name="calibeovsa" category="Calibration">
+<!--importeovsa(idbfiles='',-->
+        <!--ncpu=1,-->
+        <!--timebin=None,-->
+        <!--width=None,-->
+        <!--visprefix=None,-->
+        <!--nocreatms=False,-->
+        <!--doconcat=False,-->
+        <!--modelms='',-->
+        <!--doscaling=False,-->
+        <!--keep_nsclms=False):-->
+
+    <shortdescription>Calibrating EOVSA one or more measurement sets using calibration products in the SQL database.</shortdescription>
+
+    <description>
+        Calibrating EOVSA one or more measurement sets using calibration products in the SQL database. This task currently only works on pipeline.
+    </description>
+
+    <example>
+        Calibrating EOVSA one or more measurement sets using calibration products in the SQL database.
+
+        Detailed Keyword arguments:
+
+        vis -- Name of input EOVSA measurement set dataset(s)
+            default: none. Must be supplied
+            example: vis = 'IDB20160524000518.ms'
+            example: vis = ['IDB20160524000518.ms','IDB20160524000528.ms']
+
+        caltype -- list. Type of calibrations to be applied.
+            'refpha': reference phase calibration
+            'refamp': reference amplitude calibration (not used anymore)
+            'phacal': daily phase calibration
+            'fluxcal': flux calibration based on total-power measurements
+             default value: ['refpha','phacal','fluxcal']
+             *** note if fluxcal is already done to the UDB/IDB miriad files, it should not be performed again ***
+             *** pipeline only uses ['refpha','phacal']
+
+        interp -- string. How interpolation is done for phacal? 'nearest' or 'linear'
+
+        docalib -- boolean. Default True. If False, only create the calibration tables but do not perform applycal
+
+        doflag -- boolean. Default True. Peforming flags?
+
+        flagant -- string. Follow CASA antenna selection syntax. Default '13~15'. 
+
+        doimage -- boolean. Default False. If true, make a quicklook image using the specified time range and specified spw range
+
+        imagedir -- string. Directory to place the output image. 
+
+        antenna -- string. Default '0~12'. Antenna/baselines to be used for imaging. Follow CASA antenna selection syntax.
+
+        timerange -- string. Default '' (the whole duration of the visibility data). Follow CASA timerange syntax. 
+                     e.g., '2017/07/11/20:16:00~2017/07/11/20:17:00'
+
+        spw -- string. Default '1~3'. Follow CASA spw selection syntax.
+
+        stokes -- string. Which stokes for the quicklook image. CASA syntax. Default 'XX'
+
+        doconcat -- boolean. If more than one visibility dataset provided, concatenate all into one or make separate outputs?
+
+        msoutdir -- string. Directory to place the concatenated dataset
+
+        keep_orig_ms -- boolean. Default True. Inherited from suncasa.eovsa.concateovsa. 
+                Keep the original seperated ms datasets after concatenation? 
+
+    </example>
+
+    <input>
+        <param type="any" name="vis" mustexist="true">
+            <description>input EOVSA (uncalibrated) measurement set(s).</description>
+            <any type="variant" limittypes="string stringArray"/>
+            <value type="string"></value>
+        </param>
+
+        <param type="stringArray" name="caltype">
+            <description>Types of calibrations to perform</description>
+            <value>['refpha','phacal','fluxcal']</value>
+        </param>
+
+        <param type="string" name="interp">
+            <description>Temporal interpolation for phacal table(s) (''=nearest)</description>
+            <value type="string">"nearest"</value>
+        </param>
+
+        <param type="bool" name="docalib">
+            <description>If False, only create the calibration tables but do not perform applycal.</description>
+            <value>True</value>
+        </param>
+
+        <param type="bool" name="doflag">
+            <description>If true then perform flagging.</description>
+            <value>True</value>
+        </param>
+
+        <param type="string" name="flagant" subparam="true">
+            <description>Antennas to be flagged. Follow CASA syntax of "antenna".</description>
+            <value type="string">"13~15"</value>
+        </param>
+
+        <param type="bool" name="doimage">
+            <description>If True, produce a quicklook image after calibration (sunpy must be installed).</description>
+            <value>True</value>
+        </param>
+
+        <param type="string" name="imagedir" subparam="true">
+            <description>Place to put out image file. Default current directory.</description>
+            <value type="string">'.'</value>
+        </param>
+
+        <param type="string" name="antenna" subparam="true">
+            <description>antenna/baselines to be used for imaging. Follow CASA syntax of "antenna".</description>
+            <value type="string">'0~12'</value>
+        </param>
+
+        <param type="string" name="timerange" subparam="true">
+            <description>Timerange to be imaged. Follow CASA syntax of "timerange".</description>
+            <value type="string"></value>
+        </param>
+
+        <param type="string" name="spw" subparam="true">
+            <description>spectral windows to be imaged. Follow CASA syntax of "spw".</description>
+            <value type="string">'1~3'</value>
+        </param>
+
+        <param type="string" name="stokes" subparam="true">
+            <description>stokes to be imaged. Follow CASA syntax of "stokes".</description>
+            <value type="string">'XX'</value>
+        </param>
+
+        <param type="bool" name="doconcat">
+            <description>If more than one visibility dataset provided, concatenate all into one or make separate outputs?
+.</description>
+            <value>False</value>
+        </param>
+
+        <param type="string" name="msoutdir" subparam="true">
+            <description>Place to put concatenated ms. Default current directory.</description>
+            <value type="string">'.'</value>
+        </param>
+
+        <param type="bool" name="keep_orig_ms" subparam="true">
+            <description>Keep the original seperated ms datasets after concatenation?</description>
+            <value>True</value>
+        </param>
+
+        <!--CONSTRAINTS-->
+        <constraints>
+            <when param="doflag">
+                <equals type="bool" value="True">
+                    <default param="flagant"><value type="string">'13~15'</value></default>
+                </equals>
+                <equals type="bool" value="False"/>
+            </when>
+            <when param="doimage">
+                <equals type="bool" value="True">
+                    <default param="imagedir"><value type="string">'.'</value></default>
+                    <default param="antenna"><value type="string">'0~12'</value></default>
+                    <default param="timerange"><value type="string"></value></default>
+                    <default param="spw"><value type="string">'1~3'</value></default>
+                    <default param="stokes"><value type="string">'XX'</value></default>
+                </equals>
+                <equals type="bool" value="False"/>
+            </when>
+            <when param="doconcat">
+                <equals type="bool" value="True">
+                    <default param="msoutdir"><value type="string">'.'</value></default>
+                    <default param="keep_orig_ms"><value type="bool">True</value></default>
+                </equals>
+                <equals type="bool" value="False"/>
+            </when>
+        </constraints>
+
+    </input>
+</task>
+</casaxml>
