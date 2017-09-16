@@ -65,7 +65,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 
         stokes -- string. Which stokes for the quicklook image. CASA syntax. Default 'XX'
 
-        doconcat -- boolean. If more than one visibility dataset provided, concatenate all into one or make separate outputs?
+        doconcat -- boolean. If more than one visibility dataset provided, concatenate all into one or make separate outputs if True
 
         msoutdir -- string. Directory to place the concatenated dataset
 
@@ -81,14 +81,15 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
             <value type="string"></value>
         </param>
 
-        <param type="stringArray" name="caltype">
+        <param type="any" name="caltype">
             <description>Types of calibrations to perform</description>
-            <value>['refpha','phacal','fluxcal']</value>
+            <any type="variant" limittypes="string stringArray"/>
+            <value type="string"></value>
         </param>
 
         <param type="string" name="interp">
             <description>Temporal interpolation for phacal table(s) (''=nearest)</description>
-            <value type="string">"nearest"</value>
+            <value type="string">nearest</value>
         </param>
 
         <param type="bool" name="docalib">
@@ -103,7 +104,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 
         <param type="string" name="flagant" subparam="true">
             <description>Antennas to be flagged. Follow CASA syntax of "antenna".</description>
-            <value type="string">"13~15"</value>
+            <value type="string">13~15</value>
         </param>
 
         <param type="bool" name="doimage">
@@ -113,12 +114,12 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 
         <param type="string" name="imagedir" subparam="true">
             <description>Place to put out image file. Default current directory.</description>
-            <value type="string">'.'</value>
+            <value type="string">.</value>
         </param>
 
         <param type="string" name="antenna" subparam="true">
             <description>antenna/baselines to be used for imaging. Follow CASA syntax of "antenna".</description>
-            <value type="string">'0~12'</value>
+            <value type="string">0~12</value>
         </param>
 
         <param type="string" name="timerange" subparam="true">
@@ -128,23 +129,22 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 
         <param type="string" name="spw" subparam="true">
             <description>spectral windows to be imaged. Follow CASA syntax of "spw".</description>
-            <value type="string">'1~3'</value>
+            <value type="string">1~5</value>
         </param>
 
         <param type="string" name="stokes" subparam="true">
             <description>stokes to be imaged. Follow CASA syntax of "stokes".</description>
-            <value type="string">'XX'</value>
+            <value type="string">XX</value>
         </param>
 
         <param type="bool" name="doconcat">
-            <description>If more than one visibility dataset provided, concatenate all into one or make separate outputs?
-.</description>
+            <description>If more than one visibility dataset provided, concatenate all into one or make separate outputs if True.</description>
             <value>False</value>
         </param>
 
         <param type="string" name="msoutdir" subparam="true">
             <description>Place to put concatenated ms. Default current directory.</description>
-            <value type="string">'.'</value>
+            <value type="string">.</value>
         </param>
 
         <param type="bool" name="keep_orig_ms" subparam="true">
@@ -156,23 +156,23 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
         <constraints>
             <when param="doflag">
                 <equals type="bool" value="True">
-                    <default param="flagant"><value type="string">'13~15'</value></default>
+                    <default param="flagant"><value type="string">13~15</value></default>
                 </equals>
                 <equals type="bool" value="False"/>
             </when>
             <when param="doimage">
                 <equals type="bool" value="True">
-                    <default param="imagedir"><value type="string">'.'</value></default>
-                    <default param="antenna"><value type="string">'0~12'</value></default>
+                    <default param="imagedir"><value type="string">.</value></default>
+                    <default param="antenna"><value type="string">0~12</value></default>
                     <default param="timerange"><value type="string"></value></default>
-                    <default param="spw"><value type="string">'1~3'</value></default>
-                    <default param="stokes"><value type="string">'XX'</value></default>
+                    <default param="spw"><value type="string">1~5</value></default>
+                    <default param="stokes"><value type="string">XX</value></default>
                 </equals>
                 <equals type="bool" value="False"/>
             </when>
             <when param="doconcat">
                 <equals type="bool" value="True">
-                    <default param="msoutdir"><value type="string">'.'</value></default>
+                    <default param="msoutdir"><value type="string">.</value></default>
                     <default param="keep_orig_ms"><value type="bool">True</value></default>
                 </equals>
                 <equals type="bool" value="False"/>

@@ -21,9 +21,10 @@ from importeovsa_cli import importeovsa_cli as importeovsa
 # check if the calibration table directory is defined
 caltbdir = os.getenv('EOVSACAL')
 if not caltbdir:
-    print 'Environmental variable for EOVSA calibration table path not defined'
-    print 'Use default path on pipeline'
+    print 'Task calibeovsa'
     caltbdir = '/data1/eovsa/caltable/'
+    print 'Environmental variable for EOVSA calibration table path not defined'
+    print 'Use default path on pipeline ' + caltbdir
 
 def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, flagant=None, doimage=False,
                imagedir=None, timerange=None, antenna=None, spw=None, stokes=None, 
@@ -335,7 +336,7 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
                     bdstr=bd.replace('~','-')
                 else:
                     bdstr=str(bd).zfill(2)
-                imname = imagedir + '/' + os.path.basename(msfile).replace('.ms', '.bd' + bandstr
+                imname = imagedir + '/' + os.path.basename(msfile).replace('.ms', '.bd' + bdstr)
                 print 'Cleaning image: ' + imname
                 try:
                     clean(vis=msfile, imagename=imname, antenna=antenna, spw=bd, timerange=timerange,
