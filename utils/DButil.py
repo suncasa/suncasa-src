@@ -24,6 +24,50 @@ def my_timer(orig_func):
     return wrapper
 
 
+def spectrogram2wav(spec, threshld=None, gama = 1, fs=1.0, t_length=None, w=1, wavfile='output.wav'):
+    '''
+    Convert spectrogram to audio in WAV format
+    :param spec: spec.shape (nfreq, ntime)
+    :param threshld: below which is set to be threshold
+    :param gama:
+    :param fs:
+    :param t_length: time duration of output WAV file
+    :param w: width of the smooth window, if apply
+    :param wavfile:
+    :return:
+    '''
+    from scipy import signal
+    from scipy.io.wavfile import write
+    import numpy as np
+
+    if np.sum(np.isnan(spec)) > 0:
+        for idx in range(spec.shape[1]):
+            p_slice = spec[:, idx]
+            mask_nan = np.isnan(p_slice)
+            if np.sum(~mask_nan) > 0:
+                p_slice[mask_nan] = np.interp(np.flatnonzero(mask_nan), np.flatnonzero(~mask_nan), p_slice[~mask_nan])
+                spec[:, idx] = p_slice
+
+    # smooth the dynamic spectrum
+    if w > 1:
+        k = 1 - np.abs(np.linspace(-1, 1, w))
+        kernel = k.reshape(w, 1) * k.reshape(1, w)
+        kernel /= kernel.sum()  # kernel should sum to 1!  :)
+        Zxx = signal.convolve2d(spec, kernel, mode='same')
+    else:
+        Zxx = spec
+    if threshld:
+        Zxx = np.where(Zxx >= threshld, Zxx, threshld)
+    _, xrec = signal.istft(Zxx ** gama, fs)
+
+    scaled = np.int16(xrec / np.max(np.abs(xrec)) * 32767)
+    if t_length:
+        sample_rate = int(np.round(len(scaled) / t_length))
+    else:
+        sample_rate = 44100
+    write(wavfile, sample_rate, scaled)
+    return
+
 
 def smooth(x, window_len=11, window='hanning'):
     """smooth the data using a window with requested size.
@@ -81,7 +125,7 @@ def smooth(x, window_len=11, window='hanning'):
     return y
 
 
-def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num=0, crf=15, fps=10, overwrite = False):
+def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num=0, crf=15, fps=10, overwrite=False):
     import subprocess, os
     imgs = glob.glob(imgprefix + '*.' + img_ext)
     if imgs:
@@ -97,11 +141,11 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
         if overwrite:
             ow = '-y'
         else:
-            ow=''
+            ow = ''
         outdstr = ' '.join(['-{} {}'.format(k, v) for k, v in outd.iteritems()])
         cmd = 'ffmpeg -f image2 -i {}img_tmp/%04d.png -vcodec libx264 -pix_fmt yuv420p {} '.format(imgprefix,
-                                                                                                   outdstr) + '{0} {1}.mp4'.format(ow,
-            outname)
+                                                                                                   outdstr) + '{0} {1}.mp4'.format(
+            ow, outname)
         print cmd
         subprocess.check_output(['bash', '-c', cmd])
         os.system('rm -rf {}'.format(tmpdir))
