@@ -13,7 +13,6 @@ from bandpass_cli import bandpass_cli as bandpass
 from flagdata_cli import flagdata_cli as flagdata
 from eovsapy import cal_header as ch
 from eovsapy import stateframe as stf
-from matplotlib import pyplot as plt
 from eovsapy import dbutil as db
 from eovsapy import pipeline_cal as pc
 from importeovsa_cli import importeovsa_cli as importeovsa
@@ -27,7 +26,7 @@ if not caltbdir:
     print 'Use default path on pipeline ' + caltbdir
 
 def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, flagant=None, doimage=False,
-               imagedir=None, timerange=None, antenna=None, spw=None, stokes=None, 
+               imagedir=None, antenna=None, timerange=None, spw=None, stokes=None, 
                doconcat=False, msoutdir=None, keep_orig_ms=True):
     '''
 
@@ -311,7 +310,8 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
                     print "Something wrong with flagant. Abort..."
 
         if doimage:
-            from suncasa.eovsa import eovsa_prep as ep
+            from matplotlib import pyplot as plt
+            from suncasa.utils import helioimage2fits as hf
             from sunpy import map as smap
 
             if not antenna:
@@ -350,9 +350,9 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
                     if os.path.exists(imname + junk):
                         shutil.rmtree(imname + junk)
 
-            reftime = [btime.iso + '~' + etime.iso] * nbd
+            tranges = [btime.iso + '~' + etime.iso] * nbd
             fitsfiles = [img.replace('.image', '.fits') for img in imgs]
-            ep.imreg(vis=msfile, reftime=reftime, imagefile=imgs, fitsfile=fitsfiles)
+            hf.imreg(vis=msfile, timerange=tranges, imagefile=imgs, fitsfile=fitsfiles, usephacenter=False)
             plt.figure(figsize=(6, 6))
             for i, fitsfile in enumerate(fitsfiles):
                 plt.subplot(1, nbd, i + 1)
