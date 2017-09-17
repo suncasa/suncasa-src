@@ -84,11 +84,11 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
         <param type="any" name="caltype">
             <description>Types of calibrations to perform</description>
             <any type="variant" limittypes="string stringArray"/>
-            <value type="string"></value>
+            <value type="stringArray">"refcal","phacal","fluxcal"</value>
         </param>
 
         <param type="string" name="interp">
-            <description>Temporal interpolation for phacal table(s) (''=nearest)</description>
+            <description>Temporal interpolation for phacal table(s) (nearest or linear)</description>
             <value type="string">nearest</value>
         </param>
 
@@ -113,7 +113,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
         </param>
 
         <param type="string" name="imagedir" subparam="true">
-            <description>Place to put out image file. Default current directory.</description>
+            <description>directory to place output images. Default current directory.</description>
             <value type="string">.</value>
         </param>
 
@@ -123,7 +123,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
         </param>
 
         <param type="string" name="timerange" subparam="true">
-            <description>Timerange to be imaged. Follow CASA syntax of "timerange".</description>
+            <description>Timerange to be imaged. Follow CASA syntax of "timerange". Default is the entire duration of the ms.</description>
             <value type="string"></value>
         </param>
 
@@ -161,6 +161,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
                 <equals type="bool" value="False"/>
             </when>
             <when param="doimage">
+                <equals type="bool" value="False"/>
                 <equals type="bool" value="True">
                     <default param="imagedir"><value type="string">.</value></default>
                     <default param="antenna"><value type="string">0~12</value></default>
@@ -168,14 +169,13 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
                     <default param="spw"><value type="string">1~5</value></default>
                     <default param="stokes"><value type="string">XX</value></default>
                 </equals>
-                <equals type="bool" value="False"/>
             </when>
             <when param="doconcat">
+                <equals type="bool" value="False"/>
                 <equals type="bool" value="True">
                     <default param="msoutdir"><value type="string">.</value></default>
                     <default param="keep_orig_ms"><value type="bool">True</value></default>
                 </equals>
-                <equals type="bool" value="False"/>
             </when>
         </constraints>
 
