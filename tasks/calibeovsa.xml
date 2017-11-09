@@ -84,7 +84,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
         <param type="any" name="caltype">
             <description>Types of calibrations to perform</description>
             <any type="variant" limittypes="string stringArray"/>
-            <value type="stringArray">"refcal","phacal","fluxcal"</value>
+            <value type="stringArray">"refpha","phacal","fluxcal"</value>
         </param>
 
         <param type="string" name="interp">
