@@ -24,7 +24,7 @@ def my_timer(orig_func):
     return wrapper
 
 
-def spectrogram2wav(spec, threshld=None, gama = 1, fs=1.0, t_length=None, w=1, wavfile='output.wav'):
+def spectrogram2wav(spec, threshld=None, gama=1, fs=1.0, t_length=None, w=1, wavfile='output.wav'):
     '''
     Convert spectrogram to audio in WAV format
     :param spec: spec.shape (nfreq, ntime)
@@ -47,6 +47,12 @@ def spectrogram2wav(spec, threshld=None, gama = 1, fs=1.0, t_length=None, w=1, w
             if np.sum(~mask_nan) > 0:
                 p_slice[mask_nan] = np.interp(np.flatnonzero(mask_nan), np.flatnonzero(~mask_nan), p_slice[~mask_nan])
                 spec[:, idx] = p_slice
+        for idx in range(spec.shape[0]):
+            p_slice = spec[idx, :]
+            mask_nan = np.isnan(p_slice)
+            if np.sum(~mask_nan) > 0:
+                p_slice[mask_nan] = np.interp(np.flatnonzero(mask_nan), np.flatnonzero(~mask_nan), p_slice[~mask_nan])
+                spec[idx, :] = p_slice
 
     # smooth the dynamic spectrum
     if w > 1:
@@ -102,16 +108,16 @@ def smooth(x, window_len=11, window='hanning'):
     """
 
     if x.ndim != 1:
-        raise ValueError, "smooth only accepts 1 dimension arrays."
+        raise ValueError("smooth only accepts 1 dimension arrays.")
 
     if x.size < window_len:
-        raise ValueError, "Input vector needs to be bigger than window size."
+        raise ValueError("Input vector needs to be bigger than window size.")
 
     if window_len < 3:
         return x
 
     if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
-        raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
+        raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
 
     s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
     # print(len(s))
@@ -130,11 +136,11 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
     imgs = glob.glob(imgprefix + '*.' + img_ext)
     if imgs:
         imgs = sorted(imgs)
-        tmpdir = '{}img_tmp/'.format(imgprefix)
+        tmpdir = os.path.join(os.path.dirname(imgprefix), 'img_tmp') + '/'
         if not os.path.exists(tmpdir):
             os.makedirs(tmpdir)
         for idx, ll in enumerate(imgs):
-            os.system('cp {} {}img_tmp/{:04d}.{}'.format(ll, imgprefix, idx, img_ext))
+            os.system('cp {} {}/{:04d}.{}'.format(ll, tmpdir, idx, img_ext))
         outd = {'r': fps, 's': size, 'start_number': start_num, 'crf': crf}
         if size is None:
             outd.pop('s')
@@ -143,10 +149,10 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
         else:
             ow = ''
         outdstr = ' '.join(['-{} {}'.format(k, v) for k, v in outd.iteritems()])
-        cmd = 'ffmpeg -f image2 -i {}img_tmp/%04d.png -vcodec libx264 -pix_fmt yuv420p {} '.format(imgprefix,
-                                                                                                   outdstr) + '{0} {1}.mp4'.format(
+        cmd = 'ffmpeg -f image2 -i {}%04d.png -vcodec libx264 -pix_fmt yuv420p {} '.format(tmpdir,
+                                                                                           outdstr) + '{0} {1}.mp4'.format(
             ow, outname)
-        print cmd
+        print(cmd)
         subprocess.check_output(['bash', '-c', cmd])
         os.system('rm -rf {}'.format(tmpdir))
     else:
@@ -265,6 +271,8 @@ def getSDOdir(config, database_dir, suncasa_dir):
     try:
         if config['datadir']['SDOdir']:
             SDOdir = config['datadir']['SDOdir']
+            if SDOdir.startwith('$'):
+                SDOdir = os.path.expandvars(SDOdir)
             if not os.path.exists(SDOdir):
                 os.makedirs(SDOdir)
         else:
@@ -937,16 +945,21 @@ def dspecDF2text(DFfile, outfile=None):
         raise ValueError('provide input file name!')
 
 
-def smapmeshgrid2(smap, rescale=1.0):
+def smapmeshgrid2(smap, angle=None, rescale=1.0, origin = 1):
     import astropy.units as u
+    if angle is None:
+        mrot = smap.rotation_matrix
+    else:
+        sin = np.sin(angle)
+        cos = np.cos(angle)
+        mrot = np.array([[cos,-sin],[sin,cos]])
     ref_pix = smap.reference_pixel
     scale = smap.scale
-    mrot = smap.rotation_matrix
     XX, YY = np.meshgrid(np.arange(smap.data.shape[1] * rescale) / rescale,
                          np.arange(smap.data.shape[0] * rescale) / rescale)
     x, y = XX * u.pix, YY * u.pix
-    x = (x - ref_pix[0] + 1.0 * u.pix) * scale[0]
-    y = (y - ref_pix[1] + 1.0 * u.pix) * scale[1]
+    x = (x - ref_pix[0] + origin * u.pix) * scale[0]
+    y = (y - ref_pix[1] + origin * u.pix) * scale[1]
     xnew = mrot[0, 0] * x + mrot[0, 1] * y
     ynew = mrot[1, 0] * x + mrot[1, 1] * y
     return xnew, ynew
