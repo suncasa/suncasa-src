@@ -115,7 +115,7 @@ def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], c
         aiaplt_args.pop('cmap', None)
     if outfile:
         plt.ioff()
-    if type(aiafile) != sunpy.map.sources.sdo.AIAMap:
+    if type(aiafile) != sunpy.map.sources.sdo.AIAMap and type(aiafile) != sunpy.map.compositemap.CompositeMap:
         aiamap = sunpy.map.Map(aiafile)
     else:
         aiamap = aiafile

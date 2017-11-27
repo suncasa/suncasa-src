@@ -149,14 +149,32 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
         else:
             ow = ''
         outdstr = ' '.join(['-{} {}'.format(k, v) for k, v in outd.iteritems()])
-        cmd = 'ffmpeg -f image2 -i {}%04d.png -vcodec libx264 -pix_fmt yuv420p {} '.format(tmpdir,
-                                                                                           outdstr) + '{0} {1}.mp4'.format(
+        cmd = 'ffmpeg -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} '.format(tmpdir, img_ext,
+                                                                                             outdstr) + '{0} {1}.mp4'.format(
             ow, outname)
         print(cmd)
         subprocess.check_output(['bash', '-c', cmd])
         os.system('rm -rf {}'.format(tmpdir))
     else:
         print('Images not found!')
+
+
+def image_fill_gap(image):
+    for idx in range(image.shape[0]):
+        image_slice = image[idx, :]
+        mask_nan = np.isnan(image_slice)
+        if np.sum(~mask_nan) > 0 and np.sum(mask_nan) > 0:
+            image_slice[mask_nan] = np.interp(np.flatnonzero(mask_nan), np.flatnonzero(~mask_nan),
+                                              image_slice[~mask_nan])
+            image[idx, :] = image_slice
+    for idx in range(image.shape[1]):
+        image_slice = image[:, idx]
+        mask_nan = np.isnan(image_slice)
+        if np.sum(~mask_nan) > 0 and np.sum(mask_nan) > 0:
+            image_slice[mask_nan] = np.interp(np.flatnonzero(mask_nan), np.flatnonzero(~mask_nan),
+                                              image_slice[~mask_nan])
+            image[:, idx] = image_slice
+    return image
 
 
 def getspwfromfreq(vis, freqrange):
@@ -206,7 +224,7 @@ def initconfig(suncasa_dir):
 #                 the base name will be removed from the paths.
 #     :return:
 #     '''
-#     import os
+#   DEll19432017  import os
 #     if not isdir:
 #         dirlist = [os.path.dirname(ff) for ff in dirlist]
 #     dirs = list(set(dirlist))
@@ -945,14 +963,14 @@ def dspecDF2text(DFfile, outfile=None):
         raise ValueError('provide input file name!')
 
 
-def smapmeshgrid2(smap, angle=None, rescale=1.0, origin = 1):
+def smapmeshgrid2(smap, angle=None, rescale=1.0, origin=1):
     import astropy.units as u
     if angle is None:
         mrot = smap.rotation_matrix
     else:
         sin = np.sin(angle)
         cos = np.cos(angle)
-        mrot = np.array([[cos,-sin],[sin,cos]])
+        mrot = np.array([[cos, -sin], [sin, cos]])
     ref_pix = smap.reference_pixel
     scale = smap.scale
     XX, YY = np.meshgrid(np.arange(smap.data.shape[1] * rescale) / rescale,
@@ -1032,7 +1050,7 @@ def regridspec(spec, x, y, nxmax=None, nymax=None, interp=False):
         if nxmax:
             if nt > nxmax:
                 import math
-                xstep = math.ceil(float(nt) / nxmax)
+                xstep = int(math.ceil(float(nt) / nxmax))
         if nymax:
             if nf > nymax:
                 ystep = int(float(nf) / nymax)
