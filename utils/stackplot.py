@@ -166,14 +166,25 @@ def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, retu
                        'interpolation': 'nearest', 'origin': 'lower'}
     except:
         imshow_args = {'cmap': 'gray', 'norm': norm, 'interpolation': 'nearest', 'origin': 'lower'}
-    if smap.coordinate_system.x == 'HG':
-        xlabel = 'Longitude [{lon}]'.format(lon=smap.spatial_units.x)
-    else:
-        xlabel = 'X-position [{xpos}]'.format(xpos=smap.spatial_units.x)
-    if smap.coordinate_system.y == 'HG':
-        ylabel = 'Latitude [{lat}]'.format(lat=smap.spatial_units.y)
-    else:
-        ylabel = 'Y-position [{ypos}]'.format(ypos=smap.spatial_units.y)
+    try:
+        if smap.coordinate_system.x == 'HG':
+            xlabel = 'Longitude [{lon}]'.format(lon=smap.spatial_units.x)
+        else:
+            xlabel = 'X-position [{xpos}]'.format(xpos=smap.spatial_units.x)
+        if smap.coordinate_system.y == 'HG':
+            ylabel = 'Latitude [{lat}]'.format(lat=smap.spatial_units.y)
+        else:
+            ylabel = 'Y-position [{ypos}]'.format(ypos=smap.spatial_units.y)
+    except:
+        if smap.coordinate_system.axis1 == 'HG':
+            xlabel = 'Longitude [{lon}]'.format(lon=smap.spatial_units.axis1)
+        else:
+            xlabel = 'X-position [{xpos}]'.format(xpos=smap.spatial_units.axis1)
+        if smap.coordinate_system.axis2 == 'HG':
+            ylabel = 'Latitude [{lat}]'.format(lat=smap.spatial_units.axis2)
+        else:
+            ylabel = 'Y-position [{ypos}]'.format(ypos=smap.spatial_units.axis2)
+
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     imshow_args.update({'extent': list(smap.xrange.value) + list(smap.yrange.value)})
