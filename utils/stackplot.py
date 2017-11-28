@@ -629,9 +629,13 @@ class Stackplot:
                     # im1.set_extent(list(smap.xrange.value) + list(smap.yrange.value))
                     # ax.set_xlim(list(smap.xrange.value))
                     # ax.set_ylim(list(smap.yrange.value))
+                    if smap.meta.has_key('t_obs'):
+                        tstr = smap.meta['t_obs']
+                    else:
+                        tstr = smap.meta['date-obs']
                     ax.set_title(
-                        '{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, smap.meta['t_obs']))
-                    t_map = Time(smap.meta['t_obs'])
+                        '{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
+                    t_map = Time(tstr)
                     fig_mapcube.canvas.draw()
                     fig_mapcube.savefig('{0}/{3}{1}-{2}.png'.format(out_dir, smap.meta['wavelnth'],
                                                                     t_map.iso.replace(' ', 'T').replace(':',
@@ -669,7 +673,11 @@ class Stackplot:
                 smap = mapcube_plot[int(frm)]
                 # smap.data[smap.data<1]=1
                 im1.set_data(smap.data)
-                ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, smap.meta['t_obs']))
+                if smap.meta.has_key('t_obs'):
+                    tstr = smap.meta['t_obs']
+                else:
+                    tstr = smap.meta['date-obs']
+                ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
                 fig_mapcube.canvas.draw()
 
             sFrame.on_changed(sFrame_update)
@@ -775,7 +783,11 @@ class Stackplot:
             frm = int(sframe2.val)
             smap = mapcube_plot[frm]
             im1.set_data(smap.data)
-            ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, smap.meta['t_obs']))
+            if smap.meta.has_key('t_obs'):
+                tstr = smap.meta['t_obs']
+            else:
+                tstr = smap.meta['date-obs']
+            ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
             vspan_xy = vspan.get_xy()
             vspan_xy[np.array([0, 1, 4]), 0] = self.tplt[frm].plot_date
             if frm < len(self.tplt) - 1:
@@ -813,7 +825,11 @@ class Stackplot:
             mapcube = self.mapcube
         t = []
         for idx, smap in enumerate(mapcube):
-            t.append(smap.meta['t_obs'])
+            if smap.meta.has_key('t_obs'):
+                tstr = smap.meta['t_obs']
+            else:
+                tstr = smap.meta['date-obs']
+            t.append(tstr)
         return Time(t)
 
     @classmethod
