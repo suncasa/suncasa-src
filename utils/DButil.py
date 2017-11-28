@@ -972,12 +972,13 @@ def smapmeshgrid2(smap, angle=None, rescale=1.0, origin=1):
         cos = np.cos(angle)
         mrot = np.array([[cos, -sin], [sin, cos]])
     ref_pix = smap.reference_pixel
+    ref_coord = smap.reference_pixel
     scale = smap.scale
     XX, YY = np.meshgrid(np.arange(smap.data.shape[1] * rescale) / rescale,
                          np.arange(smap.data.shape[0] * rescale) / rescale)
     x, y = XX * u.pix, YY * u.pix
-    x = (x - ref_pix[0] + origin * u.pix) * scale[0]
-    y = (y - ref_pix[1] + origin * u.pix) * scale[1]
+    x = (x - ref_pix[0] + origin * u.pix) * scale[0]+ref_coord.Tx
+    y = (y - ref_pix[1] + origin * u.pix) * scale[1]+ref_coord.Ty
     xnew = mrot[0, 0] * x + mrot[0, 1] * y
     ynew = mrot[1, 0] * x + mrot[1, 1] * y
     return xnew, ynew
