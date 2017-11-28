@@ -137,7 +137,10 @@ def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, retu
     import matplotlib.cm as cm
     import matplotlib.colors as colors
     from suncasa.utils import DButil
-    clrange = DButil.sdo_aia_scale_dict(wavelength=smap.meta['wavelnth'])
+    try:
+        clrange = DButil.sdo_aia_scale_dict(wavelength=smap.meta['wavelnth'])
+    except:
+        clrange = {'high': None, 'log': False, 'low': None}
     plt.clf()
     if dspec:
         ax = plt.subplot(121)
@@ -731,7 +734,10 @@ class Stackplot:
             return
         self.make_stackplot(mapcube_plot)
         fig_mapcube = plt.figure(figsize=(14, 7))
-        clrange = DButil.sdo_aia_scale_dict(mapcube_plot[0].meta['wavelnth'])
+        try:
+            clrange = DButil.sdo_aia_scale_dict(mapcube_plot[0].meta['wavelnth'])
+        except:
+            clrange = {'high': None, 'log': False, 'low': None}
         if not vmax:
             vmax = clrange['high']
         if not vmin:
