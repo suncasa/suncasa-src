@@ -764,9 +764,14 @@ class Stackplot:
             vmin = clrange['low']
         norm = colors.Normalize(vmin=np.min(self.stackplt), vmax=np.max(self.stackplt))
         cutslitplt = self.cutslitbd.cutslitplt
-        dspec = {'dspec': self.stackplt, 'x': self.tplt.plot_date, 'y': cutslitplt['dist'],
-                 'ytitle': 'Distance [arcsec]', 'ctitle': 'DN counts per second',
-                 'args': {'norm': norm, 'cmap': cm.get_cmap('sdoaia{}'.format(mapcube_plot[0].meta['wavelnth']))}}
+        try:
+            dspec = {'dspec': self.stackplt, 'x': self.tplt.plot_date, 'y': cutslitplt['dist'],
+                     'ytitle': 'Distance [arcsec]', 'ctitle': 'DN counts per second',
+                     'args': {'norm': norm, 'cmap': cm.get_cmap('sdoaia{}'.format(mapcube_plot[0].meta['wavelnth']))}}
+        except:
+            dspec = {'dspec': self.stackplt, 'x': self.tplt.plot_date, 'y': cutslitplt['dist'],
+                     'ytitle': 'Distance [arcsec]', 'ctitle': '',
+                     'args': {'norm': norm, 'cmap': 'gray_r'}}
 
         dtplot = np.mean(np.diff(self.tplt.plot_date))
         dspec['axvspan'] = [self.tplt[0].plot_date, self.tplt[0].plot_date + dtplot]
