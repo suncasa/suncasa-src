@@ -309,7 +309,7 @@ def polyfit(x, y, length, deg):
 
 
 class CutslitBuilder:
-    def __init__(self, axes, cutwidth=5, cutang=0, cutlength=80):
+    def __init__(self, axes, cutwidth=5, cutang=0, cutlength=80,scale = 1.0):
         self.axes = axes
         self.clickedpoints, = self.axes.plot([], [], 'o', color='white')
         self.slitline, = self.axes.plot([], [], color='white', ls='solid')
@@ -318,6 +318,7 @@ class CutslitBuilder:
         self.cutlength = cutlength
         self.cutwidth = cutwidth
         self.cutang = cutang
+        self.scale = scale
         self.xx = list(self.clickedpoints.get_xdata())
         self.yy = list(self.clickedpoints.get_ydata())
         self.cid = self.clickedpoints.figure.canvas.mpl_connect('button_press_event', self)
@@ -352,9 +353,9 @@ class CutslitBuilder:
                           'posangs': [], 'posangs2': [], 'dist': []}
         else:
             if len(self.xx) <= 3:
-                cutslitplt = FitSlit(xx, yy, self.cutwidth, self.cutang, self.cutlength, method='Polyfit')
+                cutslitplt = FitSlit(xx, yy, self.cutwidth*self.scale, self.cutang, self.cutlength, method='Polyfit')
             else:
-                cutslitplt = FitSlit(xx, yy, self.cutwidth, self.cutang, self.cutlength, s=len(xx),
+                cutslitplt = FitSlit(xx, yy, self.cutwidth*self.scale, self.cutang, self.cutlength, s=len(xx),
                                      method='Param_Spline')
         self.cutslitplt = cutslitplt
         self.slitline.set_data(cutslitplt['xcen'], cutslitplt['ycen'])
@@ -651,6 +652,7 @@ class Stackplot:
             axcolor = 'lightgoldenrodyellow'
             # axStackplt = plt.axes([0.8, 0.02, 0.10, 0.05], facecolor=axcolor)
             # bStackplt = Button(axStackplt, 'StackPlt')
+            pixscale = (np.diff(mapcube_plot[0].xrange.value)+np.diff(mapcube_plot[0].yrange.value))[0]/2.0
             axFrame = plt.axes([0.10, 0.03, 0.40, 0.02], facecolor=axcolor)
             sFrame = Slider(axFrame, 'frame', 0, len(mapcube_plot) - 1, valinit=0, valfmt='%0.0f')
             axCutwdth = plt.axes([0.65, 0.02, 0.10, 0.01], facecolor=axcolor)
@@ -660,7 +662,7 @@ class Stackplot:
             axCutlngth = plt.axes([0.65, 0.06, 0.10, 0.01], facecolor=axcolor)
             sCutlngth = Slider(axCutlngth, 'Length[pix]', 20, int(diagpix * 4), valinit=150, valfmt='%0.0f')
             self.cutslitbd = CutslitBuilder(ax, cutwidth=sCutwdth.val, cutang=sCutang.val / 180. * np.pi,
-                                            cutlength=sCutlngth.val)
+                                            cutlength=sCutlngth.val,scale=pixscale)
 
             # def bStackplt_update(event):
             #     # print bStackplt.val
