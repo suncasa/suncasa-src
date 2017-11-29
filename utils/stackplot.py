@@ -309,7 +309,7 @@ def polyfit(x, y, length, deg):
 
 
 class CutslitBuilder:
-    def __init__(self, axes, cutwidth=5, cutang=0, cutlength=80,scale = 1.0):
+    def __init__(self, axes, cutwidth=5, cutang=0, cutlength=80, scale=1.0):
         self.axes = axes
         self.clickedpoints, = self.axes.plot([], [], 'o', color='white')
         self.slitline, = self.axes.plot([], [], color='white', ls='solid')
@@ -353,9 +353,9 @@ class CutslitBuilder:
                           'posangs': [], 'posangs2': [], 'dist': []}
         else:
             if len(self.xx) <= 3:
-                cutslitplt = FitSlit(xx, yy, self.cutwidth*self.scale, self.cutang, self.cutlength, method='Polyfit')
+                cutslitplt = FitSlit(xx, yy, self.cutwidth * self.scale, self.cutang, self.cutlength, method='Polyfit')
             else:
-                cutslitplt = FitSlit(xx, yy, self.cutwidth*self.scale, self.cutang, self.cutlength, s=len(xx),
+                cutslitplt = FitSlit(xx, yy, self.cutwidth * self.scale, self.cutang, self.cutlength, s=len(xx),
                                      method='Param_Spline')
         self.cutslitplt = cutslitplt
         self.slitline.set_data(cutslitplt['xcen'], cutslitplt['ycen'])
@@ -634,8 +634,7 @@ class Stackplot:
                         tstr = smap.meta['t_obs']
                     else:
                         tstr = smap.meta['date-obs']
-                    ax.set_title(
-                        '{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
+                    ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
                     t_map = Time(tstr)
                     fig_mapcube.canvas.draw()
                     fig_mapcube.savefig('{0}/{3}{1}-{2}.png'.format(out_dir, smap.meta['wavelnth'],
@@ -652,7 +651,7 @@ class Stackplot:
             axcolor = 'lightgoldenrodyellow'
             # axStackplt = plt.axes([0.8, 0.02, 0.10, 0.05], facecolor=axcolor)
             # bStackplt = Button(axStackplt, 'StackPlt')
-            pixscale = (np.diff(mapcube_plot[0].xrange.value)/dims[0]+np.diff(mapcube_plot[0].yrange.value)/dims[1])[0]/2.0
+            pixscale = ((self.fov[1] - self.fov[0]) / dims[0].value + (self.fov[3] - self.fov[2]) / dims[1].value) / 2.0
             axFrame = plt.axes([0.10, 0.03, 0.40, 0.02], facecolor=axcolor)
             sFrame = Slider(axFrame, 'frame', 0, len(mapcube_plot) - 1, valinit=0, valfmt='%0.0f')
             axCutwdth = plt.axes([0.65, 0.02, 0.10, 0.01], facecolor=axcolor)
@@ -662,7 +661,7 @@ class Stackplot:
             axCutlngth = plt.axes([0.65, 0.06, 0.10, 0.01], facecolor=axcolor)
             sCutlngth = Slider(axCutlngth, 'Length[pix]', 20, int(diagpix * 4), valinit=150, valfmt='%0.0f')
             self.cutslitbd = CutslitBuilder(ax, cutwidth=sCutwdth.val, cutang=sCutang.val / 180. * np.pi,
-                                            cutlength=sCutlngth.val,scale=pixscale)
+                                            cutlength=sCutlngth.val, scale=pixscale)
 
             # def bStackplt_update(event):
             #     # print bStackplt.val
