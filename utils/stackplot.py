@@ -652,7 +652,7 @@ class Stackplot:
             axcolor = 'lightgoldenrodyellow'
             # axStackplt = plt.axes([0.8, 0.02, 0.10, 0.05], facecolor=axcolor)
             # bStackplt = Button(axStackplt, 'StackPlt')
-            pixscale = (np.diff(mapcube_plot[0].xrange.value)+np.diff(mapcube_plot[0].yrange.value))[0]/2.0
+            pixscale = (np.diff(mapcube_plot[0].xrange.value)/dims[0]+np.diff(mapcube_plot[0].yrange.value)/dims[1])[0]/2.0
             axFrame = plt.axes([0.10, 0.03, 0.40, 0.02], facecolor=axcolor)
             sFrame = Slider(axFrame, 'frame', 0, len(mapcube_plot) - 1, valinit=0, valfmt='%0.0f')
             axCutwdth = plt.axes([0.65, 0.02, 0.10, 0.01], facecolor=axcolor)
