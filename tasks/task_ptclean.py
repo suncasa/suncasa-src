@@ -151,6 +151,7 @@ def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, re
             print("error in getting ms info")
     else:
         ephem = None
+        msinfo = None
 
     # get number of time pixels
     ms.open(vis)
