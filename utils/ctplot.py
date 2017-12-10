@@ -69,8 +69,9 @@ def maxfit(smap, width=[5, 5], mapxy=None):
         mapx, mapy = mapxy
     else:
         XX, YY = np.meshgrid(np.arange(smap.data.shape[1]), np.arange(smap.data.shape[0]))
-        mapx, mapy = smap.pixel_to_data(XX * u.pix, YY * u.pix)
-        mapx, mapy = mapx.value, mapy.value
+        # mapx, mapy = smap.pixel_to_data(XX * u.pix, YY * u.pix)
+        mesh =  smap.pixel_to_world(XX * u.pix, YY * u.pix)
+        mapx, mapy = mesh.Tx.value,mesh.Tx.value
 
     idxmax = np.where(data == np.nanmax(data))
 

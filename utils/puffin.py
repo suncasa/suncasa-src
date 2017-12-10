@@ -72,7 +72,8 @@ class PuffinMap:
 
     def meshgrid(self, rescale=1.0, *args, **kwargs):
         XX, YY = np.meshgrid(np.arange(self.smap.data.shape[1] * rescale), np.arange(self.smap.data.shape[0] * rescale))
-        x, y = self.smap.pixel_to_data(XX / rescale * u.pix, YY / rescale * u.pix)
+        mesh =  self.smap.pixel_to_world(XX / rescale * u.pix, YY / rescale * u.pix)
+        x,y = mesh.Tx.value,mesh.Tx.value
         return x, y
 
     def meshgridpix(self, rescale=1.0, *args, **kwargs):
@@ -84,13 +85,14 @@ class PuffinMap:
     def ImageSource(self, *args, **kwargs):
         """maps the Sunpy map to Bokeh DataSource
         """
-        XX, YY = (np.arange(self.smap.data.shape[0]), np.zeros(self.smap.data.shape[0]))
-        x = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)[0]
-        XX, YY = (np.zeros(self.smap.data.shape[1]), np.arange(self.smap.data.shape[1]))
-        y = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)[1]
+        # XX, YY = (np.arange(self.smap.data.shape[0]), np.zeros(self.smap.data.shape[0]))
+        # x = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)[0]
+        # XX, YY = (np.zeros(self.smap.data.shape[1]), np.arange(self.smap.data.shape[1]))
+        # y = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)[1]
         data = self.smap.data.copy()
         data[~np.isnan(data)] = data[~np.isnan(data)] / self.smap.exposure_time.value
-        return {'data': [data], 'xx': [x], 'yy': [y]}
+        # return {'data': [data], 'xx': [x], 'yy': [y]}
+        return {'data': [data]}
 
     def DrawGridSource(self, grid_spacing=15 * u.deg, *args, **kwargs):
         """maps the Longitude and Latitude grids to Bokeh DataSource

@@ -733,9 +733,11 @@ def canvaspix_to_data(smap, x, y):
     :param y: canvas Pixel coordinates of the CTYPE2 axis. (Normally solar-y)
     :return: world coordinates
     '''
-    xynew = smap.pixel_to_data(x * u.pix, y * u.pix)
-    xnew = xynew[0].value
-    ynew = xynew[1].value
+    # xynew = smap.pixel_to_data(x * u.pix, y * u.pix)
+    mesh = smap.pixel_to_world(x * u.pix, y * u.pix)
+    mapx, mapy = mesh.Tx, mesh.Tx
+    xnew = mapx[0].value
+    ynew = mapy[1].value
     return [xnew, ynew]
 
 
