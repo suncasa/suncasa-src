@@ -977,8 +977,12 @@ def smapmeshgrid2(smap, angle=None, rescale=1.0, origin=1):
     XX, YY = np.meshgrid(np.arange(smap.data.shape[1] * rescale) / rescale,
                          np.arange(smap.data.shape[0] * rescale) / rescale)
     x, y = XX * u.pix, YY * u.pix
-    x = (x - ref_pix[0] + origin * u.pix) * scale[0]+ref_coord.Tx
-    y = (y - ref_pix[1] + origin * u.pix) * scale[1]+ref_coord.Ty
+    try:
+        x = (x - ref_pix[0] + origin * u.pix) * scale[0] + ref_coord.x
+        y = (y - ref_pix[1] + origin * u.pix) * scale[1] + ref_coord.y
+    except:
+        x = (x - ref_pix[0] + origin * u.pix) * scale[0] + ref_coord.Tx
+        y = (y - ref_pix[1] + origin * u.pix) * scale[1] + ref_coord.Ty
     xnew = mrot[0, 0] * x + mrot[0, 1] * y
     ynew = mrot[1, 0] * x + mrot[1, 1] * y
     return xnew, ynew

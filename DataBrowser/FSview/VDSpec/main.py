@@ -132,8 +132,7 @@ def aia_submap_wavelength_selection(attrname, old, new):
                                  plot_height=config_main['plot_config']['tab_FSview_FitANLYS'][
                                      'aia_submap_hght'],
                                  plot_width=config_main['plot_config']['tab_FSview_FitANLYS'][
-                                     'aia_submap_wdth'],
-                                 webgl=config_main['plot_config']['WebGL'])
+                                     'aia_submap_wdth'])
     tab3_r_aia_submap.data_source.data['image'] = aia_submap_pfmap.ImageSource()['data']
 
 
@@ -906,8 +905,7 @@ if os.path.exists(FS_dspecDF):
         hdu_goodchan = goodchan(hdu)
         vla_local_pfmap = PuffinMap(hdu.data[0, hdu_goodchan[0], :, :], hdu.header,
                                     plot_height=config_main['plot_config']['tab_FSview_base']['vla_hght'],
-                                    plot_width=config_main['plot_config']['tab_FSview_base']['vla_wdth'],
-                                    webgl=config_main['plot_config']['WebGL'])
+                                    plot_width=config_main['plot_config']['tab_FSview_base']['vla_wdth'])
         # plot the contour of vla image
         mapx, mapy = vla_local_pfmap.meshgrid()
         mapx, mapy = mapx.value, mapy.value
@@ -934,8 +932,7 @@ if os.path.exists(FS_dspecDF):
         # plot the detail AIA image
         aia_submap_pfmap = PuffinMap(smap=aiamap_submap,
                                      plot_height=config_main['plot_config']['tab_FSview_FitANLYS']['aia_submap_hght'],
-                                     plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['aia_submap_wdth'],
-                                     webgl=config_main['plot_config']['WebGL'])
+                                     plot_width=config_main['plot_config']['tab_FSview_FitANLYS']['aia_submap_wdth'])
 
         # tab2_SRC_aia_submap_square = ColumnDataSource(ImgDF0)
         tab3_p_aia_submap, tab3_r_aia_submap = aia_submap_pfmap.PlotMap(DrawLimb=True, DrawGrid=True,

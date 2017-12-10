@@ -323,7 +323,7 @@ def slider_LinkImg_update(polonly=False):
             elif select_vla_pol == 'V':
                 vladata = hdu.data[pols.index('RR'), fidx_hdu, :, :] - hdu.data[pols.index('1'), fidx_hdu, :, :]
             pfmap = PuffinMap(vladata, hdu.header, plot_height=tab2_LinkImg_HGHT,
-                              plot_width=tab2_LinkImg_WDTH, webgl=config_main['plot_config']['WebGL'])
+                              plot_width=tab2_LinkImg_WDTH)
             tab2_r_vla.data_source.data['image'] = pfmap.ImageSource()['data']
             mapx, mapy = pfmap.meshgrid()
             mapx, mapy = mapx.value, mapy.value
@@ -430,14 +430,12 @@ def tab2_update_MapRES(attrname, old, new):
     aia_resampled_map = aiamap.resample(dimensions)
     aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
                                     plot_height=config_main['plot_config']['tab_FSview_base']['aia_hght'],
-                                    plot_width=config_main['plot_config']['tab_FSview_base']['aia_wdth'],
-                                    webgl=config_main['plot_config']['WebGL'])
+                                    plot_width=config_main['plot_config']['tab_FSview_base']['aia_wdth'])
     tab2_r_aia.data_source.data['image'] = aia_resampled_pfmap.ImageSource()['data']
     hmi_resampled_map = hmimap.resample(dimensions)
     hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
                                     plot_height=config_main['plot_config']['tab_FSview_base']['vla_hght'],
-                                    plot_width=config_main['plot_config']['tab_FSview_base']['vla_wdth'],
-                                    webgl=config_main['plot_config']['WebGL'])
+                                    plot_width=config_main['plot_config']['tab_FSview_base']['vla_wdth'])
     # SRC_HMI = hmi_resampled_pfmap.ImageSource()
     tab2_r_hmi.data_source.data['image'] = hmi_resampled_pfmap.ImageSource()['data']
     print("---tab2_update_MapRES -- %s seconds ---" % (time.time() - start_timestamp))
@@ -785,7 +783,7 @@ if os.path.exists(FS_dspecDF):
         '''create the dynamic spectrum plot'''
         TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
         tab2_SRC_dspec_square = ColumnDataSource(dspecDF0_rs)
-        tab2_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
+        tab2_p_dspec = figure(tools=TOOLS,
                               plot_width=config_main['plot_config']['tab_FSview_base']['dspec_wdth'],
                               plot_height=config_main['plot_config']['tab_FSview_base']['dspec_hght'],
                               x_range=(tab2_dtim[0] - tab2_dt / 2.0, tab2_dtim[-1] + tab2_dt / 2.0),
@@ -861,7 +859,7 @@ if os.path.exists(FS_dspecDF):
         tab2_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
                                         width=config_main['plot_config']['tab_FSview_base']['widgetbox_wdth'])
 
-        tab2_p_dspec_xPro = figure(tools='', webgl=config_main['plot_config']['WebGL'],
+        tab2_p_dspec_xPro = figure(tools='',
                                    plot_width=config_main['plot_config']['tab_FSview_base']['dspec_xPro_wdth'],
                                    plot_height=config_main['plot_config']['tab_FSview_base']['dspec_xPro_hght'],
                                    x_range=tab2_p_dspec.x_range, y_range=(spec_plt_min, spec_plt_max),
@@ -889,7 +887,7 @@ if os.path.exists(FS_dspecDF):
         tab2_p_dspec_xPro.axis.minor_tick_out = 0
         tab2_p_dspec_xPro.axis.minor_tick_in = 3
 
-        tab2_p_dspec_yPro = figure(tools='', webgl=config_main['plot_config']['WebGL'],
+        tab2_p_dspec_yPro = figure(tools='',
                                    plot_width=config_main['plot_config']['tab_FSview_base']['dspec_yPro_wdth'],
                                    plot_height=config_main['plot_config']['tab_FSview_base']['dspec_yPro_hght'],
                                    x_range=(spec_plt_min, spec_plt_max), y_range=tab2_p_dspec.y_range,
@@ -940,8 +938,7 @@ if os.path.exists(FS_dspecDF):
         hdu_goodchan = goodchan(hdu)
         vla_local_pfmap = PuffinMap(hdu.data[0, hdu_goodchan[0], :, :], hdu.header,
                                     plot_height=config_main['plot_config']['tab_FSview_base']['vla_hght'],
-                                    plot_width=config_main['plot_config']['tab_FSview_base']['vla_wdth'],
-                                    webgl=config_main['plot_config']['WebGL'])
+                                    plot_width=config_main['plot_config']['tab_FSview_base']['vla_wdth'])
         # plot the contour of vla image
         mapx, mapy = vla_local_pfmap.meshgrid(rescale=1.0)
         mapx, mapy = mapx.value, mapy.value
@@ -964,8 +961,7 @@ if os.path.exists(FS_dspecDF):
         # plot the global AIA image
         aia_resampled_pfmap = PuffinMap(smap=aia_resampled_map,
                                         plot_height=config_main['plot_config']['tab_FSview_base']['aia_hght'],
-                                        plot_width=config_main['plot_config']['tab_FSview_base']['aia_wdth'],
-                                        webgl=config_main['plot_config']['WebGL'])
+                                        plot_width=config_main['plot_config']['tab_FSview_base']['aia_wdth'])
 
         tab2_p_aia, tab2_r_aia = aia_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg)
         tab2_p_aia.multi_line(xs='xs', ys='ys', line_color='line_color', source=tab2_SRC_vlamap_contour, alpha=0.7,
@@ -994,8 +990,7 @@ if os.path.exists(FS_dspecDF):
         hmi_resampled_map = hmimap.resample(dimensions)
         hmi_resampled_pfmap = PuffinMap(smap=hmi_resampled_map,
                                         plot_height=config_main['plot_config']['tab_FSview_base']['vla_hght'],
-                                        plot_width=config_main['plot_config']['tab_FSview_base']['vla_wdth'],
-                                        webgl=config_main['plot_config']['WebGL'])
+                                        plot_width=config_main['plot_config']['tab_FSview_base']['vla_wdth'])
 
         tab2_p_hmi, tab2_r_hmi = hmi_resampled_pfmap.PlotMap(DrawLimb=True, DrawGrid=True, grid_spacing=20 * u.deg,
                                                              x_range=tab2_p_aia.x_range,

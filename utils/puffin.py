@@ -36,7 +36,7 @@ class PuffinMap:
     """
     __slots__ = ['smap', 'plot_height', 'plot_width', 'x', 'y', 'dw', 'dh', 'x_range', 'y_range']
 
-    def __init__(self, data=None, header=None, smap=None, plot_height=None, plot_width=None, webgl=False, *args,
+    def __init__(self, data=None, header=None, smap=None, plot_height=None, plot_width=None, *args,
                  **kwargs):
         if not smap:
             smap = sunpy.map.Map((data, header))
@@ -45,7 +45,6 @@ class PuffinMap:
             plot_height = 400.0
         if not plot_width:
             plot_width = 400.0
-        self.webgl = webgl
         self.plot_height = plot_height
         self.plot_width = plot_width
 
@@ -199,7 +198,7 @@ class PuffinMap:
             dw = self.dw
             dh = self.dh
 
-        p_image = figure(tools=tools, webgl=self.webgl, x_range=x_range,
+        p_image = figure(tools=tools, x_range=x_range,
                          y_range=y_range, title=title, plot_height=self.plot_height,
                          plot_width=self.plot_width, *args, **kwargs)
         p_image.xaxis.axis_label = p_xaxis_axislabel

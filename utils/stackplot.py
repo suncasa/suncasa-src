@@ -30,6 +30,8 @@ import gc
 from matplotlib.widgets import Slider
 from matplotlib.widgets import Button
 from sunpy.physics.transforms.solar_rotation import mapcube_solar_derotate
+import warnings
+warnings.filterwarnings('ignore')
 
 
 def resettable(f):
