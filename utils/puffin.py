@@ -114,7 +114,7 @@ class PuffinMap:
         # draw the latitude lines
         for lat in hg_latitude_deg:
             x, y = wcs.convert_hg_hpc(hg_longitude_deg, lat * np.ones(361), b0_deg=b0, l0_deg=l0, dsun_meters=dsun,
-                                      angle_units=units.x, occultation=True)
+                                      angle_units=units.axis1, occultation=True)
             valid = np.logical_and(np.isfinite(x), np.isfinite(y))
             x = x[valid]
             y = y[valid]
@@ -127,7 +127,7 @@ class PuffinMap:
         # draw the longitude lines
         for lon in hg_longitude_deg:
             x, y = wcs.convert_hg_hpc(lon * np.ones(181), hg_latitude_deg, b0_deg=b0, l0_deg=l0, dsun_meters=dsun,
-                                      angle_units=units[0], occultation=True)
+                                      angle_units=units.axis1, occultation=True)
             valid = np.logical_and(np.isfinite(x), np.isfinite(y))
             x = x[valid]
             y = y[valid]
