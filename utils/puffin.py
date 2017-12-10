@@ -73,7 +73,7 @@ class PuffinMap:
     def meshgrid(self, rescale=1.0, *args, **kwargs):
         XX, YY = np.meshgrid(np.arange(self.smap.data.shape[1] * rescale), np.arange(self.smap.data.shape[0] * rescale))
         mesh =  self.smap.pixel_to_world(XX / rescale * u.pix, YY / rescale * u.pix)
-        x,y = mesh.Tx.value,mesh.Tx.value
+        x,y = mesh.Tx,mesh.Tx
         return x, y
 
     def meshgridpix(self, rescale=1.0, *args, **kwargs):
