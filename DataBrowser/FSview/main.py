@@ -953,7 +953,7 @@ if os.path.exists(FS_dspecDF):
         # aiamap = sunpy.map.Map(filepath)
         print xx[0] / 3600. / 24., SDOdir
         aiamap = DButil.readsdofile(datadir=SDOdir, wavelength='171', jdtime=xx[0] / 3600. / 24.,
-                                    timtol=tab2_dur / 3600. / 24.)
+                                    timtol=5./24./60.)
         MapRES = 256
         dimensions = u.Quantity([MapRES, MapRES], u.pixel)
         aia_resampled_map = aiamap.resample(dimensions)
