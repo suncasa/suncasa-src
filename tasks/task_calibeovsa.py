@@ -57,7 +57,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
         casalog.origin('calibeovsa')
         if not caltype:
             casalog.post("Caltype not provided. Perform reference phase calibration and daily phase calibration.")
-            caltype = ['refpha', 'phacal', 'accal']  ## use this line after the phacal is applied
+            caltype = ['refpha', 'phacal', 'fluxcal']  ## use this line after the phacal is applied
             # caltype = ['refcal']
         if not os.path.exists(msfile):
             casalog.post("Input visibility does not exist. Aborting...")
@@ -150,7 +150,7 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
                         para_pha.append(np.degrees(pha[n, p, bd[s]]))
                         para_amp.append(amp[n, p, bd[s]])
 
-        if 'accal' in caltype:
+        if 'fluxcal' in caltype:
             calfac = pc.get_calfac(Time(t_mid.iso.split(' ')[0] + 'T23:59:59'))
             t_bp = Time(calfac['timestamp'], format='lv')
             if int(t_mid.mjd) == int(t_bp.mjd):

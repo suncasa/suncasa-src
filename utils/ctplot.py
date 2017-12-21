@@ -109,19 +109,20 @@ def contour1chn(vlafile, aiafile, chn=0, pol=0, x_range=[], y_range=[], levels=[
 
 def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], chan_mask=None, x_range=[], y_range=[],
                       levels=[0.9], plotstyle='centroid', figsize=(10, 8), figdpi=100, width=[5, 5], zorder=1,
-                      maponly=False, dspecdata={}, thrshd=None, cmap='jet', plt_clbar=True,
+                      maponly=False,vlaonly=False, dspecdata={}, thrshd=None, cmap='jet', plt_clbar=True,
                       aiaplt_args={'axes': None, 'cmap': None, 'vmax': None, 'vmin': None}, **kwargs):
     cmap = cm.get_cmap(cmap)
     if aiaplt_args['cmap'] is None:
         aiaplt_args.pop('cmap', None)
     if outfile:
         plt.ioff()
-    if type(aiafile) != sunpy.map.sources.sdo.AIAMap and type(aiafile) != sunpy.map.compositemap.CompositeMap:
-        aiamap = sunpy.map.Map(aiafile)
-    else:
-        aiamap = aiafile
-    if x_range and y_range:
-        aiamap = aiamap.submap(u.Quantity(x_range * u.arcsec), u.Quantity(y_range * u.arcsec))
+    if not vlaonly:
+        if type(aiafile) != sunpy.map.sources.sdo.AIAMap and type(aiafile) != sunpy.map.compositemap.CompositeMap:
+            aiamap = sunpy.map.Map(aiafile)
+        else:
+            aiamap = aiafile
+        if x_range and y_range:
+            aiamap = aiamap.submap(u.Quantity(x_range * u.arcsec), u.Quantity(y_range * u.arcsec))
 
     if type(vlafile) == dict:
         if dspecdata:
@@ -137,9 +138,13 @@ def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], c
                 plt.subplot()
             else:
                 fig = plt.gcf()
-        aiamap.plot(**aiaplt_args)
-        ax1 = plt.gca()
-        ax1.set_autoscale_on(False)
+        if not vlaonly:
+            aiamap.plot(**aiaplt_args)
+            ax1 = plt.gca()
+            ax1.set_autoscale_on(False)
+        else:
+            ax1 = aiaplt_args['axes']
+            ax1.set_autoscale_on(False)
 
         if label:
             ax1.text(0.98, 0.98, label, horizontalalignment='right', verticalalignment='top', color='white',
@@ -204,15 +209,19 @@ def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], c
             plt.subplot()
         else:
             fig = plt.gcf()
-        aiamap.plot(**aiaplt_args)
-        ax1 = plt.gca()
+        if not vlaonly:
+            aiamap.plot(**aiaplt_args)
+            ax1 = plt.gca()
+            ax1.set_autoscale_on(False)
+        else:
+            ax1 = aiaplt_args['axes']
+            ax1.set_autoscale_on(False)
         # ax1.xaxis.set_ticks_position('top')
         # ax1.yaxis.set_ticks_position('right')
         if label:
             ax1.text(0.98, 0.98, label, horizontalalignment='right', verticalalignment='top', color='white',
                      transform=ax1.transAxes, fontsize=14)
         # # Prevent the image from being re-scaled while overplotting.
-        ax1.set_autoscale_on(False)
         hdulist = fits.open(vlafile)
         hdu = hdulist[0]
         nfreq = hdu.data.shape[1]
