@@ -13,29 +13,24 @@ from bandpass_cli import bandpass_cli as bandpass
 from flagdata_cli import flagdata_cli as flagdata
 from eovsapy import cal_header as ch
 from eovsapy import stateframe as stf
-from matplotlib import pyplot as plt
 from eovsapy import dbutil as db
 from eovsapy import pipeline_cal as pc
 from importeovsa_cli import importeovsa_cli as importeovsa
 
 # check if the calibration table directory is defined
 caltbdir = os.getenv('EOVSACAL')
-imgdir = os.getenv('EOVSAIMG')
 if not caltbdir:
-    print 'Environmental variable for EOVSA calibration table path not defined'
-    print 'Use default path on pipeline'
+    print 'Task calibeovsa'
     caltbdir = '/data1/eovsa/caltable/'
-if not imgdir:
-    print 'Environmental variable for EOVSA image path not defined'
-    print 'Use default path on pipeline'
-    imgdir = '/data1/bchen/solar/image/'
+    print 'Environmental variable for EOVSA calibration table path not defined'
+    print 'Use default path on pipeline ' + caltbdir
 
-
-def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, flagant='13~15', doimage=False,
-               stokes=None, doconcat=False, msoutdir='./', keep_orig_ms=True):
+def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, flagant=None, doimage=False,
+               imagedir=None, antenna=None, timerange=None, spw=None, stokes=None, 
+               doconcat=False, msoutdir=None, keep_orig_ms=True):
     '''
 
-    :param vis: a single UDBms file or a list of UDBms files(s) 
+    :param vis: EOVSA visibility dataset(s) to be calibrated 
     :param caltype:
     :param interp:
     :param docalib:
@@ -315,25 +310,37 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
                     print "Something wrong with flagant. Abort..."
 
         if doimage:
-            from suncasa.eovsa import eovsa_prep as ep
+            from matplotlib import pyplot as plt
+            from suncasa.utils import helioimage2fits as hf
             from sunpy import map as smap
 
-            antenna = '0~12'
+            if not antenna:
+                antenna = '0~12'
             if not stokes:
                 stokes = 'XX'
-            (yr, mon, day) = (bt.datetime.year, bt.datetime.month, bt.datetime.day)
-            dirname = imgdir + str(yr) + '/' + str(mon).zfill(2) + '/' + str(day).zfill(2) + '/'
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
-            bds = ['1~3']
+            if not timerange:
+                timerange = ''
+            if not spw:
+                spw = '1~3'
+            if not imagedir:
+                imagedir='.'
+            #(yr, mon, day) = (bt.datetime.year, bt.datetime.month, bt.datetime.day)
+            #dirname = imagedir + str(yr) + '/' + str(mon).zfill(2) + '/' + str(day).zfill(2) + '/'
+            #if not os.path.exists(dirname):
+            #    os.makedirs(dirname)
+            bds = [spw]
             nbd = len(bds)
             imgs = []
             for bd in bds:
-                imname = dirname + os.path.basename(msfile).replace('.ms', '.bd' + str(bd).zfill(2))
+                if '~' in bd:
+                    bdstr=bd.replace('~','-')
+                else:
+                    bdstr=str(bd).zfill(2)
+                imname = imagedir + '/' + os.path.basename(msfile).replace('.ms', '.bd' + bdstr)
                 print 'Cleaning image: ' + imname
                 try:
-                    clean(vis=msfile, imagename=imname, antenna=antenna, spw=bd, imsize=[512], cell=['5.0arcsec'],
-                          stokes=stokes, niter=500)
+                    clean(vis=msfile, imagename=imname, antenna=antenna, spw=bd, timerange=timerange,
+                          imsize=[512], cell=['5.0arcsec'], stokes=stokes, niter=500)
                 except:
                     print 'clean not successfull for band ' + str(bd)
                 else:
@@ -343,9 +350,9 @@ def calibeovsa(vis, caltype=None, interp='nearest', docalib=True, doflag=True, f
                     if os.path.exists(imname + junk):
                         shutil.rmtree(imname + junk)
 
-            reftime = [btime.iso + '~' + etime.iso] * nbd
+            tranges = [btime.iso + '~' + etime.iso] * nbd
             fitsfiles = [img.replace('.image', '.fits') for img in imgs]
-            ep.imreg(vis=msfile, reftime=reftime, imagefile=imgs, fitsfile=fitsfiles)
+            hf.imreg(vis=msfile, timerange=tranges, imagefile=imgs, fitsfile=fitsfiles, usephacenter=False)
             plt.figure(figsize=(6, 6))
             for i, fitsfile in enumerate(fitsfiles):
                 plt.subplot(1, nbd, i + 1)
