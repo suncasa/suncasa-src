@@ -1,10 +1,10 @@
-#!/common/casa/casa-release-4.7.2-el6/bin/casa
+#!/common/casa/casa-release-5.0.0-218.el6/lib/casa/bin/casa
 from datetime import datetime as dt
 import glob
 import os
 
 tnow = dt.now()
-# tnow = dt(2017, 5, 17)
+# tnow = dt(2017, 12, 17)
 yy = tnow.strftime("%Y")
 ym = tnow.strftime("%Y%m")
 ymd = tnow.strftime("%Y%m%d")

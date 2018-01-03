@@ -388,7 +388,7 @@ tab1_dtim = tab1_tim - tab1_tim[0]
 TOOLS = "pan,wheel_zoom,box_zoom,reset,save"
 
 '''create the dynamic spectrum plot'''
-tab1_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
+tab1_p_dspec = figure(tools=TOOLS,
                       plot_width=config_main['plot_config']['tab_QLook']['dspec_wdth'],
                       plot_height=config_main['plot_config']['tab_QLook']['dspec_hght'],
                       x_range=(tab1_dtim[0] - dt / 2.0, tab1_dtim[-1] + dt / 2.0),

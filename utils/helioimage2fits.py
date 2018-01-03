@@ -40,7 +40,7 @@ def read_horizons(vis):
             observatory_code = '-5'
         elif metadata.observatorynames()[0] == 'EOVSA':
             observatory_code = '-81'
-        elif metadata.observatorynames()[0] == 'ALMA':  
+        elif metadata.observatorynames()[0] == 'ALMA':
             observatory_code = '-7'
         ms.close()
         tb.open(vis)
@@ -49,6 +49,7 @@ def read_horizons(vis):
         tb.close()
         print "Beginning time of this scan " + btime.iso
         print "End time of this scan " + etime.iso
+
         # extend the start and end time for jpl horizons by 0.5 hr on each end
         btime = Time(btime.mjd - 0.5/24.,format='mjd')
         etime = Time(etime.mjd + 0.5/24.,format='mjd')
@@ -277,7 +278,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                     tbg_d += int(btimes[0])
                 tref_d = (tbg_d + tend_d) / 2.
             except:
-                print 'Error in converting the input reftime: '+str(reftime0)+'. Aborting...'
+                print 'Error in converting the input reftime: ' + str(reftime0) + '. Aborting...'
         else:
             # if reftime0 is specified as a single value
             try:
@@ -287,17 +288,17 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                     tref_d += int(btimes[0])
                 tbg_d = tref_d
                 # use the intergration time
-                #ind = bisect.bisect_left(btimes, tref_d)
-                #if msinfo0['etimes']:
+                # ind = bisect.bisect_left(btimes, tref_d)
+                # if msinfo0['etimes']:
                 #    tdur_s = inttimes[ind - 1]
-                #else:
+                # else:
                 #    tdur_s = np.mean(inttimes)
                 tdur_s = 1.
             except:
-                print 'Error in converting the input reftime: '+str(reftime0)+'. Aborting...'
+                print 'Error in converting the input reftime: ' + str(reftime0) + '. Aborting...'
         helio0['reftime'] = tref_d
-        #helio0['date-obs'] = qa.time(qa.quantity(tbg_d, 'd'), form='fits', prec=10)[0]
-        #helio0['exptime'] = tdur_s
+        # helio0['date-obs'] = qa.time(qa.quantity(tbg_d, 'd'), form='fits', prec=10)[0]
+        # helio0['exptime'] = tdur_s
 
         # find out phase center RA and DEC in the measurement set according to the reference time
         # if polyfit, then use the 2nd order polynomial coeffs
@@ -489,7 +490,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
         fitsfile = [img + '.fits' for img in imagefile]
     if type(fitsfile) == str:
         fitsfile = [fitsfile]
-    nimg=len(imagefile)
+    nimg = len(imagefile)
     if len(timerange) != nimg:
         raise ValueError, 'Number of input images does not equal to number of timeranges!'
     if len(fitsfile) != nimg:
@@ -497,21 +498,21 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
     nimg = len(imagefile)
     if verbose:
         print str(nimg) + ' images to process...'
-    if reftime: #use as reference time to find solar disk RA and DEC to register the image, but not the actual timerange associated with the image
+    if reftime:  # use as reference time to find solar disk RA and DEC to register the image, but not the actual timerange associated with the image
         if type(reftime) == str:
             reftime = [reftime] * nimg
         if len(reftime) != nimg:
             raise ValueError, 'Number of reference times does not match that of input images!'
         helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=reftime, usephacenter=usephacenter)
     else:
-        #use the supplied timerange to register the image
+        # use the supplied timerange to register the image
         helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=timerange, usephacenter=usephacenter)
     for n, img in enumerate(imagefile):
         if verbose:
             print 'processing image #' + str(n)
         fitsf = fitsfile[n]
-        timeran=timerange[n]
-        #obtain duration of the image as FITS header exptime
+        timeran = timerange[n]
+        # obtain duration of the image as FITS header exptime
         try:
             [tbg0, tend0] = timeran.split('~')
             tbg_d = qa.getvalue(qa.convert(qa.totime(tbg0), 'd'))[0]
@@ -519,7 +520,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             tdur_s = (tend_d - tbg_d) * 3600. * 24.
             dateobs = qa.time(qa.quantity(tbg_d, 'd'), form='fits', prec=10)[0]
         except:
-            print 'Error in converting the input timerange: '+str(timeran)+'. Proceeding to the next image...'
+            print 'Error in converting the input timerange: ' + str(timeran) + '. Proceeding to the next image...'
             continue
         hel = helio[n]
         if not os.path.exists(img):

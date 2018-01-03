@@ -81,8 +81,7 @@ def downsample_dspecDF(spec_square_rs_tmax=None, spec_square_rs_fmax=None):
 def make_spec_plt(spec_plt_R, spec_plt_L):
     spec_I = (spec_plt_R + spec_plt_L) / 2
     spec_V = (spec_plt_R - spec_plt_L) / 2
-    spec_max_IRL = int(
-        max(spec_plt_R.max(), spec_plt_L.max(), spec_I.max())) * 1.2
+    spec_max_IRL = int(max(spec_plt_R.max(), spec_plt_L.max(), spec_I.max())) * 1.2
     spec_min_IRL = (int(min(spec_plt_R.min(), spec_plt_L.min(), spec_I.min())) / 10) * 10
     spec_max_V = max(abs(int(spec_V.max())), abs(int(spec_V.min()))) * 1.2
     spec_min_V = -spec_max_V
@@ -141,7 +140,7 @@ def tab2_ClickMode_handler():
     if But_ClickMode.label == "ClickMode: Single":
         But_ClickMode.label = "ClickMode: Double"
         clickmode = 'singleclick'
-        if tab2_BUT_XCorr.label =='GoXCorr':
+        if tab2_BUT_XCorr.label == 'GoXCorr':
             tab2_BUT_XCorr.label = 'XCorr'
     elif But_ClickMode.label == "ClickMode: Double":
         But_ClickMode.label = "ClickMode: Single"
@@ -165,14 +164,12 @@ def tab2_dspec_selection_change(attrname, old, new):
             tooltips = ['{} {}'.format(timstr, freqstr)]
             tab2_dspec_xPro_data = {'x': tab2_dtim, 'y': tmp[quady_selected, :]}
             r_dspec_xPro.data_source.data = tab2_dspec_xPro_data
-            tab2_dspec_xPro_hover_data = {'x': [tab2_dtim[quadx_selected]], 'y':
-                [tmp[quady_selected, quadx_selected]],
+            tab2_dspec_xPro_hover_data = {'x': [tab2_dtim[quadx_selected]], 'y': [tmp[quady_selected, quadx_selected]],
                                           'tooltips': tooltips}
             r_dspec_xPro_hover.data_source.data = tab2_dspec_xPro_hover_data
             tab2_dspec_yPro_data = {'x': tmp[:, quadx_selected], 'y': tab2_freq}
             r_dspec_yPro.data_source.data = tab2_dspec_yPro_data
-            tab2_dspec_yPro_hover_data = {'x': [tmp[quady_selected, quadx_selected]],
-                                          'y': [tab2_freq[quady_selected]],
+            tab2_dspec_yPro_hover_data = {'x': [tmp[quady_selected, quadx_selected]], 'y': [tab2_freq[quady_selected]],
                                           'tooltips': tooltips}
             r_dspec_yPro_hover.data_source.data = tab2_dspec_yPro_hover_data
             tab2_r_dspec_line_x.data_source.data = {'time': [tab2_dtim[0], tab2_dtim[-1]],
@@ -197,8 +194,8 @@ def tab2_dspec_selection_change(attrname, old, new):
             if len(tab2_SRC_dspec_quadx_selected) > 0 and len(tab2_SRC_dspec_quady_selected) > 0:
                 quadx_selected = tab2_SRC_dspec_quadx_selected[0]
                 quady_selected = tab2_SRC_dspec_quady_selected[0]
-                tapPointDF_dspec = tapPointDF_dspec.append(pd.Series(
-                    {'xx': tab2_dtim[quadx_selected], 'yy': tab2_freq[quady_selected]}), ignore_index=True)
+                tapPointDF_dspec = tapPointDF_dspec.append(
+                    pd.Series({'xx': tab2_dtim[quadx_selected], 'yy': tab2_freq[quady_selected]}), ignore_index=True)
                 if len(tapPointDF_dspec.index) == 1:
                     tab2_r_dspec_lines.data_source.data = {
                         'xs': [[tab2_dtim[quadx_selected]] * 2, [tab2_dtim[0], tab2_dtim[-1]]],
@@ -210,8 +207,7 @@ def tab2_dspec_selection_change(attrname, old, new):
                     tab2_r_dspec_patch.data_source.data = {'xx': [x0, x1, x1, x0], 'yy': [y0, y0, y1, y1]}
                     tab2_r_dspec_lines.data_source.data = {'xs': [], 'ys': []}
                     dspecDF_select = \
-                        dspecDF0_rs[dspecDF0_rs['time'] >= x0][dspecDF0_rs['time'] <= x1][
-                            dspecDF0_rs['freq'] >= y0][
+                        dspecDF0_rs[dspecDF0_rs['time'] >= x0][dspecDF0_rs['time'] <= x1][dspecDF0_rs['freq'] >= y0][
                             dspecDF0_rs['freq'] <= y1]
                     tapPointDF_dspec = pd.DataFrame({'xx': [], 'yy': []})
                     time0, time1 = dspecDF_select['time'].min() + timestart, dspecDF_select['time'].max() + timestart
@@ -242,8 +238,7 @@ def tab2_update_dspec_image(attrname, old, new):
     spec_plt_L = tab2_spec[1, bl_index, :, :]
     spec_plt_I = (tab2_spec[0, bl_index, :, :] + tab2_spec[1, bl_index, :, :]) / 2.
     spec_plt_V = (tab2_spec[0, bl_index, :, :] - tab2_spec[1, bl_index, :, :]) / 2.
-    spec_plt_max_IRL = int(
-        max(spec_plt_R.max(), spec_plt_L.max(), spec_plt_I.max())) * 1.2
+    spec_plt_max_IRL = int(max(spec_plt_R.max(), spec_plt_L.max(), spec_plt_I.max())) * 1.2
     spec_plt_min_IRL = (int(min(spec_plt_R.min(), spec_plt_L.min(), spec_plt_I.min())) / 10) * 10
     spec_plt_max_V = max(abs(int(spec_plt_V.max())), abs(int(spec_plt_V.min()))) * 1.2
     spec_plt_min_V = -spec_plt_max_V
@@ -353,8 +348,7 @@ def tab2_BUT_tCLN_param_reload():
     global tab2_tCLN_Param_dict
     tkRoot = Tkinter.Tk()
     tkRoot.withdraw()  # Close the root window
-    fin = tkFileDialog.askopenfilename(initialdir=CleanID_dir,
-                                       initialfile='CASA_CLN_args.json')
+    fin = tkFileDialog.askopenfilename(initialdir=CleanID_dir, initialfile='CASA_CLN_args.json')
     if fin.endswith('.json'):
         tab2_tCLN_Param_dict = DButil.loadjsonfile(fin)
     else:
@@ -362,15 +356,13 @@ def tab2_BUT_tCLN_param_reload():
     tab2_Div_tCLN_text = '<p><b>#  ptclean :: Parallelized clean in consecutive time steps</b></p>' + ' '.join(
         "<p><b>{}</b> = {}</p>".format(key, val) for (key, val) in tab2_tCLN_Param_dict.items())
     tab2_Div_tCLN.text = tab2_Div_tCLN_text
-    tab2_Div_tCLN2.text = '<p>CASA arguments reload from config file in <b>{}</b>.</p>'.format(
-        CleanID_dir)
+    tab2_Div_tCLN2.text = '<p>CASA arguments reload from config file in <b>{}</b>.</p>'.format(CleanID_dir)
 
 
 def tab2_BUT_tCLN_param_save():
     with open(CleanID_dir + 'CASA_CLN_args.json', 'w') as fp:
         json.dump(tab2_tCLN_Param_dict, fp)
-    tab2_Div_tCLN2.text = '<p>CASA script and arguments config file saved to <b>{}</b>.</p>'.format(
-        CleanID_dir)
+    tab2_Div_tCLN2.text = '<p>CASA script and arguments config file saved to <b>{}</b>.</p>'.format(CleanID_dir)
     timestrs = []
     fits_local = []
     fits_global = []
@@ -401,20 +393,15 @@ def tab2_BUT_tCLN_param_save():
     fits_local = fits_local * int(tab2_nfreq)
     fits_global = fits_global * int(tab2_nfreq)
     freqstrs = ['{:.3f}'.format(ll) for ll in yy]
-    dspecDFout = pd.DataFrame({'time': xx - xx[0],
-                               'freq': yy,
-                               'timestr': timestrs,
-                               'freqstr': freqstrs,
-                               'dspec': tab2_spec_plt.flatten(),
-                               'fits_local': fits_local,
-                               'fits_global': fits_global})
+    dspecDFout = pd.DataFrame(
+        {'time': xx - xx[0], 'freq': yy, 'timestr': timestrs, 'freqstr': freqstrs, 'dspec': tab2_spec_plt.flatten(),
+         'fits_local': fits_local, 'fits_global': fits_global})
     with open(FS_dspecDF, 'wb') as fp:
         pickle.dump(dspecDFout, fp)
     tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-base saved to <b>{}</b>. '.format(
         CleanID_dir) + 'Click the <b>clean</b> button to clean. When finished, \
         go back to <b>QLook</b> window, select StrID <b>{}</b> and \
-        click <b>FSview</b> button again.</p>'.format(
-        CleanID_dir, struct_id[0:-1])
+        click <b>FSview</b> button again.</p>'.format(CleanID_dir, struct_id[0:-1])
 
 
 def tab2_BUT_tCLN_clean():
@@ -427,8 +414,7 @@ def tab2_BUT_tCLN_clean():
         suncasapy46 = os.path.expandvars(suncasapy46)
         os.system('{} -c script_clean.py'.format(suncasapy46))
         tab2_Div_tCLN2.text = '<p>Clean finished, go back to <b>QLook</b> window, select StrID <b>{}</b> and \
-            click <b>FSview</b> button again.</p>'.format(
-            struct_id[0:-1])
+            click <b>FSview</b> button again.</p>'.format(struct_id[0:-1])
     except:
         tab2_Div_tCLN2.text = '<p>CASA script, arguments config file and dspecDF-base saved to <b>{}.</b></p>\
         <p>Do image clean with CASA manually.</p>'.format(CleanID_dir) + '<p>When finished,\
@@ -496,19 +482,14 @@ xx = tim_map.flatten()
 yy = freq_map.flatten()
 timestart = xx[0]
 
-tab2_panel_Div_exit = Div(
-    text="""<p><b>Warning</b>: Click the <b>Exit ToClean</b>
-            first before closing the tab</p></b>""",
-    width=config_main['plot_config']['tab_ToClean']['widgetbox_wdth1'])
+tab2_panel_Div_exit = Div(text="""<p><b>Warning</b>: Click the <b>Exit ToClean</b>
+            first before closing the tab</p></b>""", width=config_main['plot_config']['tab_ToClean']['widgetbox_wdth1'])
 timestrs = []
 for ll in tab2_tim:
     timestr = Time(ll / 3600. / 24., format='mjd', scale='utc', precision=3, out_subfmt='date_hms').iso
     timestrs.append(timestr.split(' ')[1])
 timestrs = timestrs * tab2_nfreq
-dspecDF0 = pd.DataFrame({'time': xx - xx[0],
-                         'freq': yy,
-                         'dspec': tab2_spec_plt.flatten(),
-                         'timestr': timestrs})
+dspecDF0 = pd.DataFrame({'time': xx - xx[0], 'freq': yy, 'dspec': tab2_spec_plt.flatten(), 'timestr': timestrs})
 
 rmax, rmin = tab2_spec_plt.max(), tab2_spec_plt.min()
 # timestart = xx[0]
@@ -518,27 +499,25 @@ TOOLS = "crosshair,pan,wheel_zoom,box_zoom,reset,save"
 dspecDF0_rs = dspecDF0.copy()
 
 '''create the dynamic spectrum plot'''
-tab2_p_dspec = figure(tools=TOOLS, webgl=config_main['plot_config']['WebGL'],
-                      plot_width=config_main['plot_config']['tab_ToClean']['dspec_wdth'],
+tab2_p_dspec = figure(tools=TOOLS, plot_width=config_main['plot_config']['tab_ToClean']['dspec_wdth'],
                       plot_height=config_main['plot_config']['tab_ToClean']['dspec_hght'],
                       x_range=(tab2_dtim[0] - tab2_dt / 2.0, tab2_dtim[-1] + tab2_dt / 2.0),
-                      y_range=(tab2_freq[0] - tab2_df / 2.0, tab2_freq[-1] + tab2_df / 2.0),
-                      toolbar_location="above")
+                      y_range=(tab2_freq[0] - tab2_df / 2.0, tab2_freq[-1] + tab2_df / 2.0), toolbar_location="above")
 tim0_char = Time(xx[0] / 3600. / 24., format='jd', scale='utc', precision=3, out_subfmt='date_hms').iso
 tab2_p_dspec.axis.visible = True
 tab2_p_dspec.title.text = "Dynamic spectrum"
 tab2_p_dspec.xaxis.axis_label = 'Seconds since ' + tim0_char
 tab2_p_dspec.yaxis.axis_label = 'Frequency [GHz]'
 tab2_r_dspec = tab2_p_dspec.image(image=[tab2_spec_plt], x=tab2_dtim[0] - tab2_dt / 2.0, y=tab2_freq[0] - tab2_df / 2.0,
-                                  dw=tab2_dtim[-1] - tab2_dtim[0] + tab2_dt,
-                                  dh=tab2_freq[-1] - tab2_freq[0] + tab2_df, palette=bokehpalette_jet)
+                                  dw=tab2_dtim[-1] - tab2_dtim[0] + tab2_dt, dh=tab2_freq[-1] - tab2_freq[0] + tab2_df,
+                                  palette=bokehpalette_jet)
 
 tab2_source_idx_line_x = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
-tab2_r_dspec_line_x = tab2_p_dspec.line(x='time', y='freq', line_width=1.0, line_alpha=0.8,
-                                        line_color='white', source=tab2_source_idx_line_x)
+tab2_r_dspec_line_x = tab2_p_dspec.line(x='time', y='freq', line_width=1.0, line_alpha=0.8, line_color='white',
+                                        source=tab2_source_idx_line_x)
 tab2_source_idx_line_y = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
-tab2_r_dspec_line_y = tab2_p_dspec.line(x='time', y='freq', line_width=1.0, line_alpha=0.8,
-                                        line_color='white', source=tab2_source_idx_line_y)
+tab2_r_dspec_line_y = tab2_p_dspec.line(x='time', y='freq', line_width=1.0, line_alpha=0.8, line_color='white',
+                                        source=tab2_source_idx_line_y)
 
 xLFE = tab2_dtim - tab2_dt / 2.0
 xRTE = np.append(xLFE[1:], xLFE[-1] + tab2_dt)
@@ -548,23 +527,16 @@ tab2_SRC_dspec_quadx = ColumnDataSource(
     {'left': xLFE.ravel(), 'right': xRTE.ravel(), 'bottom': np.repeat(yBTE[0], tab2_ntim),
      'top': np.repeat(yBTE[-1] + tab2_df, tab2_ntim)})
 tab2_SRC_dspec_quady = ColumnDataSource(
-    {'left': np.repeat(xLFE[0], tab2_nfreq), 'right': np.repeat(xLFE[-1] + tab2_dt, tab2_nfreq),
-     'bottom': yBTE.ravel(),
+    {'left': np.repeat(xLFE[0], tab2_nfreq), 'right': np.repeat(xLFE[-1] + tab2_dt, tab2_nfreq), 'bottom': yBTE.ravel(),
      'top': yTPE.ravel()})
-tab2_r_dspec_quadx = tab2_p_dspec.quad('left', 'right', 'top', 'bottom', source=tab2_SRC_dspec_quadx,
-                                       fill_alpha=0.0, fill_color=None,
-                                       line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
-                                       selection_fill_color=None,
-                                       nonselection_fill_alpha=0.0,
-                                       selection_line_alpha=0.0, selection_line_color=None,
-                                       nonselection_line_alpha=0.0)
-tab2_r_dspec_quady = tab2_p_dspec.quad('left', 'right', 'top', 'bottom', source=tab2_SRC_dspec_quady,
-                                       fill_alpha=0.0, fill_color=None,
-                                       line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
-                                       selection_fill_color=None,
-                                       nonselection_fill_alpha=0.0,
-                                       selection_line_alpha=0.0, selection_line_color=None,
-                                       nonselection_line_alpha=0.0)
+tab2_r_dspec_quadx = tab2_p_dspec.quad('left', 'right', 'top', 'bottom', source=tab2_SRC_dspec_quadx, fill_alpha=0.0,
+                                       fill_color=None, line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
+                                       selection_fill_color=None, nonselection_fill_alpha=0.0, selection_line_alpha=0.0,
+                                       selection_line_color=None, nonselection_line_alpha=0.0)
+tab2_r_dspec_quady = tab2_p_dspec.quad('left', 'right', 'top', 'bottom', source=tab2_SRC_dspec_quady, fill_alpha=0.0,
+                                       fill_color=None, line_color=None, line_alpha=0.0, selection_fill_alpha=0.0,
+                                       selection_fill_color=None, nonselection_fill_alpha=0.0, selection_line_alpha=0.0,
+                                       selection_line_color=None, nonselection_line_alpha=0.0)
 tab2_p_dspec.add_tools(TapTool(renderers=[tab2_r_dspec_quadx, tab2_r_dspec_quady]))
 tab2_SRC_dspec_quadx.on_change('selected', tab2_dspec_selection_change)
 tab2_SRC_dspec_quady.on_change('selected', tab2_dspec_selection_change)
@@ -574,15 +546,14 @@ tab2_SRC_dspec_lines = ColumnDataSource({'xs': [], 'ys': []})
 tab2_r_dspec_lines = tab2_p_dspec.multi_line('xs', 'ys', source=tab2_SRC_dspec_lines, line_color='Magenta',
                                              line_width=1, alpha=0.8)
 tab2_SRC_dspec_Patch = ColumnDataSource(pd.DataFrame({'xx': [], 'yy': []}))
-tab2_r_dspec_patch = tab2_p_dspec.patch('xx', 'yy', source=tab2_SRC_dspec_Patch,
-                                        fill_color=None, fill_alpha=0.5, line_color="Magenta",
-                                        line_alpha=1.0, line_width=1)
+tab2_r_dspec_patch = tab2_p_dspec.patch('xx', 'yy', source=tab2_SRC_dspec_Patch, fill_color=None, fill_alpha=0.5,
+                                        line_color="Magenta", line_alpha=1.0, line_width=1)
 tab2_source_idx_line_x = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
-tab2_r_dspec_line_x = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
-                                        line_color='white', source=tab2_source_idx_line_x)
+tab2_r_dspec_line_x = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8, line_color='white',
+                                        source=tab2_source_idx_line_x)
 tab2_source_idx_line_y = ColumnDataSource(pd.DataFrame({'time': [], 'freq': []}))
-tab2_r_dspec_line_y = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8,
-                                        line_color='white', source=tab2_source_idx_line_y)
+tab2_r_dspec_line_y = tab2_p_dspec.line(x='time', y='freq', line_width=1.5, line_alpha=0.8, line_color='white',
+                                        source=tab2_source_idx_line_y)
 # tab2_p_dspec.add_tools(BoxSelectTool())
 # tab2_p_dspec.select(BoxSelectTool).select_every_mousemove = False
 # tab2_p_dspec.border_fill_color = "silver"
@@ -597,7 +568,6 @@ tab2_p_dspec.axis.minor_tick_line_color = "white"
 # tab2_dspec_selected = None
 
 
-
 # tab2_SRC_dspec_square.on_change('selected', tab2_dspec_selection_change)
 
 tab2_Select_pol = Select(title="Polarization:", value='I', options=['RR', 'LL', 'I', 'V'],
@@ -607,21 +577,18 @@ tab2_Select_bl = Select(title="Baseline:", value=tab2_bl[0], options=tab2_bl,
 tab2_Select_colorspace = Select(title="ColorSpace:", value="linear", options=["linear", "log"],
                                 width=config_main['plot_config']['tab_ToClean']['widgetbox_wdth1'])
 
-tab2_p_dspec_xPro = figure(tools='', webgl=config_main['plot_config']['WebGL'],
-                           plot_width=config_main['plot_config']['tab_ToClean']['dspec_xPro_wdth'],
+tab2_p_dspec_xPro = figure(tools='', plot_width=config_main['plot_config']['tab_ToClean']['dspec_xPro_wdth'],
                            plot_height=config_main['plot_config']['tab_ToClean']['dspec_xPro_hght'],
-                           x_range=tab2_p_dspec.x_range, y_range=(spec_plt_min, spec_plt_max),
-                           title="Time profile", toolbar_location=None)
+                           x_range=tab2_p_dspec.x_range, y_range=(spec_plt_min, spec_plt_max), title="Time profile",
+                           toolbar_location=None)
 tab2_SRC_dspec_xPro = ColumnDataSource({'x': [], 'y': []})
 tab2_SRC_dspec_xPro_hover = ColumnDataSource({'x': [], 'y': [], 'tooltips': []})
 r_dspec_xPro = tab2_p_dspec_xPro.line(x='x', y='y', alpha=1.0, line_width=1, source=tab2_SRC_dspec_xPro)
-r_dspec_xPro_c = tab2_p_dspec_xPro.circle(x='x', y='y', size=5, fill_alpha=0.2, fill_color='grey',
-                                          line_color=None,
+r_dspec_xPro_c = tab2_p_dspec_xPro.circle(x='x', y='y', size=5, fill_alpha=0.2, fill_color='grey', line_color=None,
                                           source=tab2_SRC_dspec_xPro)
 r_dspec_xPro_hover = tab2_p_dspec_xPro.circle(x='x', y='y', size=5, fill_alpha=0.5, fill_color='firebrick',
                                               line_color='firebrick', source=tab2_SRC_dspec_xPro_hover)
-l_dspec_xPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph',
-                              source=tab2_SRC_dspec_xPro_hover,
+l_dspec_xPro_hover = LabelSet(x='x', y='y', text='tooltips', level='glyph', source=tab2_SRC_dspec_xPro_hover,
                               render_mode='canvas')
 l_dspec_xPro_hover.text_font_size = '10pt'
 tab2_p_dspec_xPro.add_layout(l_dspec_xPro_hover)
@@ -640,7 +607,7 @@ tab2_p_dspec_xPro.axis.minor_tick_in = 3
 tab2_p_dspec_xPro.axis.major_tick_line_color = "black"
 tab2_p_dspec_xPro.axis.minor_tick_line_color = "black"
 
-tab2_p_dspec_yPro = figure(tools='', webgl=config_main['plot_config']['WebGL'],
+tab2_p_dspec_yPro = figure(tools='',
                            plot_width=config_main['plot_config']['tab_ToClean']['dspec_yPro_wdth'],
                            plot_height=config_main['plot_config']['tab_ToClean']['dspec_yPro_hght'],
                            x_range=(spec_plt_min, spec_plt_max), y_range=tab2_p_dspec.y_range,
@@ -648,8 +615,7 @@ tab2_p_dspec_yPro = figure(tools='', webgl=config_main['plot_config']['WebGL'],
 tab2_SRC_dspec_yPro = ColumnDataSource({'x': [], 'y': []})
 tab2_SRC_dspec_yPro_hover = ColumnDataSource({'x': [], 'y': [], 'tooltips': []})
 r_dspec_yPro = tab2_p_dspec_yPro.line(x='x', y='y', alpha=1.0, line_width=1, source=tab2_SRC_dspec_yPro)
-r_dspec_yPro_c = tab2_p_dspec_yPro.circle(x='x', y='y', size=5, fill_alpha=0.2, fill_color='grey',
-                                          line_color=None,
+r_dspec_yPro_c = tab2_p_dspec_yPro.circle(x='x', y='y', size=5, fill_alpha=0.2, fill_color='grey', line_color=None,
                                           source=tab2_SRC_dspec_yPro)
 r_dspec_yPro_hover = tab2_p_dspec_yPro.circle(x='x', y='y', size=5, fill_alpha=0.5, fill_color='firebrick',
                                               line_color='firebrick', source=tab2_SRC_dspec_yPro_hover)
@@ -685,12 +651,10 @@ tab2_Div_tCLN2 = Div(text='', width=config_main['plot_config']['tab_ToClean']['i
 
 tab2_BUT_tCLN_param_default()
 
-tab2_BUT_tCLN_param_ADD = Button(label='Add to Param',
-                                 width=config_main['plot_config']['tab_ToClean']['button_wdth'],
+tab2_BUT_tCLN_param_ADD = Button(label='Add to Param', width=config_main['plot_config']['tab_ToClean']['button_wdth'],
                                  button_type='primary')
 tab2_BUT_tCLN_param_ADD.on_click(tab2_BUT_tCLN_param_add)
-tab2_BUT_tCLN_param_DEL = Button(label='Delete Param',
-                                 width=config_main['plot_config']['tab_ToClean']['button_wdth'],
+tab2_BUT_tCLN_param_DEL = Button(label='Delete Param', width=config_main['plot_config']['tab_ToClean']['button_wdth'],
                                  button_type='warning')
 tab2_BUT_tCLN_param_DEL.on_click(tab2_BUT_tCLN_param_delete)
 tab2_BUT_tCLN_param_Default = Button(label='Default Param',
@@ -707,12 +671,10 @@ tab2_SPCR_LFT_Div_tCLN2 = Spacer(width=config_main['plot_config']['tab_ToClean']
 tab2_BUT_tCLN_param_RELOAD = Button(label='reload Param',
                                     width=config_main['plot_config']['tab_ToClean']['button_wdth'])
 tab2_BUT_tCLN_param_RELOAD.on_click(tab2_BUT_tCLN_param_reload)
-tab2_BUT_tCLN_param_SAVE = Button(label='save Param',
-                                  width=config_main['plot_config']['tab_ToClean']['button_wdth'],
+tab2_BUT_tCLN_param_SAVE = Button(label='save Param', width=config_main['plot_config']['tab_ToClean']['button_wdth'],
                                   button_type='success')
 tab2_BUT_tCLN_param_SAVE.on_click(tab2_BUT_tCLN_param_save)
-tab2_BUT_tCLN_CLEAN = Button(label='clean',
-                             width=config_main['plot_config']['tab_ToClean']['button_wdth'],
+tab2_BUT_tCLN_CLEAN = Button(label='clean', width=config_main['plot_config']['tab_ToClean']['button_wdth'],
                              button_type='success')
 tab2_SPCR_ABV_BUT_tCLN = Spacer(width=config_main['plot_config']['tab_ToClean']['space_wdth10'],
                                 height=config_main['plot_config']['tab_ToClean']['space_hght18'])
@@ -721,32 +683,38 @@ tab2_SPCR_LFT_BUT_CLEAN = Spacer(width=config_main['plot_config']['tab_ToClean']
 tab2_BUT_FSview = Button(label='FSview', width=config_main['plot_config']['tab_ToClean']['button_wdth'],
                          button_type='primary')
 
-tab2_BUT_XCorr = Button(label='XCorr',
-                        width=config_main['plot_config']['tab_ToClean']['widgetbox_wdth1'],
+tab2_BUT_XCorr = Button(label='XCorr', width=config_main['plot_config']['tab_ToClean']['widgetbox_wdth1'],
                         button_type='warning')
 tab2_BUT_XCorr.on_click(tab2_panel_XCorr_update)
 
-But_ClickMode = Button(label="ClickMode: Double",
-                       width=config_main['plot_config']['tab_ToClean']['widgetbox_wdth1'], button_type="primary")
+But_ClickMode = Button(label="ClickMode: Double", width=config_main['plot_config']['tab_ToClean']['widgetbox_wdth1'],
+                       button_type="primary")
 But_ClickMode.on_click(tab2_ClickMode_handler)
 
-tab2_panel2_BUT_exit = Button(label='Exit ToClean',
-                              width=config_main['plot_config']['tab_ToClean']['widgetbox_wdth1'],
+tab2_panel2_BUT_exit = Button(label='Exit ToClean', width=config_main['plot_config']['tab_ToClean']['widgetbox_wdth1'],
                               button_type='danger')
 tab2_panel2_BUT_exit.on_click(tab2_panel2_exit)
-panel2 = row(column(row(tab2_p_dspec, tab2_p_dspec_yPro),
-                    row(column(row(column(tab2_p_dspec_xPro,
-                                          row(tab2_input_tCLN),
-                                          row(tab2_BUT_tCLN_param_ADD, tab2_SPCR_LFT_BUT_tCLN_param_DEL,
-                                              tab2_BUT_tCLN_param_DEL, tab2_SPCR_LFT_BUT_tCLN_param_DEFAULT,
-                                              tab2_BUT_tCLN_param_Default, tab2_SPCR_LFT_BUT_tCLN_param_RELOAD,
-                                              tab2_BUT_tCLN_param_RELOAD, tab2_SPCR_LFT_BUT_tCLN_param_SAVE,
-                                              tab2_BUT_tCLN_param_SAVE, tab2_SPCR_LFT_BUT_CLEAN,
-                                              tab2_BUT_tCLN_CLEAN)),
-                                   widgetbox(tab2_Select_pol, tab2_Select_bl, tab2_Select_colorspace,
-                                             But_ClickMode, tab2_BUT_XCorr, tab2_panel2_BUT_exit, tab2_panel_Div_exit,
-                                             width=config_main['plot_config']['tab_ToClean'][
-                                                 'widgetbox_wdth2'])), tab2_Div_tCLN2))), tab2_Div_tCLN)
+panel2 = row(column(row(tab2_p_dspec, tab2_p_dspec_yPro), row(column(row(column(tab2_p_dspec_xPro, row(tab2_input_tCLN),
+                                                                                row(tab2_BUT_tCLN_param_ADD,
+                                                                                    tab2_SPCR_LFT_BUT_tCLN_param_DEL,
+                                                                                    tab2_BUT_tCLN_param_DEL,
+                                                                                    tab2_SPCR_LFT_BUT_tCLN_param_DEFAULT,
+                                                                                    tab2_BUT_tCLN_param_Default,
+                                                                                    tab2_SPCR_LFT_BUT_tCLN_param_RELOAD,
+                                                                                    tab2_BUT_tCLN_param_RELOAD,
+                                                                                    tab2_SPCR_LFT_BUT_tCLN_param_SAVE,
+                                                                                    tab2_BUT_tCLN_param_SAVE,
+                                                                                    tab2_SPCR_LFT_BUT_CLEAN,
+                                                                                    tab2_BUT_tCLN_CLEAN)),
+                                                                         widgetbox(tab2_Select_pol, tab2_Select_bl,
+                                                                                   tab2_Select_colorspace,
+                                                                                   But_ClickMode, tab2_BUT_XCorr,
+                                                                                   tab2_panel2_BUT_exit,
+                                                                                   tab2_panel_Div_exit, width=
+                                                                                   config_main['plot_config'][
+                                                                                       'tab_ToClean'][
+                                                                                       'widgetbox_wdth2'])),
+                                                                     tab2_Div_tCLN2))), tab2_Div_tCLN)
 
 curdoc().add_root(panel2)
 curdoc().title = "ToClean"

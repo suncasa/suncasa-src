@@ -42,10 +42,24 @@ def concateovsa(msname, msfiles, visprefix='./', doclearcal=True, keep_orig_ms=F
     tb.removerows([i + 1 for i in range(nobs - 1)])
     tb.putcell('TIME_RANGE', 0, [tim0, tim1])
     tb.close()
+
+    tb.open(concatvis + '/FIELD', nomodify=False)
+    nobs = tb.nrows()
+    tb.removerows([i + 1 for i in range(nobs - 1)])
+    tb.close()
+
+    tb.open(concatvis + '/SOURCE', nomodify=False)
+    nobs = tb.nrows()
+    tb.removerows([i + 1 for i in range(nobs - 1)])
+    tb.close()
+
     tb.open(concatvis, nomodify=False)
     obsid = tb.getcol('OBSERVATION_ID')
     newobsid = np.zeros(len(obsid), dtype='int')
     tb.putcol('OBSERVATION_ID', newobsid)
+    fldid = tb.getcol('FIELD_ID')
+    newfldid = np.zeros(len(fldid), dtype='int')
+    tb.putcol('FIELD_ID', newfldid)
     colnames = tb.colnames()
     for l in range(len(cols2rm)):
         if cols2rm[l] in colnames:
@@ -54,6 +68,9 @@ def concateovsa(msname, msfiles, visprefix='./', doclearcal=True, keep_orig_ms=F
             except:
                 pass
     tb.close()
+
+
+
     if msfiles_ != [] and msfiles_ != msfiles:
         for ll in msfiles_:
             os.system('rm -rf {}'.format(ll))

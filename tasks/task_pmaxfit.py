@@ -8,7 +8,9 @@ from suncasa.utils import DButil
 
 
 def maxfit_iter(imgfiles, box, width, imidx):
-    from taskinit import ia, rg
+    from taskinit import iatool, rgtool
+    myia = iatool()
+    myrg = rgtool()
     try:
         from astropy.io import fits as pyfits
     except:
@@ -19,7 +21,7 @@ def maxfit_iter(imgfiles, box, width, imidx):
     img = imgfiles[imidx]
 
     try:
-        if (not ia.open(img)):
+        if (not myia.open(img)):
             raise Exception, "Cannot create image analysis tool using " + img
         print('Processing image: ' + img)
         hdulist = pyfits.open(img)
@@ -27,7 +29,7 @@ def maxfit_iter(imgfiles, box, width, imidx):
         hdr = pyfits.getheader(img)
         pols = DButil.polsfromfitsheader(hdr)
         freqs = DButil.freqsfromfitsheader(hdr)
-        ndx, ndy, nchans, npols = ia.shape()
+        ndx, ndy, nchans, npols = myia.shape()
         blc, trc = [0, 0], [ndx, ndy]
         if 'box' in locals():
             if box != '':
@@ -46,8 +48,8 @@ def maxfit_iter(imgfiles, box, width, imidx):
                 imgdata_avg = imgdata.mean()
                 wx, wy = (XX * imgdata).mean() / imgdata_avg, (YY * imgdata).mean() / imgdata_avg
                 comp = 'component{}'.format(ll)
-                r = rg.box(blc=[blc[0], blc[1], ll, pp], trc=[trc[0], trc[1], ll, pp])
-                iachan = ia.subimage(region=r, dropdeg=True)
+                r = myrg.box(blc=[blc[0], blc[1], ll, pp], trc=[trc[0], trc[1], ll, pp])
+                iachan = myia.subimage(region=r, dropdeg=True)
                 try:
                     result_dict = iachan.maxfit(point=True, negfind=False, width = width)
                     result_dict['component0']['centroid'] = iachan.toworld([wx, wy], 'm')['measure']
@@ -67,7 +69,7 @@ def maxfit_iter(imgfiles, box, width, imidx):
         # raise instance
         return [False, timstr, img, {}]
     finally:
-        ia.done()
+        myia.done()
 
 
 def pmaxfit(imagefiles, ncpu, box, width):
