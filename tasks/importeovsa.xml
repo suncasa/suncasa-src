@@ -13,6 +13,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
         <!--timebin=None,-->
         <!--width=None,-->
         <!--visprefix=None,-->
+        <!--udb_corr=True,-->
         <!--nocreatms=False,-->
         <!--doconcat=False,-->
         <!--modelms='',-->
@@ -121,6 +122,11 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
             <description>Prefix of vis names (may include the path).</description>
             <any type="variant" limittypes="string"/>
             <value type="string"></value>
+        </param>
+
+        <param type="bool" name="udb_corr">
+            <description>if applying correction to input UDB files before import to MS.</description>
+            <value>True</value>
         </param>
 
         <param type="bool" name="nocreatms">

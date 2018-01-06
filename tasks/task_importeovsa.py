@@ -98,7 +98,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         out2[np.isnan(out2)] = 0
         out2[np.isinf(out2)] = 0
     # out2 = ma.masked_array(ma.masked_invalid(out2), fill_value=0.0)
-    out = out.reshape(npol, nf, nrows)
+    out = out.reshape(npol, nf, nrows) * 1e4
     flag = flag.reshape(npol, nf, nrows)
     uvwarray = uvwarray.reshape(3, nrows)
     uvwarray = np.tile(uvwarray, (1, nband))
@@ -116,8 +116,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         casalog.post('----------------------------------------')
         os.system("rm -fr %s" % msname)
         os.system("cp -r " + " %s" % modelms + " %s" % msname)
-        casalog.post(
-            'Standard MS is copied to {0} in --- {1:10.2f} seconds ---'.format(msname, (time.time() - time0)))
+        casalog.post('Standard MS is copied to {0} in --- {1:10.2f} seconds ---'.format(msname, (time.time() - time0)))
 
     tb.open(msname, nomodify=False)
     casalog.post('----------------------------------------')
@@ -154,9 +153,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     casalog.post("Updating the OBSERVATION table of" '%s' % msname)
     casalog.post('----------------------------------------')
     tb.open(msname + '/OBSERVATION', nomodify=False)
-    tb.putcol('TIME_RANGE',
-              np.asarray([times[0] - 0.5 * inttime, times[-1] + 0.5 * inttime]).reshape(
-                  2, 1))
+    tb.putcol('TIME_RANGE', np.asarray([times[0] - 0.5 * inttime, times[-1] + 0.5 * inttime]).reshape(2, 1))
     tb.putcol('OBSERVER', ['EOVSA team'])
     tb.close()
 
@@ -228,7 +225,6 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
 
     # FIELD: DELAY_DIR, PHASE_DIR, REFERENCE_DIR, NAME
 
-
     # del out, flag, uvwarray, uv, timearr, sigma
     # gc.collect()  #
     if doscaling:
@@ -245,8 +241,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
             time1 = time.time()
             for row in range(nrows):
                 tb.putcell('DATA', (row + l * nrows), out2[:, cband['cidx'][0]:cband['cidx'][-1] + 1, row])
-            casalog.post(
-                '---spw {0:02d} is updated in --- {1:10.2f} seconds ---'.format((l + 1), time.time() - time1))
+            casalog.post('---spw {0:02d} is updated in --- {1:10.2f} seconds ---'.format((l + 1), time.time() - time1))
         tb.close()
 
     if not (timebin == '0s' and width == 1):
@@ -271,8 +266,8 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         return [True, msfile, durtim]
 
 
-def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=None, nocreatms=None, doconcat=None,
-                modelms=None, doscaling=True, keep_nsclms=False):
+def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=None, udb_corr=True, nocreatms=None,
+                doconcat=None, modelms=None, doscaling=True, keep_nsclms=False):
     casalog.origin('importeovsa')
 
     # if type(idbfiles) == Time:
@@ -285,20 +280,20 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
         filelist = [filelist]
 
     filelist_tmp = []
-    for f in filelist:
-        if not os.path.exists(f):
-            casalog.post("Warning: {} not exist.".format(f))
+    for ll in filelist:
+        if not os.path.exists(ll):
+            casalog.post("Warning: {} not exist.".format(ll))
         else:
-            filelist_tmp.append(f)
+            filelist_tmp.append(ll)
 
     filelist = filelist_tmp
     if not filelist:
         casalog.post("No file in idbfiles list exists. Abort.")
         return False
 
-    for idx, f in enumerate(filelist):
-        if f[-1] == '/':
-            filelist[idx] = f[:-1]
+    for idx, ll in enumerate(filelist):
+        if ll[-1] == '/':
+            filelist[idx] = ll[:-1]
 
     if not visprefix:
         visprefix = './'
@@ -306,6 +301,16 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
         timebin = '0s'
     if not width:
         width = 1
+
+    if udb_corr:
+        udbcorr_path = visprefix + '/tmp_UDBcorr/'
+        if not os.path.exists(udbcorr_path):
+            os.makedirs(udbcorr_path)
+        import pipeline_cal as pc
+        filelist_tmp = []
+        for ll in filelist:
+            filelist_tmp.append(pc.udb_corr(ll, outpath=udbcorr_path, calibrate=True))
+        filelist = filelist_tmp
 
     if not modelms:
         if nocreatms:
@@ -356,7 +361,6 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
     # except:
     #     print 'errors occurred when creating the output summary.'
 
-
     if doconcat:
         msname = os.path.basename(filelist[0])
         if doscaling:
@@ -371,3 +375,6 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
             durtim = int(results['durtim'].sum())
             ce.concateovsa(msname + '-{:d}m{}.ms'.format(durtim, ''), msfiles, visprefix)
         return True
+
+    if udb_corr:
+        os.system('rm -rf {}'.format(udbcorr_path))
