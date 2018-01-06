@@ -158,12 +158,12 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
         <!--CONSTRAINTS-->
         <constraints>
             <when param="doscaling">
+                <equals type="bool" value="False"> </equals>
                 <equals type="bool" value="True">
                     <default param="keep_nsclms">
                         <value type="bool">False</value>
                     </default>
                 </equals>
-                <equals type="bool" value="False"/>
             </when>
         </constraints>
 

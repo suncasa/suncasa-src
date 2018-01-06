@@ -49,9 +49,11 @@ def read_horizons(vis):
         tb.close()
         print "Beginning time of this scan " + btime.iso
         print "End time of this scan " + etime.iso
-        cmdstr = "http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
-            observatory_code) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
-                                                                                                       ',') + "'&STEP_SIZE='1 m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
+
+        # extend the start and end time for jpl horizons by 0.5 hr on each end
+        btime = Time(btime.mjd - 0.5/24.,format='mjd')
+        etime = Time(etime.mjd + 0.5/24.,format='mjd')
+        cmdstr = "http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(observatory_code) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',',') + "'&STEP_SIZE='1 m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
         try:
             context = ssl._create_unverified_context()
             f = urllib2.urlopen(cmdstr, context=context)
@@ -60,23 +62,6 @@ def read_horizons(vis):
     except:
         print 'error in reading ms file: ' + vis + ' to obtain the ephemeris!'
         return -1
-    # inputs:
-    #   ephemfile:
-    #       OBSERVER output from JPL Horizons for topocentric coordinates with for example
-    #       target=Sun, observer=VLA=-5
-    #       extra precision, quantities 1,17,20, REFRACTION
-    #       routine goes through file to find $$SOE which is start of ephemeris and ends with $$EOE
-    # outputs: a Python dictionary containing the following:
-    #   timestr: date and time as a string
-    #   time: modified Julian date
-    #   ra: right ascention, in rad
-    #   dec: declination, in rad
-    #   rastr: ra in string
-    #   decstr: dec in string
-    #   p0: solar p angle, CCW with respect to the celestial north pole
-    #   delta: distance from the disk center to the observer, in AU
-    #   delta_dot: time derivative of delta, in the light of sight direction. Negative means it is moving toward the observer
-    #
     # initialize the return dictionary
     ephem0 = dict.fromkeys(['time', 'ra', 'dec', 'delta', 'p0'])
     lines = f.readlines()
@@ -99,11 +84,6 @@ def read_horizons(vis):
     delta = []
     for line in newlines:
         items = line.split(',')
-        # t.append({'unit':'mjd','value':Time(float(items[1]),format='jd').mjd})
-        # ra.append({'unit': 'rad', 'value': np.radians(float(items[4]))})
-        # dec.append({'unit': 'rad', 'value': np.radians(float(items[5]))})
-        # p0.append({'unit': 'deg', 'value': float(items[6])})
-        # delta.append({'unit': 'au', 'value': float(items[8])})
         t.append(Time(float(items[1]), format='jd').mjd)
         ra.append(np.radians(float(items[4])))
         dec.append(np.radians(float(items[5])))
@@ -360,9 +340,8 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
         dec0 = ephem['dec']
         p0 = ephem['p0']
         delta0 = ephem['delta']
-        np0 = len(p0)
-        ind = bisect.bisect_left(time0, tref_d)
-        if np0 > 1:
+        if len(time0) > 1:
+            ind = bisect.bisect_left(time0, tref_d)
             dt0 = time0[ind] - time0[ind - 1]
             dt_ref = tref_d - time0[ind - 1]
             dra0 = ra0[ind] - ra0[ind - 1]
@@ -373,11 +352,14 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
             dec0 = dec0[ind - 1] + ddec0 / dt0 * dt_ref
             p0 = p0[ind - 1] + dp0 / dt0 * dt_ref
             delta0 = delta0[ind - 1] + ddelta0 / dt0 * dt_ref
-        elif np0 == 1:
-            ra0 = ra0[0]
-            dec0 = dec0[0]
-            p0 = p0[0]
-            delta0 = delta0[0]
+        else:
+            try:
+                ra0=ra0[0]
+                dec0=dec0[0]
+                p0=p0[0]
+                delta0=delta0[0]
+            except:
+                print "Error in retrieving info from ephemeris!"
         if ra0 < 0:
             ra0 += 2. * np.pi
 

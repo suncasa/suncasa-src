@@ -66,6 +66,11 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 	    <value></value>
     </param>
 
+    <param type="bool" name="toTb" subparam="true">
+	    <description>True if convert to brightness temperature</description>
+	    <value>False</value>
+    </param>
+
     <param type="bool" name="overwrite">
 	    <description>True if overwrite the image</description>
 	    <value>False</value>
@@ -525,6 +530,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 		<equals type="bool" value="True">
 		      <default param="usephacenter"><value>True</value></default>
 		      <default param="reftime"><value type="string"></value></default>
+		      <default param="toTb"><value>False</value></default>
 	        </equals>
             </when>
             <when param="selectdata">

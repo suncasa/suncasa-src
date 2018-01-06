@@ -12,7 +12,7 @@ import glob
 import pdb
 
 def clean_iter(tim, freq, vis, imageprefix, imagesuffix, 
-               ncpu, twidth, doreg, usephacenter, reftime, ephem, msinfo, overwrite,
+               ncpu, twidth, doreg, usephacenter, reftime, ephem, msinfo, toTb, overwrite,
                outlierfile, field, spw, selectdata,
                uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
                wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
@@ -108,7 +108,7 @@ def clean_iter(tim, freq, vis, imageprefix, imagesuffix,
                 print("ms info not provided, generating one on the fly")
                 msinfo = hf.read_msinfo(vis)
             hf.imreg(vis=vis, ephem=ephem, msinfo=msinfo, timerange=timerange, reftime=reftime, imagefile=imname+'.image', fitsfile=imname+'.fits', 
-                         toTb=False, scl100=False, usephacenter=usephacenter)
+                         toTb=toTb, scl100=False, usephacenter=usephacenter)
             if os.path.exists(imname + '.fits'):
                 shutil.rmtree(imname + '.image')
                 return [True, btstr, etstr, imname + '.fits']
@@ -123,7 +123,7 @@ def clean_iter(tim, freq, vis, imageprefix, imagesuffix,
         else:
             return [False, btstr, etstr, '']
 
-def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, overwrite,
+def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, overwrite,
             outlierfile, field, spw, selectdata, timerange,
             uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
             wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
@@ -151,6 +151,7 @@ def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, re
             print("error in getting ms info")
     else:
         ephem = None
+        msinfo = None
 
     # get number of time pixels
     ms.open(vis)
@@ -209,7 +210,7 @@ def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, re
     res = []
     # partition
     clnpart = partial(clean_iter, tim, freq, vis,
-                      imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, ephem, msinfo, overwrite,
+                      imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, ephem, msinfo, toTb, overwrite,
                       outlierfile, field, spw, selectdata,
                       uvrange, antenna, scan, observation, intent, mode, resmooth, gridmode,
                       wprojplanes, facets, cfcache, rotpainc, painc, aterm, psterm, mterm, wbawp, conjbeams,
