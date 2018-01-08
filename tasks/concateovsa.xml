@@ -55,7 +55,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 
         <param type="bool" name="timesort">
             <description>If true, sort by TIME in ascending order</description>
-            <value>False</value>
+            <value>True</value>
         </param>
 
         <param type="bool" name="copypointing">
