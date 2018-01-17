@@ -2,6 +2,7 @@ from suncasa.eovsa import eovsa_prep as ep
 from ptclean_cli import ptclean_cli as ptclean
 from eovsapy.util import Time
 from importeovsa_cli import importeovsa_cli as importeovsa
+from suncasa.tasks import task_importeovsa as timporteovsa
 from split_cli import split_cli as split
 from clean_cli import clean_cli as clean
 from delmod_cli import delmod_cli as delmod
@@ -121,7 +122,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
         #if ncpu > len(filelist):
         #    ncpu = len(filelist)
         ncpu=1
-        importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
+        timporteovsa.importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
                     visprefix=outpath, nocreatms=False, doconcat=False, modelms="", doscaling=doscaling,
                     keep_nsclms=False, udb_corr=True)
 
@@ -171,7 +172,7 @@ def calib_pipeline(trange,doimport=False):
 
 def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, stokes=None, antenna='0~12', 
         #imagedir=None, spws=['1~3','4~6','7~9','10~13','14~18','19~28'],verbose=False):
-        imagedir=None, spws=['1~5','6~10','11~15','16~25'], doslfcal=False, verbose=False):
+        imagedir=None, spws=['1~5','6~10','11~15','16~25'], toTb=True, doslfcal=False, verbose=False):
 
         
     ''' 
@@ -215,7 +216,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             spwran = [s.zfill(2) for s in spw.split('~')]
             freqran = [int(s)*0.5+2.9 for s in spw.split('~')]
             cfreq=np.mean(freqran)
-            bmsz=max(200./cfreq,30.)
+            bmsz=max(150./cfreq,20.)
             uvrange='<10klambda'
             if doslfcal:
                 slfcal_img = './'+msfilebs+'.slf.spw'+spw.replace('~','-')+'.slfimg'
@@ -272,8 +273,8 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
                 antenna=antenna+';!0&1;!0&2' #deselect the shortest baselines
             res=ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=twidth, uvrange=uvrange, 
                         spw=spw, ncpu=ncpu, niter=1000, gain=0.05, antenna=antenna,imsize=imsize, cell=cell, 
-                        stokes=stokes, doreg=True, usephacenter=False, restoringbeam=restoringbeam,
-                        uvtaper=True,outertaper=['40arcsec'])
+                        stokes=stokes, doreg=True, usephacenter=False, toTb=toTb, restoringbeam=restoringbeam,
+                        uvtaper=True,outertaper=['30arcsec'])
 
             if res:
                 imres['Succeeded'] += res['Succeeded']
