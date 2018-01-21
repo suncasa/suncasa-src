@@ -11,9 +11,10 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
     <shortdescription>Concatenate several EOVSA visibility data sets.</shortdescription>
 
     <input>
-        <param type="stringArray" name="vis" mustexist="true">
+        <param type="any" name="vis" kind="ms" mustexist="true">
             <description>Name of input visibility files to be concatenated</description>
-            <value></value>
+                <any type="variant" limittypes="string stringArray"/>
+                <value type="string"></value>
         </param>
 
         <param type="string" name="concatvis">
@@ -21,9 +22,13 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
             <value></value>
         </param>
 
-        <param type="string" name="datacolumn">
+        <param type="string" name="datacolumn" ignorecase="True">
             <description>Which data column(s) to concatenate</description>
             <value>corrected</value>
+            <allowed kind="enum" ignorecase="True">
+                <value>corrected</value>
+                <value>data</value>
+            </allowed>
         </param>
 
         <param type="bool" name="keep_orig_ms">
@@ -31,9 +36,14 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
             <value>True</value>
         </param>
 
-        <param type="stringArray" name="cols2rm">
+        <param type="string" name="cols2rm" ignorecase="True">
             <description>Columns in concatvis to be removed to slim the concatvis</description>
-            <value>["MODEL_DATA", "CORRECTED_DATA"]</value>
+            <value>model,corrected</value>
+            <allowed kind="enum" ignorecase="True">
+                <value>model,corrected</value>
+                <value>model</value>
+                <value>corrected</value>
+            </allowed>
         </param>
 
         <param type="any" name="freqtol">

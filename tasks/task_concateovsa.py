@@ -6,7 +6,7 @@ from clearcal_cli import clearcal_cli as clearcal
 from split_cli import split_cli as split
 
 
-def concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2rm=["MODEL_DATA", "CORRECTED_DATA"],
+def concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2rm="model,corrected",
                 freqtol="", dirtol="", respectname=False, timesort=True, copypointing=True, visweightscale=[],
                 forcesingleephemfield=""):
     if concatvis[-1] == os.path.sep:
@@ -20,6 +20,7 @@ def concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2
     for idx, ll in enumerate(msfiles):
         if str(ll).endswith('/'):
             msfiles[idx] = str(ll)[:-1]
+    datacolumn = datacolumn.lower()
     if datacolumn=='data':
         print 'DATA columns will be concatenated.'
         for ll in msfiles:
@@ -90,10 +91,15 @@ def concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2
     newfldid = np.zeros(len(fldid), dtype='int')
     tb.putcol('FIELD_ID', newfldid)
     colnames = tb.colnames()
+
+    cols2rm = cols2rm.upper()
+    cols2rm = cols2rm.split(',')
     for l in range(len(cols2rm)):
-        if cols2rm[l] in colnames:
+        col = cols2rm[l] + '_DATA'
+        if col in colnames:
             try:
-                tb.removecols(cols2rm[l])
+                tb.removecols(col)
+                print 'Column {} removed.'.format(col)
             except:
                 pass
     tb.close()

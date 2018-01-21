@@ -1,19 +1,11 @@
 import os
-# import gc
 import numpy as np
 import numpy.ma as ma
-# import pandas as pd
 import scipy.constants as constants
 import time
 import aipy
-# import eovsapy.read_idb as ri
-# from eovsapy.util import Time
 from taskinit import tb, casalog
 from split_cli import split_cli as split
-from concat_cli import concat_cli as concat
-from clearcal_cli import clearcal_cli as clearcal
-import multiprocessing as mprocs
-from functools import partial
 from suncasa.eovsa import impteovsa as ipe
 from suncasa.eovsa import concateovsa as ce
 
@@ -323,14 +315,23 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
                 modelms = ipe.creatms(filename, visprefix)
 
     iterable = range(len(filelist))
-    imppart = partial(importeovsa_iter, filelist, timebin, width, visprefix, nocreatms, modelms, doscaling, keep_nsclms)
 
     t0 = time.time()
     casalog.post('Perform importeovsa in parallel with {} CPUs...'.format(ncpu))
-    pool = mprocs.Pool(ncpu)
-    res = pool.map(imppart, iterable)
-    pool.close()
-    pool.join()
+
+    if ncpu ==1:
+        res=[]
+        for fidx, ll in enumerate(filelist):
+            res.append(importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, doscaling, keep_nsclms, fidx))
+    if ncpu >1:
+        import multiprocessing as mprocs
+        from functools import partial
+        imppart = partial(importeovsa_iter, filelist, timebin, width, visprefix, nocreatms, modelms, doscaling,
+                          keep_nsclms)
+        pool = mprocs.Pool(ncpu)
+        res = pool.map(imppart, iterable)
+        pool.close()
+        pool.join()
 
     # print res
     t1 = time.time()
