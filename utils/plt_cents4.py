@@ -65,8 +65,6 @@ from tqdm import *
 #     # ax.relim(visible_only=True)
 #     return ax
 
-
-
 def FitSlit(xx, yy, cutwidth, cutang, cutlength, s=None, method='Polyfit'):
     # if len(xx) <= 3 or method == 'Polyfit':
     #     '''polynomial fit'''
@@ -500,7 +498,6 @@ if dopltvdspec:
     # embed()
 
 
-
     fig1, axs1, lines, scatters, linebuilder = pltspec(tdatetime, f, [mp, mx, my], vrange[burstname])
 
     to_save = 0
@@ -636,6 +633,7 @@ if dopltvdspec:
     # fig1.close()
     # fig2.close()
     # fig3.close()
+
 
 if mkmc:
     from sunpy.physics.transforms.solar_rotation import mapcube_solar_derotate
@@ -924,6 +922,7 @@ if rdiff_ratio:
                                                 smap.detector), format='png', dpi=100)
         # time.sleep(0.01)
     plt.ion()
+
 
 if docutslit:
     class CutslitBuilder:
@@ -1650,6 +1649,7 @@ if dopltmass:
             burst_ani = animation.FuncAnimation(fig2, update_frame, nframe, fargs=(az, el), interval=50, blit=False)
             outdir = '{0}{1}-centroid/'.format(datadir, burstname)
             burst_ani.save(outdir + 'burst.mp4', writer=writer)
+
 
 # same as mkmovie4, using mayavi to plot. to be completed
 if mkmovie4:
