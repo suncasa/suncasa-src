@@ -1,9 +1,7 @@
 #!/common/casa/casa-release-5.0.0-218.el6/lib/casa/bin/casa
 from suncasa.eovsa import eovsa_pipeline as ep
 from eovsapy.html_movie import html_movie
-# Set to run 5 days earlier than current date
-mjdnow = ep.Time.now().mjd
-t = ep.Time(mjdnow-5,format='mjd')
+t = ep.Time('2017-07-10')
 date = t.iso[:10]
-ep.qlook_image_pipeline(date)
-html_movie(t)
+qlookfitsdir='/data1/eovsa/qlookfits/'
+ep.imres=mk_qlook_image(date,imagedir=qlookfitsdir)
