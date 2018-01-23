@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from config import get_and_create_download_dir
+#from config import get_and_create_download_dir
 import shutil
 from astropy.io import fits
 import urllib2
@@ -26,24 +26,27 @@ import matplotlib
 import matplotlib.cm as cm
 import matplotlib.patches as patches
 
-def svplot(specfile,timerange,spw,vis,pol='RRLL',dmin=None,dmax=None,goestime=None,reftime=None,fov=None,aiawave=171,imagefile=None,savefig=False,aiafits=None,changeheader=True,redoclean=False,fitsfile=None):
+def svplot(vis, specfile=None, timerange=None, spw=None, pol='RRLL', dmin=None, dmax=None,
+           goestime=None, reftime=None, fov=None, aiawave=171,
+           imagefile=None, savefig=False, aiafits=None,
+           changeheader=True, redoclean=False, fitsfile=None):
 	'''
-	Required input:
-		specfile:name of the dynamic spectrum file
+	Required inputs:
 		vis:name of the visbility measurement file
-		timerange:timerange for the clean
-		spw:frequency range for the clean
-	Optional input:
-		pol:pol of the dynamic spectrum,can be 'RR','LL','I','V','IV','RRLL', default is 'RRLL'
-		dmin,dmax:color bar parameter
-		goestime:goes plot time,example ['2016/02/18 18:00:00','2016/02/18 23:00:00'](goes plot time, example ['2016-02-18 18:00:00','2016-02-18 23:00:00']-old)
-		rhessisav:rhessi savefile
-		reftime:reftime for the image
-		fov:field of view in aia image, in unit of arcsec, example:[[-400,-200],[100,300]]
-		aiawave:wave length of aia file in a
+		specfile: name of the dynamic spectrum file
+		timerange: timerange for the clean
+		spw: frequency range for the clean
+	Optional inputs:
+		pol: pol of the dynamic spectrum,can be 'RR','LL','I','V','IV','RRLL', default is 'RRLL'
+		dmin,dmax: color bar parameter
+		goestime: goes plot time, example ['2016/02/18 18:00:00','2016/02/18 23:00:00']
+		rhessisav: rhessi savefile
+		reftime: reftime for the image
+		fov: field of view in aia image, in unit of arcsec, example:[[-400,-200],[100,300]]
+		aiawave: wave length of aia file in a
 		imagefile: cleaned image file
 		fitsfile: exist vla fitsfile
-		savefig:weather to save the figure
+		savefig: whether to save the figure
 	Example:
 	
 	'''
@@ -52,28 +55,29 @@ def svplot(specfile,timerange,spw,vis,pol='RRLL',dmin=None,dmax=None,goestime=No
 		print 'wrong pol(only LL,RR,RRLL,I,V and IV)'
 		return 0
 	
-	if not os.path.exists(specfile):
-		print 'input specfile not exist'
-		return -1
-
 	if not os.path.exists(vis):
 		print 'input measurement not exist'
 		return -1
 
+	if not os.path.exists(specfile):
+		print 'input specfile not exist'
+		return -1
 	
-	#get prepared work
+	#split the data
 	tb.open(vis)
 	starttim = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
 	tb.close()
 	datstr = starttim.iso[:10]
 	ms.open(vis, nomodify=True)
-	vis_sp=timerange+'-'+vis
-	os.system('rm -rf '+vis_sp)
+	vis_sp=vis+'_tmp'
+        if os.path.exists(vis_sp):
+            os.system('rm -rf '+vis_sp)
 	ms.split(outputms=vis_sp,time=timerange,spw=spw,whichcol='DATA')
 	ms.close()
 	tb.open(vis_sp)
 	starttim1 = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
 	endtim1 = Time(tb.getcell('TIME', tb.nrows() - 1) / 24. / 3600., format='mjd')
+        midtime_mjd = (starttim1.mjd + endtim1.mjd) / 2.
 	tb.close()
 	ms.open(vis_sp, nomodify=False)
 	ms.cvel(outframe='LSRK', mode='frequency', interp='nearest')
@@ -87,7 +91,6 @@ def svplot(specfile,timerange,spw,vis,pol='RRLL',dmin=None,dmax=None,goestime=No
 	req1=freq[0]/1e9
 	req2=freq[-1]/1e9
 
-
 	specdata=np.load(specfile)
 	spec = specdata['spec']
 	npol = specdata['npol']
@@ -100,13 +103,13 @@ def svplot(specfile,timerange,spw,vis,pol='RRLL',dmin=None,dmax=None,goestime=No
 	bl = specdata['bl'].item()
 	
 	spec_med = np.median(np.absolute(spec))
-	
 
 	if not dmin:
 		dmin = spec_med / 20.
 	if not dmax:
 		dmax = spec_med * 5.
 	
+        f=plt.figure(figsize=(9,6),dpi=100)
 	if pol !='RRLL' and pol !='IV':
 		if pol =='RR':
 			spec_plt=spec[0, 0, :, :]
@@ -118,7 +121,6 @@ def svplot(specfile,timerange,spw,vis,pol='RRLL',dmin=None,dmax=None,goestime=No
 			spec_plt = (spec[0, 0, :, :] - spec[1, 0, :, :]) / 2.
 	
 		print 'plot the dynamic spectrum in pol '+pol
-		f=plt.figure(figsize=(24,16),dpi=120)
 		f1=f.add_subplot(221)
 		freqg= freq /1e9
 		timstrr=range(tidx[-1]+1)
@@ -143,7 +145,6 @@ def svplot(specfile,timerange,spw,vis,pol='RRLL',dmin=None,dmax=None,goestime=No
 			tick.set_fontsize(8)
 		f1.set_autoscale_on(False)
 	else:
-		f=plt.figure(figsize=(24,16),dpi=120)
 		R_plot=np.absolute(spec[0,0,:,:])
 		L_plot=np.absolute(spec[1,0,:,:])
 		I_plot=(R_plot+L_plot)/2.
@@ -291,12 +292,15 @@ def svplot(specfile,timerange,spw,vis,pol='RRLL',dmin=None,dmax=None,goestime=No
 		if imagefile:
 			imagefile=imagefile
 		else:
-			eph=helioimage2fits.read_horizons(vis_sp)
-			phasecenter='J2000 '+str(eph['ra'][30])[:5]+'rad '+str(eph['dec'][30])[:5]+'rad'
-			imagename=vis+timerange+spw
-			os.system('rm -rf '+imagename+'*')
-			print 'do the clean at '+timerange+' '+spw
-			clean(vis=vis,imagename=imagename,selectdata=True,spw=spw,timerange=timerange,interactive=True,npercycle=50,imsize=[512,512],cell=['4.0arcsec'],phasecenter=phasecenter)
+			eph=helioimage2fits.read_horizons(t0=Time(midtime_mjd,format='mjd'))
+                        phasecenter='J2000 '+str(eph['ra'][0])[:15]+'rad '+str(eph['dec'][0])[:15]+'rad'
+			imagename=vis+'_tmp_'+spw
+                        if os.path.exists(imagename+'.image') or os.path.exists(imagename+'.flux'):
+                            os.system('rm -rf '+imagename+'*')
+			print 'do the clean at '+timerange+' in spw '+spw
+                        print 'use phasecenter: '+phasecenter
+			clean(vis=vis,imagename=imagename,selectdata=True,spw=spw,timerange=timerange,niter=500,
+                              interactive=False,npercycle=50,imsize=[512,512],cell=['4.0arcsec'],phasecenter=phasecenter)
 			os.system('rm -rf '+imagename+'.psf')
 			os.system('rm -rf '+imagename+'.flux')
 			os.system('rm -rf '+imagename+'.model')
@@ -367,6 +371,6 @@ def svplot(specfile,timerange,spw,vis,pol='RRLL',dmin=None,dmax=None,goestime=No
 	
 		
 	f.show()
-	os.system('rm -rf '+vis_sp)
+	#os.system('rm -rf '+vis_sp)
 	os.system('rm -rf goes.py')
 	os.system('rm -rf goes.dat')
