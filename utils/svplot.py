@@ -5,14 +5,14 @@ import os
 import shutil
 from astropy.io import fits
 import urllib2
-from suncasa.utils import helioimage2fits
+from suncasa.utils import helioimage2fits as hf
+from suncasa.utils import dspec2 as ds
 import sunpy.map as smap
 from sunpy.net import vso
 from astropy import units as u
 from astropy.time import Time
 from taskinit import ms, tb, qa, iatool
-import clean
-from clean import clean
+from clean_cli import clean_cli as clean
 from sunpy import lightcurve
 from sunpy.time import TimeRange
 from matplotlib.dates import DateFormatter
@@ -25,6 +25,7 @@ import datetime
 import matplotlib
 import matplotlib.cm as cm
 import matplotlib.patches as patches
+import glob
 
 def svplot(vis, specfile=None, timerange=None, spw=None, pol='RRLL', dmin=None, dmax=None,
            goestime=None, reftime=None, fov=None, aiawave=171,
@@ -32,21 +33,22 @@ def svplot(vis, specfile=None, timerange=None, spw=None, pol='RRLL', dmin=None, 
            changeheader=True, redoclean=False, fitsfile=None):
 	'''
 	Required inputs:
-		vis:name of the visbility measurement file
-		specfile: name of the dynamic spectrum file
-		timerange: timerange for the clean
-		spw: frequency range for the clean
+            vis: calibrated CASA measurement set 
+            timerange: timerange for clean. Standard CASA time selection format
+            spw: frequency selection for clean. Standard CASA spectral window selection format
 	Optional inputs:
-		pol: pol of the dynamic spectrum,can be 'RR','LL','I','V','IV','RRLL', default is 'RRLL'
-		dmin,dmax: color bar parameter
-		goestime: goes plot time, example ['2016/02/18 18:00:00','2016/02/18 23:00:00']
-		rhessisav: rhessi savefile
-		reftime: reftime for the image
-		fov: field of view in aia image, in unit of arcsec, example:[[-400,-200],[100,300]]
-		aiawave: wave length of aia file in a
-		imagefile: cleaned image file
-		fitsfile: exist vla fitsfile
-		savefig: whether to save the figure
+            specfile: supply dynamic spectrum save file (from suncasa.utils.dspec2.get_dspec()). Otherwise 
+                      generate on the fly
+            pol: pol of the dynamic spectrum,can be 'RR','LL','I','V','IV','RRLL', default is 'RRLL'
+            dmin,dmax: color bar parameter
+            goestime: goes plot time, example ['2016/02/18 18:00:00','2016/02/18 23:00:00']
+            rhessisav: rhessi savefile
+            reftime: reftime for the image
+            fov: field of view in aia image, in unit of arcsec, example:[[-400,-200],[100,300]]
+            aiawave: wave length of aia file in a
+            imagefile: cleaned image file
+            fitsfile: exist vla fitsfile
+            savefig: whether to save the figure
 	Example:
 	
 	'''
@@ -59,15 +61,26 @@ def svplot(vis, specfile=None, timerange=None, spw=None, pol='RRLL', dmin=None, 
 		print 'input measurement not exist'
 		return -1
 
-	if not os.path.exists(specfile):
-		print 'input specfile not exist'
-		return -1
 	
 	#split the data
+        #generating dynamic spectrum
+	if specfile:
+            try:
+                specdata=np.load(specfile)
+            except:
+                print('Provided dynamic spectrum file not numpy npz. Generating one from the visibility data')
+                specdata=ds.get_dspec(vis,domedian=True,verbose=True)
+        else:
+            print('Dynamic spectrum file not provided; Generating one from the visibility data')
+            specdata=ds.get_dspec(vis,domedian=True,verbose=True)
+
 	tb.open(vis)
 	starttim = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
 	tb.close()
 	datstr = starttim.iso[:10]
+
+        # I do not really like the following section. All we need here is a timerange and frequency range, which does
+        # not require splitting and gridding the data at all.  --Bin
 	ms.open(vis, nomodify=True)
 	vis_sp=vis+'_tmp'
         if os.path.exists(vis_sp):
@@ -77,37 +90,34 @@ def svplot(vis, specfile=None, timerange=None, spw=None, pol='RRLL', dmin=None, 
 	tb.open(vis_sp)
 	starttim1 = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
 	endtim1 = Time(tb.getcell('TIME', tb.nrows() - 1) / 24. / 3600., format='mjd')
-        midtime_mjd = (starttim1.mjd + endtim1.mjd) / 2.
 	tb.close()
 	ms.open(vis_sp, nomodify=False)
 	ms.cvel(outframe='LSRK', mode='frequency', interp='nearest')
 	ms.selectinit(datadescid=0, reset=True)
-	specdata = ms.getdata(['amplitude', 'time', 'axis_info'], ifraxis=True)
-	nfreq = specdata['amplitude'].shape[1]
-	freq = specdata['axis_info']['freq_axis']['chan_freq'].reshape(nfreq)
+	data = ms.getdata(['amplitude', 'time', 'axis_info'], ifraxis=True)
+	nfreq = data['amplitude'].shape[1]
+	freq = data['axis_info']['freq_axis']['chan_freq'].reshape(nfreq)
 	ms.close()
 	ret1=Time(Time(starttim1),format='jd').plot_date
 	ret2=Time(Time(endtim1),format='jd').plot_date
 	req1=freq[0]/1e9
 	req2=freq[-1]/1e9
+        #########
 
-	specdata=np.load(specfile)
 	spec = specdata['spec']
-	npol = specdata['npol']
-	ntim = specdata['ntim']
+        (npol,nbl,nfreq,ntim)=spec.shape
 	tidx=range(ntim)
-	nfreq = specdata['nfreq']
 	fidx=range(nfreq)
 	tim = specdata['tim']
 	freq = specdata['freq']
-	bl = specdata['bl'].item()
+        try:
+            bl = specdata['bl'].item()
+        except:
+            bl = specdata['bl']
 	
 	spec_med = np.median(np.absolute(spec))
 
-	if not dmin:
-		dmin = spec_med / 20.
-	if not dmax:
-		dmax = spec_med * 5.
+        midtime_mjd = (starttim1.mjd + endtim1.mjd) / 2.
 	
         f=plt.figure(figsize=(9,6),dpi=100)
 	if pol !='RRLL' and pol !='IV':
@@ -128,7 +138,8 @@ def svplot(vis, specfile=None, timerange=None, spw=None, pol='RRLL', dmin=None, 
 			timstr = qa.time(qa.quantity(tim[i], 's'), form='clean', prec=9)
 			timstrr[i]=Time(Time(datstr+' '+timstr[0]),format='jd').plot_date
 		timstrr=np.array(timstrr)
-		f1.pcolormesh(timstrr, freqg, spec_plt, cmap='jet', vmin=dmin, vmax=dmax)
+		#f1.pcolormesh(timstrr, freqg, spec_plt, cmap='jet', vmin=dmin, vmax=dmax)
+		f1.pcolormesh(timstrr, freqg, spec_plt, cmap='jet')
 		#f1.add_patch(patches.Rectangle((ret1, req1),ret2-ret1,req2-req1,fill=False))
 		f1.add_patch(patches.Rectangle((ret1, req1),ret2-ret1,req2-req1,alpha=0.4))
 		f1.xaxis_date()
@@ -169,7 +180,7 @@ def svplot(vis, specfile=None, timerange=None, spw=None, pol='RRLL', dmin=None, 
 		f1.pcolormesh(timstrr,freqg,spec_plt_1,cmap='jet',vmin=dmin,vmax=dmax)
 		f1.set_xlim(timstrr[tidx[0]],timstrr[tidx[-1]])
 		f1.xaxis_date()
-		f1.xaxis.set_major_formatter(DateFormatter("%H:%M"))
+                f1.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
 		f1.set_ylim(freqg[fidx[0]],freqg[fidx[-1]])
 		f1.set_ylabel('Frequency (GHz)',fontsize=10)
 		f1.set_title('Dynamic spectrum @pol '+polstr[0]+' in upper and '+polstr[1]+' in bottom',fontsize=12)
@@ -184,7 +195,7 @@ def svplot(vis, specfile=None, timerange=None, spw=None, pol='RRLL', dmin=None, 
 		f2.pcolormesh(timstrr,freqg,spec_plt_2,cmap='jet',vmin=dmin,vmax=dmax)
 		f2.set_xlim(timstrr[tidx[0]],timstrr[tidx[-1]])
 		f2.xaxis_date()
-		f2.xaxis.set_major_formatter(DateFormatter("%H:%M"))
+                f2.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
 		f2.set_ylim(freqg[fidx[0]],freqg[fidx[-1]])
 		f2.set_ylabel('Frequency (GHz)',fontsize=10)
 		for tick in f2.get_xticklabels():
@@ -222,93 +233,93 @@ def svplot(vis, specfile=None, timerange=None, spw=None, pol='RRLL', dmin=None, 
 	fi.write('fi2.close()')
 	fi.close()
 	
-	execfile('goes.py')
+        try:
+            execfile('goes.py')
 	
-	fi1 = file('goes.dat', 'rb')
-	goest = pickle.load(fi1)
-	fi1.close()
-	
-	dates = matplotlib.dates.date2num(parse_time(goest.data.index))
-	goesdif=np.diff(goest.data['xrsb'])
-	gmax=np.nanmax(goesdif)
-	gmin=np.nanmin(goesdif)
-	ra=gmax-gmin
-	db=3e-4/ra
-	goesdifp=np.diff(goest.data['xrsb'])*db+gmin+1e-4
-	f3.plot_date(dates[0:-1], goesdifp, '-',label='derivate', color='blue', lw=0.4)
-	f3.plot_date(dates, goest.data['xrsb'], '-',label='1.0--8.0 $\AA$', color='red', lw=2)
-	
-	f3.set_yscale("log")
-	f3.set_ylim(1e-7, 1e-3)
-	f3.set_title('Goes Soft X-ray and derivate')
-	f3.set_ylabel('Watts m$^{-2}$')
-	f3.set_xlabel(datetime.datetime.isoformat(goest.data.index[0])[0:10])
-	f3.axvspan(dates[899],dates[dates.size-899],alpha=0.2)
-	
-	ax2 = f3.twinx()
-	ax2.set_yscale("log")
-	ax2.set_ylim(1e-7, 1e-3)
-	ax2.set_yticks(( 1e-7, 1e-6, 1e-5, 1e-4, 1e-3))
-	ax2.set_yticklabels(( 'B', 'C', 'M', 'X'))
+            fi1 = file('goes.dat', 'rb')
+            goest = pickle.load(fi1)
+            fi1.close()
+            
+            dates = matplotlib.dates.date2num(parse_time(goest.data.index))
+            goesdif=np.diff(goest.data['xrsb'])
+            gmax=np.nanmax(goesdif)
+            gmin=np.nanmin(goesdif)
+            ra=gmax-gmin
+            db=3e-4/ra
+            goesdifp=np.diff(goest.data['xrsb'])*db+gmin+1e-4
+            f3.plot_date(dates[0:-1], goesdifp, '-',label='derivate', color='blue', lw=0.4)
+            f3.plot_date(dates, goest.data['xrsb'], '-',label='1.0--8.0 $\AA$', color='red', lw=2)
+            
+            f3.set_yscale("log")
+            f3.set_ylim(1e-7, 1e-3)
+            f3.set_title('Goes Soft X-ray and derivate')
+            f3.set_ylabel('Watts m$^{-2}$')
+            f3.set_xlabel(datetime.datetime.isoformat(goest.data.index[0])[0:10])
+            f3.axvspan(dates[899],dates[dates.size-899],alpha=0.2)
+            
+            ax2 = f3.twinx()
+            ax2.set_yscale("log")
+            ax2.set_ylim(1e-7, 1e-3)
+            ax2.set_yticks(( 1e-7, 1e-6, 1e-5, 1e-4, 1e-3))
+            ax2.set_yticklabels(( 'B', 'C', 'M', 'X'))
 
-	f3.yaxis.grid(True, 'major')
-	f3.xaxis.grid(False, 'major')
-	f3.legend(prop={'size': 6})
-	
-	formatter = matplotlib.dates.DateFormatter('%H:%M')
-	f3.xaxis.set_major_formatter(formatter)
-	
-	f3.fmt_xdata = matplotlib.dates.DateFormatter('%H:%M')
+            f3.yaxis.grid(True, 'major')
+            f3.xaxis.grid(False, 'major')
+            f3.legend(prop={'size': 6})
+            
+            formatter = matplotlib.dates.DateFormatter('%H:%M')
+            f3.xaxis.set_major_formatter(formatter)
+            
+            f3.fmt_xdata = matplotlib.dates.DateFormatter('%H:%M')
+        except:
+            print 'error in plotting GOES. Continue without GOES'
 	
 	#third part
-	#download aia
-	if aiafits:
-		aiafits=aiafits
-	else:
-		newlist=[]
-		items=os.listdir('.')
-		for names in items:
-			str1=starttim1.iso[:4]+'_'+starttim1.iso[5:7]+'_'+starttim1.iso[8:10]+'t'+starttim1.iso[11:13]+'_'+starttim1.iso[14:16]
-			str2=str(aiawave)
-			if names.endswith(".fits"):
-				if names.find(str1) !=-1 and names.find(str2) !=-1:
-					newlist.append(names)
+        # start to download the fits files
+	if not aiafits:
+            newlist=[]
+            items=glob.glob('*.fits')
+            for names in items:
+                str1=starttim1.iso[:4]+'_'+starttim1.iso[5:7]+'_'+starttim1.iso[8:10]+'t'+starttim1.iso[11:13]+'_'+starttim1.iso[14:16]
+                str2=str(aiawave)
+                if names.endswith(".fits"):
+                    if names.find(str1) !=-1 and names.find(str2) !=-1:
+                        newlist.append(names)
 		newlist.append('0')
 		if os.path.exists(newlist[0]):
-			aiafits=newlist[0]
+                    aiafits=newlist[0]
 		else:
-			print 'downloading the aiafits file'
-			client=vso.VSOClient()
-			wave1=aiawave-3
-			wave2=aiawave+3
-			t1 = Time(starttim1.mjd - 0.02/24.,format='mjd')
-			t2 = Time(endtim1.mjd + 0.02/24.,format='mjd')
-			qr=client.query(vso.attrs.Time(t1.iso,t2.iso),vso.attrs.Instrument('aia'),vso.attrs.Wave(wave1*u.AA, wave2*u.AA))
-			res=client.get(qr,path='{file}')
+                    print 'downloading the aiafits file'
+                    client=vso.VSOClient()
+                    wave1=aiawave-3
+                    wave2=aiawave+3
+                    t1 = Time(starttim1.mjd - 0.02/24.,format='mjd')
+                    t2 = Time(endtim1.mjd + 0.02/24.,format='mjd')
+                    qr=client.query(vso.attrs.Time(t1.iso,t2.iso),vso.attrs.Instrument('aia'),vso.attrs.Wave(wave1*u.AA, wave2*u.AA))
+                    res=client.get(qr,path='{file}')
+        # Here something is needed to check whether it has finished downloading the fits files or not
 	
 	if fitsfile:
 		fitsfile=fitsfile
 	else:
-		if imagefile:
-			imagefile=imagefile
-		else:
-			eph=helioimage2fits.read_horizons(t0=Time(midtime_mjd,format='mjd'))
-                        phasecenter='J2000 '+str(eph['ra'][0])[:15]+'rad '+str(eph['dec'][0])[:15]+'rad'
-			imagename=vis+'_tmp_'+spw
-                        if os.path.exists(imagename+'.image') or os.path.exists(imagename+'.flux'):
-                            os.system('rm -rf '+imagename+'*')
-			print 'do the clean at '+timerange+' in spw '+spw
-                        print 'use phasecenter: '+phasecenter
-			clean(vis=vis,imagename=imagename,selectdata=True,spw=spw,timerange=timerange,niter=500,
-                              interactive=False,npercycle=50,imsize=[512,512],cell=['4.0arcsec'],phasecenter=phasecenter)
-			os.system('rm -rf '+imagename+'.psf')
-			os.system('rm -rf '+imagename+'.flux')
-			os.system('rm -rf '+imagename+'.model')
-			os.system('rm -rf '+imagename+'.mask')
-			os.system('rm -rf '+imagename+'.residual')
-			imagefile=imagename+'.image'
+		if not imagefile:
+                    eph=hf.read_horizons(t0=Time(midtime_mjd,format='mjd'))
+                    phasecenter='J2000 '+str(eph['ra'][0])[:15]+'rad '+str(eph['dec'][0])[:15]+'rad'
+                    imagename=vis+'__'
+                    if os.path.exists(imagename+'.image') or os.path.exists(imagename+'.flux'):
+                        os.system('rm -rf '+imagename+'*')
+                    print 'do clean for '+timerange+' in spw '+spw
+                    print 'use phasecenter: '+phasecenter
+                    clean(vis=vis,imagename=imagename,selectdata=True,spw=spw,timerange=timerange,niter=500,
+                          interactive=False,npercycle=50,imsize=[512,512],cell=['5.0arcsec'],phasecenter=phasecenter)
+                    os.system('rm -rf '+imagename+'.psf')
+                    os.system('rm -rf '+imagename+'.flux')
+                    os.system('rm -rf '+imagename+'.model')
+                    os.system('rm -rf '+imagename+'.mask')
+                    os.system('rm -rf '+imagename+'.residual')
+                    imagefile=imagename+'.image'
 		fitsfile=imagefile+'.fits'
-		helioimage2fits.imreg(vis=vis,imagefile=imagefile,timerange=timerange,reftime=reftime,fitsfile=fitsfile)
+		hf.imreg(vis=vis,ephem=eph,imagefile=imagefile,timerange=timerange,reftime=reftime,fitsfile=fitsfile,verbose=True)
 		if changeheader:
 			data, header = fits.getdata(fitsfile, header=True)
 			header['date-obs']=starttim1.iso[:10]+'T'+starttim1.iso[12:]
@@ -316,24 +327,28 @@ def svplot(vis, specfile=None, timerange=None, spw=None, pol='RRLL', dmin=None, 
 			fits.writeto(outfits, data, header, clobber=True)
 			os.system('rm -rf '+fitsfile)
 			fitsfile=outfits
-	print 'vlafits file '+fitsfile+' selected'
+	print 'fits file '+fitsfile+' selected'
 	
-	if aiafits:
-		aiafits=aiafits
-	else:
-		newlist=[]
-		items=os.listdir('.')
-		for names in items:
-			str1=starttim1.iso[:4]+'_'+starttim1.iso[5:7]+'_'+starttim1.iso[8:10]+'t'+starttim1.iso[11:13]+'_'+starttim1.iso[14:16]
-			str2=str(aiawave)
-			if names.endswith(".fits"):
-				if names.find(str1) !=-1 and names.find(str2) !=-1:
-					newlist.append(names)
-		aiafits=newlist[0]
-	print 'aiafits '+aiafits+' selected'
+	if not aiafits:
+            newlist=[]
+            items=glob.glob('*.fits')
+            for nm in items:
+                str1=starttim1.iso[:4]+'_'+starttim1.iso[5:7]+'_'+starttim1.iso[8:10]+'t'+starttim1.iso[11:13]+'_'+starttim1.iso[14:16]
+                str2=str(aiawave)
+                if nm.find(str1) !=-1 and nm.find(str2) !=-1:
+                    newlist.append(nm)
+            if newlist:
+                aiafits=newlist[0]
+                print 'AIA fits '+aiafits+' selected'
+            else:
+                print 'no AIA fits files found. Proceed without AIA'
+
+        try:
+            aiamap=smap.Map(aiafits)
+        except:
+            print 'error in reading aiafits. Proceed without AIA'
 
 	f4=f.add_subplot(222)
-	aiamap=smap.Map(aiafits)
 	vlafits=fitsfile
 	vlamap=smap.Map(vlafits)
 	vlamap.data = vlamap.data.reshape(vlamap.meta['naxis1'],vlamap.meta['naxis2'])
@@ -343,7 +358,6 @@ def svplot(vis, specfile=None, timerange=None, spw=None, pol='RRLL', dmin=None, 
 	cmap.set_colors(1,cm=cm.rainbow)
 	f4=cmap.plot(title='overview image')
 	#f4[2].set_autoscale_on(False)  gca
-	
 	
 	if fov:
 		fov=fov
