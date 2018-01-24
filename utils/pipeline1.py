@@ -1,6 +1,8 @@
 #!/common/casa/casa-release-5.0.0-218.el6/lib/casa/bin/casa
 from suncasa.eovsa import eovsa_pipeline as ep
-t = ep.Time('2017-07-10')
+# Set to run 5 days earlier than the current date
+mjdnow = ep.Time.now().mjd
+t = ep.Time(mjdnow-5,format='mjd')
 print t.iso
 date = t.iso[:10]
 print date

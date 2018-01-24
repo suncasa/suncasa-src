@@ -21,47 +21,65 @@ except:
 
 # from astropy.constants import R_sun, au
 
-def read_horizons(vis):
+def read_horizons(t0=None,dur=None,vis=None,observatory=None,verbose=False):
     import urllib2
     import ssl
-    if not os.path.exists(vis):
-        print 'Input ms data ' + vis + ' does not exist! '
-        return -1
-    try:
-        # ms.open(vis)
-        # summary = ms.summary()
-        # ms.close()
-        # btime = Time(summary['BeginTime'], format='mjd')
-        # etime = Time(summary['EndTime'], format='mjd')
-        ## alternative way to avoid conflicts with importeovsa, if needed -- more time consuming
-        ms.open(vis)
-        metadata = ms.metadata()
-        if metadata.observatorynames()[0] == 'EVLA':
-            observatory_code = '-5'
-        elif metadata.observatorynames()[0] == 'EOVSA':
-            observatory_code = '-81'
-        elif metadata.observatorynames()[0] == 'ALMA':
-            observatory_code = '-7'
-        ms.close()
-        tb.open(vis)
-        btime = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
-        etime = Time(tb.getcell('TIME', tb.nrows() - 1) / 24. / 3600., format='mjd')
-        tb.close()
-        print "Beginning time of this scan " + btime.iso
-        print "End time of this scan " + etime.iso
-
-        # extend the start and end time for jpl horizons by 0.5 hr on each end
-        btime = Time(btime.mjd - 0.5/24.,format='mjd')
-        etime = Time(etime.mjd + 0.5/24.,format='mjd')
-        cmdstr = "http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(observatory_code) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',',') + "'&STEP_SIZE='1 m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
+    if not t0 and not vis:
+        t0=Time.now()
+    if not dur:
+            dur=1./60./24. #default to 2 minutes
+    if t0:
         try:
-            context = ssl._create_unverified_context()
-            f = urllib2.urlopen(cmdstr, context=context)
+            btime=Time(t0)
         except:
-            f = urllib2.urlopen(cmdstr)
+            print('input time '+str(t0)+' not recognized')
+            return -1
+    if vis:
+        if not os.path.exists(vis):
+            print 'Input ms data ' + vis + ' does not exist! '
+            return -1
+        try:
+            # ms.open(vis)
+            # summary = ms.summary()
+            # ms.close()
+            # btime = Time(summary['BeginTime'], format='mjd')
+            # etime = Time(summary['EndTime'], format='mjd')
+            ## alternative way to avoid conflicts with importeovsa, if needed -- more time consuming
+            ms.open(vis)
+            metadata = ms.metadata()
+            if metadata.observatorynames()[0] == 'EVLA':
+                observatory = '-5'
+            elif metadata.observatorynames()[0] == 'EOVSA':
+                observatory = '-81'
+            elif metadata.observatorynames()[0] == 'ALMA':
+                observatory = '-7'
+            ms.close()
+            tb.open(vis)
+            btime_vis = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
+            etime_vis = Time(tb.getcell('TIME', tb.nrows() - 1) / 24. / 3600., format='mjd')
+            tb.close()
+            if verbose:
+                print "Beginning time of this scan " + btime_vis.iso
+                print "End time of this scan " + etime_vis.iso
+
+            # extend the start and end time for jpl horizons by 0.5 hr on each end
+            btime = Time(btime_vis.mjd - 0.5/24.,format='mjd')
+            dur = etime_vis.mjd - btime_vis.mjd + 1.0/24.
+        except:
+            print 'error in reading ms file: ' + vis + ' to obtain the ephemeris!'
+            return -1
+    
+    # default the observatory to VLA, if none provided
+    if not observatory:
+        observatory = '-5'
+
+    etime=Time(btime.mjd + dur,format='mjd')
+    cmdstr = "http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',',') + "'&STEP_SIZE='1 m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
+    try:
+        context = ssl._create_unverified_context()
+        f = urllib2.urlopen(cmdstr, context=context)
     except:
-        print 'error in reading ms file: ' + vis + ' to obtain the ephemeris!'
-        return -1
+        f = urllib2.urlopen(cmdstr)
     # initialize the return dictionary
     ephem0 = dict.fromkeys(['time', 'ra', 'dec', 'delta', 'p0'])
     lines = f.readlines()
@@ -92,7 +110,6 @@ def read_horizons(vis):
     # convert list of dictionary to a dictionary of arrays
     ephem = {'time': t, 'ra': ra, 'dec': dec, 'p0': p0, 'delta': delta}
     return ephem
-
 
 def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
     import glob
@@ -206,7 +223,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
     if not vis or not os.path.exists(vis):
         raise ValueError, 'Please provide information of the MS database!'
     if not ephem:
-        ephem = read_horizons(vis)
+        ephem = read_horizons(vis=vis)
     if not msinfo:
         msinfo0 = read_msinfo(vis)
     else:

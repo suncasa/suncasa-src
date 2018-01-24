@@ -172,7 +172,8 @@ def calib_pipeline(trange,doimport=False):
 
 def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, stokes=None, antenna='0~12', 
         #imagedir=None, spws=['1~3','4~6','7~9','10~13','14~18','19~28'],verbose=False):
-        imagedir=None, spws=['1~5','6~10','11~15','16~25'], toTb=True, doslfcal=False, verbose=False):
+        imagedir=None, spws=['1~5','6~10','11~15','16~25'], toTb=True, overwrite=True, 
+        doslfcal=False, verbose=False):
 
         
     ''' 
@@ -273,7 +274,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
                 antenna=antenna+';!0&1;!0&2' #deselect the shortest baselines
             res=ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=twidth, uvrange=uvrange, 
                         spw=spw, ncpu=ncpu, niter=1000, gain=0.05, antenna=antenna,imsize=imsize, cell=cell, 
-                        stokes=stokes, doreg=True, usephacenter=False, toTb=toTb, restoringbeam=restoringbeam,
+                        stokes=stokes, doreg=True, usephacenter=False, overwrite=overwrite, toTb=toTb, restoringbeam=restoringbeam,
                         uvtaper=True,outertaper=['30arcsec'])
 
             if res:
