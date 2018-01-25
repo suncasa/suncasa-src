@@ -142,7 +142,7 @@ def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, re
     if doreg:
         # check if ephem and msinfo exist. If not, generate one on the fly
         try:
-            ephem = hf.read_horizons(vis)
+            ephem = hf.read_horizons(vis=vis)
         except ValueError:
             print("error in obtaining ephemeris")
         try:
