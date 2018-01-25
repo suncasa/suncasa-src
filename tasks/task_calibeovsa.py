@@ -152,15 +152,19 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
             t_bp = Time(calfac['timestamp'], format='lv')
             if int(t_mid.mjd) == int(t_bp.mjd):
                 accalfac = calfac['accalfac']  # (ant x pol x freq)
+                # tpcalfac = calfac['tpcalfac']  # (ant x pol x freq)
                 caltb_autoamp = dirname + t_bp.isot[:-4].replace(':', '').replace('-', '') + '.bandpass'
                 if not os.path.exists(caltb_autoamp):
-                    bandpass(vis=msfile, caltable=caltb_autoamp, solint='inf', refant='eo01', minblperant=1, minsnr=0,
+                    bandpass(vis=msfile, caltable=caltb_autoamp, solint='inf', refant='eo01', minblperant=0, minsnr=0,
                              bandtype='B', docallib=False)
                     tb.open(caltb_autoamp, nomodify=False)  # (ant x spw)
                     bd_chanidx = np.hstack([[0], bd_nchan.cumsum()])
                     for ll in range(nspw):
+                        antfac = np.sqrt(accalfac[:, :, bd_chanidx[ll]:bd_chanidx[ll + 1]])
+                        # # antfac *= tpcalfac[:, :,bd_chanidx[ll]:bd_chanidx[ll + 1]]
+                        antfac = np.moveaxis(antfac, 0, 2)
                         cparam = np.zeros((2, bd_nchan[ll], nant))
-                        cparam[:, :, :-3] = 1.0 / np.moveaxis(accalfac[:, :, bd_chanidx[ll]:bd_chanidx[ll + 1]], 0, 2)
+                        cparam[:, :, :-3] = 1.0 / antfac
                         tb.putcol('CPARAM', cparam + 0j, ll * nant, nant)
                         paramerr = tb.getcol('PARAMERR', ll * nant, nant)
                         paramerr = paramerr * 0

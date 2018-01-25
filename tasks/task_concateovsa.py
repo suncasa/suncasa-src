@@ -6,13 +6,13 @@ from clearcal_cli import clearcal_cli as clearcal
 from split_cli import split_cli as split
 
 
-def concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2rm=["MODEL_DATA", "CORRECTED_DATA"],
-                freqtol="", dirtol="", respectname=False, timesort=True, copypointing=True, visweightscale=[],
+def concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2rm="model,corrected", freqtol="",
+                dirtol="", respectname=False, timesort=True, copypointing=True, visweightscale=[],
                 forcesingleephemfield=""):
     if concatvis[-1] == os.path.sep:
         concatvis = concatvis[:-1]
     if os.path.sep not in concatvis:
-        visprefix='./'
+        visprefix = './'
     else:
         visprefix = os.path.dirname(concatvis) + os.path.sep
     msfiles = vis
@@ -21,24 +21,22 @@ def concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2
         if str(ll).endswith('/'):
             msfiles[idx] = str(ll)[:-1]
     datacolumn = datacolumn.lower()
-    if datacolumn=='data':
+    if datacolumn == 'data':
         print 'DATA columns will be concatenated.'
         for ll in msfiles:
             clearcal(vis=str(ll), addmodel=True)
-    elif datacolumn=='corrected':
+    elif datacolumn == 'corrected':
         # try:
         print 'CORRECTED columns will be concatenated.'
-        tmpdir = os.path.join(visprefix,'tmp_ms')+os.path.sep
+        tmpdir = os.path.join(visprefix, 'tmp_ms') + os.path.sep
         if not os.path.exists(tmpdir):
             os.makedirs(tmpdir)
         for ll in msfiles:
-            msfile_ = os.path.join(tmpdir,os.path.basename(str(ll)))
+            msfile_ = os.path.join(tmpdir, os.path.basename(str(ll)))
             msfiles_.append(msfile_)
             split(vis=str(ll), outputvis=msfile_, datacolumn='corrected')
-            clearcal(vis=msfile_, addmodel=True)
-        # except:
-        #     print 'DATA columns will be concatenated.'
-        #     msfiles_ = msfiles
+            clearcal(vis=msfile_,
+                     addmodel=True)  # except:  #     print 'DATA columns will be concatenated.'  #     msfiles_ = msfiles
     else:
         raise ValueError('Please set datacolumn to be "data" or "corrected"!')
 

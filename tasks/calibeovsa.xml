@@ -50,15 +50,15 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 
         doflag -- boolean. Default True. Peforming flags?
 
-        flagant -- string. Follow CASA antenna selection syntax. Default '13~15'. 
+        flagant -- string. Follow CASA antenna selection syntax. Default '13~15'.
 
         doimage -- boolean. Default False. If true, make a quicklook image using the specified time range and specified spw range
 
-        imagedir -- string. Directory to place the output image. 
+        imagedir -- string. Directory to place the output image.
 
         antenna -- string. Default '0~12'. Antenna/baselines to be used for imaging. Follow CASA antenna selection syntax.
 
-        timerange -- string. Default '' (the whole duration of the visibility data). Follow CASA timerange syntax. 
+        timerange -- string. Default '' (the whole duration of the visibility data). Follow CASA timerange syntax.
                      e.g., '2017/07/11/20:16:00~2017/07/11/20:17:00'
 
         spw -- string. Default '1~3'. Follow CASA spw selection syntax.
@@ -69,8 +69,8 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 
         msoutdir -- string. Directory to place the concatenated dataset
 
-        keep_orig_ms -- boolean. Default True. Inherited from suncasa.eovsa.concateovsa. 
-                Keep the original seperated ms datasets after concatenation? 
+        keep_orig_ms -- boolean. Default True. Inherited from suncasa.eovsa.concateovsa.
+                Keep the original seperated ms datasets after concatenation?
 
     </example>
 

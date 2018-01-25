@@ -1,17 +1,11 @@
 import os
-# import gc
 import numpy as np
 import numpy.ma as ma
-# import pandas as pd
 import scipy.constants as constants
 import time
 import aipy
-# import eovsapy.read_idb as ri
-# from eovsapy.util import Time
 from taskinit import tb, casalog
 from split_cli import split_cli as split
-from concat_cli import concat_cli as concat
-from clearcal_cli import clearcal_cli as clearcal
 from suncasa.eovsa import impteovsa as ipe
 from suncasa.eovsa import concateovsa as ce
 

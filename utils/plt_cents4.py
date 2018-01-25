@@ -14,6 +14,7 @@ import sunpy.map
 import astropy.units as u
 import pickle
 import glob
+from suncasa.utils import ctplot as ct
 # from astropy import units as u
 # import sunpy.map as smap
 from scipy.interpolate import griddata
@@ -98,12 +99,11 @@ def MakeSlit(pointDF):
     xx = pointDFtmp.loc[:, 'xx'].values
     yy = pointDFtmp.loc[:, 'yy'].values
     if len(pointDFtmp.index) <= 1:
-        cutslitplt = {'xcen': [], 'ycen': [], 'xs0': [], 'ys0': [], 'xs1': [], 'ys1': [], 'cutwidth': [],
-                      'posangs': [], 'posangs2': [], 'dist': []}
+        cutslitplt = {'xcen': [], 'ycen': [], 'xs0': [], 'ys0': [], 'xs1': [], 'ys1': [], 'cutwidth': [], 'posangs': [],
+                      'posangs2': [], 'dist': []}
     else:
         # if len(pointDFtmp.index) <= 3:
-        cutslitplt = FitSlit(xx, yy, 10, 0.0,
-                             200, method='Polyfit')
+        cutslitplt = FitSlit(xx, yy, 10, 0.0, 200, method='Polyfit')
     return cutslitplt
 
 
@@ -123,14 +123,13 @@ def getimprofile(data, cutslit, xrange=None, yrange=None):
             ys0 = cutslit['ys0']
             ys1 = cutslit['ys1']
         for ll in range(num):
-            inten = DButil.improfile(data, [xs0[ll], xs1[ll]],
-                                     [ys0[ll], ys1[ll]], interp='nearest')
+            inten = DButil.improfile(data, [xs0[ll], xs1[ll]], [ys0[ll], ys1[ll]], interp='nearest')
             intens[ll] = np.mean(inten)
         intensdist = {'x': cutslit['dist'], 'y': intens}
         return intensdist
 
 
-def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, *args, **kwargs):
+def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, smap_colorbar=True, *args, **kwargs):
     import sunpy.cm.cm as cm  ## to bootstrap sdoaia color map
     import matplotlib.cm as cm
     import matplotlib.colors as colors
@@ -157,11 +156,13 @@ def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, *arg
     else:
         norm = colors.LogNorm(vmin=vmin, vmax=vmax)
     try:
-        imshow_args = {'cmap': cm.get_cmap('sdoaia{}'.format(smap.meta['wavelnth'])), 'norm': norm,
-                       'interpolation': 'nearest', 'origin': 'lower'}
+        if 'cmap' in kwargs.keys():
+            cmap = kwargs['cmap']
+        else:
+            cmap = cm.get_cmap('sdoaia{}'.format(smap.meta['wavelnth']))
+        imshow_args = {'cmap': cmap, 'norm': norm, 'interpolation': 'nearest', 'origin': 'lower'}
     except:
-        imshow_args = {'cmap': 'gray', 'norm': norm,
-                       'interpolation': 'nearest', 'origin': 'lower'}
+        imshow_args = {'cmap': 'gray', 'norm': norm, 'interpolation': 'nearest', 'origin': 'lower'}
     if smap.coordinate_system.x == 'HG':
         xlabel = 'Longitude [{lon}]'.format(lon=smap.spatial_units.x)
     else:
@@ -178,7 +179,8 @@ def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, *arg
     else:
         cax = ax.imshow(smap.data, **imshow_args)
     plt.title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, smap.meta['t_obs']))
-    plt.colorbar(cax, ax=ax, label='DN counts per second')
+    if smap_colorbar:
+        plt.colorbar(cax, ax=ax, label='DN counts per second')
     ax.set_autoscale_on(False)
     if dspec:
         fig = plt.gcf()
@@ -285,43 +287,96 @@ def polyfit(x, y, length, deg):
     return {'xs': xs, 'ys': ys, 'rms': rms}
 
 
+class LineBuilder:
+    def __init__(self, scatters, lines, cutlength=50):
+        self.line = []
+        self.scatter = []
+        self.cutlength = cutlength
+        self.xs = list(scatters[0].get_xdata())
+        self.ys = list(scatters[0].get_ydata())
+        self.xsline, self.ysline = [], []
+        for idx, s in enumerate(scatters):
+            self.line.append(lines[idx])
+            self.scatter.append(s)
+            self.cid = s.figure.canvas.mpl_connect('button_press_event', self)
+
+    def __call__(self, event):
+        # print('button=%d, x=%d, y=%d, xdata=%f, ydata=%f' % (event.button, event.x, event.y, event.xdata, event.ydata))
+        axes = [scatter.axes for scatter in self.scatter]
+        if scatter.figure.canvas.toolbar.mode == '':
+            if event.inaxes not in axes:
+                return
+            if event.button == 1:
+                self.xs.append(event.xdata)
+                self.ys.append(event.ydata)
+            elif event.button == 3:
+                if len(self.xs) > 0:
+                    self.xs.pop()
+                    self.ys.pop()
+            xs = np.array(self.xs, dtype=np.float64)
+            # ys = np.array(self.ys, dtype=np.float64)
+            for scatter in self.scatter:
+                scatter.set_data(self.xs, self.ys)
+                scatter.figure.canvas.draw()
+            xs0 = np.float64(np.nanmin(xs))
+            nxs = len(self.xs)
+
+            if nxs >= 2:
+                self.cutlength = np.ceil((self.xs[-1] - self.xs[0]) * 24 * 3600 / 0.1)
+                if nxs <= 3:
+                    out = DButil.polyfit((xs - xs0) * 24. * 3600., self.ys, self.cutlength,
+                                         len(self.xs) - 1 if len(self.xs) <= 3 else 2)
+                else:
+                    out = DButil.paramspline((xs - xs0) * 24. * 3600., self.ys, self.cutlength, s=0.00001)
+                out['xs'] = out['xs'] / 24. / 3600. + xs0
+                for line in self.line:
+                    line.set_data(out['xs'], out['ys'])
+                    line.figure.canvas.draw()
+                self.xsline, self.ysline = out['xs'], out['ys']
+            else:
+                for line in self.line:
+                    line.set_data([], [])
+                    line.figure.canvas.draw()
+
+
 def pltspec(x, y, specs, vrange, pltline=True, figsize=(10, 8)):
-    date_format = mdates.DateFormatter('%H:%M:%S')
-    fig, axs = plt.subplots(3, 1, figsize=figsize, sharey=True, sharex=True)
-    im1 = axs[0].pcolormesh(x, y, specs[0], vmin=vrange['spec'][0], vmax=vrange['spec'][1], cmap=cm.jet)
-    axs[0].xaxis_date()
-    axs[0].xaxis.set_major_formatter(date_format)
-    axs[0].yaxis.set_label_text('Frequency [GHz]')
-    fig.colorbar(im1, orientation='vertical', ax=axs[0], label='flux [sfu]')
-    im2 = axs[1].pcolormesh(x, y, specs[1], vmin=vrange['x'][0], vmax=vrange['x'][1], cmap=cm.jet)
-    axs[1].xaxis_date()
-    axs[1].xaxis.set_major_formatter(date_format)
-    axs[1].yaxis.set_label_text('Frequency [GHz]')
-    fig.colorbar(im2, orientation='vertical', ax=axs[1], label='x [arcsec]')
-    im3 = axs[2].pcolormesh(x, y, specs[2], vmin=vrange['y'][0], vmax=vrange['y'][1], cmap=cm.jet)
-    axs[2].xaxis_date()
-    axs[2].xaxis.set_major_formatter(date_format)
-    axs[2].yaxis.set_label_text('Frequency [GHz]')
-    fig.colorbar(im3, orientation='vertical', ax=axs[2], label='y [arcsec]')
-    fig.autofmt_xdate(rotation=45)
-    fig.tight_layout()
-    if pltline:
-        line1, = axs[0].plot([], [], '-', c='gray', alpha=0.7)  # empty line
-        line2, = axs[1].plot([], [], '-', c='gray', alpha=0.7)  # empty line
-        line3, = axs[2].plot([], [], '-', c='gray', alpha=0.7)  # empty line
-        lines = [line1, line2, line3]
-        scatter1, = axs[0].plot([], [], 'o', c='magenta', alpha=0.7)  # empty line
-        scatter2, = axs[1].plot([], [], 'o', c='magenta', alpha=0.7)  # empty line
-        scatter3, = axs[2].plot([], [], 'o', c='magenta', alpha=0.7)  # empty line
-        scatters = [scatter1, scatter2, scatter3]
-        linebuilder = LineBuilder(scatters, lines, 40)
-        return [fig, axs, lines, scatters, linebuilder]
-    else:
-        return [fig, axs]
+    if len(specs) == 3:
+        date_format = mdates.DateFormatter('%H:%M:%S')
+        fig, axs = plt.subplots(3, 1, figsize=figsize, sharey=True, sharex=True)
+        im1 = axs[0].pcolormesh(x, y, specs[0], vmin=vrange['spec'][0], vmax=vrange['spec'][1], cmap=cm.jet)
+        axs[0].xaxis_date()
+        axs[0].xaxis.set_major_formatter(date_format)
+        axs[0].yaxis.set_label_text('Frequency [GHz]')
+        fig.colorbar(im1, orientation='vertical', ax=axs[0], label='flux [sfu]')
+        im2 = axs[1].pcolormesh(x, y, specs[1], vmin=vrange['x'][0], vmax=vrange['x'][1], cmap=cm.jet)
+        axs[1].xaxis_date()
+        axs[1].xaxis.set_major_formatter(date_format)
+        axs[1].yaxis.set_label_text('Frequency [GHz]')
+        fig.colorbar(im2, orientation='vertical', ax=axs[1], label='x [arcsec]')
+        im3 = axs[2].pcolormesh(x, y, specs[2], vmin=vrange['y'][0], vmax=vrange['y'][1], cmap=cm.jet)
+        axs[2].xaxis_date()
+        axs[2].xaxis.set_major_formatter(date_format)
+        axs[2].yaxis.set_label_text('Frequency [GHz]')
+        fig.colorbar(im3, orientation='vertical', ax=axs[2], label='y [arcsec]')
+        fig.autofmt_xdate(rotation=45)
+        fig.tight_layout()
+        if pltline:
+            line1, = axs[0].plot([], [], '-', c='gray', alpha=0.7)  # empty line
+            line2, = axs[1].plot([], [], '-', c='gray', alpha=0.7)  # empty line
+            line3, = axs[2].plot([], [], '-', c='gray', alpha=0.7)  # empty line
+            lines = [line1, line2, line3]
+            scatter1, = axs[0].plot([], [], 'o', c='magenta', alpha=0.7)  # empty line
+            scatter2, = axs[1].plot([], [], 'o', c='magenta', alpha=0.7)  # empty line
+            scatter3, = axs[2].plot([], [], 'o', c='magenta', alpha=0.7)  # empty line
+            scatters = [scatter1, scatter2, scatter3]
+            linebuilder = LineBuilder(scatters, lines, 40)
+            return [fig, axs, lines, scatters, linebuilder]
+        else:
+            return [fig, axs]
 
 
 vrange = {'U01': {'spec': [3, 20], 'x': [-645, -630], 'y': [-140, -125], 'f': [1.1, 1.4], 'xlim': None, 'ylim': None},
-          'U02': {'spec': [10, 30], 'x': [-640, -635], 'y': [-135, -115], 'f': [1.1, 1.35],
+          'U02': {'spec': [10, 25], 'x': [-640, -635], 'y': [-135, -115], 'f': [1.1, 1.35],
                   'xlim': [735538.69837392925, 735538.69847811805], 'ylim': [0.994, 1.426]},
           'U04': {'spec': [10, 50], 'x': [-645, -630], 'y': [-135, -120], 'f': [1.0, 1.35],
                   'xlim': [735538.69878972694, 735538.69896720233], 'ylim': [0.994, 1.470]}}
@@ -330,18 +385,25 @@ branch_colors = ['cyan', 'green', 'royalblue']
 doshift = 0
 domovie = 0
 domovie2 = 0
-dopltvdspec = 1
-dosmooth = 1
+dopltvdspec = 0
+mkmc = 0
+dosmooth = 0
 docorrect = 0
 mknewfits = 0
+rdiff_ratio = 0
+docutslit = 1
 mkmovie = 0
 mkmovie2 = 0
+mkmovie3 = 0
+mkmovie4 = 0
+dopltmass = 0
+dopltmass_mlab = 0
 # --------------
 timelineplt = 0
 timcontour = 0
 tbin = 8
 mask = ''
-dmin = 10
+thrshd = 10
 dmax = 55
 box_pts = 11
 # --------------
@@ -418,7 +480,7 @@ if dosmooth:
         y[:, i] = ss.smooth(y[:, i], window_len=4, window='flat')
 if mask:
     if mask == 'threshold':
-        mp = ma.masked_outside(p, dmin, dmax)
+        mp = ma.masked_outside(p, thrshd, dmax)
     elif mask == 'native':
         mp = p
     mx = ma.array(x, mask=mp.mask)
@@ -434,56 +496,6 @@ else:
 
 if dopltvdspec:
     # embed()
-    class LineBuilder:
-        def __init__(self, scatters, lines, cutlength=50):
-            self.line = []
-            self.scatter = []
-            self.cutlength = cutlength
-            self.xs = list(scatters[0].get_xdata())
-            self.ys = list(scatters[0].get_ydata())
-            self.xsline, self.ysline = [], []
-            for idx, s in enumerate(scatters):
-                self.line.append(lines[idx])
-                self.scatter.append(s)
-                self.cid = s.figure.canvas.mpl_connect('button_press_event', self)
-
-        def __call__(self, event):
-            # print('button=%d, x=%d, y=%d, xdata=%f, ydata=%f' % (event.button, event.x, event.y, event.xdata, event.ydata))
-            axes = [scatter.axes for scatter in self.scatter]
-            if scatter.figure.canvas.toolbar.mode == '':
-                if event.inaxes not in axes:
-                    return
-                if event.button == 1:
-                    self.xs.append(event.xdata)
-                    self.ys.append(event.ydata)
-                elif event.button == 3:
-                    if len(self.xs) > 0:
-                        self.xs.pop()
-                        self.ys.pop()
-                xs = np.array(self.xs, dtype=np.float64)
-                # ys = np.array(self.ys, dtype=np.float64)
-                for scatter in self.scatter:
-                    scatter.set_data(self.xs, self.ys)
-                    scatter.figure.canvas.draw()
-                xs0 = np.float64(np.nanmin(xs))
-                nxs = len(self.xs)
-
-                if nxs >= 2:
-                    self.cutlength = np.ceil((self.xs[-1] - self.xs[0]) * 24 * 3600 / 0.1)
-                    if nxs <= 3:
-                        out = DButil.polyfit((xs - xs0) * 24. * 3600., self.ys, self.cutlength,
-                                             len(self.xs) - 1 if len(self.xs) <= 3 else 2)
-                    else:
-                        out = DButil.paramspline((xs - xs0) * 24. * 3600., self.ys, self.cutlength, s=0.00001)
-                    out['xs'] = out['xs'] / 24. / 3600. + xs0
-                    for line in self.line:
-                        line.set_data(out['xs'], out['ys'])
-                        line.figure.canvas.draw()
-                    self.xsline, self.ysline = out['xs'], out['ys']
-                else:
-                    for line in self.line:
-                        line.set_data([], [])
-                        line.figure.canvas.draw()
 
 
     fig1, axs1, lines, scatters, linebuilder = pltspec(tdatetime, f, [mp, mx, my], vrange[burstname])
@@ -493,16 +505,14 @@ if dopltvdspec:
     if to_save:
         sct = [{'x': ll.get_xdata(), 'y': ll.get_ydata()} for ll in scatters]
         lns = [{'x': ll.get_xdata(), 'y': ll.get_ydata()} for ll in lines]
-        with open('branch2_status', 'wb') as sf:
+        with open('branch1_status', 'wb') as sf:
             pickle.dump([sct, lns], sf)
 
     SDOdir = os.getenv('SUNCASADB') + 'aiaBrowserData/Download/'
-    aiamap = DButil.readsdofile(datadir=SDOdir, wavelength='304', jdtime=t[
-        0].jd, timtol=20. / 3600. / 24.)
+    aiamap = DButil.readsdofile(datadir=SDOdir, wavelength='304', jdtime=t[0].jd, timtol=20. / 3600. / 24.)
     # x0, x1, y0, y1 = -660., -620., -150., -110.
     x0, x1, y0, y1 = -660., -600., -170., -110.
-    submap = aiamap.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]),
-                           u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
+    submap = aiamap.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]), u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
     fig2 = plt.figure(2, figsize=(10, 8))
     ax = plot_map(submap)
 
@@ -511,7 +521,8 @@ if dopltvdspec:
     # ax.set_ylim(-150., -110.)
     # statusfiles = glob.glob('./branch?_status')
     # statusfiles = ['./branch2_status']*2
-    statusfiles = ['branch1_status', '']
+    statusfiles = ['', 'branch2_status']
+    statusfiles = ['branch1_status']
     if to_restore:
         for sidx, statusfile in enumerate(statusfiles):
             if statusfile:
@@ -566,17 +577,14 @@ if dopltvdspec:
                 s0 = s0  # [::3]
                 r0 = r0  # [::3]
                 c = c  # [::3]
-
                 err = (30. * r0 / s0)
                 ax.errorbar(xplot, yplot, xerr=err, yerr=err, fmt='none', c='white', alpha=0.3, errorevery=3)
                 # ax.quiver(xplot[:-1], yplot[:-1], xplot[1:] - xplot[:-1],
                 #           yplot[1:] - yplot[:-1], angles='uv', scale_units=None, scale=None, alpha=0.6,
                 #           color=branch_colors[sidx])
-                ax.quiver(xplot[:-1], yplot[:-1], (xplot[1:] - xplot[:-1]),
-                          (yplot[1:] - yplot[:-1]), angles='uv', scale_units=None, scale=10, alpha=0.6,
-                          color=branch_colors[sidx])
-                scats = ax.scatter(xplot, yplot, c=c, cmap=dspec_cmaps[0],
-                                   vmin=vrange[burstname]['f'][0],
+                ax.quiver(xplot[:-1], yplot[:-1], (xplot[1:] - xplot[:-1]), (yplot[1:] - yplot[:-1]), angles='uv',
+                          scale_units=None, scale=10, alpha=0.6, color=branch_colors[sidx])
+                scats = ax.scatter(xplot, yplot, c=c, cmap=dspec_cmaps[0], vmin=vrange[burstname]['f'][0],
                                    vmax=vrange[burstname]['f'][1], alpha=1.0)
                 plt.colorbar(scats, ax=ax, label='Frequency')
     else:
@@ -614,11 +622,9 @@ if dopltvdspec:
 
         err = (30. * r0 / s0)
         ax.errorbar(xplot, yplot, xerr=err, yerr=err, fmt='none', c='white', alpha=0.3, errorevery=3)
-        ax.quiver(xplot[:-1], yplot[:-1], (xplot[1:] - xplot[:-1]) / 2,
-                  (yplot[1:] - yplot[:-1]) / 2, angles='uv', scale_units=None, scale=None, alpha=0.6,
-                  color=branch_colors[0])
-        scats = ax.scatter(xplot, yplot, c=c, cmap=dspec_cmaps[0],
-                           vmin=vrange[burstname]['f'][0],
+        ax.quiver(xplot[:-1], yplot[:-1], (xplot[1:] - xplot[:-1]) / 2, (yplot[1:] - yplot[:-1]) / 2, angles='uv',
+                  scale_units=None, scale=None, alpha=0.6, color=branch_colors[0])
+        scats = ax.scatter(xplot, yplot, c=c, cmap=dspec_cmaps[0], vmin=vrange[burstname]['f'][0],
                            vmax=vrange[burstname]['f'][1], alpha=1.0)
         plt.colorbar(scats, ax=ax, label='Frequency')
 
@@ -628,7 +634,7 @@ if dopltvdspec:
     # fig2.close()
     # fig3.close()
 
-mkmc = 1
+
 if mkmc:
     from sunpy.physics.transforms.solar_rotation import mapcube_solar_derotate
 
@@ -665,7 +671,7 @@ else:
 
 # make an AIA movie
 if mkmovie:
-    burstnames = ['U01', 'U02', 'U04']
+    burstnames = ['', 'U02', 'U04']
     t_bursts = Time(['2014-11-01T16:43:53', '2014-11-01T16:45:43', '2014-11-01T16:46:19'])
     mapcubename = 'mapcube_hmi_45s'
     from copy import deepcopy
@@ -721,7 +727,7 @@ if mkmovie:
                 y[bandedge[1]:bandedge[2] + 1, :] += ycorr
             if mask:
                 if mask == 'threshold':
-                    mp = ma.masked_outside(p, dmin, dmax)
+                    mp = ma.masked_outside(p, thrshd, dmax)
                 elif mask == 'native':
                     mp = p
                 mx = ma.array(x, mask=mp.mask)
@@ -768,22 +774,18 @@ if mkmovie:
                 # ax.quiver(xplot[:-1], yplot[:-1], xplot[1:] - xplot[:-1],
                 #           yplot[1:] - yplot[:-1], angles='uv', scale=None, alpha=0.6,
                 #           color=color[sidx])
-                ax.scatter(xplot, yplot, c=c, cmap=dspec_cmaps[0],
-                           vmin=vrange[burstname]['f'][0],
+                ax.scatter(xplot, yplot, c=c, cmap=dspec_cmaps[0], vmin=vrange[burstname]['f'][0],
                            vmax=vrange[burstname]['f'][1], alpha=1.0)
         fig.savefig('{0}/{3}{1}-{2}.png'.format(outdir, smap.meta['wavelnth'],
-                                                t_map.iso.replace(' ', 'T').replace(':',
-                                                                                    '').replace('-',
-                                                                                                '')[
-                                                :-4], smap.detector), format='png', dpi=100)
+                                                t_map.iso.replace(' ', 'T').replace(':', '').replace('-', '')[:-4],
+                                                smap.detector), format='png', dpi=100)
     plt.ion()
     # fig.close()
 
-rdiff_ratio = 0
 if rdiff_ratio:
     d_frm = 3
     domedfilt = 0
-    burstnames = ['U01', 'U02', 'U04']
+    burstnames = ['', 'U02', 'U04']
     t_bursts = Time(['2014-11-01T16:43:53', '2014-11-01T16:45:43', '2014-11-01T16:46:19'])
     mapcubename = 'mapcube_211_large'
     from copy import deepcopy
@@ -866,7 +868,7 @@ if rdiff_ratio:
                 y[bandedge[1]:bandedge[2] + 1, :] += ycorr
             if mask:
                 if mask == 'threshold':
-                    mp = ma.masked_outside(p, dmin, dmax)
+                    mp = ma.masked_outside(p, thrshd, dmax)
                 elif mask == 'native':
                     mp = p
                 mx = ma.array(x, mask=mp.mask)
@@ -913,18 +915,15 @@ if rdiff_ratio:
                 # ax.quiver(xplot[:-1], yplot[:-1], xplot[1:] - xplot[:-1],
                 #           yplot[1:] - yplot[:-1], angles='uv', scale=None, alpha=0.6,
                 #           color=color[sidx])
-                ax.scatter(xplot, yplot, c=c, cmap=dspec_cmaps[0],
-                           vmin=vrange[burstname]['f'][0],
+                ax.scatter(xplot, yplot, c=c, cmap=dspec_cmaps[0], vmin=vrange[burstname]['f'][0],
                            vmax=vrange[burstname]['f'][1], alpha=1.0)
         fig.savefig('{0}/{3}{1}-{2}.png'.format(outdir, smap.meta['wavelnth'],
-                                                t_map.iso.replace(' ', 'T').replace(':',
-                                                                                    '').replace('-',
-                                                                                                '')[
-                                                :-4], smap.detector), format='png', dpi=100)
+                                                t_map.iso.replace(' ', 'T').replace(':', '').replace('-', '')[:-4],
+                                                smap.detector), format='png', dpi=100)
         # time.sleep(0.01)
     plt.ion()
 
-docutslit = 0
+
 if docutslit:
     class CutslitBuilder:
         def __init__(self, axes, cutwidth=5, cutang=0, cutlength=80):
@@ -974,7 +973,7 @@ if docutslit:
     domedfilt = 0
     burstnames = ['U01', 'U02', 'U04']
     t_bursts = Time(['2014-11-01T16:43:53', '2014-11-01T16:45:43', '2014-11-01T16:46:19'])
-    mapcubename = 'mapcube_211_large'
+    mapcubename = 'mapcube_171'
     from copy import deepcopy
 
     with open('{}/img_centroid_new/{}'.format(datadir, mapcubename), 'rb') as sf:
@@ -998,17 +997,17 @@ if docutslit:
     mapcube_rdiff = sunpy.map.Map(maps_rdiff, cube=True)
     fig_cutslit = plt.figure(5, figsize=(7, 5))
     ax = plot_map(mapcube_rdiff[39], vmax=500, vmin=-500, diff=True)
-    cutslitbuilder = CutslitBuilder(ax, cutwidth=1.8, cutang=np.pi / 36, cutlength=80)
+    cutslitbuilder = CutslitBuilder(ax, cutwidth=1.8, cutang=0, cutlength=80)
 
     to_save = 0
     to_restore = 0
     if to_save:
         cutslit = {'x': cutslitbuilder.clickedpoints.get_xdata(), 'y': cutslitbuilder.clickedpoints.get_ydata(),
                    'cutslit': cutslitbuilder.cutslitplt}
-        with open('{}cutslit1'.format(datadir), 'wb') as sf:
+        with open('{}cutslit2'.format(datadir), 'wb') as sf:
             pickle.dump(cutslit, sf)
     if to_restore:
-        with open('{}cutslit1'.format(datadir), 'rb') as sf:
+        with open('{}cutslit2'.format(datadir), 'rb') as sf:
             cutslit = pickle.load(sf)
         cutslitbuilder.clickedpoints.set_data(cutslit['x'], cutslit['y'])
         cutslitbuilder.clickedpoints.figure.canvas.draw()
@@ -1029,8 +1028,7 @@ if docutslit:
             os.system('rm -rf {}/*.png'.format(outdir))
         stackplt = []
         for idx, smap in enumerate(tqdm(mapcube_rdiff)):
-            intens = getimprofile(smap.data, cutslitbuilder.cutslitplt,
-                                  xrange=smap.xrange.value,
+            intens = getimprofile(smap.data, cutslitbuilder.cutslitplt, xrange=smap.xrange.value,
                                   yrange=smap.yrange.value)
             stackplt.append(intens['y'])
         if len(stackplt) > 1:
@@ -1048,8 +1046,7 @@ if docutslit:
             vmax, vmin = 1000, -1000
         norm = colors.Normalize(vmin=vmin, vmax=vmax)
         cutslitplt = cutslitbuilder.cutslitplt
-        dspec = {'dspec': stackplt, 'x': tplot.plot_date, 'y': cutslitplt['dist'],
-                 'ytitle': 'Distance [arcsec]',
+        dspec = {'dspec': stackplt, 'x': tplot.plot_date, 'y': cutslitplt['dist'], 'ytitle': 'Distance [arcsec]',
                  'ctitle': 'DN counts per second',
                  'args': {'norm': norm, 'cmap': cm.get_cmap('sdoaia{}'.format(mapcube_rdiff[0].meta['wavelnth']))}}
         fig_stackplt = plt.figure(6, figsize=(11, 5))
@@ -1096,7 +1093,7 @@ if docutslit:
                     y[bandedge[1]:bandedge[2] + 1, :] += ycorr
                 if mask:
                     if mask == 'threshold':
-                        mp = ma.masked_outside(p, dmin, dmax)
+                        mp = ma.masked_outside(p, thrshd, dmax)
                     elif mask == 'native':
                         mp = p
                     mx = ma.array(x, mask=mp.mask)
@@ -1143,25 +1140,22 @@ if docutslit:
                     # ax.quiver(xplot[:-1], yplot[:-1], xplot[1:] - xplot[:-1],
                     #           yplot[1:] - yplot[:-1], angles='uv', scale=None, alpha=0.6,
                     #           color=color[sidx])
-                    ax.scatter(xplot, yplot, c=c, cmap=dspec_cmaps[0],
-                               vmin=vrange[burstname]['f'][0],
+                    ax.scatter(xplot, yplot, c=c, cmap=dspec_cmaps[0], vmin=vrange[burstname]['f'][0],
                                vmax=vrange[burstname]['f'][1], alpha=1.0)
             fig_stackplt.savefig('{0}/{3}{1}-{2}.png'.format(outdir, smap.meta['wavelnth'],
-                                                             tplot[xidx].iso.replace(' ', 'T').replace(':',
-                                                                                                       '').replace('-',
-                                                                                                                   '')[
-                                                             :-4], smap.detector), format='png', dpi=100)
+                                                             tplot[xidx].iso.replace(' ', 'T').replace(':', '').replace(
+                                                                 '-', '')[:-4], smap.detector), format='png', dpi=100)
 
 # do a movie of burst motion
 if mkmovie2:
     from sunpy.physics.transforms.solar_rotation import mapcube_solar_derotate
     import matplotlib.animation as animation
 
-    fig = plt.figure(1, figsize=(10, 4))
-    fig2 = plt.figure(2)
+    fig = plt.figure(1, figsize=(12, 5))
+    # fig2 = plt.figure(2)
     plt.ioff()
     burstnames = ['U01', 'U02', 'U04']
-    burstnames = ['', '', 'U04']
+    burstnames = ['', 'U02', 'U04']
     datadir = '/Users/fisher/Desktop/work/2016/NJIT/2014-11-01/Uburst/'
     with open('{}/img_centroid_new/mapcube_{}'.format(datadir, '304'), 'rb') as sf:
         mapcube0 = pickle.load(sf)
@@ -1207,7 +1201,7 @@ if mkmovie2:
                 y[bandedge[1]:bandedge[2] + 1, :] += ycorr
             if mask:
                 if mask == 'threshold':
-                    mp = ma.masked_outside(p, dmin, dmax)
+                    mp = ma.masked_outside(p, thrshd, dmax)
                 elif mask == 'native':
                     mp = p
                 mx = ma.array(x, mask=mp.mask)
@@ -1287,47 +1281,43 @@ if mkmovie2:
                 outdir = '{0}{1}-centroid/{2}/'.format(datadir, burstname, os.path.basename(statusfile)[:7])
                 if not os.path.exists(outdir):
                     os.makedirs(outdir)
-                os.system('rm -rf {}*.png'.format(outdir))
-                for xidx, tplt in enumerate(tqdm(tplts)):
-                    plt.figure(1)
-                    fig.clf()
-                    smap = mapcube[np.argmin(np.abs(tplt.jd - t_maps.jd))]
-                    if xidx == 0:
-                        dspec['axvspan'] = [tplt.plot_date, (tplt.plot_date + tplts[xidx + 1].plot_date) / 2]
-                    elif xidx == len(tplts.plot_date) - 1:
-                        dspec['axvspan'] = [(tplt.plot_date + tplts[xidx - 1].plot_date) / 2, tplt.plot_date]
-                    else:
-                        dspec['axvspan'] = [(tplt.plot_date + tplts[xidx - 1].plot_date) / 2,
-                                            (tplt.plot_date + tplts[xidx + 1].plot_date) / 2]
-                    ax, ax2 = plot_map(smap, dspec)
-
-                    ax.errorbar(xplot[xidx], yplot[xidx], xerr=err[xidx], yerr=err[xidx], fmt='none', c='white',
-                                alpha=0.3)
-                    if xidx < len(tplts) - 1:
-                        ax.quiver(xplot[:-1][xidx], yplot[:-1][xidx],
-                                  xplot[1:][xidx] - xplot[:-1][xidx],
-                                  yplot[1:][xidx] - yplot[:-1][xidx], angles='uv',
-                                  scale_units=None,
-                                  scale=None,
-                                  alpha=0.6,
-                                  color=branch_colors[sidx])
-                    ax.scatter(xplot[xidx], yplot[xidx], c=c[xidx], cmap=dspec_cmaps[0],
-                               vmin=vrange[burstname]['f'][0],
-                               vmax=vrange[burstname]['f'][1], alpha=1.0)
-                    tstring = tplt.iso.replace(' ', 'T').replace(':', '').replace('-', '')
-                    fig.savefig('{0}{1}-{2}.png'.format(outdir, os.path.basename(statusfile)[:7], tstring),
-                                format='png',
-                                dpi=150)
+                # os.system('rm -rf {}*.png'.format(outdir))
+                # for xidx, tplt in enumerate(tqdm(tplts)):
+                #     plt.figure(1)
+                #     fig.clf()
+                #     smap = mapcube[np.argmin(np.abs(tplt.jd - t_maps.jd))]
+                #     if xidx == 0:
+                #         dspec['axvspan'] = [tplt.plot_date, (tplt.plot_date + tplts[xidx + 1].plot_date) / 2]
+                #     elif xidx == len(tplts.plot_date) - 1:
+                #         dspec['axvspan'] = [(tplt.plot_date + tplts[xidx - 1].plot_date) / 2, tplt.plot_date]
+                #     else:
+                #         dspec['axvspan'] = [(tplt.plot_date + tplts[xidx - 1].plot_date) / 2,
+                #                             (tplt.plot_date + tplts[xidx + 1].plot_date) / 2]
+                #     ax, ax2 = plot_map(smap, dspec, cmap='gray_r')
+                #
+                #     ax.errorbar(xplot[xidx], yplot[xidx], xerr=err[xidx], yerr=err[xidx], fmt='none', c='white',
+                #                 alpha=0.3)
+                #     if xidx < len(tplts) - 1:
+                #         ax.quiver(xplot[:-1][xidx], yplot[:-1][xidx], xplot[1:][xidx] - xplot[:-1][xidx],
+                #                   yplot[1:][xidx] - yplot[:-1][xidx], angles='uv', scale_units=None, scale=None,
+                #                   alpha=0.6, color=branch_colors[sidx])
+                #     ax.scatter(xplot[xidx], yplot[xidx], c=c[xidx], cmap=dspec_cmaps[0], vmin=vrange[burstname]['f'][0],
+                #                vmax=vrange[burstname]['f'][1], alpha=1.0)
+                #     scalebartext = '3,000 km'
+                #     scalelength = 3.e6 * u.m * smap.rsun_obs / smap.rsun_meters
+                #     ct.add_scalebar(scalelength.value, 0.95, 0.10, ax, label=scalebartext, yoff=-0.008, color='white',
+                #                     alpha=1.0)
+                #     tstring = tplt.iso.replace(' ', 'T').replace(':', '').replace('-', '')
+                #     fig.savefig('{0}{1}-{2}.png'.format(outdir, os.path.basename(statusfile)[:7], tstring),
+                #                 format='png', dpi=150)
+                # DButil.img2movie('{0}{1}'.format(outdir, os.path.basename(statusfile)[:7]),
+                #                  outname='{0}{1}-movie'.format(outdir, os.path.basename(statusfile)[:7]),
+                #                  overwrite=True)
                 fig3 = plt.figure(3, figsize=(6, 6))
                 fig3.clf()
                 circle1 = plt.Circle((0, 0), 1.5, fill=False)
-                plt.quiver(vxplot[:-1], vyplot[:-1],
-                           vxplot[1:] - vxplot[:-1],
-                           vyplot[1:] - vyplot[:-1], angles='uv',
-                           scale_units=None,
-                           scale=None,
-                           alpha=0.3,
-                           color='black')
+                plt.quiver(vxplot[:-1], vyplot[:-1], vxplot[1:] - vxplot[:-1], vyplot[1:] - vyplot[:-1], angles='uv',
+                           scale_units=None, scale=None, alpha=0.3, color='black')
                 ax = plt.gca()
                 ax.add_artist(circle1)
                 ax.scatter(vxplot, vyplot, alpha=1.0, c=xs, cmap=dspec_cmaps[0])
@@ -1335,27 +1325,31 @@ if mkmovie2:
                 ax.set_ylim(-15, 15)
                 ax.set_xlabel('Vx [arcsec/s]')
                 ax.set_ylabel('Vy [arcsec/s]')
-                fig3.savefig('{0}velocity.png'.format(outdir), format='png',
-                             dpi=300)
+                fig3.savefig('{0}velocity.png'.format(outdir), format='png', dpi=300)
 
+                fig2 = plt.figure(2, figsize=(4, 6))
                 fig2.clf()
-                plt.figure(2)
                 tplt = tplts[len(tplts) / 2]
                 smap = mapcube[np.argmin(np.abs(tplt.jd - t_maps.jd))]
-                ax = plot_map(smap)
+                ax = plot_map(smap, cmap='gray_r', smap_colorbar=False)
                 ax.errorbar(xplot, yplot, xerr=err, yerr=err, fmt='none', c='white', alpha=0.3, errorevery=3)
-                ax.quiver(xplot[:-1], yplot[:-1], xplot[1:] - xplot[:-1],
-                          yplot[1:] - yplot[:-1], angles='uv', scale_units=None, scale=None, alpha=0.6,
-                          color=branch_colors[sidx])
-                ax.scatter(xplot, yplot, c=c, cmap=dspec_cmaps[0],
-                           vmin=vrange[burstname]['f'][0],
+                ax.quiver(xplot[:-1], yplot[:-1], xplot[1:] - xplot[:-1], yplot[1:] - yplot[:-1], angles='uv',
+                          scale_units=None, scale=None, alpha=0.6, color=branch_colors[sidx])
+                ax.scatter(xplot, yplot, c=c, cmap=dspec_cmaps[0], vmin=vrange[burstname]['f'][0],
                            vmax=vrange[burstname]['f'][1], alpha=1.0)
+                ax.set_xlim(-641.78044977746868, -635.17863477746869)
+                ax.set_ylim(-131., -119.)
+                ax.set_axis_off()
+                ax.set_title = ''
+                scalebartext = '1,500 km'
+                scalelength = 1.5e6 * u.m * smap.rsun_obs / smap.rsun_meters
+                ct.add_scalebar(scalelength.value, 0.95, 0.10, ax, label=scalebartext, yoff=-0.008, color='white',
+                                alpha=1.0)
                 fig2.savefig('{0}overview.png'.format(outdir), format='png', dpi=150)
     plt.ion()
     # fig.close()
     # fig2.close()
 
-mkmovie3 = 1
 # do a movie of 3D trajectories of the burst
 if mkmovie3:
     from sunpy.physics.transforms.solar_rotation import mapcube_solar_derotate
@@ -1415,7 +1409,7 @@ if mkmovie3:
 
             if mask:
                 if mask == 'threshold':
-                    mp = ma.masked_outside(p, dmin, dmax)
+                    mp = ma.masked_outside(p, thrshd, dmax)
                 elif mask == 'native':
                     mp = p
                 mx = ma.array(x, mask=mp.mask)
@@ -1494,9 +1488,8 @@ if mkmovie3:
                 # ax.quiver(xplot[:-1], yplot[:-1], xplot[1:] - xplot[:-1],
                 #           yplot[1:] - yplot[:-1], angles='uv', scale_units=None, scale=None, alpha=0.6,
                 #           color=branch_colors[sidx])
-                cax = ax.scatter(xplot, yplot, neplot, c=c, cmap='jet',
-                                 vmin=tmin.plot_date,
-                                 vmax=tmax.plot_date, alpha=1.0, s=80)
+                cax = ax.scatter(xplot, yplot, neplot, c=c, cmap='jet', vmin=tmin.plot_date, vmax=tmax.plot_date,
+                                 alpha=1.0, s=80)
             smap = mapcube[np.argmin(np.abs(tplt.jd - t_maps.jd))]
             nx, ny = smap.dimensions
             x_smap = np.linspace(smap.xrange[0].value, smap.xrange[1].value, nx.value)
@@ -1517,9 +1510,9 @@ if mkmovie3:
             cbar = plt.colorbar(cax, ax=ax, label='Time')
             cbar.set_ticks(
                 [cax.colorbar.vmin + t * (cax.colorbar.vmax - cax.colorbar.vmin) for t in cbar.ax.get_yticks()])
-            cbar_labels = map(lambda x: x.strftime('%H:%M:%S'),
-                              Time([(cax.colorbar.vmin + t * (cax.colorbar.vmax - cax.colorbar.vmin)) for t in
-                                    cbar.ax.get_yticks()], format='plot_date').to_datetime())
+            cbar_labels = map(lambda x: x.strftime('%H:%M:%S'), Time(
+                [(cax.colorbar.vmin + t * (cax.colorbar.vmax - cax.colorbar.vmin)) for t in cbar.ax.get_yticks()],
+                format='plot_date').to_datetime())
             cbar.set_ticklabels(cbar_labels)
             ax.set_zlim(1.2, 2.4)
             ax.set_xlabel('Solar X [{xpos}]'.format(xpos=smap.spatial_units.x))
@@ -1541,12 +1534,123 @@ if mkmovie3:
 
             Writer = animation.writers['ffmpeg']
             writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
-            burst_ani = animation.FuncAnimation(fig2, update_frame, nframe, fargs=(az, el),
-                                                interval=50, blit=False)
+            burst_ani = animation.FuncAnimation(fig2, update_frame, nframe, fargs=(az, el), interval=50, blit=False)
             outdir = '{0}{1}-centroid/'.format(datadir, burstname)
             burst_ani.save(outdir + 'burst.mp4', writer=writer)
 
-mkmovie4 = 1
+if dopltmass:
+    from sunpy.physics.transforms.solar_rotation import mapcube_solar_derotate
+    from mpl_toolkits.mplot3d import Axes3D
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.animation as animation
+
+    fig2 = plt.figure(2, figsize=(9, 6))
+    fig2.clf()
+    ax = fig2.add_subplot(111, projection='3d')
+    burstnames = ['', '', 'U04']
+    datadir = '/Users/fisher/Desktop/work/2016/NJIT/2014-11-01/Uburst/'
+    with open('{}/img_centroid_new/mapcube_{}'.format(datadir, '304'), 'rb') as sf:
+        mapcube0 = pickle.load(sf)
+    submaplist = []
+
+    t_maps = [ll['t_obs'] for ll in mapcube0.all_meta()]
+    t_maps = Time(t_maps)
+    for bidx, burstname in enumerate(burstnames):
+        if burstname:
+            if burstname in ['U02', 'U04']:
+                if burstname == 'U04':
+                    tmean = Time('2014-11-01 16:46:18.900')
+                    tspan = 2.5 / 24 / 3600
+                else:
+                    tmean = Time('2014-11-01 16:45:44')
+                    tspan = 5. / 24 / 3600
+                x0, x1, y0, y1 = -647.5, -630, -135, -117.5
+            else:
+                x0, x1, y0, y1 = -652.5, -622.5, -147.5, -117.5
+            tmin = Time(tmean.jd - tspan, format='jd')
+            tmax = Time(tmean.jd + tspan, format='jd')
+            submaplist = []
+            for sidx, smap in enumerate(mapcube0):
+                submaptmp = smap.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]),
+                                        u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
+                submaplist.append(submaptmp)
+            mapcube = mapcube_solar_derotate(sunpy.map.Map(submaplist, cube=True))
+            cents = np.load('{}{}-centroid/centroidsLL.npy'.format(datadir, burstname))
+            x = cents.item()['x']
+            y = cents.item()['y']
+            p = cents.item()['peak']
+            f = cents.item()['freq']
+            fitsarr = cents.item()['fitsarr']
+            ff = np.tile(f, p.shape[1]).reshape(p.shape[1], p.shape[0]).swapaxes(0, 1)
+            t = Time(cents.item()['time'] / 3600. / 24., format='jd')
+            # tdatetime = mdates.date2num(t.datetime)
+            tdatetime = t.plot_date
+            nfreq, ntime = p.shape
+            statusfiles = glob.glob('{}{}-centroid/branch?_status'.format(datadir, burstname))
+
+            thrshd = 40
+            mp = ma.masked_less(p, thrshd)
+            mx = ma.array(x, mask=mp.mask)
+            my = ma.array(y, mask=mp.mask)
+            mf = ma.array(ff, mask=mp.mask)
+            mt = ma.array(np.vstack([t.jd] * nfreq), mask=mp.mask)
+            neplot = (mf * 1e9 / 8.98e3) ** 2 / 1e10
+            c = Time(mt, format='jd').plot_date
+            xplot = mx
+            yplot = my
+            tplt = np.mean(mt)
+            cax = ax.scatter(xplot, yplot, neplot, c=c, cmap='jet', vmin=tmin.plot_date, vmax=tmax.plot_date, alpha=1.0,
+                             s=80)
+            smap = mapcube[np.argmin(np.abs(tplt - t_maps.jd))]
+            nx, ny = smap.dimensions
+            x_smap = np.linspace(smap.xrange[0].value, smap.xrange[1].value, nx.value)
+            y_smap = np.linspace(smap.yrange[0].value, smap.yrange[1].value, ny.value)
+            xx, yy = np.meshgrid(x_smap, y_smap)
+            clrange = DButil.sdo_aia_scale_dict(wavelength=smap.meta['wavelnth'])
+            vmax = clrange['high']
+            vmin = clrange['low']
+            norm = colors.LogNorm(vmin=vmin, vmax=vmax)
+            cmap = cm.get_cmap('sdoaia{}'.format(smap.meta['wavelnth']))
+            imshow_args = {'cmap': cmap}
+            ax.view_init(elev=195., azim=60)
+            if ax.zaxis_inverted():
+                ax.invert_zaxis()
+            ax.contourf(xx, yy, smap.data, 256, zdir='z', offset=2.4, zorder=1, **imshow_args)
+            cbar = plt.colorbar(cax, ax=ax, label='Time')
+            cbar.set_ticks(
+                [cax.colorbar.vmin + t * (cax.colorbar.vmax - cax.colorbar.vmin) for t in cbar.ax.get_yticks()])
+            cbar_labels = map(lambda x: x.strftime('%H:%M:%S'), Time(
+                [(cax.colorbar.vmin + t * (cax.colorbar.vmax - cax.colorbar.vmin)) for t in cbar.ax.get_yticks()],
+                format='plot_date').to_datetime())
+            cbar.set_ticklabels(cbar_labels)
+            ax.set_zlim(1.2, 2.4)
+            ax.set_xlabel('Solar X [{xpos}]'.format(xpos=smap.spatial_units.x))
+            ax.set_ylabel('Solar Y [{ypos}]'.format(ypos=smap.spatial_units.y))
+            ax.set_zlabel(r'Density [$\times 10^{10} cm^{-3}$]')
+            # fig2.savefig('{0}overview.png'.format(outdir), format='png', dpi=150)
+            # fig.close()
+            # fig2.close()
+
+            nframe = 361
+            az, el = np.linspace(-300, 60, nframe), [195] * nframe
+
+
+            def update_frame(num, az, el):
+                ax.view_init(elev=el[num], azim=az[num])
+                ax.set_zlim(1.2, 2.4)
+                return
+
+
+            Writer = animation.writers['ffmpeg']
+            writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+            burst_ani = animation.FuncAnimation(fig2, update_frame, nframe, fargs=(az, el), interval=50, blit=False)
+            outdir = '{0}{1}-centroid/'.format(datadir, burstname)
+            burst_ani.save(outdir + 'burst.mp4', writer=writer)
+
+
 # same as mkmovie4, using mayavi to plot. to be completed
 if mkmovie4:
     from sunpy.physics.transforms.solar_rotation import mapcube_solar_derotate
@@ -1598,7 +1702,7 @@ if mkmovie4:
 
             if mask:
                 if mask == 'threshold':
-                    mp = ma.masked_outside(p, dmin, dmax)
+                    mp = ma.masked_outside(p, thrshd, dmax)
                 elif mask == 'native':
                     mp = p
                 mx = ma.array(x, mask=mp.mask)
@@ -1677,8 +1781,8 @@ if mkmovie4:
                 # ax.quiver(xplot[:-1], yplot[:-1], xplot[1:] - xplot[:-1],
                 #           yplot[1:] - yplot[:-1], angles='uv', scale_units=None, scale=None, alpha=0.6,
                 #           color=branch_colors[sidx])
-                l = mlab.points3d(xplot, yplot, neplot * 10, colormap='jet', vmin=tmin.plot_date,
-                                  vmax=tmax.plot_date, scale_factor=0.2)
+                pts = mlab.points3d(xplot, yplot, neplot * 10, colormap='jet', vmin=tmin.plot_date, vmax=tmax.plot_date,
+                                    scale_factor=0.2)
                 # cax = ax.scatter(xplot, yplot, neplot, c=c, cmap='jet',
                 #                  vmin=tmin.plot_date,
                 #                  vmax=tmax.plot_date, alpha=1.0, s=80)
@@ -1729,7 +1833,160 @@ if mkmovie4:
 
             Writer = animation.writers['ffmpeg']
             writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
-            burst_ani = animation.FuncAnimation(fig2, update_frame, nframe, fargs=(az, el),
-                                                interval=50, blit=False)
+            burst_ani = animation.FuncAnimation(fig2, update_frame, nframe, fargs=(az, el), interval=50, blit=False)
             outdir = '{0}{1}-centroid/'.format(datadir, burstname)
             burst_ani.save(outdir + 'burst.mp4', writer=writer)
+
+if dopltmass_mlab:
+    from sunpy.physics.transforms.solar_rotation import mapcube_solar_derotate
+    from mayavi import mlab
+
+    burstnames = ['', '', 'U04']
+    datadir = '/Users/fisher/Desktop/work/2016/NJIT/2014-11-01/Uburst/'
+    with open('{}/img_centroid_new/mapcube_{}'.format(datadir, '304'), 'rb') as sf:
+        mapcube0 = pickle.load(sf)
+    submaplist = []
+
+    t_maps = [ll['t_obs'] for ll in mapcube0.all_meta()]
+    t_maps = Time(t_maps)
+    for bidx, burstname in enumerate(burstnames):
+        if burstname:
+            if burstname in ['U02', 'U04']:
+                if burstname == 'U04':
+                    tmean = Time('2014-11-01 16:46:18.900')
+                    tspan = 2.5 / 24 / 3600
+                    # tmean = Time('2014-11-01 16:46:22')
+                    # tspan = 8.0 / 24 / 3600
+                else:
+                    tmean = Time('2014-11-01 16:45:44')
+                    tspan = 5. / 24 / 3600
+                x0, x1, y0, y1 = -647.5, -630, -135, -117.5
+            else:
+                x0, x1, y0, y1 = -652.5, -622.5, -147.5, -117.5
+            tmin = Time(tmean.jd - tspan, format='jd')
+            tmax = Time(tmean.jd + tspan, format='jd')
+            submaplist = []
+            for sidx, smap in enumerate(mapcube0):
+                submaptmp = smap.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]),
+                                        u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
+                submaplist.append(submaptmp)
+            mapcube = mapcube_solar_derotate(sunpy.map.Map(submaplist, cube=True))
+            cents = np.load('{}{}-centroid/centroidsLL.npy'.format(datadir, burstname))
+            x = cents.item()['x']
+            y = cents.item()['y']
+            p = cents.item()['peak']
+            f = cents.item()['freq']
+            fitsarr = cents.item()['fitsarr']
+            ff = np.tile(f, p.shape[1]).reshape(p.shape[1], p.shape[0]).swapaxes(0, 1)
+            t = Time(cents.item()['time'] / 3600. / 24., format='jd')
+            # tdatetime = mdates.date2num(t.datetime)
+            tdatetime = t.plot_date
+            nfreq, ntime = p.shape
+            statusfiles = glob.glob('{}{}-centroid/branch?_status'.format(datadir, burstname))
+
+            thrshd = 32
+            # thrshd = 27
+            # thrshd = 10
+            mp = ma.masked_less_equal(p, thrshd)
+            mx = ma.array(x, mask=mp.mask)
+            my = ma.array(y, mask=mp.mask)
+            mf = ma.array(ff, mask=mp.mask)
+            fig4, axs4, lines, scatters, linebuilder = pltspec(tdatetime, f, [mp, mx, my], vrange[burstname])
+            mt = ma.array(np.vstack([t.jd] * nfreq), mask=mp.mask)
+            neplot = (ma.compressed(mf) * 1e9 / 8.98e3) ** 2 / 1e10
+            hgtplot = 30. * np.log(2.5 / neplot) - 5.0
+            pplot = ma.compressed(mp) ** 3
+            pplot = pplot / np.max(pplot)  # / 2.0
+            c = Time(ma.compressed(mt), format='jd').plot_date
+            xplot = ma.compressed(mx)
+            yplot = ma.compressed(my)
+            tplt = np.mean(mt)
+            mfig = mlab.figure(size=(900, 700), bgcolor=(0.99, 0.99, 0.99), fgcolor=(0, 0, 0))
+            pts = mlab.points3d(xplot, yplot, hgtplot, colormap='jet', vmin=tmin.plot_date, vmax=tmax.plot_date,
+                                scale_factor=0.5)
+            # extent=[np.min(xplot), np.max(xplot), np.min(yplot), np.max(yplot), 1,20])
+            pts.glyph.color_mode = "color_by_scalar"
+            pts.mlab_source.dataset.point_data.scalars = c
+            pts.glyph.scale_mode = 'scale_by_vector'
+            pts.mlab_source.dataset.point_data.vectors = np.transpose(np.tile(pplot, (3, 1)))
+            # mlab_clb = mlab.colorbar(pts, title='Time', orientation='vertical')
+            smap = mapcube[np.argmin(np.abs(tplt - t_maps.jd))]
+            nx, ny = smap.dimensions
+            x_smap = np.linspace(smap.xrange[0].value, smap.xrange[1].value, nx.value)
+            y_smap = np.linspace(smap.yrange[0].value, smap.yrange[1].value, ny.value)
+            xx, yy = np.meshgrid(x_smap, y_smap)
+            clrange = DButil.sdo_aia_scale_dict(wavelength=smap.meta['wavelnth'])
+            vmax = clrange['high']
+            vmin = clrange['low']
+            norm = colors.LogNorm(vmin=vmin, vmax=vmax)
+            cmap = cm.get_cmap('sdoaia{}'.format(smap.meta['wavelnth']))
+            imshow_args = {'cmap': cmap}
+            mlab_im = mlab.imshow(np.transpose(smap.data),
+                                  extent=[smap.xrange[0].value, smap.xrange[1].value, smap.yrange[0].value,
+                                          smap.yrange[1].value, 0, 0], colormap='gray', vmax=vmax, vmin=vmin)
+            mlab_outline = mlab.outline(pts, opacity=0.2,
+                                        extent=[smap.xrange[0].value, smap.xrange[1].value, smap.yrange[0].value,
+                                                smap.yrange[1].value, 0, np.nanmax(hgtplot)])
+            mlab_axes = mlab.axes(mlab_outline)
+            mlab_axes.axes.font_factor = 1.
+            mlab_xlabel = mlab.xlabel('Solar X [{xpos}]'.format(xpos=smap.spatial_units.x), object=mlab_axes)
+            mlab_ylabel = mlab.ylabel('Solar Y [{ypos}]'.format(ypos=smap.spatial_units.y), object=mlab_axes)
+            # mlab_zlabel = mlab.zlabel(r'Density [$\times 10^{10} cm^{-3}$]', object=mlab_axes)
+            mlab_zlabel = mlab.zlabel('Pseudo-height', object=mlab_axes)
+            mlab.orientation_axes()
+            v = (
+                -22.922482347017496, 82.773599226676239, 42.199999999998845, [-639.82400909, -127.15131564, 5.98696341])
+            # mlab.view(azimuth=-22.733470835484969, elevation=78.510163166936607, distance=42.2,
+            #           focalpoint=[-639.80083297, -127.26821974, 5.43944316])
+            mlab.view(*v)
+            mlab.roll(-86.8584361987099)
+            v = mlab.view()
+            outdir = '{0}{1}-centroid/3Dplot/'.format(datadir, burstname)
+            ext = '.png'
+            filename = os.path.join(outdir, 'overview{}'.format(ext))
+            mlab.savefig(filename)
+
+            doanimation = False
+
+            if doanimation:
+                mspts = pts.mlab_source
+                if burstname == 'U02':
+                    tidxs, = np.where((t >= Time('2014-11-01 16:45:39')) & (t <= Time('2014-11-01 16:45:48')))
+                elif burstname == 'U04':
+                    tidxs, = np.where((t >= Time('2014-11-01 16:46:16')) & (t <= Time('2014-11-01 16:46:22')))
+                prefix = 'ani'
+
+
+                @mlab.animate(delay=10)
+                def anim(tidxs):
+                    mfig = mlab.gcf()
+                    for i, tt in enumerate(tidxs):
+                        # animation updates here
+                        mp_ = mp[:, tt]
+                        mx_ = mx[:, tt]
+                        my_ = my[:, tt]
+                        mf_ = mf[:, tt]
+                        mt_ = mt[:, tt]
+                        if mp_.count():
+                            neplot = (ma.compressed(mf_) * 1e9 / 8.98e3) ** 2 / 1e10
+                            hgtplot = 30. * np.log(2.5 / neplot) - 5.0
+                            pplot = ma.compressed(mp_) ** 3
+                            pplot = pplot / np.max(pplot)  # / 2.0
+                            c = Time(ma.compressed(mt_), format='jd').plot_date
+                            xplot = ma.compressed(mx_)
+                            yplot = ma.compressed(my_)
+                            # pts.mlab_source.dataset.point_data.vectors = np.transpose(np.tile(pplot, (3, 1)))
+                            pts.mlab_source.reset(x=xplot, y=yplot, z=hgtplot, u=pplot, v=pplot, w=pplot, scalars=c)
+                            mfig.scene.reset_zoom()
+                            mlab.view(*v)
+                            tstring = t[tt].iso.replace(' ', 'T').replace(':', '').replace('-', '')
+                            filename = os.path.join(outdir, '{}_{}{}'.format(prefix, tstring, ext))
+                            mlab.savefig(filename)
+                            yield
+
+
+                anim(tidxs)
+                # mlab.show()
+
+                DButil.img2movie(imgprefix=outdir + prefix + '_', outname=outdir + 'burst_3Dplot', size='900x664',
+                                 overwrite=True)
