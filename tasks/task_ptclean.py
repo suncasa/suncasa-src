@@ -103,7 +103,7 @@ def clean_iter(tim, freq, vis, imageprefix, imagesuffix,
             # check if ephemfile and msinfofile exist
             if not ephem:
                 print("ephemeris info does not exist, querying from JPL Horizons on the fly")
-                ephem = hf.read_horizons(vis)
+                ephem = hf.read_horizons(vis=vis)
             if not msinfo:
                 print("ms info not provided, generating one on the fly")
                 msinfo = hf.read_msinfo(vis)
@@ -142,7 +142,7 @@ def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, re
     if doreg:
         # check if ephem and msinfo exist. If not, generate one on the fly
         try:
-            ephem = hf.read_horizons(vis)
+            ephem = hf.read_horizons(vis=vis)
         except ValueError:
             print("error in obtaining ephemeris")
         try:

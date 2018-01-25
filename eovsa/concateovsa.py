@@ -43,6 +43,19 @@ def concateovsa(msname, msfiles, visprefix='./', doclearcal=True, keep_orig_ms=F
     tb.putcell('TIME_RANGE', 0, [tim0, tim1])
     tb.close()
 
+    tb.open(concatvis + '/DATA_DESCRIPTION', nomodify=False)
+    nrows = tb.nrows()
+    pol_id = tb.getcol('POLARIZATION_ID')
+    tb.removerows(np.where(pol_id !=0)[0])
+    tb.close()
+
+    tb.open(concatvis, nomodify=False)
+    dd_id = tb.getcol('DATA_DESC_ID')
+    idx_dd_id, = np.where(dd_id >=nrows/2)
+    dd_id[idx_dd_id] = dd_id[idx_dd_id] - nrows/2
+    tb.putcol('DATA_DESC_ID',dd_id)
+    tb.close()
+
     tb.open(concatvis + '/FIELD', nomodify=False)
     nobs = tb.nrows()
     tb.removerows([i + 1 for i in range(nobs - 1)])
