@@ -259,7 +259,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
 
 
 def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=None, udb_corr=True, nocreatms=None,
-                doconcat=None, modelms=None, doscaling=True, keep_nsclms=False):
+                doconcat=None, modelms=None, doscaling=False, keep_nsclms=False):
     casalog.origin('importeovsa')
 
     # if type(idbfiles) == Time:
