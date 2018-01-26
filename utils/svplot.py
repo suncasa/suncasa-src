@@ -597,7 +597,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
         fi.close()
 
         try:
-            os.system('python goes.py')
+            os.system('python {}'.format(goesscript))
         except NameError:
             print "Bad input names"
         except ValueError:
