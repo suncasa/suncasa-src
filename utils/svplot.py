@@ -8,7 +8,6 @@ import urllib2
 from split_cli import split_cli as split
 from ptclean_cli import ptclean_cli as ptclean
 from suncasa.utils import helioimage2fits as hf
-from suncasa.utils import dspec2 as ds
 import sunpy.map as smap
 from sunpy.net import vso
 from astropy import units as u
