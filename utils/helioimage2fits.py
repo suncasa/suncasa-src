@@ -21,18 +21,18 @@ except:
 
 # from astropy.constants import R_sun, au
 
-def read_horizons(t0=None,dur=None,vis=None,observatory=None,verbose=False):
+def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     import urllib2
     import ssl
     if not t0 and not vis:
-        t0=Time.now()
+        t0 = Time.now()
     if not dur:
-            dur=1./60./24. #default to 2 minutes
+        dur = 1. / 60. / 24.  # default to 2 minutes
     if t0:
         try:
-            btime=Time(t0)
+            btime = Time(t0)
         except:
-            print('input time '+str(t0)+' not recognized')
+            print('input time ' + str(t0) + ' not recognized')
             return -1
     if vis:
         if not os.path.exists(vis):
@@ -63,18 +63,20 @@ def read_horizons(t0=None,dur=None,vis=None,observatory=None,verbose=False):
                 print "End time of this scan " + etime_vis.iso
 
             # extend the start and end time for jpl horizons by 0.5 hr on each end
-            btime = Time(btime_vis.mjd - 0.5/24.,format='mjd')
-            dur = etime_vis.mjd - btime_vis.mjd + 1.0/24.
+            btime = Time(btime_vis.mjd - 0.5 / 24., format='mjd')
+            dur = etime_vis.mjd - btime_vis.mjd + 1.0 / 24.
         except:
             print 'error in reading ms file: ' + vis + ' to obtain the ephemeris!'
             return -1
-    
+
     # default the observatory to VLA, if none provided
     if not observatory:
         observatory = '-5'
 
-    etime=Time(btime.mjd + dur,format='mjd')
-    cmdstr = "http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',',') + "'&STEP_SIZE='1 m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
+    etime = Time(btime.mjd + dur, format='mjd')
+    cmdstr = "http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
+        observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
+                                                                                              ',') + "'&STEP_SIZE='1 m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
     try:
         context = ssl._create_unverified_context()
         f = urllib2.urlopen(cmdstr, context=context)
@@ -110,6 +112,7 @@ def read_horizons(t0=None,dur=None,vis=None,observatory=None,verbose=False):
     # convert list of dictionary to a dictionary of arrays
     ephem = {'time': t, 'ra': ra, 'dec': dec, 'p0': p0, 'delta': delta}
     return ephem
+
 
 def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
     import glob
@@ -371,10 +374,10 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
             delta0 = delta0[ind - 1] + ddelta0 / dt0 * dt_ref
         else:
             try:
-                ra0=ra0[0]
-                dec0=dec0[0]
-                p0=p0[0]
-                delta0=delta0[0]
+                ra0 = ra0[0]
+                dec0 = dec0[0]
+                p0 = p0[0]
+                delta0 = delta0[0]
             except:
                 print "Error in retrieving info from ephemeris!"
         if ra0 < 0:
