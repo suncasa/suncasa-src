@@ -331,7 +331,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='RR,
             print 'Saving plot to :' + os.path.join(figdir_, figname)
         plt.savefig(os.path.join(figdir_, figname))
     plt.close(fig)
-    DButil.img2html(figdir_)
+    DButil.img2html_movie(figdir_)
 
 
 def dspec_external(vis, workdir='./', specfile=None):
