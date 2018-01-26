@@ -774,11 +774,11 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             else:
                 title = 'AIA {0:.0f}'.format(aiamap.wavelength.value)
             aiamap.plot(axes=ax4)
-            ax4.set_title(title + ' ' + stokes[0], fontsize = 12)
+            ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize = 12)
             aiamap.draw_limb()
             aiamap.draw_grid()
             aiamap.plot(axes=ax6)
-            ax6.set_title(title + ' ' + stokes[1], fontsize = 12)
+            ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize = 12)
             aiamap.draw_limb()
             aiamap.draw_grid()
             if rmap:
