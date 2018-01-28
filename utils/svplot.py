@@ -233,6 +233,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
         axs_dspec.append(plt.subplot(gs[2:, hnspw:], sharex=axs_dspec[0], sharey=axs_dspec[0]))
 
     fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+    timetext = fig.text(0.01, 0.98, '', color='w', fontweight='bold', fontsize=12, ha='left', va='top')
     for i in range(ntime):
         plt.ioff()
         # plt.clf()
@@ -246,7 +247,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
         #     continue
         # fig=plt.figure(figsize=(9,6))
         # fig.suptitle('EOVSA @ '+plttime.iso[:19])
-        fig.text(0.01, 0.98, plttime.iso[:19], color='w', fontweight='bold', fontsize=12, ha='left', va='top')
+        timetext.set_text(plttime.iso[:19])
         if verbose:
             print 'Plotting image at: ', plttime.iso
 
@@ -388,7 +389,7 @@ def dspec_external(vis, workdir='./', specfile=None):
 
 def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,LL', dmin=None, dmax=None,
            goestime=None, reftime=None, fov=None, usephacenter=True, aiawave=171, imagefile=None, savefig=False,
-           aiafits=None, fitsfile=None, mkmovie=False, overwrite=True, twidth=1, verbose=True):
+           aiafits=None, fitsfile=None, mkmovie=False, ncpu=10, overwrite=True, twidth=1, verbose=True):
     '''
     Required inputs:
             vis: calibrated CASA measurement set
@@ -532,7 +533,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
                 qlookfigdir = os.path.join(workdir, 'qlookimgs/')
                 imresfile = os.path.join(qlookfitsdir, '{}.imres.npz'.format(os.path.basename(vis)))
                 if overwrite:
-                    imres = mk_qlook_image(vis, twidth=twidth, ncpu=8, imagedir=qlookfitsdir, phasecenter=phasecenter,
+                    imres = mk_qlook_image(vis, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir, phasecenter=phasecenter,
                                            stokes=stokes, c_external=True)
                 else:
                     if os.path.exists(imresfile):
@@ -540,7 +541,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
                         imres = imres['imres'].item()
                     else:
                         print('Image results file not found; Creating new images.')
-                        imres = mk_qlook_image(vis, twidth=twidth, ncpu=8, imagedir=qlookfigdir,
+                        imres = mk_qlook_image(vis, twidth=twidth, ncpu=ncpu, imagedir=qlookfigdir,
                                                phasecenter=phasecenter, stokes=stokes, c_external=True)
                 if not os.path.exists(qlookfigdir):
                     os.makedirs(qlookfigdir)
