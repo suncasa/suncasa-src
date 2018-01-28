@@ -33,10 +33,8 @@ import copy
 import pdb
 
 
-def mk_qlook_image(vis, ncpu=10, twidth=12, stokes='I,V', antenna='', imagedir=None,
-                   spws=[], toTb=True, overwrite=True, doslfcal=False,
-                   phasecenter=''):
-
+def mk_qlook_image(vis, ncpu=10, twidth=12, stokes='I,V', antenna='', imagedir=None, spws=[], toTb=True, overwrite=True,
+                   doslfcal=False, phasecenter='', c_external=True):
     vis = [vis]
     subdir = ['/']
 
@@ -63,7 +61,7 @@ def mk_qlook_image(vis, ncpu=10, twidth=12, stokes='I,V', antenna='', imagedir=N
         if observatory == 'EOVSA':
             spws = ['1~5', '6~10', '11~15', '16~25']
     if observatory == 'EOVSA':
-        print 'Provide stokes: '+str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
+        print 'Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
         stokes = 'I,V'
 
     msfilebs = os.path.basename(msfile)
@@ -97,11 +95,35 @@ def mk_qlook_image(vis, ncpu=10, twidth=12, stokes='I,V', antenna='', imagedir=N
         imagesuffix = '.spw' + spwstr.replace('~', '-')
         # if cfreq > 10.:
         #     antenna = antenna + ';!0&1;!0&2'  # deselect the shortest baselines
-        sto = stokes.replace(',','')
-        res = ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=twidth, uvrange=uvrange, spw=spw,
-                      ncpu=ncpu, niter=1000, gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=sto,
-                      doreg=True, overwrite=overwrite, toTb=toTb, restoringbeam=restoringbeam, uvtaper=True,
-                      outertaper=['30arcsec'], phasecenter=phasecenter)
+        sto = stokes.replace(',', '')
+        if c_external:
+            cleanscript = os.path.join(imdir, 'ptclean_external.py')
+            resfile = os.path.join(imdir, os.path.basename(msfile) + '.res.npz')
+            os.system('rm -rf {}'.format(cleanscript))
+            inpdict = {'vis': msfile, 'imageprefix': imdir, 'imagesuffix': imagesuffix, 'twidth': twidth,
+                       'uvrange': uvrange, 'spw': spw, 'ncpu': ncpu, 'niter': 1000, 'gain': 0.05, 'antenna': antenna,
+                       'imsize': imsize, 'cell': cell, 'stokes': sto, 'doreg': True, 'overwrite': overwrite,
+                       'toTb': toTb, 'restoringbeam': restoringbeam, 'uvtaper': True, 'outertaper': ['30arcsec'],
+                       'phasecenter': phasecenter}
+            for key, val in inpdict.items():
+                if type(val) is str:
+                    inpdict[key]='"{}"'.format(val)
+            fi = open(cleanscript, 'wb')
+            fi.write('from ptclean_cli import ptclean_cli as ptclean \n')
+            fi.write('import numpy as np \n')
+            fi.write(
+                'res = ptclean(vis={i[vis]},imageprefix={i[imageprefix]},imagesuffix={i[imagesuffix]},twidth={i[twidth]},uvrange={i[uvrange]},spw={i[spw]},ncpu={i[ncpu]},niter={i[niter]},gain={i[gain]},antenna={i[antenna]},imsize={i[imsize]},cell={i[cell]},stokes={i[stokes]},doreg={i[doreg]},overwrite={i[overwrite]},toTb={i[toTb]},restoringbeam={i[restoringbeam]},uvtaper={i[uvtaper]},outertaper={i[outertaper]},phasecenter={i[phasecenter]}) \n'.format(i=inpdict))
+            fi.write('np.savez("{}",res=res) \n'.format(resfile))
+            fi.close()
+
+            os.system('casa --nologger -c {}'.format(cleanscript))
+            res = np.load(resfile)
+            res = res['res'].item()
+        else:
+            res = ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=twidth, uvrange=uvrange,
+                          spw=spw, ncpu=ncpu, niter=1000, gain=0.05, antenna=antenna, imsize=imsize, cell=cell,
+                          stokes=sto, doreg=True, overwrite=overwrite, toTb=toTb, restoringbeam=restoringbeam,
+                          uvtaper=True, outertaper=['30arcsec'], phasecenter=phasecenter)
 
         if res:
             imres['Succeeded'] += res['Succeeded']
@@ -119,7 +141,7 @@ def mk_qlook_image(vis, ncpu=10, twidth=12, stokes='I,V', antenna='', imagedir=N
     return imres
 
 
-def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V',tojvscript=True):
+def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None):
     from matplotlib import pyplot as plt
     from sunpy import map as smap
     from sunpy import sun
@@ -211,6 +233,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
         axs_dspec.append(plt.subplot(gs[2:, hnspw:], sharex=axs_dspec[0], sharey=axs_dspec[0]))
 
     fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+    timetext = fig.text(0.01, 0.98, '', color='w', fontweight='bold', fontsize=12, ha='left', va='top')
     for i in range(ntime):
         plt.ioff()
         # plt.clf()
@@ -224,7 +247,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
         #     continue
         # fig=plt.figure(figsize=(9,6))
         # fig.suptitle('EOVSA @ '+plttime.iso[:19])
-        fig.text(0.01, 0.98, plttime.iso[:19], color='w', fontweight='bold', fontsize=12, ha='left', va='top')
+        timetext.set_text(plttime.iso[:19])
         if verbose:
             print 'Plotting image at: ', plttime.iso
 
@@ -280,8 +303,12 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                     eomap.draw_limb()
                     eomap.draw_grid()
                     ax = plt.gca()
-                    ax.set_xlim([-1080, 1080])
-                    ax.set_ylim([-1080, 1080])
+                    if fov:
+                        ax.set_xlim(fov[0])
+                        ax.set_ylim(fov[1])
+                    else:
+                        ax.set_xlim([-1080, 1080])
+                        ax.set_ylim([-1080, 1080])
                     spwran = spws_sort[i, n]
                     # freqran = [int(s) * 0.5 + 2.9 for s in spwran.split('~')]
                     # if len(freqran) == 1:
@@ -313,8 +340,13 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                     eomap.draw_limb()
                     eomap.draw_grid()
                     ax = plt.gca()
-                    ax.set_xlim([-1080, 1080])
-                    ax.set_ylim([-1080, 1080])
+                    ax.set_autoscale_on(False)
+                    if fov:
+                        ax.set_xlim(fov[0])
+                        ax.set_ylim(fov[1])
+                    else:
+                        ax.set_xlim([-1080, 1080])
+                        ax.set_ylim([-1080, 1080])
                     # ax.set_title('spw '+spwran+'( )'))
                     spwran = spws_sort[i, n]
                     freqran = [int(s) * 0.5 + 2.9 for s in spwran.split('~')]
@@ -322,8 +354,8 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                     # ax.set_title('{0:.1f} - {1:.1f} GHz'.format(freqran[0],freqran[1]))
                     # ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(freqran[0], freqran[1]), color='w',
                     #         transform=ax.transAxes, fontweight='bold', ha='right')
-                    ax.text(0.98, 0.01, '{1} @ {0:.3f} GHz'.format(0., pols[pol]), color='w',
-                            transform=ax.transAxes, fontweight='bold', ha='right')
+                    ax.text(0.98, 0.01, '{1} @ {0:.3f} GHz'.format(0., pols[pol]), color='w', transform=ax.transAxes,
+                            fontweight='bold', ha='right')
                     ax.set_title(' ')
 
                     # ax.text(0.01,0.02, plttime.isot,transform=ax.transAxes,color='white')
@@ -386,7 +418,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
 
     stokes_allowed = ['RR,LL', 'I,V', 'RRLL', 'IV']
     if not stokes in stokes_allowed:
-        print 'wrong stokes parameter '+str(stokes)+'. Allowed values are '+', '.join(stokes_allowed)
+        print 'wrong stokes parameter ' + str(stokes) + '. Allowed values are ' + ', '.join(stokes_allowed)
         return -1
     if stokes == 'RRLL':
         stokes = 'RR,LL'
@@ -421,20 +453,27 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
 
     tb.open(vis)
     starttim = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
+    endtim = Time(tb.getcell('TIME', tb.nrows() - 1) / 24. / 3600., format='mjd')
     tb.close()
     datstr = starttim.iso[:10]
 
-    try:
-        (tstart, tend) = timerange.split('~')
-        if tstart[2] == ':':
-            starttim1 = Time(datstr + 'T' + tstart)
-            endtim1 = Time(datstr + 'T' + tend)
-            timerange = '{0}/{1}~{0}/{2}'.format(datstr.replace('-', '/'), tstart, tend)
-        else:
-            starttim1 = Time(qa.quantity(tstart, 'd')['value'], format='mjd')
-            endtim1 = Time(qa.quantity(tend, 'd')['value'], format='mjd')
-    except ValueError:
-        print "keyword 'timerange' in wrong format"
+    if timerange is None or timerange == '':
+        starttim1 = starttim
+        endtim1 = endtim
+        timerange = '{0}~{1}'.format(starttim.iso.replace('-', '/').replace(' ', '/'),
+                                     endtim.iso.replace('-', '/').replace(' ', '/'))
+    else:
+        try:
+            (tstart, tend) = timerange.split('~')
+            if tstart[2] == ':':
+                starttim1 = Time(datstr + 'T' + tstart)
+                endtim1 = Time(datstr + 'T' + tend)
+                timerange = '{0}/{1}~{0}/{2}'.format(datstr.replace('-', '/'), tstart, tend)
+            else:
+                starttim1 = Time(qa.quantity(tstart, 'd')['value'], format='mjd')
+                endtim1 = Time(qa.quantity(tend, 'd')['value'], format='mjd')
+        except ValueError:
+            print "keyword 'timerange' in wrong format"
     midtime_mjd = (starttim1.mjd + endtim1.mjd) / 2.
 
     if vis.endswith('/'):
@@ -451,22 +490,22 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
     nspw = len(spwInfo)
     if not spw:
         spw = '0~' + str(nspw - 1)
-    staql = {'timerange':timerange,'spw':spw}
-    if ms.msselect(staql,onlyparse=True):
+    staql = {'timerange': timerange, 'spw': spw}
+    if ms.msselect(staql, onlyparse=True):
         ndx = ms.msselectedindices()
         chan_sel = ndx['channel']
         nspw = chan_sel.shape[0]
-        bspw = chan_sel[0,0]
-        bchan = chan_sel[0,1]
-        espw = chan_sel[-1,0]
-        echan = chan_sel[-1,2]
-        bfreq = spwInfo[str(bspw)]['Chan1Freq']+spwInfo[str(bspw)]['ChanWidth']*bchan
-        efreq = spwInfo[str(espw)]['Chan1Freq']+spwInfo[str(espw)]['ChanWidth']*echan
+        bspw = chan_sel[0, 0]
+        bchan = chan_sel[0, 1]
+        espw = chan_sel[-1, 0]
+        echan = chan_sel[-1, 2]
+        bfreq = spwInfo[str(bspw)]['Chan1Freq'] + spwInfo[str(bspw)]['ChanWidth'] * bchan
+        efreq = spwInfo[str(espw)]['Chan1Freq'] + spwInfo[str(espw)]['ChanWidth'] * echan
         bfreqghz = bfreq / 1e9
         efreqghz = efreq / 1e9
         if verbose:
             print 'selected timerange {}'.format(timerange)
-            print 'selected frequency range {0:6.3f} to {1:6.3f} GHz'.format(bfreqghz,efreqghz)
+            print 'selected frequency range {0:6.3f} to {1:6.3f} GHz'.format(bfreqghz, efreqghz)
     else:
         print "spw or timerange selection failed. Aborting..."
         ms.close()
@@ -474,7 +513,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
     ms.close()
 
     if observatory == 'EOVSA':
-        print 'Provide stokes: '+str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
+        print 'Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
         stokes = 'I,V'
 
     if mkmovie:
@@ -495,19 +534,19 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
                 qlookfigdir = os.path.join(workdir, 'qlookimgs/')
                 imresfile = os.path.join(qlookfitsdir, '{}.imres.npz'.format(os.path.basename(vis)))
                 if overwrite:
-                    imres = mk_qlook_image(vis, twidth=twidth, ncpu=8, imagedir=qlookfitsdir, phasecenter=phasecenter,
-                                           stokes=stokes)
+                    imres = mk_qlook_image(vis, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir, phasecenter=phasecenter,
+                                           stokes=stokes, c_external=True)
                 else:
                     if os.path.exists(imresfile):
                         imres = np.load(imresfile)
                         imres = imres['imres'].item()
                     else:
                         print('Image results file not found; Creating new images.')
-                        imres = mk_qlook_image(vis, twidth=twidth, ncpu=8, imagedir=qlookfigdir,
-                                               phasecenter=phasecenter, stokes=stokes)
+                        imres = mk_qlook_image(vis, twidth=twidth, ncpu=ncpu, imagedir=qlookfigdir,
+                                               phasecenter=phasecenter, stokes=stokes, c_external=True)
                 if not os.path.exists(qlookfigdir):
                     os.makedirs(qlookfigdir)
-                plt_qlook_image(imres, figdir=qlookfigdir, specdata=specdata, verbose=True, stokes=stokes)
+                plt_qlook_image(imres, figdir=qlookfigdir, specdata=specdata, verbose=True, stokes=stokes,fov=fov)
 
     else:
         spec = specdata['spec']
@@ -521,11 +560,10 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
         timstrr = spec_tim.plot_date
         plt.ion()
         fig = plt.figure(figsize=(12, 7), dpi=100)
-        gs1 = gridspec.GridSpec(3,1)
+        gs1 = gridspec.GridSpec(3, 1)
         gs1.update(left=0.08, right=0.32, wspace=0.05)
-        gs2 = gridspec.GridSpec(2,2)
-        gs2.update(left=0.38, right=0.98, hspace=0.02,wspace=0.02)
-
+        gs2 = gridspec.GridSpec(2, 2)
+        gs2.update(left=0.38, right=0.98, hspace=0.02, wspace=0.02)
 
         spec_1 = np.absolute(spec[0, 0, :, :])
         spec_2 = np.absolute(spec[1, 0, :, :])
@@ -536,20 +574,19 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             # linear feeds
             polstr = ['XX', 'YY']
 
-        print 'plot the dynamic spectrum in pol ' + ' & '.join(polstr) 
+        print 'plot the dynamic spectrum in pol ' + ' & '.join(polstr)
         ax1 = plt.subplot(gs1[0])
         ax1.pcolormesh(timstrr, freqghz, spec_1, cmap='jet', vmin=dmin, vmax=dmax)
         ax1.set_xlim(timstrr[tidx[0]], timstrr[tidx[-1]])
         ax1.xaxis_date()
         ax1.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
-        #ax1.set_xticklabels(['']*10)
+        # ax1.set_xticklabels(['']*10)
         ax1.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
         ax1.set_ylabel('Frequency (GHz)', fontsize=10)
-        ax1.set_title(observatory+' ' + datstr + ' ' + polstr[0] + ' & ' + polstr[1],
-                      fontsize=12)
+        ax1.set_title(observatory + ' ' + datstr + ' ' + polstr[0] + ' & ' + polstr[1], fontsize=12)
         ax1.set_autoscale_on(False)
         ax1.add_patch(patches.Rectangle((bt, bfreqghz), et - bt, efreqghz - bfreqghz, ec='w', fill=False))
-        ax1.plot( [(bt + et) / 2.], [(bfreqghz + efreqghz) / 2.], '*w', ms=12)  
+        ax1.plot([(bt + et) / 2.], [(bfreqghz + efreqghz) / 2.], '*w', ms=12)
         for tick in ax1.get_xticklabels():
             tick.set_fontsize(8)
         for tick in ax1.get_yticklabels():
@@ -567,7 +604,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             tick.set_fontsize(8)
         ax2.set_autoscale_on(False)
         ax2.add_patch(patches.Rectangle((bt, bfreqghz), et - bt, efreqghz - bfreqghz, ec='w', fill=False))
-        ax2.plot( [(bt + et) / 2.], [(bfreqghz + efreqghz) / 2.], '*w', ms=12)  
+        ax2.plot([(bt + et) / 2.], [(bfreqghz + efreqghz) / 2.], '*w', ms=12)
 
         # Second part: GOES plot
         if goestime:
@@ -578,7 +615,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             btgoes = datstrg + ' ' + qa.time(qa.quantity(tim[0] - 1800, 's'), form='clean', prec=9)[0]
             etgoes = datstrg + ' ' + qa.time(qa.quantity(tim[tidx[-1] - 1] + 1800, 's'), form='clean', prec=9)[0]
         if verbose:
-            print 'Acquire GOES soft X-ray data in from '+ btgoes + ' to '+ etgoes
+            print 'Acquire GOES soft X-ray data in from ' + btgoes + ' to ' + etgoes
 
         ax3 = plt.subplot(gs1[2])
 
@@ -625,13 +662,13 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             ax3.set_ylim([-7, -3])
             ax3.set_yticks([-7, -6, -5, -4, -3])
             ax3.set_yticklabels([r'$10^{-7}$', r'$10^{-6}$', r'$10^{-5}$', r'$10^{-4}$', r'$10^{-3}$'])
-            ax3.set_title('Goes Soft X-ray',fontsize=12)
+            ax3.set_title('Goes Soft X-ray', fontsize=12)
             ax3.set_ylabel('Watts m$^{-2}$')
             ax3.set_xlabel(datetime.datetime.isoformat(goest.data.index[0])[0:10])
             ax3.axvspan(dates[899], dates[dates.size - 899], alpha=0.2)
 
             ax2 = ax3.twinx()
-            #ax2.set_yscale("log")
+            # ax2.set_yscale("log")
             ax2.set_ylim([-7, -3])
             ax2.set_yticks([-7, -6, -5, -4, -3])
             ax2.set_yticklabels(['B', 'C', 'M', 'X', ''])
@@ -695,11 +732,11 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
                 print 'error in reading aiafits. Proceed without AIA'
 
         # RCP or I
-        ax4 = plt.subplot(gs2[0,0])
-        ax5 = plt.subplot(gs2[1,0])
+        ax4 = plt.subplot(gs2[0, 0])
+        ax5 = plt.subplot(gs2[1, 0])
         # LCP or V
-        ax6 = plt.subplot(gs2[0,1])
-        ax7 = plt.subplot(gs2[1,1])
+        ax6 = plt.subplot(gs2[0, 1])
+        ax7 = plt.subplot(gs2[1, 1])
 
         if fitsfile:
             pass
@@ -710,18 +747,20 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
                     print 'This is EOVSA data'
                     phasecenter = ''
                     if stokes == 'RRLL' or stokes == 'RR,LL':
-                        print 'Provide stokes: '+str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
+                        print 'Provide stokes: ' + str(
+                            stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
                         stokes = 'I,V'
                 else:
                     phasecenter = 'J2000 ' + str(eph['ra'][0])[:15] + 'rad ' + str(eph['dec'][0])[:15] + 'rad'
-                imagename = os.path.join(workdir, visname+'.outim')
+                imagename = os.path.join(workdir, visname + '.outim')
                 if os.path.exists(imagename + '.image') or os.path.exists(imagename + '.flux'):
                     os.system('rm -rf ' + imagename + '.*')
-                sto = stokes.replace(',','')
+                sto = stokes.replace(',', '')
                 print 'do clean for ' + timerange + ' in spw ' + spw + ' stokes ' + sto
                 print 'use phasecenter: ' + phasecenter
-                clean(vis=vis, imagename=imagename, selectdata=True, spw=spw, timerange=timerange, stokes=sto, niter=500,
-                      interactive=False, npercycle=50, imsize=[512, 512], cell=['5.0arcsec'], phasecenter=phasecenter)
+                clean(vis=vis, imagename=imagename, selectdata=True, spw=spw, timerange=timerange, stokes=sto,
+                      niter=500, interactive=False, npercycle=50, imsize=[512, 512], cell=['5.0arcsec'],
+                      phasecenter=phasecenter)
                 os.system('rm -rf ' + imagename + '.psf')
                 os.system('rm -rf ' + imagename + '.flux')
                 os.system('rm -rf ' + imagename + '.model')
@@ -730,7 +769,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
                 imagefile = imagename + '.image'
             fitsfile = imagefile + '.fits'
             hf.imreg(vis=vis, ephem=eph, imagefile=imagefile, timerange=timerange, reftime=reftime, fitsfile=fitsfile,
-                     verbose=True,overwrite=True)
+                     verbose=True, overwrite=True)
         print 'fits file ' + fitsfile + ' selected'
         ax4.cla()
         ax5.cla()
@@ -776,16 +815,17 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
         if 'aiamap' in vars():
             aiamap.plot_settings['cmap'] = plt.get_cmap('binary')
             if rmap:
-                title = 'AIA {0:.0f} + {1} {2:6.3f} GHz'.format(aiamap.wavelength.value, observatory, (bfreqghz + efreqghz) / 2.0)
+                title = 'AIA {0:.0f} + {1} {2:6.3f} GHz'.format(aiamap.wavelength.value, observatory,
+                                                                (bfreqghz + efreqghz) / 2.0)
             else:
                 title = 'AIA {0:.0f}'.format(aiamap.wavelength.value)
             aiamap.plot(axes=ax4)
-            ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize = 12)
+            ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize=12)
             aiamap.draw_limb()
             aiamap.draw_grid()
             aiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
             aiamap.plot(axes=ax6)
-            ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize = 12)
+            ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize=12)
             aiamap.draw_limb()
             aiamap.draw_grid()
             aiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
@@ -798,8 +838,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
                     'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'),
                      verticalalignment='bottom', horizontalalignment='left', transform=ax4.transAxes, color='k',
                      fontsize=10)
-            ax6.text(0.02, 0.02,
-                    'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'),
+            ax6.text(0.02, 0.02, 'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'),
                      verticalalignment='bottom', horizontalalignment='left', transform=ax6.transAxes, color='k',
                      fontsize=10)
         else:
@@ -813,6 +852,10 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize = 12)
             rmap2.draw_limb()
             rmap2.draw_grid()
+            #ax4.contour(rmapx.value, rmapy.value, rmap1.data, levels=np.linspace(0.2, 0.9, 5) * np.nanmax(rmap1.data),
+            #            cmap=cm.gray)
+            #ax6.contour(rmapx.value, rmapy.value, rmap2.data, levels=np.linspace(0.2, 0.9, 5) * np.nanmax(rmap2.data),
+            #            cmap=cm.gray)
             rmap2.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
             #ax4.contour(rmapx.value, rmapy.value, rmap1.data,
             #            levels=clevels1 * np.nanmax(rmap1.data), cmap=cm.gray)
@@ -857,14 +900,13 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             #subrmap2.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
         ax5.set_xlim(fov[0])
         ax5.set_ylim(fov[1])
-        ax5.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f')[:-3],
-                 verticalalignment='bottom', horizontalalignment='left', transform=ax5.transAxes, color='k', fontsize=10)
+        ax5.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f')[:-3], verticalalignment='bottom',
+                 horizontalalignment='left', transform=ax5.transAxes, color='k', fontsize=10)
         ax7.set_xlim(fov[0])
         ax7.set_ylim(fov[1])
-        ax7.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f')[:-3],
-                 verticalalignment='bottom', horizontalalignment='left', transform=ax7.transAxes, color='k', fontsize=10)
+        ax7.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f')[:-3], verticalalignment='bottom',
+                 horizontalalignment='left', transform=ax7.transAxes, color='k', fontsize=10)
 
         fig.show()
 
-        os.system('rm -rf {}'.format(goesscript))
-        #os.system('rm -rf {}'.format(goesdatafile))
+        os.system('rm -rf {}'.format(goesscript))  # os.system('rm -rf {}'.format(goesdatafile))
