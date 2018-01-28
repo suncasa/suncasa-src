@@ -388,8 +388,9 @@ def dspec_external(vis, workdir='./', specfile=None):
 
 
 def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,LL', dmin=None, dmax=None,
-           goestime=None, reftime=None, fov=None, usephacenter=True, aiawave=171, imagefile=None, savefig=False,
-           aiafits=None, fitsfile=None, mkmovie=False, ncpu=10, overwrite=True, twidth=1, verbose=True):
+           goestime=None, reftime=None, fov=None, usephacenter=True, imagefile=None, fitsfile=None,
+           plotaia=True, aiawave=171, aiafits=None,
+           savefig=False, mkmovie=False, overwrite=True, twidth=1, verbose=True):
     '''
     Required inputs:
             vis: calibrated CASA measurement set
@@ -683,53 +684,52 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
 
         # third part
         # start to download the fits files
-        if not aiafits:
-            newlist = []
-            items = glob.glob('*.fits')
-            for names in items:
-                str1 = starttim1.iso[:4] + '_' + starttim1.iso[5:7] + '_' + starttim1.iso[8:10] + 't' + starttim1.iso[
-                                                                                                        11:13] + '_' + starttim1.iso[
-                                                                                                                       14:16]
-                str2 = str(aiawave)
-                if names.endswith(".fits"):
-                    if names.find(str1) != -1 and names.find(str2) != -1:
-                        newlist.append(names)
-                newlist.append('0')
-            if os.path.exists(newlist[0]):
-                aiafits = newlist[0]
-            else:
-                print 'downloading the aiafits file'
-                client = vso.VSOClient()
-                wave1 = aiawave - 3
-                wave2 = aiawave + 3
-                t1 = Time(starttim1.mjd - 0.02 / 24., format='mjd')
-                t2 = Time(endtim1.mjd + 0.02 / 24., format='mjd')
-                qr = client.query(vso.attrs.Time(t1.iso, t2.iso), vso.attrs.Instrument('aia'),
-                                  vso.attrs.Wave(wave1 * u.AA, wave2 * u.AA))
-                res = client.get(qr, path='{file}')
+        if plotaia:
+            if not aiafits:
+                newlist = []
+                items = glob.glob('*.fits')
+                for names in items:
+                    str1 = starttim1.iso[:4] + '_' + starttim1.iso[5:7] + '_' + starttim1.iso[8:10] + 't' + starttim1.iso[11:13] + '_' + starttim1.iso[14:16]
+                    str2 = str(aiawave)
+                    if names.endswith(".fits"):
+                        if names.find(str1) != -1 and names.find(str2) != -1:
+                            newlist.append(names)
+                    newlist.append('0')
+                if newlist and os.path.exists(newlist[0]):
+                    aiafits = newlist[0]
+                else:
+                    print 'downloading the aiafits file'
+                    client = vso.VSOClient()
+                    wave1 = aiawave - 3
+                    wave2 = aiawave + 3
+                    t1 = Time(starttim1.mjd - 0.02 / 24., format='mjd')
+                    t2 = Time(endtim1.mjd + 0.02 / 24., format='mjd')
+                    qr = client.query(vso.attrs.Time(t1.iso, t2.iso), vso.attrs.Instrument('aia'),
+                                      vso.attrs.Wave(wave1 * u.AA, wave2 * u.AA))
+                    res = client.get(qr, path='{file}')
 
-        # Here something is needed to check whether it has finished downloading the fits files or not
+            # Here something is needed to check whether it has finished downloading the fits files or not
 
-        if not aiafits:
-            newlist = []
-            items = glob.glob('*.fits')
-            for nm in items:
-                str1 = starttim1.iso[:4] + '_' + starttim1.iso[5:7] + '_' + starttim1.iso[8:10] + 't' + starttim1.iso[
-                                                                                                        11:13] + '_' + starttim1.iso[
-                                                                                                                       14:16]
-                str2 = str(aiawave)
-                if nm.find(str1) != -1 and nm.find(str2) != -1:
-                    newlist.append(nm)
-            if newlist:
-                aiafits = newlist[0]
-                print 'AIA fits ' + aiafits + ' selected'
-            else:
-                print 'no AIA fits files found. Proceed without AIA'
+            if not aiafits:
+                newlist = []
+                items = glob.glob('*.fits')
+                for nm in items:
+                    str1 = starttim1.iso[:4] + '_' + starttim1.iso[5:7] + '_' + starttim1.iso[8:10] + 't' + starttim1.iso[
+                                                                                                            11:13] + '_' + starttim1.iso[
+                                                                                                                           14:16]
+                    str2 = str(aiawave)
+                    if nm.find(str1) != -1 and nm.find(str2) != -1:
+                        newlist.append(nm)
+                if newlist:
+                    aiafits = newlist[0]
+                    print 'AIA fits ' + aiafits + ' selected'
+                else:
+                    print 'no AIA fits files found. Proceed without AIA'
 
-        try:
-            aiamap = smap.Map(aiafits)
-        except:
-            print 'error in reading aiafits. Proceed without AIA'
+            try:
+                aiamap = smap.Map(aiafits)
+            except:
+                print 'error in reading aiafits. Proceed without AIA'
 
         # RCP or I
         ax4 = plt.subplot(gs2[0, 0])
@@ -807,6 +807,11 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             y2 = y0 + length
             fov = [[x1.value, x2.value], [y1.value, y2.value]]
 
+        clevels1 = np.linspace(0.2, 0.9, 5) 
+        if stokes.split(',')[1] == 'V':
+            clevels2 = np.array([-0.8, -0.6, -0.4, -0.2, 0.2, 0.4, 0.6, 0.8])
+        else:
+            clevels2 = np.linspace(0.2, 0.9, 5)
         if 'aiamap' in vars():
             aiamap.plot_settings['cmap'] = plt.get_cmap('binary')
             if rmap:
@@ -818,17 +823,19 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize=12)
             aiamap.draw_limb()
             aiamap.draw_grid()
+            aiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
             aiamap.plot(axes=ax6)
             ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize=12)
             aiamap.draw_limb()
             aiamap.draw_grid()
+            aiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
             if rmap:
                 ax4.contour(rmapx.value, rmapy.value, rmap1.data,
-                            levels=np.linspace(0.2, 0.9, 5) * np.nanmax(rmap1.data), cmap=cm.jet)
+                            levels=clevels1 * np.nanmax(rmap1.data), cmap=cm.jet)
                 ax6.contour(rmapx.value, rmapy.value, rmap2.data,
-                            levels=np.linspace(0.2, 0.9, 5) * np.nanmax(rmap2.data), cmap=cm.jet)
-            aiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
-            ax4.text(0.02, 0.02, 'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'),
+                            levels=clevels2 * np.nanmax(rmap2.data), cmap=cm.jet)
+            ax4.text(0.02, 0.02,
+                    'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'),
                      verticalalignment='bottom', horizontalalignment='left', transform=ax4.transAxes, color='k',
                      fontsize=10)
             ax6.text(0.02, 0.02, 'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'),
@@ -836,18 +843,24 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
                      fontsize=10)
         else:
             title = '{0} {1:6.3f} GHz'.format(observatory, (bfreqghz + efreqghz) / 2.0)
-            rmap1.plot(axes=ax4, title=title, cmap=cm.jet)
+            rmap1.plot(axes=ax4, cmap=cm.jet)
+            ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize = 12)
             rmap1.draw_limb()
             rmap1.draw_grid()
-            rmap2.plot(axes=ax6, title=title, cmap=cm.jet)
+            rmap1.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
+            rmap2.plot(axes=ax6, cmap=cm.jet)
+            ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize = 12)
             rmap2.draw_limb()
             rmap2.draw_grid()
-            ax4.contour(rmapx.value, rmapy.value, rmap1.data, levels=np.linspace(0.2, 0.9, 5) * np.nanmax(rmap1.data),
-                        cmap=cm.gray)
-            ax6.contour(rmapx.value, rmapy.value, rmap2.data, levels=np.linspace(0.2, 0.9, 5) * np.nanmax(rmap2.data),
-                        cmap=cm.gray)
-            rmap1.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
+            #ax4.contour(rmapx.value, rmapy.value, rmap1.data, levels=np.linspace(0.2, 0.9, 5) * np.nanmax(rmap1.data),
+            #            cmap=cm.gray)
+            #ax6.contour(rmapx.value, rmapy.value, rmap2.data, levels=np.linspace(0.2, 0.9, 5) * np.nanmax(rmap2.data),
+            #            cmap=cm.gray)
             rmap2.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
+            #ax4.contour(rmapx.value, rmapy.value, rmap1.data,
+            #            levels=clevels1 * np.nanmax(rmap1.data), cmap=cm.gray)
+            #ax6.contour(rmapx.value, rmapy.value, rmap2.data,
+            #            levels=clevels2 * np.nanmax(rmap2.data), cmap=cm.gray)
         ax4.set_xlim(-1200, 1200)
         ax4.set_ylim(-1200, 1200)
         ax6.set_xlim(-1200, 1200)
@@ -866,23 +879,25 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             subaiamap.draw_limb()
             subaiamap.draw_grid()
             ax5.contour(subrmapx.value, subrmapy.value, subrmap1.data,
-                        levels=np.linspace(0.2, 0.9, 5) * np.nanmax(subrmap1.data), cmap=cm.jet)
+                        levels=clevels1 * np.nanmax(subrmap1.data), cmap=cm.jet)
             ax7.contour(subrmapx.value, subrmapy.value, subrmap2.data,
-                        levels=np.linspace(0.2, 0.9, 5) * np.nanmax(subrmap2.data), cmap=cm.jet)
-            subaiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
+                        levels=clevels2 * np.nanmax(subrmap2.data), cmap=cm.jet)
+            #subaiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
         else:
-            subrmap1.plot(axes=ax5, title='', cmap=cm.jet)
+            subrmap1.plot(axes=ax5, cmap=cm.jet)
+            ax5.set_title(title + ' ' + stokes.split(',')[0], fontsize = 12)
             subrmap1.draw_limb()
             subrmap1.draw_grid()
-            subrmap2.plot(axes=ax7, title='', cmap=cm.jet)
+            subrmap2.plot(axes=ax7, cmap=cm.jet)
+            ax7.set_title(title + ' ' + stokes.split(',')[0], fontsize = 12)
             subrmap2.draw_limb()
             subrmap2.draw_grid()
-            ax5.contour(subrmapx.value, subrmapy.value, subrmap1.data,
-                        levels=np.linspace(0.2, 0.9, 5) * np.nanmax(subrmap1.data), cmap=cm.gray)
-            ax7.contour(subrmapx.value, subrmapy.value, subrmap2.data,
-                        levels=np.linspace(0.2, 0.9, 5) * np.nanmax(subrmap2.data), cmap=cm.gray)
-            subrmap1.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
-            subrmap2.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
+            #ax5.contour(subrmapx.value, subrmapy.value, subrmap1.data,
+            #            levels=clevels1 * np.nanmax(subrmap1.data), cmap=cm.gray)
+            #ax7.contour(subrmapx.value, subrmapy.value, subrmap2.data,
+            #            levels=clevels2 * np.nanmax(subrmap2.data), cmap=cm.gray)
+            #subrmap1.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
+            #subrmap2.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
         ax5.set_xlim(fov[0])
         ax5.set_ylim(fov[1])
         ax5.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f')[:-3], verticalalignment='bottom',
