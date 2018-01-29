@@ -334,14 +334,22 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                         eomap.data = eomap.data[min(polmap[pols[pol]], eomap.meta['naxis4'] - 1), 0, :, :].reshape(
                             (sz[2], sz[3]))
                     # resample the image for plotting
-                    dim = u.Quantity([256, 256], u.pixel)
-                    eomap = eomap.resample(dim)
+                    if fov:
+                        fov = [np.array(ll) for ll in fov]
+                        pad = max(np.diff(fov[0])[0], np.diff(fov[1])[0])
+                        eomap = eomap.submap((fov[0] + np.array([-1.0, 1.0]) * pad) * u.arcsec,
+                                             (fov[1] + np.array([-1.0, 1.0]) * pad) * u.arcsec)
+                    else:
+                        dim = u.Quantity([256, 256], u.pixel)
+                        eomap = eomap.resample(dim)
                     eomap.plot_settings['cmap'] = plt.get_cmap(cmaps[pol])
                     eomap.plot(axes=axs[n + nspw * pol])
                     eomap.draw_limb()
                     eomap.draw_grid()
                     ax = plt.gca()
+                    ax.set_autoscale_on(False)
                     if fov:
+                        # pass
                         ax.set_xlim(fov[0])
                         ax.set_ylim(fov[1])
                     else:
@@ -355,8 +363,8 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                     # else:
                     #     ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(freqran[0], freqran[1]), color='w',
                     #             transform=ax.transAxes, fontweight='bold', ha='right')
-                    ax.text(0.98, 0.01, 'Stokes {1}@{0:.3f} GHz'.format(eomap.meta['crval3'] / 1e9, pols[pol]), color='w',
-                            transform=ax.transAxes, fontweight='bold', ha='right')
+                    ax.text(0.98, 0.01, 'Stokes {1} @ {0:.3f} GHz'.format(eomap.meta['crval3'] / 1e9, pols[pol]),
+                            color='w', transform=ax.transAxes, fontweight='bold', ha='right')
                     ax.set_title(' ')
                     # ax.set_title('spw '+spws_sort[i,n])
                     # ax.text(0.01,0.02, plttime.isot,transform=ax.transAxes,color='white')
@@ -373,6 +381,15 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                               "RSUN_REF": sun.constants.radius.value,
                               "DSUN_OBS": sun.sunearth_distance(plttime).to(u.meter).value, }
                     eomap = smap.Map(data, header)
+                    # resample the image for plotting
+                    if fov:
+                        fov = [np.array(ll) for ll in fov]
+                        pad = max(np.diff(fov[0])[0], np.diff(fov[1])[0])
+                        eomap = eomap.submap((fov[0] + np.array([-1.0, 1.0]) * pad) * u.arcsec,
+                                             (fov[1] + np.array([-1.0, 1.0]) * pad) * u.arcsec)
+                    else:
+                        dim = u.Quantity([256, 256], u.pixel)
+                        eomap = eomap.resample(dim)
                     eomap.plot_settings['cmap'] = plt.get_cmap(cmaps[pol])
                     eomap.plot(axes=axs[n + nspw * pol])
                     eomap.draw_limb()
@@ -380,6 +397,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                     ax = plt.gca()
                     ax.set_autoscale_on(False)
                     if fov:
+                        # pass
                         ax.set_xlim(fov[0])
                         ax.set_ylim(fov[1])
                     else:
@@ -392,8 +410,8 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                     # ax.set_title('{0:.1f} - {1:.1f} GHz'.format(freqran[0],freqran[1]))
                     # ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(freqran[0], freqran[1]), color='w',
                     #         transform=ax.transAxes, fontweight='bold', ha='right')
-                    ax.text(0.98, 0.01, 'Stokes {1} @ {0:.3f} GHz'.format(0., pols[pol]), color='w', transform=ax.transAxes,
-                            fontweight='bold', ha='right')
+                    ax.text(0.98, 0.01, 'Stokes {1} @ {0:.3f} GHz'.format(0., pols[pol]), color='w',
+                            transform=ax.transAxes, fontweight='bold', ha='right')
                     ax.set_title(' ')
 
                     # ax.text(0.01,0.02, plttime.isot,transform=ax.transAxes,color='white')
