@@ -33,6 +33,17 @@ import copy
 import pdb
 
 
+def uniq(lst):
+    last = object()
+    nlst = []
+    for item in lst:
+        if item == last:
+            continue
+        nlst.append(item)
+        last = item
+    return nlst
+
+
 def mk_qlook_image(vis, ncpu=10, twidth=12, stokes='I,V', antenna='', imagedir=None, spws=[], toTb=True, overwrite=True,
                    doslfcal=False, phasecenter='', c_external=True):
     vis = [vis]
@@ -44,7 +55,7 @@ def mk_qlook_image(vis, ncpu=10, twidth=12, stokes='I,V', antenna='', imagedir=N
 
     if not imagedir:
         imagedir = './'
-    imres = {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': [], 'Spw': [], 'Vis': []}
+    imres = {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': [], 'Spw': [], 'Vis': [], 'Freq': []}
     msfile = vis[0]
     ms.open(msfile)
     metadata = ms.metadata()
@@ -73,9 +84,21 @@ def mk_qlook_image(vis, ncpu=10, twidth=12, stokes='I,V', antenna='', imagedir=N
         split(msfile, outputvis=slfcalms, datacolumn='corrected', correlation='RR')
     for spw in spws:
         spwran = [s.zfill(2) for s in spw.split('~')]
-        freqran = [
-            (int(s) * spwInfo['0']['TotalWidth'] + spwInfo['0']['RefFreq'] + spwInfo['0']['TotalWidth'] / 2.0) / 1.0e9
-            for s in spw.split('~')]
+        # freqran = [
+        #     (int(s) * spwInfo['0']['TotalWidth'] + spwInfo['0']['RefFreq'] + spwInfo['0']['TotalWidth'] / 2.0) / 1.0e9
+        #     for s in spw.split('~')]
+        spw_ = spw.split('~')
+        if len(spw_) == 2:
+            freqran = [(spwInfo['{}'.format(s)]['RefFreq'] + spwInfo['{}'.format(s)]['TotalWidth'] / 2.0) / 1.0e9 for s
+                       in spw.split('~')]
+        elif len(spw_) == 1:
+            s = spw_[0]
+            freqran = np.array([0, spwInfo['{}'.format(s)]['TotalWidth']]) + spwInfo['{}'.format(s)]['RefFreq']
+            freqran = freqran / 1.0e9
+            freqran = list(freqran)
+        else:
+            raise ValueError("Keyword 'spw' in wrong format")
+
         cfreq = np.mean(freqran)
         bmsz = max(30. / cfreq, 30.)
         uvrange = '<3km'
@@ -107,12 +130,13 @@ def mk_qlook_image(vis, ncpu=10, twidth=12, stokes='I,V', antenna='', imagedir=N
                        'phasecenter': phasecenter}
             for key, val in inpdict.items():
                 if type(val) is str:
-                    inpdict[key]='"{}"'.format(val)
+                    inpdict[key] = '"{}"'.format(val)
             fi = open(cleanscript, 'wb')
             fi.write('from ptclean_cli import ptclean_cli as ptclean \n')
             fi.write('import numpy as np \n')
             fi.write(
-                'res = ptclean(vis={i[vis]},imageprefix={i[imageprefix]},imagesuffix={i[imagesuffix]},twidth={i[twidth]},uvrange={i[uvrange]},spw={i[spw]},ncpu={i[ncpu]},niter={i[niter]},gain={i[gain]},antenna={i[antenna]},imsize={i[imsize]},cell={i[cell]},stokes={i[stokes]},doreg={i[doreg]},overwrite={i[overwrite]},toTb={i[toTb]},restoringbeam={i[restoringbeam]},uvtaper={i[uvtaper]},outertaper={i[outertaper]},phasecenter={i[phasecenter]}) \n'.format(i=inpdict))
+                'res = ptclean(vis={i[vis]},imageprefix={i[imageprefix]},imagesuffix={i[imagesuffix]},twidth={i[twidth]},uvrange={i[uvrange]},spw={i[spw]},ncpu={i[ncpu]},niter={i[niter]},gain={i[gain]},antenna={i[antenna]},imsize={i[imsize]},cell={i[cell]},stokes={i[stokes]},doreg={i[doreg]},overwrite={i[overwrite]},toTb={i[toTb]},restoringbeam={i[restoringbeam]},uvtaper={i[uvtaper]},outertaper={i[outertaper]},phasecenter={i[phasecenter]}) \n'.format(
+                    i=inpdict))
             fi.write('np.savez("{}",res=res) \n'.format(resfile))
             fi.close()
 
@@ -132,6 +156,7 @@ def mk_qlook_image(vis, ncpu=10, twidth=12, stokes='I,V', antenna='', imagedir=N
             imres['ImageName'] += res['ImageName']
             imres['Spw'] += [spwstr] * len(res['ImageName'])
             imres['Vis'] += [msfile] * len(res['ImageName'])
+            imres['Freq'] += [freqran] * len(res['ImageName'])
         else:
             return None
 
@@ -155,7 +180,11 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
     npols = len(pols)
     # SRL = set(['RR', 'LL'])
     # SXY = set(['XX', 'YY', 'XY', 'YX'])
-    nspw = len(set(imres['Spw']))
+    Spw = sorted(list(set(imres['Spw'])))
+    nspw = len(Spw)
+    # Freq = set(imres['Freq']) ## list is an unhashable type
+    Freq = sorted(uniq(imres['Freq']))
+
     plttimes = list(set(imres['BeginTime']))
     ntime = len(plttimes)
     # sort the imres according to time
@@ -206,17 +235,20 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
         for ll in range(nspw):
             axs.append(plt.subplot(gs[ll / hnspw + 2, ll % hnspw], sharex=axs[0], sharey=axs[0]))
         axs_dspec = [plt.subplot(gs[2:, :])]
+        cmaps = ['jet']
     elif npols == 2:
         R_plot = np.absolute(spec[0, 0, :, :])
         L_plot = np.absolute(spec[1, 0, :, :])
         if pol == 'RRLL':
             spec_plt = [R_plot, L_plot]
             polstr = ['RR', 'LL']
+            cmaps = ['jet'] * 2
         if pol == 'IV':
             I_plot = (R_plot + L_plot) / 2.
             V_plot = (R_plot - L_plot) / 2.
             spec_plt = [I_plot, V_plot]
             polstr = ['I', 'V']
+            cmaps = ['jet', 'RdBu']
         print 'plot the dynamic spectrum in pol ' + pol
 
         hnspw = nspw / 2
@@ -255,7 +287,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
             dspecvspans = []
             for pol in range(npols):
                 ax = axs_dspec[pol]
-                ax.pcolormesh(timstrr, freqghz, spec_plt[pol], cmap='jet')
+                ax.pcolormesh(timstrr, freqghz, spec_plt[pol], cmap=cmaps[pol])
                 ax.xaxis_date()
                 ax.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
                 # plt.xticks(rotation=45)
@@ -263,9 +295,15 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 ax.set_xlabel('Time [UT]')
                 ax.set_ylabel('Frequency [GHz]')
-                ax.text(0.01, 0.98, pols[pol], color='w', transform=ax.transAxes, fontweight='bold', ha='left',
-                        va='top')
-                dspecvspans.append(ax.axvspan(btimes[i].plot_date, etimes[i].plot_date, color='w', alpha=0.5))
+                for idx, freq in enumerate(Freq):
+                    ax.axhspan(freq[0], freq[1], linestyle='dotted', edgecolor='w', alpha=0.7, facecolor='none')
+                    xtext, ytext = ax.transAxes.inverted().transform(
+                        ax.transData.transform([timstrr[tidx[0]], np.mean(freq)]))
+                    ax.text(xtext + 0.01, ytext, 'spw ' + Spw[idx], color='w', transform=ax.transAxes,
+                            fontweight='bold', ha='left', va='center', fontsize=8, alpha=0.5)
+                ax.text(0.01, 0.98, 'Stokes ' + pols[pol], color='w', transform=ax.transAxes, fontweight='bold',
+                        ha='left', va='top')
+                dspecvspans.append(ax.axvspan(btimes[i].plot_date, etimes[i].plot_date, color='w', alpha=0.4))
                 ax_pos = ax.get_position().extents
                 x0, y0, x1, y1 = ax_pos
                 h, v = x1 - x0, y1 - y0
@@ -298,7 +336,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                     # resample the image for plotting
                     dim = u.Quantity([256, 256], u.pixel)
                     eomap = eomap.resample(dim)
-                    eomap.plot_settings['cmap'] = plt.get_cmap('jet')
+                    eomap.plot_settings['cmap'] = plt.get_cmap(cmaps[pol])
                     eomap.plot(axes=axs[n + nspw * pol])
                     eomap.draw_limb()
                     eomap.draw_grid()
@@ -317,7 +355,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                     # else:
                     #     ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(freqran[0], freqran[1]), color='w',
                     #             transform=ax.transAxes, fontweight='bold', ha='right')
-                    ax.text(0.98, 0.01, '{1}@{0:.3f} GHz'.format(eomap.meta['crval3'] / 1e9, pols[pol]), color='w',
+                    ax.text(0.98, 0.01, 'Stokes {1}@{0:.3f} GHz'.format(eomap.meta['crval3'] / 1e9, pols[pol]), color='w',
                             transform=ax.transAxes, fontweight='bold', ha='right')
                     ax.set_title(' ')
                     # ax.set_title('spw '+spws_sort[i,n])
@@ -335,7 +373,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                               "RSUN_REF": sun.constants.radius.value,
                               "DSUN_OBS": sun.sunearth_distance(plttime).to(u.meter).value, }
                     eomap = smap.Map(data, header)
-                    eomap.plot_settings['cmap'] = plt.get_cmap('jet')
+                    eomap.plot_settings['cmap'] = plt.get_cmap(cmaps[pol])
                     eomap.plot(axes=axs[n + nspw * pol])
                     eomap.draw_limb()
                     eomap.draw_grid()
@@ -354,7 +392,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                     # ax.set_title('{0:.1f} - {1:.1f} GHz'.format(freqran[0],freqran[1]))
                     # ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(freqran[0], freqran[1]), color='w',
                     #         transform=ax.transAxes, fontweight='bold', ha='right')
-                    ax.text(0.98, 0.01, '{1} @ {0:.3f} GHz'.format(0., pols[pol]), color='w', transform=ax.transAxes,
+                    ax.text(0.98, 0.01, 'Stokes {1} @ {0:.3f} GHz'.format(0., pols[pol]), color='w', transform=ax.transAxes,
                             fontweight='bold', ha='right')
                     ax.set_title(' ')
 
@@ -388,9 +426,8 @@ def dspec_external(vis, workdir='./', specfile=None):
 
 
 def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,LL', dmin=None, dmax=None,
-           goestime=None, reftime=None, fov=None, usephacenter=True, imagefile=None, fitsfile=None,
-           plotaia=True, aiawave=171, aiafits=None,
-           savefig=False, mkmovie=False, overwrite=True, twidth=1, verbose=True):
+           goestime=None, reftime=None, fov=None, usephacenter=True, imagefile=None, fitsfile=None, plotaia=True,
+           aiawave=171, aiafits=None, savefig=False, mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=True):
     '''
     Required inputs:
             vis: calibrated CASA measurement set
@@ -534,8 +571,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
                 qlookfigdir = os.path.join(workdir, 'qlookimgs/')
                 imresfile = os.path.join(qlookfitsdir, '{}.imres.npz'.format(os.path.basename(vis)))
                 if overwrite:
-                    imres = mk_qlook_image(vis, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir, phasecenter=phasecenter,
-                                           stokes=stokes, c_external=True)
+                    imres = mk_qlook_image(vis, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir,
+                                           phasecenter=phasecenter, stokes=stokes, c_external=True)
                 else:
                     if os.path.exists(imresfile):
                         imres = np.load(imresfile)
@@ -546,7 +583,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
                                                phasecenter=phasecenter, stokes=stokes, c_external=True)
                 if not os.path.exists(qlookfigdir):
                     os.makedirs(qlookfigdir)
-                plt_qlook_image(imres, figdir=qlookfigdir, specdata=specdata, verbose=True, stokes=stokes,fov=fov)
+                plt_qlook_image(imres, figdir=qlookfigdir, specdata=specdata, verbose=True, stokes=stokes, fov=fov)
 
     else:
         spec = specdata['spec']
@@ -689,7 +726,10 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
                 newlist = []
                 items = glob.glob('*.fits')
                 for names in items:
-                    str1 = starttim1.iso[:4] + '_' + starttim1.iso[5:7] + '_' + starttim1.iso[8:10] + 't' + starttim1.iso[11:13] + '_' + starttim1.iso[14:16]
+                    str1 = starttim1.iso[:4] + '_' + starttim1.iso[5:7] + '_' + starttim1.iso[
+                                                                                8:10] + 't' + starttim1.iso[
+                                                                                              11:13] + '_' + starttim1.iso[
+                                                                                                             14:16]
                     str2 = str(aiawave)
                     if names.endswith(".fits"):
                         if names.find(str1) != -1 and names.find(str2) != -1:
@@ -714,9 +754,10 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
                 newlist = []
                 items = glob.glob('*.fits')
                 for nm in items:
-                    str1 = starttim1.iso[:4] + '_' + starttim1.iso[5:7] + '_' + starttim1.iso[8:10] + 't' + starttim1.iso[
-                                                                                                            11:13] + '_' + starttim1.iso[
-                                                                                                                           14:16]
+                    str1 = starttim1.iso[:4] + '_' + starttim1.iso[5:7] + '_' + starttim1.iso[
+                                                                                8:10] + 't' + starttim1.iso[
+                                                                                              11:13] + '_' + starttim1.iso[
+                                                                                                             14:16]
                     str2 = str(aiawave)
                     if nm.find(str1) != -1 and nm.find(str2) != -1:
                         newlist.append(nm)
@@ -807,7 +848,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             y2 = y0 + length
             fov = [[x1.value, x2.value], [y1.value, y2.value]]
 
-        clevels1 = np.linspace(0.2, 0.9, 5) 
+        clevels1 = np.linspace(0.2, 0.9, 5)
         if stokes.split(',')[1] == 'V':
             clevels2 = np.array([-0.8, -0.6, -0.4, -0.2, 0.2, 0.4, 0.6, 0.8])
         else:
@@ -830,12 +871,9 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             aiamap.draw_grid()
             aiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
             if rmap:
-                ax4.contour(rmapx.value, rmapy.value, rmap1.data,
-                            levels=clevels1 * np.nanmax(rmap1.data), cmap=cm.jet)
-                ax6.contour(rmapx.value, rmapy.value, rmap2.data,
-                            levels=clevels2 * np.nanmax(rmap2.data), cmap=cm.jet)
-            ax4.text(0.02, 0.02,
-                    'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'),
+                ax4.contour(rmapx.value, rmapy.value, rmap1.data, levels=clevels1 * np.nanmax(rmap1.data), cmap=cm.jet)
+                ax6.contour(rmapx.value, rmapy.value, rmap2.data, levels=clevels2 * np.nanmax(rmap2.data), cmap=cm.jet)
+            ax4.text(0.02, 0.02, 'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'),
                      verticalalignment='bottom', horizontalalignment='left', transform=ax4.transAxes, color='k',
                      fontsize=10)
             ax6.text(0.02, 0.02, 'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'),
@@ -844,23 +882,20 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
         else:
             title = '{0} {1:6.3f} GHz'.format(observatory, (bfreqghz + efreqghz) / 2.0)
             rmap1.plot(axes=ax4, cmap=cm.jet)
-            ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize = 12)
+            ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize=12)
             rmap1.draw_limb()
             rmap1.draw_grid()
             rmap1.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
             rmap2.plot(axes=ax6, cmap=cm.jet)
-            ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize = 12)
+            ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize=12)
             rmap2.draw_limb()
             rmap2.draw_grid()
-            #ax4.contour(rmapx.value, rmapy.value, rmap1.data, levels=np.linspace(0.2, 0.9, 5) * np.nanmax(rmap1.data),
+            # ax4.contour(rmapx.value, rmapy.value, rmap1.data, levels=np.linspace(0.2, 0.9, 5) * np.nanmax(rmap1.data),
             #            cmap=cm.gray)
-            #ax6.contour(rmapx.value, rmapy.value, rmap2.data, levels=np.linspace(0.2, 0.9, 5) * np.nanmax(rmap2.data),
+            # ax6.contour(rmapx.value, rmapy.value, rmap2.data, levels=np.linspace(0.2, 0.9, 5) * np.nanmax(rmap2.data),
             #            cmap=cm.gray)
-            rmap2.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
-            #ax4.contour(rmapx.value, rmapy.value, rmap1.data,
-            #            levels=clevels1 * np.nanmax(rmap1.data), cmap=cm.gray)
-            #ax6.contour(rmapx.value, rmapy.value, rmap2.data,
-            #            levels=clevels2 * np.nanmax(rmap2.data), cmap=cm.gray)
+            rmap2.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec,
+                                 400 * u.arcsec)  # ax4.contour(rmapx.value, rmapy.value, rmap1.data,  #            levels=clevels1 * np.nanmax(rmap1.data), cmap=cm.gray)  # ax6.contour(rmapx.value, rmapy.value, rmap2.data,  #            levels=clevels2 * np.nanmax(rmap2.data), cmap=cm.gray)
         ax4.set_xlim(-1200, 1200)
         ax4.set_ylim(-1200, 1200)
         ax6.set_xlim(-1200, 1200)
@@ -878,26 +913,19 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             subaiamap.plot(axes=ax7, title='')
             subaiamap.draw_limb()
             subaiamap.draw_grid()
-            ax5.contour(subrmapx.value, subrmapy.value, subrmap1.data,
-                        levels=clevels1 * np.nanmax(subrmap1.data), cmap=cm.jet)
-            ax7.contour(subrmapx.value, subrmapy.value, subrmap2.data,
-                        levels=clevels2 * np.nanmax(subrmap2.data), cmap=cm.jet)
-            #subaiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
+            ax5.contour(subrmapx.value, subrmapy.value, subrmap1.data, levels=clevels1 * np.nanmax(subrmap1.data),
+                        cmap=cm.jet)
+            ax7.contour(subrmapx.value, subrmapy.value, subrmap2.data, levels=clevels2 * np.nanmax(subrmap2.data),
+                        cmap=cm.jet)  # subaiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
         else:
             subrmap1.plot(axes=ax5, cmap=cm.jet)
-            ax5.set_title(title + ' ' + stokes.split(',')[0], fontsize = 12)
+            ax5.set_title(title + ' ' + stokes.split(',')[0], fontsize=12)
             subrmap1.draw_limb()
             subrmap1.draw_grid()
             subrmap2.plot(axes=ax7, cmap=cm.jet)
-            ax7.set_title(title + ' ' + stokes.split(',')[0], fontsize = 12)
+            ax7.set_title(title + ' ' + stokes.split(',')[0], fontsize=12)
             subrmap2.draw_limb()
-            subrmap2.draw_grid()
-            #ax5.contour(subrmapx.value, subrmapy.value, subrmap1.data,
-            #            levels=clevels1 * np.nanmax(subrmap1.data), cmap=cm.gray)
-            #ax7.contour(subrmapx.value, subrmapy.value, subrmap2.data,
-            #            levels=clevels2 * np.nanmax(subrmap2.data), cmap=cm.gray)
-            #subrmap1.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
-            #subrmap2.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
+            subrmap2.draw_grid()  # ax5.contour(subrmapx.value, subrmapy.value, subrmap1.data,  #            levels=clevels1 * np.nanmax(subrmap1.data), cmap=cm.gray)  # ax7.contour(subrmapx.value, subrmapy.value, subrmap2.data,  #            levels=clevels2 * np.nanmax(subrmap2.data), cmap=cm.gray)  # subrmap1.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)  # subrmap2.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
         ax5.set_xlim(fov[0])
         ax5.set_ylim(fov[1])
         ax5.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f')[:-3], verticalalignment='bottom',
