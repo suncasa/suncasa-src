@@ -443,7 +443,7 @@ def dspec_external(vis, workdir='./', specfile=None):
     os.system('casa --nologger -c {}'.format(dspecscript))
 
 
-def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,LL', dmin=None, dmax=None,
+def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uvrange=None, stokes='RR,LL', dmin=None, dmax=None,
            goestime=None, reftime=None, fov=None, usephacenter=True, imagefile=None, fitsfile=None, plotaia=True,
            aiawave=171, aiafits=None, savefig=False, mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=True):
     '''
@@ -457,6 +457,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             specfile: supply dynamic spectrum save file (from suncasa.utils.dspec2.get_dspec()). Otherwise
                       generate a median dynamic spectrum on the fly
     Optional inputs:
+            bl: baseline to generate dynamic spectrum
+            uvrange: uvrange to select baselines for generating dynamic spectrum 
             stokes: polarization of the clean image, can be 'RR,LL' or 'I,V'
             dmin,dmax: color bar parameter
             goestime: goes plot time, example ['2016/02/18 18:00:00','2016/02/18 23:00:00']
@@ -936,12 +938,10 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             ax7.contour(subrmapx.value, subrmapy.value, subrmap2.data, levels=clevels2 * np.nanmax(subrmap2.data),
                         cmap=cm.jet)  # subaiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
         else:
-            subrmap1.plot(axes=ax5, cmap=cm.jet)
-            ax5.set_title(title + ' ' + stokes.split(',')[0], fontsize=12)
+            subrmap1.plot(axes=ax5, cmap=cm.jet, title='')
             subrmap1.draw_limb()
             subrmap1.draw_grid()
-            subrmap2.plot(axes=ax7, cmap=cm.jet)
-            ax7.set_title(title + ' ' + stokes.split(',')[0], fontsize=12)
+            subrmap2.plot(axes=ax7, cmap=cm.jet, title='')
             subrmap2.draw_limb()
             subrmap2.draw_grid()  # ax5.contour(subrmapx.value, subrmapy.value, subrmap1.data,  #            levels=clevels1 * np.nanmax(subrmap1.data), cmap=cm.gray)  # ax7.contour(subrmapx.value, subrmapy.value, subrmap2.data,  #            levels=clevels2 * np.nanmax(subrmap2.data), cmap=cm.gray)  # subrmap1.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)  # subrmap2.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
         ax5.set_xlim(fov[0])
