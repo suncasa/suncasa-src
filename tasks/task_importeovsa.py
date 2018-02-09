@@ -294,27 +294,21 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
     if not width:
         width = 1
     import sys
-    print 10
     sys.stdout.flush()
     if udb_corr:
         udbcorr_path = visprefix + '/tmp_UDBcorr/'
-        print 0
         sys.stdout.flush()
         if not os.path.exists(udbcorr_path):
             os.makedirs(udbcorr_path)
-        print 1
         sys.stdout.flush()
         from eovsapy import pipeline_cal as pc
-        print 2
         sys.stdout.flush()
         filelist_tmp = []
         for ll in filelist:
             filelist_tmp.append(pc.udb_corr(ll, outpath=udbcorr_path, calibrate=True))
         filelist = filelist_tmp
-        print 3
         sys.stdout.flush()
 
-    print 4
     sys.stdout.flush()
     if not modelms:
         if nocreatms:

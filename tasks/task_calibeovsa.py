@@ -309,6 +309,8 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
                 if os.path.exists(caltb_phambd_interp):
                     shutil.rmtree(caltb_phambd_interp)
         if doflag:
+            # flag zeros and NaNs
+            flagdata(vis=msfile, mode='clip', clipzeros=True)
             if flagant:
                 try:
                     flagdata(vis=msfile, antenna=flagant)
