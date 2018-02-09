@@ -113,7 +113,8 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
         spec = specdata['spec']
         tim = specdata['tim']
         freq = specdata['freq']
-        bl = specdata['bl']
+        if not 'bl' in vars():
+            bl = specdata['bl']
     except:
         print('format of specdata not recognized. Check your input')
         return -1
@@ -249,7 +250,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                         timv = tim[col]
                         timstr = qa.time(qa.quantity(timv, 's'), form='clean', prec=9)[0]
                         flux = spec_plt[row, col]
-                        return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} Jy/beam'.format(col, timstr, y, flux)
+                        return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} Jy'.format(col, timstr, y, flux)
                     else:
                         return 'x = {0}, y = {1:.3f}'.format(x, y)
 
@@ -293,7 +294,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                     timv = tim[col]
                     timstr = qa.time(qa.quantity(timv, 's'), form='clean', prec=9)[0]
                     flux = spec_plt[row, col]
-                    return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} Jy/beam'.format(col, timstr, y, flux)
+                    return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} Jy'.format(col, timstr, y, flux)
                 else:
                     return 'x = {0}, y = {1:.3f}'.format(x, y)
 
@@ -321,7 +322,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                     timv = tim[col]
                     timstr = qa.time(qa.quantity(timv, 's'), form='clean', prec=9)[0]
                     flux = spec_plt[row, col]
-                    return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} Jy/beam'.format(col, timstr, y, flux)
+                    return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} Jy'.format(col, timstr, y, flux)
                 else:
                     return 'x = {0}, y = {1:.3f}'.format(x, y)
 
