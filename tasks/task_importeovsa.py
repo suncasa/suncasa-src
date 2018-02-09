@@ -70,7 +70,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         # Assumes uv['pol'] is one of -5, -6, -7, -8
         k = -5 - uv['pol']
         l += 1
-        data = ma.masked_array(data, fill_value=0.0)
+        data = ma.masked_array(ma.masked_invalid(data), fill_value=0.0)
         out[k, :, l / (npairs * npol), bl2ord[i0, j0]] = data.data
         flag[k, :, l / (npairs * npol), bl2ord[i0, j0]] = data.mask
         # if i != j:
