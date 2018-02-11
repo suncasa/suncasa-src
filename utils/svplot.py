@@ -377,7 +377,14 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                     if fov:
                         fov = [np.array(ll) for ll in fov]
                         pad = max(np.diff(fov[0])[0], np.diff(fov[1])[0])
-                        eomap = eomap.submap((fov[0] + np.array([-1.0, 1.0]) * pad) * u.arcsec, (fov[1] + np.array([-1.0, 1.0]) * pad) * u.arcsec)
+                        try:
+                            eomap = eomap.submap((fov[0] + np.array([-1.0, 1.0]) * pad) * u.arcsec, (fov[1] + np.array([-1.0, 1.0]) * pad) * u.arcsec)
+                        except:
+                            x0, x1 = fov[0] + np.array([-1.0, 1.0]) * pad
+                            y0, y1 = fov[1] + np.array([-1.0, 1.0]) * pad
+                            bl = SkyCoord(x0 * u.arcsec, y0 * u.arcsec, frame=eomap.coordinate_frame)
+                            tr = SkyCoord(x1 * u.arcsec, y1 * u.arcsec, frame=eomap.coordinate_frame)
+                            eomap = eomap.submap(bl, tr)
                     else:
                         dim = u.Quantity([256, 256], u.pixel)
                         eomap = eomap.resample(dim)
@@ -452,7 +459,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             goestime: goes plot time, example ['2016/02/18 18:00:00','2016/02/18 23:00:00']
             rhessisav: rhessi savefile
             reftime: reftime for the image
-            fov: field of view in aia image, in unit of arcsec, example:[[-400,-200],[100,300]]
+            fov: field of view in aia image, in the format of [[xcenter,ycenter],[xlength,ylength]], in unit of arcsec, example:[[-400,-200],[100,300]]
             aiawave: wave length of aia file in a
             imagefile: if imagefile provided, use it. Otherwise do clean and generate a new one.
             fitsfile: if fitsfile provided, use it. Otherwise generate a new one
@@ -830,10 +837,17 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             rmap2 = smap.Map(hdu.data[1, 0, :, :], hdu.header)
 
         XX, YY = np.meshgrid(np.arange(rmap.data.shape[1]), np.arange(rmap.data.shape[0]))
-        rmapx, rmapy = rmap.pixel_to_data(XX * u.pix, YY * u.pix)
+        try:
+            rmapx, rmapy = rmap.pixel_to_data(XX * u.pix, YY * u.pix)
+        except:
+            rmapxy = rmap.pixel_to_data(XX * u.pix, YY * u.pix)
+            rmapx = rmapxy.Tx
+            rmapy = rmapxy.Ty
 
         if fov:
-            fov = fov
+            xc, yc = fov[0]
+            xlen, ylen = fov[1]
+            fov = [[xc - xlen / 2.0, yc - ylen / 2.0], [xc + xlen / 2.0, yc + ylen / 2.0]]
         else:
             row, col = rmap1.data.shape
             positon = np.nanargmax(rmap1.data)
@@ -897,12 +911,31 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
         ax6.set_xlim(-1200, 1200)
         ax6.set_ylim(-1200, 1200)
 
-        subrmap1 = rmap1.submap(fov[0] * u.arcsec, fov[1] * u.arcsec)
-        subrmap2 = rmap2.submap(fov[0] * u.arcsec, fov[1] * u.arcsec)
+        try:
+            subrmap1 = rmap1.submap(fov[0] * u.arcsec, fov[1] * u.arcsec)
+            subrmap2 = rmap2.submap(fov[0] * u.arcsec, fov[1] * u.arcsec)
+        except:
+            bl = SkyCoord(fov[0][0] * u.arcsec, fov[1][0] * u.arcsec, frame=rmap1.coordinate_frame)
+            tr = SkyCoord(fov[0][1] * u.arcsec, fov[1][1] * u.arcsec, frame=rmap1.coordinate_frame)
+            subrmap1 = rmap1.submap(bl, tr)
+            subrmap2 = rmap2.submap(bl, tr)
+
         XX, YY = np.meshgrid(np.arange(subrmap1.data.shape[1]), np.arange(subrmap1.data.shape[0]))
-        subrmapx, subrmapy = subrmap1.pixel_to_data(XX * u.pix, YY * u.pix)
+        try:
+            subrmapx, subrmapy = subrmap1.pixel_to_data(XX * u.pix, YY * u.pix)
+        except:
+            subrmapxy = subrmap1.pixel_to_data(XX * u.pix, YY * u.pix)
+            subrmapx = subrmapxy.Tx
+            subrmapy = subrmapxy.Ty
+
         if 'aiamap' in vars():
-            subaiamap = aiamap.submap(fov[0] * u.arcsec, fov[1] * u.arcsec)
+            try:
+                subaiamap = aiamap.submap(fov[0] * u.arcsec, fov[1] * u.arcsec)
+            except:
+                bl = SkyCoord(fov[0][0] * u.arcsec, fov[1][0] * u.arcsec, frame=aiamap.coordinate_frame)
+                tr = SkyCoord(fov[0][1] * u.arcsec, fov[1][1] * u.arcsec, frame=aiamap.coordinate_frame)
+                subaiamap = aiamap.submap(bl, tr)
+
             subaiamap.plot(axes=ax5, title='')
             subaiamap.draw_limb()
             subaiamap.draw_grid()
