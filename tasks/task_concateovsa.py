@@ -6,9 +6,8 @@ from clearcal_cli import clearcal_cli as clearcal
 from split_cli import split_cli as split
 
 
-def concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2rm="model,corrected", freqtol="",
-                dirtol="", respectname=False, timesort=True, copypointing=True, visweightscale=[],
-                forcesingleephemfield=""):
+def concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2rm="model,corrected", freqtol="", dirtol="", respectname=False,
+                timesort=True, copypointing=True, visweightscale=[], forcesingleephemfield=""):
     if concatvis[-1] == os.path.sep:
         concatvis = concatvis[:-1]
     if os.path.sep not in concatvis:
@@ -35,20 +34,17 @@ def concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2
             msfile_ = os.path.join(tmpdir, os.path.basename(str(ll)))
             msfiles_.append(msfile_)
             split(vis=str(ll), outputvis=msfile_, datacolumn='corrected')
-            clearcal(vis=msfile_,
-                     addmodel=True)  # except:  #     print 'DATA columns will be concatenated.'  #     msfiles_ = msfiles
+            clearcal(vis=msfile_, addmodel=True)
     else:
         raise ValueError('Please set datacolumn to be "data" or "corrected"!')
 
     if msfiles_:
-        concat(vis=msfiles_, concatvis=concatvis, freqtol=freqtol, dirtol=dirtol, respectname=respectname,
-               timesort=timesort, copypointing=copypointing, visweightscale=visweightscale,
-               forcesingleephemfield=forcesingleephemfield)
+        concat(vis=msfiles_, concatvis=concatvis, freqtol=freqtol, dirtol=dirtol, respectname=respectname, timesort=timesort,
+               copypointing=copypointing, visweightscale=visweightscale, forcesingleephemfield=forcesingleephemfield)
         os.system('rm -rf {}'.format(tmpdir))
     else:
-        concat(vis=msfiles, concatvis=concatvis, freqtol=freqtol, dirtol=dirtol, respectname=respectname,
-               timesort=timesort, copypointing=copypointing, visweightscale=visweightscale,
-               forcesingleephemfield=forcesingleephemfield)
+        concat(vis=msfiles, concatvis=concatvis, freqtol=freqtol, dirtol=dirtol, respectname=respectname, timesort=timesort,
+               copypointing=copypointing, visweightscale=visweightscale, forcesingleephemfield=forcesingleephemfield)
     # Change all observation ids to be the same (zero)
     tb.open(concatvis + '/OBSERVATION', nomodify=False)
     nobs = tb.nrows()
