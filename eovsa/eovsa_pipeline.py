@@ -60,36 +60,36 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
         except:
             print('trange format not recognised. Abort....')
             return None
-    if type(trange) == Time:
-        try:
-            # if single Time object, the following line would report an error
-            nt = len(trange)
-            if len(trange) > 1:
-                # more than one value
-                trange = Time([trange[0], trange[-1]])
-                tdatetime = trange[0].to_datetime()
-            else:
-                # single value in a list
-                if trange[0].mjd == np.fix(trange[0].mjd):
-                    # if only date is given, move the time from 00 to 12 UT
-                    trange[0] = Time(trange[0].mjd + 0.5, format='mjd')
-
-                tdatetime = trange[0].to_datetime()
-                dhr = trange[0].LocalTime.utcoffset().total_seconds() / 60 / 60 / 24
-                btime = Time(np.fix(trange[0].mjd + dhr) - dhr, format='mjd')
-                etime = Time(btime.mjd + 1, format='mjd')
-                trange = Time([btime, etime])
-        except:
-            # the case of a single Time object
-            if trange.mjd == np.fix(trange.mjd):
+    # if type(trange) == Time:
+    try:
+        # if single Time object, the following line would report an error
+        nt = len(trange)
+        if len(trange) > 1:
+            # more than one value
+            trange = Time([trange[0], trange[-1]])
+            tdatetime = trange[0].to_datetime()
+        else:
+            # single value in a list
+            if trange[0].mjd == np.fix(trange[0].mjd):
                 # if only date is given, move the time from 00 to 12 UT
-                trange = Time(trange.mjd + 0.5, format='mjd')
+                trange[0] = Time(trange[0].mjd + 0.5, format='mjd')
 
-            tdatetime = trange.to_datetime()
-            dhr = trange.LocalTime.utcoffset().total_seconds() / 60 / 60 / 24
-            btime = Time(np.fix(trange.mjd + dhr) - dhr, format='mjd')
+            tdatetime = trange[0].to_datetime()
+            dhr = trange[0].LocalTime.utcoffset().total_seconds() / 60 / 60 / 24
+            btime = Time(np.fix(trange[0].mjd + dhr) - dhr, format='mjd')
             etime = Time(btime.mjd + 1, format='mjd')
             trange = Time([btime, etime])
+    except:
+        # the case of a single Time object
+        if trange.mjd == np.fix(trange.mjd):
+            # if only date is given, move the time from 00 to 12 UT
+            trange = Time(trange.mjd + 0.5, format='mjd')
+
+        tdatetime = trange.to_datetime()
+        dhr = trange.LocalTime.utcoffset().total_seconds() / 60 / 60 / 24
+        btime = Time(np.fix(trange.mjd + dhr) - dhr, format='mjd')
+        etime = Time(btime.mjd + 1, format='mjd')
+        trange = Time([btime, etime])
 
     print 'Selected timerange in UTC: ',trange.iso
 
