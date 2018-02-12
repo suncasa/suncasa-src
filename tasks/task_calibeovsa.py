@@ -375,7 +375,7 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
                 msoutdir = './'
             concatvis = os.path.basename(vis[0])
             concatvis = msoutdir + '/' + concatvis.split('.')[0] + '_concat.ms'
-            concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=keep_orig_ms, cols2rm="model,corrected")
+            ce.concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=keep_orig_ms, cols2rm="model,corrected")
             return [concatvis]
     else:
         return vis
