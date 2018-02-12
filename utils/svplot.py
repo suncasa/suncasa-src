@@ -672,36 +672,42 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
 
         ax3 = plt.subplot(gs1[2])
 
-        goesscript = os.path.join(workdir, 'goes.py')
-        goesdatafile = os.path.join(workdir, 'goes.dat')
-        os.system('rm -rf {}'.format(goesscript))
-        fi = open(goesscript, 'wb')
-        fi.write('import os \n')
-        fi.write('from sunpy.time import TimeRange \n')
-        fi.write('from sunpy import lightcurve as lc \n')
-        fi.write('import pickle \n')
-        fi.write('goesplottim = TimeRange("{0}", "{1}") \n'.format(btgoes, etgoes))
-        fi.write('goes = lc.GOESLightCurve.create(goesplottim) \n')
-        fi.write('fi2 = open("{}", "wb") \n'.format(goesdatafile))
-        fi.write('pickle.dump(goes, fi2) \n')
-        fi.write('fi2.close()')
-        fi.close()
+        try:
+            from sunpy import lightcurve as lc
+            from sunpy.time import TimeRange
+            goest = lc.GOESLightCurve.create(TimeRange(btgoes, etgoes))
+        except:
+            goesscript = os.path.join(workdir, 'goes.py')
+            goesdatafile = os.path.join(workdir, 'goes.dat')
+            os.system('rm -rf {}'.format(goesscript))
+            fi = open(goesscript, 'wb')
+            fi.write('import os \n')
+            fi.write('from sunpy.time import TimeRange \n')
+            fi.write('from sunpy import lightcurve as lc \n')
+            fi.write('import pickle \n')
+            fi.write('goesplottim = TimeRange("{0}", "{1}") \n'.format(btgoes, etgoes))
+            fi.write('goes = lc.GOESLightCurve.create(goesplottim) \n')
+            fi.write('fi2 = open("{}", "wb") \n'.format(goesdatafile))
+            fi.write('pickle.dump(goes, fi2) \n')
+            fi.write('fi2.close()')
+            fi.close()
+
+            try:
+                os.system('python {}'.format(goesscript))
+            except NameError:
+                print "Bad input names"
+            except ValueError:
+                print "Bad input values"
+            except:
+                print "Unexpected error:", sys.exc_info()[0]
+                print "Error in generating GOES light curves. Proceed without GOES..."
+
+            if os.path.exists(goesdatafile):
+                fi1 = file(goesdatafile, 'rb')
+                goest = pickle.load(fi1)
+                fi1.close()
 
         try:
-            os.system('python {}'.format(goesscript))
-        except NameError:
-            print "Bad input names"
-        except ValueError:
-            print "Bad input values"
-        except:
-            print "Unexpected error:", sys.exc_info()[0]
-            print "Error in generating GOES light curves. Proceed without GOES..."
-
-        if os.path.exists(goesdatafile):
-            fi1 = file(goesdatafile, 'rb')
-            goest = pickle.load(fi1)
-            fi1.close()
-
             dates = mpl.dates.date2num(parse_time(goest.data.index))
             goesdif = np.diff(goest.data['xrsb'])
             gmax = np.nanmax(goesdif)
@@ -734,6 +740,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             ax3.xaxis.set_major_formatter(formatter)
 
             ax3.fmt_xdata = mpl.dates.DateFormatter('%H:%M')
+        except:
+            print 'Error in downloading GOES soft X-ray data. Proceeding with out soft X-ray plot.'
 
         # third part
         # start to download the fits files
