@@ -370,12 +370,12 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
     if doconcat:
         if len(vis) > 1:
             # from suncasa.eovsa import concateovsa as ce
-            from concateovsa_cli import concateovsa_cli as ce
+            from suncasa.tasks import concateovsa_cli as ce
             if msoutdir is None:
                 msoutdir = './'
             concatvis = os.path.basename(vis[0])
             concatvis = msoutdir + '/' + concatvis.split('.')[0] + '_concat.ms'
-            ce.concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=keep_orig_ms, cols2rm="model,corrected")
+            concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=keep_orig_ms, cols2rm="model,corrected")
             return [concatvis]
     else:
         return vis
