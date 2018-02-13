@@ -9,7 +9,6 @@ from split_cli import split_cli as split
 from ptclean_cli import ptclean_cli as ptclean
 from suncasa.utils import helioimage2fits as hf
 import sunpy.map as smap
-from sunpy.net import vso
 from astropy import units as u
 from astropy.time import Time
 from astropy.io import fits
@@ -761,13 +760,37 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
                     aiafits = newlist[0]
                 else:
                     print 'downloading the aiafits file'
-                    client = vso.VSOClient()
                     wave1 = aiawave - 3
                     wave2 = aiawave + 3
                     t1 = Time(starttim1.mjd - 0.02 / 24., format='mjd')
                     t2 = Time(endtim1.mjd + 0.02 / 24., format='mjd')
-                    qr = client.query(vso.attrs.Time(t1.iso, t2.iso), vso.attrs.Instrument('aia'), vso.attrs.Wave(wave1 * u.AA, wave2 * u.AA))
-                    res = client.get(qr, path='{file}')
+                    try:
+                        from sunpy.net import vso
+                        client = vso.VSOClient()
+                        qr = client.query(vso.attrs.Time(t1.iso, t2.iso), vso.attrs.Instrument('aia'), vso.attrs.Wave(wave1 * u.AA, wave2 * u.AA))
+                        res = client.get(qr, path='{file}')
+                    except:
+                        SdoDownloadscript = os.path.join(workdir, 'SdoDownload.py')
+                        os.system('rm -rf {}'.format(SdoDownloadscript))
+                        fi = open(SdoDownloadscript, 'wb')
+                        fi.write('from sunpy.net import vso \n')
+                        fi.write('from astropy import units as u \n')
+                        fi.write('client = vso.VSOClient() \n')
+                        fi.write(
+                            "qr = client.query(vso.attrs.Time({0}, {1}), vso.attrs.Instrument('aia'), vso.attrs.Wave({2} * u.AA, {3} * u.AA)) \n".format(
+                                t1.iso, t2.iso, wave1, wave2))
+                        fi.write("res = client.get(qr, path='{file}') \n")
+                        fi.close()
+
+                        try:
+                            os.system('python {}'.format(SdoDownloadscript))
+                        except NameError:
+                            print "Bad input names"
+                        except ValueError:
+                            print "Bad input values"
+                        except:
+                            print "Unexpected error:", sys.exc_info()[0]
+                            print "Error in Downloading AIA fits files. Proceed without AIA..."
 
             # Here something is needed to check whether it has finished downloading the fits files or not
 
