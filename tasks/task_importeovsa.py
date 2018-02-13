@@ -383,7 +383,7 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
         else:
             msfiles = list(np.array(results['msfile'])[np.where(np.array(results['succeeded']) == True)])
             concatvis = visprefix + msname + '-{:d}m{}.ms'.format(durtim, '')
-        ce.concateovsa(msfiles, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2rm="model,corrected")
+        ce.concateovsa(msfiles, concatvis, datacolumn='data', keep_orig_ms=True, cols2rm="model,corrected")
         return True
 
     if udb_corr:
