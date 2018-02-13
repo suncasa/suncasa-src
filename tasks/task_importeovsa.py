@@ -373,16 +373,15 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
     if doconcat:
         from suncasa.tasks import concateovsa_cli as ce
         msname = os.path.basename(filelist[0])
+        durtim = int(np.array(results['durtim']).sum())
         if doscaling:
             msfiles = list(np.array(results['msfile_scl'])[np.where(np.array(results['succeeded']) == True)])
-            durtim = int(np.array(results['durtim']).sum())
             if keep_nsclms:
                 concatvis = visprefix + msname + '-{:d}m{}.ms'.format(durtim, '_scl')
             else:
                 concatvis = visprefix + msname + '-{:d}m{}.ms'.format(durtim, '')
         else:
             msfiles = list(np.array(results['msfile'])[np.where(np.array(results['succeeded']) == True)])
-            durtim = int(results['durtim'].sum())
             concatvis = visprefix + msname + '-{:d}m{}.ms'.format(durtim, '')
         ce.concateovsa(msfiles, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2rm="model,corrected")
         return True
