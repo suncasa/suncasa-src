@@ -7,7 +7,6 @@ import aipy
 from taskinit import tb, casalog
 from split_cli import split_cli as split
 from suncasa.eovsa import impteovsa as ipe
-from suncasa.eovsa import concateovsa as ce
 
 
 def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, doscaling, keep_nsclms, fileidx):
@@ -239,13 +238,11 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     if not (timebin == '0s' and width == 1):
         msfile = msname + '.split'
         if doscaling:
-            split(vis=msname_scl, outputvis=msname_scl + '.split', datacolumn='data', timebin=timebin, width=width,
-                  keepflags=False)
+            split(vis=msname_scl, outputvis=msname_scl + '.split', datacolumn='data', timebin=timebin, width=width, keepflags=False)
             os.system('rm -rf {}'.format(msname_scl))
             msfile_scl = msname_scl + '.split'
         if not (doscaling and not keep_nsclms):
-            split(vis=msname, outputvis=msname + '.split', datacolumn='data', timebin=timebin, width=width,
-                  keepflags=False)
+            split(vis=msname, outputvis=msname + '.split', datacolumn='data', timebin=timebin, width=width, keepflags=False)
             os.system('rm -rf {}'.format(msname))
     else:
         msfile = msname
@@ -258,8 +255,8 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         return [True, msfile, durtim]
 
 
-def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=None, udb_corr=True, nocreatms=None,
-                doconcat=None, modelms=None, doscaling=False, keep_nsclms=False):
+def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=None, udb_corr=True, nocreatms=None, doconcat=None, modelms=None,
+                doscaling=False, keep_nsclms=False):
     casalog.origin('importeovsa')
 
     # if type(idbfiles) == Time:
@@ -331,15 +328,14 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
     t0 = time.time()
     casalog.post('Perform importeovsa in parallel with {} CPUs...'.format(ncpu))
 
-    if ncpu ==1:
-        res=[]
+    if ncpu == 1:
+        res = []
         for fidx, ll in enumerate(filelist):
             res.append(importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, doscaling, keep_nsclms, fidx))
-    if ncpu >1:
+    if ncpu > 1:
         import multiprocessing as mprocs
         from functools import partial
-        imppart = partial(importeovsa_iter, filelist, timebin, width, visprefix, nocreatms, modelms, doscaling,
-                          keep_nsclms)
+        imppart = partial(importeovsa_iter, filelist, timebin, width, visprefix, nocreatms, modelms, doscaling, keep_nsclms)
         pool = mprocs.Pool(ncpu)
         res = pool.map(imppart, iterable)
         pool.close()
@@ -375,18 +371,20 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
     #     print 'errors occurred when creating the output summary.'
 
     if doconcat:
+        from suncasa.tasks import concateovsa_cli as ce
         msname = os.path.basename(filelist[0])
         if doscaling:
             msfiles = list(np.array(results['msfile_scl'])[np.where(np.array(results['succeeded']) == True)])
             durtim = int(np.array(results['durtim']).sum())
             if keep_nsclms:
-                ce.concateovsa(msname + '-{:d}m{}.ms'.format(durtim, '_scl'), msfiles, visprefix)
+                concatvis = visprefix + msname + '-{:d}m{}.ms'.format(durtim, '_scl')
             else:
-                ce.concateovsa(msname + '-{:d}m{}.ms'.format(durtim, ''), msfiles, visprefix)
+                concatvis = visprefix + msname + '-{:d}m{}.ms'.format(durtim, '')
         else:
             msfiles = list(np.array(results['msfile'])[np.where(np.array(results['succeeded']) == True)])
             durtim = int(results['durtim'].sum())
-            ce.concateovsa(msname + '-{:d}m{}.ms'.format(durtim, ''), msfiles, visprefix)
+            concatvis = visprefix + msname + '-{:d}m{}.ms'.format(durtim, '')
+        ce.concateovsa(msfiles, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2rm="model,corrected")
         return True
 
     if udb_corr:

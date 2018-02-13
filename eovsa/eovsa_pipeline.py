@@ -132,13 +132,10 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
     filelist = udbfilelist_set - msfiles
     filelist = sorted(list(filelist))
 
-    if verbose:
-        return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': filelist,
-                'ms': [outpath + ll + '.ms' for ll in sorted(list(msfiles))], 
-                'tstlist':sclist['tstlist'], 'tedlist':sclist['tedlist']}
-    else:
-        return {'ms': [outpath + ll + '.ms' for ll in sorted(list(msfiles))], 
-                'tstlist':sclist['tstlist'], 'tedlist':sclist['tedlist']}
+    return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': filelist,
+            'ms': [outpath + ll + '.ms' for ll in sorted(list(msfiles))],
+            'tstlist':sclist['tstlist'], 'tedlist':sclist['tedlist']}
+
 
 def calib_pipeline(trange,doimport=False):
     ''' 
