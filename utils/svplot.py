@@ -330,7 +330,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                     # resample the image for plotting
                     if fov:
                         fov = [np.array(ll) for ll in fov]
-                        pad = max(np.diff(fov[0])[0], np.diff(fov[1])[0])
+                        pad = max(fov[1])
                         eomap = eomap.submap((fov[0] + np.array([-1.0, 1.0]) * pad) * u.arcsec, (fov[1] + np.array([-1.0, 1.0]) * pad) * u.arcsec)
                     else:
                         dim = u.Quantity([256, 256], u.pixel)
