@@ -691,6 +691,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
 
             try:
                 os.system('python {}'.format(goesscript))
+                os.system('rm -rf {}'.format(goesscript))
             except NameError:
                 print "Bad input names"
             except ValueError:
@@ -775,7 +776,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
                         fi.write('from astropy import units as u \n')
                         fi.write('client = vso.VSOClient() \n')
                         fi.write(
-                            "qr = client.query(vso.attrs.Time({0}, {1}), vso.attrs.Instrument('aia'), vso.attrs.Wave({2} * u.AA, {3} * u.AA)) \n".format(
+                            "qr = client.query(vso.attrs.Time('{0}', '{1}'), vso.attrs.Instrument('aia'), vso.attrs.Wave({2} * u.AA, {3} * u.AA)) \n".format(
                                 t1.iso, t2.iso, wave1, wave2))
                         fi.write("res = client.get(qr, path='{file}') \n")
                         fi.close()
@@ -996,4 +997,3 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
 
         fig.show()
 
-        os.system('rm -rf {}'.format(goesscript))  # os.system('rm -rf {}'.format(goesdatafile))
