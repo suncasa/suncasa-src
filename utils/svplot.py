@@ -8,6 +8,7 @@ import urllib2
 from split_cli import split_cli as split
 from ptclean_cli import ptclean_cli as ptclean
 from suncasa.utils import helioimage2fits as hf
+import sunpy
 import sunpy.map as smap
 from astropy import units as u
 from astropy.time import Time
@@ -30,8 +31,8 @@ from matplotlib import gridspec
 import glob
 from suncasa.utils import DButil
 import copy
+from pkg_resources import parse_version
 import pdb
-
 
 def uniq(lst):
     last = object()
@@ -336,6 +337,8 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                         dim = u.Quantity([256, 256], u.pixel)
                         eomap = eomap.resample(dim)
                     eomap.plot_settings['cmap'] = plt.get_cmap(cmaps[pol])
+                    # import pdb
+                    # pdb.set_trace()
                     eomap.plot(axes=axs[n + nspw * pol])
                     eomap.draw_limb()
                     eomap.draw_grid()
@@ -469,6 +472,13 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
 
     '''
 
+    if fov:
+        xc, yc = fov[0]
+        xlen, ylen = fov[1]
+        if parse_version(sunpy.__version__)>parse_version('0.8.0'):
+            fov = [[xc - xlen / 2.0, yc - ylen / 2.0], [xc + xlen / 2.0, yc + ylen / 2.0]]
+        else:
+            fov = [[xc - xlen / 2.0, xc + xlen / 2.0], [yc - ylen / 2.0, yc + ylen / 2.0]]
     stokes_allowed = ['RR,LL', 'I,V', 'RRLL', 'IV']
     if not stokes in stokes_allowed:
         print 'wrong stokes parameter ' + str(stokes) + '. Allowed values are ' + ', '.join(stokes_allowed)
@@ -879,9 +889,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
             rmapy = rmapxy.Ty
 
         if fov:
-            xc, yc = fov[0]
-            xlen, ylen = fov[1]
-            fov = [[xc - xlen / 2.0, yc - ylen / 2.0], [xc + xlen / 2.0, yc + ylen / 2.0]]
+            pass
         else:
             row, col = rmap1.data.shape
             positon = np.nanargmax(rmap1.data)
