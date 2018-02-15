@@ -443,7 +443,8 @@ def dspec_external(vis, workdir='./', specfile=None):
     os.system('casa --nologger -c {}'.format(dspecscript))
 
 
-def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uvrange=None, stokes='RR,LL', dmin=None, dmax=None,
+def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uvrange=None, restoringbeam=[''], robust=0.0, 
+           stokes='RR,LL', dmin=None, dmax=None,
            goestime=None, reftime=None, fov=None, usephacenter=True, imagefile=None, fitsfile=None, plotaia=True,
            aiawave=171, aiafits=None, savefig=False, mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=True):
     '''
@@ -820,8 +821,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 print 'do clean for ' + timerange + ' in spw ' + spw + ' stokes ' + sto
                 print 'use phasecenter: ' + phasecenter
                 clean(vis=vis, imagename=imagename, selectdata=True, spw=spw, timerange=timerange, stokes=sto,
-                      niter=500, interactive=False, npercycle=50, imsize=[512, 512], cell=['5.0arcsec'],
-                      phasecenter=phasecenter)
+                      niter=1000, interactive=False, npercycle=50, imsize=[512, 512], cell=['5.0arcsec'], restoringbeam=restoringbeam,
+                      weighting='briggs', robust=robust, phasecenter=phasecenter)
                 os.system('rm -rf ' + imagename + '.psf')
                 os.system('rm -rf ' + imagename + '.flux')
                 os.system('rm -rf ' + imagename + '.model')
@@ -853,13 +854,11 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
         XX, YY = np.meshgrid(np.arange(rmap.data.shape[3]), np.arange(rmap.data.shape[2]))
         rmapx, rmapy = rmap.pixel_to_data(XX * u.pix, YY * u.pix)
 
-        if fov:
-            fov = fov
-        else:
+        if not fov:
             row, col = rmap1.data.shape
             positon = np.nanargmax(rmap1.data)
             m, n = divmod(positon, col)
-            length = 200 * u.arcsec
+            length = 300 * u.arcsec
             x0 = rmap1.xrange[0] + rmap1.scale[1] * (n + 0.5) * u.pix
             y0 = rmap1.yrange[0] + rmap1.scale[0] * (m + 0.5) * u.pix
             x1 = x0 - length
@@ -884,12 +883,12 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize=12)
             aiamap.draw_limb()
             aiamap.draw_grid()
-            aiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
+            aiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 600 * u.arcsec, 600 * u.arcsec)
             aiamap.plot(axes=ax6)
             ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize=12)
             aiamap.draw_limb()
             aiamap.draw_grid()
-            aiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
+            aiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 600 * u.arcsec, 600 * u.arcsec)
             if rmap:
                 ax4.contour(rmapx.value, rmapy.value, rmap1.data, levels=clevels1 * np.nanmax(rmap1.data), cmap=cm.jet)
                 ax6.contour(rmapx.value, rmapy.value, rmap2.data, levels=clevels2 * np.nanmax(rmap2.data), cmap=cm.jet)
@@ -905,7 +904,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize=12)
             rmap1.draw_limb()
             rmap1.draw_grid()
-            rmap1.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
+            rmap1.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 600 * u.arcsec, 600 * u.arcsec)
             rmap2.plot(axes=ax6, cmap=cm.jet)
             ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize=12)
             rmap2.draw_limb()
@@ -914,8 +913,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             #            cmap=cm.gray)
             # ax6.contour(rmapx.value, rmapy.value, rmap2.data, levels=np.linspace(0.2, 0.9, 5) * np.nanmax(rmap2.data),
             #            cmap=cm.gray)
-            rmap2.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec,
-                                 400 * u.arcsec)  # ax4.contour(rmapx.value, rmapy.value, rmap1.data,  #            levels=clevels1 * np.nanmax(rmap1.data), cmap=cm.gray)  # ax6.contour(rmapx.value, rmapy.value, rmap2.data,  #            levels=clevels2 * np.nanmax(rmap2.data), cmap=cm.gray)
+            rmap2.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 600 * u.arcsec,
+                                 600 * u.arcsec)  # ax4.contour(rmapx.value, rmapy.value, rmap1.data,  #            levels=clevels1 * np.nanmax(rmap1.data), cmap=cm.gray)  # ax6.contour(rmapx.value, rmapy.value, rmap2.data,  #            levels=clevels2 * np.nanmax(rmap2.data), cmap=cm.gray)
         ax4.set_xlim(-1200, 1200)
         ax4.set_ylim(-1200, 1200)
         ax6.set_xlim(-1200, 1200)

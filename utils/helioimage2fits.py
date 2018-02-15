@@ -603,15 +603,15 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
         try:
             # this works for pyfits version of CASA 4.7.0 but not CASA 4.6.0
             if tdur_s:
-                header.update('exptime', tdur_s)
+                header.set('exptime', tdur_s)
             else:
-                header.update('exptime', 1.)
-            header.update('p_angle', hel['p0'])
-            header.update('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value)
-            header.update('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value)
-            header.update('rsun_ref', sun.constants.radius.value)
-            header.update('hgln_obs', 0.)
-            header.update('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value)
+                header.set('exptime', 1.)
+            header.set('p_angle', hel['p0'])
+            header.set('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value)
+            header.set('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value)
+            header.set('rsun_ref', sun.constants.radius.value)
+            header.set('hgln_obs', 0.)
+            header.set('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value)
         except:
             # this works for astropy.io.fits
             if tdur_s:
@@ -625,7 +625,6 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             header.append(('hgln_obs', 0.))
             header.append(('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value))
 
-        # header.update('comment', 'Fits header updated to heliocentric coordinates by Bin Chen')
 
         # update intensity units, i.e. to brightness temperature?
         if toTb:
