@@ -467,14 +467,10 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             goestime: goes plot time, example ['2016/02/18 18:00:00','2016/02/18 23:00:00']
             rhessisav: rhessi savefile
             reftime: reftime for the image
-<<<<<<< HEAD
-            fov: field of view in aia image, in the format of [[xcenter,ycenter],[xlength,ylength]], in unit of arcsec, example:[[-400,-200],[100,300]]
-=======
             xycen: center of the image in helioprojective coordinates (HPLN/HPLT), in arcseconds. Example: [900, -150.]
             fov: field of view in arcsecs. Example: [500., 500.]
             xyrange: field of view in solar XY coordinates. Format: [[x1,x2],[y1,y2]]. Example: [[900., 1200.],[0,300]] 
                      ***NOTE: THIS PARAMETER OVERWRITES XYCEN AND FOV***
->>>>>>> origin/master
             aiawave: wave length of aia file in a
             imagefile: if imagefile provided, use it. Otherwise do clean and generate a new one.
             fitsfile: if fitsfile provided, use it. Otherwise generate a new one
