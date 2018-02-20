@@ -479,13 +479,13 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
 
     '''
 
-    if fov is not None:
-        xc, yc = fov[0]
-        xlen, ylen = fov[1]
+    if xycen is not None:
+        xc, yc = xycen
+        xlen, ylen = fov
         if parse_version(sunpy.__version__)>parse_version('0.8.0'):
-            fov = [[xc - xlen / 2.0, yc - ylen / 2.0], [xc + xlen / 2.0, yc + ylen / 2.0]]
+            xyrange = [[xc - xlen / 2.0, yc - ylen / 2.0], [xc + xlen / 2.0, yc + ylen / 2.0]]
         else:
-            fov = [[xc - xlen / 2.0, xc + xlen / 2.0], [yc - ylen / 2.0, yc + ylen / 2.0]]
+            xyrange = [[xc - xlen / 2.0, xc + xlen / 2.0], [yc - ylen / 2.0, yc + ylen / 2.0]]
     stokes_allowed = ['RR,LL', 'I,V', 'RRLL', 'IV']
     if not stokes in stokes_allowed:
         print 'wrong stokes parameter ' + str(stokes) + '. Allowed values are ' + ', '.join(stokes_allowed)
