@@ -602,7 +602,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
                         imres = imres['imres'].item()
                     else:
                         print('Image results file not found; Creating new images.')
-                        imres = mk_qlook_image(vis, twidth=twidth, ncpu=ncpu, imagedir=qlookfigdir, phasecenter=phasecenter, stokes=stokes,
+                        imres = mk_qlook_image(vis, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir, phasecenter=phasecenter, stokes=stokes,
                                                c_external=True)
                 if not os.path.exists(qlookfigdir):
                     os.makedirs(qlookfigdir)
