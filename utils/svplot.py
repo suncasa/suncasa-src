@@ -329,7 +329,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                     if len(sz) == 4:
                         eomap.data = eomap.data[min(polmap[pols[pol]], eomap.meta['naxis4'] - 1), 0, :, :].reshape((sz[2], sz[3]))
                     # resample the image for plotting
-                    if fov:
+                    if fov is not None:
                         fov = [np.array(ll) for ll in fov]
                         pad = max(np.diff(fov[0])[0], np.diff(fov[1])[0])
                         eomap = eomap.submap((fov[0] + np.array([-1.0, 1.0]) * pad) * u.arcsec, (fov[1] + np.array([-1.0, 1.0]) * pad) * u.arcsec)
@@ -479,7 +479,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
 
     '''
 
-    if fov:
+    if fov is not None:
         xc, yc = fov[0]
         xlen, ylen = fov[1]
         if parse_version(sunpy.__version__)>parse_version('0.8.0'):
@@ -611,7 +611,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                         imres = imres['imres'].item()
                     else:
                         print('Image results file not found; Creating new images.')
-                        imres = mk_qlook_image(vis, twidth=twidth, ncpu=ncpu, imagedir=qlookfigdir, phasecenter=phasecenter, stokes=stokes,
+                        imres = mk_qlook_image(vis, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir, phasecenter=phasecenter, stokes=stokes,
                                                c_external=True)
                 if not os.path.exists(qlookfigdir):
                     os.makedirs(qlookfigdir)
