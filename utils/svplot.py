@@ -470,7 +470,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, stokes='RR,
 
     '''
 
-    if fov:
+    if fov is not None:
         xc, yc = fov[0]
         xlen, ylen = fov[1]
         if parse_version(sunpy.__version__)>parse_version('0.8.0'):
