@@ -479,7 +479,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
 
     '''
 
-    if xycen is not None:
+    if xycen:
         xc, yc = xycen
         xlen, ylen = fov
         if parse_version(sunpy.__version__)>parse_version('0.8.0'):
@@ -935,7 +935,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             x2 = x0 + sz_x/2.
             y1 = y0 - sz_y/2.
             y2 = y0 + sz_y/2.
-            xyrange = [[x1.value[0], x2.value[0]], [y1.value[0], y2.value[0]]]
+            xyrange = [[x1.value, x2.value], [y1.value, y2.value]]
         else:
             sz_x = xyrange[0][1] - xyrange[0][0]
             sz_y = xyrange[1][1] - xyrange[1][0]
