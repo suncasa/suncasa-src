@@ -937,8 +937,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             y2 = y0 + sz_y/2.
             xyrange = [[x1.value, x2.value], [y1.value, y2.value]]
         else:
-            sz_x = xyrange[0][1] - xyrange[0][0]
-            sz_y = xyrange[1][1] - xyrange[1][0]
+            sz_x = (xyrange[0][1] - xyrange[0][0]) * u.arcsec
+            sz_y = (xyrange[1][1] - xyrange[1][0]) * u.arcsec
 
 
         clevels1 = np.linspace(0.2, 0.9, 5)
