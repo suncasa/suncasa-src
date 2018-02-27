@@ -293,6 +293,7 @@ def plt_qlook_image(imres,figdir=None,verbose=True):
     from matplotlib import pyplot as plt
     from sunpy import map as smap
     from sunpy import sun
+    from matplotlib import colors
     import astropy.units as u
     if not figdir:
         figdir='./'
@@ -345,6 +346,7 @@ def plt_qlook_image(imres,figdir=None,verbose=True):
                 dim = u.Quantity([256, 256], u.pixel)
                 eomap=eomap.resample(dim)
                 eomap.plot_settings['cmap'] = plt.get_cmap('jet')
+                eomap.plot_settings['norm']=colors.Normalize(vmin=-1e5,vmax=1e6)
                 eomap.plot()
                 eomap.draw_limb()
                 eomap.draw_grid()
@@ -375,6 +377,7 @@ def plt_qlook_image(imres,figdir=None,verbose=True):
                           }
                 eomap = smap.Map(data, header)
                 eomap.plot_settings['cmap'] = plt.get_cmap('jet')
+                eomap.plot_settings['norm']=colors.Normalize(vmin=-1e5,vmax=1e6)
                 eomap.plot()
                 eomap.draw_limb()
                 eomap.draw_grid()
@@ -421,7 +424,7 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
     qlookfitsdir = os.getenv('EOVSAQLOOKFITS')
     qlookfigdir = os.getenv('EOVSAQLOOKFIG')
     if not qlookfitsdir:
-        qlookfitsdir='/data1/eovsa/qlookfits/'
+        qlookfitsdir='/data1/eovsa/fits/qlook_10m/'
     if not qlookfigdir:
         qlookfigdir='/common/webplots/qlookimg_10m/'
 
