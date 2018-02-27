@@ -209,7 +209,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
     if not imagedir:
         imagedir = './'
     imres = {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': [], 'Spw': [], 'Vis': [],
-             'WholedayImage': {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': [], 'Spw': [], 'Vis': []}}
+             'Synoptic': {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': [], 'Spw': [], 'Vis': []}}
     for n, msfile in enumerate(vis):
         msfilebs = os.path.basename(msfile)
         imdir = imagedir + subdir[n]
@@ -314,12 +314,12 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
                           gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=stokes, doreg=True, usephacenter=False, overwrite=overwrite,
                           toTb=toTb, restoringbeam=restoringbeam, uvtaper=True, outertaper=['30arcsec'])
             if res:
-                imres['WholedayImage']['Succeeded'] += res['Succeeded']
-                imres['WholedayImage']['BeginTime'] += res['BeginTime']
-                imres['WholedayImage']['EndTime'] += res['EndTime']
-                imres['WholedayImage']['ImageName'] += res['ImageName']
-                imres['WholedayImage']['Spw'] += [spwstr] * len(res['ImageName'])
-                imres['WholedayImage']['Vis'] += [msfile] * len(res['ImageName'])
+                imres['Synoptic']['Succeeded'] += res['Succeeded']
+                imres['Synoptic']['BeginTime'] += res['BeginTime']
+                imres['Synoptic']['EndTime'] += res['EndTime']
+                imres['Synoptic']['ImageName'] += res['ImageName']
+                imres['Synoptic']['Spw'] += [spwstr] * len(res['ImageName'])
+                imres['Synoptic']['Vis'] += [msfile] * len(res['ImageName'])
             else:
                 continue
 
@@ -470,13 +470,13 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
 
     qlookfitsdir = os.getenv('EOVSAQLOOKFITS')
     qlookfigdir = os.getenv('EOVSAQLOOKFIG')
-    qlookwholedayfigdir = os.getenv('EOVSAQLOOKWHOLEDAYFIG')
+    synopticfigdir = os.getenv('EOVSASYNOPTICFIG')
     if not qlookfitsdir:
         qlookfitsdir = '/data1/eovsa/fits/qlook_10m/'
     if not qlookfigdir:
         qlookfigdir = '/common/webplots/qlookimg_10m/'
-    if not qlookwholedayfigdir:
-        qlookwholedayfigdir = '/common/webplots/qlookimg_wholeday/'
+    if not synopticfigdir:
+        synopticfigdir = '/common/webplots/SynopticImg/'
 
     imagedir = qlookfitsdir
     if wholeday:
@@ -484,7 +484,7 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
         if os.path.exists(vis_wholeday):
             date = vis_wholeday
         else:
-            print('Wholeday ms file {} not existed. About..... Use pipeline1.py to make one.'.format(vis_wholeday))
+            print('Whole-day ms file {} not existed. About..... Use pipeline1.py to make one.'.format(vis_wholeday))
             return None
     if docalib:
         vis = calib_pipeline(date, doimport=doimport, wholeday=wholeday)
@@ -492,6 +492,6 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
     imres = mk_qlook_image(date, twidth=twidth, ncpu=ncpu, doimport=doimport, docalib=docalib, imagedir=imagedir, verbose=True)
     figdir = qlookfigdir
     plt_qlook_image(imres, figdir=figdir, verbose=True)
-    if imres['WholedayImage']['Succeeded']:
-        figdir = qlookwholedayfigdir
-        plt_qlook_image(imres['WholedayImage'], figdir=figdir, verbose=True, wholeday=True)
+    if imres['Synoptic']['Succeeded']:
+        figdir = synopticfigdir
+        plt_qlook_image(imres['Synoptic'], figdir=figdir, verbose=True, wholeday=True)
