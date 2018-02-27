@@ -439,12 +439,13 @@ def plt_qlook_image(imres, figdir=None, verbose=True, wholeday=False):
                 ax.set_ylabel('')
                 ax.set_xticklabels([''])
                 ax.set_yticklabels([''])
+        fig_tdt = plttime.to_datetime()
         if wholeday:
+            fig_subdir = fig_tdt.strftime("%Y/")
             figname = 'eovsa_qlimg_' + plttime.iso[:10].replace('-', '') + '.png'
         else:
+            fig_subdir = fig_tdt.strftime("%Y/%m/%d/")
             figname = 'eovsa_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:15] + '.png'
-        fig_tdt = plttime.to_datetime()
-        fig_subdir = fig_tdt.strftime("%Y/%m/%d/")
         figdir_ = figdir + fig_subdir
         if not os.path.exists(figdir_):
             os.makedirs(figdir_)
