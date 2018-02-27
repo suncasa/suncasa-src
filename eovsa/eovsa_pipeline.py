@@ -142,7 +142,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
                 'ms': [outpath + ll + '.ms' for ll in sorted(list(msfiles))], 'tstlist': sclist['tstlist'], 'tedlist': sclist['tedlist']}
 
 
-def calib_pipeline(trange, doimport=False, wholeday=False):
+def calib_pipeline(trange, doimport=False, synoptic=False):
     ''' 
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
@@ -167,7 +167,7 @@ def calib_pipeline(trange, doimport=False, wholeday=False):
         if f[-1] == '/':
             invis[idx] = f[:-1]
 
-    if wholeday:
+    if synoptic:
         vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], interp='nearest', doflag=True, flagant='13~15', doimage=False, doconcat=True,
                                     msoutdir=os.path.dirname(invis[0]), concatvis=os.path.basename(invis[0])[:11] + '.ms', keep_orig_ms=False)
     else:
@@ -306,7 +306,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
                 spwstr = spwran[0]
 
             restoringbeam = ['{0:.1f}arcsec'.format(bmsz)]
-            imagesuffix = '.wholeday.spw' + spwstr.replace('~', '-')
+            imagesuffix = '.synoptic.spw' + spwstr.replace('~', '-')
             # if cfreq > 10.:
             #     antenna = antenna + ';!0&1;!0&2'  #deselect the shortest baselines
 
@@ -329,7 +329,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
     return imres
 
 
-def plt_qlook_image(imres, figdir=None, verbose=True, wholeday=False):
+def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
     from matplotlib import pyplot as plt
     from sunpy import map as smap
     from sunpy import sun
@@ -361,13 +361,13 @@ def plt_qlook_image(imres, figdir=None, verbose=True, wholeday=False):
         plttime = btimes_sort[i, 0]
         tofd = plttime.mjd - np.fix(plttime.mjd)
         suci = suc_sort[i]
-        if not wholeday:
+        if not synoptic:
             if tofd < 16. / 24. or sum(
                     suci) < nspw - 2:  # if time of the day is before 16 UT (and 24 UT), skip plotting (because the old antennas are not tracking)
                 continue
         #fig=plt.figure(figsize=(9,6))
         #fig.suptitle('EOVSA @ '+plttime.iso[:19])
-        if wholeday:
+        if synoptic:
             fig.text(0.01, 0.98, plttime.iso[:10], color='w', fontweight='bold', fontsize=12, ha='left')
         else:
             fig.text(0.01, 0.98, plttime.iso[:19], color='w', fontweight='bold', fontsize=12, ha='left')
@@ -392,7 +392,7 @@ def plt_qlook_image(imres, figdir=None, verbose=True, wholeday=False):
                 eomap = eomap.resample(dim)
                 eomap.plot_settings['cmap'] = plt.get_cmap('jet')
                 eomap.plot()
-                if not wholeday:
+                if not synoptic:
                     eomap.draw_limb()
                 eomap.draw_grid()
                 ax = plt.gca()
@@ -420,7 +420,7 @@ def plt_qlook_image(imres, figdir=None, verbose=True, wholeday=False):
                 eomap = smap.Map(data, header)
                 eomap.plot_settings['cmap'] = plt.get_cmap('jet')
                 eomap.plot()
-                if not wholeday:
+                if not synoptic:
                     eomap.draw_limb()
                 eomap.draw_grid()
                 ax = plt.gca()
@@ -441,7 +441,7 @@ def plt_qlook_image(imres, figdir=None, verbose=True, wholeday=False):
                 ax.set_xticklabels([''])
                 ax.set_yticklabels([''])
         fig_tdt = plttime.to_datetime()
-        if wholeday:
+        if synoptic:
             fig_subdir = fig_tdt.strftime("%Y/")
             figname = 'eovsa_qlimg_' + plttime.iso[:10].replace('-', '') + '.png'
         else:
@@ -456,7 +456,7 @@ def plt_qlook_image(imres, figdir=None, verbose=True, wholeday=False):
     plt.close(fig)
 
 
-def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False, wholeday=False):
+def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False, synoptic=False):
     ''' date: date string or Time object. e.g., '2017-07-15' or Time('2017-07-15')
     '''
     import pytz
@@ -480,7 +480,7 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
         synopticfigdir = '/common/webplots/SynopticImg/'
 
     imagedir = qlookfitsdir
-    if wholeday:
+    if synoptic:
         vis_wholeday = os.path.join(udbmsdir, date.datetime.strftime("%Y%m"), 'UDB' + date.datetime.strftime("%Y%m%d") + '.ms')
         if os.path.exists(vis_wholeday):
             date = vis_wholeday
@@ -488,11 +488,11 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
             print('Whole-day ms file {} not existed. About..... Use pipeline1.py to make one.'.format(vis_wholeday))
             return None
     if docalib:
-        vis = calib_pipeline(date, doimport=doimport, wholeday=wholeday)
+        vis = calib_pipeline(date, doimport=doimport, synoptic=synoptic)
 
     imres = mk_qlook_image(date, twidth=twidth, ncpu=ncpu, doimport=doimport, docalib=docalib, imagedir=imagedir, verbose=True)
     figdir = qlookfigdir
     plt_qlook_image(imres, figdir=figdir, verbose=True)
     if imres['Synoptic']['Succeeded']:
         figdir = synopticfigdir
-        plt_qlook_image(imres['Synoptic'], figdir=figdir, verbose=True, wholeday=True)
+        plt_qlook_image(imres['Synoptic'], figdir=figdir, verbose=True, synoptic=True)
