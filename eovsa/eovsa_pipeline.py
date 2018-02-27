@@ -112,7 +112,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
         msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
 
     msfile_wholeday = os.path.join(outpath, 'UDB' + tdatetime.strftime("%Y%m%d") + '.ms')
-    if os.path.exist(msfile_wholeday):
+    if os.path.exists(msfile_wholeday):
         return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': [],
                 'ms': [msfile_wholeday], 'tstlist': sclist['tstlist'], 'tedlist': sclist['tedlist']}
     else:
