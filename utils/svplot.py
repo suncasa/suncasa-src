@@ -329,6 +329,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                     sz = eomap.data.shape
                     if len(sz) == 4:
                         eomap.data = eomap.data[min(polmap[pols[pol]], eomap.meta['naxis4'] - 1), 0, :, :].reshape((sz[2], sz[3]))
+                    eomap.data[np.isnan(eomap.data)] = 0.0
                     # resample the image for plotting
                     if fov is not None:
                         fov = [np.array(ll) for ll in fov]
@@ -898,6 +899,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             hdulist = fits.open(rfits)
             hdu = hdulist[0]
             (npol, nf, nx, ny) = hdu.data.shape
+            hdu.data[np.isnan(hdu.data)] = 0.0
             rmap = smap.Map(hdu.data[0, 0, :, :], hdu.header)
         except:
             print 'radio fits file not recognized by sunpy.map. Aborting...'
