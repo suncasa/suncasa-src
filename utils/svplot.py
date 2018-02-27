@@ -34,6 +34,7 @@ import copy
 from pkg_resources import parse_version
 import pdb
 
+
 def uniq(lst):
     last = object()
     nlst = []
@@ -442,13 +443,10 @@ def dspec_external(vis, workdir='./', specfile=None):
     os.system('casa --nologger -c {}'.format(dspecscript))
 
 
-def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uvrange=None,
-           stokes='RR,LL', dmin=None, dmax=None,
-           goestime=None, reftime=None, 
-           xycen=None, fov=[500.,500.], xyrange=None, restoringbeam=[''], robust=0.0,
-           niter=500, imsize=[512], cell=['5.0arcsec'],interactive=False, 
-           usemsphacenter=True, imagefile=None, fitsfile=None, plotaia=True,
-           aiawave=171, aiafits=None, savefig=False, mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=True):
+def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uvrange=None, stokes='RR,LL', dmin=None, dmax=None, goestime=None,
+           reftime=None, xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0, niter=500, imsize=[512], cell=['5.0arcsec'],
+           interactive=False, usemsphacenter=True, imagefile=None, fitsfile=None, plotaia=True, aiawave=171, aiafits=None, savefig=False,
+           mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=True):
     '''
     Required inputs:
             vis: calibrated CASA measurement set
@@ -482,7 +480,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
     if xycen:
         xc, yc = xycen
         xlen, ylen = fov
-        if parse_version(sunpy.__version__)>parse_version('0.8.0'):
+        if parse_version(sunpy.__version__) > parse_version('0.8.0'):
             xyrange = [[xc - xlen / 2.0, yc - ylen / 2.0], [xc + xlen / 2.0, yc + ylen / 2.0]]
         else:
             xyrange = [[xc - xlen / 2.0, xc + xlen / 2.0], [yc - ylen / 2.0, yc + ylen / 2.0]]
@@ -836,8 +834,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
         ax4 = plt.subplot(gs2[0, 0])
         ax5 = plt.subplot(gs2[1, 0])
         # LCP or V
-        ax6 = plt.subplot(gs2[0, 1])
-        ax7 = plt.subplot(gs2[1, 1])
+        ax6 = plt.subplot(gs2[0, 1], sharex=ax4, sharey=ax4)
+        ax7 = plt.subplot(gs2[1, 1], sharex=ax5, sharey=ax5)
 
         if fitsfile:
             pass
@@ -847,7 +845,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 if observatory == 'EOVSA' or (not usemsphacenter):
                     print 'This is EOVSA data'
                     # use RA and DEC from FIELD ID 0
-                    tb.open(vis+'/FIELD')
+                    tb.open(vis + '/FIELD')
                     phadir = tb.getcol('PHASE_DIR').flatten()
                     tb.close()
                     ra0 = phadir[0]
@@ -863,10 +861,10 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                     # use solar disk center as default
                     phasecenter = 'J2000 ' + str(ra0) + 'rad ' + str(dec0) + 'rad'
                 else:
-                    x0 = np.radians(xycen[0]/3600.)
-                    y0 = np.radians(xycen[1]/3600.)
-                    p0 = np.radians(eph['p0'][0]) # p angle in radians 
-                    raoff = -((x0) * np.cos(p0) - y0 * np.sin(p0))/np.cos(eph['dec'][0])
+                    x0 = np.radians(xycen[0] / 3600.)
+                    y0 = np.radians(xycen[1] / 3600.)
+                    p0 = np.radians(eph['p0'][0])  # p angle in radians
+                    raoff = -((x0) * np.cos(p0) - y0 * np.sin(p0)) / np.cos(eph['dec'][0])
                     decoff = (x0) * np.sin(p0) + y0 * np.cos(p0)
                     newra = ra0 + raoff
                     newdec = dec0 + decoff
@@ -877,11 +875,10 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                     os.system('rm -rf ' + imagename + '.*')
                 sto = stokes.replace(',', '')
                 print 'do clean for ' + timerange + ' in spw ' + spw + ' stokes ' + sto
-                print 'Original phasecenter: '+ str(ra0) + str(dec0)
+                print 'Original phasecenter: ' + str(ra0) + str(dec0)
                 print 'use phasecenter: ' + phasecenter
-                clean(vis=vis, imagename=imagename, selectdata=True, spw=spw, timerange=timerange, stokes=sto,
-                      niter=niter, interactive=interactive, npercycle=50, imsize=imsize, cell=cell, restoringbeam=restoringbeam,
-                      weighting='briggs', robust=robust, phasecenter=phasecenter)
+                clean(vis=vis, imagename=imagename, selectdata=True, spw=spw, timerange=timerange, stokes=sto, niter=niter, interactive=interactive,
+                      npercycle=50, imsize=imsize, cell=cell, restoringbeam=restoringbeam, weighting='briggs', robust=robust, phasecenter=phasecenter)
                 os.system('rm -rf ' + imagename + '.psf')
                 os.system('rm -rf ' + imagename + '.flux')
                 os.system('rm -rf ' + imagename + '.model')
@@ -928,18 +925,17 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 x0 = rmap1.xrange[0] + rmap1.scale[1] * (n + 0.5) * u.pix
                 y0 = rmap1.yrange[0] + rmap1.scale[0] * (m + 0.5) * u.pix
             if len(fov) == 1:
-                fov=[fov]*2
+                fov = [fov] * 2
             sz_x = fov[0] * u.arcsec
             sz_y = fov[1] * u.arcsec
-            x1 = x0 - sz_x/2.
-            x2 = x0 + sz_x/2.
-            y1 = y0 - sz_y/2.
-            y2 = y0 + sz_y/2.
+            x1 = x0 - sz_x / 2.
+            x2 = x0 + sz_x / 2.
+            y1 = y0 - sz_y / 2.
+            y2 = y0 + sz_y / 2.
             xyrange = [[x1.value, x2.value], [y1.value, y2.value]]
         else:
             sz_x = (xyrange[0][1] - xyrange[0][0]) * u.arcsec
             sz_y = (xyrange[1][1] - xyrange[1][0]) * u.arcsec
-
 
         clevels1 = np.linspace(0.2, 0.9, 5)
         if stokes.split(',')[1] == 'V':
@@ -965,12 +961,10 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             if rmap:
                 ax4.contour(rmapx.value, rmapy.value, rmap1.data, levels=clevels1 * np.nanmax(rmap1.data), cmap=cm.jet)
                 ax6.contour(rmapx.value, rmapy.value, rmap2.data, levels=clevels2 * np.nanmax(rmap2.data), cmap=cm.RdBu)
-            ax4.text(0.02, 0.02, 'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'),
-                     verticalalignment='bottom', horizontalalignment='left', transform=ax4.transAxes, color='k',
-                     fontsize=10)
-            ax6.text(0.02, 0.02, 'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'),
-                     verticalalignment='bottom', horizontalalignment='left', transform=ax6.transAxes, color='k',
-                     fontsize=10)
+            ax4.text(0.02, 0.02, 'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'), verticalalignment='bottom',
+                     horizontalalignment='left', transform=ax4.transAxes, color='k', fontsize=10)
+            ax6.text(0.02, 0.02, 'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'), verticalalignment='bottom',
+                     horizontalalignment='left', transform=ax6.transAxes, color='k', fontsize=10)
         else:
             title = '{0} {1:6.3f} GHz'.format(observatory, (bfreqghz + efreqghz) / 2.0)
             rmap1.plot(axes=ax4, cmap=cm.jet)
@@ -986,7 +980,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             #            cmap=cm.gray)
             # ax6.contour(rmapx.value, rmapy.value, rmap2.data, levels=np.linspace(0.2, 0.9, 5) * np.nanmax(rmap2.data),
             #            cmap=cm.gray)
-            rmap2.draw_rectangle((xyrange[0][0], xyrange[1][0]) * u.arcsec, sz_x, sz_y)  
+            rmap2.draw_rectangle((xyrange[0][0], xyrange[1][0]) * u.arcsec, sz_x, sz_y)
         ax4.set_xlim(-1200, 1200)
         ax4.set_ylim(-1200, 1200)
         ax6.set_xlim(-1200, 1200)
@@ -1035,12 +1029,11 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             subrmap2.draw_grid()  # ax5.contour(subrmapx.value, subrmapy.value, subrmap1.data,  #            levels=clevels1 * np.nanmax(subrmap1.data), cmap=cm.gray)  # ax7.contour(subrmapx.value, subrmapy.value, subrmap2.data,  #            levels=clevels2 * np.nanmax(subrmap2.data), cmap=cm.gray)  # subrmap1.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)  # subrmap2.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
         ax5.set_xlim(xyrange[0])
         ax5.set_ylim(xyrange[1])
-        ax5.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f')[:-3], verticalalignment='bottom',
-                 horizontalalignment='left', transform=ax5.transAxes, color='k', fontsize=10)
+        ax5.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f')[:-3], verticalalignment='bottom', horizontalalignment='left',
+                 transform=ax5.transAxes, color='k', fontsize=10)
         ax7.set_xlim(xyrange[0])
         ax7.set_ylim(xyrange[1])
-        ax7.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f')[:-3], verticalalignment='bottom',
-                 horizontalalignment='left', transform=ax7.transAxes, color='k', fontsize=10)
+        ax7.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f')[:-3], verticalalignment='bottom', horizontalalignment='left',
+                 transform=ax7.transAxes, color='k', fontsize=10)
 
         fig.show()
-

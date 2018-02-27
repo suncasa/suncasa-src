@@ -143,8 +143,13 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
         </param>
 
         <param type="string" name="msoutdir" subparam="true">
-            <description>Place to put concatenated ms. Default current directory.</description>
+            <description>Path of output concatenated ms. Default is current directory.</description>
             <value type="string">.</value>
+        </param>
+
+        <param type="string" name="concatvis" subparam="true">
+            <description>Name of output visibility file. Default is the name of the first vis file appended by a suffix: _concat.</description>
+            <value type="string"></value>
         </param>
 
         <param type="bool" name="keep_orig_ms" subparam="true">
