@@ -112,9 +112,9 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
     else:
         msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
 
-    msfile_wholeday = os.path.join(outpath, 'UDB' + tdatetime.strftime("%Y%m%d") + '.ms')
-    if os.path.exists(msfile_wholeday):
-        return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': [], 'ms': [msfile_wholeday],
+    msfile_synoptic = os.path.join(outpath, 'UDB' + tdatetime.strftime("%Y%m%d") + '.ms')
+    if os.path.exists(msfile_synoptic):
+        return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': [], 'ms': [msfile_synoptic],
                 'tstlist': sclist['tstlist'], 'tedlist': sclist['tedlist']}
     else:
         udbfilelist_set = set(udbfilelist)
@@ -481,11 +481,11 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
 
     imagedir = qlookfitsdir
     if synoptic:
-        vis_wholeday = os.path.join(udbmsdir, date.datetime.strftime("%Y%m"), 'UDB' + date.datetime.strftime("%Y%m%d") + '.ms')
-        if os.path.exists(vis_wholeday):
-            date = vis_wholeday
+        vis_synoptic = os.path.join(udbmsdir, date.datetime.strftime("%Y%m"), 'UDB' + date.datetime.strftime("%Y%m%d") + '.ms')
+        if os.path.exists(vis_synoptic):
+            date = vis_synoptic
         else:
-            print('Whole-day ms file {} not existed. About..... Use pipeline1.py to make one.'.format(vis_wholeday))
+            print('Whole-day ms file {} not existed. About..... Use pipeline1.py to make one.'.format(vis_synoptic))
             return None
     if docalib:
         vis = calib_pipeline(date, doimport=doimport, synoptic=synoptic)

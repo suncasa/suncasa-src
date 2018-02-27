@@ -7,4 +7,4 @@ t = ep.Time(mjdnow - 6, format='mjd')
 print t.iso
 date = t.iso[:10]
 print date
-vis_corrected = ep.calib_pipeline(date, doimport=True, wholeday=True)
+vis_corrected = ep.calib_pipeline(date, doimport=True, synoptic=True)
