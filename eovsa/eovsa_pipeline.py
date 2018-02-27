@@ -11,6 +11,7 @@ from gaincal_cli import gaincal_cli as gaincal
 from applycal_cli import applycal_cli as applycal
 from suncasa.tasks import task_calibeovsa as calibeovsa
 from eovsapy import refcal_anal as ra
+from taskinit import ms
 import astropy.units as u
 import os
 import numpy as np
