@@ -5,5 +5,5 @@ from eovsapy.html_movie import html_movie
 mjdnow = ep.Time.now().mjd
 t = ep.Time(mjdnow-6,format='mjd')
 date = t.iso[:10]
-ep.qlook_image_pipeline(date)
+ep.qlook_image_pipeline(date,wholeday=True)
 html_movie(t)

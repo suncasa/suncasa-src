@@ -179,6 +179,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
                       3) a single or a list of UDBms file(s)
                       4) None -- use current date Time.now()
     '''
+    antenna0 = antenna
     if type(trange) == Time:
         mslist = trange2ms(trange=trange, doimport=doimport)
         vis = mslist['ms']
@@ -201,7 +202,8 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
 
     if not imagedir:
         imagedir = './'
-    imres = {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': [], 'Spw': [], 'Vis': []}
+    imres = {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': [], 'Spw': [], 'Vis': [],
+             'WholedayImage': {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': [], 'Spw': [], 'Vis': []}}
     for n, msfile in enumerate(vis):
         msfilebs = os.path.basename(msfile)
         imdir = imagedir + subdir[n]
@@ -211,6 +213,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             slfcalms = './' + msfilebs + '.xx'
             split(msfile, outputvis=slfcalms, datacolumn='corrected', correlation='XX')
         for spw in spws:
+            antenna = antenna0
             spwran = [s.zfill(2) for s in spw.split('~')]
             freqran = [int(s) * 0.5 + 2.9 for s in spw.split('~')]
             cfreq = np.mean(freqran)
@@ -253,6 +256,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             imagesuffix = '.spw' + spwstr.replace('~', '-')
             if cfreq > 10.:
                 antenna = antenna + ';!0&1;!0&2'  #deselect the shortest baselines
+
             res = ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=twidth, uvrange=uvrange, spw=spw, ncpu=ncpu, niter=1000,
                           gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=stokes, doreg=True, usephacenter=False, overwrite=overwrite,
                           toTb=toTb, restoringbeam=restoringbeam, uvtaper=True, outertaper=['30arcsec'])
@@ -265,7 +269,53 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
                 imres['Spw'] += [spwstr] * len(res['ImageName'])
                 imres['Vis'] += [msfile] * len(res['ImageName'])
             else:
-                return None
+                continue
+
+    if len(vis)==1:
+        # produce the band-by-band whole-day images
+        ms.open(msfile)
+        ms.selectinit()
+        timfreq = ms.getdata(['time', 'axis_info'], ifraxis=True)
+        tim = timfreq['time']
+        ms.close()
+
+        imdir = imagedir + subdir[0]
+        if not os.path.exists(imdir):
+            os.makedirs(imdir)
+        for spw in spws:
+            spwran = [s.zfill(2) for s in spw.split('~')]
+            freqran = [int(s) * 0.5 + 2.9 for s in spw.split('~')]
+            cfreq = np.mean(freqran)
+            bmsz = max(150. / cfreq, 20.)
+            uvrange = '<10klambda'
+            if cfreq < 10.:
+                imsize = 512
+                cell = ['5arcsec']
+            else:
+                imsize = 1024
+                cell = ['2.5arcsec']
+            if len(spwran) == 2:
+                spwstr = spwran[0] + '~' + spwran[1]
+            else:
+                spwstr = spwran[0]
+
+            restoringbeam = ['{0:.1f}arcsec'.format(bmsz)]
+            imagesuffix = '.wholeday.spw' + spwstr.replace('~', '-')
+            # if cfreq > 10.:
+            #     antenna = antenna + ';!0&1;!0&2'  #deselect the shortest baselines
+
+            res = ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=len(tim), uvrange=uvrange, spw=spw, ncpu=1, niter=1000,
+                          gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=stokes, doreg=True, usephacenter=False, overwrite=overwrite,
+                          toTb=toTb, restoringbeam=restoringbeam, uvtaper=True, outertaper=['30arcsec'])
+            if res:
+                imres['WholedayImage']['Succeeded'] += res['Succeeded']
+                imres['WholedayImage']['BeginTime'] += res['BeginTime']
+                imres['WholedayImage']['EndTime'] += res['EndTime']
+                imres['WholedayImage']['ImageName'] += res['ImageName']
+                imres['WholedayImage']['Spw'] += [spwstr] * len(res['ImageName'])
+                imres['WholedayImage']['Vis'] += [msfile] * len(res['ImageName'])
+            else:
+                continue
 
     #save it for debugging purposes
     np.savez('imres.npz', imres=imres)
@@ -389,7 +439,7 @@ def plt_qlook_image(imres, figdir=None, verbose=True):
     plt.close(fig)
 
 
-def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False,wholeday=False):
+def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False, wholeday=False):
     ''' date: date string or Time object. e.g., '2017-07-15' or Time('2017-07-15')
     '''
     import pytz
@@ -411,7 +461,7 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
 
     imagedir = qlookfitsdir
     if wholeday:
-        vis_wholeday = os.path.join(udbmsdir,date.datetime.strftime("%Y%m"),'UDB'+date.datetime.strftime("%Y%m%d")+'.ms')
+        vis_wholeday = os.path.join(udbmsdir, date.datetime.strftime("%Y%m"), 'UDB' + date.datetime.strftime("%Y%m%d") + '.ms')
         date = vis_wholeday
     if docalib:
         vis = calib_pipeline(date, doimport=doimport, wholeday=wholeday)
