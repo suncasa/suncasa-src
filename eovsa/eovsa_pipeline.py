@@ -386,6 +386,7 @@ def plt_qlook_image(imres, figdir=None, verbose=True, wholeday=False):
                 sz = eomap.data.shape
                 if len(sz) == 4:
                     eomap.data = eomap.data.reshape((sz[2], sz[3]))
+                eomap.data[np.isnan(eomap.data)] = 0.0
                 #resample the image for plotting
                 dim = u.Quantity([256, 256], u.pixel)
                 eomap = eomap.resample(dim)
