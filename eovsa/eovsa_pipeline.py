@@ -136,7 +136,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
             'ms': [outpath + ll + '.ms' for ll in sorted(list(msfiles))], 'tstlist': sclist['tstlist'], 'tedlist': sclist['tedlist']}
 
 
-def calib_pipeline(trange, doimport=False):
+def calib_pipeline(trange, doimport=False, wholeday=False):
     ''' 
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
@@ -161,8 +161,12 @@ def calib_pipeline(trange, doimport=False):
         if f[-1] == '/':
             invis[idx] = f[:-1]
 
-    vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], interp='nearest', doflag=True, flagant='13~15', doimage=False, doconcat=True,
-                                msoutdir=os.path.dirname(invis[0]), keep_orig_ms=False)
+    if wholeday:
+        vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], interp='nearest', doflag=True, flagant='13~15', doimage=False, doconcat=True,
+                                    msoutdir=os.path.dirname(invis[0]), concatvis=os.path.basename(invis[0])[:11] + '.ms', keep_orig_ms=False)
+    else:
+        vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], interp='nearest', doflag=True, flagant='13~15', doimage=False, doconcat=True,
+                                    msoutdir=os.path.dirname(invis[0]), keep_orig_ms=False)
     return vis
 
 
@@ -385,7 +389,7 @@ def plt_qlook_image(imres, figdir=None, verbose=True):
     plt.close(fig)
 
 
-def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False):
+def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False,wholeday=False):
     ''' date: date string or Time object. e.g., '2017-07-15' or Time('2017-07-15')
     '''
     import pytz
@@ -406,8 +410,12 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
         qlookfigdir = '/common/webplots/qlookimg_10m/'
 
     imagedir = qlookfitsdir
+    if wholeday:
+        vis_wholeday = os.path.join(udbmsdir,date.datetime.strftime("%Y%m"),'UDB'+date.datetime.strftime("%Y%m%d")+'.ms')
+        date = vis_wholeday
     if docalib:
-        vis = calib_pipeline(date, doimport=doimport)
+        vis = calib_pipeline(date, doimport=doimport, wholeday=wholeday)
+
     imres = mk_qlook_image(date, twidth=twidth, ncpu=ncpu, doimport=doimport, docalib=docalib, imagedir=imagedir, verbose=True)
     figdir = qlookfigdir
     plt_qlook_image(imres, figdir=figdir, verbose=True)
