@@ -113,8 +113,8 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
 
     msfile_wholeday = os.path.join(outpath, 'UDB' + tdatetime.strftime("%Y%m%d") + '.ms')
     if os.path.exists(msfile_wholeday):
-        return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': [],
-                'ms': [msfile_wholeday], 'tstlist': sclist['tstlist'], 'tedlist': sclist['tedlist']}
+        return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': [], 'ms': [msfile_wholeday],
+                'tstlist': sclist['tstlist'], 'tedlist': sclist['tedlist']}
     else:
         udbfilelist_set = set(udbfilelist)
         msfiles = udbfilelist_set.intersection(msfiles)
@@ -459,18 +459,28 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
 
     qlookfitsdir = os.getenv('EOVSAQLOOKFITS')
     qlookfigdir = os.getenv('EOVSAQLOOKFIG')
+    qlookwholedayfigdir = os.getenv('EOVSAQLOOKWHOLEDAYFIG')
     if not qlookfitsdir:
         qlookfitsdir = '/data1/eovsa/fits/qlook_10m/'
     if not qlookfigdir:
         qlookfigdir = '/common/webplots/qlookimg_10m/'
+    if not qlookwholedayfigdir:
+        qlookwholedayfigdir = '/common/webplots/qlookimg_wholeday/'
 
     imagedir = qlookfitsdir
     if wholeday:
         vis_wholeday = os.path.join(udbmsdir, date.datetime.strftime("%Y%m"), 'UDB' + date.datetime.strftime("%Y%m%d") + '.ms')
-        date = vis_wholeday
+        if os.path.exists(vis_wholeday):
+            date = vis_wholeday
+        else:
+            print('Wholeday ms file {} not existed. About..... Use pipeline1.py to make one.'.format(vis_wholeday))
+            return None
     if docalib:
         vis = calib_pipeline(date, doimport=doimport, wholeday=wholeday)
 
     imres = mk_qlook_image(date, twidth=twidth, ncpu=ncpu, doimport=doimport, docalib=docalib, imagedir=imagedir, verbose=True)
     figdir = qlookfigdir
     plt_qlook_image(imres, figdir=figdir, verbose=True)
+    if imres['WholedayImage']['Succeeded']:
+        figdir = qlookwholedayfigdir
+        plt_qlook_image(imres['WholedayImage'], figdir=figdir, verbose=True)
