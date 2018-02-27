@@ -329,7 +329,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
     return imres
 
 
-def plt_qlook_image(imres, figdir=None, verbose=True):
+def plt_qlook_image(imres, figdir=None, verbose=True, wholeday=False):
     from matplotlib import pyplot as plt
     from sunpy import map as smap
     from sunpy import sun
@@ -361,12 +361,16 @@ def plt_qlook_image(imres, figdir=None, verbose=True):
         plttime = btimes_sort[i, 0]
         tofd = plttime.mjd - np.fix(plttime.mjd)
         suci = suc_sort[i]
-        if tofd < 16. / 24. or sum(
-                suci) < nspw - 2:  # if time of the day is before 16 UT (and 24 UT), skip plotting (because the old antennas are not tracking)
-            continue
+        if not wholeday:
+            if tofd < 16. / 24. or sum(
+                    suci) < nspw - 2:  # if time of the day is before 16 UT (and 24 UT), skip plotting (because the old antennas are not tracking)
+                continue
         #fig=plt.figure(figsize=(9,6))
         #fig.suptitle('EOVSA @ '+plttime.iso[:19])
-        fig.text(0.01, 0.98, plttime.iso[:19], color='w', fontweight='bold', fontsize=12, ha='left')
+        if wholeday:
+            fig.text(0.01, 0.98, plttime.iso[:10], color='w', fontweight='bold', fontsize=12, ha='left')
+        else:
+            fig.text(0.01, 0.98, plttime.iso[:19], color='w', fontweight='bold', fontsize=12, ha='left')
         if verbose:
             print 'Plotting image at: ', plttime.iso
         for n in range(nspw):
@@ -387,7 +391,8 @@ def plt_qlook_image(imres, figdir=None, verbose=True):
                 eomap = eomap.resample(dim)
                 eomap.plot_settings['cmap'] = plt.get_cmap('jet')
                 eomap.plot()
-                eomap.draw_limb()
+                if not wholeday:
+                    eomap.draw_limb()
                 eomap.draw_grid()
                 ax = plt.gca()
                 ax.set_xlim([-1080, 1080])
@@ -414,7 +419,8 @@ def plt_qlook_image(imres, figdir=None, verbose=True):
                 eomap = smap.Map(data, header)
                 eomap.plot_settings['cmap'] = plt.get_cmap('jet')
                 eomap.plot()
-                eomap.draw_limb()
+                if not wholeday:
+                    eomap.draw_limb()
                 eomap.draw_grid()
                 ax = plt.gca()
                 ax.set_xlim([-1080, 1080])
@@ -433,7 +439,10 @@ def plt_qlook_image(imres, figdir=None, verbose=True):
                 ax.set_ylabel('')
                 ax.set_xticklabels([''])
                 ax.set_yticklabels([''])
-        figname = 'eovsa_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:15] + '.png'
+        if wholeday:
+            figname = 'eovsa_qlimg_' + plttime.iso[:10].replace('-', '') + '.png'
+        else:
+            figname = 'eovsa_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:15] + '.png'
         fig_tdt = plttime.to_datetime()
         fig_subdir = fig_tdt.strftime("%Y/%m/%d/")
         figdir_ = figdir + fig_subdir
@@ -484,4 +493,4 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
     plt_qlook_image(imres, figdir=figdir, verbose=True)
     if imres['WholedayImage']['Succeeded']:
         figdir = qlookwholedayfigdir
-        plt_qlook_image(imres['WholedayImage'], figdir=figdir, verbose=True)
+        plt_qlook_image(imres['WholedayImage'], figdir=figdir, verbose=True, wholeday=True)
