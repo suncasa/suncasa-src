@@ -101,6 +101,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
         udbmspath = udbmsscldir
     else:
         udbmspath = udbmsdir
+    inpath = '{}{}/'.format(udbdir, tdatetime.strftime("%Y"))
     outpath = '{}{}/'.format(udbmspath, tdatetime.strftime("%Y%m"))
     if not os.path.exists(outpath):
         if verbose:
@@ -109,31 +110,35 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
         msfiles = []
     else:
         msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
-    udbfilelist_set = set(udbfilelist)
-    msfiles = udbfilelist_set.intersection(msfiles)
-    filelist = udbfilelist_set - msfiles
-    filelist = sorted(list(filelist))
 
-    inpath = '{}{}/'.format(udbdir, tdatetime.strftime("%Y"))
-    if filelist and doimport:
-        import multiprocessing as mprocs
-        #ncpu = mprocs.cpu_count()
-        #if ncpu > 10:
-        #    ncpu = 10
-        #if ncpu > len(filelist):
-        #    ncpu = len(filelist)
-        ncpu = 1
-        timporteovsa.importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1, visprefix=outpath, nocreatms=False,
-                                 doconcat=False, modelms="", doscaling=doscaling, keep_nsclms=False, udb_corr=True)
+    msfile_wholeday = os.path.join(outpath, os.path.basename(udbfilelist[0])[:11] + '.ms')
+    if os.path.exist(msfile_wholeday):
+        return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': [],
+                'ms': [msfile_wholeday], 'tstlist': sclist['tstlist'], 'tedlist': sclist['tedlist']}
+    else:
+        udbfilelist_set = set(udbfilelist)
+        msfiles = udbfilelist_set.intersection(msfiles)
+        filelist = udbfilelist_set - msfiles
+        filelist = sorted(list(filelist))
+        if filelist and doimport:
+            import multiprocessing as mprocs
+            #ncpu = mprocs.cpu_count()
+            #if ncpu > 10:
+            #    ncpu = 10
+            #if ncpu > len(filelist):
+            #    ncpu = len(filelist)
+            ncpu = 1
+            timporteovsa.importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1, visprefix=outpath, nocreatms=False,
+                                     doconcat=False, modelms="", doscaling=doscaling, keep_nsclms=False, udb_corr=True)
 
-    msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
-    udbfilelist_set = set(udbfilelist)
-    msfiles = udbfilelist_set.intersection(msfiles)
-    filelist = udbfilelist_set - msfiles
-    filelist = sorted(list(filelist))
+        msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
+        udbfilelist_set = set(udbfilelist)
+        msfiles = udbfilelist_set.intersection(msfiles)
+        filelist = udbfilelist_set - msfiles
+        filelist = sorted(list(filelist))
 
-    return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': filelist,
-            'ms': [outpath + ll + '.ms' for ll in sorted(list(msfiles))], 'tstlist': sclist['tstlist'], 'tedlist': sclist['tedlist']}
+        return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': filelist,
+                'ms': [outpath + ll + '.ms' for ll in sorted(list(msfiles))], 'tstlist': sclist['tstlist'], 'tedlist': sclist['tedlist']}
 
 
 def calib_pipeline(trange, doimport=False, wholeday=False):
@@ -271,7 +276,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             else:
                 continue
 
-    if len(vis)==1:
+    if len(vis) == 1:
         # produce the band-by-band whole-day images
         ms.open(msfile)
         ms.selectinit()
