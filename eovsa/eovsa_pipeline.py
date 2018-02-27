@@ -162,7 +162,7 @@ def calib_pipeline(trange, doimport=False):
             invis[idx] = f[:-1]
 
     vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], interp='nearest', doflag=True, flagant='13~15', doimage=False, doconcat=True,
-                                msoutdir=os.path.dirname(invis), keep_orig_ms=False)
+                                msoutdir=os.path.dirname(invis[0]), keep_orig_ms=False)
     return vis
 
 
