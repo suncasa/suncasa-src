@@ -104,3 +104,4 @@ def concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2
     if not keep_orig_ms:
         for ll in msfiles:
             os.system('rm -rf {}'.format(ll))
+            os.system('rm -rf {}.flagversions'.format(ll))

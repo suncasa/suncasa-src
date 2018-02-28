@@ -11,6 +11,7 @@ from gaincal_cli import gaincal_cli as gaincal
 from applycal_cli import applycal_cli as applycal
 from suncasa.tasks import task_calibeovsa as calibeovsa
 from eovsapy import refcal_anal as ra
+from taskinit import ms
 import astropy.units as u
 import os
 import numpy as np
@@ -32,6 +33,7 @@ if not udbdir:
     print 'Environmental variable for EOVSA udb path not defined'
     print 'Use default path on pipeline'
     udbdir = '/data1/eovsa/fits/UDB/'
+
 
 def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
     '''This finds all solar UDBms files within a timerange; If the UDBms file does not exist 
@@ -91,7 +93,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
         etime = Time(btime.mjd + 1, format='mjd')
         trange = Time([btime, etime])
 
-    print 'Selected timerange in UTC: ',trange.iso
+    print 'Selected timerange in UTC: ', trange.iso
 
     sclist = ra.findfiles(trange, projid='NormalObserving', srcid='Sun')
     udbfilelist = sclist['scanlist']
@@ -100,44 +102,47 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
         udbmspath = udbmsscldir
     else:
         udbmspath = udbmsdir
+    inpath = '{}{}/'.format(udbdir, tdatetime.strftime("%Y"))
     outpath = '{}{}/'.format(udbmspath, tdatetime.strftime("%Y%m"))
     if not os.path.exists(outpath):
         if verbose:
-            print outpath+' does not exist. Making a new directory.'
+            print outpath + ' does not exist. Making a new directory.'
         os.makedirs(outpath)
         msfiles = []
     else:
         msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
-    udbfilelist_set = set(udbfilelist)
-    msfiles = udbfilelist_set.intersection(msfiles)
-    filelist = udbfilelist_set - msfiles
-    filelist = sorted(list(filelist))
 
-    inpath = '{}{}/'.format(udbdir, tdatetime.strftime("%Y"))
-    if filelist and doimport:
-        import multiprocessing as mprocs
-        #ncpu = mprocs.cpu_count()
-        #if ncpu > 10:
-        #    ncpu = 10
-        #if ncpu > len(filelist):
-        #    ncpu = len(filelist)
-        ncpu=1
-        timporteovsa.importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
-                    visprefix=outpath, nocreatms=False, doconcat=False, modelms="", doscaling=doscaling,
-                    keep_nsclms=False, udb_corr=True)
+    msfile_synoptic = os.path.join(outpath, 'UDB' + tdatetime.strftime("%Y%m%d") + '.ms')
+    if os.path.exists(msfile_synoptic):
+        return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': [], 'ms': [msfile_synoptic],
+                'tstlist': sclist['tstlist'], 'tedlist': sclist['tedlist']}
+    else:
+        udbfilelist_set = set(udbfilelist)
+        msfiles = udbfilelist_set.intersection(msfiles)
+        filelist = udbfilelist_set - msfiles
+        filelist = sorted(list(filelist))
+        if filelist and doimport:
+            import multiprocessing as mprocs
+            #ncpu = mprocs.cpu_count()
+            #if ncpu > 10:
+            #    ncpu = 10
+            #if ncpu > len(filelist):
+            #    ncpu = len(filelist)
+            ncpu = 1
+            timporteovsa.importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1, visprefix=outpath, nocreatms=False,
+                                     doconcat=False, modelms="", doscaling=doscaling, keep_nsclms=False, udb_corr=True)
 
-    msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
-    udbfilelist_set = set(udbfilelist)
-    msfiles = udbfilelist_set.intersection(msfiles)
-    filelist = udbfilelist_set - msfiles
-    filelist = sorted(list(filelist))
+        msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
+        udbfilelist_set = set(udbfilelist)
+        msfiles = udbfilelist_set.intersection(msfiles)
+        filelist = udbfilelist_set - msfiles
+        filelist = sorted(list(filelist))
 
-    return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': filelist,
-            'ms': [outpath + ll + '.ms' for ll in sorted(list(msfiles))],
-            'tstlist':sclist['tstlist'], 'tedlist':sclist['tedlist']}
+        return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': filelist,
+                'ms': [outpath + ll + '.ms' for ll in sorted(list(msfiles))], 'tstlist': sclist['tstlist'], 'tedlist': sclist['tedlist']}
 
 
-def calib_pipeline(trange,doimport=False):
+def calib_pipeline(trange, doimport=False, synoptic=False):
     ''' 
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
@@ -148,11 +153,11 @@ def calib_pipeline(trange,doimport=False):
         mslist = trange2ms(trange=trange, doimport=doimport)
         invis = mslist['ms']
         tsts = [l.to_datetime() for l in mslist['tstlist']]
-        subdir = [tst.strftime("%Y/%m/%d/") for tst in tsts] 
+        subdir = [tst.strftime("%Y/%m/%d/") for tst in tsts]
     if type(trange) == str:
         try:
             date = Time(trange)
-            mslist = trange2ms(trange=trange, doimport=doimport)          
+            mslist = trange2ms(trange=trange, doimport=doimport)
             invis = mslist['ms']
         except:
             invis = [trange]
@@ -162,32 +167,34 @@ def calib_pipeline(trange,doimport=False):
         if f[-1] == '/':
             invis[idx] = f[:-1]
 
-    vis=calibeovsa.calibeovsa(invis, caltype=['refpha','phacal'], interp='nearest', 
-                   doflag=True, flagant='13~15', doimage=False, doconcat=False)
+    if synoptic:
+        vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], interp='nearest', doflag=True, flagant='13~15', doimage=False, doconcat=True,
+                                    msoutdir=os.path.dirname(invis[0]), concatvis=os.path.basename(invis[0])[:11] + '.ms', keep_orig_ms=False)
+    else:
+        vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], interp='nearest', doflag=True, flagant='13~15', doimage=False, doconcat=True,
+                                    msoutdir=os.path.dirname(invis[0]), keep_orig_ms=False)
     return vis
 
 
-def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, stokes=None, antenna='0~12', 
-        #imagedir=None, spws=['1~3','4~6','7~9','10~13','14~18','19~28'],verbose=False):
-        imagedir=None, spws=['1~5','6~10','11~15','16~25'], toTb=True, overwrite=True, 
-        doslfcal=False, verbose=False):
-
-        
-    ''' 
+def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, stokes=None, antenna='0~12',
+                   #imagedir=None, spws=['1~3','4~6','7~9','10~13','14~18','19~28'],verbose=False):
+                   imagedir=None, spws=['1~5', '6~10', '11~15', '16~25'], toTb=True, overwrite=True, doslfcal=False, verbose=False):
+    '''
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
                       3) a single or a list of UDBms file(s)
                       4) None -- use current date Time.now()
     '''
+    antenna0 = antenna
     if type(trange) == Time:
         mslist = trange2ms(trange=trange, doimport=doimport)
         vis = mslist['ms']
         tsts = [l.to_datetime() for l in mslist['tstlist']]
-        subdir = [tst.strftime("%Y/%m/%d/") for tst in tsts] 
+        subdir = [tst.strftime("%Y/%m/%d/") for tst in tsts]
     if type(trange) == str:
         try:
             date = Time(trange)
-            mslist = trange2ms(trange=trange, doimport=doimport)          
+            mslist = trange2ms(trange=trange, doimport=doimport)
             vis = mslist['ms']
         except:
             vis = [trange]
@@ -198,105 +205,138 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             vis[idx] = f[:-1]
     if not stokes:
         stokes = 'XX'
-     
+
     if not imagedir:
-        imagedir='./'
-    imres = {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': [], 'Spw': [], 'Vis': []}
+        imagedir = './'
+    imres = {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': [], 'Spw': [], 'Vis': [],
+             'Synoptic': {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': [], 'Spw': [], 'Vis': []}}
     for n, msfile in enumerate(vis):
-        msfilebs=os.path.basename(msfile)
+        msfilebs = os.path.basename(msfile)
         imdir = imagedir + subdir[n]
         if not os.path.exists(imdir):
             os.makedirs(imdir)
         if doslfcal:
-            slfcalms = './'+msfilebs+'.xx'
-            split(msfile,outputvis=slfcalms,datacolumn='corrected',correlation='XX')
+            slfcalms = './' + msfilebs + '.xx'
+            split(msfile, outputvis=slfcalms, datacolumn='corrected', correlation='XX')
         for spw in spws:
+            antenna = antenna0
             spwran = [s.zfill(2) for s in spw.split('~')]
-            freqran = [int(s)*0.5+2.9 for s in spw.split('~')]
-            cfreq=np.mean(freqran)
-            bmsz=max(150./cfreq,20.)
-            uvrange='<10klambda'
+            freqran = [int(s) * 0.5 + 2.9 for s in spw.split('~')]
+            cfreq = np.mean(freqran)
+            bmsz = max(150. / cfreq, 20.)
+            uvrange = '<10klambda'
             if doslfcal:
-                slfcal_img = './'+msfilebs+'.slf.spw'+spw.replace('~','-')+'.slfimg'
-                slfcal_tb = './'+msfilebs+'.slf.spw'+spw.replace('~','-')+'.slftb'
+                slfcal_img = './' + msfilebs + '.slf.spw' + spw.replace('~', '-') + '.slfimg'
+                slfcal_tb = './' + msfilebs + '.slf.spw' + spw.replace('~', '-') + '.slftb'
                 try:
-                    clean(vis=slfcalms,
-                            antenna=antenna,
-                            imagename=slfcal_img,
-                            spw=spw,
-                            mode='mfs',
-                            timerange='',
-                            imagermode='csclean',
-                            psfmode='clark',
-                            imsize=[512,512],
-                            cell=['5arcsec'],
-                            niter=100,
-                            gain=0.05,
-                            stokes='I',
-                            weighting='natural',
-                            restoringbeam=[str(bmsz)+'arcsec'],
-                            pbcor=False,
-                            interactive=False,
-                            usescratch=True)
+                    clean(vis=slfcalms, antenna=antenna, imagename=slfcal_img, spw=spw, mode='mfs', timerange='', imagermode='csclean',
+                          psfmode='clark', imsize=[512, 512], cell=['5arcsec'], niter=100, gain=0.05, stokes='I', weighting='natural',
+                          restoringbeam=[str(bmsz) + 'arcsec'], pbcor=False, interactive=False, usescratch=True)
                 except:
-                    print 'error in cleaning spw: '+spw
+                    print 'error in cleaning spw: ' + spw
                     break
-                gaincal(vis=slfcalms, refant='0',antenna=antenna,caltable=slfcal_tb,spw=spw, uvrange='',\
-                        gaintable=[],selectdata=True,timerange='',solint='600s',gaintype='G',calmode='p',\
-                        combine='',minblperant=3,minsnr=2,append=False)
+                gaincal(vis=slfcalms, refant='0', antenna=antenna, caltable=slfcal_tb, spw=spw, uvrange='', gaintable=[], selectdata=True,
+                        timerange='', solint='600s', gaintype='G', calmode='p', combine='', minblperant=3, minsnr=2, append=False)
                 if not os.path.exists(slfcal_tb):
-                    print 'No solution found in spw: '+spw
+                    print 'No solution found in spw: ' + spw
                     break
                 else:
                     clearcal(slfcalms)
                     delmod(slfcalms)
-                    applycal(vis=slfcalms,gaintable=[slfcal_tb],spw=spw,selectdata=True,\
-                             antenna=antenna,interp='nearest',flagbackup=False,applymode='calonly',calwt=False)
-                    msfile=slfcalms
+                    applycal(vis=slfcalms, gaintable=[slfcal_tb], spw=spw, selectdata=True, antenna=antenna, interp='nearest', flagbackup=False,
+                             applymode='calonly', calwt=False)
+                    msfile = slfcalms
 
-            if cfreq < 10.: 
-                imsize=512
-                cell=['5arcsec']
+            if cfreq < 10.:
+                imsize = 512
+                cell = ['5arcsec']
             else:
-                imsize=1024
-                cell=['2.5arcsec']
+                imsize = 1024
+                cell = ['2.5arcsec']
             if len(spwran) == 2:
-                spwstr = spwran[0]+'~'+spwran[1]
+                spwstr = spwran[0] + '~' + spwran[1]
             else:
                 spwstr = spwran[0]
 
-            restoringbeam=['{0:.1f}arcsec'.format(bmsz)]
-            imagesuffix='.spw'+spwstr.replace('~','-')
+            restoringbeam = ['{0:.1f}arcsec'.format(bmsz)]
+            imagesuffix = '.spw' + spwstr.replace('~', '-')
             if cfreq > 10.:
-                antenna=antenna+';!0&1;!0&2' #deselect the shortest baselines
-            res=ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=twidth, uvrange=uvrange, 
-                        spw=spw, ncpu=ncpu, niter=1000, gain=0.05, antenna=antenna,imsize=imsize, cell=cell, 
-                        stokes=stokes, doreg=True, usephacenter=False, overwrite=overwrite, toTb=toTb, restoringbeam=restoringbeam,
-                        uvtaper=True,outertaper=['30arcsec'])
+                antenna = antenna + ';!0&1;!0&2'  #deselect the shortest baselines
+
+            res = ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=twidth, uvrange=uvrange, spw=spw, ncpu=ncpu, niter=1000,
+                          gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=stokes, doreg=True, usephacenter=False, overwrite=overwrite,
+                          toTb=toTb, restoringbeam=restoringbeam, uvtaper=True, outertaper=['30arcsec'])
 
             if res:
                 imres['Succeeded'] += res['Succeeded']
                 imres['BeginTime'] += res['BeginTime']
                 imres['EndTime'] += res['EndTime']
                 imres['ImageName'] += res['ImageName']
-                imres['Spw'] += [spwstr]*len(res['ImageName'])
-                imres['Vis'] += [msfile]*len(res['ImageName'])
+                imres['Spw'] += [spwstr] * len(res['ImageName'])
+                imres['Vis'] += [msfile] * len(res['ImageName'])
             else:
-                return None
+                continue
+
+    if len(vis) == 1:
+        # produce the band-by-band whole-day images
+        ms.open(msfile)
+        ms.selectinit()
+        timfreq = ms.getdata(['time', 'axis_info'], ifraxis=True)
+        tim = timfreq['time']
+        ms.close()
+
+        imdir = imagedir + subdir[0]
+        if not os.path.exists(imdir):
+            os.makedirs(imdir)
+        for spw in spws:
+            spwran = [s.zfill(2) for s in spw.split('~')]
+            freqran = [int(s) * 0.5 + 2.9 for s in spw.split('~')]
+            cfreq = np.mean(freqran)
+            bmsz = max(150. / cfreq, 20.)
+            uvrange = '<10klambda'
+            if cfreq < 10.:
+                imsize = 512
+                cell = ['5arcsec']
+            else:
+                imsize = 1024
+                cell = ['2.5arcsec']
+            if len(spwran) == 2:
+                spwstr = spwran[0] + '~' + spwran[1]
+            else:
+                spwstr = spwran[0]
+
+            restoringbeam = ['{0:.1f}arcsec'.format(bmsz)]
+            imagesuffix = '.synoptic.spw' + spwstr.replace('~', '-')
+            # if cfreq > 10.:
+            #     antenna = antenna + ';!0&1;!0&2'  #deselect the shortest baselines
+
+            res = ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=len(tim), uvrange=uvrange, spw=spw, ncpu=1, niter=1000,
+                          gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=stokes, doreg=True, usephacenter=False, overwrite=overwrite,
+                          toTb=toTb, restoringbeam=restoringbeam, uvtaper=True, outertaper=['30arcsec'])
+            if res:
+                imres['Synoptic']['Succeeded'] += res['Succeeded']
+                imres['Synoptic']['BeginTime'] += res['BeginTime']
+                imres['Synoptic']['EndTime'] += res['EndTime']
+                imres['Synoptic']['ImageName'] += res['ImageName']
+                imres['Synoptic']['Spw'] += [spwstr] * len(res['ImageName'])
+                imres['Synoptic']['Vis'] += [msfile] * len(res['ImageName'])
+            else:
+                continue
 
     #save it for debugging purposes
-    np.savez('imres.npz',imres=imres)
+    np.savez('imres.npz', imres=imres)
 
     return imres
 
-def plt_qlook_image(imres,figdir=None,verbose=True): 
+
+def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
     from matplotlib import pyplot as plt
     from sunpy import map as smap
     from sunpy import sun
     from matplotlib import colors
     import astropy.units as u
     if not figdir:
-        figdir='./'
+        figdir = './'
     nspw = len(set(imres['Spw']))
     plttimes = list(set(imres['BeginTime']))
     ntime = len(plttimes)
@@ -307,33 +347,38 @@ def plt_qlook_image(imres,figdir=None,verbose=True):
     spws = np.array(imres['Spw'])
     suc = np.array(imres['Succeeded'])
     inds = btimes.argsort()
-    images_sort = images[inds].reshape(ntime,nspw)
-    btimes_sort = btimes[inds].reshape(ntime,nspw)
-    suc_sort = suc[inds].reshape(ntime,nspw)
-    spws_sort = spws[inds].reshape(ntime,nspw)
+    images_sort = images[inds].reshape(ntime, nspw)
+    btimes_sort = btimes[inds].reshape(ntime, nspw)
+    suc_sort = suc[inds].reshape(ntime, nspw)
+    spws_sort = spws[inds].reshape(ntime, nspw)
     if verbose:
         print '{0:d} figures to plot'.format(ntime)
     plt.ioff()
-    fig=plt.figure(figsize=(8,8))
+    fig = plt.figure(figsize=(8, 8))
     plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-    for i in range(ntime): 
+    for i in range(ntime):
         plt.ioff()
         plt.clf()
-        plttime=btimes_sort[i,0]
-        tofd=plttime.mjd-np.fix(plttime.mjd)
+        plttime = btimes_sort[i, 0]
+        tofd = plttime.mjd - np.fix(plttime.mjd)
         suci = suc_sort[i]
-        if tofd < 16./24. or sum(suci) < nspw-2: # if time of the day is before 16 UT (and 24 UT), skip plotting (because the old antennas are not tracking)
-            continue
+        if not synoptic:
+            if tofd < 16. / 24. or sum(
+                    suci) < nspw - 2:  # if time of the day is before 16 UT (and 24 UT), skip plotting (because the old antennas are not tracking)
+                continue
         #fig=plt.figure(figsize=(9,6))
         #fig.suptitle('EOVSA @ '+plttime.iso[:19])
-        fig.text(0.01,0.98,plttime.iso[:19],color='w',fontweight='bold',fontsize=12,ha='left')
+        if synoptic:
+            fig.text(0.01, 0.98, plttime.iso[:10], color='w', fontweight='bold', fontsize=12, ha='left')
+        else:
+            fig.text(0.01, 0.98, plttime.iso[:19], color='w', fontweight='bold', fontsize=12, ha='left')
         if verbose:
             print 'Plotting image at: ', plttime.iso
         for n in range(nspw):
             plt.ioff()
             image = images_sort[i, n]
             #fig.add_subplot(nspw/3, 3, n+1)
-            fig.add_subplot(nspw/2, 2, n+1)
+            fig.add_subplot(nspw / 2, 2, n + 1)
             if suci[n]:
                 try:
                     eomap = smap.Map(image)
@@ -342,20 +387,23 @@ def plt_qlook_image(imres,figdir=None,verbose=True):
                 sz = eomap.data.shape
                 if len(sz) == 4:
                     eomap.data = eomap.data.reshape((sz[2], sz[3]))
+                eomap.data[np.isnan(eomap.data)] = 0.0
                 #resample the image for plotting
                 dim = u.Quantity([256, 256], u.pixel)
-                eomap=eomap.resample(dim)
+                eomap = eomap.resample(dim)
                 eomap.plot_settings['cmap'] = plt.get_cmap('jet')
                 eomap.plot_settings['norm']=colors.Normalize(vmin=-1e5,vmax=1e6)
                 eomap.plot()
-                eomap.draw_limb()
+                if not synoptic:
+                    eomap.draw_limb()
                 eomap.draw_grid()
-                ax=plt.gca()
-                ax.set_xlim([-1080,1080])
-                ax.set_ylim([-1080,1080])
-                spwran=spws_sort[i,n]
-                freqran = [int(s)*0.5+2.9 for s in spwran.split('~')]
-                ax.text(0.98,0.01,'{0:.1f} - {1:.1f} GHz'.format(freqran[0],freqran[1]),color='w',transform=ax.transAxes,fontweight='bold',ha='right')
+                ax = plt.gca()
+                ax.set_xlim([-1080, 1080])
+                ax.set_ylim([-1080, 1080])
+                spwran = spws_sort[i, n]
+                freqran = [int(s) * 0.5 + 2.9 for s in spwran.split('~')]
+                ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(freqran[0], freqran[1]), color='w', transform=ax.transAxes, fontweight='bold',
+                        ha='right')
                 ax.set_title(' ')
                 #ax.set_title('spw '+spws_sort[i,n])
                 #ax.text(0.01,0.02, plttime.isot,transform=ax.transAxes,color='white')
@@ -365,31 +413,29 @@ def plt_qlook_image(imres,figdir=None,verbose=True):
                 ax.set_yticklabels([''])
             else:
                 #make an empty map
-                data = np.zeros((512,512))
-                header = {"DATE-OBS": plttime.isot, "EXPTIME": 0.,
-                        "CDELT1": 5., "NAXIS1": 512, "CRVAL1": 0., "CRPIX1": 257, "CUNIT1": "arcsec", "CTYPE1": "HPLN-TAN",
-                        "CDELT2": 5., "NAXIS2": 512, "CRVAL2": 0., "CRPIX2": 257, "CUNIT2": "arcsec", "CTYPE2": "HPLT-TAN",
-                        "HGLT_OBS": sun.heliographic_solar_center(plttime)[1].value, 
-                        "HGLN_OBS": 0., 
-                        "RSUN_OBS": sun.solar_semidiameter_angular_size(plttime).value,
-                        "RSUN_REF": sun.constants.radius.value,
-                        "DSUN_OBS": sun.sunearth_distance(plttime).to(u.meter).value,
-                          }
+                data = np.zeros((512, 512))
+                header = {"DATE-OBS": plttime.isot, "EXPTIME": 0., "CDELT1": 5., "NAXIS1": 512, "CRVAL1": 0., "CRPIX1": 257, "CUNIT1": "arcsec",
+                          "CTYPE1": "HPLN-TAN", "CDELT2": 5., "NAXIS2": 512, "CRVAL2": 0., "CRPIX2": 257, "CUNIT2": "arcsec", "CTYPE2": "HPLT-TAN",
+                          "HGLT_OBS": sun.heliographic_solar_center(plttime)[1].value, "HGLN_OBS": 0.,
+                          "RSUN_OBS": sun.solar_semidiameter_angular_size(plttime).value, "RSUN_REF": sun.constants.radius.value,
+                          "DSUN_OBS": sun.sunearth_distance(plttime).to(u.meter).value, }
                 eomap = smap.Map(data, header)
                 eomap.plot_settings['cmap'] = plt.get_cmap('jet')
                 eomap.plot_settings['norm']=colors.Normalize(vmin=-1e5,vmax=1e6)
                 eomap.plot()
-                eomap.draw_limb()
+                if not synoptic:
+                    eomap.draw_limb()
                 eomap.draw_grid()
-                ax=plt.gca()
-                ax.set_xlim([-1080,1080])
-                ax.set_ylim([-1080,1080])
+                ax = plt.gca()
+                ax.set_xlim([-1080, 1080])
+                ax.set_ylim([-1080, 1080])
                 #ax.set_title('spw '+spwran+'( )'))
-                spwran=spws_sort[i,n]
-                freqran = [int(s)*0.5+2.9 for s in spwran.split('~')]
-                spwran=spws_sort[i,n]
+                spwran = spws_sort[i, n]
+                freqran = [int(s) * 0.5 + 2.9 for s in spwran.split('~')]
+                spwran = spws_sort[i, n]
                 #ax.set_title('{0:.1f} - {1:.1f} GHz'.format(freqran[0],freqran[1]))
-                ax.text(0.98,0.01,'{0:.1f} - {1:.1f} GHz'.format(freqran[0],freqran[1]),color='w',transform=ax.transAxes,fontweight='bold',ha='right')
+                ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(freqran[0], freqran[1]), color='w', transform=ax.transAxes, fontweight='bold',
+                        ha='right')
                 ax.set_title(' ')
 
                 #ax.text(0.01,0.02, plttime.isot,transform=ax.transAxes,color='white')
@@ -397,18 +443,23 @@ def plt_qlook_image(imres,figdir=None,verbose=True):
                 ax.set_ylabel('')
                 ax.set_xticklabels([''])
                 ax.set_yticklabels([''])
-        figname='eovsa_qlimg_'+plttime.isot.replace(':','').replace('-','')[:15]+'.png'
-        fig_tdt= plttime.to_datetime()
-        fig_subdir = fig_tdt.strftime("%Y/%m/%d/")  
+        fig_tdt = plttime.to_datetime()
+        if synoptic:
+            fig_subdir = fig_tdt.strftime("%Y/")
+            figname = 'eovsa_qlimg_' + plttime.iso[:10].replace('-', '') + '.png'
+        else:
+            fig_subdir = fig_tdt.strftime("%Y/%m/%d/")
+            figname = 'eovsa_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:15] + '.png'
         figdir_ = figdir + fig_subdir
         if not os.path.exists(figdir_):
             os.makedirs(figdir_)
         if verbose:
-            print 'Saving plot to :'+figdir_+figname
-        plt.savefig(figdir_+figname)
+            print 'Saving plot to :' + figdir_ + figname
+        plt.savefig(figdir_ + figname)
     plt.close(fig)
 
-def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False):
+
+def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False, synoptic=False):
     ''' date: date string or Time object. e.g., '2017-07-15' or Time('2017-07-15')
     '''
     import pytz
@@ -423,20 +474,28 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
 
     qlookfitsdir = os.getenv('EOVSAQLOOKFITS')
     qlookfigdir = os.getenv('EOVSAQLOOKFIG')
+    synopticfigdir = os.getenv('EOVSASYNOPTICFIG')
     if not qlookfitsdir:
-        qlookfitsdir='/data1/eovsa/fits/qlook_10m/'
+        qlookfitsdir = '/data1/eovsa/fits/qlook_10m/'
     if not qlookfigdir:
-        qlookfigdir='/common/webplots/qlookimg_10m/'
+        qlookfigdir = '/common/webplots/qlookimg_10m/'
+    if not synopticfigdir:
+        synopticfigdir = '/common/webplots/SynopticImg/'
 
-    imagedir=qlookfitsdir
+    imagedir = qlookfitsdir
+    if synoptic:
+        vis_synoptic = os.path.join(udbmsdir, date.datetime.strftime("%Y%m"), 'UDB' + date.datetime.strftime("%Y%m%d") + '.ms')
+        if os.path.exists(vis_synoptic):
+            date = vis_synoptic
+        else:
+            print('Whole-day ms file {} not existed. About..... Use pipeline1.py to make one.'.format(vis_synoptic))
+            return None
     if docalib:
-        vis=calib_pipeline(date,doimport=doimport)
-    imres=mk_qlook_image(date, twidth=twidth, ncpu=ncpu, doimport=doimport, docalib=docalib, imagedir=imagedir,verbose=True)
-    figdir=qlookfigdir
-    plt_qlook_image(imres,figdir=figdir,verbose=True)
-    
+        vis = calib_pipeline(date, doimport=doimport, synoptic=synoptic)
 
-
-
-
-    
+    imres = mk_qlook_image(date, twidth=twidth, ncpu=ncpu, doimport=doimport, docalib=docalib, imagedir=imagedir, verbose=True)
+    figdir = qlookfigdir
+    plt_qlook_image(imres, figdir=figdir, verbose=True)
+    if imres['Synoptic']['Succeeded']:
+        figdir = synopticfigdir
+        plt_qlook_image(imres['Synoptic'], figdir=figdir, verbose=True, synoptic=True)
