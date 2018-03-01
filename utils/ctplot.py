@@ -10,8 +10,7 @@ from astropy.time import Time
 import numpy as np
 import sunpy.map
 from suncasa.utils import DButil
-from suncasa.utils.puffin import PuffinMap
-from IPython import embed
+
 
 def add_scalebar(length, x, y, ax, align='right', label='', label_position='below', yoff=-0.005, fontsize=None, **kwargs):
     '''
@@ -51,8 +50,7 @@ def add_scalebar(length, x, y, ax, align='right', label='', label_position='belo
         verticalalign = 'top'
         ytext = ytext + yoff
 
-    ax.text(xtext, ytext, label, horizontalalignment='center', verticalalignment=verticalalign, transform=ax.transAxes,
-            **kwargs_text)
+    ax.text(xtext, ytext, label, horizontalalignment='center', verticalalignment=verticalalign, transform=ax.transAxes, **kwargs_text)
 
 
 def maxfit(smap, width=[5, 5], mapxy=None):
@@ -70,8 +68,8 @@ def maxfit(smap, width=[5, 5], mapxy=None):
     else:
         XX, YY = np.meshgrid(np.arange(smap.data.shape[1]), np.arange(smap.data.shape[0]))
         # mapx, mapy = smap.pixel_to_data(XX * u.pix, YY * u.pix)
-        mesh =  smap.pixel_to_world(XX * u.pix, YY * u.pix)
-        mapx, mapy = mesh.Tx.value,mesh.Tx.value
+        mesh = smap.pixel_to_world(XX * u.pix, YY * u.pix)
+        mapx, mapy = mesh.Tx.value, mesh.Tx.value
 
     idxmax = np.where(data == np.nanmax(data))
 
@@ -88,13 +86,15 @@ def maxfit(smap, width=[5, 5], mapxy=None):
         return None
 
 
-def contour1chn(vlafile, aiafile, chn=0, pol=0, x_range=[], y_range=[], levels=[0.2, 0.4, 0.6, 0.8]):
+def contour1chn(vlafile, aiafile, chn=0, pol=0, x_range=[], y_range=[], levels=[0.2, 0.4, 0.6, 0.8], cmap='jet', *args, **kargs):
     aiamap = sunpy.map.Map(aiafile)
     if x_range and y_range:
         aiamap = aiamap.submap(u.Quantity(x_range * u.arcsec), u.Quantity(y_range * u.arcsec))
+    ax = plt.subplot()
+    aiamap.plot(axes=ax)
     if type(vlafile) is not list:
         vlafile = [vlafile]
-    for idx,vf in enumerate(vlafile):
+    for idx, vf in enumerate(vlafile):
         hdulist = fits.open(vf)
         hdu = hdulist[0]
         dims = hdu.data.shape
@@ -105,15 +105,17 @@ def contour1chn(vlafile, aiafile, chn=0, pol=0, x_range=[], y_range=[], levels=[
         else:
             raise ValueError('check you import vla fits file')
         vlamap = sunpy.map.Map((vladata, hdu.header))
-        cmap = sunpy.map.CompositeMap(aiamap)
-        cmap.add_map(vlamap, levels=np.array(levels) * np.nanmax(vlamap.data))
-    cmap.peek()
+        sy, sx = vlamap.data.shape
+        XX, YY = np.meshgrid(np.arange(sy), np.arange(sx))
+        vlamapx = vlamap.pixel_to_data(XX * u.pix, YY * u.pix).Tx
+        vlamapy = vlamap.pixel_to_data(XX * u.pix, YY * u.pix).Ty
+        ax.contour(vlamapx.value, vlamapy.value, vlamap.data, levels=np.array(levels) * np.nanmax(vlamap.data),
+                   colors=[cm.get_cmap(cmap)(float(idx) / (len(vlafile)))] * len(levels), *args, **kargs)
 
 
-def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], chan_mask=None, x_range=[], y_range=[],
-                      levels=[0.9], plotstyle='centroid', figsize=(10, 8), figdpi=100, width=[5, 5], zorder=1,
-                      maponly=False,vlaonly=False, dspecdata={}, thrshd=None, cmap='jet', plt_clbar=True,
-                      aiaplt_args={'axes': None, 'cmap': None, 'vmax': None, 'vmin': None}, **kwargs):
+def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], chan_mask=None, x_range=[], y_range=[], levels=[0.9],
+                      plotstyle='centroid', figsize=(10, 8), figdpi=100, width=[5, 5], zorder=1, maponly=False, vlaonly=False, dspecdata={},
+                      thrshd=None, cmap='jet', plt_clbar=True, aiaplt_args={'axes': None, 'cmap': None, 'vmax': None, 'vmin': None}, **kwargs):
     cmap = cm.get_cmap(cmap)
     if aiaplt_args['cmap'] is None:
         aiaplt_args.pop('cmap', None)
@@ -150,8 +152,7 @@ def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], c
             ax1.set_autoscale_on(False)
 
         if label:
-            ax1.text(0.98, 0.98, label, horizontalalignment='right', verticalalignment='top', color='white',
-                     transform=ax1.transAxes, fontsize=14)
+            ax1.text(0.98, 0.98, label, horizontalalignment='right', verticalalignment='top', color='white', transform=ax1.transAxes, fontsize=14)
         clrange = vlafile['ColorMapper']['crange']
         if not maponly:
             cargsort = np.argsort(np.array(vlafile['ColorMapper']['c']))
@@ -160,8 +161,8 @@ def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], c
             vlafile['y'] = np.array(vlafile['y'])[cargsort]
             vlafile['ColorMapper']['c'] = np.array(vlafile['ColorMapper']['c'])[cargsort]
             vlafile['s'] = np.array(vlafile['s'])[cargsort]
-            im1 = ax1.scatter(vlafile['x'], vlafile['y'], c=vlafile['ColorMapper']['c'], s=vlafile['s'],
-                              vmin=clrange[0], vmax=clrange[-1], cmap=cmap, **kwargs)
+            im1 = ax1.scatter(vlafile['x'], vlafile['y'], c=vlafile['ColorMapper']['c'], s=vlafile['s'], vmin=clrange[0], vmax=clrange[-1], cmap=cmap,
+                              **kwargs)
         else:
             im1 = ax1.scatter([], [], c=[], s=[], vmin=clrange[0], vmax=clrange[-1], cmap=cmap, **kwargs)
         if not dspecdata:
@@ -186,8 +187,7 @@ def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], c
                 plt.subplot(1, 2, 2)
             ax2 = plt.gca()
             im2 = plt.pcolormesh(tim, dspecdata['freq'], dspecdata['peak'], cmap=cmapspec, norm=normspec)
-            ax2.add_patch(patches.Rectangle((vlafile['t'], dspecdata['freq'][0]), dt,
-                                            dspecdata['freq'][-1] - dspecdata['freq'][0], facecolor='black',
+            ax2.add_patch(patches.Rectangle((vlafile['t'], dspecdata['freq'][0]), dt, dspecdata['freq'][-1] - dspecdata['freq'][0], facecolor='black',
                                             edgecolor='white', alpha=0.3))
             ax2.set_xlim(tim[0], tim[-1])
             ax2.set_ylim(dspecdata['freq'][0], dspecdata['freq'][-1])
@@ -222,8 +222,7 @@ def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], c
         # ax1.xaxis.set_ticks_position('top')
         # ax1.yaxis.set_ticks_position('right')
         if label:
-            ax1.text(0.98, 0.98, label, horizontalalignment='right', verticalalignment='top', color='white',
-                     transform=ax1.transAxes, fontsize=14)
+            ax1.text(0.98, 0.98, label, horizontalalignment='right', verticalalignment='top', color='white', transform=ax1.transAxes, fontsize=14)
         # # Prevent the image from being re-scaled while overplotting.
         hdulist = fits.open(vlafile)
         hdu = hdulist[0]
@@ -256,8 +255,7 @@ def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], c
                 pltdata['y'] = np.array(pltdata['y'])[cargsort]
                 pltdata['c'] = np.array(pltdata['c'])[cargsort]
                 pltdata['s'] = np.array(pltdata['s'])[cargsort]
-                im1 = ax1.scatter(pltdata['x'], pltdata['y'], c=pltdata['c'], s=pltdata['s'], vmin=clrange[0],
-                                  vmax=clrange[-1], cmap=cmap, **kwargs)
+                im1 = ax1.scatter(pltdata['x'], pltdata['y'], c=pltdata['c'], s=pltdata['s'], vmin=clrange[0], vmax=clrange[-1], cmap=cmap, **kwargs)
                 if plt_clbar:
                     cb1 = plt.colorbar(im1, orientation='vertical', ax=ax1)
                     cb1.set_label('Frequency [GHz]')
@@ -275,8 +273,7 @@ def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], c
                         for ii, xs in enumerate(SRC_vlamap_contour.data['xs']):
                             x, y = xs, SRC_vlamap_contour.data['ys'][ii]
                             if not thrshd or np.nanmax(vladata) >= thrshd:
-                                plt.plot(x, y, color=cmap(int(float(chan) / nfreq * 255)), zorder=nchan + zorder * idx,
-                                         **kwargs)
+                                plt.plot(x, y, color=cmap(int(float(chan) / nfreq * 255)), zorder=nchan + zorder * idx, **kwargs)
                 if plt_clbar:
                     fig.subplots_adjust(right=0.8)
                     cax1 = fig.add_axes([0.85, 0.1, 0.01, 0.8])
@@ -308,5 +305,4 @@ def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], c
         elif outfile.endswith('.jpg'):
             fig.savefig(outfile, format='jpg', dpi=int(figdpi))
         else:
-            raise ValueError(
-                'Can not save {}. Provide a filename with extension of eps, pdf, png or jpeg.'.format(outfile))
+            raise ValueError('Can not save {}. Provide a filename with extension of eps, pdf, png or jpeg.'.format(outfile))

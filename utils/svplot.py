@@ -46,7 +46,7 @@ def uniq(lst):
     return nlst
 
 
-def mk_qlook_image(vis, ncpu=10, twidth=12, stokes='I,V', antenna='', imagedir=None, spws=[], toTb=True, overwrite=True, doslfcal=False,
+def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna='', imagedir=None, spws=[], toTb=True, overwrite=True, doslfcal=False,
                    phasecenter='', c_external=True):
     vis = [vis]
     subdir = ['/']
@@ -124,10 +124,10 @@ def mk_qlook_image(vis, ncpu=10, twidth=12, stokes='I,V', antenna='', imagedir=N
             cleanscript = os.path.join(imdir, 'ptclean_external.py')
             resfile = os.path.join(imdir, os.path.basename(msfile) + '.res.npz')
             os.system('rm -rf {}'.format(cleanscript))
-            inpdict = {'vis': msfile, 'imageprefix': imdir, 'imagesuffix': imagesuffix, 'twidth': twidth, 'uvrange': uvrange, 'spw': spw,
-                       'ncpu': ncpu, 'niter': 1000, 'gain': 0.05, 'antenna': antenna, 'imsize': imsize, 'cell': cell, 'stokes': sto, 'doreg': True,
-                       'overwrite': overwrite, 'toTb': toTb, 'restoringbeam': restoringbeam, 'uvtaper': True, 'outertaper': ['30arcsec'],
-                       'phasecenter': phasecenter}
+            inpdict = {'vis': msfile, 'imageprefix': imdir, 'imagesuffix': imagesuffix, 'timerange': timerange, 'twidth': twidth, 'uvrange': uvrange,
+                       'spw': spw, 'ncpu': ncpu, 'niter': 1000, 'gain': 0.05, 'antenna': antenna, 'imsize': imsize, 'cell': cell, 'stokes': sto,
+                       'doreg': True, 'overwrite': overwrite, 'toTb': toTb, 'restoringbeam': restoringbeam, 'uvtaper': True,
+                       'outertaper': ['30arcsec'], 'phasecenter': phasecenter}
             for key, val in inpdict.items():
                 if type(val) is str:
                     inpdict[key] = '"{}"'.format(val)
@@ -135,7 +135,7 @@ def mk_qlook_image(vis, ncpu=10, twidth=12, stokes='I,V', antenna='', imagedir=N
             fi.write('from ptclean_cli import ptclean_cli as ptclean \n')
             fi.write('import numpy as np \n')
             fi.write(
-                'res = ptclean(vis={i[vis]},imageprefix={i[imageprefix]},imagesuffix={i[imagesuffix]},twidth={i[twidth]},uvrange={i[uvrange]},spw={i[spw]},ncpu={i[ncpu]},niter={i[niter]},gain={i[gain]},antenna={i[antenna]},imsize={i[imsize]},cell={i[cell]},stokes={i[stokes]},doreg={i[doreg]},overwrite={i[overwrite]},toTb={i[toTb]},restoringbeam={i[restoringbeam]},uvtaper={i[uvtaper]},outertaper={i[outertaper]},phasecenter={i[phasecenter]}) \n'.format(
+                'res = ptclean(vis={i[vis]},imageprefix={i[imageprefix]},imagesuffix={i[imagesuffix]},timerange={i[timerange]},twidth={i[twidth]},uvrange={i[uvrange]},spw={i[spw]},ncpu={i[ncpu]},niter={i[niter]},gain={i[gain]},antenna={i[antenna]},imsize={i[imsize]},cell={i[cell]},stokes={i[stokes]},doreg={i[doreg]},overwrite={i[overwrite]},toTb={i[toTb]},restoringbeam={i[restoringbeam]},uvtaper={i[uvtaper]},outertaper={i[outertaper]},phasecenter={i[phasecenter]}) \n'.format(
                     i=inpdict))
             fi.write('np.savez("{}",res=res) \n'.format(resfile))
             fi.close()
@@ -144,9 +144,9 @@ def mk_qlook_image(vis, ncpu=10, twidth=12, stokes='I,V', antenna='', imagedir=N
             res = np.load(resfile)
             res = res['res'].item()
         else:
-            res = ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=twidth, uvrange=uvrange, spw=spw, ncpu=ncpu, niter=1000,
-                          gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=sto, doreg=True, overwrite=overwrite, toTb=toTb,
-                          restoringbeam=restoringbeam, uvtaper=True, outertaper=['30arcsec'], phasecenter=phasecenter)
+            res = ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, timerange=timerange, twidth=twidth, uvrange=uvrange, spw=spw,
+                          ncpu=ncpu, niter=1000, gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=sto, doreg=True, overwrite=overwrite,
+                          toTb=toTb, restoringbeam=restoringbeam, uvtaper=True, outertaper=['30arcsec'], phasecenter=phasecenter)
 
         if res:
             imres['Succeeded'] += res['Succeeded']
@@ -602,8 +602,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 qlookfigdir = os.path.join(workdir, 'qlookimgs/')
                 imresfile = os.path.join(qlookfitsdir, '{}.imres.npz'.format(os.path.basename(vis)))
                 if overwrite:
-                    imres = mk_qlook_image(vis, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir, phasecenter=phasecenter, stokes=stokes,
-                                           c_external=True)
+                    imres = mk_qlook_image(vis, timerange=timerange, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir, phasecenter=phasecenter,
+                                           stokes=stokes, c_external=True)
                 else:
                     if os.path.exists(imresfile):
                         imres = np.load(imresfile)
