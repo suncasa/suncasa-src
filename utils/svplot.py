@@ -140,7 +140,7 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
             for k, v in inpdict.iteritems():
                 ostrs.append('{}={}'.format(k, v))
             ostr = ','.join(ostrs)
-            fi.write('res = ptclean({} \n)'.format(ostr))
+            fi.write('res = ptclean({}) \n'.format(ostr))
             # fi.write(
             #     'res = ptclean(vis={i[vis]},imageprefix={i[imageprefix]},imagesuffix={i[imagesuffix]},timerange={i[timerange]},twidth={i[twidth]},uvrange={i[uvrange]},spw={i[spw]},ncpu={i[ncpu]},niter={i[niter]},gain={i[gain]},antenna={i[antenna]},imsize={i[imsize]},cell={i[cell]},stokes={i[stokes]},doreg={i[doreg]},overwrite={i[overwrite]},toTb={i[toTb]},restoringbeam={i[restoringbeam]},uvtaper={i[uvtaper]},outertaper={i[outertaper]},phasecenter={i[phasecenter]}) \n'.format(
             #         i=inpdict))
