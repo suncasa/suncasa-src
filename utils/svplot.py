@@ -47,7 +47,7 @@ def uniq(lst):
 
 
 def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna='', imagedir=None, spws=[], toTb=True, overwrite=True, doslfcal=False,
-                   phasecenter='', c_external=True):
+                   phasecenter='', robust=0.0, niter=500, imsize=[512], cell=['5.0arcsec'], c_external=True):
     vis = [vis]
     subdir = ['/']
 
@@ -74,8 +74,9 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
         if observatory == 'EOVSA':
             spws = ['1~5', '6~10', '11~15', '16~25']
     if observatory == 'EOVSA':
-        print 'Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
-        stokes = 'I,V'
+        if stokes != 'XX,YY':
+            print 'Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
+            stokes = 'I,V'
 
     msfilebs = os.path.basename(msfile)
     imdir = imagedir + subdir[0]
@@ -104,12 +105,13 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
         bmsz = max(30. / cfreq, 30.)
         uvrange = '<3km'
 
-        if cfreq < 10.:
-            imsize = 512
-            cell = ['5arcsec']
-        else:
-            imsize = 1024
-            cell = ['2.5arcsec']
+        if cell == ['5.0arcsec'] and imsize == [512]:
+            if cfreq < 10.:
+                imsize = 512
+                cell = ['5arcsec']
+            else:
+                imsize = 1024
+                cell = ['2.5arcsec']
         if len(spwran) == 2:
             spwstr = spwran[0] + '~' + spwran[1]
         else:
@@ -126,17 +128,22 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
             os.system('rm -rf {}'.format(cleanscript))
             inpdict = {'vis': msfile, 'imageprefix': imdir, 'imagesuffix': imagesuffix, 'timerange': timerange, 'twidth': twidth, 'uvrange': uvrange,
                        'spw': spw, 'ncpu': ncpu, 'niter': 1000, 'gain': 0.05, 'antenna': antenna, 'imsize': imsize, 'cell': cell, 'stokes': sto,
-                       'doreg': True, 'overwrite': overwrite, 'toTb': toTb, 'restoringbeam': restoringbeam, 'uvtaper': True,
-                       'outertaper': ['30arcsec'], 'phasecenter': phasecenter}
+                       'doreg': True, 'overwrite': overwrite, 'toTb': toTb, 'restoringbeam': restoringbeam, 'weighting': 'briggs', 'robust': robust,
+                       'uvtaper': True, 'outertaper': ['30arcsec'], 'phasecenter': phasecenter}
             for key, val in inpdict.items():
                 if type(val) is str:
                     inpdict[key] = '"{}"'.format(val)
             fi = open(cleanscript, 'wb')
             fi.write('from ptclean_cli import ptclean_cli as ptclean \n')
             fi.write('import numpy as np \n')
-            fi.write(
-                'res = ptclean(vis={i[vis]},imageprefix={i[imageprefix]},imagesuffix={i[imagesuffix]},timerange={i[timerange]},twidth={i[twidth]},uvrange={i[uvrange]},spw={i[spw]},ncpu={i[ncpu]},niter={i[niter]},gain={i[gain]},antenna={i[antenna]},imsize={i[imsize]},cell={i[cell]},stokes={i[stokes]},doreg={i[doreg]},overwrite={i[overwrite]},toTb={i[toTb]},restoringbeam={i[restoringbeam]},uvtaper={i[uvtaper]},outertaper={i[outertaper]},phasecenter={i[phasecenter]}) \n'.format(
-                    i=inpdict))
+            ostrs = []
+            for k, v in inpdict.iteritems():
+                ostrs.append('{}={}'.format(k, v))
+            ostr = ','.join(ostrs)
+            fi.write('res = ptclean({})'.format(ostr))
+            # fi.write(
+            #     'res = ptclean(vis={i[vis]},imageprefix={i[imageprefix]},imagesuffix={i[imagesuffix]},timerange={i[timerange]},twidth={i[twidth]},uvrange={i[uvrange]},spw={i[spw]},ncpu={i[ncpu]},niter={i[niter]},gain={i[gain]},antenna={i[antenna]},imsize={i[imsize]},cell={i[cell]},stokes={i[stokes]},doreg={i[doreg]},overwrite={i[overwrite]},toTb={i[toTb]},restoringbeam={i[restoringbeam]},uvtaper={i[uvtaper]},outertaper={i[outertaper]},phasecenter={i[phasecenter]}) \n'.format(
+            #         i=inpdict))
             fi.write('np.savez("{}",res=res) \n'.format(resfile))
             fi.close()
 
@@ -145,8 +152,9 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
             res = res['res'].item()
         else:
             res = ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, timerange=timerange, twidth=twidth, uvrange=uvrange, spw=spw,
-                          ncpu=ncpu, niter=1000, gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=sto, doreg=True, overwrite=overwrite,
-                          toTb=toTb, restoringbeam=restoringbeam, uvtaper=True, outertaper=['30arcsec'], phasecenter=phasecenter)
+                          ncpu=ncpu, niter=niter, gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=sto, doreg=True, overwrite=overwrite,
+                          toTb=toTb, restoringbeam=restoringbeam, weighting='briggs', robust=robust, uvtaper=True, outertaper=['30arcsec'],
+                          phasecenter=phasecenter)
 
         if res:
             imres['Succeeded'] += res['Succeeded']
@@ -485,13 +493,15 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             xyrange = [[xc - xlen / 2.0, yc - ylen / 2.0], [xc + xlen / 2.0, yc + ylen / 2.0]]
         else:
             xyrange = [[xc - xlen / 2.0, xc + xlen / 2.0], [yc - ylen / 2.0, yc + ylen / 2.0]]
-    stokes_allowed = ['RR,LL', 'I,V', 'RRLL', 'IV']
+    stokes_allowed = ['RR,LL', 'I,V', 'RRLL', 'IV', 'XXYY', 'XX,YY']
     if not stokes in stokes_allowed:
         print 'wrong stokes parameter ' + str(stokes) + '. Allowed values are ' + ', '.join(stokes_allowed)
         return -1
     if stokes == 'RRLL':
         stokes = 'RR,LL'
-    if stokes == 'IV':
+    elif stokes == 'XXYY':
+        stokes = 'XX,YY'
+    elif stokes == 'IV':
         stokes = 'I,V'
 
     if vis[-1] == '/':
@@ -581,8 +591,9 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
     ms.close()
 
     if observatory == 'EOVSA':
-        print 'Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
-        stokes = 'I,V'
+        if stokes == 'RRLL' or stokes == 'RR,LL':
+            print 'Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
+            stokes = 'I,V'
 
     if mkmovie:
         plt.ioff()
@@ -590,53 +601,52 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
         if fitsfile:
             pass
         else:
-            if not imagefile:
-                eph = hf.read_horizons(t0=Time(midtime_mjd, format='mjd'))
-                if observatory == 'EOVSA' or (not usemsphacenter):
-                    print 'This is EOVSA data'
-                    # use RA and DEC from FIELD ID 0
-                    tb.open(vis + '/FIELD')
-                    phadir = tb.getcol('PHASE_DIR').flatten()
-                    tb.close()
-                    ra0 = phadir[0]
-                    dec0 = phadir[1]
-                    if stokes == 'RRLL' or stokes == 'RR,LL':
-                        print 'Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
-                        stokes = 'I,V'
-                else:
-                    ra0 = eph['ra'][0]
-                    dec0 = eph['dec'][0]
+            eph = hf.read_horizons(t0=Time(midtime_mjd, format='mjd'))
+            if observatory == 'EOVSA' or (not usemsphacenter):
+                print 'This is EOVSA data'
+                # use RA and DEC from FIELD ID 0
+                tb.open(vis + '/FIELD')
+                phadir = tb.getcol('PHASE_DIR').flatten()
+                tb.close()
+                ra0 = phadir[0]
+                dec0 = phadir[1]
+                if stokes == 'RRLL' or stokes == 'RR,LL':
+                    print 'Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
+                    stokes = 'I,V'
+            else:
+                ra0 = eph['ra'][0]
+                dec0 = eph['dec'][0]
 
-                if not xycen:
-                    # use solar disk center as default
-                    phasecenter = 'J2000 ' + str(ra0) + 'rad ' + str(dec0) + 'rad'
+            if not xycen:
+                # use solar disk center as default
+                phasecenter = 'J2000 ' + str(ra0) + 'rad ' + str(dec0) + 'rad'
+            else:
+                x0 = np.radians(xycen[0] / 3600.)
+                y0 = np.radians(xycen[1] / 3600.)
+                p0 = np.radians(eph['p0'][0])  # p angle in radians
+                raoff = -((x0) * np.cos(p0) - y0 * np.sin(p0)) / np.cos(eph['dec'][0])
+                decoff = (x0) * np.sin(p0) + y0 * np.cos(p0)
+                newra = ra0 + raoff
+                newdec = dec0 + decoff
+                phasecenter = 'J2000 ' + str(newra) + 'rad ' + str(newdec) + 'rad'
+            print 'use phasecenter: ' + phasecenter
+            qlookfitsdir = os.path.join(workdir, 'qlookfits/')
+            qlookfigdir = os.path.join(workdir, 'qlookimgs/')
+            imresfile = os.path.join(qlookfitsdir, '{}.imres.npz'.format(os.path.basename(vis)))
+            if overwrite:
+                imres = mk_qlook_image(vis, timerange=timerange, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir, phasecenter=phasecenter,
+                                       stokes=stokes, robust=robust, niter=niter, imsize=imsize, cell=cell, c_external=True)
+            else:
+                if os.path.exists(imresfile):
+                    imres = np.load(imresfile)
+                    imres = imres['imres'].item()
                 else:
-                    x0 = np.radians(xycen[0] / 3600.)
-                    y0 = np.radians(xycen[1] / 3600.)
-                    p0 = np.radians(eph['p0'][0])  # p angle in radians
-                    raoff = -((x0) * np.cos(p0) - y0 * np.sin(p0)) / np.cos(eph['dec'][0])
-                    decoff = (x0) * np.sin(p0) + y0 * np.cos(p0)
-                    newra = ra0 + raoff
-                    newdec = dec0 + decoff
-                    phasecenter = 'J2000 ' + str(newra) + 'rad ' + str(newdec) + 'rad'
-                print 'use phasecenter: ' + phasecenter
-                qlookfitsdir = os.path.join(workdir, 'qlookfits/')
-                qlookfigdir = os.path.join(workdir, 'qlookimgs/')
-                imresfile = os.path.join(qlookfitsdir, '{}.imres.npz'.format(os.path.basename(vis)))
-                if overwrite:
-                    imres = mk_qlook_image(vis, timerange=timerange, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir, phasecenter=phasecenter,
-                                           stokes=stokes, c_external=True)
-                else:
-                    if os.path.exists(imresfile):
-                        imres = np.load(imresfile)
-                        imres = imres['imres'].item()
-                    else:
-                        print('Image results file not found; Creating new images.')
-                        imres = mk_qlook_image(vis, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir, phasecenter=phasecenter, stokes=stokes,
-                                               c_external=True)
-                if not os.path.exists(qlookfigdir):
-                    os.makedirs(qlookfigdir)
-                plt_qlook_image(imres, figdir=qlookfigdir, specdata=specdata, verbose=True, stokes=stokes, fov=xyrange)
+                    print('Image results file not found; Creating new images.')
+                    imres = mk_qlook_image(vis, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir, phasecenter=phasecenter, stokes=stokes,
+                                           robust=robust, niter=niter, imsize=imsize, cell=cell, c_external=True)
+            if not os.path.exists(qlookfigdir):
+                os.makedirs(qlookfigdir)
+            plt_qlook_image(imres, figdir=qlookfigdir, specdata=specdata, verbose=True, stokes=stokes, fov=xyrange)
 
     else:
         spec = specdata['spec']
