@@ -591,12 +591,34 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             pass
         else:
             if not imagefile:
-                # from ptclean_cli import ptclean_cli as ptclean
                 eph = hf.read_horizons(t0=Time(midtime_mjd, format='mjd'))
                 if observatory == 'EOVSA' or (not usemsphacenter):
-                    phasecenter = ''
+                    print 'This is EOVSA data'
+                    # use RA and DEC from FIELD ID 0
+                    tb.open(vis + '/FIELD')
+                    phadir = tb.getcol('PHASE_DIR').flatten()
+                    tb.close()
+                    ra0 = phadir[0]
+                    dec0 = phadir[1]
+                    if stokes == 'RRLL' or stokes == 'RR,LL':
+                        print 'Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
+                        stokes = 'I,V'
                 else:
-                    phasecenter = 'J2000 ' + str(eph['ra'][0])[:15] + 'rad ' + str(eph['dec'][0])[:15] + 'rad'
+                    ra0 = eph['ra'][0]
+                    dec0 = eph['dec'][0]
+
+                if not xycen:
+                    # use solar disk center as default
+                    phasecenter = 'J2000 ' + str(ra0) + 'rad ' + str(dec0) + 'rad'
+                else:
+                    x0 = np.radians(xycen[0] / 3600.)
+                    y0 = np.radians(xycen[1] / 3600.)
+                    p0 = np.radians(eph['p0'][0])  # p angle in radians
+                    raoff = -((x0) * np.cos(p0) - y0 * np.sin(p0)) / np.cos(eph['dec'][0])
+                    decoff = (x0) * np.sin(p0) + y0 * np.cos(p0)
+                    newra = ra0 + raoff
+                    newdec = dec0 + decoff
+                    phasecenter = 'J2000 ' + str(newra) + 'rad ' + str(newdec) + 'rad'
                 print 'use phasecenter: ' + phasecenter
                 qlookfitsdir = os.path.join(workdir, 'qlookfits/')
                 qlookfigdir = os.path.join(workdir, 'qlookimgs/')
