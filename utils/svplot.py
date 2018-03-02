@@ -224,6 +224,10 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
             spec_plt = spec[0, 0, :, :]
         elif pol == 'LL':
             spec_plt = spec[1, 0, :, :]
+        elif pol == 'XX':
+            spec_plt = spec[0, 0, :, :]
+        elif pol == 'YY':
+            spec_plt = spec[1, 0, :, :]
         elif pol == 'I':
             spec_plt = (spec[0, 0, :, :] + spec[1, 0, :, :]) / 2.
         elif pol == 'V':
@@ -250,7 +254,11 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
             spec_plt = [R_plot, L_plot]
             polstr = ['RR', 'LL']
             cmaps = ['jet'] * 2
-        if pol == 'IV':
+        elif pol == 'XXYY':
+            spec_plt = [R_plot, L_plot]
+            polstr = ['XX', 'YY']
+            cmaps = ['jet'] * 2
+        elif pol == 'IV':
             I_plot = (R_plot + L_plot) / 2.
             V_plot = (R_plot - L_plot) / 2.
             spec_plt = [I_plot, V_plot]
