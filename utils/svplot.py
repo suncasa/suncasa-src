@@ -316,9 +316,9 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                 ax_pos = ax.get_position().extents
                 x0, y0, x1, y1 = ax_pos
                 h, v = x1 - x0, y1 - y0
-                x0_new = x0 + 0.15 * h
+                x0_new = x0 + 0.10 * h
                 y0_new = y0 + 0.20 * v
-                x1_new = x1 - 0.05 * h
+                x1_new = x1 - 0.03 * h
                 y1_new = y1 - 0.00 * v
                 ax.set_position(mpl.transforms.Bbox([[x0_new, y0_new], [x1_new, y1_new]]))
                 if pol == npols - 1:
