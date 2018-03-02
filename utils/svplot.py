@@ -182,7 +182,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
         figdir = './'
 
     observatory = 'EOVSA'
-    polmap = {'RR': 0, 'LL': 1, 'I': 0, 'V': 1}
+    polmap = {'RR': 0, 'LL': 1, 'I': 0, 'V': 1, 'XX': 0, 'YY': 1}
     pols = stokes.split(',')
     npols = len(pols)
     # SRL = set(['RR', 'LL'])
