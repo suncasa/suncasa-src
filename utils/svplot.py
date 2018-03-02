@@ -185,9 +185,9 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     tr = Time([qa.quantity(tstart, 'd')['value'], qa.quantity(tend, 'd')['value']], format='mjd')
     btimes = Time(imres['BeginTime'])
     etimes = Time(imres['EndTime'])
-    tidx = np.where(np.logical_and(btimes > tr[0], etimes < tr[1]))
+    tidx, = np.where(np.logical_and(btimes > tr[0], etimes < tr[1]))
     for k, v in imres.iteritems():
-        imres[k] = np.array(v)[tidx]
+        imres[k] = list(np.array(v)[tidx])
     observatory = 'EOVSA'
     polmap = {'RR': 0, 'LL': 1, 'I': 0, 'V': 1, 'XX': 0, 'YY': 1}
     pols = stokes.split(',')
