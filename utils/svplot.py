@@ -436,7 +436,8 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                     ax.xaxis.set_visible(False)
                     ax.yaxis.set_visible(False)
         figname = observatory + '_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:19] + '.png'
-        fig_tdt = plttime.to_datetime()
+        # fig_tdt = plttime.to_datetime()
+        fig.autofmt_xdate(rotation=30)
         # fig_subdir = fig_tdt.strftime("%Y/%m/%d/")
         figdir_ = figdir  # + fig_subdir
         if not os.path.exists(figdir_):
