@@ -302,10 +302,10 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
             dspecvspans = []
             for pol in range(npols):
                 ax = axs_dspec[pol]
+                ax.xticks(rotation=30)
                 ax.pcolormesh(timstrr, freqghz, spec_plt[pol], cmap=cmaps[pol])
                 ax.xaxis_date()
                 ax.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
-                # plt.xticks(rotation=45)
                 ax.set_xlim(timstrr[tidx[0]], timstrr[tidx[-1]])
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 ax.set_xlabel('Time [UT]')
@@ -436,8 +436,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                     ax.xaxis.set_visible(False)
                     ax.yaxis.set_visible(False)
         figname = observatory + '_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:19] + '.png'
-        # fig_tdt = plttime.to_datetime()
-        fig.autofmt_xdate(rotation=30)
+        # fig_tdt = plttime.to_datetime())
         # fig_subdir = fig_tdt.strftime("%Y/%m/%d/")
         figdir_ = figdir  # + fig_subdir
         if not os.path.exists(figdir_):
