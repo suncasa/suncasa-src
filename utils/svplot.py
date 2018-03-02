@@ -302,7 +302,6 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
             dspecvspans = []
             for pol in range(npols):
                 ax = axs_dspec[pol]
-                ax.xaxis.set_tick_params(rotation=30)
                 ax.pcolormesh(timstrr, freqghz, spec_plt[pol], cmap=cmaps[pol])
                 ax.xaxis_date()
                 ax.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
@@ -310,6 +309,9 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 ax.set_xlabel('Time [UT]')
                 ax.set_ylabel('Frequency [GHz]')
+                for xlabel in ax.get_xmajorticklabels():
+                    xlabel.set_rotation(30)
+                    xlabel.set_horizontalalignment("right")
                 for idx, freq in enumerate(Freq):
                     ax.axhspan(freq[0], freq[1], linestyle='dotted', edgecolor='w', alpha=0.7, facecolor='none')
                     xtext, ytext = ax.transAxes.inverted().transform(ax.transData.transform([timstrr[tidx[0]], np.mean(freq)]))
