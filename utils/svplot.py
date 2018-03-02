@@ -173,7 +173,7 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
     return imres
 
 
-def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None):
+def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None, vmax=None, vmin=None):
     from matplotlib import pyplot as plt
     from sunpy import map as smap
     from sunpy import sun
@@ -371,7 +371,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                     eomap.plot_settings['cmap'] = plt.get_cmap(cmaps[pol])
                     # import pdb
                     # pdb.set_trace()
-                    eomap.plot(axes=axs[n + nspw * pol])
+                    eomap.plot(axes=axs[n + nspw * pol], vmax=vmax, vmin=vmin)
                     eomap.draw_limb()
                     eomap.draw_grid()
                     ax = plt.gca()
@@ -477,7 +477,7 @@ def dspec_external(vis, workdir='./', specfile=None):
 def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uvrange=None, stokes='RR,LL', dmin=None, dmax=None, goestime=None,
            reftime=None, xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0, niter=500, imsize=[512], cell=['5.0arcsec'],
            interactive=False, usemsphacenter=True, imagefile=None, fitsfile=None, plotaia=True, aiawave=171, aiafits=None, savefig=False,
-           mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=True):
+           mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=True, vmax=None, vmin=None):
     '''
     Required inputs:
             vis: calibrated CASA measurement set
@@ -668,7 +668,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                                            robust=robust, niter=niter, imsize=imsize, cell=cell, c_external=True)
             if not os.path.exists(qlookfigdir):
                 os.makedirs(qlookfigdir)
-            plt_qlook_image(imres, figdir=qlookfigdir, specdata=specdata, verbose=True, stokes=stokes, fov=xyrange)
+            plt_qlook_image(imres, figdir=qlookfigdir, specdata=specdata, verbose=True, stokes=stokes, fov=xyrange, vmax=vmax, vmin=vmin)
 
     else:
         spec = specdata['spec']
