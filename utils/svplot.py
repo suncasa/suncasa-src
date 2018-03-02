@@ -306,15 +306,6 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                 ax.set_xlim(timstrr[tidx[0]], timstrr[tidx[-1]])
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 ax.set_ylabel('Frequency [GHz]')
-                if pol == npols-1:
-                    ax.xaxis_date()
-                    ax.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
-                    ax.set_xlabel('Time [UT]')
-                    for xlabel in ax.get_xmajorticklabels():
-                        xlabel.set_rotation(30)
-                        xlabel.set_horizontalalignment("right")
-                else:
-                    ax.xaxis.set_visible(False)
                 for idx, freq in enumerate(Freq):
                     ax.axhspan(freq[0], freq[1], linestyle='dotted', edgecolor='w', alpha=0.7, facecolor='none')
                     xtext, ytext = ax.transAxes.inverted().transform(ax.transData.transform([timstrr[tidx[0]], np.mean(freq)]))
@@ -326,10 +317,28 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                 x0, y0, x1, y1 = ax_pos
                 h, v = x1 - x0, y1 - y0
                 x0_new = x0 + 0.15 * h
-                y0_new = y0 + 0.17 * v
+                y0_new = y0 + 0.20 * v
                 x1_new = x1 - 0.05 * h
-                y1_new = y1 - 0.03 * v
+                y1_new = y1 - 0.00 * v
                 ax.set_position(mpl.transforms.Bbox([[x0_new, y0_new], [x1_new, y1_new]]))
+                if pol == npols - 1:
+                    ax.xaxis_date()
+                    ax.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
+                    ax.set_xlabel('Time [UT]')
+                    for xlabel in ax.get_xmajorticklabels():
+                        xlabel.set_rotation(30)
+                        xlabel.set_horizontalalignment("right")
+                else:
+                    ax_pos = ax.get_position().extents
+                    ax_pos2 = axs_dspec[-1].get_position().extents
+                    x0, y0, x1, y1 = ax_pos
+                    h, v = x1 - x0, y1 - y0
+                    x0_new = x0
+                    y0_new = ax_pos2[-1]
+                    x1_new = x1
+                    y1_new = y0_new + v
+                    ax.set_position(mpl.transforms.Bbox([[x0_new, y0_new], [x1_new, y1_new]]))
+                    ax.xaxis.set_visible(False)
         else:
             for pol in range(npols):
                 xy = dspecvspans[pol].get_xy()
