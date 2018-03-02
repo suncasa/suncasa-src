@@ -302,7 +302,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
             dspecvspans = []
             for pol in range(npols):
                 ax = axs_dspec[pol]
-                ax.xticks(rotation=30)
+                ax.xaxis.set_tick_params(rotation=30)
                 ax.pcolormesh(timstrr, freqghz, spec_plt[pol], cmap=cmaps[pol])
                 ax.xaxis_date()
                 ax.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
