@@ -326,9 +326,9 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
                 x0, y0, x1, y1 = ax_pos
                 h, v = x1 - x0, y1 - y0
                 x0_new = x0 + 0.15 * h
-                y0_new = y0 + 0.15 * v
+                y0_new = y0 + 0.17 * v
                 x1_new = x1 - 0.05 * h
-                y1_new = y1 - 0.05 * v
+                y1_new = y1 - 0.03 * v
                 ax.set_position(mpl.transforms.Bbox([[x0_new, y0_new], [x1_new, y1_new]]))
         else:
             for pol in range(npols):
