@@ -277,7 +277,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
         for ll in range(nspw):
             axs.append(plt.subplot(gs[ll / hnspw + 2, ll % hnspw], sharex=axs[0], sharey=axs[0]))
         axs_dspec = [plt.subplot(gs[:2, hnspw:])]
-        axs_dspec.append(plt.subplot(gs[2:, hnspw:], sharex=axs_dspec[0], sharey=axs_dspec[0]))
+        axs_dspec.append(plt.subplot(gs[2:, hnspw:]))
 
     fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
     timetext = fig.text(0.01, 0.98, '', color='w', fontweight='bold', fontsize=12, ha='left', va='top')
@@ -303,15 +303,18 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
             for pol in range(npols):
                 ax = axs_dspec[pol]
                 ax.pcolormesh(timstrr, freqghz, spec_plt[pol], cmap=cmaps[pol])
-                ax.xaxis_date()
-                ax.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
                 ax.set_xlim(timstrr[tidx[0]], timstrr[tidx[-1]])
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
-                ax.set_xlabel('Time [UT]')
                 ax.set_ylabel('Frequency [GHz]')
-                for xlabel in ax.get_xmajorticklabels():
-                    xlabel.set_rotation(30)
-                    xlabel.set_horizontalalignment("right")
+                if pol == npols-1:
+                    ax.xaxis_date()
+                    ax.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
+                    ax.set_xlabel('Time [UT]')
+                    for xlabel in ax.get_xmajorticklabels():
+                        xlabel.set_rotation(30)
+                        xlabel.set_horizontalalignment("right")
+                else:
+                    ax.xaxis.set_visible(False)
                 for idx, freq in enumerate(Freq):
                     ax.axhspan(freq[0], freq[1], linestyle='dotted', edgecolor='w', alpha=0.7, facecolor='none')
                     xtext, ytext = ax.transAxes.inverted().transform(ax.transData.transform([timstrr[tidx[0]], np.mean(freq)]))
