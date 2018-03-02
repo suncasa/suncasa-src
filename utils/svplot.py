@@ -173,7 +173,7 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
     return imres
 
 
-def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None, vmax=None, vmin=None):
+def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None, vmax=None, vmin=None):
     from matplotlib import pyplot as plt
     from sunpy import map as smap
     from sunpy import sun
@@ -181,6 +181,13 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
     if not figdir:
         figdir = './'
 
+    tstart, tend = timerange.split('~')
+    tr = Time([qa.quantity(tstart, 'd')['value'], qa.quantity(tend, 'd')['value']], format='mjd')
+    btimes = Time(imres['BeginTime'])
+    etimes = Time(imres['EndTime'])
+    tidx = np.where(np.logical_and(btimes > tr[0], etimes < tr[1]))
+    for k, v in imres.iteritems():
+        imres[k] = np.array(v)[tidx]
     observatory = 'EOVSA'
     polmap = {'RR': 0, 'LL': 1, 'I': 0, 'V': 1, 'XX': 0, 'YY': 1}
     pols = stokes.split(',')
@@ -668,7 +675,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                                            robust=robust, niter=niter, imsize=imsize, cell=cell, c_external=True)
             if not os.path.exists(qlookfigdir):
                 os.makedirs(qlookfigdir)
-            plt_qlook_image(imres, figdir=qlookfigdir, specdata=specdata, verbose=True, stokes=stokes, fov=xyrange, vmax=vmax, vmin=vmin)
+            plt_qlook_image(imres, timerange=timerange, figdir=qlookfigdir, specdata=specdata, verbose=True, stokes=stokes, fov=xyrange, vmax=vmax,
+                            vmin=vmin)
 
     else:
         spec = specdata['spec']
