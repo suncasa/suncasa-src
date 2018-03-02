@@ -197,6 +197,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     Spw = sorted(list(set(imres['Spw'])))
     nspw = len(Spw)
     # Freq = set(imres['Freq']) ## list is an unhashable type
+    imres['Freq'] = [list(ll) for ll in imres['Freq']]
     Freq = sorted(uniq(imres['Freq']))
 
     plttimes = list(set(imres['BeginTime']))
