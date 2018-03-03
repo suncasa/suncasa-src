@@ -12,7 +12,8 @@ __email__ = "sijie.yu@njit.edu"
 
 def img2html_movie(imgdir, outname='movie', img_fmt='png'):
     from PIL import Image
-    imgfiles = glob.glob(os.path.join(imgdir, '*.' + img_fmt))
+    imgfiles = glob.glob(imgdir, '*.' + img_fmt)
+    imgfiles = sorted(imgfiles)
     img = Image.open(imgfiles[0])
     width, height = img.size
     img.close()
