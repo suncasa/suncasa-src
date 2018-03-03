@@ -311,7 +311,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             dspecvspans = []
             for pol in range(npols):
                 ax = axs_dspec[pol]
-                ax.pcolormesh(timstrr, freqghz, spec_plt[pol], cmap=cmaps[pol])
+                ax.pcolormesh(timstrr[tidx], freqghz, spec_plt[pol][:, tidx], cmap=cmaps[pol])
                 ax.set_xlim(timstrr[tidx[0]], timstrr[tidx[-1]])
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 ax.set_ylabel('Frequency [GHz]')
