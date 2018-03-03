@@ -461,7 +461,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         figname = observatory + '_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:19] + '.png'
         # fig_tdt = plttime.to_datetime())
         # fig_subdir = fig_tdt.strftime("%Y/%m/%d/")
-        figdir_ = figdir  # + fig_subdir
+        figdir_ = figdir+'/'  # + fig_subdir
         if not os.path.exists(figdir_):
             os.makedirs(figdir_)
         if verbose:
