@@ -219,13 +219,14 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     import matplotlib.gridspec as gridspec
     spec = specdata['spec']
     (npol, nbl, nfreq, ntim) = spec.shape
-    tidx = range(ntim)
+    # tidx = range(ntim)
     fidx = range(nfreq)
     tim = specdata['tim']
     freq = specdata['freq']
     freqghz = freq / 1e9
     pol = ''.join(pols)
     spec_tim = Time(specdata['tim'] / 3600. / 24., format='mjd')
+    tidx, = np.where(np.logical_and(spec_tim > tr[0], spec_tim < tr[1]))
     timstrr = spec_tim.plot_date
     if npols == 1:
         if pol == 'RR':
