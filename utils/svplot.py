@@ -281,7 +281,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         nrows = 2 + 2
         fig = plt.figure(figsize=(12, 8))
         gs = gridspec.GridSpec(nrows, ncols)
-        axs = [plt.subplot(gs[0, 0])]
+        axs = [plt.subplot(gs[0, 2])]
         for ll in range(1, nspw):
             axs.append(plt.subplot(gs[ll / hnspw, ll % hnspw + 2], sharex=axs[0], sharey=axs[0]))
         for ll in range(nspw):
