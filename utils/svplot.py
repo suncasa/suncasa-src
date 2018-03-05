@@ -173,7 +173,8 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
     return imres
 
 
-def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None, imax=None, imin=None):
+def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None, imax=None, imin=None, dmax=None,
+                    dmin=None):
     from matplotlib import pyplot as plt
     from sunpy import map as smap
     from sunpy import sun
@@ -282,11 +283,11 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         gs = gridspec.GridSpec(nrows, ncols)
         axs = [plt.subplot(gs[0, 0])]
         for ll in range(1, nspw):
-            axs.append(plt.subplot(gs[ll / hnspw, ll % hnspw], sharex=axs[0], sharey=axs[0]))
+            axs.append(plt.subplot(gs[ll / hnspw, ll % hnspw + 2], sharex=axs[0], sharey=axs[0]))
         for ll in range(nspw):
-            axs.append(plt.subplot(gs[ll / hnspw + 2, ll % hnspw], sharex=axs[0], sharey=axs[0]))
-        axs_dspec = [plt.subplot(gs[:2, hnspw:])]
-        axs_dspec.append(plt.subplot(gs[2:, hnspw:]))
+            axs.append(plt.subplot(gs[ll / hnspw + 2, ll % hnspw + 2], sharex=axs[0], sharey=axs[0]))
+        axs_dspec = [plt.subplot(gs[:2, :2])]
+        axs_dspec.append(plt.subplot(gs[2:, :2]))
 
     fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
     timetext = fig.text(0.01, 0.98, '', color='w', fontweight='bold', fontsize=12, ha='left', va='top')
@@ -311,7 +312,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             dspecvspans = []
             for pol in range(npols):
                 ax = axs_dspec[pol]
-                ax.pcolormesh(timstrr[tidx], freqghz, spec_plt[pol][:, tidx], cmap=cmaps[pol])
+                ax.pcolormesh(timstrr[tidx], freqghz, spec_plt[pol][:, tidx], cmap=cmaps[pol], vmax=dmax, vmin=dmin)
                 ax.set_xlim(timstrr[tidx[0]], timstrr[tidx[-1]])
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 ax.set_ylabel('Frequency [GHz]')
@@ -679,7 +680,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             if not os.path.exists(qlookfigdir):
                 os.makedirs(qlookfigdir)
             plt_qlook_image(imres, timerange=timerange, figdir=qlookfigdir, specdata=specdata, verbose=True, stokes=stokes, fov=xyrange, imax=imax,
-                            imin=imin)
+                            imin=imin, dmax=dmax, dmin=dmin)
 
     else:
         spec = specdata['spec']
