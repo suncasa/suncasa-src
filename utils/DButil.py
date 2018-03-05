@@ -487,7 +487,7 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
             ow = ''
         outdstr = ' '.join(['-{} {}'.format(k, v) for k, v in outd.iteritems()])
         cmd = 'ffmpeg -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} '.format(tmpdir, img_ext, outdstr) + '{0} {1}.mp4'.format(ow,
-            outname)
+                                                                                                                                              outname)
         print(cmd)
         subprocess.check_output(['bash', '-c', cmd])
         os.system('rm -rf {}'.format(tmpdir))
@@ -929,10 +929,11 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
                     else:
                         raise ValueError(
                             'No SDO file found under {} at the time range of {} to {}. Download the data with EvtBrowser first.'.format(datadir,
-                                jdtimestr[0], jdtimestr[1]))
+                                                                                                                                        jdtimestr[0],
+                                                                                                                                        jdtimestr[1]))
                 sdofits = [os.path.basename(ll) for ll in sdofitspath]
                 sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofits],
-                    format='iso', scale='utc')
+                                   format='iso', scale='utc')
                 sdofitspathnew = [x for (y, x) in sorted(zip(sdotimeline.jd, sdofitspath))]
                 sdofitsnew = [os.path.basename(ll) for ll in sdofitspathnew]
                 sdotimelinenew = Time(
@@ -948,10 +949,88 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
             raise ValueError('No SDO file found under {}.'.format(datadir))
         sdofits = [os.path.basename(ll) for ll in sdofitspath]
         sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofits],
-            format='iso', scale='utc')
+                           format='iso', scale='utc')
         if timtol < np.min(np.abs(sdotimeline.jd - jdtime)):
             raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
         idxaia = np.argmin(np.abs(sdotimeline.jd - jdtime))
+        sdofile = sdofitspath[idxaia]
+        if isexists:
+            return sdofile
+        else:
+            try:
+                sdomap = sunpy.map.Map(sdofile)
+                return sdomap
+            except:
+                raise ValueError('File not found or invalid input')
+
+
+def readsdofile2(datadir=None, wavelength=None, jdtime=None, isexists=False, timtol=1):
+    '''
+    read sdo file from local database
+    :param datadir:
+    :param wavelength:
+    :param jdtime: time object. the timestamp or timerange. if is timerange, return a list of files in the timerange
+    :param isexists: check if file exist. if files exist, return file name
+    :param timtol: time difference tolerance in days for considering data as the same timestamp
+    :return:
+    '''
+    from astropy.time import Time
+    import sunpy.map
+    from datetime import date
+    from datetime import timedelta as td
+
+    wavelength = str(wavelength)
+    wavelength = wavelength.lower()
+    if timtol < 12. / 3600 / 24:
+        timtol = 12. / 3600 / 24
+    if isinstance(jdtime, list) or isinstance(jdtime, tuple) or type(jdtime) == np.ndarray:
+        if len(jdtime) != 2:
+            raise ValueError('jdtime must be a number or a two elements array/list/tuple')
+        else:
+            if jdtime.jd[1] < jdtime.jd[0]:
+                raise ValueError('start time must be occur earlier than end time!')
+            else:
+                sdofitspath = []
+                jdtimestr = jdtime.iso
+                ymd = [ll.split(' ')[0].split('-') for ll in jdtimestr]
+                d1 = date(int(ymd[0][0]), int(ymd[0][1]), int(ymd[0][2]))
+                d2 = date(int(ymd[1][0]), int(ymd[1][1]), int(ymd[1][2]))
+                delta = d2 - d1
+                for i in xrange(delta.days + 1):
+                    ymd = d1 + td(days=i)
+                    sdofitspathtmp = glob.glob(datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd.year, ymd.month, ymd.day, wavelength))
+                    if len(sdofitspathtmp) > 0:
+                        sdofitspath = sdofitspath + sdofitspathtmp
+                if len(sdofitspath) == 0:
+                    if isexists:
+                        return sdofitspath
+                    else:
+                        raise ValueError(
+                            'No SDO file found under {} at the time range of {} to {}. Download the data with EvtBrowser first.'.format(datadir,
+                                                                                                                                        jdtimestr[0],
+                                                                                                                                        jdtimestr[1]))
+                sdofits = [os.path.basename(ll) for ll in sdofitspath]
+                sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofits],
+                                   format='iso', scale='utc')
+                sdofitspathnew = [x for (y, x) in sorted(zip(sdotimeline.jd, sdofitspath))]
+                sdofitsnew = [os.path.basename(ll) for ll in sdofitspathnew]
+                sdotimelinenew = Time(
+                    [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofitsnew],
+                    format='iso', scale='utc')
+                sdofile = list(np.array(sdofitspathnew)[np.where(np.logical_and(jdtime.jd[0] < sdotimelinenew.jd, sdotimelinenew.jd < jdtime.jd[1]))[0]])
+                return sdofile
+    else:
+        jdtimstr = jdtime.iso
+        ymd = jdtimstr.split(' ')[0].split('-')
+        sdofitspath = glob.glob(datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
+        if len(sdofitspath) == 0:
+            raise ValueError('No SDO file found under {}.'.format(datadir))
+        sdofits = [os.path.basename(ll) for ll in sdofitspath]
+        sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofits],
+                           format='iso', scale='utc')
+        if timtol < np.min(np.abs(sdotimeline.jd - jdtime.jd)):
+            raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
+        idxaia = np.argmin(np.abs(sdotimeline.jd - jdtime.jd))
         sdofile = sdofitspath[idxaia]
         if isexists:
             return sdofile

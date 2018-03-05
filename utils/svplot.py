@@ -173,8 +173,8 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
     return imres
 
 
-def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None, imax=None, imin=None, dmax=None,
-                    dmin=None):
+def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None, imax=None, imin=None, dmax=None, dmin=None,
+                    aiafits=None, aia_search=False, aiawave=171):
     from matplotlib import pyplot as plt
     from sunpy import map as smap
     from sunpy import sun
@@ -290,7 +290,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         axs_dspec.append(plt.subplot(gs[2:, :2]))
 
     fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-    timetext = fig.text(0.01, 0.98, '', color='w', fontweight='bold', fontsize=12, ha='left', va='top')
+    timetext = fig.text(0.99, 0.98, '', color='w', fontweight='bold', fontsize=12, ha='right', va='top')
     for i in range(ntime):
         plt.ioff()
         # plt.clf()
@@ -356,6 +356,15 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 xy[:, 0][np.array([2, 3])] = etimes[i].plot_date
                 dspecvspans[pol].set_xy(xy)
 
+        try:
+            if aia_search:
+                aiamap = DButil.readsdofile2(datadir='./', wavelength=aiawave, jdtime=plttime, isexists=False)
+            else:
+                aiamap = smap.Map(aiafits)
+        except:
+            aiamap = None
+            print 'error in reading aiafits. Proceed without AIA'
+        clevels = np.linspace(0.2, 0.9, 5)
         for n in range(nspw):
             image = images_sort[i, n]
             # fig.add_subplot(nspw/3, 3, n+1)
@@ -363,51 +372,13 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             for pol in range(npols):
                 if suci[n]:
                     try:
-                        eomap = smap.Map(image)
+                        rmap = smap.Map(image)
                     except:
                         continue
-                    sz = eomap.data.shape
+                    sz = rmap.data.shape
                     if len(sz) == 4:
-                        eomap.data = eomap.data[min(polmap[pols[pol]], eomap.meta['naxis4'] - 1), 0, :, :].reshape((sz[2], sz[3]))
-                    eomap.data[np.isnan(eomap.data)] = 0.0
-                    # resample the image for plotting
-                    if fov is not None:
-                        fov = [np.array(ll) for ll in fov]
-                        pad = max(np.diff(fov[0])[0], np.diff(fov[1])[0])
-                        eomap = eomap.submap((fov[0] + np.array([-1.0, 1.0]) * pad) * u.arcsec, (fov[1] + np.array([-1.0, 1.0]) * pad) * u.arcsec)
-                    else:
-                        dim = u.Quantity([256, 256], u.pixel)
-                        eomap = eomap.resample(dim)
-                    eomap.plot_settings['cmap'] = plt.get_cmap(cmaps[pol])
-                    # import pdb
-                    # pdb.set_trace()
-                    eomap.plot(axes=axs[n + nspw * pol], vmax=imax, vmin=imin)
-                    eomap.draw_limb()
-                    eomap.draw_grid()
-                    ax = plt.gca()
-                    ax.set_autoscale_on(False)
-                    if fov:
-                        # pass
-                        ax.set_xlim(fov[0])
-                        ax.set_ylim(fov[1])
-                    else:
-                        ax.set_xlim([-1080, 1080])
-                        ax.set_ylim([-1080, 1080])
-                    spwran = spws_sort[i, n]
-                    # freqran = [int(s) * 0.5 + 2.9 for s in spwran.split('~')]
-                    # if len(freqran) == 1:
-                    #     ax.text(0.98, 0.01, '{0:.1f} GHz'.format(freqran[0]), color='w',
-                    #             transform=ax.transAxes, fontweight='bold', ha='right')
-                    # else:
-                    #     ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(freqran[0], freqran[1]), color='w',
-                    #             transform=ax.transAxes, fontweight='bold', ha='right')
-                    ax.text(0.98, 0.01, 'Stokes {1} @ {0:.3f} GHz'.format(eomap.meta['crval3'] / 1e9, pols[pol]), color='w', transform=ax.transAxes,
-                            fontweight='bold', ha='right')
-                    ax.set_title(' ')
-                    # ax.set_title('spw '+spws_sort[i,n])
-                    # ax.text(0.01,0.02, plttime.isot,transform=ax.transAxes,color='white')
-                    ax.xaxis.set_visible(False)
-                    ax.yaxis.set_visible(False)
+                        rmap.data = rmap.data[min(polmap[pols[pol]], rmap.meta['naxis4'] - 1), 0, :, :].reshape((sz[2], sz[3]))
+                    rmap.data[np.isnan(rmap.data)] = 0.0
                 else:
                     # make an empty map
                     data = np.zeros((512, 512))
@@ -416,49 +387,64 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                               "CTYPE2": "HPLT-TAN", "HGLT_OBS": sun.heliographic_solar_center(plttime)[1].value, "HGLN_OBS": 0.,
                               "RSUN_OBS": sun.solar_semidiameter_angular_size(plttime).value, "RSUN_REF": sun.constants.radius.value,
                               "DSUN_OBS": sun.sunearth_distance(plttime).to(u.meter).value, }
-                    eomap = smap.Map(data, header)
-                    # resample the image for plotting
-                    if fov:
-                        fov = [np.array(ll) for ll in fov]
-                        pad = max(np.diff(fov[0])[0], np.diff(fov[1])[0])
-                        try:
-                            eomap = eomap.submap((fov[0] + np.array([-1.0, 1.0]) * pad) * u.arcsec, (fov[1] + np.array([-1.0, 1.0]) * pad) * u.arcsec)
-                        except:
-                            x0, x1 = fov[0] + np.array([-1.0, 1.0]) * pad
-                            y0, y1 = fov[1] + np.array([-1.0, 1.0]) * pad
-                            bl = SkyCoord(x0 * u.arcsec, y0 * u.arcsec, frame=eomap.coordinate_frame)
-                            tr = SkyCoord(x1 * u.arcsec, y1 * u.arcsec, frame=eomap.coordinate_frame)
-                            eomap = eomap.submap(bl, tr)
-                    else:
-                        dim = u.Quantity([256, 256], u.pixel)
-                        eomap = eomap.resample(dim)
-                    eomap.plot_settings['cmap'] = plt.get_cmap(cmaps[pol])
-                    eomap.plot(axes=axs[n + nspw * pol])
-                    eomap.draw_limb()
-                    eomap.draw_grid()
-                    ax = plt.gca()
-                    ax.set_autoscale_on(False)
-                    if fov:
-                        # pass
-                        ax.set_xlim(fov[0])
-                        ax.set_ylim(fov[1])
-                    else:
-                        ax.set_xlim([-1080, 1080])
-                        ax.set_ylim([-1080, 1080])
-                    # ax.set_title('spw '+spwran+'( )'))
-                    spwran = spws_sort[i, n]
-                    freqran = [int(s) * 0.5 + 2.9 for s in spwran.split('~')]
-                    spwran = spws_sort[i, n]
-                    # ax.set_title('{0:.1f} - {1:.1f} GHz'.format(freqran[0],freqran[1]))
-                    # ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(freqran[0], freqran[1]), color='w',
-                    #         transform=ax.transAxes, fontweight='bold', ha='right')
-                    ax.text(0.98, 0.01, 'Stokes {1} @ {0:.3f} GHz'.format(0., pols[pol]), color='w', transform=ax.transAxes, fontweight='bold',
-                            ha='right')
-                    ax.set_title(' ')
+                    rmap = smap.Map(data, header)
+                # resample the image for plotting
+                if fov is not None:
+                    fov = [np.array(ll) for ll in fov]
+                    pad = max(np.diff(fov[0])[0], np.diff(fov[1])[0])
+                    try:
+                        rmap = rmap.submap((fov[0] + np.array([-1.0, 1.0]) * pad) * u.arcsec, (fov[1] + np.array([-1.0, 1.0]) * pad) * u.arcsec)
+                    except:
+                        x0, x1 = fov[0] + np.array([-1.0, 1.0]) * pad
+                        y0, y1 = fov[1] + np.array([-1.0, 1.0]) * pad
+                        bl = SkyCoord(x0 * u.arcsec, y0 * u.arcsec, frame=rmap.coordinate_frame)
+                        tr = SkyCoord(x1 * u.arcsec, y1 * u.arcsec, frame=rmap.coordinate_frame)
+                        rmap = rmap.submap(bl, tr)
+                else:
+                    dim = u.Quantity([256, 256], u.pixel)
+                    rmap = rmap.resample(dim)
 
-                    # ax.text(0.01,0.02, plttime.isot,transform=ax.transAxes,color='white')
-                    ax.xaxis.set_visible(False)
-                    ax.yaxis.set_visible(False)
+                ax = axs[n + nspw * pol]
+                if aiamap:
+                    aiamap.plot(axes=ax, vmin=0)
+                    XX, YY = np.meshgrid(np.arange(rmap.data.shape[1]), np.arange(rmap.data.shape[0]))
+                    try:
+                        rmapx, rmapy = rmap.pixel_to_data(XX * u.pix, YY * u.pix)
+                    except:
+                        rmapxy = rmap.pixel_to_data(XX * u.pix, YY * u.pix)
+                        rmapx = rmapxy.Tx
+                        rmapy = rmapxy.Ty
+                    ax.contour(rmapx.value, rmapy.value, rmap.data, levels=clevels * np.nanmax(rmap.data), cmap=cm.jet)
+                else:
+                    rmap.plot_settings['cmap'] = plt.get_cmap(cmaps[pol])
+                    # import pdb
+                    # pdb.set_trace()
+                    rmap.plot(axes=ax, vmax=imax, vmin=imin)
+                    rmap.draw_limb()
+                    rmap.draw_grid()
+                ax.set_autoscale_on(False)
+                if fov:
+                    # pass
+                    ax.set_xlim(fov[0])
+                    ax.set_ylim(fov[1])
+                else:
+                    ax.set_xlim([-1080, 1080])
+                    ax.set_ylim([-1080, 1080])
+                spwran = spws_sort[i, n]
+                # freqran = [int(s) * 0.5 + 2.9 for s in spwran.split('~')]
+                # if len(freqran) == 1:
+                #     ax.text(0.98, 0.01, '{0:.1f} GHz'.format(freqran[0]), color='w',
+                #             transform=ax.transAxes, fontweight='bold', ha='right')
+                # else:
+                #     ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(freqran[0], freqran[1]), color='w',
+                #             transform=ax.transAxes, fontweight='bold', ha='right')
+                ax.text(0.98, 0.01, 'Stokes {1} @ {0:.3f} GHz'.format(rmap.meta['crval3'] / 1e9, pols[pol]), color='w', transform=ax.transAxes,
+                        fontweight='bold', ha='right')
+                ax.set_title(' ')
+                # ax.set_title('spw '+spws_sort[i,n])
+                # ax.text(0.01,0.02, plttime.isot,transform=ax.transAxes,color='white')
+                ax.xaxis.set_visible(False)
+                ax.yaxis.set_visible(False)
         figname = observatory + '_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:19] + '.png'
         # fig_tdt = plttime.to_datetime())
         # fig_subdir = fig_tdt.strftime("%Y/%m/%d/")
@@ -486,8 +472,8 @@ def dspec_external(vis, workdir='./', specfile=None):
 
 def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uvrange=None, stokes='RR,LL', dmin=None, dmax=None, goestime=None,
            reftime=None, xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0, niter=500, imsize=[512], cell=['5.0arcsec'],
-           interactive=False, usemsphacenter=True, imagefile=None, fitsfile=None, plotaia=True, aiawave=171, aiafits=None, savefig=False,
-           mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=True, imax=None, imin=None):
+           interactive=False, usemsphacenter=True, imagefile=None, fitsfile=None, plotaia=True, aiawave=171, aiafits=None, aia_search=False,
+           savefig=False, mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=True, imax=None, imin=None):
     '''
     Required inputs:
             vis: calibrated CASA measurement set
@@ -667,20 +653,21 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             qlookfigdir = os.path.join(workdir, 'qlookimgs/')
             imresfile = os.path.join(qlookfitsdir, '{}.imres.npz'.format(os.path.basename(vis)))
             if overwrite:
-                imres = mk_qlook_image(vis, timerange=timerange, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir, phasecenter=phasecenter,
-                                       stokes=stokes, robust=robust, niter=niter, imsize=imsize, cell=cell, c_external=True)
+                imres = mk_qlook_image(vis, timerange=timerange, spws=spw.split(';'), twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir,
+                                       phasecenter=phasecenter, stokes=stokes, robust=robust, niter=niter, imsize=imsize, cell=cell, c_external=True)
             else:
                 if os.path.exists(imresfile):
                     imres = np.load(imresfile)
                     imres = imres['imres'].item()
                 else:
                     print('Image results file not found; Creating new images.')
-                    imres = mk_qlook_image(vis, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir, phasecenter=phasecenter, stokes=stokes,
-                                           robust=robust, niter=niter, imsize=imsize, cell=cell, c_external=True)
+                    imres = mk_qlook_image(vis, timerange=timerange, spws=spw.split(';'), twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir,
+                                           phasecenter=phasecenter, stokes=stokes, robust=robust, niter=niter, imsize=imsize, cell=cell,
+                                           c_external=True)
             if not os.path.exists(qlookfigdir):
                 os.makedirs(qlookfigdir)
             plt_qlook_image(imres, timerange=timerange, figdir=qlookfigdir, specdata=specdata, verbose=True, stokes=stokes, fov=xyrange, imax=imax,
-                            imin=imin, dmax=dmax, dmin=dmin)
+                            imin=imin, dmax=dmax, dmin=dmin, aiafits=aiafits, aiawave=aiawave)
 
     else:
         spec = specdata['spec']
@@ -1016,12 +1003,12 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 title = 'AIA {0:.0f} + {1} {2:6.3f} GHz'.format(aiamap.wavelength.value, observatory, (bfreqghz + efreqghz) / 2.0)
             else:
                 title = 'AIA {0:.0f}'.format(aiamap.wavelength.value)
-            aiamap.plot(axes=ax4)
+            aiamap.plot(axes=ax4, vmin=0)
             ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize=12)
             aiamap.draw_limb()
             aiamap.draw_grid()
             aiamap.draw_rectangle((xyrange[0][0], xyrange[1][0]) * u.arcsec, sz_x, sz_y)
-            aiamap.plot(axes=ax6)
+            aiamap.plot(axes=ax6, vmin=0)
             ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize=12)
             aiamap.draw_limb()
             aiamap.draw_grid()
@@ -1079,10 +1066,10 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 tr = SkyCoord(xyrange[0][1] * u.arcsec, xyrange[1][1] * u.arcsec, frame=aiamap.coordinate_frame)
                 subaiamap = aiamap.submap(bl, tr)
 
-            subaiamap.plot(axes=ax5, title='')
+            subaiamap.plot(axes=ax5, title='', vmin=0)
             subaiamap.draw_limb()
             subaiamap.draw_grid()
-            subaiamap.plot(axes=ax7, title='')
+            subaiamap.plot(axes=ax7, title='', vmin=0)
             subaiamap.draw_limb()
             subaiamap.draw_grid()
             ax5.contour(subrmapx.value, subrmapy.value, subrmap1.data, levels=clevels1 * np.nanmax(subrmap1.data), cmap=cm.jet)
