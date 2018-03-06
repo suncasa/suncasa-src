@@ -364,7 +364,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         except:
             aiamap = None
             print 'error in reading aiafits. Proceed without AIA'
-        clevels = np.linspace(0.2, 0.9, 5)
+
         for n in range(nspw):
             image = images_sort[i, n]
             # fig.add_subplot(nspw/3, 3, n+1)
@@ -414,7 +414,11 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                         rmapxy = rmap.pixel_to_data(XX * u.pix, YY * u.pix)
                         rmapx = rmapxy.Tx
                         rmapy = rmapxy.Ty
-                    ax.contour(rmapx.value, rmapy.value, rmap.data, levels=clevels * np.nanmax(rmap.data), cmap=cm.jet)
+                    try:
+                        clevels = np.linspace(imin, imax, 5)
+                    except:
+                        clevels = np.linspace(0.2, 0.9, 5) * np.nanmax(rmap.data)
+                    ax.contour(rmapx.value, rmapy.value, rmap.data, levels=clevels, cmap=cm.jet)
                 else:
                     rmap.plot_settings['cmap'] = plt.get_cmap(cmaps[pol])
                     # import pdb
