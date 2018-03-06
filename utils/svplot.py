@@ -174,7 +174,17 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
 
 
 def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None, imax=None, imin=None, dmax=None, dmin=None,
-                    aiafits=None, aia_search=False, aiawave=171):
+                    aiafits=None, aia_search=None, aiawave=171):
+    '''
+    Required inputs:
+
+    Important optional inputs:
+
+    Optional inputs:
+            aia_search: directory to search aia fits files
+    Example:
+
+    '''
     from matplotlib import pyplot as plt
     from sunpy import map as smap
     from sunpy import sun
@@ -358,7 +368,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
 
         try:
             if aia_search:
-                aiamap = DButil.readsdofileX(datadir='./', wavelength=aiawave, jdtime=plttime, isexists=False)
+                aiamap = DButil.readsdofileX(datadir=aia_search, wavelength=aiawave, jdtime=plttime, isexists=False)
             else:
                 aiamap = smap.Map(aiafits)
         except:
@@ -472,7 +482,7 @@ def dspec_external(vis, workdir='./', specfile=None):
 
 def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uvrange=None, stokes='RR,LL', dmin=None, dmax=None, goestime=None,
            reftime=None, xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0, niter=500, imsize=[512], cell=['5.0arcsec'],
-           interactive=False, usemsphacenter=True, imagefile=None, fitsfile=None, plotaia=True, aiawave=171, aiafits=None, aia_search=False,
+           interactive=False, usemsphacenter=True, imagefile=None, fitsfile=None, plotaia=True, aiawave=171, aiafits=None, aia_search=None,
            savefig=False, mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=True, imax=None, imin=None):
     '''
     Required inputs:
