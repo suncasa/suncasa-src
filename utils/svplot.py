@@ -358,7 +358,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
 
         try:
             if aia_search:
-                aiamap = DButil.readsdofile2(datadir='./', wavelength=aiawave, jdtime=plttime, isexists=False)
+                aiamap = DButil.readsdofileX(datadir='./', wavelength=aiawave, jdtime=plttime, isexists=False)
             else:
                 aiamap = smap.Map(aiafits)
         except:

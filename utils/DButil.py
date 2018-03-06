@@ -964,7 +964,7 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
                 raise ValueError('File not found or invalid input')
 
 
-def readsdofile2(datadir=None, wavelength=None, jdtime=None, isexists=False, timtol=1):
+def readsdofileX(datadir=None, wavelength=None, jdtime=None, isexists=False, timtol=1):
     '''
     read sdo file from local database
     :param datadir:
