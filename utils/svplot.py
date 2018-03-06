@@ -434,16 +434,12 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 else:
                     ax.set_xlim([-1080, 1080])
                     ax.set_ylim([-1080, 1080])
-                spwran = spws_sort[i, n]
-                # freqran = [int(s) * 0.5 + 2.9 for s in spwran.split('~')]
-                # if len(freqran) == 1:
-                #     ax.text(0.98, 0.01, '{0:.1f} GHz'.format(freqran[0]), color='w',
-                #             transform=ax.transAxes, fontweight='bold', ha='right')
-                # else:
-                #     ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(freqran[0], freqran[1]), color='w',
-                #             transform=ax.transAxes, fontweight='bold', ha='right')
-                ax.text(0.98, 0.01, 'Stokes {1} @ {0:.3f} GHz'.format(rmap.meta['crval3'] / 1e9, pols[pol]), color='w', transform=ax.transAxes,
-                        fontweight='bold', ha='right')
+                try:
+                    ax.text(0.98, 0.01, 'Stokes {1} @ {0:.3f} GHz'.format(rmap.meta['crval3'] / 1e9, pols[pol]), color='w', transform=ax.transAxes,
+                            fontweight='bold', ha='right')
+                except:
+                    ax.text(0.98, 0.01, 'Stokes {1} @ {0:.3f} GHz'.format(0., pols[pol]), color='w', transform=ax.transAxes, fontweight='bold',
+                            ha='right')
                 ax.set_title(' ')
                 # ax.set_title('spw '+spws_sort[i,n])
                 # ax.text(0.01,0.02, plttime.isot,transform=ax.transAxes,color='white')
