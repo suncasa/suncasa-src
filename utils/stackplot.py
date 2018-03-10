@@ -601,7 +601,10 @@ class Stackplot:
         # sp = stackplot(parent_obj = self, mapcube = mapcube_plot)
         fig_mapcube = plt.figure(figsize=(8, 7))
         try:
-            clrange = DButil.sdo_aia_scale_dict(mapcube_plot[0].meta['wavelnth'])
+            if self.mapcube_plot[0].observatory == 'SDO':
+                clrange = DButil.sdo_aia_scale_dict(mapcube_plot[0].meta['wavelnth'])
+            else:
+                clrange = {'high': None, 'log': False, 'low': None}
         except:
             clrange = {'high': None, 'log': False, 'low': None}
         if not vmax:
