@@ -916,7 +916,7 @@ class Stackplot:
     def mapcube_info(self, mapcube=None):
         if mapcube:
             trange = Time([mapcube[0].date, mapcube[-1].date])
-            fov = np.hstack([mapcube[0].xrange.value, mapcube[0].yrange.value])
+            fov = np.hstack([mapcube[0].xrange.to(u.arcsec).value, mapcube[0].yrange.to(u.arcsec).value])
             binpix = int(np.round(np.mean([ll.value for ll in mapcube[0].scale]) / self.instrum_meta['SDO/AIA']['scale'].value))
             return {'trange': trange, 'fov': fov, 'binpix': binpix}
         else:
