@@ -754,7 +754,7 @@ class Stackplot:
         stackplt = []
         print 'making the stack plot...'
         for idx, smap in enumerate(tqdm(mapcube)):
-            intens = getimprofile(smap.data, self.cutslitbd.cutslitplt, xrange=smap.xrange.value, yrange=smap.yrange.value)
+            intens = getimprofile(smap.data, self.cutslitbd.cutslitplt, xrange=smap.xrange.to(u.arcsec).value, yrange=smap.yrange.to(u.arcsec).value)
             stackplt.append(intens['y'])
         if len(stackplt) > 1:
             stackplt = np.vstack(stackplt)
