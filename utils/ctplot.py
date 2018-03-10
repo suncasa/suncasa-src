@@ -110,7 +110,7 @@ def contour1chn(vlafile, aiafile, chn=0, pol=0, x_range=[], y_range=[], levels=[
         vlamapx = vlamap.pixel_to_data(XX * u.pix, YY * u.pix).Tx
         vlamapy = vlamap.pixel_to_data(XX * u.pix, YY * u.pix).Ty
         ax.contour(vlamapx.value, vlamapy.value, vlamap.data, levels=np.array(levels) * np.nanmax(vlamap.data),
-                   colors=[cm.get_cmap(cmap)(float(idx) / (len(vlafile)))] * len(levels), *args, **kargs)
+                   colors=[cm.get_cmap(cmap)(float(idx) / (len(vlafile) - 1))] * len(levels), *args, **kargs)
 
 
 def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], chan_mask=None, x_range=[], y_range=[], levels=[0.9],

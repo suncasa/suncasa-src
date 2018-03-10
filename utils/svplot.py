@@ -174,7 +174,7 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
 
 
 def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None, imax=None, imin=None, dmax=None, dmin=None,
-                    aiafits=None, aia_search=None, aiawave=171):
+                    clevels=None, cmap='jet', aiafits=None, aia_search=None, aiawave=171, moviename='', plt_composite=False):
     '''
     Required inputs:
 
@@ -260,11 +260,14 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         nrows = 2 + 2  # 1 image: 1x1, 1 dspec:2x4
         fig = plt.figure(figsize=(8, 8))
         gs = gridspec.GridSpec(nrows, ncols)
-        axs = [plt.subplot(gs[0, 0])]
-        for ll in range(1, nspw):
-            axs.append(plt.subplot(gs[ll / hnspw, ll % hnspw], sharex=axs[0], sharey=axs[0]))
-        for ll in range(nspw):
-            axs.append(plt.subplot(gs[ll / hnspw + 2, ll % hnspw], sharex=axs[0], sharey=axs[0]))
+        if plt_composite:
+            axs = [plt.subplot(gs[:2, :hnspw])]
+        else:
+            axs = [plt.subplot(gs[0, 0])]
+            for ll in range(1, nspw):
+                axs.append(plt.subplot(gs[ll / hnspw, ll % hnspw], sharex=axs[0], sharey=axs[0]))
+            for ll in range(nspw):
+                axs.append(plt.subplot(gs[ll / hnspw + 2, ll % hnspw], sharex=axs[0], sharey=axs[0]))
         axs_dspec = [plt.subplot(gs[2:, :])]
         cmaps = ['jet']
     elif npols == 2:
@@ -291,16 +294,20 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         nrows = 2 + 2
         fig = plt.figure(figsize=(12, 8))
         gs = gridspec.GridSpec(nrows, ncols)
-        axs = [plt.subplot(gs[0, 2])]
-        for ll in range(1, nspw):
-            axs.append(plt.subplot(gs[ll / hnspw, ll % hnspw + 2], sharex=axs[0], sharey=axs[0]))
-        for ll in range(nspw):
-            axs.append(plt.subplot(gs[ll / hnspw + 2, ll % hnspw + 2], sharex=axs[0], sharey=axs[0]))
+        if plt_composite:
+            axs = [plt.subplot(gs[:2, 2:]), plt.subplot(gs[2:, 2:])]
+        else:
+            axs = [plt.subplot(gs[0, 2])]
+            for ll in range(1, nspw):
+                axs.append(plt.subplot(gs[ll / hnspw, ll % hnspw + 2], sharex=axs[0], sharey=axs[0]))
+            for ll in range(nspw):
+                axs.append(plt.subplot(gs[ll / hnspw + 2, ll % hnspw + 2], sharex=axs[0], sharey=axs[0]))
+
         axs_dspec = [plt.subplot(gs[:2, :2])]
         axs_dspec.append(plt.subplot(gs[2:, :2]))
 
     fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-    timetext = fig.text(0.99, 0.98, '', color='w', fontweight='bold', fontsize=12, ha='right', va='top')
+
     for i in range(ntime):
         plt.ioff()
         # plt.clf()
@@ -314,7 +321,6 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         #     continue
         # fig=plt.figure(figsize=(9,6))
         # fig.suptitle('EOVSA @ '+plttime.iso[:19])
-        timetext.set_text(plttime.iso[:19])
         if verbose:
             print 'Plotting image at: ', plttime.iso
 
@@ -401,22 +407,28 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 # resample the image for plotting
                 if fov is not None:
                     fov = [np.array(ll) for ll in fov]
-                    pad = max(np.diff(fov[0])[0], np.diff(fov[1])[0])
                     try:
+                        pad = max(np.diff(fov[0])[0], np.diff(fov[1])[0])
                         rmap = rmap.submap((fov[0] + np.array([-1.0, 1.0]) * pad) * u.arcsec, (fov[1] + np.array([-1.0, 1.0]) * pad) * u.arcsec)
                     except:
-                        x0, x1 = fov[0] + np.array([-1.0, 1.0]) * pad
-                        y0, y1 = fov[1] + np.array([-1.0, 1.0]) * pad
-                        bl = SkyCoord(x0 * u.arcsec, y0 * u.arcsec, frame=rmap.coordinate_frame)
-                        tr = SkyCoord(x1 * u.arcsec, y1 * u.arcsec, frame=rmap.coordinate_frame)
+                        pad = max(fov[1][0] - fov[0][0], fov[1][1] - fov[0][1])
+                        bl = SkyCoord((fov[0][0] - pad) * u.arcsec, (fov[1][0] - pad) * u.arcsec, frame=rmap.coordinate_frame)
+                        tr = SkyCoord((fov[0][1] + pad) * u.arcsec, (fov[1][1] + pad) * u.arcsec, frame=rmap.coordinate_frame)
                         rmap = rmap.submap(bl, tr)
                 else:
                     dim = u.Quantity([256, 256], u.pixel)
                     rmap = rmap.resample(dim)
 
-                ax = axs[n + nspw * pol]
+                if plt_composite:
+                    ax = axs[pol]
+                else:
+                    ax = axs[n + nspw * pol]
                 if aiamap:
-                    aiamap.plot(axes=ax, vmin=0)
+                    if plt_composite:
+                        if n == 0:
+                            aiamap.plot(axes=ax, vmin=0)
+                    else:
+                        aiamap.plot(axes=ax, vmin=0)
                     XX, YY = np.meshgrid(np.arange(rmap.data.shape[1]), np.arange(rmap.data.shape[0]))
                     try:
                         rmapx, rmapy = rmap.pixel_to_data(XX * u.pix, YY * u.pix)
@@ -425,10 +437,17 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                         rmapx = rmapxy.Tx
                         rmapy = rmapxy.Ty
                     try:
-                        clevels = np.linspace(imin, imax, 5)
+                        clevels1 = np.linspace(imin, imax, 5)
                     except:
-                        clevels = np.linspace(0.2, 0.9, 5) * np.nanmax(rmap.data)
-                    ax.contour(rmapx.value, rmapy.value, rmap.data, levels=clevels, cmap=cm.jet)
+                        try:
+                            clevels1 = np.array(clevels) * np.nanmax(rmap.data)
+                        except:
+                            clevels1 = np.linspace(0.2, 0.9, 5) * np.nanmax(rmap.data)
+                    if plt_composite:
+                        ax.contour(rmapx.value, rmapy.value, rmap.data, levels=clevels1,
+                                   colors=[cm.get_cmap(cmap)(float(n) / (nspw - 1))] * len(clevels1))
+                    else:
+                        ax.contour(rmapx.value, rmapy.value, rmap.data, levels=clevels1, cmap=cmap)
                 else:
                     rmap.plot_settings['cmap'] = plt.get_cmap(cmaps[pol])
                     # import pdb
@@ -439,17 +458,32 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 ax.set_autoscale_on(False)
                 if fov:
                     # pass
-                    ax.set_xlim(fov[0])
-                    ax.set_ylim(fov[1])
+                    if parse_version(sunpy.__version__) > parse_version('0.8.0'):
+                        ax.set_xlim([fov[0][0], fov[1][0]])
+                        ax.set_ylim([fov[0][1], fov[1][1]])
+                    else:
+                        ax.set_xlim(fov[0])
+                        ax.set_ylim(fov[1])
                 else:
                     ax.set_xlim([-1080, 1080])
                     ax.set_ylim([-1080, 1080])
-                try:
-                    ax.text(0.98, 0.01, 'Stokes {1} @ {0:.3f} GHz'.format(rmap.meta['crval3'] / 1e9, pols[pol]), color='w', transform=ax.transAxes,
-                            fontweight='bold', ha='right')
-                except:
-                    ax.text(0.98, 0.01, 'Stokes {1} @ {0:.3f} GHz'.format(0., pols[pol]), color='w', transform=ax.transAxes, fontweight='bold',
-                            ha='right')
+                if plt_composite:
+                    try:
+                        ax.text(0.98, 0.01 + 0.05 * n, 'Stokes {1} @ {0:.3f} GHz'.format(rmap.meta['crval3'] / 1e9, pols[pol]),
+                                color=cm.get_cmap(cmap)(float(n) / (nspw - 1)), transform=ax.transAxes, fontweight='bold', ha='right')
+                    except:
+                        ax.text(0.98, 0.01 + 0.05 * n, 'Stokes {1} @ {0:.3f} GHz'.format(0., pols[pol]),
+                                color=cm.get_cmap(cmap)(float(n) / (nspw - 1)), transform=ax.transAxes, fontweight='bold', ha='right')
+                else:
+                    try:
+                        ax.text(0.98, 0.01, 'Stokes {1} @ {0:.3f} GHz'.format(rmap.meta['crval3'] / 1e9, pols[pol]), color='w',
+                                transform=ax.transAxes, fontweight='bold', ha='right')
+                    except:
+                        ax.text(0.98, 0.01, 'Stokes {1} @ {0:.3f} GHz'.format(0., pols[pol]), color='w', transform=ax.transAxes, fontweight='bold',
+                                ha='right')
+                if pol == 0 and n == 0:
+                    timetext = ax.text(0.99, 0.98, '', color='w', fontweight='bold', fontsize=12, ha='right', va='top', transform=ax.transAxes)
+                timetext.set_text(plttime.iso[:19])
                 ax.set_title(' ')
                 # ax.set_title('spw '+spws_sort[i,n])
                 # ax.text(0.01,0.02, plttime.isot,transform=ax.transAxes,color='white')
@@ -465,7 +499,9 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             print 'Saving plot to: ' + os.path.join(figdir_, figname)
         plt.savefig(os.path.join(figdir_, figname))
     plt.close(fig)
-    DButil.img2html_movie(figdir_)
+    if not moviename:
+        moviename = 'movie'
+    DButil.img2html_movie(figdir_, outname=moviename)
 
 
 def dspec_external(vis, workdir='./', specfile=None):

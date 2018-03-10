@@ -470,7 +470,11 @@ def smooth(x, window_len=11, window='hanning'):
 
 def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num=0, crf=15, fps=10, overwrite=False):
     import subprocess, os
-    imgs = glob.glob(imgprefix + '*.' + img_ext)
+    if type(imgprefix) is list:
+        imgs = imgprefix
+        imgprefix = os.path.dirname(imgprefix[0])
+    else:
+        imgs = glob.glob(imgprefix + '*.' + img_ext)
     if imgs:
         imgs = sorted(imgs)
         tmpdir = os.path.join(os.path.dirname(imgprefix), 'img_tmp') + '/'
@@ -1017,7 +1021,8 @@ def readsdofileX(datadir=None, wavelength=None, jdtime=None, isexists=False, tim
                 sdotimelinenew = Time(
                     [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofitsnew],
                     format='iso', scale='utc')
-                sdofile = list(np.array(sdofitspathnew)[np.where(np.logical_and(jdtime.jd[0] < sdotimelinenew.jd, sdotimelinenew.jd < jdtime.jd[1]))[0]])
+                sdofile = list(
+                    np.array(sdofitspathnew)[np.where(np.logical_and(jdtime.jd[0] < sdotimelinenew.jd, sdotimelinenew.jd < jdtime.jd[1]))[0]])
                 return sdofile
     else:
         jdtimstr = jdtime.iso

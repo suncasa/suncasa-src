@@ -54,19 +54,19 @@ def butter_bandpass(lowcut, highcut, fs, order=5):
     nyq = 0.5 * fs
     low = lowcut / nyq
     high = highcut / nyq
-    b, a = signal.butter(order, [low, high], btype='band')
+    b, a = signal.butter(order, [low, high], btype='bandpass')
     return b, a
 
 
 def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
     b, a = butter_bandpass(lowcut, highcut, fs, order=order)
-    y = signal.lfilter(b, a, data)
+    y = signal.filtfilt(b, a, data)
     return y
 
 
 def b_filter(data, lowcut, highcut, fs, ix):
     x = data[ix]
-    y = butter_bandpass_filter(x, lowcut, highcut, fs, order=3)
+    y = butter_bandpass_filter(x, lowcut * fs, highcut * fs, fs, order=5)
     return {'idx': ix, 'y': y}
 
 
@@ -133,7 +133,7 @@ def getimprofile(data, cutslit, xrange=None, yrange=None):
         return intensdist
 
 
-def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, returnImAx=False, uni_cm=False, *args, **kwargs):
+def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, returnImAx=False, layout_vert=False, uni_cm=False, *args, **kwargs):
     import sunpy.cm.cm as cm  ## to bootstrap sdoaia color map
     import matplotlib.cm as cm
     import matplotlib.colors as colors
@@ -144,7 +144,10 @@ def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, retu
         clrange = {'high': None, 'log': False, 'low': None}
     plt.clf()
     if dspec:
-        ax = plt.subplot(121)
+        if layout_vert:
+            ax = plt.subplot(211)
+        else:
+            ax = plt.subplot(121)
     else:
         ax = plt.subplot()
     if 'vmin' in kwargs.keys():
@@ -187,7 +190,7 @@ def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, retu
 
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    imshow_args.update({'extent': list(smap.xrange.value) + list(smap.yrange.value)})
+    imshow_args.update({'extent': list(smap.xrange.to(u.arcsec).value) + list(smap.yrange.to(u.arcsec).value)})
     if smap.detector == 'HMI':
         im1 = ax.imshow(np.rot90(smap.data, 2), **imshow_args)
     else:
@@ -203,7 +206,10 @@ def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, retu
         #     fig.set_size_inches(13, 5)
         if uni_cm:
             dspec['args']['norm'] = norm
-        ax2 = plt.subplot(122)
+        if layout_vert:
+            ax2 = plt.subplot(212)
+        else:
+            ax2 = plt.subplot(122)
         im2 = plt.pcolormesh(dspec['x'], dspec['y'], dspec['dspec'], **dspec['args'])
         date_format = mdates.DateFormatter('%H:%M:%S')
         ax2.xaxis_date()
@@ -432,10 +438,15 @@ class Stackplot:
             if not outfile:
                 outfile = 'mapcube_{0}_bin{3}_dtdata{4}_{1}_{2}'.format(mapcube[0].meta['wavelnth'], trange[0].isot[:-4].replace(':', ''),
                                                                         trange[1].isot[:-4].replace(':', ''), binpix, dt_data)
+            for ll in xrange(42):
+                if os.path.exists(outfile):
+                    if not os.path.exists(outfile + '_{}'.format(ll)):
+                        outfile = outfile + '_{}'.format(ll)
             self.mapcube_tofile(outfile)
         gc.collect()
 
     def mapcube_fromfile(self, infile):
+        t0 = time.time()
         with open(infile, 'rb') as sf:
             print('Loading mapcube....')
             tmp = pickle.load(sf)
@@ -452,8 +463,10 @@ class Stackplot:
                     return
                 self.mapcube = tmp
             self.mapcube_info()
+        print 'It took {} to load the mapcube.'.format(time.time() - t0)
 
     def mapcube_tofile(self, outfile=None, mapcube=None):
+        t0 = time.time()
         if not mapcube:
             mapcube = self.mapcube
         mp_info = self.mapcube_info(mapcube)
@@ -464,6 +477,7 @@ class Stackplot:
             print('Saving mapcube to {}'.format(outfile))
             pickle.dump({'mp': mapcube, 'trange': mp_info['trange'], 'fov': mp_info['fov'], 'binpix': mp_info['binpix'], 'dt_data': self.dt_data,
                          'fitsfile': self.fitsfile}, sf)
+        print 'It took {} to save the mapcube.'.format(time.time() - t0)
 
     def mapcube_drot(self):
         self.mapcube = mapcube_solar_derotate(self.mapcube)
@@ -477,10 +491,28 @@ class Stackplot:
         self.mapcube = sunpy.map.Map(maplist, cube=True)
         self.binpix *= binpix
 
-    def mapcube_mkdiff(self, mode=0, dt_frm=3, medfilt=None, bfilter=False, lowcut=0.1, highcut=50, outfile=None, tosave=False):
+    def mapcube_mkdiff(self, mode=0, dt_frm=3, medfilt=None, gaussfilt=None, bfilter=False, lowcut=0.1, highcut=0.5, outfile=None, tosave=False):
+        '''
+
+        :param mode:
+        :param dt_frm:
+        :param medfilt:
+        :param gaussfilt:
+        :param bfilter: do butter bandpass filter
+        :param lowcut: low cutoff frequency in terms of total sample numbers
+        :param highcut: high cutoff frequency in terms of total sample numbers
+        :param outfile:
+        :param tosave:
+        :return:
+        '''
         modes = {0: 'rdiff', 1: 'rratio', 2: 'bdiff', 3: 'bratio'}
         maplist = []
         datacube = self.mapcube.as_array()
+        if gaussfilt:
+            from scipy.ndimage import gaussian_filter
+            print 'gaussian filtering map.....'
+            for idx, ll in enumerate(tqdm(self.mapcube)):
+                datacube[:, :, idx] = gaussian_filter(datacube[:, :, idx], gaussfilt, mode='nearest')
         if medfilt:
             print 'median filtering map.....'
             for idx, ll in enumerate(tqdm(self.mapcube)):
@@ -506,7 +538,7 @@ class Stackplot:
             datacube = mapcube_diff.as_array()
             datacube_ft = np.zeros_like(datacube)
             ny, nx, nt = datacube_ft.shape
-            fs = len(mapcube_diff)
+            fs = len(mapcube_diff) * 100.
             ncpu = mp.cpu_count() - 1
             print 'filtering the mapcube in time domain.....'
             for ly in tqdm(xrange(ny)):
@@ -598,11 +630,12 @@ class Stackplot:
 
                 ani = animation.FuncAnimation(fig_mapcube, update_frame, nframe, interval=50, blit=False)
 
-            prompt = ''
-            while not (prompt.lower() in ['y', 'n']):
-                prompt = raw_input('Satisfied with current FOV? [y/n]')
-            if prompt.lower() == 'n':
-                return
+            if not silent:
+                prompt = ''
+                while not (prompt.lower() in ['y', 'n']):
+                    prompt = raw_input('Satisfied with current FOV? [y/n]')
+                if prompt.lower() == 'n':
+                    return
             if anim:
                 print 'Saving movie to {}'.format(out_dir)
                 Writer = animation.writers['ffmpeg']
@@ -731,7 +764,8 @@ class Stackplot:
         with open('{}'.format(outfile), 'wb') as sf:
             pickle.dump(dspec, sf)
 
-    def plot_stackplot(self, mapcube=None, hdr=False, vmax=None, vmin=None, diff=False, uni_cm=False, cutslitplt=None):
+    def plot_stackplot(self, mapcube=None, hdr=False, vmax=None, vmin=None, layout_vert=False, diff=False, uni_cm=False, sav_img=False, out_dir=None,
+                       dpi=100, anim=False, cutslitplt=None, silent=False):
         if mapcube:
             mapcube_plot = deepcopy(mapcube)
         else:
@@ -743,7 +777,10 @@ class Stackplot:
             print('mapcube must be a instance of sunpy.map.mapcube.MapCube')
             return
         self.make_stackplot(mapcube_plot)
-        fig_mapcube = plt.figure(figsize=(14, 7))
+        if layout_vert:
+            fig_mapcube = plt.figure(figsize=(7, 7))
+        else:
+            fig_mapcube = plt.figure(figsize=(14, 7))
         try:
             clrange = DButil.sdo_aia_scale_dict(mapcube_plot[0].meta['wavelnth'])
         except:
@@ -764,34 +801,111 @@ class Stackplot:
 
         dtplot = np.mean(np.diff(self.tplt.plot_date))
         dspec['axvspan'] = [self.tplt[0].plot_date, self.tplt[0].plot_date + dtplot]
-        ax, im1, ax2, im2, vspan = plot_map(mapcube_plot[0], dspec, vmax=vmax, vmin=vmin, diff=diff, returnImAx=True, uni_cm=uni_cm)
-        plt.subplots_adjust(bottom=0.10)
-        ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
-        ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
-        ax.plot(cutslitplt['xs1'], cutslitplt['ys1'], color='white', ls='dotted')
-        axcolor = 'lightgoldenrodyellow'
-        axframe2 = plt.axes([0.1, 0.03, 0.40, 0.02], facecolor=axcolor)
-        sframe2 = Slider(axframe2, 'frame', 0, len(mapcube_plot) - 1, valinit=0, valfmt='%0.0f')
 
-        def update2(val):
-            frm = int(sframe2.val)
-            smap = mapcube_plot[frm]
-            im1.set_data(smap.data)
-            if smap.meta.has_key('t_obs'):
-                tstr = smap.meta['t_obs']
-            else:
-                tstr = smap.meta['date-obs']
-            ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
-            vspan_xy = vspan.get_xy()
-            vspan_xy[np.array([0, 1, 4]), 0] = self.tplt[frm].plot_date
-            if frm < len(self.tplt) - 1:
-                vspan_xy[np.array([2, 3]), 0] = self.tplt[frm + 1].plot_date
-            else:
-                vspan_xy[np.array([2, 3]), 0] = self.tplt[frm].plot_date
-            vspan.set_xy(vspan_xy)
-            fig_mapcube.canvas.draw()
+        if sav_img:
+            if out_dir is None:
+                out_dir = './'
 
-        sframe2.on_changed(update2)
+            ax, im1, ax2, im2, vspan = plot_map(mapcube_plot[0], dspec, vmax=vmax, vmin=vmin, diff=diff, returnImAx=True, uni_cm=uni_cm,
+                                                layout_vert=layout_vert)
+            plt.subplots_adjust(bottom=0.10)
+            ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
+            ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
+            ax.plot(cutslitplt['xs1'], cutslitplt['ys1'], color='white', ls='dotted')
+            if anim:
+                import matplotlib
+                matplotlib.use("Agg")
+                import matplotlib.animation as animation
+                nframe = len(mapcube_plot)
+
+                def update_frame2(num):
+                    frm = int(num)
+                    smap = mapcube_plot[frm]
+                    # smap.data[smap.data<1]=1
+                    im1.set_data(smap.data)
+                    # im1.set_extent(list(smap.xrange.value) + list(smap.yrange.value))
+                    vspan_xy = vspan.get_xy()
+                    vspan_xy[np.array([0, 1, 4]), 0] = self.tplt[frm].plot_date
+                    if frm < len(self.tplt) - 1:
+                        vspan_xy[np.array([2, 3]), 0] = self.tplt[frm + 1].plot_date
+                    else:
+                        vspan_xy[np.array([2, 3]), 0] = self.tplt[frm].plot_date
+                    vspan.set_xy(vspan_xy)
+                    ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, smap.meta['t_obs']))
+                    fig_mapcube.canvas.draw()
+                    return
+
+                ani = animation.FuncAnimation(fig_mapcube, update_frame2, nframe, interval=50, blit=False)
+
+
+            if not silent:
+                prompt = ''
+                while not (prompt.lower() in ['y', 'n']):
+                    prompt = raw_input('Satisfied with current FOV? [y/n]')
+                if prompt.lower() == 'n':
+                    return
+            if anim:
+                print 'Saving movie to {}'.format(out_dir)
+                Writer = animation.writers['ffmpeg']
+                writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+                ani.save('{0}/Stackplot-{2}{1}.mp4'.format(out_dir, mapcube_plot[0].meta['wavelnth'], mapcube_plot[0].detector), writer=writer)
+            else:
+                plt.ioff()
+                print 'Saving images to {}'.format(out_dir)
+                for frm, smap in enumerate(tqdm(mapcube_plot)):
+                    im1.set_data(smap.data)
+                    # im1.set_extent(list(smap.xrange.value) + list(smap.yrange.value))
+                    # ax.set_xlim(list(smap.xrange.value))
+                    # ax.set_ylim(list(smap.yrange.value))
+                    if smap.meta.has_key('t_obs'):
+                        tstr = smap.meta['t_obs']
+                    else:
+                        tstr = smap.meta['date-obs']
+                    ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
+                    vspan_xy = vspan.get_xy()
+                    vspan_xy[np.array([0, 1, 4]), 0] = self.tplt[frm].plot_date
+                    if frm < len(self.tplt) - 1:
+                        vspan_xy[np.array([2, 3]), 0] = self.tplt[frm + 1].plot_date
+                    else:
+                        vspan_xy[np.array([2, 3]), 0] = self.tplt[frm].plot_date
+                    vspan.set_xy(vspan_xy)
+                    t_map = Time(tstr)
+                    fig_mapcube.canvas.draw()
+                    fig_mapcube.savefig('{0}/Stackplot-{3}{1}-{2}.png'.format(out_dir, smap.meta['wavelnth'],
+                                                                              t_map.iso.replace(' ', 'T').replace(':', '').replace('-', '')[:-4],
+                                                                              smap.detector), format='png', dpi=dpi)
+                plt.ion()
+        else:
+            ax, im1, ax2, im2, vspan = plot_map(mapcube_plot[0], dspec, vmax=vmax, vmin=vmin, diff=diff, returnImAx=True, uni_cm=uni_cm,
+                                                layout_vert=layout_vert)
+            plt.subplots_adjust(bottom=0.10)
+            ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
+            ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
+            ax.plot(cutslitplt['xs1'], cutslitplt['ys1'], color='white', ls='dotted')
+            axcolor = 'lightgoldenrodyellow'
+            axframe2 = plt.axes([0.1, 0.03, 0.40, 0.02], facecolor=axcolor)
+            sframe2 = Slider(axframe2, 'frame', 0, len(mapcube_plot) - 1, valinit=0, valfmt='%0.0f')
+
+            def update2(val):
+                frm = int(sframe2.val)
+                smap = mapcube_plot[frm]
+                im1.set_data(smap.data)
+                if smap.meta.has_key('t_obs'):
+                    tstr = smap.meta['t_obs']
+                else:
+                    tstr = smap.meta['date-obs']
+                ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
+                vspan_xy = vspan.get_xy()
+                vspan_xy[np.array([0, 1, 4]), 0] = self.tplt[frm].plot_date
+                if frm < len(self.tplt) - 1:
+                    vspan_xy[np.array([2, 3]), 0] = self.tplt[frm + 1].plot_date
+                else:
+                    vspan_xy[np.array([2, 3]), 0] = self.tplt[frm].plot_date
+                vspan.set_xy(vspan_xy)
+                fig_mapcube.canvas.draw()
+
+            sframe2.on_changed(update2)
+        return
 
     def mapcube_info(self, mapcube=None):
         if mapcube:
