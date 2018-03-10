@@ -164,7 +164,10 @@ def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, retu
         else:
             norm = colors.Normalize(vmin=vmin, vmax=vmax)
     else:
-        norm = colors.LogNorm(vmin=vmin, vmax=vmax)
+        if clrange['log']:
+            norm = colors.LogNorm(vmin=vmin, vmax=vmax)
+        else:
+            norm = colors.Normalize(vmin=vmin, vmax=vmax)
     try:
         imshow_args = {'cmap': cm.get_cmap('sdoaia{}'.format(smap.meta['wavelnth'])), 'norm': norm, 'interpolation': 'nearest', 'origin': 'lower'}
     except:
