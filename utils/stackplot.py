@@ -843,7 +843,6 @@ class Stackplot:
 
                 ani = animation.FuncAnimation(fig_mapcube, update_frame2, nframe, interval=50, blit=False)
 
-
             if not silent:
                 prompt = ''
                 while not (prompt.lower() in ['y', 'n']):
@@ -921,7 +920,7 @@ class Stackplot:
             return {'trange': trange, 'fov': fov, 'binpix': binpix}
         else:
             self.trange = Time([self.mapcube[0].date, self.mapcube[-1].date])
-            self.fov = np.hstack([self.mapcube[0].xrange.value, self.mapcube[0].yrange.value])
+            self.fov = np.hstack([self.mapcube[0].xrange.to(u.arcsec).value, self.mapcube[0].yrange.to(u.arcsec).value])
             self.binpix = int(np.round(np.mean([ll.value for ll in self.mapcube[0].scale]) / self.instrum_meta['SDO/AIA']['scale'].value))
             return {'trange': self.trange, 'fov': self.fov, 'binpix': self.binpix}
 
