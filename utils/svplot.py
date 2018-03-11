@@ -334,10 +334,11 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 ax.set_ylabel('Frequency [GHz]')
                 for idx, freq in enumerate(Freq):
-                    ax.axhspan(freq[0], freq[1], linestyle='dotted', edgecolor='w', alpha=0.7, facecolor='none')
-                    xtext, ytext = ax.transAxes.inverted().transform(ax.transData.transform([timstrr[tidx[0]], np.mean(freq)]))
-                    ax.text(xtext + 0.01, ytext, 'spw ' + Spw[idx], color='w', transform=ax.transAxes, fontweight='bold', ha='left', va='center',
-                            fontsize=8, alpha=0.5)
+                    if nspw<=10:
+                        ax.axhspan(freq[0], freq[1], linestyle='dotted', edgecolor='w', alpha=0.7, facecolor='none')
+                        xtext, ytext = ax.transAxes.inverted().transform(ax.transData.transform([timstrr[tidx[0]], np.mean(freq)]))
+                        ax.text(xtext + 0.01, ytext, 'spw ' + Spw[idx], color='w', transform=ax.transAxes, fontweight='bold', ha='left', va='center',
+                                fontsize=8, alpha=0.5)
                 ax.text(0.01, 0.98, 'Stokes ' + pols[pol], color='w', transform=ax.transAxes, fontweight='bold', ha='left', va='top')
                 dspecvspans.append(ax.axvspan(btimes[i].plot_date, etimes[i].plot_date, color='w', alpha=0.4))
                 ax_pos = ax.get_position().extents
