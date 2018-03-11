@@ -497,7 +497,8 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             cax = divider.append_axes('right', size='1.5%', pad=0.05)
             cax.tick_params(direction='in')
             Freqs = [np.mean(fq) for fq in Freq]
-            mpl.colorbar.ColorbarBase(cax, cmap= cmap, norm=colors.Normalize(vmax=Freqs[-1], vmin=Freqs[0]),label='Frequency [GHz]')
+            mpl.colorbar.ColorbarBase(cax, cmap=cmap, norm=colors.Normalize(vmax=Freqs[-1], vmin=Freqs[0]))
+            cax.set_ylabel('Frequency [GHz]')
         figname = observatory + '_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:19] + '.png'
         # fig_tdt = plttime.to_datetime())
         # fig_subdir = fig_tdt.strftime("%Y/%m/%d/")
