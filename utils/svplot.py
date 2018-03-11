@@ -334,7 +334,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 ax.set_ylabel('Frequency [GHz]')
                 for idx, freq in enumerate(Freq):
-                    if nspw<=10:
+                    if nspw <= 10:
                         ax.axhspan(freq[0], freq[1], linestyle='dotted', edgecolor='w', alpha=0.7, facecolor='none')
                         xtext, ytext = ax.transAxes.inverted().transform(ax.transData.transform([timstrr[tidx[0]], np.mean(freq)]))
                         ax.text(xtext + 0.01, ytext, 'spw ' + Spw[idx], color='w', transform=ax.transAxes, fontweight='bold', ha='left', va='center',
@@ -379,6 +379,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 aiamap = DButil.readsdofileX(datadir=aia_search, wavelength=aiawave, jdtime=plttime, isexists=False)
             else:
                 aiamap = smap.Map(aiafits)
+            aiamap = DButil.normalize_aiamap(aiamap)
         except:
             aiamap = None
             print 'error in reading aiafits. Proceed without AIA'
