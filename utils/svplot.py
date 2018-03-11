@@ -26,6 +26,7 @@ import pickle
 import datetime
 import matplotlib as mpl
 import matplotlib.cm as cm
+import matplotlib.colors as colors
 import matplotlib.patches as patches
 from matplotlib import gridspec
 import glob
@@ -468,12 +469,13 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     ax.set_xlim([-1080, 1080])
                     ax.set_ylim([-1080, 1080])
                 if plt_composite:
-                    try:
-                        ax.text(0.98, 0.01 + 0.05 * n, 'Stokes {1} @ {0:.3f} GHz'.format(rmap.meta['crval3'] / 1e9, pols[pol]),
-                                color=cm.get_cmap(cmap)(float(n) / (nspw - 1)), transform=ax.transAxes, fontweight='bold', ha='right')
-                    except:
-                        ax.text(0.98, 0.01 + 0.05 * n, 'Stokes {1} @ {0:.3f} GHz'.format(0., pols[pol]),
-                                color=cm.get_cmap(cmap)(float(n) / (nspw - 1)), transform=ax.transAxes, fontweight='bold', ha='right')
+                    if nspw <= 10:
+                        try:
+                            ax.text(0.98, 0.01 + 0.05 * n, 'Stokes {1} @ {0:.3f} GHz'.format(rmap.meta['crval3'] / 1e9, pols[pol]),
+                                    color=cm.get_cmap(cmap)(float(n) / (nspw - 1)), transform=ax.transAxes, fontweight='bold', ha='right')
+                        except:
+                            ax.text(0.98, 0.01 + 0.05 * n, 'Stokes {1} @ {0:.3f} GHz'.format(0., pols[pol]),
+                                    color=cm.get_cmap(cmap)(float(n) / (nspw - 1)), transform=ax.transAxes, fontweight='bold', ha='right')
                 else:
                     try:
                         ax.text(0.98, 0.01, 'Stokes {1} @ {0:.3f} GHz'.format(rmap.meta['crval3'] / 1e9, pols[pol]), color='w',
@@ -489,6 +491,13 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 # ax.text(0.01,0.02, plttime.isot,transform=ax.transAxes,color='white')
                 ax.xaxis.set_visible(False)
                 ax.yaxis.set_visible(False)
+        if plt_composite and nspw > 10:
+            from mpl_toolkits.axes_grid1 import make_axes_locatable
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes('right', size='1.5%', pad=0.05)
+            cax.tick_params(direction='in')
+            Freqs = [np.mean(fq) for fq in Freq]
+            mpl.colorbar.ColorbarBase(cax, cmap= cmap, norm=colors.Normalize(vmax=Freqs[-1], vmin=Freqs[0]),label='Frequency [GHz]')
         figname = observatory + '_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:19] + '.png'
         # fig_tdt = plttime.to_datetime())
         # fig_subdir = fig_tdt.strftime("%Y/%m/%d/")
