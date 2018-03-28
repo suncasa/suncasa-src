@@ -9,6 +9,7 @@ from astropy.io import fits
 import signalsmooth as ss
 import numpy.ma as ma
 import matplotlib.cm as cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import sunpy.map
 import astropy.units as u
 import pickle
@@ -199,7 +200,10 @@ def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, retu
     else:
         im1 = ax.imshow(smap.data, **imshow_args)
     plt.title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, smap.meta['date-obs']))
-    plt.colorbar(im1, ax=ax, label='DN counts per second')
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='1.5%', pad=0.05)
+    cax.tick_params(direction='in')
+    plt.colorbar(im1, ax=ax, cax=cax, label='DN counts per second')
     ax.set_autoscale_on(False)
     if dspec:
         fig = plt.gcf()
@@ -217,9 +221,14 @@ def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, retu
         date_format = mdates.DateFormatter('%H:%M:%S')
         ax2.xaxis_date()
         ax2.xaxis.set_major_formatter(date_format)
-        fig.autofmt_xdate(rotation=30)
+        for xlabel in ax2.get_xmajorticklabels():
+            xlabel.set_rotation(30)
+            xlabel.set_horizontalalignment("right")
         ax2.yaxis.set_label_text(dspec['ytitle'])
-        plt.colorbar(im2, ax=ax2, label=dspec['ctitle'])
+        divider = make_axes_locatable(ax2)
+        cax = divider.append_axes('right', size='1.5%', pad=0.05)
+        cax.tick_params(direction='in')
+        plt.colorbar(im2, ax=ax2, cax=cax, label=dspec['ctitle'])
         ax2.set_autoscale_on(False)
         if 'axvspan' in dspec.keys():
             vspan = ax2.axvspan(dspec['axvspan'][0], dspec['axvspan'][1], alpha=0.5, color='white')
@@ -510,7 +519,7 @@ class Stackplot:
         '''
         modes = {0: 'rdiff', 1: 'rratio', 2: 'bdiff', 3: 'bratio'}
         maplist = []
-        datacube = self.mapcube.as_array()
+        datacube = self.mapcube.as_array().astype(np.float)
         if gaussfilt:
             from scipy.ndimage import gaussian_filter
             print 'gaussian filtering map.....'
@@ -602,7 +611,7 @@ class Stackplot:
                 mapcube_plot[idx].data[np.where(smap.data < 1)] = 1
         self.mapcube_plot = mapcube_plot
         # sp = stackplot(parent_obj = self, mapcube = mapcube_plot)
-        fig_mapcube = plt.figure(figsize=(8, 7))
+        fig_mapcube = plt.figure()
         try:
             if self.mapcube_plot[0].observatory == 'SDO':
                 clrange = DButil.sdo_aia_scale_dict(mapcube_plot[0].meta['wavelnth'])
@@ -677,11 +686,11 @@ class Stackplot:
             pixscale = ((self.fov[1] - self.fov[0]) / dims[0].value + (self.fov[3] - self.fov[2]) / dims[1].value) / 2.0
             axFrame = plt.axes([0.10, 0.03, 0.40, 0.02], facecolor=axcolor)
             sFrame = Slider(axFrame, 'frame', 0, len(mapcube_plot) - 1, valinit=0, valfmt='%0.0f')
-            axCutwdth = plt.axes([0.65, 0.02, 0.10, 0.01], facecolor=axcolor)
+            axCutwdth = plt.axes([0.65, 0.02, 0.20, 0.01], facecolor=axcolor)
             sCutwdth = Slider(axCutwdth, 'Width[pix]', 1, int(diagpix / 4.0), valinit=5, valfmt='%0.0f')
-            axCutang = plt.axes([0.65, 0.04, 0.10, 0.01], facecolor=axcolor)
-            sCutang = Slider(axCutang, 'Angle[deg]', 0.0, 90.0, valinit=3.0, valfmt='%.1f')
-            axCutlngth = plt.axes([0.65, 0.06, 0.10, 0.01], facecolor=axcolor)
+            axCutang = plt.axes([0.65, 0.04, 0.20, 0.01], facecolor=axcolor)
+            sCutang = Slider(axCutang, 'Angle[deg]', -45.0, 45.0, valinit=0.0, valfmt='%.1f')
+            axCutlngth = plt.axes([0.65, 0.06, 0.20, 0.01], facecolor=axcolor)
             sCutlngth = Slider(axCutlngth, 'Length[pix]', 20, int(diagpix * 4), valinit=150, valfmt='%0.0f')
             self.cutslitbd = CutslitBuilder(ax, cutwidth=sCutwdth.val, cutang=sCutang.val / 180. * np.pi, cutlength=sCutlngth.val, scale=pixscale)
 
@@ -727,7 +736,7 @@ class Stackplot:
             sCutlngth.on_changed(sCutlngth_update)
         return
 
-    def cutslit_fromfile(self, infile):
+    def cutslit_fromfile(self, infile, color=None):
         if self.cutslitbd:
             with open('{}'.format(infile), 'rb') as sf:
                 cutslit = pickle.load(sf)
@@ -740,6 +749,10 @@ class Stackplot:
             self.cutslitbd.slitline.figure.canvas.draw()
             self.cutslitbd.slitline0.figure.canvas.draw()
             self.cutslitbd.slitline1.figure.canvas.draw()
+            if color:
+                self.cutslitbd.slitline.set_color(color)
+                self.cutslitbd.slitline0.set_color(color)
+                self.cutslitbd.slitline1.set_color(color)
         else:
             print('plot_mapcube first before loading cutslit from file!')
 
@@ -782,6 +795,9 @@ class Stackplot:
         if not isinstance(mapcube_plot, sunpy.map.mapcube.MapCube):
             print('mapcube must be a instance of sunpy.map.mapcube.MapCube')
             return
+            for idx, smap in enumerate(tqdm(mapcube_plot)):
+                smap = DButil.sdo_aia_scale_hdr(smap)
+                mapcube_plot[idx].data = smap.data
         self.make_stackplot(mapcube_plot)
         if layout_vert:
             fig_mapcube = plt.figure(figsize=(7, 7))
@@ -807,7 +823,6 @@ class Stackplot:
 
         dtplot = np.mean(np.diff(self.tplt.plot_date))
         dspec['axvspan'] = [self.tplt[0].plot_date, self.tplt[0].plot_date + dtplot]
-
         if sav_img:
             if out_dir is None:
                 out_dir = './'

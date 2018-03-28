@@ -464,8 +464,10 @@ def smooth(x, window_len=11, window='hanning'):
         w = eval('np.' + window + '(window_len)')
 
     y = np.convolve(w / w.sum(), s, mode='same')
-    y = y[window_len - 1:-(window_len - 1)]
-    return y
+    if len(x) == len(y):
+        return y
+    else:
+        return y[window_len - 1:-(window_len - 1)]
 
 
 def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num=0, crf=15, fps=10, overwrite=False):
@@ -693,20 +695,20 @@ def getfreeport():
     return port
 
 
-def normalize_aiamap(smap):
+def normalize_aiamap(aiamap):
     '''
     do expisure normalization of an aia map
     :param aia map made from sunpy.map:
     :return: normalised aia map
     '''
     try:
-        if smap.observatory == 'SDO' and smap.instrument[0:3] == 'AIA':
-            data = smap.data
-            data[~np.isnan(data)] = data[~np.isnan(data)] / smap.exposure_time.value
+        if aiamap.observatory == 'SDO' and aiamap.instrument[0:3] == 'AIA':
+            data = aiamap.data
+            data[~np.isnan(data)] = data[~np.isnan(data)] / aiamap.exposure_time.value
             data[data < 0] = 0
-            smap.data = data
-            smap.meta['exptime'] = 1.0
-            return smap
+            aiamap.data = data
+            aiamap.meta['exptime'] = 1.0
+            return aiamap
         else:
             raise ValueError('input sunpy map is not from aia.')
     except:
@@ -987,10 +989,11 @@ def readsdofileX(datadir=None, wavelength=None, jdtime=None, isexists=False, tim
     wavelength = wavelength.lower()
     if timtol < 12. / 3600 / 24:
         timtol = 12. / 3600 / 24
-    if isinstance(jdtime, list) or isinstance(jdtime, tuple) or type(jdtime) == np.ndarray:
+    if isinstance(jdtime, list) or isinstance(jdtime, tuple) or type(jdtime) == np.ndarray or type(jdtime) == Time:
         if len(jdtime) != 2:
             raise ValueError('jdtime must be a number or a two elements array/list/tuple')
         else:
+            jdtime = Time(jdtime)
             if jdtime.jd[1] < jdtime.jd[0]:
                 raise ValueError('start time must be occur earlier than end time!')
             else:
