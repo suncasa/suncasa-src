@@ -20,7 +20,7 @@ def imfit_iter(imgfiles, doreg, tims, msinfofile, ephem, box, region, chans, sto
                residual, model, estimates, logfile, append, newestimates, complist,
                overwrite, dooff, offset, fixoffset, stretch, rms, noisefwhm, summary,
                imidx):
-    from taskinit import iatool,rg
+    from taskinit import iatool,rgtool
     import pdb
     try:
         from astropy.io import fits as pyfits
@@ -49,6 +49,7 @@ def imfit_iter(imgfiles, doreg, tims, msinfofile, ephem, box, region, chans, sto
             print 'Failure in vla_prep. Skipping this image file: ' + img
 
     myia = iatool()
+    myrg = rgtool()
     try:
         if (not myia.open(img)):
             raise Exception, "Cannot create image analysis tool using " + img
@@ -60,7 +61,7 @@ def imfit_iter(imgfiles, doreg, tims, msinfofile, ephem, box, region, chans, sto
         for itpp in pols:
             results[itpp] = {}
         for pp, itpp in enumerate(pols):
-            r = rg.box(blc=[0, 0, 0, pp], trc=[ndx, ndy, nchans, pp])
+            r = myrg.box(blc=[0, 0, 0, pp], trc=[ndx, ndy, nchans, pp])
             myiapol = myia.subimage(region=r, dropdeg=True)
             results[itpp] = myiapol.fitcomponents(
                 box=box, region=region, chans=chans, stokes=stokes,
