@@ -33,6 +33,7 @@ from suncasa.utils import DButil
 import copy
 from pkg_resources import parse_version
 import pdb
+import time
 
 
 def uniq(lst):
@@ -57,11 +58,11 @@ def mk_qlook_image(vis, ncpu=10, twidth=12, stokes='I,V', antenna='', imagedir=N
 
     if not imagedir:
         imagedir = './'
-    imres = {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': [], 'Spw': [], 'Vis': [], 'Freq': []}
     msfile = vis[0]
     ms.open(msfile)
     metadata = ms.metadata()
     observatory = metadata.observatorynames()[0]
+    imres = {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': [], 'Spw': [], 'Vis': [], 'Freq': [], 'Obs':[observatory]}
     # axisInfo = ms.getdata(["axis_info"], ifraxis=True)
     spwInfo = ms.getspectralwindowinfo()
     # freqInfo = axisInfo["axis_info"]["freq_axis"]["chan_freq"].swapaxes(0, 1) / 1e9
@@ -173,7 +174,7 @@ def plt_qlook_image(imres, figdir=None, specdata=None, verbose=True, stokes='I,V
     if not figdir:
         figdir = './'
 
-    observatory = 'EOVSA'
+    observatory = imres['Obs'][0]
     polmap = {'RR': 0, 'LL': 1, 'I': 0, 'V': 1}
     pols = stokes.split(',')
     npols = len(pols)
@@ -691,17 +692,67 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             from sunpy import lightcurve as lc
             from sunpy.time import TimeRange
             goest = lc.GOESLightCurve.create(TimeRange(btgoes, etgoes))
+            dates = mpl.dates.date2num(parse_time(goest.data.index))
+            goest = lc.GOESLightCurve.create(TimeRange(btgoes, etgoes))
         except:
             goesscript = os.path.join(workdir, 'goes.py')
             goesdatafile = os.path.join(workdir, 'goes.dat')
+            gt1=mpl.dates.date2num(parse_time(btgoes))
+            gt2=mpl.dates.date2num(parse_time(etgoes))
             os.system('rm -rf {}'.format(goesscript))
+            os.system('rm -rf {}'.format(goesdatafile))
             fi = open(goesscript, 'wb')
             fi.write('import os \n')
-            fi.write('from sunpy.time import TimeRange \n')
-            fi.write('from sunpy import lightcurve as lc \n')
+            fi.write('import shutil \n')
+            fi.write('from astropy.io import fits \n')
             fi.write('import pickle \n')
-            fi.write('goesplottim = TimeRange("{0}", "{1}") \n'.format(btgoes, etgoes))
-            fi.write('goes = lc.GOESLightCurve.create(goesplottim) \n')
+            fi.write('import urllib2 \n')
+            fi.write('from astropy.time import Time \n')
+            fi.write('import numpy as np \n')
+            fi.write('import ssl \n')
+            fi.write('goesplottim = ["{0}", "{1}",{2}, {3}] \n'.format(btgoes, etgoes,gt1,gt2))
+            fi.write('yr = goesplottim[0][:4] \n')
+            fi.write('datstr = goesplottim[0][:4]+goesplottim[0][5:7]+goesplottim[0][8:10] \n')
+            fi.write('context = ssl._create_unverified_context() \n')
+            fi.write('f = urllib2.urlopen(\'https://umbra.nascom.nasa.gov/goes/fits/\'+yr, context=context) \n')
+            fi.write('lines = f.readlines() \n')
+            fi.write('sat_num = [] \n')
+            fi.write('for line in lines: \n')
+            fi.write('    idx = line.find(datstr) \n')
+            fi.write('    if idx != -1: \n')
+            fi.write('        sat_num.append(line[idx-2:idx]) \n')
+            fi.write('if type(sat_num) is int: \n')
+            fi.write('    sat_num = [str(sat_num)] \n')
+            fi.write('filenames = [] \n')
+            fi.write('for sat in sat_num: \n')
+            fi.write('    filename = \'go\'+sat+datstr+\'.fits\' \n')
+            fi.write('    url = \'https://umbra.nascom.nasa.gov/goes/fits/\'+yr+\'/\'+filename \n')
+            fi.write('    f = urllib2.urlopen(url, context=context) \n')
+            fi.write('    workdir=os.getcwd() \n')
+            fi.write('    with open(workdir+\'/\'+filename,\'wb\') as g: \n')
+            fi.write('        shutil.copyfileobj(f,g) \n')
+            fi.write('    filenames.append(workdir+\'/\'+filename) \n')
+            fi.write('pmerit = 0 \n')
+            fi.write('for file in filenames: \n')
+            fi.write('    gfits = fits.open(file) \n')
+            fi.write('    tsecs = gfits[2].data[\'TIME\'][0] \n')
+            fi.write('    date_elements = gfits[0].header[\'DATE-OBS\'].split(\'/\') \n')
+            fi.write('    temp_t = Time(date_elements[2]+\'-\'+date_elements[1]+\'-\'+date_elements[0]).plot_date + tsecs/86400. \n')
+            fi.write('    i=0 \n')
+            fi.write('    while temp_t[i]<goesplottim[2]: \n')
+            fi.write('        i=i+1 \n')
+            fi.write('    st=i-1 \n')
+            fi.write('    while temp_t[i]<goesplottim[3]: \n')
+            fi.write('        i=i+1 \n')
+            fi.write('    et=i \n')
+            fi.write('    data = gfits[2].data[\'FLUX\'][0][:,0][st:et] \n')
+            fi.write('    good = np.where(data > 1.e-8) \n')
+            fi.write('    merit = len(good) \n')
+            fi.write('    if merit > pmerit: \n')
+            fi.write('        pmerit = merit \n')
+            fi.write('        goes_data = data \n')
+            fi.write('        goes_t = temp_t[st:et] \n')
+            fi.write('goes={\'time\':goes_t,\'xrsb\':data} \n')
             fi.write('fi2 = open("{}", "wb") \n'.format(goesdatafile))
             fi.write('pickle.dump(goes, fi2) \n')
             fi.write('fi2.close()')
@@ -722,9 +773,10 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 fi1 = file(goesdatafile, 'rb')
                 goest = pickle.load(fi1)
                 fi1.close()
+                dates=goest['time']
+                goesdata=goest['xrsb']
 
         try:
-            dates = mpl.dates.date2num(parse_time(goest.data.index))
             goesdif = np.diff(goest.data['xrsb'])
             gmax = np.nanmax(goesdif)
             gmin = np.nanmin(goesdif)
@@ -775,8 +827,10 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                     newlist.append('0')
                 if newlist and os.path.exists(newlist[0]):
                     aiafits = newlist[0]
+                    dlaia=False
                 else:
                     print 'downloading the aiafits file'
+                    dlaia=True
                     wave1 = aiawave - 3
                     wave2 = aiawave + 3
                     t1 = Time(starttim1.mjd - 0.02 / 24., format='mjd')
@@ -812,18 +866,40 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             # Here something is needed to check whether it has finished downloading the fits files or not
 
             if not aiafits:
-                newlist = []
-                items = glob.glob('*.fits')
-                for nm in items:
-                    str1 = starttim1.iso[:4] + '_' + starttim1.iso[5:7] + '_' + starttim1.iso[8:10] + 't' + starttim1.iso[
+                if not dlaia:
+                    newlist = []
+                    items = glob.glob('*.fits')
+                    for nm in items:
+                        str1 = starttim1.iso[:4] + '_' + starttim1.iso[5:7] + '_' + starttim1.iso[8:10] + 't' + starttim1.iso[
                                                                                                             11:13] + '_' + starttim1.iso[14:16]
-                    str2 = str(aiawave)
-                    if nm.find(str1) != -1 and nm.find(str2) != -1:
-                        newlist.append(nm)
-                if newlist:
-                    aiafits = newlist[0]
-                    print 'AIA fits ' + aiafits + ' selected'
+                        str2 = str(aiawave)
+                        if nm.find(str1) != -1 and nm.find(str2) != -1:
+                            newlist.append(nm)
+                    if newlist:
+                        aiafits = newlist[0]
+                        print 'AIA fits ' + aiafits + ' selected'
                 else:
+                    i=0
+                    while dlaia and i<6:
+                        newlist = []
+                        items = glob.glob('*.fits')
+                        for nm in items:
+                            str1 = starttim1.iso[:4] + '_' + starttim1.iso[5:7] + '_' + starttim1.iso[8:10] + 't' + starttim1.iso[
+                                                                                                            11:13] + '_' + starttim1.iso[14:16]
+                            str2 = str(aiawave)
+                            if nm.find(str1) != -1 and nm.find(str2) != -1:
+                                newlist.append(nm)
+                        if newlist:
+                            aiafits = newlist[0]
+                            print 'AIA fits ' + aiafits + ' selected'
+                            dlaia=False
+                            time.sleep(10)
+                            break
+                        else:
+                            print 'wait 10 sec for aiafits to be downloaded'
+                            time.sleep(10)
+                            i=i+1
+                if not aiafits:
                     print 'no AIA fits files found. Proceed without AIA'
 
             try:
@@ -1039,3 +1115,5 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                  transform=ax7.transAxes, color='k', fontsize=10)
 
         fig.show()
+
+        
