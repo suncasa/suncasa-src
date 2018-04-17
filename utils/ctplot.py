@@ -12,7 +12,7 @@ import sunpy.map
 from suncasa.utils import DButil
 
 
-def add_scalebar(length, x, y, ax, align='right', label='', label_position='below', yoff=-0.005, fontsize=None, **kwargs):
+def add_scalebar(length, x, y, ax, align='right', label='', label_position='below', yoff=-0.005, xoff=None, fontsize=None, **kwargs):
     '''
     :param length : length of scalebar in data coordinate
     :param x,y : in the coordinate system of the Axes; (0,0) is bottom left of the axes, and (1,1) is top right of the axes.
@@ -49,7 +49,8 @@ def add_scalebar(length, x, y, ax, align='right', label='', label_position='belo
     if label_position == 'below':
         verticalalign = 'top'
         ytext = ytext + yoff
-
+    if xoff:
+        xtext = xtext + xoff
     ax.text(xtext, ytext, label, horizontalalignment='center', verticalalignment=verticalalign, transform=ax.transAxes, **kwargs_text)
 
 

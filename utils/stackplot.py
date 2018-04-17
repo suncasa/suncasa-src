@@ -409,7 +409,7 @@ class Stackplot:
             else:
                 self.mapcube_fromfile(infile)
 
-    def make_mapcube(self, trange, outfile=None, fov=None, wavelength='171', binpix=1, dt_data=1, derotate=False, tosave=True):
+    def make_mapcube(self, trange, outfile=None, fov=None, wavelength='171', binpix=1, dt_data=1, derotate=False, tosave=True,superpixel=False):
         if isinstance(trange, list):
             if isinstance(trange[0], Time):
                 trange = Time([trange[0], trange[-1]])
@@ -430,7 +430,10 @@ class Stackplot:
                 submaptmp = maptmp.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]), u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
             else:
                 submaptmp = maptmp
-            submaptmp = submaptmp.resample(u.Quantity(submaptmp.dimensions) / binpix)
+            if superpixel:
+                submaptmp = submaptmp.superpixel(u.Quantity([binpix*u.pix]*2))
+            else:
+                submaptmp = submaptmp.resample(u.Quantity(submaptmp.dimensions) / binpix)
             if submaptmp.detector == 'HMI':
                 pass
             else:
@@ -530,12 +533,15 @@ class Stackplot:
             for idx, ll in enumerate(tqdm(self.mapcube)):
                 datacube[:, :, idx] = signal.medfilt(datacube[:, :, idx], medfilt)
         print 'making the running diff mapcube.....'
+        tplt = self.tplt.jd
         for idx, ll in enumerate(tqdm(self.mapcube)):
             maplist.append(deepcopy(ll))
-            if idx - dt_frm < 0:
-                sidx = 0
-            else:
-                sidx = idx - dt_frm
+            tjd_ = tplt[idx]
+            sidx = np.argmin(np.abs(tplt - (tjd_-12.*dt_frm/3600./24.)))
+            # if idx - dt_frm < 0:
+            #     sidx = 0
+            # else:
+            #     sidx = idx - dt_frm
             if modes[mode] == 'rdiff':
                 maplist[idx].data = datacube[:, :, idx] - datacube[:, :, sidx]
             elif modes[mode] == 'rratio':

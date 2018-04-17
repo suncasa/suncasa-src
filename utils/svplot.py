@@ -531,7 +531,7 @@ def dspec_external(vis, workdir='./', specfile=None):
 def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uvrange=None, stokes='RR,LL', dmin=None, dmax=None, goestime=None,
            reftime=None, xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0, niter=500, imsize=[512], cell=['5.0arcsec'],
            interactive=False, usemsphacenter=True, imagefile=None, fitsfile=None, plotaia=True, aiawave=171, aiafits=None, aia_search=None,
-           savefig=False, mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=True, imax=None, imin=None):
+           savefig=False, mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=True, imax=None, imin=None, plt_composite=False):
     '''
     Required inputs:
             vis: calibrated CASA measurement set
@@ -725,7 +725,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             if not os.path.exists(qlookfigdir):
                 os.makedirs(qlookfigdir)
             plt_qlook_image(imres, timerange=timerange, figdir=qlookfigdir, specdata=specdata, verbose=True, stokes=stokes, fov=xyrange, imax=imax,
-                            imin=imin, dmax=dmax, dmin=dmin, aiafits=aiafits, aiawave=aiawave, aia_search=aia_search)
+                            imin=imin, dmax=dmax, dmin=dmin, aiafits=aiafits, aiawave=aiawave, aia_search=aia_search, plt_composite=plt_composite)
 
     else:
         spec = specdata['spec']
