@@ -173,7 +173,7 @@ def plot_map(smap, dspec=None, diff=False, cmap=None, SymLogNorm=False, linthres
 
     if not cmap:
         try:
-            cmap = cm.get_cmap('sdoaia{}'.format(mapcube_plot[0].meta['wavelnth']))
+            cmap = cm.get_cmap('sdoaia{}'.format(smap.meta['wavelnth']))
         except:
             cmap = 'gray_r'
     imshow_args = {'cmap': cmap, 'norm': norm, 'interpolation': 'nearest', 'origin': 'lower'}
