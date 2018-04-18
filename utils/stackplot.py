@@ -134,7 +134,8 @@ def getimprofile(data, cutslit, xrange=None, yrange=None):
         return intensdist
 
 
-def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, returnImAx=False, layout_vert=False, uni_cm=False, *args, **kwargs):
+def plot_map(smap, dspec=None, diff=False, cmap=None, SymLogNorm=False, linthresh=0.5, returnImAx=False, layout_vert=False, uni_cm=False, *args,
+             **kwargs):
     import sunpy.cm.cm as cm  ## to bootstrap sdoaia color map
     import matplotlib.cm as cm
     import matplotlib.colors as colors
@@ -169,10 +170,13 @@ def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, retu
             norm = colors.LogNorm(vmin=vmin, vmax=vmax)
         else:
             norm = colors.Normalize(vmin=vmin, vmax=vmax)
-    try:
-        imshow_args = {'cmap': cm.get_cmap('sdoaia{}'.format(smap.meta['wavelnth'])), 'norm': norm, 'interpolation': 'nearest', 'origin': 'lower'}
-    except:
-        imshow_args = {'cmap': 'gray', 'norm': norm, 'interpolation': 'nearest', 'origin': 'lower'}
+
+    if not cmap:
+        try:
+            cmap = cm.get_cmap('sdoaia{}'.format(mapcube_plot[0].meta['wavelnth']))
+        except:
+            cmap = 'gray_r'
+    imshow_args = {'cmap': cmap, 'norm': norm, 'interpolation': 'nearest', 'origin': 'lower'}
     try:
         if smap.coordinate_system.x == 'HG':
             xlabel = 'Longitude [{lon}]'.format(lon=smap.spatial_units.x)
@@ -409,7 +413,7 @@ class Stackplot:
             else:
                 self.mapcube_fromfile(infile)
 
-    def make_mapcube(self, trange, outfile=None, fov=None, wavelength='171', binpix=1, dt_data=1, derotate=False, tosave=True,superpixel=False):
+    def make_mapcube(self, trange, outfile=None, fov=None, wavelength='171', binpix=1, dt_data=1, derotate=False, tosave=True, superpixel=False):
         if isinstance(trange, list):
             if isinstance(trange[0], Time):
                 trange = Time([trange[0], trange[-1]])
@@ -437,7 +441,7 @@ class Stackplot:
             else:
                 submaptmp = maptmp
             if superpixel:
-                submaptmp = submaptmp.superpixel(u.Quantity([binpix*u.pix]*2))
+                submaptmp = submaptmp.superpixel(u.Quantity([binpix * u.pix] * 2))
             else:
                 submaptmp = submaptmp.resample(u.Quantity(submaptmp.dimensions) / binpix)
             if submaptmp.detector == 'HMI':
@@ -541,12 +545,12 @@ class Stackplot:
             print 'median filtering map.....'
             for idx, ll in enumerate(tqdm(self.mapcube)):
                 datacube[:, :, idx] = signal.medfilt(datacube[:, :, idx], medfilt)
-        print 'making the running diff mapcube.....'
+        print 'making the diff mapcube.....'
         tplt = self.tplt.jd
         for idx, ll in enumerate(tqdm(self.mapcube)):
             maplist.append(deepcopy(ll))
             tjd_ = tplt[idx]
-            sidx = np.argmin(np.abs(tplt - (tjd_-12.*dt_frm/3600./24.)))
+            sidx = np.argmin(np.abs(tplt - (tjd_ - 12. * dt_frm / 3600. / 24.)))
             # if idx - dt_frm < 0:
             #     sidx = 0
             # else:
@@ -559,7 +563,7 @@ class Stackplot:
                 mapdata = datacube[:, :, idx] - datacube[:, :, 0]
             elif modes[mode] == 'bratio':
                 mapdata = datacube[:, :, idx] / datacube[:, :, 0]
-            maplist[idx]=sunpy.map.Map(mapdata, maplist[idx].meta)
+            maplist[idx] = sunpy.map.Map(mapdata, maplist[idx].meta)
         mapcube_diff = sunpy.map.Map(maplist, cube=True)
 
         if bfilter:
@@ -579,7 +583,7 @@ class Stackplot:
                     datacube_ft[ly, lx] = res[lx]['y']
 
             for idx, ll in enumerate(tqdm(mapcube_diff)):
-                mapcube_diff[idx] = sunpy.map.Map(datacube_ft[:, :, idx],mapcube_diff[idx].meta)
+                mapcube_diff[idx] = sunpy.map.Map(datacube_ft[:, :, idx], mapcube_diff[idx].meta)
 
         if tosave:
             if not outfile:
@@ -801,8 +805,8 @@ class Stackplot:
         with open('{}'.format(outfile), 'wb') as sf:
             pickle.dump(dspec, sf)
 
-    def plot_stackplot(self, mapcube=None, hdr=False, vmax=None, vmin=None, layout_vert=False, diff=False, uni_cm=False, sav_img=False, out_dir=None,
-                       dpi=100, anim=False, cutslitplt=None, silent=False):
+    def plot_stackplot(self, mapcube=None, hdr=False, vmax=None, vmin=None, cmap=None, layout_vert=False, diff=False, uni_cm=False, sav_img=False,
+                       out_dir=None, dpi=100, anim=False, cutslitplt=None, silent=False):
         if mapcube:
             mapcube_plot = deepcopy(mapcube)
         else:
@@ -831,13 +835,14 @@ class Stackplot:
             vmin = clrange['low']
         norm = colors.Normalize(vmin=np.min(self.stackplt), vmax=np.max(self.stackplt))
         cutslitplt = self.cutslitbd.cutslitplt
-        try:
-            dspec = {'dspec': self.stackplt, 'x': self.tplt.plot_date, 'y': cutslitplt['dist'], 'ytitle': 'Distance [arcsec]',
-                     'ctitle': 'DN counts per second',
-                     'args': {'norm': norm, 'cmap': cm.get_cmap('sdoaia{}'.format(mapcube_plot[0].meta['wavelnth']))}}
-        except:
-            dspec = {'dspec': self.stackplt, 'x': self.tplt.plot_date, 'y': cutslitplt['dist'], 'ytitle': 'Distance [arcsec]', 'ctitle': '',
-                     'args': {'norm': norm, 'cmap': 'gray_r'}}
+        if not cmap:
+            try:
+                cmap = cm.get_cmap('sdoaia{}'.format(mapcube_plot[0].meta['wavelnth']))
+            except:
+                cmap = 'gray_r'
+
+        dspec = {'dspec': self.stackplt, 'x': self.tplt.plot_date, 'y': cutslitplt['dist'], 'ytitle': 'Distance [arcsec]',
+                 'ctitle': 'DN counts per second', 'args': {'norm': norm, 'cmap': cmap}}
 
         dtplot = np.mean(np.diff(self.tplt.plot_date))
         dspec['axvspan'] = [self.tplt[0].plot_date, self.tplt[0].plot_date + dtplot]
