@@ -595,7 +595,7 @@ class Stackplot:
         self.mapcube_diff = mapcube_diff
         return mapcube_diff
 
-    def plot_mapcube(self, mapcube=None, hdr=False, vmax=None, vmin=None, diff=False, sav_img=False, out_dir=None, dpi=100, anim=False):
+    def plot_mapcube(self, mapcube=None, hdr=False, vmax=None, vmin=None, cmap=None, diff=False, sav_img=False, out_dir=None, dpi=100, anim=False):
         '''
 
         :param mapcube:
@@ -649,7 +649,7 @@ class Stackplot:
             if out_dir is None:
                 out_dir = './'
 
-            ax, im1 = plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, diff=diff, returnImAx=True)
+            ax, im1 = plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, cmap=cmap, diff=diff, returnImAx=True)
             if anim:
                 import matplotlib
                 matplotlib.use("Agg")
@@ -698,7 +698,7 @@ class Stackplot:
                                                                     smap.detector), format='png', dpi=dpi)
                 plt.ion()
         else:
-            ax, im1 = plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, diff=diff, returnImAx=True)
+            ax, im1 = plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, cmap=cmap, diff=diff, returnImAx=True)
             plt.subplots_adjust(bottom=0.10)
             dims = mapcube_plot[0].dimensions
             diagpix = int(np.sqrt(dims[0] ** 2 + dims[1] ** 2).value)
