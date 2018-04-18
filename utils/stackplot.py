@@ -443,7 +443,10 @@ class Stackplot:
             if submaptmp.detector == 'HMI':
                 pass
             else:
-                submaptmp = DButil.normalize_aiamap(submaptmp)
+                try:
+                    submaptmp = DButil.normalize_aiamap(submaptmp)
+                except:
+                    pass
             maplist.append(submaptmp)
         if derotate:
             mapcube = mapcube_solar_derotate(sunpy.map.Map(maplist, cube=True))
