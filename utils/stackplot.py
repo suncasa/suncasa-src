@@ -427,7 +427,13 @@ class Stackplot:
             maptmp = sunpy.map.Map(ll)
             if fov:
                 x0, x1, y0, y1 = fov
-                submaptmp = maptmp.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]), u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
+                try:
+                    submaptmp = maptmp.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]), u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
+                except:
+                    from astropy.coordinates import SkyCoord
+                    bl = SkyCoord(x0 * u.arcsec, y0 * u.arcsec, frame=maptmp.coordinate_frame)
+                    tr = SkyCoord(x1 * u.arcsec, y1 * u.arcsec, frame=maptmp.coordinate_frame)
+                    submaptmp = maptmp.submap(bl, tr)
             else:
                 submaptmp = maptmp
             if superpixel:
