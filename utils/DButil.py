@@ -701,13 +701,14 @@ def normalize_aiamap(aiamap):
     :param aia map made from sunpy.map:
     :return: normalised aia map
     '''
+    import sunpy.map as smap
     try:
         if aiamap.observatory == 'SDO' and aiamap.instrument[0:3] == 'AIA':
             data = aiamap.data
             data[~np.isnan(data)] = data[~np.isnan(data)] / aiamap.exposure_time.value
             data[data < 0] = 0
-            aiamap.data = data
             aiamap.meta['exptime'] = 1.0
+            aiamap = smap.Map(data, aiamap.meta)
             return aiamap
         else:
             raise ValueError('input sunpy map is not from aia.')
@@ -716,6 +717,7 @@ def normalize_aiamap(aiamap):
 
 
 def sdo_aia_scale_hdr(smap):
+    import sunpy.map
     wavelnth = '{:0.0f}'.format(smap.wavelength.value)
     pxscale_x, pxscal_y = smap.scale
     pxscale = (pxscale_x + pxscal_y) / 2
@@ -731,24 +733,24 @@ def sdo_aia_scale_hdr(smap):
     rfilter = rdist / r_sun - 1
     rfilter = rfilter.value
     if wavelnth == '94':
-        smap.data = smap.data * np.exp(rfilter * 4)
+        mapdata = smap.data * np.exp(rfilter * 4)
     elif wavelnth == '131':
-        smap.data = smap.data * (np.sqrt(rfilter * 5) + 1)
+        mapdata = smap.data * (np.sqrt(rfilter * 5) + 1)
     elif wavelnth == '171':
-        smap.data = smap.data * np.exp(rfilter * 5)
+        mapdata = smap.data * np.exp(rfilter * 5)
     elif wavelnth == '193':
-        smap.data = smap.data * np.exp(rfilter * 3)
+        mapdata = smap.data * np.exp(rfilter * 3)
     elif wavelnth == '211':
-        smap.data = smap.data * np.exp(rfilter * 3)
+        mapdata = smap.data * np.exp(rfilter * 3)
     elif wavelnth == '304':
-        smap.data = smap.data * np.exp(rfilter * 5)
+        mapdata = smap.data * np.exp(rfilter * 5)
     elif wavelnth == '335':
-        smap.data = smap.data * np.exp(rfilter * 3)
+        mapdata = smap.data * np.exp(rfilter * 3)
     elif wavelnth == '6173':
         pass
     elif wavelnth == '1':
         pass
-    return smap
+    return sunpy.map.Map(mapdata, smap.meta)
 
 
 def sdo_aia_scale_dict(wavelength=None, imagetype='image'):

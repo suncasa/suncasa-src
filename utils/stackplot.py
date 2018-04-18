@@ -552,13 +552,14 @@ class Stackplot:
             # else:
             #     sidx = idx - dt_frm
             if modes[mode] == 'rdiff':
-                maplist[idx].data = datacube[:, :, idx] - datacube[:, :, sidx]
+                mapdata = datacube[:, :, idx] - datacube[:, :, sidx]
             elif modes[mode] == 'rratio':
-                maplist[idx].data = datacube[:, :, idx] / datacube[:, :, sidx]
+                mapdata = datacube[:, :, idx] / datacube[:, :, sidx]
             elif modes[mode] == 'bdiff':
-                maplist[idx].data = datacube[:, :, idx] - datacube[:, :, 0]
+                mapdata = datacube[:, :, idx] - datacube[:, :, 0]
             elif modes[mode] == 'bratio':
-                maplist[idx].data = datacube[:, :, idx] / datacube[:, :, 0]
+                mapdata = datacube[:, :, idx] / datacube[:, :, 0]
+            maplist[idx]=sunpy.map.Map(mapdata, maplist[idx].meta)
         mapcube_diff = sunpy.map.Map(maplist, cube=True)
 
         if bfilter:
@@ -578,7 +579,7 @@ class Stackplot:
                     datacube_ft[ly, lx] = res[lx]['y']
 
             for idx, ll in enumerate(tqdm(mapcube_diff)):
-                mapcube_diff[idx].data = datacube_ft[:, :, idx]
+                mapcube_diff[idx] = sunpy.map.Map(datacube_ft[:, :, idx],mapcube_diff[idx].meta)
 
         if tosave:
             if not outfile:
@@ -620,10 +621,12 @@ class Stackplot:
         if hdr:
             for idx, smap in enumerate(tqdm(mapcube_plot)):
                 smap = DButil.sdo_aia_scale_hdr(smap)
-                mapcube_plot[idx].data = smap.data
+                mapcube_plot[idx] = sunpy.map.Map(smap.data, mapcube_plot[idx].meta)
         if not diff:
             for idx, smap in enumerate(tqdm(mapcube_plot)):
-                mapcube_plot[idx].data[np.where(smap.data < 1)] = 1
+                mapdata = mapcube_plot[idx].data
+                mapdata[np.where(smap.data < 1)] = 1
+                mapcube_plot[idx] = sunpy.map.Map(mapdata, mapcube_plot[idx].meta)
         self.mapcube_plot = mapcube_plot
         # sp = stackplot(parent_obj = self, mapcube = mapcube_plot)
         fig_mapcube = plt.figure()
@@ -812,7 +815,7 @@ class Stackplot:
             return
             for idx, smap in enumerate(tqdm(mapcube_plot)):
                 smap = DButil.sdo_aia_scale_hdr(smap)
-                mapcube_plot[idx].data = smap.data
+                mapcube_plot[idx] = sunpy.map.Map(smap.data, mapcube_plot[idx].meta)
         self.make_stackplot(mapcube_plot)
         if layout_vert:
             fig_mapcube = plt.figure(figsize=(7, 7))
