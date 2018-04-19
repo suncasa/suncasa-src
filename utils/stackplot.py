@@ -822,7 +822,7 @@ class Stackplot:
             pickle.dump(dspec, sf)
 
     def plot_stackplot(self, mapcube=None, hdr=False, vmax=None, vmin=None, cmap=None, layout_vert=False, diff=False, uni_cm=False, sav_img=False,
-                       out_dir=None, dpi=100, anim=False, frm_range=None, cutslitplt=None, silent=False):
+                       out_dir=None, dpi=100, anim=False, frm_range=None, cutslitplt=None, silent=False,refresh=True):
         if mapcube:
             mapcube_plot = deepcopy(mapcube)
         else:
@@ -838,7 +838,8 @@ class Stackplot:
                 smap = DButil.sdo_aia_scale_hdr(smap)
                 maplist.append(sunpy.map.Map(smap.data, mapcube_plot[idx].meta))
             mapcube_plot = sunpy.map.Map(maplist, cube=True)
-        self.make_stackplot(mapcube_plot, frm_range=frm_range)
+        if refresh:
+            self.make_stackplot(mapcube_plot, frm_range=frm_range)
         if layout_vert:
             fig_mapcube = plt.figure(figsize=(7, 7))
         else:
