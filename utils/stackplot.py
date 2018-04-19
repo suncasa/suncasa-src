@@ -582,8 +582,11 @@ class Stackplot:
                 for lx in xrange(nx):
                     datacube_ft[ly, lx] = res[lx]['y']
 
+            maplist = []
             for idx, ll in enumerate(tqdm(mapcube_diff)):
-                mapcube_diff[idx] = sunpy.map.Map(datacube_ft[:, :, idx], mapcube_diff[idx].meta)
+                maplist.append(sunpy.map.Map(datacube_ft[:, :, idx], mapcube_diff[idx].meta))
+            mapcube_diff = sunpy.map.Map(maplist, cube=True)
+
 
         if tosave:
             if not outfile:
@@ -623,14 +626,18 @@ class Stackplot:
             print('mapcube must be a instance of sunpy.map.mapcube.MapCube')
             return
         if hdr:
+            maplist = []
             for idx, smap in enumerate(tqdm(mapcube_plot)):
                 smap = DButil.sdo_aia_scale_hdr(smap)
-                mapcube_plot[idx] = sunpy.map.Map(smap.data, mapcube_plot[idx].meta)
+                maplist.append(sunpy.map.Map(smap.data, mapcube_plot[idx].meta))
+            mapcube_plot = sunpy.map.Map(maplist, cube=True)
         if not diff:
+            maplist=[]
             for idx, smap in enumerate(tqdm(mapcube_plot)):
                 mapdata = mapcube_plot[idx].data
                 mapdata[np.where(smap.data < 1)] = 1
-                mapcube_plot[idx] = sunpy.map.Map(mapdata, mapcube_plot[idx].meta)
+                maplist.append(sunpy.map.Map(mapdata, mapcube_plot[idx].meta))
+            mapcube_plot = sunpy.map.Map(maplist, cube=True)
         self.mapcube_plot = mapcube_plot
         # sp = stackplot(parent_obj = self, mapcube = mapcube_plot)
         fig_mapcube = plt.figure()
@@ -817,9 +824,11 @@ class Stackplot:
         if not isinstance(mapcube_plot, sunpy.map.mapcube.MapCube):
             print('mapcube must be a instance of sunpy.map.mapcube.MapCube')
             return
+            maplist=[]
             for idx, smap in enumerate(tqdm(mapcube_plot)):
                 smap = DButil.sdo_aia_scale_hdr(smap)
-                mapcube_plot[idx] = sunpy.map.Map(smap.data, mapcube_plot[idx].meta)
+                maplist.append(sunpy.map.Map(smap.data, mapcube_plot[idx].meta))
+            mapcube_plot = sunpy.map.Map(maplist, cube=True)
         self.make_stackplot(mapcube_plot)
         if layout_vert:
             fig_mapcube = plt.figure(figsize=(7, 7))
