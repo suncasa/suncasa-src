@@ -802,11 +802,11 @@ class Stackplot:
                     frm_range[-1] = len(mapcube)
         for idx, smap in enumerate(tqdm(mapcube)):
             if frm_range[0] <= idx <= frm_range[-1]:
-                stackplt.append(np.zeros_like(self.cutslitbd.cutslitplt['dist']) * np.nan)
-            else:
                 intens = getimprofile(smap.data, self.cutslitbd.cutslitplt, xrange=smap.xrange.to(u.arcsec).value,
                                       yrange=smap.yrange.to(u.arcsec).value)
                 stackplt.append(intens['y'])
+            else:
+                stackplt.append(np.zeros_like(self.cutslitbd.cutslitplt['dist']) * np.nan)
         if len(stackplt) > 1:
             stackplt = np.vstack(stackplt)
             self.stackplt = stackplt.transpose()
