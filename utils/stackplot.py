@@ -533,6 +533,7 @@ class Stackplot:
         :param tosave:
         :return:
         '''
+        self.mapcube_diff = None
         modes = {0: 'rdiff', 1: 'rratio', 2: 'bdiff', 3: 'bratio'}
         maplist = []
         datacube = self.mapcube.as_array().astype(np.float)
