@@ -587,7 +587,6 @@ class Stackplot:
                 maplist.append(sunpy.map.Map(datacube_ft[:, :, idx], mapcube_diff[idx].meta))
             mapcube_diff = sunpy.map.Map(maplist, cube=True)
 
-
         if tosave:
             if not outfile:
                 outfile = 'mapcube_{5}_{0}_bin{3}_dtdata{4}_{1}_{2}'.format(self.mapcube[0].meta['wavelnth'],
@@ -632,7 +631,7 @@ class Stackplot:
                 maplist.append(sunpy.map.Map(smap.data, mapcube_plot[idx].meta))
             mapcube_plot = sunpy.map.Map(maplist, cube=True)
         if not diff:
-            maplist=[]
+            maplist = []
             for idx, smap in enumerate(tqdm(mapcube_plot)):
                 mapdata = mapcube_plot[idx].data
                 mapdata[np.where(smap.data < 1)] = 1
@@ -792,12 +791,21 @@ class Stackplot:
         with open('{}'.format(outfile), 'wb') as sf:
             pickle.dump(cutslit, sf)
 
-    def make_stackplot(self, mapcube):
+    def make_stackplot(self, mapcube, frm_range=None):
         stackplt = []
         print 'making the stack plot...'
+        if type(frm_range) is list:
+            if len(frm_range)==2:
+                if not  (0<=frm_range[0]<len(mapcube)):
+                    frm_range[0]=0
+                if not  (0<=frm_range[-1]<len(mapcube)):
+                    frm_range[-1]=len(mapcube)
         for idx, smap in enumerate(tqdm(mapcube)):
-            intens = getimprofile(smap.data, self.cutslitbd.cutslitplt, xrange=smap.xrange.to(u.arcsec).value, yrange=smap.yrange.to(u.arcsec).value)
-            stackplt.append(intens['y'])
+            if frm_range[0]<=idx<=frm_range[-1]:
+                stackplt.append(np.zeros_like(self.cutslitbd.cutslitplt['dist'])*np.nan)
+            else:
+                intens = getimprofile(smap.data, self.cutslitbd.cutslitplt, xrange=smap.xrange.to(u.arcsec).value, yrange=smap.yrange.to(u.arcsec).value)
+                stackplt.append(intens['y'])
         if len(stackplt) > 1:
             stackplt = np.vstack(stackplt)
             self.stackplt = stackplt.transpose()
@@ -812,8 +820,8 @@ class Stackplot:
         with open('{}'.format(outfile), 'wb') as sf:
             pickle.dump(dspec, sf)
 
-    def plot_stackplot(self, mapcube=None, hdr=False, vmax=None, vmin=None, cmap=None, layout_vert=False, diff=False, uni_cm=False, sav_img=False,
-                       out_dir=None, dpi=100, anim=False, cutslitplt=None, silent=False):
+    def plot_stackplot(self, mapcube=None, hdr=False, , vmax=None, vmin=None, cmap=None, layout_vert=False, diff=False, uni_cm=False, sav_img=False,
+                       out_dir=None, dpi=100, anim=False, frm_range=None, cutslitplt=None, silent=False):
         if mapcube:
             mapcube_plot = deepcopy(mapcube)
         else:
@@ -824,12 +832,12 @@ class Stackplot:
         if not isinstance(mapcube_plot, sunpy.map.mapcube.MapCube):
             print('mapcube must be a instance of sunpy.map.mapcube.MapCube')
             return
-            maplist=[]
+            maplist = []
             for idx, smap in enumerate(tqdm(mapcube_plot)):
                 smap = DButil.sdo_aia_scale_hdr(smap)
                 maplist.append(sunpy.map.Map(smap.data, mapcube_plot[idx].meta))
             mapcube_plot = sunpy.map.Map(maplist, cube=True)
-        self.make_stackplot(mapcube_plot)
+        self.make_stackplot(mapcube_plot, frm_range=frm_range)
         if layout_vert:
             fig_mapcube = plt.figure(figsize=(7, 7))
         else:
