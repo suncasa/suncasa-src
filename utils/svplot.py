@@ -5,7 +5,6 @@ import os, sys
 import shutil
 from astropy.io import fits
 import urllib2
-from tqdm import *
 from split_cli import split_cli as split
 from ptclean_cli import ptclean_cli as ptclean
 from suncasa.utils import helioimage2fits as hf
