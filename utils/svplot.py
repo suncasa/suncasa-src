@@ -264,7 +264,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     tr = Time([qa.quantity(tstart, 'd')['value'], qa.quantity(tend, 'd')['value']], format='mjd')
     btimes = Time(imres['BeginTime'])
     etimes = Time(imres['EndTime'])
-    tidx, = np.where(np.logical_and(btimes > tr[0], etimes < tr[1]))
+    tidx, = np.where(np.logical_and(btimes.jd >= tr[0].jd, etimes.jd <= tr[1].jd))
     for k, v in imres.iteritems():
         imres[k] = list(np.array(v)[tidx])
     observatory = imres['Obs'][0]
