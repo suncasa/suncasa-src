@@ -950,7 +950,7 @@ def readsdofile(datadir=None, wavelength=None, trange=None, isexists=False, timt
                 sdofile = list(np.array(sdofitspathnew)[np.where(np.logical_and(trange[0].jd < sdotimelinenew.jd, sdotimelinenew.jd < trange[1].jd))[0]])
                 return sdofile
     else:
-        jdtimstr = trange
+        jdtimstr = trange.iso
         ymd = jdtimstr.split(' ')[0].split('-')
         sdofitspath = glob.glob(datadir + '/{}/{}/{}/aia.lev1_*Z.{}.image_lev1.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
         if len(sdofitspath) == 0:
