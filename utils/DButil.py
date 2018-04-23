@@ -947,7 +947,7 @@ def readsdofile(datadir=None, wavelength=None, trange=None, isexists=False, timt
                 sdotimelinenew = Time(
                     [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofitsnew],
                     format='iso', scale='utc')
-                sdofile = list(np.array(sdofitspathnew)[np.where(np.logical_and(trange[0] < sdotimelinenew.jd, sdotimelinenew.jd < trange[1]))[0]])
+                sdofile = list(np.array(sdofitspathnew)[np.where(np.logical_and(trange[0].jd < sdotimelinenew.jd, sdotimelinenew.jd < trange[1].jd))[0]])
                 return sdofile
     else:
         jdtimstr = Time(trange, format='jd').iso
