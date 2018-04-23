@@ -70,7 +70,7 @@ def downloadAIAdata(trange, wavelength=None, outdir='./'):
             wavelength = [94, 131, 171, 193, 211, 304, 335, 1600, 1700]
         else:
             wavelength = [float(wavelength)]
-    elif type(wavelength) is float:
+    elif type(wavelength) is float or type(wavelength) is int:
         wavelength = [wavelength]
     wavelength = [float(ll) for ll in wavelength]
     if ted.mjd <= tst.mjd:
