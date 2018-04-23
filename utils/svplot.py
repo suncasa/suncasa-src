@@ -242,7 +242,7 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
 
 
 def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None, imax=None, imin=None, dmax=None, dmin=None,
-                    clevels=None, cmap='jet', aiafits=None, aiadir=None, aiawave=171, moviename='', plt_composite=False):
+                    clevels=None, cmap='jet', aiafits=None, aiadir=None, aiawave=171,plt_aia=True, moviename='', plt_composite=False):
     '''
     Required inputs:
 
@@ -377,20 +377,21 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
 
     fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
 
-    '''check if aiafits files exist'''
-    if aiadir:
-        aiafiles = []
-        for i in range(ntime):
-            plttime = btimes_sort[i, 0]
-            aiafile = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
-            if not aiafile:
-                aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
-            if not aiafile:
-                aiafile = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
-            aiafiles.append(aiafile)
-        if np.count_nonzero(aiafiles) < ntime / 2.0:
-            downloadAIAdata(trange=tr, wavelength=aiawave)
-            aiadir='./'
+    if plt_aia:
+        '''check if aiafits files exist'''
+        if aiadir:
+            aiafiles = []
+            for i in range(ntime):
+                plttime = btimes_sort[i, 0]
+                aiafile = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
+                if not aiafile:
+                    aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
+                if not aiafile:
+                    aiafile = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
+                aiafiles.append(aiafile)
+            if np.count_nonzero(aiafiles) < ntime / 2.0:
+                downloadAIAdata(trange=tr, wavelength=aiawave)
+                aiadir='./'
 
     for i in range(ntime):
         plt.ioff()
@@ -457,17 +458,20 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 xy[:, 0][np.array([2, 3])] = etimes[i].plot_date
                 dspecvspans[pol].set_xy(xy)
 
-        # pdb.set_trace()
-        # try:
-        if aiadir:
-            aiafits = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
-            if not aiafits:
-                aiafits = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
-        aiamap = smap.Map(aiafits)
-        aiamap = DButil.normalize_aiamap(aiamap)
-        # except:
-        #     aiamap = None
-        #     print 'error in reading aiafits. Proceed without AIA'
+        if plt_aia:
+            # pdb.set_trace()
+            try:
+                if aiadir:
+                    aiafits = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
+                    if not aiafits:
+                        aiafits = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
+                aiamap = smap.Map(aiafits)
+                aiamap = DButil.normalize_aiamap(aiamap)
+            except:
+                aiamap = None
+                print 'error in reading aiafits. Proceed without AIA'
+        else:
+            aiamap=None
 
         for n in range(nspw):
             image = images_sort[i, n]
