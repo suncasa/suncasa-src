@@ -913,7 +913,7 @@ def readsdofile(datadir=None, wavelength=None, trange=None, isexists=False, timt
     if timtol < 12. / 3600 / 24:
         timtol = 12. / 3600 / 24
     if isinstance(trange, list) or isinstance(trange, tuple) or type(trange) == np.ndarray:
-        if len(trange) != 2:
+        if len(trange.iso) != 2:
             raise ValueError('jdtime must be a number or a two elements array/list/tuple')
         else:
             if trange[1] < trange[0]:
@@ -992,7 +992,7 @@ def readsdofileX(datadir=None, wavelength=None, trange=None, isexists=False, tim
     if timtol < 12. / 3600 / 24:
         timtol = 12. / 3600 / 24
     if isinstance(trange, list) or isinstance(trange, tuple) or type(trange) == np.ndarray or type(trange) == Time:
-        if len(trange) != 2:
+        if len(trange.iso) != 2:
             raise ValueError('jdtime must be a number or a two elements array/list/tuple')
         else:
             trange = Time(trange)

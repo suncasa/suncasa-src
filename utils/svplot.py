@@ -382,12 +382,13 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             plttime = btimes_sort[i, 0]
             aiafile = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
             if not aiafile:
-                aiafile = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
-            if not aiafile:
                 aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
+            if not aiafile:
+                aiafile = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
             aiafiles.append(aiafile)
         if np.count_nonzero(aiafiles) < ntime / 2.0:
             downloadAIAdata(trange=tr, wavelength=aiawave)
+            aiadir='./'
 
     for i in range(ntime):
         plt.ioff()
@@ -454,15 +455,17 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 xy[:, 0][np.array([2, 3])] = etimes[i].plot_date
                 dspecvspans[pol].set_xy(xy)
 
-        try:
-            if aiadir:
-                aiamap = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, jdtime=plttime, isexists=False)
-            else:
-                aiamap = smap.Map(aiafits)
-            aiamap = DButil.normalize_aiamap(aiamap)
-        except:
-            aiamap = None
-            print 'error in reading aiafits. Proceed without AIA'
+        pdb.set_trace()
+        # try:
+        if aiadir:
+            aiafits = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
+            if not aiafits:
+                aiafits = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
+        aiamap = smap.Map(aiafits)
+        aiamap = DButil.normalize_aiamap(aiamap)
+        # except:
+        #     aiamap = None
+        #     print 'error in reading aiafits. Proceed without AIA'
 
         for n in range(nspw):
             image = images_sort[i, n]
