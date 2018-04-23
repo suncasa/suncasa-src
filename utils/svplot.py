@@ -644,6 +644,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
 
     '''
 
+    if aiadir==None:
+        aiadir='./'
     if xycen:
         xc, yc = xycen
         xlen, ylen = fov
