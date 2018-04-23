@@ -98,7 +98,7 @@ def downloadAIAdata(trange, wavelength=None, outdir='./'):
             os.system('mv {} {}/{}'.format(ll, outdir, jsocnamestr))
 
 
-def findaiafits(trange, aiawave, aiadir):
+def trange2aiafits(trange, aiawave, aiadir):
     trange = Time(trange)
     aiafits = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=trange, isexists=True)
     if not aiafits:
@@ -1009,7 +1009,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
         # start to download the fits files
         if plotaia:
             if not aiafits:
-                newlist = findaiafits(Time([starttim1, endtim1]), aiawave, aiadir)
+                newlist = trange2aiafits(Time([starttim1, endtim1]), aiawave, aiadir)
 
             aiafits = newlist[0]
             try:
