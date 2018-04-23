@@ -944,23 +944,22 @@ def readsdofile(datadir=None, wavelength=None, trange=None, isexists=False, timt
             sdofitspathnew = [x for (y, x) in sorted(zip(sdotimeline.jd, sdofitspath))]
             sdofitsnew = [os.path.basename(ll) for ll in sdofitspathnew]
             sdotimelinenew = Time(
-                [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofitsnew],
-                format='iso', scale='utc')
-            sdofile = list(np.array(sdofitspathnew)[np.where(np.logical_and(trange[0].jd < sdotimelinenew.jd, sdotimelinenew.jd < trange[1].jd))[0]])
+                [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofitsnew], format='iso',
+                scale='utc')
+            sdofile = list(
+                np.array(sdofitspathnew)[np.where(np.logical_and(trange[0].jd <= sdotimelinenew.jd, sdotimelinenew.jd <= trange[1].jd))[0]])
             return sdofile
     else:
         jdtimstr = trange.iso
         ymd = jdtimstr.split(' ')[0].split('-')
         sdofitspath = glob.glob(datadir + '/{}/{}/{}/aia.lev1_*Z.{}.image_lev1.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
         if len(sdofitspath) == 0:
-            return []
-            # raise ValueError('No SDO file found under {}.'.format(datadir))
+            return []  # raise ValueError('No SDO file found under {}.'.format(datadir))
         sdofits = [os.path.basename(ll) for ll in sdofitspath]
         sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofits],
                            format='iso', scale='utc')
         if timtol < np.min(np.abs(sdotimeline.jd - trange.jd)):
-            return []
-            # raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
+            return []  # raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
         idxaia = np.argmin(np.abs(sdotimeline.jd - trange.jd))
         sdofile = sdofitspath[idxaia]
         if isexists:
@@ -993,6 +992,8 @@ def readsdofileX(datadir=None, wavelength=None, trange=None, isexists=False, tim
     wavelength = wavelength.lower()
     if timtol < 12. / 3600 / 24:
         timtol = 12. / 3600 / 24
+    # import pdb
+    # pdb.set_trace()
     if len(trange.iso) == 2:
         if trange.jd[1] < trange.jd[0]:
             raise ValueError('start time must be occur earlier than end time!')
@@ -1022,24 +1023,22 @@ def readsdofileX(datadir=None, wavelength=None, trange=None, isexists=False, tim
             sdofitspathnew = [x for (y, x) in sorted(zip(sdotimeline.jd, sdofitspath))]
             sdofitsnew = [os.path.basename(ll) for ll in sdofitspathnew]
             sdotimelinenew = Time(
-                [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofitsnew],
-                format='iso', scale='utc')
+                [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofitsnew], format='iso',
+                scale='utc')
             sdofile = list(
-                np.array(sdofitspathnew)[np.where(np.logical_and(trange.jd[0] < sdotimelinenew.jd, sdotimelinenew.jd < trange.jd[1]))[0]])
+                np.array(sdofitspathnew)[np.where(np.logical_and(trange.jd[0] <= sdotimelinenew.jd, sdotimelinenew.jd <= trange.jd[1]))[0]])
             return sdofile
     else:
         jdtimstr = trange.iso
         ymd = jdtimstr.split(' ')[0].split('-')
         sdofitspath = glob.glob(datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
         if len(sdofitspath) == 0:
-            return []
-            # raise ValueError('No SDO file found under {}.'.format(datadir))
+            return []  # raise ValueError('No SDO file found under {}.'.format(datadir))
         sdofits = [os.path.basename(ll) for ll in sdofitspath]
         sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofits],
                            format='iso', scale='utc')
-        if timtol < np.min(np.abs(sdotimeline.jd - trange.jd)):
-            return []
-            # raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
+        if timtol <= np.min(np.abs(sdotimeline.jd - trange.jd)):
+            return []  # raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
         idxaia = np.argmin(np.abs(sdotimeline.jd - trange.jd))
         sdofile = sdofitspath[idxaia]
         if isexists:
