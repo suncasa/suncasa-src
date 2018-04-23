@@ -134,124 +134,6 @@ def getimprofile(data, cutslit, xrange=None, yrange=None):
         return intensdist
 
 
-def plot_map(smap, dspec=None, diff=False, cmap=None, SymLogNorm=False, linthresh=0.5, returnImAx=False, layout_vert=False, uni_cm=False, *args,
-             **kwargs):
-    import sunpy.cm.cm as cm  ## to bootstrap sdoaia color map
-    import matplotlib.cm as cm
-    import matplotlib.colors as colors
-    from suncasa.utils import DButil
-    try:
-        clrange = DButil.sdo_aia_scale_dict(wavelength=smap.meta['wavelnth'])
-    except:
-        clrange = {'high': None, 'log': False, 'low': None}
-    plt.clf()
-    if dspec:
-        if layout_vert:
-            ax = plt.subplot(211)
-        else:
-            ax = plt.subplot(121)
-    else:
-        ax = plt.subplot()
-    if 'vmin' in kwargs.keys():
-        vmin = kwargs['vmin']
-    else:
-        vmin = clrange['low']
-    if 'vmax' in kwargs.keys():
-        vmax = kwargs['vmax']
-    else:
-        vmax = clrange['high']
-    if diff:
-        if SymLogNorm:
-            norm = colors.SymLogNorm(linthresh=linthresh, vmin=vmin, vmax=vmax)
-        else:
-            norm = colors.Normalize(vmin=vmin, vmax=vmax)
-    else:
-        if clrange['log']:
-            norm = colors.LogNorm(vmin=vmin, vmax=vmax)
-        else:
-            norm = colors.Normalize(vmin=vmin, vmax=vmax)
-
-    if not cmap:
-        try:
-            cmap = cm.get_cmap('sdoaia{}'.format(smap.meta['wavelnth']))
-        except:
-            cmap = 'gray_r'
-    imshow_args = {'cmap': cmap, 'norm': norm, 'interpolation': 'nearest', 'origin': 'lower'}
-    try:
-        if smap.coordinate_system.x == 'HG':
-            xlabel = 'Longitude [{lon}]'.format(lon=smap.spatial_units.x)
-        else:
-            xlabel = 'X-position [{xpos}]'.format(xpos=smap.spatial_units.x)
-        if smap.coordinate_system.y == 'HG':
-            ylabel = 'Latitude [{lat}]'.format(lat=smap.spatial_units.y)
-        else:
-            ylabel = 'Y-position [{ypos}]'.format(ypos=smap.spatial_units.y)
-    except:
-        if smap.coordinate_system.axis1 == 'HG':
-            xlabel = 'Longitude [{lon}]'.format(lon=smap.spatial_units.axis1)
-        else:
-            xlabel = 'X-position [{xpos}]'.format(xpos=smap.spatial_units.axis1)
-        if smap.coordinate_system.axis2 == 'HG':
-            ylabel = 'Latitude [{lat}]'.format(lat=smap.spatial_units.axis2)
-        else:
-            ylabel = 'Y-position [{ypos}]'.format(ypos=smap.spatial_units.axis2)
-
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    imshow_args.update({'extent': list(smap.xrange.to(u.arcsec).value) + list(smap.yrange.to(u.arcsec).value)})
-    if smap.detector == 'HMI':
-        im1 = ax.imshow(np.rot90(smap.data, 2), **imshow_args)
-    else:
-        im1 = ax.imshow(smap.data, **imshow_args)
-    plt.title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, smap.meta['date-obs']))
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes('right', size='1.5%', pad=0.05)
-    cax.tick_params(direction='in')
-    plt.colorbar(im1, ax=ax, cax=cax, label='DN counts per second')
-    ax.set_autoscale_on(False)
-    if dspec:
-        fig = plt.gcf()
-        # if figsize:
-        #     fig.set_size_inches(figsize)
-        # else:
-        #     fig.set_size_inches(13, 5)
-        if uni_cm:
-            dspec['args']['norm'] = norm
-        if layout_vert:
-            ax2 = plt.subplot(212)
-        else:
-            ax2 = plt.subplot(122)
-        im2 = plt.pcolormesh(dspec['x'], dspec['y'], dspec['dspec'], **dspec['args'])
-        date_format = mdates.DateFormatter('%H:%M:%S')
-        ax2.xaxis_date()
-        ax2.xaxis.set_major_formatter(date_format)
-        for xlabel in ax2.get_xmajorticklabels():
-            xlabel.set_rotation(30)
-            xlabel.set_horizontalalignment("right")
-        ax2.yaxis.set_label_text(dspec['ytitle'])
-        divider = make_axes_locatable(ax2)
-        cax = divider.append_axes('right', size='1.5%', pad=0.05)
-        cax.tick_params(direction='in')
-        plt.colorbar(im2, ax=ax2, cax=cax, label=dspec['ctitle'])
-        ax2.set_autoscale_on(False)
-        if 'axvspan' in dspec.keys():
-            vspan = ax2.axvspan(dspec['axvspan'][0], dspec['axvspan'][1], alpha=0.5, color='white')
-        if 'xs' in dspec.keys() and 'ys' in dspec.keys():
-            ax2.plot(dspec['xs'], dspec['ys'], '--', lw=2.0, alpha=0.7, c='black')
-        if 'xlim' in dspec.keys():
-            ax2.set_xlim(dspec['xlim'])
-        if 'ylim' in dspec.keys():
-            ax2.set_ylim(dspec['ylim'])
-        if returnImAx:
-            return ax, im1, ax2, im2, vspan
-        else:
-            return ax, ax2
-    else:
-        if returnImAx:
-            return ax, im1
-        else:
-            return ax  # ax.autoscale(True, 'both', True)  # ax.autoscale_view(True, True, True)  # ax.relim(visible_only=True)
-
 
 def smooth(x, window_len=11, window='hanning'):
     """smooth the data using a window with requested size.
@@ -403,6 +285,11 @@ class Stackplot:
     fov = None
     binpix = None
     dt_data = None
+    divider_im = None
+    divider_dspec = None
+    sCutwdth = None
+    sCutang = None
+    sCutlngth = None
 
     @resettable
     def __init__(self, infile=None):
@@ -412,6 +299,123 @@ class Stackplot:
                 self.mapcube_info()
             else:
                 self.mapcube_fromfile(infile)
+
+    def plot_map(self, smap, dspec=None, diff=False, cmap=None, SymLogNorm=False, linthresh=0.5, returnImAx=False, layout_vert=False, uni_cm=False, *args,
+                 **kwargs):
+        import sunpy.cm.cm as cm  ## to bootstrap sdoaia color map
+        import matplotlib.cm as cm
+        import matplotlib.colors as colors
+        try:
+            clrange = DButil.sdo_aia_scale_dict(wavelength=smap.meta['wavelnth'])
+        except:
+            clrange = {'high': None, 'log': False, 'low': None}
+        plt.clf()
+        if dspec:
+            if layout_vert:
+                ax = plt.subplot(211)
+            else:
+                ax = plt.subplot(121)
+        else:
+            ax = plt.subplot()
+        if 'vmin' in kwargs.keys():
+            vmin = kwargs['vmin']
+        else:
+            vmin = clrange['low']
+        if 'vmax' in kwargs.keys():
+            vmax = kwargs['vmax']
+        else:
+            vmax = clrange['high']
+        if diff:
+            if SymLogNorm:
+                norm = colors.SymLogNorm(linthresh=linthresh, vmin=vmin, vmax=vmax)
+            else:
+                norm = colors.Normalize(vmin=vmin, vmax=vmax)
+        else:
+            if clrange['log']:
+                norm = colors.LogNorm(vmin=vmin, vmax=vmax)
+            else:
+                norm = colors.Normalize(vmin=vmin, vmax=vmax)
+
+        if not cmap:
+            try:
+                cmap = cm.get_cmap('sdoaia{}'.format(smap.meta['wavelnth']))
+            except:
+                cmap = 'gray_r'
+        imshow_args = {'cmap': cmap, 'norm': norm, 'interpolation': 'nearest', 'origin': 'lower'}
+        try:
+            if smap.coordinate_system.x == 'HG':
+                xlabel = 'Longitude [{lon}]'.format(lon=smap.spatial_units.x)
+            else:
+                xlabel = 'X-position [{xpos}]'.format(xpos=smap.spatial_units.x)
+            if smap.coordinate_system.y == 'HG':
+                ylabel = 'Latitude [{lat}]'.format(lat=smap.spatial_units.y)
+            else:
+                ylabel = 'Y-position [{ypos}]'.format(ypos=smap.spatial_units.y)
+        except:
+            if smap.coordinate_system.axis1 == 'HG':
+                xlabel = 'Longitude [{lon}]'.format(lon=smap.spatial_units.axis1)
+            else:
+                xlabel = 'X-position [{xpos}]'.format(xpos=smap.spatial_units.axis1)
+            if smap.coordinate_system.axis2 == 'HG':
+                ylabel = 'Latitude [{lat}]'.format(lat=smap.spatial_units.axis2)
+            else:
+                ylabel = 'Y-position [{ypos}]'.format(ypos=smap.spatial_units.axis2)
+
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        imshow_args.update({'extent': list(smap.xrange.to(u.arcsec).value) + list(smap.yrange.to(u.arcsec).value)})
+        if smap.detector == 'HMI':
+            im1 = ax.imshow(np.rot90(smap.data, 2), **imshow_args)
+        else:
+            im1 = ax.imshow(smap.data, **imshow_args)
+        plt.title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, smap.meta['date-obs']))
+        self.divider_im = make_axes_locatable(ax)
+        cax = self.divider_im.append_axes('right', size='1.5%', pad=0.05)
+        cax.tick_params(direction='in')
+        plt.colorbar(im1, ax=ax, cax=cax, label='DN counts per second')
+        ax.set_autoscale_on(False)
+        if dspec:
+            fig = plt.gcf()
+            # if figsize:
+            #     fig.set_size_inches(figsize)
+            # else:
+            #     fig.set_size_inches(13, 5)
+            if uni_cm:
+                dspec['args']['norm'] = norm
+            if layout_vert:
+                ax2 = plt.subplot(212)
+            else:
+                ax2 = plt.subplot(122)
+            im2 = plt.pcolormesh(dspec['x'], dspec['y'], dspec['dspec'], **dspec['args'])
+            date_format = mdates.DateFormatter('%H:%M:%S')
+            ax2.xaxis_date()
+            ax2.xaxis.set_major_formatter(date_format)
+            for xlabel in ax2.get_xmajorticklabels():
+                xlabel.set_rotation(30)
+                xlabel.set_horizontalalignment("right")
+            ax2.yaxis.set_label_text(dspec['ytitle'])
+            self.divider_dspec = make_axes_locatable(ax2)
+            cax = self.divider_dspec.append_axes('right', size='1.5%', pad=0.05)
+            cax.tick_params(direction='in')
+            plt.colorbar(im2, ax=ax2, cax=cax, label=dspec['ctitle'])
+            ax2.set_autoscale_on(False)
+            if 'axvspan' in dspec.keys():
+                vspan = ax2.axvspan(dspec['axvspan'][0], dspec['axvspan'][1], alpha=0.5, color='white')
+            if 'xs' in dspec.keys() and 'ys' in dspec.keys():
+                ax2.plot(dspec['xs'], dspec['ys'], '--', lw=2.0, alpha=0.7, c='black')
+            if 'xlim' in dspec.keys():
+                ax2.set_xlim(dspec['xlim'])
+            if 'ylim' in dspec.keys():
+                ax2.set_ylim(dspec['ylim'])
+            if returnImAx:
+                return ax, im1, ax2, im2, vspan
+            else:
+                return ax, ax2
+        else:
+            if returnImAx:
+                return ax, im1
+            else:
+                return ax  # ax.autoscale(True, 'both', True)  # ax.autoscale_view(True, True, True)  # ax.relim(visible_only=True)
 
     def make_mapcube(self, trange, outfile=None, fov=None, wavelength='171', binpix=1, dt_data=1, derotate=False, tosave=True, superpixel=False):
         if isinstance(trange, list):
@@ -441,7 +445,7 @@ class Stackplot:
             else:
                 submaptmp = maptmp
             if superpixel:
-                submaptmp = submaptmp.superpixel(u.Quantity([binpix * u.pix] * 2))
+                submaptmp = submaptmp.superpixel(u.Quantity([binpix * u.pix] * 2))/(np.float(binpix)**2)
             else:
                 submaptmp = submaptmp.resample(u.Quantity(submaptmp.dimensions) / binpix)
             if submaptmp.detector == 'HMI':
@@ -656,7 +660,7 @@ class Stackplot:
             if out_dir is None:
                 out_dir = './'
 
-            ax, im1 = plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, cmap=cmap, diff=diff, returnImAx=True)
+            ax, im1 = self.plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, cmap=cmap, diff=diff, returnImAx=True)
             if anim:
                 import matplotlib
                 matplotlib.use("Agg")
@@ -705,7 +709,7 @@ class Stackplot:
                                                                     smap.detector), format='png', dpi=dpi)
                 plt.ion()
         else:
-            ax, im1 = plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, cmap=cmap, diff=diff, returnImAx=True)
+            ax, im1 = self.plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, cmap=cmap, diff=diff, returnImAx=True)
             plt.subplots_adjust(bottom=0.10)
             dims = mapcube_plot[0].dimensions
             diagpix = int(np.sqrt(dims[0] ** 2 + dims[1] ** 2).value)
@@ -714,14 +718,16 @@ class Stackplot:
             # bStackplt = Button(axStackplt, 'StackPlt')
             pixscale = ((self.fov[1] - self.fov[0]) / dims[0].value + (self.fov[3] - self.fov[2]) / dims[1].value) / 2.0
             axFrame = plt.axes([0.10, 0.03, 0.40, 0.02], facecolor=axcolor)
+            # axFrame = self.divider_im.append_axes('bottom', size='1.5%', pad=0.2)
             sFrame = Slider(axFrame, 'frame', 0, len(mapcube_plot) - 1, valinit=0, valfmt='%0.0f')
             axCutwdth = plt.axes([0.65, 0.02, 0.20, 0.01], facecolor=axcolor)
-            sCutwdth = Slider(axCutwdth, 'Width[pix]', 1, int(diagpix / 4.0), valinit=5, valfmt='%0.0f')
+            # axCutwdth = self.divider_im.append_axes('bottom', size='1.5%', pad=0.2)
+            self.sCutwdth = Slider(axCutwdth, 'Width[pix]', 1, int(diagpix / 4.0), valinit=5, valfmt='%0.0f')
             axCutang = plt.axes([0.65, 0.04, 0.20, 0.01], facecolor=axcolor)
-            sCutang = Slider(axCutang, 'Angle[deg]', -45.0, 45.0, valinit=0.0, valfmt='%.1f')
+            self.sCutang = Slider(axCutang, 'Angle[deg]', -45.0, 45.0, valinit=0.0, valfmt='%.1f')
             axCutlngth = plt.axes([0.65, 0.06, 0.20, 0.01], facecolor=axcolor)
-            sCutlngth = Slider(axCutlngth, 'Length[pix]', 20, int(diagpix * 4), valinit=150, valfmt='%0.0f')
-            self.cutslitbd = CutslitBuilder(ax, cutwidth=sCutwdth.val, cutang=sCutang.val / 180. * np.pi, cutlength=sCutlngth.val, scale=pixscale)
+            self.sCutlngth = Slider(axCutlngth, 'Length[pix]', 20, int(diagpix * 4), valinit=150, valfmt='%0.0f')
+            self.cutslitbd = CutslitBuilder(ax, cutwidth=self.sCutwdth.val, cutang=self.sCutang.val / 180. * np.pi, cutlength=self.sCutlngth.val, scale=pixscale)
 
             # def bStackplt_update(event):
             #     # print bStackplt.val
@@ -744,40 +750,50 @@ class Stackplot:
             sFrame.on_changed(sFrame_update)
 
             def sCutwdth_update(val):
-                wdth = sCutwdth.val
+                wdth = self.sCutwdth.val
                 self.cutslitbd.cutwidth = wdth
                 self.cutslitbd.update()
 
-            sCutwdth.on_changed(sCutwdth_update)
+            self.sCutwdth.on_changed(sCutwdth_update)
 
             def sCutang_update(val):
-                ang = sCutang.val / 180. * np.pi
+                ang = self.sCutang.val / 180. * np.pi
                 self.cutslitbd.cutang = ang
                 self.cutslitbd.update()
 
-            sCutang.on_changed(sCutang_update)
+            self.sCutang.on_changed(sCutang_update)
 
             def sCutlngth_update(val):
-                lngth = sCutlngth.val
+                lngth = self.sCutlngth.val
                 self.cutslitbd.cutlength = lngth
                 self.cutslitbd.update()
 
-            sCutlngth.on_changed(sCutlngth_update)
+            self.sCutlngth.on_changed(sCutlngth_update)
         return
 
     def cutslit_fromfile(self, infile, color=None):
         if self.cutslitbd:
             with open('{}'.format(infile), 'rb') as sf:
                 cutslit = pickle.load(sf)
-            self.cutslitbd.clickedpoints.set_data(cutslit['x'], cutslit['y'])
+            self.sCutlngth.set_val(cutslit['cutlength'])
+            self.sCutwdth.set_val(cutslit['cutwidth'])
+            self.cutslitbd.cutang = cutslit['cutang']
+            self.sCutang.set_val(self.cutslitbd.cutang*180./np.pi)
+            self.cutslitbd.scale = cutslit['scale']
+            self.cutslitbd.xx = cutslit['x']
+            self.cutslitbd.yy = cutslit['y']
+            self.cutslitbd.clickedpoints.set_data(self.cutslitbd.xx, self.cutslitbd.yy)
             self.cutslitbd.clickedpoints.figure.canvas.draw()
-            self.cutslitbd.cutslitplt = cutslit['cutslit']
-            self.cutslitbd.slitline.set_data(cutslit['cutslit']['xcen'], cutslit['cutslit']['ycen'])
-            self.cutslitbd.slitline0.set_data(cutslit['cutslit']['xs0'], cutslit['cutslit']['ys0'])
-            self.cutslitbd.slitline1.set_data(cutslit['cutslit']['xs1'], cutslit['cutslit']['ys1'])
-            self.cutslitbd.slitline.figure.canvas.draw()
-            self.cutslitbd.slitline0.figure.canvas.draw()
-            self.cutslitbd.slitline1.figure.canvas.draw()
+            self.cutslitbd.update()
+            # self.cutslitbd.clickedpoints.set_data(cutslit['x'], cutslit['y'])
+            # self.cutslitbd.clickedpoints.figure.canvas.draw()
+            # self.cutslitbd.cutslitplt = cutslit['cutslit']
+            # self.cutslitbd.slitline.set_data(cutslit['cutslit']['xcen'], cutslit['cutslit']['ycen'])
+            # self.cutslitbd.slitline0.set_data(cutslit['cutslit']['xs0'], cutslit['cutslit']['ys0'])
+            # self.cutslitbd.slitline1.set_data(cutslit['cutslit']['xs1'], cutslit['cutslit']['ys1'])
+            # self.cutslitbd.slitline.figure.canvas.draw()
+            # self.cutslitbd.slitline0.figure.canvas.draw()
+            # self.cutslitbd.slitline1.figure.canvas.draw()
             if color:
                 self.cutslitbd.slitline.set_color(color)
                 self.cutslitbd.slitline0.set_color(color)
@@ -788,7 +804,8 @@ class Stackplot:
     def cutslit_tofile(self, outfile=None, cutslit=None):
         if not cutslit:
             cutslit = {'x': self.cutslitbd.clickedpoints.get_xdata(), 'y': self.cutslitbd.clickedpoints.get_ydata(),
-                       'cutslit': self.cutslitbd.cutslitplt}
+                       'cutslit': self.cutslitbd.cutslitplt, 'cutlength': self.cutslitbd.cutlength, 'cutwidth': self.cutslitbd.cutwidth, 'cutang': self.cutslitbd.cutang,
+                       'scale': self.cutslitbd.scale}
         with open('{}'.format(outfile), 'wb') as sf:
             pickle.dump(cutslit, sf)
 
@@ -823,7 +840,7 @@ class Stackplot:
             pickle.dump(dspec, sf)
 
     def plot_stackplot(self, mapcube=None, hdr=False, vmax=None, vmin=None, cmap=None, layout_vert=False, diff=False, uni_cm=False, sav_img=False,
-                       out_dir=None, dpi=100, anim=False, frm_range=None, cutslitplt=None, silent=False,refresh=True):
+                       out_dir=None, dpi=100, anim=False, frm_range=None, cutslitplt=None, silent=False, refresh=True):
         if mapcube:
             mapcube_plot = deepcopy(mapcube)
         else:
@@ -870,7 +887,7 @@ class Stackplot:
             if out_dir is None:
                 out_dir = './'
 
-            ax, im1, ax2, im2, vspan = plot_map(mapcube_plot[0], dspec, vmax=vmax, vmin=vmin, diff=diff, returnImAx=True, uni_cm=uni_cm,
+            ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[0], dspec, vmax=vmax, vmin=vmin, diff=diff, returnImAx=True, uni_cm=uni_cm,
                                                 layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
             ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
@@ -939,7 +956,7 @@ class Stackplot:
                                                                               smap.detector), format='png', dpi=dpi)
                 plt.ion()
         else:
-            ax, im1, ax2, im2, vspan = plot_map(mapcube_plot[0], dspec, vmax=vmax, vmin=vmin, diff=diff, returnImAx=True, uni_cm=uni_cm,
+            ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[0], dspec, vmax=vmax, vmin=vmin, diff=diff, returnImAx=True, uni_cm=uni_cm,
                                                 layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
             ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
