@@ -455,7 +455,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 xy[:, 0][np.array([2, 3])] = etimes[i].plot_date
                 dspecvspans[pol].set_xy(xy)
 
-        pdb.set_trace()
+        # pdb.set_trace()
         # try:
         if aiadir:
             aiafits = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
