@@ -908,6 +908,7 @@ def readsdofile(datadir=None, wavelength=None, trange=None, isexists=False, timt
     from datetime import date
     from datetime import timedelta as td
 
+    trange = Time(trange)
     wavelength = str(wavelength)
     wavelength = wavelength.lower()
     if timtol < 12. / 3600 / 24:
@@ -987,6 +988,7 @@ def readsdofileX(datadir=None, wavelength=None, trange=None, isexists=False, tim
     from datetime import date
     from datetime import timedelta as td
 
+    trange = Time(trange)
     wavelength = str(wavelength)
     wavelength = wavelength.lower()
     if timtol < 12. / 3600 / 24:
