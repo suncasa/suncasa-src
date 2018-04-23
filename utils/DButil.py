@@ -952,12 +952,14 @@ def readsdofile(datadir=None, wavelength=None, trange=None, isexists=False, timt
         ymd = jdtimstr.split(' ')[0].split('-')
         sdofitspath = glob.glob(datadir + '/{}/{}/{}/aia.lev1_*Z.{}.image_lev1.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
         if len(sdofitspath) == 0:
-            raise ValueError('No SDO file found under {}.'.format(datadir))
+            return []
+            # raise ValueError('No SDO file found under {}.'.format(datadir))
         sdofits = [os.path.basename(ll) for ll in sdofitspath]
         sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofits],
                            format='iso', scale='utc')
         if timtol < np.min(np.abs(sdotimeline.jd - trange.jd)):
-            raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
+            return []
+            # raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
         idxaia = np.argmin(np.abs(sdotimeline.jd - trange.jd))
         sdofile = sdofitspath[idxaia]
         if isexists:
@@ -1028,12 +1030,14 @@ def readsdofileX(datadir=None, wavelength=None, trange=None, isexists=False, tim
         ymd = jdtimstr.split(' ')[0].split('-')
         sdofitspath = glob.glob(datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
         if len(sdofitspath) == 0:
-            raise ValueError('No SDO file found under {}.'.format(datadir))
+            return []
+            # raise ValueError('No SDO file found under {}.'.format(datadir))
         sdofits = [os.path.basename(ll) for ll in sdofitspath]
         sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofits],
                            format='iso', scale='utc')
         if timtol < np.min(np.abs(sdotimeline.jd - trange.jd)):
-            raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
+            return []
+            # raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
         idxaia = np.argmin(np.abs(sdotimeline.jd - trange.jd))
         sdofile = sdofitspath[idxaia]
         if isexists:
