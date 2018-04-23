@@ -534,11 +534,9 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                         ax.contour(rmapx.value, rmapy.value, rmap.data, levels=clevels1,
                                    colors=[cm.get_cmap(cmap)(float(n) / (nspw - 1))] * len(clevels1))
                     else:
-                        ax.contour(rmapx.value, rmapy.value, rmap.data, levels=clevels1, cmap=cmap)
+                        ax.contour(rmapx.value, rmapy.value, rmap.data, levels=clevels1, cmap=cm.get_cmap(cmap))
                 else:
                     rmap.plot_settings['cmap'] = plt.get_cmap(cmaps[pol])
-                    # import pdb
-                    # pdb.set_trace()
                     rmap.plot(axes=ax, vmax=imax, vmin=imin)
                     rmap.draw_limb()
                     rmap.draw_grid()
