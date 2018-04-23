@@ -51,7 +51,7 @@ def uniq(lst):
     return nlst
 
 
-def downloadAIAdata(trange, wavelength=None):
+def downloadAIAdata(trange, wavelength=None, outdir='./'):
     if isinstance(trange, list) or isinstance(trange, tuple) or type(trange) == np.ndarray or type(trange) == Time:
         if len(trange) != 2:
             raise ValueError('trange must be a number or a two elements array/list/tuple')
@@ -85,6 +85,7 @@ def downloadAIAdata(trange, wavelength=None):
         print('{}/{} Downloading  AIA {:.0f} data ...'.format(widx + 1, nwave, wave))
         qr = client.query(vso.attrs.Time(tst.iso, ted.iso), vso.attrs.Instrument('aia'), vso.attrs.Wave(wave1 * u.AA, wave2 * u.AA))
         res = client.get(qr, path='{file}').wait()
+
         for ll in res:
             vsonamestrs = ll.split('_')
             if vsonamestrs[2].startswith('1600') or vsonamestrs[2].startswith('1700'):
@@ -94,7 +95,19 @@ def downloadAIAdata(trange, wavelength=None):
             jsocnamestr = product + '.' + '{}-{}-{}{}{}Z.'.format(vsonamestrs[3], vsonamestrs[4], vsonamestrs[5], vsonamestrs[6],
                                                                   vsonamestrs[7]).upper() + vsonamestrs[2][:-1] + '.image_lev1.fits'
             print ll, jsocnamestr
-            os.system('mv {} {}'.format(ll, jsocnamestr))
+            os.system('mv {} {}/{}'.format(ll, outdir, jsocnamestr))
+
+
+def findaiafits(trange, aiawave, aiadir):
+    aiafits = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=trange, isexists=True)
+    if not aiafits:
+        aiafits = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=trange, isexists=True)
+    if not aiafits:
+        aiafits = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=trange, isexists=True)
+    if not aiafits:
+        downloadAIAdata(trange, wavelength=aiawave)
+        aiafits = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=trange, isexists=True)
+    return aiafits
 
 
 def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna='', imagedir=None, spws=[], toTb=True, overwrite=True, doslfcal=False,
@@ -112,7 +125,7 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
     ms.open(msfile)
     metadata = ms.metadata()
     observatory = metadata.observatorynames()[0]
-    imres = {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': [], 'Spw': [], 'Vis': [], 'Freq': [], 'Obs': [observatory]}
+    imres = {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': [], 'Spw': [], 'Vis': [], 'Freq': [], 'Obs': []}
     # axisInfo = ms.getdata(["axis_info"], ifraxis=True)
     spwInfo = ms.getspectralwindowinfo()
     # freqInfo = axisInfo["axis_info"]["freq_axis"]["chan_freq"].swapaxes(0, 1) / 1e9
@@ -129,6 +142,7 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
             print 'Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
             stokes = 'I,V'
 
+    # pdb.set_trace()
     msfilebs = os.path.basename(msfile)
     imdir = imagedir + subdir[0]
     if not os.path.exists(imdir):
@@ -215,6 +229,7 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
             imres['Spw'] += [spwstr] * len(res['ImageName'])
             imres['Vis'] += [msfile] * len(res['ImageName'])
             imres['Freq'] += [freqran] * len(res['ImageName'])
+            imres['Obs'] += [observatory] * len(res['ImageName'])
         else:
             return None
 
@@ -225,14 +240,14 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
 
 
 def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None, imax=None, imin=None, dmax=None, dmin=None,
-                    clevels=None, cmap='jet', aiafits=None, aia_search=None, aiawave=171, moviename='', plt_composite=False):
+                    clevels=None, cmap='jet', aiafits=None, aiadir=None, aiawave=171, moviename='', plt_composite=False):
     '''
     Required inputs:
 
     Important optional inputs:
 
     Optional inputs:
-            aia_search: directory to search aia fits files
+            aiadir: directory to search aia fits files
     Example:
 
     '''
@@ -348,6 +363,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         if plt_composite:
             axs = [plt.subplot(gs[:2, 2:]), plt.subplot(gs[2:, 2:])]
         else:
+            # pdb.set_trace()
             axs = [plt.subplot(gs[0, 2])]
             for ll in range(1, nspw):
                 axs.append(plt.subplot(gs[ll / hnspw, ll % hnspw + 2], sharex=axs[0], sharey=axs[0]))
@@ -358,6 +374,20 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         axs_dspec.append(plt.subplot(gs[2:, :2]))
 
     fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+
+    '''check if aiafits files exist'''
+    if aiadir:
+        aiafiles = []
+        for i in range(ntime):
+            plttime = btimes_sort[i, 0]
+            aiafile = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
+            if not aiafile:
+                aiafile = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
+            if not aiafile:
+                aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True, timtol=12. / 3600. / 24)
+            aiafiles.append(aiafile)
+        if np.count_nonzero(aiafiles) < ntime / 2.0:
+            downloadAIAdata(trange=tr, wavelength=aiawave)
 
     for i in range(ntime):
         plt.ioff()
@@ -425,8 +455,8 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 dspecvspans[pol].set_xy(xy)
 
         try:
-            if aia_search:
-                aiamap = DButil.readsdofileX(datadir=aia_search, wavelength=aiawave, jdtime=plttime, isexists=False)
+            if aiadir:
+                aiamap = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, jdtime=plttime, isexists=False)
             else:
                 aiamap = smap.Map(aiafits)
             aiamap = DButil.normalize_aiamap(aiamap)
@@ -580,8 +610,8 @@ def dspec_external(vis, workdir='./', specfile=None):
 
 def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uvrange=None, stokes='RR,LL', dmin=None, dmax=None, goestime=None,
            reftime=None, xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0, niter=500, imsize=[512], cell=['5.0arcsec'],
-           interactive=False, usemsphacenter=True, imagefile=None, fitsfile=None, plotaia=True, aiawave=171, aiafits=None, aiadir=None,
-           savefig=False, mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=True, imax=None, imin=None, plt_composite=False):
+           interactive=False, usemsphacenter=True, imagefile=None, fitsfile=None, plotaia=True, aiawave=171, aiafits=None, aiadir=None, savefig=False,
+           mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=True, imax=None, imin=None, plt_composite=False):
     '''
     Required inputs:
             vis: calibrated CASA measurement set
@@ -775,7 +805,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             if not os.path.exists(qlookfigdir):
                 os.makedirs(qlookfigdir)
             plt_qlook_image(imres, timerange=timerange, figdir=qlookfigdir, specdata=specdata, verbose=True, stokes=stokes, fov=xyrange, imax=imax,
-                            imin=imin, dmax=dmax, dmin=dmin, aiafits=aiafits, aiawave=aiawave, aia_search=aiadir, plt_composite=plt_composite)
+                            imin=imin, dmax=dmax, dmin=dmin, aiafits=aiafits, aiawave=aiawave, aiadir=aiadir, plt_composite=plt_composite)
 
     else:
         spec = specdata['spec']
@@ -975,102 +1005,9 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
         # start to download the fits files
         if plotaia:
             if not aiafits:
-                # items = glob.glob('*.fits')
-                # for names in items:
-                #     str1 = starttim1.iso[:4] + '_' + starttim1.iso[5:7] + '_' + starttim1.iso[8:10] + 't' + starttim1.iso[
-                #                                                                                             11:13] + '_' + starttim1.iso[14:16]
-                #     str2 = str(aiawave)
-                #     if names.endswith(".fits"):
-                #         if names.find(str1) != -1 and names.find(str2) != -1:
-                #             newlist.append(names)
-                #     newlist.append('0')
-                newlist = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=[starttim1, endtim1], isexists = True)
-                if not newlist:
-                    newlist = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=[starttim1, endtim1], isexists = True)
-                if not newlist:
-                    newlist = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=[starttim1, endtim1], isexists = True)
-                if not newlist:
-                    downloadAIAdata([starttim1, endtim1],wavelength=aiawave)
-            #
-            #     if os.path.exists(newlist[0]):
-            #         aiafits = newlist[0]
-            #         dlaia = False
-            #     else:
-            #         print 'downloading the aiafits file'
-            #         dlaia = True
-            #         wave1 = aiawave - 0.5
-            #         wave2 = aiawave + 0.5
-            #         t1 = Time(starttim1.mjd - 0.02 / 24., format='mjd')
-            #         t2 = Time(endtim1.mjd + 0.02 / 24., format='mjd')
-            #         try:
-            #             from sunpy.net import vso
-            #             client = vso.VSOClient()
-            #             # qr = client.query(vso.attrs.Time(t1.iso, t2.iso), vso.attrs.Instrument('aia'), vso.attrs.Wave(wave1 * u.AA, wave2 * u.AA))
-            #             qr = client.query(vso.attrs.Time(t1.iso, t2.iso), vso.attrs.Instrument('aia'), vso.attrs.Wave(aiawave * u.AA))
-            #             res = client.get(qr, path='{file}').wait()
-            #         except:
-            #             SdoDownloadscript = os.path.join(workdir, 'SdoDownload.py')
-            #             os.system('rm -rf {}'.format(SdoDownloadscript))
-            #             fi = open(SdoDownloadscript, 'wb')
-            #             fi.write('from sunpy.net import vso \n')
-            #             fi.write('from astropy import units as u \n')
-            #             fi.write('client = vso.VSOClient() \n')
-            #             fi.write(
-            #                 "qr = client.query(vso.attrs.Time('{0}', '{1}'), vso.attrs.Instrument('aia'), vso.attrs.Wave({2} * u.AA, {3} * u.AA)) \n".format(
-            #                     t1.iso, t2.iso, wave1, wave2))
-            #             fi.write("res = client.get(qr, path='{file}') \n")
-            #             fi.close()
-            #
-            #             try:
-            #                 os.system('python {}'.format(SdoDownloadscript))
-            #             except NameError:
-            #                 print "Bad input names"
-            #             except ValueError:
-            #                 print "Bad input values"
-            #             except:
-            #                 print "Unexpected error:", sys.exc_info()[0]
-            #                 print "Error in Downloading AIA fits files. Proceed without AIA..."
-            #
-            # # Here something is needed to check whether it has finished downloading the fits files or not
-            #
-            # if not aiafits:
-            #     if not dlaia:
-            #         newlist = []
-            #         items = glob.glob('*.fits')
-            #         for nm in items:
-            #             str1 = starttim1.iso[:4] + '_' + starttim1.iso[5:7] + '_' + starttim1.iso[8:10] + 't' + starttim1.iso[
-            #                                                                                                     11:13] + '_' + starttim1.iso[14:16]
-            #             str2 = str(aiawave)
-            #             if nm.find(str1) != -1 and nm.find(str2) != -1:
-            #                 newlist.append(nm)
-            #         if newlist:
-            #             aiafits = newlist[0]
-            #             print 'AIA fits ' + aiafits + ' selected'
-            #     else:
-            #         i = 0
-            #         while dlaia and i < 6:
-            #             newlist = []
-            #             items = glob.glob('*.fits')
-            #             for nm in items:
-            #                 str1 = starttim1.iso[:4] + '_' + starttim1.iso[5:7] + '_' + starttim1.iso[8:10] + 't' + starttim1.iso[
-            #                                                                                                         11:13] + '_' + starttim1.iso[
-            #                                                                                                                        14:16]
-            #                 str2 = str(aiawave)
-            #                 if nm.find(str1) != -1 and nm.find(str2) != -1:
-            #                     newlist.append(nm)
-            #             if newlist:
-            #                 aiafits = newlist[0]
-            #                 print 'AIA fits ' + aiafits + ' selected'
-            #                 dlaia = False
-            #                 time.sleep(10)
-            #                 break
-            #             else:
-            #                 print 'wait 10 sec for aiafits to be downloaded'
-            #                 time.sleep(10)
-            #                 i = i + 1
-            #     if not aiafits:
-            #         print 'no AIA fits files found. Proceed without AIA'
+                newlist = findaiafits([starttim1, endtim1], aiawave, aiadir)
 
+            aiafits = newlist[0]
             try:
                 aiamap = smap.Map(aiafits)
             except:
