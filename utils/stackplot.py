@@ -9,6 +9,7 @@ from astropy.io import fits
 import signalsmooth as ss
 import numpy.ma as ma
 import matplotlib.cm as cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import sunpy.map
 import astropy.units as u
 import pickle
@@ -54,19 +55,19 @@ def butter_bandpass(lowcut, highcut, fs, order=5):
     nyq = 0.5 * fs
     low = lowcut / nyq
     high = highcut / nyq
-    b, a = signal.butter(order, [low, high], btype='band')
+    b, a = signal.butter(order, [low, high], btype='bandpass')
     return b, a
 
 
 def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
     b, a = butter_bandpass(lowcut, highcut, fs, order=order)
-    y = signal.lfilter(b, a, data)
+    y = signal.filtfilt(b, a, data)
     return y
 
 
 def b_filter(data, lowcut, highcut, fs, ix):
     x = data[ix]
-    y = butter_bandpass_filter(x, lowcut, highcut, fs, order=3)
+    y = butter_bandpass_filter(x, lowcut * fs, highcut * fs, fs, order=5)
     return {'idx': ix, 'y': y}
 
 
@@ -132,103 +133,6 @@ def getimprofile(data, cutslit, xrange=None, yrange=None):
         intensdist = {'x': cutslit['dist'], 'y': intens}
         return intensdist
 
-
-def plot_map(smap, dspec=None, diff=False, SymLogNorm=False, linthresh=0.5, returnImAx=False, uni_cm=False, *args, **kwargs):
-    import sunpy.cm.cm as cm  ## to bootstrap sdoaia color map
-    import matplotlib.cm as cm
-    import matplotlib.colors as colors
-    from suncasa.utils import DButil
-    try:
-        clrange = DButil.sdo_aia_scale_dict(wavelength=smap.meta['wavelnth'])
-    except:
-        clrange = {'high': None, 'log': False, 'low': None}
-    plt.clf()
-    if dspec:
-        ax = plt.subplot(121)
-    else:
-        ax = plt.subplot()
-    if 'vmin' in kwargs.keys():
-        vmin = kwargs['vmin']
-    else:
-        vmin = clrange['low']
-    if 'vmax' in kwargs.keys():
-        vmax = kwargs['vmax']
-    else:
-        vmax = clrange['high']
-    if diff:
-        if SymLogNorm:
-            norm = colors.SymLogNorm(linthresh=linthresh, vmin=vmin, vmax=vmax)
-        else:
-            norm = colors.Normalize(vmin=vmin, vmax=vmax)
-    else:
-        norm = colors.LogNorm(vmin=vmin, vmax=vmax)
-    try:
-        imshow_args = {'cmap': cm.get_cmap('sdoaia{}'.format(smap.meta['wavelnth'])), 'norm': norm, 'interpolation': 'nearest', 'origin': 'lower'}
-    except:
-        imshow_args = {'cmap': 'gray', 'norm': norm, 'interpolation': 'nearest', 'origin': 'lower'}
-    try:
-        if smap.coordinate_system.x == 'HG':
-            xlabel = 'Longitude [{lon}]'.format(lon=smap.spatial_units.x)
-        else:
-            xlabel = 'X-position [{xpos}]'.format(xpos=smap.spatial_units.x)
-        if smap.coordinate_system.y == 'HG':
-            ylabel = 'Latitude [{lat}]'.format(lat=smap.spatial_units.y)
-        else:
-            ylabel = 'Y-position [{ypos}]'.format(ypos=smap.spatial_units.y)
-    except:
-        if smap.coordinate_system.axis1 == 'HG':
-            xlabel = 'Longitude [{lon}]'.format(lon=smap.spatial_units.axis1)
-        else:
-            xlabel = 'X-position [{xpos}]'.format(xpos=smap.spatial_units.axis1)
-        if smap.coordinate_system.axis2 == 'HG':
-            ylabel = 'Latitude [{lat}]'.format(lat=smap.spatial_units.axis2)
-        else:
-            ylabel = 'Y-position [{ypos}]'.format(ypos=smap.spatial_units.axis2)
-
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    imshow_args.update({'extent': list(smap.xrange.value) + list(smap.yrange.value)})
-    if smap.detector == 'HMI':
-        im1 = ax.imshow(np.rot90(smap.data, 2), **imshow_args)
-    else:
-        im1 = ax.imshow(smap.data, **imshow_args)
-    plt.title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, smap.meta['date-obs']))
-    plt.colorbar(im1, ax=ax, label='DN counts per second')
-    ax.set_autoscale_on(False)
-    if dspec:
-        fig = plt.gcf()
-        # if figsize:
-        #     fig.set_size_inches(figsize)
-        # else:
-        #     fig.set_size_inches(13, 5)
-        if uni_cm:
-            dspec['args']['norm'] = norm
-        ax2 = plt.subplot(122)
-        im2 = plt.pcolormesh(dspec['x'], dspec['y'], dspec['dspec'], **dspec['args'])
-        date_format = mdates.DateFormatter('%H:%M:%S')
-        ax2.xaxis_date()
-        ax2.xaxis.set_major_formatter(date_format)
-        fig.autofmt_xdate(rotation=30)
-        ax2.yaxis.set_label_text(dspec['ytitle'])
-        plt.colorbar(im2, ax=ax2, label=dspec['ctitle'])
-        ax2.set_autoscale_on(False)
-        if 'axvspan' in dspec.keys():
-            vspan = ax2.axvspan(dspec['axvspan'][0], dspec['axvspan'][1], alpha=0.5, color='white')
-        if 'xs' in dspec.keys() and 'ys' in dspec.keys():
-            ax2.plot(dspec['xs'], dspec['ys'], '--', lw=2.0, alpha=0.7, c='black')
-        if 'xlim' in dspec.keys():
-            ax2.set_xlim(dspec['xlim'])
-        if 'ylim' in dspec.keys():
-            ax2.set_ylim(dspec['ylim'])
-        if returnImAx:
-            return ax, im1, ax2, im2, vspan
-        else:
-            return ax, ax2
-    else:
-        if returnImAx:
-            return ax, im1
-        else:
-            return ax  # ax.autoscale(True, 'both', True)  # ax.autoscale_view(True, True, True)  # ax.relim(visible_only=True)
 
 
 def smooth(x, window_len=11, window='hanning'):
@@ -381,6 +285,11 @@ class Stackplot:
     fov = None
     binpix = None
     dt_data = None
+    divider_im = None
+    divider_dspec = None
+    sCutwdth = None
+    sCutang = None
+    sCutlngth = None
 
     @resettable
     def __init__(self, infile=None):
@@ -391,7 +300,124 @@ class Stackplot:
             else:
                 self.mapcube_fromfile(infile)
 
-    def make_mapcube(self, trange, outfile=None, fov=None, wavelength='171', binpix=1, dt_data=1, derotate=False, tosave=True):
+    def plot_map(self, smap, dspec=None, diff=False, cmap=None, SymLogNorm=False, linthresh=0.5, returnImAx=False, layout_vert=False, uni_cm=False, *args,
+                 **kwargs):
+        import sunpy.cm.cm as cm  ## to bootstrap sdoaia color map
+        import matplotlib.cm as cm
+        import matplotlib.colors as colors
+        try:
+            clrange = DButil.sdo_aia_scale_dict(wavelength=smap.meta['wavelnth'])
+        except:
+            clrange = {'high': None, 'log': False, 'low': None}
+        plt.clf()
+        if dspec:
+            if layout_vert:
+                ax = plt.subplot(211)
+            else:
+                ax = plt.subplot(121)
+        else:
+            ax = plt.subplot()
+        if 'vmin' in kwargs.keys():
+            vmin = kwargs['vmin']
+        else:
+            vmin = clrange['low']
+        if 'vmax' in kwargs.keys():
+            vmax = kwargs['vmax']
+        else:
+            vmax = clrange['high']
+        if diff:
+            if SymLogNorm:
+                norm = colors.SymLogNorm(linthresh=linthresh, vmin=vmin, vmax=vmax)
+            else:
+                norm = colors.Normalize(vmin=vmin, vmax=vmax)
+        else:
+            if clrange['log']:
+                norm = colors.LogNorm(vmin=vmin, vmax=vmax)
+            else:
+                norm = colors.Normalize(vmin=vmin, vmax=vmax)
+
+        if not cmap:
+            try:
+                cmap = cm.get_cmap('sdoaia{}'.format(smap.meta['wavelnth']))
+            except:
+                cmap = 'gray_r'
+        imshow_args = {'cmap': cmap, 'norm': norm, 'interpolation': 'nearest', 'origin': 'lower'}
+        try:
+            if smap.coordinate_system.x == 'HG':
+                xlabel = 'Longitude [{lon}]'.format(lon=smap.spatial_units.x)
+            else:
+                xlabel = 'X-position [{xpos}]'.format(xpos=smap.spatial_units.x)
+            if smap.coordinate_system.y == 'HG':
+                ylabel = 'Latitude [{lat}]'.format(lat=smap.spatial_units.y)
+            else:
+                ylabel = 'Y-position [{ypos}]'.format(ypos=smap.spatial_units.y)
+        except:
+            if smap.coordinate_system.axis1 == 'HG':
+                xlabel = 'Longitude [{lon}]'.format(lon=smap.spatial_units.axis1)
+            else:
+                xlabel = 'X-position [{xpos}]'.format(xpos=smap.spatial_units.axis1)
+            if smap.coordinate_system.axis2 == 'HG':
+                ylabel = 'Latitude [{lat}]'.format(lat=smap.spatial_units.axis2)
+            else:
+                ylabel = 'Y-position [{ypos}]'.format(ypos=smap.spatial_units.axis2)
+
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        imshow_args.update({'extent': list(smap.xrange.to(u.arcsec).value) + list(smap.yrange.to(u.arcsec).value)})
+        if smap.detector == 'HMI':
+            im1 = ax.imshow(np.rot90(smap.data, 2), **imshow_args)
+        else:
+            im1 = ax.imshow(smap.data, **imshow_args)
+        plt.title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, smap.meta['date-obs']))
+        self.divider_im = make_axes_locatable(ax)
+        cax = self.divider_im.append_axes('right', size='1.5%', pad=0.05)
+        cax.tick_params(direction='in')
+        plt.colorbar(im1, ax=ax, cax=cax, label='DN counts per second')
+        ax.set_autoscale_on(False)
+        if dspec:
+            fig = plt.gcf()
+            # if figsize:
+            #     fig.set_size_inches(figsize)
+            # else:
+            #     fig.set_size_inches(13, 5)
+            if uni_cm:
+                dspec['args']['norm'] = norm
+            if layout_vert:
+                ax2 = plt.subplot(212)
+            else:
+                ax2 = plt.subplot(122)
+            im2 = plt.pcolormesh(dspec['x'], dspec['y'], dspec['dspec'], **dspec['args'])
+            date_format = mdates.DateFormatter('%H:%M:%S')
+            ax2.xaxis_date()
+            ax2.xaxis.set_major_formatter(date_format)
+            for xlabel in ax2.get_xmajorticklabels():
+                xlabel.set_rotation(30)
+                xlabel.set_horizontalalignment("right")
+            ax2.yaxis.set_label_text(dspec['ytitle'])
+            self.divider_dspec = make_axes_locatable(ax2)
+            cax = self.divider_dspec.append_axes('right', size='1.5%', pad=0.05)
+            cax.tick_params(direction='in')
+            plt.colorbar(im2, ax=ax2, cax=cax, label=dspec['ctitle'])
+            ax2.set_autoscale_on(False)
+            if 'axvspan' in dspec.keys():
+                vspan = ax2.axvspan(dspec['axvspan'][0], dspec['axvspan'][1], alpha=0.5, color='white')
+            if 'xs' in dspec.keys() and 'ys' in dspec.keys():
+                ax2.plot(dspec['xs'], dspec['ys'], '--', lw=2.0, alpha=0.7, c='black')
+            if 'xlim' in dspec.keys():
+                ax2.set_xlim(dspec['xlim'])
+            if 'ylim' in dspec.keys():
+                ax2.set_ylim(dspec['ylim'])
+            if returnImAx:
+                return ax, im1, ax2, im2, vspan
+            else:
+                return ax, ax2
+        else:
+            if returnImAx:
+                return ax, im1
+            else:
+                return ax  # ax.autoscale(True, 'both', True)  # ax.autoscale_view(True, True, True)  # ax.relim(visible_only=True)
+
+    def make_mapcube(self, trange, outfile=None, fov=None, wavelength='171', binpix=1, dt_data=1, derotate=False, tosave=True, superpixel=False):
         if isinstance(trange, list):
             if isinstance(trange[0], Time):
                 trange = Time([trange[0], trange[-1]])
@@ -409,14 +435,26 @@ class Stackplot:
             maptmp = sunpy.map.Map(ll)
             if fov:
                 x0, x1, y0, y1 = fov
-                submaptmp = maptmp.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]), u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
+                try:
+                    submaptmp = maptmp.submap(u.Quantity([x0 * u.arcsec, x1 * u.arcsec]), u.Quantity([y0 * u.arcsec, y1 * u.arcsec]))
+                except:
+                    from astropy.coordinates import SkyCoord
+                    bl = SkyCoord(x0 * u.arcsec, y0 * u.arcsec, frame=maptmp.coordinate_frame)
+                    tr = SkyCoord(x1 * u.arcsec, y1 * u.arcsec, frame=maptmp.coordinate_frame)
+                    submaptmp = maptmp.submap(bl, tr)
             else:
                 submaptmp = maptmp
-            submaptmp = submaptmp.resample(u.Quantity(submaptmp.dimensions) / binpix)
+            if superpixel:
+                submaptmp = submaptmp.superpixel(u.Quantity([binpix * u.pix] * 2))/(np.float(binpix)**2)
+            else:
+                submaptmp = submaptmp.resample(u.Quantity(submaptmp.dimensions) / binpix)
             if submaptmp.detector == 'HMI':
                 pass
             else:
-                submaptmp = DButil.normalize_aiamap(submaptmp)
+                try:
+                    submaptmp = DButil.normalize_aiamap(submaptmp)
+                except:
+                    pass
             maplist.append(submaptmp)
         if derotate:
             mapcube = mapcube_solar_derotate(sunpy.map.Map(maplist, cube=True))
@@ -432,10 +470,15 @@ class Stackplot:
             if not outfile:
                 outfile = 'mapcube_{0}_bin{3}_dtdata{4}_{1}_{2}'.format(mapcube[0].meta['wavelnth'], trange[0].isot[:-4].replace(':', ''),
                                                                         trange[1].isot[:-4].replace(':', ''), binpix, dt_data)
+            for ll in xrange(42):
+                if os.path.exists(outfile):
+                    if not os.path.exists(outfile + '_{}'.format(ll)):
+                        outfile = outfile + '_{}'.format(ll)
             self.mapcube_tofile(outfile)
         gc.collect()
 
     def mapcube_fromfile(self, infile):
+        t0 = time.time()
         with open(infile, 'rb') as sf:
             print('Loading mapcube....')
             tmp = pickle.load(sf)
@@ -452,8 +495,10 @@ class Stackplot:
                     return
                 self.mapcube = tmp
             self.mapcube_info()
+        print 'It took {} to load the mapcube.'.format(time.time() - t0)
 
     def mapcube_tofile(self, outfile=None, mapcube=None):
+        t0 = time.time()
         if not mapcube:
             mapcube = self.mapcube
         mp_info = self.mapcube_info(mapcube)
@@ -464,6 +509,7 @@ class Stackplot:
             print('Saving mapcube to {}'.format(outfile))
             pickle.dump({'mp': mapcube, 'trange': mp_info['trange'], 'fov': mp_info['fov'], 'binpix': mp_info['binpix'], 'dt_data': self.dt_data,
                          'fitsfile': self.fitsfile}, sf)
+        print 'It took {} to save the mapcube.'.format(time.time() - t0)
 
     def mapcube_drot(self):
         self.mapcube = mapcube_solar_derotate(self.mapcube)
@@ -477,36 +523,59 @@ class Stackplot:
         self.mapcube = sunpy.map.Map(maplist, cube=True)
         self.binpix *= binpix
 
-    def mapcube_mkdiff(self, mode=0, dt_frm=3, medfilt=None, bfilter=False, lowcut=0.1, highcut=50, outfile=None, tosave=False):
+    def mapcube_mkdiff(self, mode=0, dt_frm=3, medfilt=None, gaussfilt=None, bfilter=False, lowcut=0.1, highcut=0.5, outfile=None, tosave=False):
+        '''
+
+        :param mode:
+        :param dt_frm:
+        :param medfilt:
+        :param gaussfilt:
+        :param bfilter: do butter bandpass filter
+        :param lowcut: low cutoff frequency in terms of total sample numbers
+        :param highcut: high cutoff frequency in terms of total sample numbers
+        :param outfile:
+        :param tosave:
+        :return:
+        '''
+        self.mapcube_diff = None
         modes = {0: 'rdiff', 1: 'rratio', 2: 'bdiff', 3: 'bratio'}
         maplist = []
-        datacube = self.mapcube.as_array()
+        datacube = self.mapcube.as_array().astype(np.float)
+        if gaussfilt:
+            from scipy.ndimage import gaussian_filter
+            print 'gaussian filtering map.....'
+            for idx, ll in enumerate(tqdm(self.mapcube)):
+                datacube[:, :, idx] = gaussian_filter(datacube[:, :, idx], gaussfilt, mode='nearest')
         if medfilt:
             print 'median filtering map.....'
             for idx, ll in enumerate(tqdm(self.mapcube)):
                 datacube[:, :, idx] = signal.medfilt(datacube[:, :, idx], medfilt)
-        print 'making the running diff mapcube.....'
+        print 'making the diff mapcube.....'
+        tplt = self.tplt.jd
         for idx, ll in enumerate(tqdm(self.mapcube)):
             maplist.append(deepcopy(ll))
-            if idx - dt_frm < 0:
-                sidx = 0
-            else:
-                sidx = idx - dt_frm
+            tjd_ = tplt[idx]
+            sidx = np.argmin(np.abs(tplt - (tjd_ - 12. * dt_frm / 3600. / 24.)))
+            # if idx - dt_frm < 0:
+            #     sidx = 0
+            # else:
+            #     sidx = idx - dt_frm
             if modes[mode] == 'rdiff':
-                maplist[idx].data = datacube[:, :, idx] - datacube[:, :, sidx]
+                mapdata = datacube[:, :, idx] - datacube[:, :, sidx]
             elif modes[mode] == 'rratio':
-                maplist[idx].data = datacube[:, :, idx] / datacube[:, :, sidx]
+                mapdata = datacube[:, :, idx] / datacube[:, :, sidx]
             elif modes[mode] == 'bdiff':
-                maplist[idx].data = datacube[:, :, idx] - datacube[:, :, 0]
+                mapdata = datacube[:, :, idx] - datacube[:, :, 0]
             elif modes[mode] == 'bratio':
-                maplist[idx].data = datacube[:, :, idx] / datacube[:, :, 0]
+                mapdata = datacube[:, :, idx] / datacube[:, :, 0]
+            maplist[idx] = sunpy.map.Map(mapdata, maplist[idx].meta)
         mapcube_diff = sunpy.map.Map(maplist, cube=True)
 
         if bfilter:
             datacube = mapcube_diff.as_array()
             datacube_ft = np.zeros_like(datacube)
             ny, nx, nt = datacube_ft.shape
-            fs = len(mapcube_diff)
+            fs = len(mapcube_diff) * 100.
             ncpu = mp.cpu_count() - 1
             print 'filtering the mapcube in time domain.....'
             for ly in tqdm(xrange(ny)):
@@ -518,8 +587,10 @@ class Stackplot:
                 for lx in xrange(nx):
                     datacube_ft[ly, lx] = res[lx]['y']
 
+            maplist = []
             for idx, ll in enumerate(tqdm(mapcube_diff)):
-                mapcube_diff[idx].data = datacube_ft[:, :, idx]
+                maplist.append(sunpy.map.Map(datacube_ft[:, :, idx], mapcube_diff[idx].meta))
+            mapcube_diff = sunpy.map.Map(maplist, cube=True)
 
         if tosave:
             if not outfile:
@@ -531,7 +602,7 @@ class Stackplot:
         self.mapcube_diff = mapcube_diff
         return mapcube_diff
 
-    def plot_mapcube(self, mapcube=None, hdr=False, vmax=None, vmin=None, diff=False, sav_img=False, out_dir=None, dpi=100, anim=False):
+    def plot_mapcube(self, mapcube=None, hdr=False, vmax=None, vmin=None, cmap=None, diff=False, sav_img=False, out_dir=None, dpi=100, anim=False):
         '''
 
         :param mapcube:
@@ -559,17 +630,26 @@ class Stackplot:
             print('mapcube must be a instance of sunpy.map.mapcube.MapCube')
             return
         if hdr:
+            maplist = []
             for idx, smap in enumerate(tqdm(mapcube_plot)):
                 smap = DButil.sdo_aia_scale_hdr(smap)
-                mapcube_plot[idx].data = smap.data
+                maplist.append(sunpy.map.Map(smap.data, mapcube_plot[idx].meta))
+            mapcube_plot = sunpy.map.Map(maplist, cube=True)
         if not diff:
+            maplist = []
             for idx, smap in enumerate(tqdm(mapcube_plot)):
-                mapcube_plot[idx].data[np.where(smap.data < 1)] = 1
+                mapdata = mapcube_plot[idx].data
+                mapdata[np.where(smap.data < 1)] = 1
+                maplist.append(sunpy.map.Map(mapdata, mapcube_plot[idx].meta))
+            mapcube_plot = sunpy.map.Map(maplist, cube=True)
         self.mapcube_plot = mapcube_plot
         # sp = stackplot(parent_obj = self, mapcube = mapcube_plot)
-        fig_mapcube = plt.figure(figsize=(8, 7))
+        fig_mapcube = plt.figure()
         try:
-            clrange = DButil.sdo_aia_scale_dict(mapcube_plot[0].meta['wavelnth'])
+            if self.mapcube_plot[0].observatory == 'SDO':
+                clrange = DButil.sdo_aia_scale_dict(mapcube_plot[0].meta['wavelnth'])
+            else:
+                clrange = {'high': None, 'log': False, 'low': None}
         except:
             clrange = {'high': None, 'log': False, 'low': None}
         if not vmax:
@@ -580,7 +660,7 @@ class Stackplot:
             if out_dir is None:
                 out_dir = './'
 
-            ax, im1 = plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, diff=diff, returnImAx=True)
+            ax, im1 = self.plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, cmap=cmap, diff=diff, returnImAx=True)
             if anim:
                 import matplotlib
                 matplotlib.use("Agg")
@@ -598,11 +678,12 @@ class Stackplot:
 
                 ani = animation.FuncAnimation(fig_mapcube, update_frame, nframe, interval=50, blit=False)
 
-            prompt = ''
-            while not (prompt.lower() in ['y', 'n']):
-                prompt = raw_input('Satisfied with current FOV? [y/n]')
-            if prompt.lower() == 'n':
-                return
+            if not silent:
+                prompt = ''
+                while not (prompt.lower() in ['y', 'n']):
+                    prompt = raw_input('Satisfied with current FOV? [y/n]')
+                if prompt.lower() == 'n':
+                    return
             if anim:
                 print 'Saving movie to {}'.format(out_dir)
                 Writer = animation.writers['ffmpeg']
@@ -628,7 +709,7 @@ class Stackplot:
                                                                     smap.detector), format='png', dpi=dpi)
                 plt.ion()
         else:
-            ax, im1 = plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, diff=diff, returnImAx=True)
+            ax, im1 = self.plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, cmap=cmap, diff=diff, returnImAx=True)
             plt.subplots_adjust(bottom=0.10)
             dims = mapcube_plot[0].dimensions
             diagpix = int(np.sqrt(dims[0] ** 2 + dims[1] ** 2).value)
@@ -637,14 +718,16 @@ class Stackplot:
             # bStackplt = Button(axStackplt, 'StackPlt')
             pixscale = ((self.fov[1] - self.fov[0]) / dims[0].value + (self.fov[3] - self.fov[2]) / dims[1].value) / 2.0
             axFrame = plt.axes([0.10, 0.03, 0.40, 0.02], facecolor=axcolor)
+            # axFrame = self.divider_im.append_axes('bottom', size='1.5%', pad=0.2)
             sFrame = Slider(axFrame, 'frame', 0, len(mapcube_plot) - 1, valinit=0, valfmt='%0.0f')
-            axCutwdth = plt.axes([0.65, 0.02, 0.10, 0.01], facecolor=axcolor)
-            sCutwdth = Slider(axCutwdth, 'Width[pix]', 1, int(diagpix / 4.0), valinit=5, valfmt='%0.0f')
-            axCutang = plt.axes([0.65, 0.04, 0.10, 0.01], facecolor=axcolor)
-            sCutang = Slider(axCutang, 'Angle[deg]', 0.0, 90.0, valinit=3.0, valfmt='%.1f')
-            axCutlngth = plt.axes([0.65, 0.06, 0.10, 0.01], facecolor=axcolor)
-            sCutlngth = Slider(axCutlngth, 'Length[pix]', 20, int(diagpix * 4), valinit=150, valfmt='%0.0f')
-            self.cutslitbd = CutslitBuilder(ax, cutwidth=sCutwdth.val, cutang=sCutang.val / 180. * np.pi, cutlength=sCutlngth.val, scale=pixscale)
+            axCutwdth = plt.axes([0.65, 0.02, 0.20, 0.01], facecolor=axcolor)
+            # axCutwdth = self.divider_im.append_axes('bottom', size='1.5%', pad=0.2)
+            self.sCutwdth = Slider(axCutwdth, 'Width[pix]', 1, int(diagpix / 4.0), valinit=5, valfmt='%0.0f')
+            axCutang = plt.axes([0.65, 0.04, 0.20, 0.01], facecolor=axcolor)
+            self.sCutang = Slider(axCutang, 'Angle[deg]', -45.0, 45.0, valinit=0.0, valfmt='%.1f')
+            axCutlngth = plt.axes([0.65, 0.06, 0.20, 0.01], facecolor=axcolor)
+            self.sCutlngth = Slider(axCutlngth, 'Length[pix]', 20, int(diagpix * 4), valinit=150, valfmt='%0.0f')
+            self.cutslitbd = CutslitBuilder(ax, cutwidth=self.sCutwdth.val, cutang=self.sCutang.val / 180. * np.pi, cutlength=self.sCutlngth.val, scale=pixscale)
 
             # def bStackplt_update(event):
             #     # print bStackplt.val
@@ -667,56 +750,81 @@ class Stackplot:
             sFrame.on_changed(sFrame_update)
 
             def sCutwdth_update(val):
-                wdth = sCutwdth.val
+                wdth = self.sCutwdth.val
                 self.cutslitbd.cutwidth = wdth
                 self.cutslitbd.update()
 
-            sCutwdth.on_changed(sCutwdth_update)
+            self.sCutwdth.on_changed(sCutwdth_update)
 
             def sCutang_update(val):
-                ang = sCutang.val / 180. * np.pi
+                ang = self.sCutang.val / 180. * np.pi
                 self.cutslitbd.cutang = ang
                 self.cutslitbd.update()
 
-            sCutang.on_changed(sCutang_update)
+            self.sCutang.on_changed(sCutang_update)
 
             def sCutlngth_update(val):
-                lngth = sCutlngth.val
+                lngth = self.sCutlngth.val
                 self.cutslitbd.cutlength = lngth
                 self.cutslitbd.update()
 
-            sCutlngth.on_changed(sCutlngth_update)
+            self.sCutlngth.on_changed(sCutlngth_update)
         return
 
-    def cutslit_fromfile(self, infile):
+    def cutslit_fromfile(self, infile, color=None):
         if self.cutslitbd:
             with open('{}'.format(infile), 'rb') as sf:
                 cutslit = pickle.load(sf)
-            self.cutslitbd.clickedpoints.set_data(cutslit['x'], cutslit['y'])
+            self.sCutlngth.set_val(cutslit['cutlength'])
+            self.sCutwdth.set_val(cutslit['cutwidth'])
+            self.cutslitbd.cutang = cutslit['cutang']
+            self.sCutang.set_val(self.cutslitbd.cutang*180./np.pi)
+            self.cutslitbd.scale = cutslit['scale']
+            self.cutslitbd.xx = cutslit['x']
+            self.cutslitbd.yy = cutslit['y']
+            self.cutslitbd.clickedpoints.set_data(self.cutslitbd.xx, self.cutslitbd.yy)
             self.cutslitbd.clickedpoints.figure.canvas.draw()
-            self.cutslitbd.cutslitplt = cutslit['cutslit']
-            self.cutslitbd.slitline.set_data(cutslit['cutslit']['xcen'], cutslit['cutslit']['ycen'])
-            self.cutslitbd.slitline0.set_data(cutslit['cutslit']['xs0'], cutslit['cutslit']['ys0'])
-            self.cutslitbd.slitline1.set_data(cutslit['cutslit']['xs1'], cutslit['cutslit']['ys1'])
-            self.cutslitbd.slitline.figure.canvas.draw()
-            self.cutslitbd.slitline0.figure.canvas.draw()
-            self.cutslitbd.slitline1.figure.canvas.draw()
+            self.cutslitbd.update()
+            # self.cutslitbd.clickedpoints.set_data(cutslit['x'], cutslit['y'])
+            # self.cutslitbd.clickedpoints.figure.canvas.draw()
+            # self.cutslitbd.cutslitplt = cutslit['cutslit']
+            # self.cutslitbd.slitline.set_data(cutslit['cutslit']['xcen'], cutslit['cutslit']['ycen'])
+            # self.cutslitbd.slitline0.set_data(cutslit['cutslit']['xs0'], cutslit['cutslit']['ys0'])
+            # self.cutslitbd.slitline1.set_data(cutslit['cutslit']['xs1'], cutslit['cutslit']['ys1'])
+            # self.cutslitbd.slitline.figure.canvas.draw()
+            # self.cutslitbd.slitline0.figure.canvas.draw()
+            # self.cutslitbd.slitline1.figure.canvas.draw()
+            if color:
+                self.cutslitbd.slitline.set_color(color)
+                self.cutslitbd.slitline0.set_color(color)
+                self.cutslitbd.slitline1.set_color(color)
         else:
             print('plot_mapcube first before loading cutslit from file!')
 
     def cutslit_tofile(self, outfile=None, cutslit=None):
         if not cutslit:
             cutslit = {'x': self.cutslitbd.clickedpoints.get_xdata(), 'y': self.cutslitbd.clickedpoints.get_ydata(),
-                       'cutslit': self.cutslitbd.cutslitplt}
+                       'cutslit': self.cutslitbd.cutslitplt, 'cutlength': self.cutslitbd.cutlength, 'cutwidth': self.cutslitbd.cutwidth, 'cutang': self.cutslitbd.cutang,
+                       'scale': self.cutslitbd.scale}
         with open('{}'.format(outfile), 'wb') as sf:
             pickle.dump(cutslit, sf)
 
-    def make_stackplot(self, mapcube):
+    def make_stackplot(self, mapcube, frm_range=None):
         stackplt = []
         print 'making the stack plot...'
+        if type(frm_range) is list:
+            if len(frm_range) == 2:
+                if not (0 <= frm_range[0] < len(mapcube)):
+                    frm_range[0] = 0
+                if not (0 <= frm_range[-1] < len(mapcube)):
+                    frm_range[-1] = len(mapcube)
         for idx, smap in enumerate(tqdm(mapcube)):
-            intens = getimprofile(smap.data, self.cutslitbd.cutslitplt, xrange=smap.xrange.value, yrange=smap.yrange.value)
-            stackplt.append(intens['y'])
+            if frm_range[0] <= idx <= frm_range[-1]:
+                intens = getimprofile(smap.data, self.cutslitbd.cutslitplt, xrange=smap.xrange.to(u.arcsec).value,
+                                      yrange=smap.yrange.to(u.arcsec).value)
+                stackplt.append(intens['y'])
+            else:
+                stackplt.append(np.zeros_like(self.cutslitbd.cutslitplt['dist']) * np.nan)
         if len(stackplt) > 1:
             stackplt = np.vstack(stackplt)
             self.stackplt = stackplt.transpose()
@@ -731,7 +839,8 @@ class Stackplot:
         with open('{}'.format(outfile), 'wb') as sf:
             pickle.dump(dspec, sf)
 
-    def plot_stackplot(self, mapcube=None, hdr=False, vmax=None, vmin=None, diff=False, uni_cm=False, cutslitplt=None):
+    def plot_stackplot(self, mapcube=None, hdr=False, vmax=None, vmin=None, cmap=None, layout_vert=False, diff=False, uni_cm=False, sav_img=False,
+                       out_dir=None, dpi=100, anim=False, frm_range=None, cutslitplt=None, silent=False, refresh=True):
         if mapcube:
             mapcube_plot = deepcopy(mapcube)
         else:
@@ -742,8 +851,17 @@ class Stackplot:
         if not isinstance(mapcube_plot, sunpy.map.mapcube.MapCube):
             print('mapcube must be a instance of sunpy.map.mapcube.MapCube')
             return
-        self.make_stackplot(mapcube_plot)
-        fig_mapcube = plt.figure(figsize=(14, 7))
+            maplist = []
+            for idx, smap in enumerate(tqdm(mapcube_plot)):
+                smap = DButil.sdo_aia_scale_hdr(smap)
+                maplist.append(sunpy.map.Map(smap.data, mapcube_plot[idx].meta))
+            mapcube_plot = sunpy.map.Map(maplist, cube=True)
+        if refresh:
+            self.make_stackplot(mapcube_plot, frm_range=frm_range)
+        if layout_vert:
+            fig_mapcube = plt.figure(figsize=(7, 7))
+        else:
+            fig_mapcube = plt.figure(figsize=(14, 7))
         try:
             clrange = DButil.sdo_aia_scale_dict(mapcube_plot[0].meta['wavelnth'])
         except:
@@ -754,54 +872,130 @@ class Stackplot:
             vmin = clrange['low']
         norm = colors.Normalize(vmin=np.min(self.stackplt), vmax=np.max(self.stackplt))
         cutslitplt = self.cutslitbd.cutslitplt
-        try:
-            dspec = {'dspec': self.stackplt, 'x': self.tplt.plot_date, 'y': cutslitplt['dist'], 'ytitle': 'Distance [arcsec]',
-                     'ctitle': 'DN counts per second',
-                     'args': {'norm': norm, 'cmap': cm.get_cmap('sdoaia{}'.format(mapcube_plot[0].meta['wavelnth']))}}
-        except:
-            dspec = {'dspec': self.stackplt, 'x': self.tplt.plot_date, 'y': cutslitplt['dist'], 'ytitle': 'Distance [arcsec]', 'ctitle': '',
-                     'args': {'norm': norm, 'cmap': 'gray_r'}}
+        if not cmap:
+            try:
+                cmap = cm.get_cmap('sdoaia{}'.format(mapcube_plot[0].meta['wavelnth']))
+            except:
+                cmap = 'gray_r'
+
+        dspec = {'dspec': self.stackplt, 'x': self.tplt.plot_date, 'y': cutslitplt['dist'], 'ytitle': 'Distance [arcsec]',
+                 'ctitle': 'DN counts per second', 'args': {'norm': norm, 'cmap': cmap}}
 
         dtplot = np.mean(np.diff(self.tplt.plot_date))
         dspec['axvspan'] = [self.tplt[0].plot_date, self.tplt[0].plot_date + dtplot]
-        ax, im1, ax2, im2, vspan = plot_map(mapcube_plot[0], dspec, vmax=vmax, vmin=vmin, diff=diff, returnImAx=True, uni_cm=uni_cm)
-        plt.subplots_adjust(bottom=0.10)
-        ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
-        ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
-        ax.plot(cutslitplt['xs1'], cutslitplt['ys1'], color='white', ls='dotted')
-        axcolor = 'lightgoldenrodyellow'
-        axframe2 = plt.axes([0.1, 0.03, 0.40, 0.02], facecolor=axcolor)
-        sframe2 = Slider(axframe2, 'frame', 0, len(mapcube_plot) - 1, valinit=0, valfmt='%0.0f')
+        if sav_img:
+            if out_dir is None:
+                out_dir = './'
 
-        def update2(val):
-            frm = int(sframe2.val)
-            smap = mapcube_plot[frm]
-            im1.set_data(smap.data)
-            if smap.meta.has_key('t_obs'):
-                tstr = smap.meta['t_obs']
-            else:
-                tstr = smap.meta['date-obs']
-            ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
-            vspan_xy = vspan.get_xy()
-            vspan_xy[np.array([0, 1, 4]), 0] = self.tplt[frm].plot_date
-            if frm < len(self.tplt) - 1:
-                vspan_xy[np.array([2, 3]), 0] = self.tplt[frm + 1].plot_date
-            else:
-                vspan_xy[np.array([2, 3]), 0] = self.tplt[frm].plot_date
-            vspan.set_xy(vspan_xy)
-            fig_mapcube.canvas.draw()
+            ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[0], dspec, vmax=vmax, vmin=vmin, diff=diff, returnImAx=True, uni_cm=uni_cm,
+                                                layout_vert=layout_vert)
+            plt.subplots_adjust(bottom=0.10)
+            ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
+            ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
+            ax.plot(cutslitplt['xs1'], cutslitplt['ys1'], color='white', ls='dotted')
+            if anim:
+                import matplotlib
+                matplotlib.use("Agg")
+                import matplotlib.animation as animation
+                nframe = len(mapcube_plot)
 
-        sframe2.on_changed(update2)
+                def update_frame2(num):
+                    frm = int(num)
+                    smap = mapcube_plot[frm]
+                    # smap.data[smap.data<1]=1
+                    im1.set_data(smap.data)
+                    # im1.set_extent(list(smap.xrange.value) + list(smap.yrange.value))
+                    vspan_xy = vspan.get_xy()
+                    vspan_xy[np.array([0, 1, 4]), 0] = self.tplt[frm].plot_date
+                    if frm < len(self.tplt) - 1:
+                        vspan_xy[np.array([2, 3]), 0] = self.tplt[frm + 1].plot_date
+                    else:
+                        vspan_xy[np.array([2, 3]), 0] = self.tplt[frm].plot_date
+                    vspan.set_xy(vspan_xy)
+                    ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, smap.meta['t_obs']))
+                    fig_mapcube.canvas.draw()
+                    return
+
+                ani = animation.FuncAnimation(fig_mapcube, update_frame2, nframe, interval=50, blit=False)
+
+            if not silent:
+                prompt = ''
+                while not (prompt.lower() in ['y', 'n']):
+                    prompt = raw_input('Satisfied with current FOV? [y/n]')
+                if prompt.lower() == 'n':
+                    return
+            if anim:
+                print 'Saving movie to {}'.format(out_dir)
+                Writer = animation.writers['ffmpeg']
+                writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+                ani.save('{0}/Stackplot-{2}{1}.mp4'.format(out_dir, mapcube_plot[0].meta['wavelnth'], mapcube_plot[0].detector), writer=writer)
+            else:
+                plt.ioff()
+                print 'Saving images to {}'.format(out_dir)
+                for frm, smap in enumerate(tqdm(mapcube_plot)):
+                    im1.set_data(smap.data)
+                    # im1.set_extent(list(smap.xrange.value) + list(smap.yrange.value))
+                    # ax.set_xlim(list(smap.xrange.value))
+                    # ax.set_ylim(list(smap.yrange.value))
+                    if smap.meta.has_key('t_obs'):
+                        tstr = smap.meta['t_obs']
+                    else:
+                        tstr = smap.meta['date-obs']
+                    ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
+                    vspan_xy = vspan.get_xy()
+                    vspan_xy[np.array([0, 1, 4]), 0] = self.tplt[frm].plot_date
+                    if frm < len(self.tplt) - 1:
+                        vspan_xy[np.array([2, 3]), 0] = self.tplt[frm + 1].plot_date
+                    else:
+                        vspan_xy[np.array([2, 3]), 0] = self.tplt[frm].plot_date
+                    vspan.set_xy(vspan_xy)
+                    t_map = Time(tstr)
+                    fig_mapcube.canvas.draw()
+                    fig_mapcube.savefig('{0}/Stackplot-{3}{1}-{2}.png'.format(out_dir, smap.meta['wavelnth'],
+                                                                              t_map.iso.replace(' ', 'T').replace(':', '').replace('-', '')[:-4],
+                                                                              smap.detector), format='png', dpi=dpi)
+                plt.ion()
+        else:
+            ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[0], dspec, vmax=vmax, vmin=vmin, diff=diff, returnImAx=True, uni_cm=uni_cm,
+                                                layout_vert=layout_vert)
+            plt.subplots_adjust(bottom=0.10)
+            ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
+            ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
+            ax.plot(cutslitplt['xs1'], cutslitplt['ys1'], color='white', ls='dotted')
+            axcolor = 'lightgoldenrodyellow'
+            axframe2 = plt.axes([0.1, 0.03, 0.40, 0.02], facecolor=axcolor)
+            sframe2 = Slider(axframe2, 'frame', 0, len(mapcube_plot) - 1, valinit=0, valfmt='%0.0f')
+
+            def update2(val):
+                frm = int(sframe2.val)
+                smap = mapcube_plot[frm]
+                im1.set_data(smap.data)
+                if smap.meta.has_key('t_obs'):
+                    tstr = smap.meta['t_obs']
+                else:
+                    tstr = smap.meta['date-obs']
+                ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
+                vspan_xy = vspan.get_xy()
+                vspan_xy[np.array([0, 1, 4]), 0] = self.tplt[frm].plot_date
+                if frm < len(self.tplt) - 1:
+                    vspan_xy[np.array([2, 3]), 0] = self.tplt[frm + 1].plot_date
+                else:
+                    vspan_xy[np.array([2, 3]), 0] = self.tplt[frm].plot_date
+                vspan.set_xy(vspan_xy)
+                fig_mapcube.canvas.draw()
+
+            sframe2.on_changed(update2)
+        return
 
     def mapcube_info(self, mapcube=None):
         if mapcube:
             trange = Time([mapcube[0].date, mapcube[-1].date])
-            fov = np.hstack([mapcube[0].xrange.value, mapcube[0].yrange.value])
+            fov = np.hstack([mapcube[0].xrange.to(u.arcsec).value, mapcube[0].yrange.to(u.arcsec).value])
             binpix = int(np.round(np.mean([ll.value for ll in mapcube[0].scale]) / self.instrum_meta['SDO/AIA']['scale'].value))
             return {'trange': trange, 'fov': fov, 'binpix': binpix}
         else:
             self.trange = Time([self.mapcube[0].date, self.mapcube[-1].date])
-            self.fov = np.hstack([self.mapcube[0].xrange.value, self.mapcube[0].yrange.value])
+            self.fov = np.hstack([self.mapcube[0].xrange.to(u.arcsec).value, self.mapcube[0].yrange.to(u.arcsec).value])
             self.binpix = int(np.round(np.mean([ll.value for ll in self.mapcube[0].scale]) / self.instrum_meta['SDO/AIA']['scale'].value))
             return {'trange': self.trange, 'fov': self.fov, 'binpix': self.binpix}
 
