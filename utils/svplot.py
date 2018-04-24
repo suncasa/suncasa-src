@@ -101,6 +101,9 @@ def downloadAIAdata(trange, wavelength=None, outdir='./'):
 
 def trange2aiafits(trange, aiawave, aiadir):
     trange = Time(trange)
+    if len(trange.iso) == 2:
+        if trange[1].jd - trange[0].jd < 12. / 24. / 3600:
+            trange = Time(np.mean(trange.jd) + np.array([-1., 1.]) * 6. / 24. / 3600, format='jd')
     aiafits = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=trange, isexists=True)
     if not aiafits:
         aiafits = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=trange, isexists=True)
@@ -1018,8 +1021,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             if not aiafits:
                 newlist = trange2aiafits(Time([starttim1, endtim1]), aiawave, aiadir)
 
-            aiafits = newlist[0]
             try:
+                aiafits = newlist[0]
                 aiamap = smap.Map(aiafits)
             except:
                 print 'error in reading aiafits. Proceed without AIA'
