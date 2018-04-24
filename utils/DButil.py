@@ -11,12 +11,19 @@ __email__ = "sijie.yu@njit.edu"
 
 
 def img2html_movie(imgprefix, outname='movie', img_fmt='png'):
-    from PIL import Image
     imgfiles = glob.glob(imgprefix + '*.' + img_fmt)
     imgfiles = sorted(imgfiles)
-    img = Image.open(imgfiles[0])
-    width, height = img.size
-    img.close()
+
+    # try:
+    import matplotlib.image as mpimg
+    img = mpimg.imread(imgfiles[0])
+    height, width, dummy = img.shape
+    # except:
+    #     from PIL import Image
+    #     img = Image.open(imgfiles[0])
+    #     width, height = img.size
+    #     img.close()
+
     nfiles = len(imgfiles)
     htmlfile = os.path.join(imgprefix, '{}.html'.format(outname))
     fi = open(htmlfile, 'w')
