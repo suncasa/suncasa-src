@@ -25,7 +25,7 @@ def img2html_movie(imgprefix, outname='movie', img_fmt='png'):
     #     img.close()
 
     nfiles = len(imgfiles)
-    htmlfile = os.path.join(imgprefix, '{}.html'.format(outname))
+    htmlfile = os.path.join(os.path.dirname(imgprefix), '{}.html'.format(outname))
     fi = open(htmlfile, 'w')
     fi.write('<HTML>\n')
     fi.write('\n')
@@ -721,6 +721,17 @@ def normalize_aiamap(aiamap):
             raise ValueError('input sunpy map is not from aia.')
     except:
         raise ValueError('check your input map. There are some errors in it.')
+
+def tplt(mapcube):
+    from astropy.time import Time
+    t = []
+    for idx, mp in enumerate(mapcube):
+        if mp.meta.has_key('t_obs'):
+            tstr = mp.meta['t_obs']
+        else:
+            tstr = mp.meta['date-obs']
+        t.append(tstr)
+    return Time(t)
 
 
 def sdo_aia_scale_hdr(smap):

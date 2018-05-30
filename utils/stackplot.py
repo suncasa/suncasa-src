@@ -134,7 +134,6 @@ def getimprofile(data, cutslit, xrange=None, yrange=None):
         return intensdist
 
 
-
 def smooth(x, window_len=11, window='hanning'):
     """smooth the data using a window with requested size.
 
@@ -300,8 +299,8 @@ class Stackplot:
             else:
                 self.mapcube_fromfile(infile)
 
-    def plot_map(self, smap, dspec=None, diff=False, cmap=None, SymLogNorm=False, linthresh=0.5, returnImAx=False, layout_vert=False, uni_cm=False, *args,
-                 **kwargs):
+    def plot_map(self, smap, dspec=None, diff=False, cmap=None, SymLogNorm=False, linthresh=0.5, returnImAx=False, layout_vert=False, uni_cm=False,
+                 *args, **kwargs):
         import sunpy.cm.cm as cm  ## to bootstrap sdoaia color map
         import matplotlib.cm as cm
         import matplotlib.colors as colors
@@ -445,7 +444,7 @@ class Stackplot:
             else:
                 submaptmp = maptmp
             if superpixel:
-                submaptmp = submaptmp.superpixel(u.Quantity([binpix * u.pix] * 2))/(np.float(binpix)**2)
+                submaptmp = submaptmp.superpixel(u.Quantity([binpix * u.pix] * 2)) / (np.float(binpix) ** 2)
             else:
                 submaptmp = submaptmp.resample(u.Quantity(submaptmp.dimensions) / binpix)
             if submaptmp.detector == 'HMI':
@@ -727,7 +726,8 @@ class Stackplot:
             self.sCutang = Slider(axCutang, 'Angle[deg]', -45.0, 45.0, valinit=0.0, valfmt='%.1f')
             axCutlngth = plt.axes([0.65, 0.06, 0.20, 0.01], facecolor=axcolor)
             self.sCutlngth = Slider(axCutlngth, 'Length[pix]', 20, int(diagpix * 4), valinit=150, valfmt='%0.0f')
-            self.cutslitbd = CutslitBuilder(ax, cutwidth=self.sCutwdth.val, cutang=self.sCutang.val / 180. * np.pi, cutlength=self.sCutlngth.val, scale=pixscale)
+            self.cutslitbd = CutslitBuilder(ax, cutwidth=self.sCutwdth.val, cutang=self.sCutang.val / 180. * np.pi, cutlength=self.sCutlngth.val,
+                                            scale=pixscale)
 
             # def bStackplt_update(event):
             #     # print bStackplt.val
@@ -775,11 +775,17 @@ class Stackplot:
         if self.cutslitbd:
             with open('{}'.format(infile), 'rb') as sf:
                 cutslit = pickle.load(sf)
-            self.sCutlngth.set_val(cutslit['cutlength'])
-            self.sCutwdth.set_val(cutslit['cutwidth'])
-            self.cutslitbd.cutang = cutslit['cutang']
-            self.sCutang.set_val(self.cutslitbd.cutang*180./np.pi)
-            self.cutslitbd.scale = cutslit['scale']
+            if 'cutlength' in cutslit.keys():
+                self.sCutlngth.set_val(cutslit['cutlength'])
+            if 'cutang' in cutslit.keys():
+                self.cutslitbd.cutang = cutslit['cutang']
+                self.sCutang.set_val(self.cutslitbd.cutang * 180. / np.pi)
+            if 'cutwidth' in cutslit.keys():
+                self.sCutwdth.set_val(cutslit['cutwidth'])
+            if 'scale' in cutslit.keys():
+                self.cutslitbd.scale = cutslit['scale']
+            else:
+                self.cutslitbd.scale = 1.0
             self.cutslitbd.xx = cutslit['x']
             self.cutslitbd.yy = cutslit['y']
             self.cutslitbd.clickedpoints.set_data(self.cutslitbd.xx, self.cutslitbd.yy)
@@ -804,12 +810,12 @@ class Stackplot:
     def cutslit_tofile(self, outfile=None, cutslit=None):
         if not cutslit:
             cutslit = {'x': self.cutslitbd.clickedpoints.get_xdata(), 'y': self.cutslitbd.clickedpoints.get_ydata(),
-                       'cutslit': self.cutslitbd.cutslitplt, 'cutlength': self.cutslitbd.cutlength, 'cutwidth': self.cutslitbd.cutwidth, 'cutang': self.cutslitbd.cutang,
-                       'scale': self.cutslitbd.scale}
+                       'cutslit': self.cutslitbd.cutslitplt, 'cutlength': self.cutslitbd.cutlength, 'cutwidth': self.cutslitbd.cutwidth,
+                       'cutang': self.cutslitbd.cutang, 'scale': self.cutslitbd.scale}
         with open('{}'.format(outfile), 'wb') as sf:
             pickle.dump(cutslit, sf)
 
-    def make_stackplot(self, mapcube, frm_range=None):
+    def make_stackplot(self, mapcube, frm_range=[]):
         stackplt = []
         print 'making the stack plot...'
         if type(frm_range) is list:
@@ -818,6 +824,8 @@ class Stackplot:
                     frm_range[0] = 0
                 if not (0 <= frm_range[-1] < len(mapcube)):
                     frm_range[-1] = len(mapcube)
+            else:
+                frm_range = [0, len(mapcube)]
         for idx, smap in enumerate(tqdm(mapcube)):
             if frm_range[0] <= idx <= frm_range[-1]:
                 intens = getimprofile(smap.data, self.cutslitbd.cutslitplt, xrange=smap.xrange.to(u.arcsec).value,
@@ -840,7 +848,7 @@ class Stackplot:
             pickle.dump(dspec, sf)
 
     def plot_stackplot(self, mapcube=None, hdr=False, vmax=None, vmin=None, cmap=None, layout_vert=False, diff=False, uni_cm=False, sav_img=False,
-                       out_dir=None, dpi=100, anim=False, frm_range=None, cutslitplt=None, silent=False, refresh=True):
+                       out_dir=None, dpi=100, anim=False, frm_range=[], cutslitplt=None, silent=False, refresh=True):
         if mapcube:
             mapcube_plot = deepcopy(mapcube)
         else:
@@ -888,7 +896,7 @@ class Stackplot:
                 out_dir = './'
 
             ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[0], dspec, vmax=vmax, vmin=vmin, diff=diff, returnImAx=True, uni_cm=uni_cm,
-                                                layout_vert=layout_vert)
+                                                     layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
             ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
             ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
@@ -957,7 +965,7 @@ class Stackplot:
                 plt.ion()
         else:
             ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[0], dspec, vmax=vmax, vmin=vmin, diff=diff, returnImAx=True, uni_cm=uni_cm,
-                                                layout_vert=layout_vert)
+                                                     layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
             ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
             ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
