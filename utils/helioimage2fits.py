@@ -494,8 +494,14 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                                      Otherwise assume the phasecenter is correctly pointed to the solar disk center
                                      (EOVSA case)
     '''
-
+    import time
+    t0 = time.time()
     ia = iatool()
+    prtidx = 1
+
+    print 'point {}: {}'.format(prtidx,time.time()-t0)
+    prtidx+=1
+
     if not imagefile:
         raise ValueError, 'Please specify input image'
     if not timerange:
@@ -516,6 +522,10 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
     nimg = len(imagefile)
     if verbose:
         print str(nimg) + ' images to process...'
+
+    print 'point {}: {}'.format(prtidx,time.time()-t0)
+    prtidx+=1
+
     if reftime:  # use as reference time to find solar disk RA and DEC to register the image, but not the actual timerange associated with the image
         if type(reftime) == str:
             reftime = [reftime] * nimg
@@ -525,6 +535,10 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
     else:
         # use the supplied timerange to register the image
         helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=timerange, usephacenter=usephacenter)
+
+    print 'point {}: {}'.format(prtidx, time.time() - t0)
+    prtidx += 1
+
     for n, img in enumerate(imagefile):
         if verbose:
             print 'processing image #' + str(n)
@@ -540,6 +554,10 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
         except:
             print 'Error in converting the input timerange: ' + str(timeran) + '. Proceeding to the next image...'
             continue
+
+        print 'point {}: {}'.format(prtidx, time.time() - t0)
+        prtidx += 1
+
         hel = helio[n]
         if not os.path.exists(img):
             raise ValueError, 'Please specify input image'
@@ -553,6 +571,10 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             imr.close()
             imsum = ia.summary()
             ia.close()
+
+        print 'point {}: {}'.format(prtidx, time.time() - t0)
+        prtidx += 1
+
         # construct the standard fits header
         # RA and DEC of the reference pixel crpix1 and crpix2
         (imra, imdec) = (imsum['refval'][0], imsum['refval'][1])
@@ -585,7 +607,14 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
         (crval1, crval2) = (xoff + dx, yoff + dy)
         # update the fits header to heliocentric coordinates
 
+        print 'point {}: {}'.format(prtidx, time.time() - t0)
+        prtidx += 1
+
         hdu = pyfits.open(fitsf, mode='update')
+
+        print 'point {}: {}'.format(prtidx, time.time() - t0)
+        prtidx += 1
+
         header = hdu[0].header
         (cdelt1, cdelt2) = (
             -header['cdelt1'] * 3600., header['cdelt2'] * 3600.)  # Original CDELT1, 2 are for RA and DEC in degrees
@@ -625,6 +654,8 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             header.append(('hgln_obs', 0.))
             header.append(('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value))
 
+        print 'point {}: {}'.format(prtidx, time.time() - t0)
+        prtidx += 1
 
         # update intensity units, i.e. to brightness temperature?
         if toTb:
@@ -683,5 +714,11 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                     if faxis == '4':
                         data[i, :, :, :] *= jy_to_si / beam_area / factor * factor2
 
+        print 'point {}: {}'.format(prtidx, time.time() - t0)
+        prtidx += 1
+
         hdu.flush()
         hdu.close()
+
+        print 'point {}: {}'.format(prtidx, time.time() - t0)
+        prtidx += 1
