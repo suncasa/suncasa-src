@@ -35,8 +35,21 @@ import copy
 from pkg_resources import parse_version
 import pdb
 import time
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 aiadir_default = '/srg/data/sdo/aia/level1/'
+
+
+def get_mapcube_time(mapcube):
+    from astropy.time import Time
+    t = []
+    for idx, mp in enumerate(mapcube):
+        if mp.meta.has_key('t_obs'):
+            tstr = mp.meta['t_obs']
+        else:
+            tstr = mp.meta['date-obs']
+        t.append(tstr)
+    return Time(t)
 
 
 def uniq(lst):
@@ -245,7 +258,8 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
 
 
 def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None, imax=None, imin=None, dmax=None, dmin=None,
-                    clevels=None, cmap='jet', aiafits=None, aiadir=None, aiawave=171, plotaia=True, moviename='', plt_composite=False):
+                    clevels=None, cmap='jet', aiafits=None, aiadir=None, aiawave=171, plotaia=True, moviename='', plt_composite=False, alpha_cont=1.0,
+                    custom_mapcubes=[]):
     '''
     Required inputs:
 
@@ -270,7 +284,10 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     tidx, = np.where(np.logical_and(btimes.jd >= tr[0].jd, etimes.jd <= tr[1].jd))
     for k, v in imres.iteritems():
         imres[k] = list(np.array(v)[tidx])
-    observatory = imres['Obs'][0]
+    if 'Obs' in imres.keys():
+        observatory = imres['Obs'][0]
+    else:
+        observatory = ''
     polmap = {'RR': 0, 'LL': 1, 'I': 0, 'V': 1, 'XX': 0, 'YY': 1}
     pols = stokes.split(',')
     npols = len(pols)
@@ -282,6 +299,10 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     imres['Freq'] = [list(ll) for ll in imres['Freq']]
     Freq = sorted(uniq(imres['Freq']))
 
+    if custom_mapcubes:
+        cmpc_plttimes_mjd = []
+        for cmpc in custom_mapcubes['mapcube']:
+            cmpc_plttimes_mjd.append(get_mapcube_time(cmpc).mjd)
     plttimes = list(set(imres['BeginTime']))
     ntime = len(plttimes)
     # sort the imres according to time
@@ -378,8 +399,8 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         axs_dspec = [plt.subplot(gs[:2, :2])]
         axs_dspec.append(plt.subplot(gs[2:, :2]))
 
-    fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-
+    # fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+    # pdb.set_trace()
     if plotaia:
         '''check if aiafits files exist'''
         if aiadir:
@@ -416,7 +437,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             dspecvspans = []
             for pol in range(npols):
                 ax = axs_dspec[pol]
-                ax.pcolormesh(timstrr[tidx], freqghz, spec_plt[pol][:, tidx], cmap=cmaps[pol], vmax=dmax, vmin=dmin)
+                im_spec = ax.pcolormesh(timstrr[tidx], freqghz, spec_plt[pol][:, tidx] / 1e4, cmap=cmaps[pol], vmax=dmax, vmin=dmin)
                 ax.set_xlim(timstrr[tidx[0]], timstrr[tidx[-1]])
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 ax.set_ylabel('Frequency [GHz]')
@@ -435,7 +456,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 y0_new = y0 + 0.20 * v
                 x1_new = x1 - 0.03 * h
                 y1_new = y1 - 0.00 * v
-                ax.set_position(mpl.transforms.Bbox([[x0_new, y0_new], [x1_new, y1_new]]))
+                # ax.set_position(mpl.transforms.Bbox([[x0_new, y0_new], [x1_new, y1_new]]))
                 if pol == npols - 1:
                     ax.xaxis_date()
                     ax.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
@@ -452,8 +473,13 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     y0_new = ax_pos2[-1]
                     x1_new = x1
                     y1_new = y0_new + v
-                    ax.set_position(mpl.transforms.Bbox([[x0_new, y0_new], [x1_new, y1_new]]))
+                    # ax.set_position(mpl.transforms.Bbox([[x0_new, y0_new], [x1_new, y1_new]]))
                     ax.xaxis.set_visible(False)
+                divider = make_axes_locatable(ax)
+                cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
+                cax_spec.tick_params(direction='in')
+                clb_spec = plt.colorbar(im_spec, ax=ax, cax=cax_spec)
+                clb_spec.set_label('Flxu [sfu]')
         else:
             for pol in range(npols):
                 xy = dspecvspans[pol].get_xy()
@@ -489,8 +515,10 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                         continue
                     sz = rmap.data.shape
                     if len(sz) == 4:
-                        rmap.data = rmap.data[min(polmap[pols[pol]], rmap.meta['naxis4'] - 1), 0, :, :].reshape((sz[2], sz[3]))
-                    rmap.data[np.isnan(rmap.data)] = 0.0
+                        data = rmap.data[min(polmap[pols[pol]], rmap.meta['naxis4'] - 1), 0, :, :].reshape((sz[2], sz[3]))
+                    data[np.isnan(data)] = 0.0
+                    data = data / 1e4
+                    rmap = smap.Map(data, rmap.meta)
                 else:
                     # make an empty map
                     data = np.zeros((512, 512))
@@ -522,7 +550,8 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 if aiamap:
                     if plt_composite:
                         if n == 0:
-                            aiamap.plot(axes=ax, vmin=0)
+                            pdb.set_trace()
+                            aiamap.plot(axes=ax, cmap='gray', norm=colors.LogNorm(vmin=0.1,vmax=np.nanmax(aiamap.data)))
                     else:
                         aiamap.plot(axes=ax, vmin=0)
                     XX, YY = np.meshgrid(np.arange(rmap.data.shape[1]), np.arange(rmap.data.shape[0]))
@@ -541,7 +570,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                             clevels1 = np.linspace(0.2, 0.9, 5) * np.nanmax(rmap.data)
                     if plt_composite:
                         ax.contour(rmapx.value, rmapy.value, rmap.data, levels=clevels1,
-                                   colors=[cm.get_cmap(cmap)(float(n) / (nspw - 1))] * len(clevels1))
+                                   colors=[cm.get_cmap(cmap)(float(n) / (nspw - 1))] * len(clevels1), alpha=alpha_cont)
                     else:
                         ax.contour(rmapx.value, rmapy.value, rmap.data, levels=clevels1, cmap=cm.get_cmap(cmap))
                 else:
@@ -549,6 +578,35 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     rmap.plot(axes=ax, vmax=imax, vmin=imin)
                     rmap.draw_limb()
                     rmap.draw_grid()
+                if custom_mapcubes:
+                    for cmpcidx, cmpc in enumerate(custom_mapcubes['mapcube']):
+                        dtcmpc = np.mean(np.diff(cmpc_plttimes_mjd[cmpcidx]))
+                        timeline = cmpc_plttimes_mjd[cmpcidx] - Time(plttime).mjd
+                        if np.min(np.abs(timeline)) <= dtcmpc:
+                            if 'levels' in custom_mapcubes.keys():
+                                levels = np.array(custom_mapcubes['levels'][cmpcidx])
+                            else:
+                                levels = np.linspace(0.2, 0.9, 3)
+                            if 'color' in custom_mapcubes.keys():
+                                color = custom_mapcubes['color'][cmpcidx]
+                            else:
+                                color = None
+                            cmpidx = np.argmin(np.abs(timeline))
+                            cmp = cmpc[cmpidx]
+                            if 'label' in custom_mapcubes.keys():
+                                label = custom_mapcubes['label'][cmpcidx]
+                            else:
+                                label = '-'.join(['{:.0f}'.format(ll) for ll in cmp.measurement.value]) + ' {}'.format(cmp.measurement.unit)
+                            XX, YY = np.meshgrid(np.arange(cmp.data.shape[1]), np.arange(cmp.data.shape[0]))
+                            try:
+                                cmpx, cmpy = cmp.pixel_to_data(XX * u.pix, YY * u.pix)
+                            except:
+                                cmpxy = cmp.pixel_to_data(XX * u.pix, YY * u.pix)
+                                cmpx = cmpxy.Tx
+                                cmpy = cmpxy.Ty
+                            ax.contour(cmpx.value, cmpy.value, cmp.data, levels=np.array(levels) * np.nanmax(cmp.data), colors=color)
+                            ax.text(0.97, (len(custom_mapcubes['mapcube']) - cmpcidx-1) * 0.06 + 0.03, label, horizontalalignment='right',
+                                    verticalalignment='bottom', transform=ax.transAxes, color=color)
                 ax.set_autoscale_on(False)
                 if fov:
                     # pass
@@ -585,13 +643,12 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 ax.xaxis.set_visible(False)
                 ax.yaxis.set_visible(False)
         if plt_composite and nspw > 10:
-            from mpl_toolkits.axes_grid1 import make_axes_locatable
             divider = make_axes_locatable(ax)
-            cax = divider.append_axes('right', size='1.5%', pad=0.05)
-            cax.tick_params(direction='in')
+            cax_freq = divider.append_axes('right', size='1.5%', pad=0.05)
+            cax_freq.tick_params(direction='in')
             Freqs = [np.mean(fq) for fq in Freq]
-            mpl.colorbar.ColorbarBase(cax, cmap=cmap, norm=colors.Normalize(vmax=Freqs[-1], vmin=Freqs[0]))
-            cax.set_ylabel('Frequency [GHz]')
+            mpl.colorbar.ColorbarBase(cax_freq, cmap=cmap, norm=colors.Normalize(vmax=Freqs[-1], vmin=Freqs[0]))
+            cax_freq.set_ylabel('Frequency [GHz]')
         figname = observatory + '_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:19] + '.png'
         # fig_tdt = plttime.to_datetime())
         # fig_subdir = fig_tdt.strftime("%Y/%m/%d/")
@@ -838,8 +895,12 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
         gs2 = gridspec.GridSpec(2, 2)
         gs2.update(left=0.38, right=0.98, hspace=0.02, wspace=0.02)
 
-        spec_1 = np.absolute(spec[0, 0, :, :])
-        spec_2 = np.absolute(spec[1, 0, :, :])
+        if npol > 1:
+            spec_1 = np.absolute(spec[0, 0, :, :])
+            spec_2 = np.absolute(spec[1, 0, :, :])
+        else:
+            spec_1 = np.absolute(spec[0, 0, :, :])
+            spec_2 = np.zeros_like(spec_1)
         if observatory == 'EVLA':
             # circular feeds
             polstr = ['RR', 'LL']
@@ -1101,8 +1162,17 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             print 'radio fits file not recognized by sunpy.map. Aborting...'
             return -1
         if npol > 1:
-            rmap1 = smap.Map(hdu.data[0, 0, :, :], hdu.header)
-            rmap2 = smap.Map(hdu.data[1, 0, :, :], hdu.header)
+
+            if stokes == 'I,V':
+                data1 = (hdu.data[0, 0, :, :] + hdu.data[1, 0, :, :]) / 2.0
+                data2 = (hdu.data[0, 0, :, :] - hdu.data[1, 0, :, :]) / 2.0
+                cmaps = [cm.jet, cm.RdBu]
+            else:
+                data1 = hdu.data[0, 0, :, :]
+                data2 = hdu.data[1, 0, :, :]
+                cmaps = [cm.jet] * 2
+            rmap1 = smap.Map(data1, hdu.header)
+            rmap2 = smap.Map(data2, hdu.header)
 
         XX, YY = np.meshgrid(np.arange(rmap.data.shape[1]), np.arange(rmap.data.shape[0]))
         try:
@@ -1157,27 +1227,23 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             aiamap.draw_grid()
             aiamap.draw_rectangle((xyrange[0][0], xyrange[1][0]) * u.arcsec, sz_x, sz_y)
             if rmap:
-                ax4.contour(rmapx.value, rmapy.value, rmap1.data, levels=clevels1 * np.nanmax(rmap1.data), cmap=cm.jet)
-                ax6.contour(rmapx.value, rmapy.value, rmap2.data, levels=clevels2 * np.nanmax(rmap2.data), cmap=cm.RdBu)
+                ax4.contour(rmapx.value, rmapy.value, rmap1.data, levels=clevels1 * np.nanmax(rmap1.data), cmap=cmaps[0])
+                ax6.contour(rmapx.value, rmapy.value, rmap2.data, levels=clevels2 * np.nanmax(rmap2.data), cmap=cmaps[1])
             ax4.text(0.02, 0.02, 'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'), verticalalignment='bottom',
                      horizontalalignment='left', transform=ax4.transAxes, color='k', fontsize=10)
             ax6.text(0.02, 0.02, 'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'), verticalalignment='bottom',
                      horizontalalignment='left', transform=ax6.transAxes, color='k', fontsize=10)
         else:
             title = '{0} {1:6.3f} GHz'.format(observatory, (bfreqghz + efreqghz) / 2.0)
-            rmap1.plot(axes=ax4, cmap=cm.jet)
+            rmap1.plot(axes=ax4, cmap=cmaps[0])
             ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize=12)
             rmap1.draw_limb()
             rmap1.draw_grid()
             rmap1.draw_rectangle((xyrange[0][0], xyrange[1][0]) * u.arcsec, sz_x, sz_y)
-            rmap2.plot(axes=ax6, cmap=cm.RdBu)
+            rmap2.plot(axes=ax6, cmap=cmaps[1])
             ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize=12)
             rmap2.draw_limb()
             rmap2.draw_grid()
-            # ax4.contour(rmapx.value, rmapy.value, rmap1.data, levels=np.linspace(0.2, 0.9, 5) * np.nanmax(rmap1.data),
-            #            cmap=cm.gray)
-            # ax6.contour(rmapx.value, rmapy.value, rmap2.data, levels=np.linspace(0.2, 0.9, 5) * np.nanmax(rmap2.data),
-            #            cmap=cm.gray)
             rmap2.draw_rectangle((xyrange[0][0], xyrange[1][0]) * u.arcsec, sz_x, sz_y)
         ax4.set_xlim(-1200, 1200)
         ax4.set_ylim(-1200, 1200)
@@ -1219,10 +1285,10 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             ax7.contour(subrmapx.value, subrmapy.value, subrmap2.data, levels=clevels2 * np.nanmax(subrmap2.data),
                         cmap=cm.RdBu)  # subaiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
         else:
-            subrmap1.plot(axes=ax5, cmap=cm.jet, title='')
+            subrmap1.plot(axes=ax5, cmap=cmaps[0], title='')
             subrmap1.draw_limb()
             subrmap1.draw_grid()
-            subrmap2.plot(axes=ax7, cmap=cm.RdBu, title='')
+            subrmap2.plot(axes=ax7, cmap=cmaps[1], title='')
             subrmap2.draw_limb()
             subrmap2.draw_grid()  # ax5.contour(subrmapx.value, subrmapy.value, subrmap1.data,  #            levels=clevels1 * np.nanmax(subrmap1.data), cmap=cm.gray)  # ax7.contour(subrmapx.value, subrmapy.value, subrmap2.data,  #            levels=clevels2 * np.nanmax(subrmap2.data), cmap=cm.gray)  # subrmap1.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)  # subrmap2.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
         ax5.set_xlim(xyrange[0])
