@@ -6,7 +6,6 @@ import matplotlib.colors as colors
 from astropy.time import Time
 import matplotlib.dates as mdates
 from astropy.io import fits
-import signalsmooth as ss
 import numpy.ma as ma
 import matplotlib.cm as cm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -167,16 +166,16 @@ def smooth(x, window_len=11, window='hanning'):
     """
 
     if x.ndim != 1:
-        raise ValueError, "smooth only accepts 1 dimension arrays."
+        raise ValueError("smooth only accepts 1 dimension arrays.")
 
     if x.size < window_len:
-        raise ValueError, "Input vector needs to be bigger than window size."
+        raise ValueError("Input vector needs to be bigger than window size.")
 
     if window_len < 3:
         return x
 
     if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
-        raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
+        raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
 
     s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
     # print(len(s))
@@ -289,6 +288,7 @@ class Stackplot:
     sCutwdth = None
     sCutang = None
     sCutlngth = None
+    fig_mapcube = None
 
     @resettable
     def __init__(self, infile=None):
@@ -429,7 +429,7 @@ class Stackplot:
             print('Input trange format not recognized. trange can either be a file list or a timerange of astropy Time object')
 
         maplist = []
-        print 'Loading fits files....'
+        print('Loading fits files....')
         for ll in tqdm(fitsfile[::dt_data]):
             maptmp = sunpy.map.Map(ll)
             if fov:
@@ -469,7 +469,7 @@ class Stackplot:
             if not outfile:
                 outfile = 'mapcube_{0}_bin{3}_dtdata{4}_{1}_{2}'.format(mapcube[0].meta['wavelnth'], trange[0].isot[:-4].replace(':', ''),
                                                                         trange[1].isot[:-4].replace(':', ''), binpix, dt_data)
-            for ll in xrange(42):
+            for ll in range(42):
                 if os.path.exists(outfile):
                     if not os.path.exists(outfile + '_{}'.format(ll)):
                         outfile = outfile + '_{}'.format(ll)
@@ -494,7 +494,7 @@ class Stackplot:
                     return
                 self.mapcube = tmp
             self.mapcube_info()
-        print 'It took {} to load the mapcube.'.format(time.time() - t0)
+        print('It took {} to load the mapcube.'.format(time.time() - t0))
 
     def mapcube_tofile(self, outfile=None, mapcube=None):
         t0 = time.time()
@@ -508,14 +508,14 @@ class Stackplot:
             print('Saving mapcube to {}'.format(outfile))
             pickle.dump({'mp': mapcube, 'trange': mp_info['trange'], 'fov': mp_info['fov'], 'binpix': mp_info['binpix'], 'dt_data': self.dt_data,
                          'fitsfile': self.fitsfile}, sf)
-        print 'It took {} to save the mapcube.'.format(time.time() - t0)
+        print('It took {} to save the mapcube.'.format(time.time() - t0))
 
     def mapcube_drot(self):
         self.mapcube = mapcube_solar_derotate(self.mapcube)
         return self.mapcube
 
     def mapcube_resample(self, binpix=1):
-        print 'resampling mapcube.....'
+        print('resampling mapcube.....')
         maplist = []
         for idx, ll in enumerate(tqdm(self.mapcube)):
             maplist.append(deepcopy(ll.resample(u.Quantity(ll.dimensions) / binpix)))
@@ -542,14 +542,14 @@ class Stackplot:
         datacube = self.mapcube.as_array().astype(np.float)
         if gaussfilt:
             from scipy.ndimage import gaussian_filter
-            print 'gaussian filtering map.....'
+            print('gaussian filtering map.....')
             for idx, ll in enumerate(tqdm(self.mapcube)):
                 datacube[:, :, idx] = gaussian_filter(datacube[:, :, idx], gaussfilt, mode='nearest')
         if medfilt:
-            print 'median filtering map.....'
+            print('median filtering map.....')
             for idx, ll in enumerate(tqdm(self.mapcube)):
                 datacube[:, :, idx] = signal.medfilt(datacube[:, :, idx], medfilt)
-        print 'making the diff mapcube.....'
+        print('making the diff mapcube.....')
         tplt = self.tplt.jd
         for idx, ll in enumerate(tqdm(self.mapcube)):
             maplist.append(deepcopy(ll))
@@ -576,14 +576,14 @@ class Stackplot:
             ny, nx, nt = datacube_ft.shape
             fs = len(mapcube_diff) * 100.
             ncpu = mp.cpu_count() - 1
-            print 'filtering the mapcube in time domain.....'
-            for ly in tqdm(xrange(ny)):
+            print('filtering the mapcube in time domain.....')
+            for ly in tqdm(range(ny)):
                 b_filter_partial = partial(b_filter, datacube[ly], lowcut, highcut, fs)
                 pool = mp.Pool(ncpu)
-                res = pool.map(b_filter_partial, xrange(nx))
+                res = pool.map(b_filter_partial, range(nx))
                 pool.close()
                 pool.join()
-                for lx in xrange(nx):
+                for lx in range(nx):
                     datacube_ft[ly, lx] = res[lx]['y']
 
             maplist = []
@@ -644,6 +644,7 @@ class Stackplot:
         self.mapcube_plot = mapcube_plot
         # sp = stackplot(parent_obj = self, mapcube = mapcube_plot)
         fig_mapcube = plt.figure()
+        self.fig_mapcube = fig_mapcube
         try:
             if self.mapcube_plot[0].observatory == 'SDO':
                 clrange = DButil.sdo_aia_scale_dict(mapcube_plot[0].meta['wavelnth'])
@@ -684,13 +685,13 @@ class Stackplot:
                 if prompt.lower() == 'n':
                     return
             if anim:
-                print 'Saving movie to {}'.format(out_dir)
+                print('Saving movie to {}'.format(out_dir))
                 Writer = animation.writers['ffmpeg']
                 writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
                 ani.save('{0}/{2}{1}.mp4'.format(out_dir, mapcube_plot[0].meta['wavelnth'], mapcube_plot[0].detector), writer=writer)
             else:
                 plt.ioff()
-                print 'Saving images to {}'.format(out_dir)
+                print('Saving images to {}'.format(out_dir))
                 for smap in tqdm(mapcube_plot):
                     im1.set_data(smap.data)
                     # im1.set_extent(list(smap.xrange.value) + list(smap.yrange.value))
@@ -730,7 +731,7 @@ class Stackplot:
                                             scale=pixscale)
 
             # def bStackplt_update(event):
-            #     # print bStackplt.val
+            #     # print(bStackplt.val)
             #     print('button clicked')
             #
             # bStackplt.on_clicked(bStackplt_update)
@@ -817,7 +818,7 @@ class Stackplot:
 
     def make_stackplot(self, mapcube, frm_range=[]):
         stackplt = []
-        print 'making the stack plot...'
+        print('making the stack plot...')
         if type(frm_range) is list:
             if len(frm_range) == 2:
                 if not (0 <= frm_range[0] < len(mapcube)):
@@ -870,6 +871,7 @@ class Stackplot:
             fig_mapcube = plt.figure(figsize=(7, 7))
         else:
             fig_mapcube = plt.figure(figsize=(14, 7))
+        self.fig_mapcube = fig_mapcube
         try:
             clrange = DButil.sdo_aia_scale_dict(mapcube_plot[0].meta['wavelnth'])
         except:
@@ -933,13 +935,13 @@ class Stackplot:
                 if prompt.lower() == 'n':
                     return
             if anim:
-                print 'Saving movie to {}'.format(out_dir)
+                print('Saving movie to {}'.format(out_dir))
                 Writer = animation.writers['ffmpeg']
                 writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
                 ani.save('{0}/Stackplot-{2}{1}.mp4'.format(out_dir, mapcube_plot[0].meta['wavelnth'], mapcube_plot[0].detector), writer=writer)
             else:
                 plt.ioff()
-                print 'Saving images to {}'.format(out_dir)
+                print('Saving images to {}'.format(out_dir))
                 for frm, smap in enumerate(tqdm(mapcube_plot)):
                     im1.set_data(smap.data)
                     # im1.set_extent(list(smap.xrange.value) + list(smap.yrange.value))

@@ -19,8 +19,8 @@ from sunpy import lightcurve
 from sunpy.time import TimeRange
 from matplotlib.dates import DateFormatter
 from astropy.io import fits
-from astropy.coordinates import SkyCoord
 from sunpy import lightcurve as lc
+from astropy.coordinates import SkyCoord
 from sunpy.time import TimeRange, parse_time
 import pickle
 import datetime
@@ -258,7 +258,7 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
 
 
 def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None, imax=None, imin=None, dmax=None, dmin=None,
-                    clevels=None, cmap='jet', aiafits=None, aiadir=None, aiawave=171, plotaia=True, moviename='', plt_composite=False, alpha_cont=1.0,
+                    clevels=None, cmap='jet', aiafits=None, aiadir=None, aiawave=171, plotaia=True, moviename='', vie=False, alpha_cont=1.0,
                     custom_mapcubes=[]):
     '''
     Required inputs:
@@ -551,7 +551,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     if plt_composite:
                         if n == 0:
                             pdb.set_trace()
-                            aiamap.plot(axes=ax, cmap='gray', norm=colors.LogNorm(vmin=0.1,vmax=np.nanmax(aiamap.data)))
+                            aiamap.plot(axes=ax, cmap='gray', norm=colors.LogNorm(vmin=0.1, vmax=np.nanmax(aiamap.data)))
                     else:
                         aiamap.plot(axes=ax, vmin=0)
                     XX, YY = np.meshgrid(np.arange(rmap.data.shape[1]), np.arange(rmap.data.shape[0]))
@@ -605,7 +605,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                                 cmpx = cmpxy.Tx
                                 cmpy = cmpxy.Ty
                             ax.contour(cmpx.value, cmpy.value, cmp.data, levels=np.array(levels) * np.nanmax(cmp.data), colors=color)
-                            ax.text(0.97, (len(custom_mapcubes['mapcube']) - cmpcidx-1) * 0.06 + 0.03, label, horizontalalignment='right',
+                            ax.text(0.97, (len(custom_mapcubes['mapcube']) - cmpcidx - 1) * 0.06 + 0.03, label, horizontalalignment='right',
                                     verticalalignment='bottom', transform=ax.transAxes, color=color)
                 ax.set_autoscale_on(False)
                 if fov:
@@ -794,8 +794,13 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
     spwInfo = ms.getspectralwindowinfo()
     nspw = len(spwInfo)
     if not spw:
-        spw = '0~' + str(nspw - 1)
-    staql = {'timerange': timerange, 'spw': spw}
+        spwselec = '0~' + str(nspw - 1)
+    else:
+        if type(spw) is list:
+            spwselec = ';'.join(spw)
+        else:
+            spwselec = spw
+    staql = {'timerange': timerange, 'spw': spwselec}
     if ms.msselect(staql, onlyparse=True):
         ndx = ms.msselectedindices()
         chan_sel = ndx['channel']
@@ -861,7 +866,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             qlookfigdir = os.path.join(workdir, 'qlookimgs/')
             imresfile = os.path.join(qlookfitsdir, '{}.imres.npz'.format(os.path.basename(vis)))
             if overwrite:
-                imres = mk_qlook_image(vis, timerange=timerange, spws=spw.split(';'), twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir,
+                imres = mk_qlook_image(vis, timerange=timerange, spws=spw, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir,
                                        phasecenter=phasecenter, stokes=stokes, robust=robust, niter=niter, imsize=imsize, cell=cell, c_external=True)
             else:
                 if os.path.exists(imresfile):
@@ -869,7 +874,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                     imres = imres['imres'].item()
                 else:
                     print('Image results file not found; Creating new images.')
-                    imres = mk_qlook_image(vis, timerange=timerange, spws=spw.split(';'), twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir,
+                    imres = mk_qlook_image(vis, timerange=timerange, spws=spw, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir,
                                            phasecenter=phasecenter, stokes=stokes, robust=robust, niter=niter, imsize=imsize, cell=cell,
                                            c_external=True)
             if not os.path.exists(qlookfigdir):

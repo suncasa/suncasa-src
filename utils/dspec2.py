@@ -1,13 +1,7 @@
-import matplotlib.pyplot as plt
-import matplotlib.dates as dates
 import matplotlib.gridspec as gridspec
-from split_cli import split_cli as split
 import numpy as np
 import os
 import datetime
-import jdutil
-import pdb
-import signalsmooth
 import struct
 from scipy.io.idl import readsav
 from datetime import datetime
