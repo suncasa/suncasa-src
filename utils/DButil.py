@@ -542,12 +542,12 @@ def getspwfromfreq(vis, freqrange):
     freqIdx0 = np.where(freqInfo == freq0)
     freqIdx1 = np.where(freqInfo == freq1)
     sz_freqInfo = freqInfo.shape
-    ms_spw = ['{}'.format(ll) for ll in xrange(freqIdx0[0], freqIdx1[0] + 1)]
+    ms_spw = ['{}'.format(ll) for ll in range(freqIdx0[0], freqIdx1[0] + 1)]
     if len(ms_spw) == 1:
         ms_chan = ['{}~{}'.format(freqIdx0[1][0], freqIdx1[1][0])]
     else:
         ms_chan = ['{}~{}'.format(freqIdx0[1][0], sz_freqInfo[1] - 1)] + ['0~{}'.format(sz_freqInfo[1] - 1) for ll in
-                                                                          xrange(freqIdx0[0] + 1, freqIdx1[0])]
+                                                                          range(freqIdx0[0] + 1, freqIdx1[0])]
         ms_chan.append('0~{}'.format(freqIdx1[1][0]))
     spw = ','.join('{}:{}'.format(t[0], t[1]) for t in zip(ms_spw, ms_chan))
     return spw
@@ -942,7 +942,7 @@ def readsdofile(datadir=None, wavelength=None, trange=None, isexists=False, timt
             d1 = date(int(ymd[0][0]), int(ymd[0][1]), int(ymd[0][2]))
             d2 = date(int(ymd[1][0]), int(ymd[1][1]), int(ymd[1][2]))
             delta = d2 - d1
-            for i in xrange(delta.days + 1):
+            for i in range(delta.days + 1):
                 ymd = d1 + td(days=i)
                 sdofitspathtmp = glob.glob(
                     datadir + '/{:04d}/{:02d}/{:02d}/aia.lev1_*Z.{}.image_lev1.fits'.format(ymd.year, ymd.month, ymd.day, wavelength))
@@ -1022,7 +1022,7 @@ def readsdofileX(datadir=None, wavelength=None, trange=None, isexists=False, tim
             d1 = date(int(ymd[0][0]), int(ymd[0][1]), int(ymd[0][2]))
             d2 = date(int(ymd[1][0]), int(ymd[1][1]), int(ymd[1][2]))
             delta = d2 - d1
-            for i in xrange(delta.days + 1):
+            for i in range(delta.days + 1):
                 ymd = d1 + td(days=i)
                 sdofitspathtmp = glob.glob(datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd.year, ymd.month, ymd.day, wavelength))
                 if len(sdofitspathtmp) > 0:
@@ -1465,8 +1465,8 @@ def regridspec(spec, x, y, nxmax=None, nymax=None, interp=False):
         tt = np.linspace(x[0], x[-1], nt)
         ff = np.linspace(y[0], y[-1], nf)
         grid_x, grid_y = np.meshgrid(tt, ff)
-        for p in xrange(npol):
-            for b in xrange(nbl):
+        for p in range(npol):
+            for b in range(nbl):
                 specnew[p, b, :, :] = regridimage(spec[p, b, :, :], x, y, grid=[grid_x, grid_y])
     else:
         xstep, ystep = 1, 1
@@ -1501,7 +1501,7 @@ def get_contour_data(X, Y, Z, levels=[0.5, 0.7, 0.9]):
             # thecol = 3 * [None]
             theiso = '{:.0f}%'.format(cs.get_array()[isolevelid] / Z.max() * 100)
             isolevelid += 1
-            # for i in xrange(3):
+            # for i in range(3):
             # thecol[i] = int(255 * isocol[i])
             thecol = '#%02x%02x%02x' % (220, 220, 220)
             # thecol = '#03FFF9'
@@ -1574,8 +1574,8 @@ def XCorrMap(z, x, y, doxscale=True):
     yv = ccpeak.copy()
     yidxa = ccpeak.copy()
     yidxv = ccpeak.copy()
-    for idx1 in xrange(1, ny):
-        for idx2 in xrange(0, idx1):
+    for idx1 in range(1, ny):
+        for idx2 in range(0, idx1):
             lightcurve1 = zfit[idx1, :]
             lightcurve2 = zfit[idx2, :]
             ccval = c_correlate(lightcurve1, lightcurve2)

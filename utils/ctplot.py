@@ -128,7 +128,13 @@ def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], c
         else:
             aiamap = aiafile
         if x_range and y_range:
-            aiamap = aiamap.submap(u.Quantity(x_range * u.arcsec), u.Quantity(y_range * u.arcsec))
+            try:
+                aiamap = aiamap.submap(u.Quantity(x_range * u.arcsec), u.Quantity(y_range * u.arcsec))
+            except:
+                from astropy.coordinates import SkyCoord
+                bl = SkyCoord(x_range[0] * u.arcsec, y_range[0] * u.arcsec, frame=aiamap.coordinate_frame)
+                tr = SkyCoord(x_range[1] * u.arcsec, y_range[1] * u.arcsec, frame=aiamap.coordinate_frame)
+                aiamap = aiamap.submap(bl, tr)
 
     if type(vlafile) == dict:
         if dspecdata:
@@ -232,8 +238,8 @@ def plot_compsite_map(vlafile, aiafile, outfile='', label='', pol=0, chans=[], c
             vladata = hdu.data[pol, 0, :, :]
             vlamap = sunpy.map.Map((vladata, hdu.header))
             XX, YY = np.meshgrid(np.arange(vlamap.data.shape[1]), np.arange(vlamap.data.shape[0]))
-            mapx, mapy = vlamap.pixel_to_data(XX * u.pix, YY * u.pix)
-            mapx, mapy = mapx.value, mapy.value
+            mapxy = vlamap.pixel_to_data(XX * u.pix, YY * u.pix)
+            mapx, mapy = mapxy.Tx.value, mapxy.Ty.value
             clrange = (hdu.header['CRVAL3'] + np.arange(nfreq) * hdu.header['CDELT3']) / 1e9
             if len(chans) == 0:
                 chans = range(0, nfreq)
