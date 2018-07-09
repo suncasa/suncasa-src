@@ -352,6 +352,7 @@ def img2html_movie(imgprefix, outname='movie', img_fmt='png'):
     fi.write('\n')
     fi.close()  # pdb.set_trace()
     print('Write movie to {}'.format(htmlfile))
+    print('To open -----> firefox {} &'.format(os.path.abspath(htmlfile)))
 
 
 def my_timer(orig_func):
@@ -721,6 +722,7 @@ def normalize_aiamap(aiamap):
             raise ValueError('input sunpy map is not from aia.')
     except:
         raise ValueError('check your input map. There are some errors in it.')
+
 
 def tplt(mapcube):
     from astropy.time import Time
