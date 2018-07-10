@@ -258,7 +258,7 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
 
 
 def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None, imax=None, imin=None, dmax=None, dmin=None,
-                    clevels=None, cmap='jet', aiafits=None, aiadir=None, aiawave=171, plotaia=True, moviename='', vie=False, alpha_cont=1.0,
+                    clevels=None, cmap='jet', aiafits=None, aiadir=None, aiawave=171, plotaia=True, moviename='', plt_composite=False, alpha_cont=1.0,
                     custom_mapcubes=[]):
     '''
     Required inputs:
