@@ -282,8 +282,10 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     btimes = Time(imres['BeginTime'])
     etimes = Time(imres['EndTime'])
     tidx, = np.where(np.logical_and(btimes.jd >= tr[0].jd, etimes.jd <= tr[1].jd))
-    for k, v in imres.iteritems():
-        imres[k] = list(np.array(v)[tidx])
+    # imres = imres['imres']
+    if type(imres) is not dict:
+        for k, v in imres.iteritems():
+            imres[k] = list(np.array(v)[tidx])
     if 'Obs' in imres.keys():
         observatory = imres['Obs'][0]
     else:
