@@ -259,7 +259,7 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
 
 
 def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None, imax=None, imin=None, dmax=None, dmin=None,
-                    clevels=None, cmap='jet', aiafits=None, aiadir=None, aiawave=171, plotaia=True, moviename='', vie=False, alpha_cont=1.0,
+                    clevels=None, cmap='jet', aiafits=None, aiadir=None, aiawave=171, plotaia=True, moviename='', plt_composite=False, alpha_cont=1.0,
                     custom_mapcubes=[]):
     '''
     Required inputs:
@@ -283,8 +283,10 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     btimes = Time(imres['BeginTime'])
     etimes = Time(imres['EndTime'])
     tidx, = np.where(np.logical_and(btimes.jd >= tr[0].jd, etimes.jd <= tr[1].jd))
-    for k, v in imres.iteritems():
-        imres[k] = list(np.array(v)[tidx])
+    # imres = imres['imres']
+    if type(imres) is not dict:
+        for k, v in imres.iteritems():
+            imres[k] = list(np.array(v)[tidx])
     if 'Obs' in imres.keys():
         observatory = imres['Obs'][0]
     else:
@@ -801,6 +803,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             spwselec = ';'.join(spw)
         else:
             spwselec = spw
+    spw=spw.split(';')
     staql = {'timerange': timerange, 'spw': spwselec}
     if ms.msselect(staql, onlyparse=True):
         ndx = ms.msselectedindices()
