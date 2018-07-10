@@ -801,6 +801,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             spwselec = ';'.join(spw)
         else:
             spwselec = spw
+    spw=spw.split(';')
     staql = {'timerange': timerange, 'spw': spwselec}
     if ms.msselect(staql, onlyparse=True):
         ndx = ms.msselectedindices()
