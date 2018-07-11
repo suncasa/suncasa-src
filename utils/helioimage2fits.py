@@ -83,18 +83,40 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         observatory = '-5'
 
     etime = Time(btime.mjd + dur, format='mjd')
-    cmdstr = "https://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
-    cmdstr = cmdstr.replace("'", "%27")
 
     try:
-        context = ssl._create_unverified_context()
-        f = urllib2.urlopen(cmdstr, context=context)
+        cmdstr = "https://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
+        cmdstr = cmdstr.replace("'", "%27")
+        try:
+            context = ssl._create_unverified_context()
+            f = urllib2.urlopen(cmdstr, context=context)
+        except:
+            f = urllib2.urlopen(cmdstr)
+        # initialize the return dictionary
+        ephem0 = dict.fromkeys(['time', 'ra', 'dec', 'delta', 'p0'])
+        lines = f.readlines()
+        f.close()
     except:
-        f = urllib2.urlopen(cmdstr)
-    # initialize the return dictionary
-    ephem0 = dict.fromkeys(['time', 'ra', 'dec', 'delta', 'p0'])
-    lines = f.readlines()
-    f.close()
+        import requests, collections
+        params = collections.OrderedDict()
+        params['batch'] = '1'
+        params['TABLE_TYPE'] = "'OBSERVER'"
+        params['QUANTITIES'] = "'1,17,20'"
+        params['CSV_FORMAT'] = "'YES'"
+        params['ANG_FORMAT'] = "'DEG'"
+        params['CAL_FORMAT'] = "'BOTH'"
+        params['SOLAR_ELONG'] = "'0,180'"
+        params['CENTER'] = "'{}@399'".format(observatory)
+        params['COMMAND'] = "'10'"
+        params['START_TIME'] = "'{}'".format(btime.iso[:-4].replace(' ', ','))
+        params['STOP_TIME'] = "'{}'".format(etime.iso[:-4].replace(' ', ','))
+        params['STEP_SIZE'] = "'1m'"
+        params['SKIP_DAYLT'] = "'NO'"
+        params['EXTRA_PREC'] = "'YES'"
+        params['APPAENT'] = "'REFRACTED'"
+        results = requests.get("https://ssd.jpl.nasa.gov/horizons_batch.cgi", params=params)
+        lines = [ll for ll in results.iter_lines()]
+
     nline = len(lines)
     istart = 0
     for i in range(nline):
@@ -482,7 +504,7 @@ def getbeam(imagefile=None, beamfile=None):
 
 
 def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, reftime=None, fitsfile=None, beamfile=None, offsetfile=None, toTb=None,
-          scl100=None, verbose=False, p_ang=False, overwrite=True, usephacenter=True,deletehistory=False):
+          scl100=None, verbose=False, p_ang=False, overwrite=True, usephacenter=True, deletehistory=False):
     ''' 
     main routine to register CASA images
            Required Inputs:
