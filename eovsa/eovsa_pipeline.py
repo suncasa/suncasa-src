@@ -392,7 +392,7 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
                 dim = u.Quantity([256, 256], u.pixel)
                 eomap = eomap.resample(dim)
                 eomap.plot_settings['cmap'] = plt.get_cmap('jet')
-                eomap.plot_settings['norm']=colors.Normalize(vmin=-1e5,vmax=1e6)
+                eomap.plot_settings['norm'] = colors.Normalize(vmin=-1e5, vmax=1e6)
                 eomap.plot()
                 if not synoptic:
                     eomap.draw_limb()
@@ -421,7 +421,7 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
                           "DSUN_OBS": sun.sunearth_distance(plttime).to(u.meter).value, }
                 eomap = smap.Map(data, header)
                 eomap.plot_settings['cmap'] = plt.get_cmap('jet')
-                eomap.plot_settings['norm']=colors.Normalize(vmin=-1e5,vmax=1e6)
+                eomap.plot_settings['norm'] = colors.Normalize(vmin=-1e5, vmax=1e6)
                 eomap.plot()
                 if not synoptic:
                     eomap.draw_limb()
