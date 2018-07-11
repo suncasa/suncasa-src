@@ -110,7 +110,8 @@ def downloadAIAdata(trange, wavelength=None, outdir='./'):
                                                                   vsonamestrs[7]).upper() + vsonamestrs[2][:-1] + '.image_lev1.fits'
             print ll, jsocnamestr
             os.system('mv {} {}/{}'.format(ll, outdir, jsocnamestr))
-
+    if os.path.exists('/tmp/suds/'):
+        os.system('rm -rf /tmp/suds/')
 
 def trange2aiafits(trange, aiawave, aiadir):
     trange = Time(trange)
