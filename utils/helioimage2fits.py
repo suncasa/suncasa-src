@@ -83,11 +83,11 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         observatory = '-5'
 
     etime = Time(btime.mjd + dur, format='mjd')
-    #cmdstr = "http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
-    #    observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
-    #                                                                                          ',') + "'&STEP_SIZE='1 m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
-    cmdstr = "https://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
-    cmdstr = cmdstr.replace("'","%27")
+    cmdstr = "https://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
+        observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
+                                                                                              ',') + "'&STEP_SIZE='1 m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
+    cmdstr = cmdstr.replace("'", "%27")
+
     try:
         context = ssl._create_unverified_context()
         f = urllib2.urlopen(cmdstr, context=context)
@@ -695,6 +695,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             faxis_ind = dim - int(faxis)
             if header['BUNIT'].lower() == 'jy/beam':
                 header['BUNIT'] = 'K'
+                header['BTYPE'] = 'Brightness Temperature'
                 for i in range(sz[faxis_ind]):
                     nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * (i + 1 - header['CRPIX' + faxis])
                     if header['CUNIT' + faxis] == 'KHz':
