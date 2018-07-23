@@ -1143,6 +1143,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 if os.path.exists(imagename + '.image') or os.path.exists(imagename + '.flux'):
                     os.system('rm -rf ' + imagename + '.*')
                 sto = stokes.replace(',', '')
+                spw = ';'.join(spw)
                 print 'do clean for ' + timerange + ' in spw ' + spw + ' stokes ' + sto
                 print 'Original phasecenter: ' + str(ra0) + str(dec0)
                 print 'use phasecenter: ' + phasecenter
