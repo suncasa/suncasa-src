@@ -92,8 +92,6 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
             f = urllib2.urlopen(cmdstr, context=context)
         except:
             f = urllib2.urlopen(cmdstr)
-        # initialize the return dictionary
-        ephem0 = dict.fromkeys(['time', 'ra', 'dec', 'delta', 'p0'])
         lines = f.readlines()
         f.close()
     except:
