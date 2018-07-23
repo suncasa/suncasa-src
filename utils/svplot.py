@@ -1092,6 +1092,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
         if plotaia:
             if not aiafits:
                 newlist = trange2aiafits(Time([starttim1, endtim1]), aiawave, aiadir)
+            else:
+                newlist = [aiafits]
 
             try:
                 aiafits = newlist[0]
