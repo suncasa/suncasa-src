@@ -243,7 +243,7 @@ class CutslitBuilder:
             if event.button == 1 or event.button == 3:
                 self.clickedpoints.figure.canvas.toolbar.set_message('Uncheck toolbar button {} first!'.format(tmode))
 
-    def update(self):
+    def update(self, mask=None):
         xx = np.array(self.xx, dtype=np.float64)
         yy = np.array(self.yy, dtype=np.float64)
 
@@ -256,9 +256,14 @@ class CutslitBuilder:
             else:
                 cutslitplt = FitSlit(xx, yy, self.cutwidth * self.scale, self.cutang, self.cutlength, s=len(xx), method='Param_Spline')
         self.cutslitplt = cutslitplt
-        self.slitline.set_data(cutslitplt['xcen'], cutslitplt['ycen'])
-        self.slitline0.set_data(cutslitplt['xs0'], cutslitplt['ys0'])
-        self.slitline1.set_data(cutslitplt['xs1'], cutslitplt['ys1'])
+        if mask is None:
+            self.slitline.set_data(cutslitplt['xcen'], cutslitplt['ycen'])
+            self.slitline0.set_data(cutslitplt['xs0'], cutslitplt['ys0'])
+            self.slitline1.set_data(cutslitplt['xs1'], cutslitplt['ys1'])
+        else:
+            self.slitline.set_data(ma.masked_array(cutslitplt['xcen'], mask), ma.masked_array(cutslitplt['ycen'], mask))
+            self.slitline0.set_data(ma.masked_array(cutslitplt['xs0'], mask), ma.masked_array(cutslitplt['ys0'], mask))
+            self.slitline1.set_data(ma.masked_array(cutslitplt['xs1'], mask), ma.masked_array(cutslitplt['ys1'], mask))
         self.slitline.figure.canvas.draw()
         self.slitline0.figure.canvas.draw()
         self.slitline1.figure.canvas.draw()
@@ -444,7 +449,7 @@ class Stackplot:
             else:
                 submaptmp = maptmp
             if superpixel:
-                submaptmp = submaptmp.superpixel(u.Quantity([binpix * u.pix] * 2)) / (np.float(binpix) ** 2)
+                submaptmp = submaptmp.superpixel(u.Quantity((binpix * u.pix, binpix * u.pix)))
             else:
                 submaptmp = submaptmp.resample(u.Quantity(submaptmp.dimensions) / binpix)
             if submaptmp.detector == 'HMI':
@@ -522,10 +527,11 @@ class Stackplot:
         self.mapcube = sunpy.map.Map(maplist, cube=True)
         self.binpix *= binpix
 
-    def mapcube_mkdiff(self, mode=0, dt_frm=3, medfilt=None, gaussfilt=None, bfilter=False, lowcut=0.1, highcut=0.5, outfile=None, tosave=False):
+    def mapcube_mkdiff(self, mode='rdiff', dt_frm=3, medfilt=None, gaussfilt=None, bfilter=False, lowcut=0.1, highcut=0.5, outfile=None,
+                       tosave=False):
         '''
 
-        :param mode:
+        :param mode: accept modes: rdiff, rratio, bdiff, bratio
         :param dt_frm:
         :param medfilt:
         :param gaussfilt:
@@ -537,7 +543,7 @@ class Stackplot:
         :return:
         '''
         self.mapcube_diff = None
-        modes = {0: 'rdiff', 1: 'rratio', 2: 'bdiff', 3: 'bratio'}
+        # modes = {0: 'rdiff', 1: 'rratio', 2: 'bdiff', 3: 'bratio'}
         maplist = []
         datacube = self.mapcube.as_array().astype(np.float)
         if gaussfilt:
@@ -559,13 +565,13 @@ class Stackplot:
             #     sidx = 0
             # else:
             #     sidx = idx - dt_frm
-            if modes[mode] == 'rdiff':
+            if mode == 'rdiff':
                 mapdata = datacube[:, :, idx] - datacube[:, :, sidx]
-            elif modes[mode] == 'rratio':
+            elif mode == 'rratio':
                 mapdata = datacube[:, :, idx] / datacube[:, :, sidx]
-            elif modes[mode] == 'bdiff':
+            elif mode == 'bdiff':
                 mapdata = datacube[:, :, idx] - datacube[:, :, 0]
-            elif modes[mode] == 'bratio':
+            elif mode == 'bratio':
                 mapdata = datacube[:, :, idx] / datacube[:, :, 0]
             maplist[idx] = sunpy.map.Map(mapdata, maplist[idx].meta)
         mapcube_diff = sunpy.map.Map(maplist, cube=True)
@@ -596,12 +602,12 @@ class Stackplot:
                 outfile = 'mapcube_{5}_{0}_bin{3}_dtdata{4}_{1}_{2}'.format(self.mapcube[0].meta['wavelnth'],
                                                                             self.trange[0].isot[:-4].replace(':', ''),
                                                                             self.trange[1].isot[:-4].replace(':', ''), self.binpix, self.dt_data,
-                                                                            modes[mode])
+                                                                            mode)
             self.mapcube_tofile(outfile=outfile, mapcube=mapcube_diff)
         self.mapcube_diff = mapcube_diff
         return mapcube_diff
 
-    def plot_mapcube(self, mapcube=None, hdr=False, vmax=None, vmin=None, cmap=None, diff=False, sav_img=False, out_dir=None, dpi=100, anim=False):
+    def plot_mapcube(self, mapcube=None, hdr=False, vmax=None, vmin=None, cmap=None, diff=False, sav_img=False, out_dir=None, dpi=100, anim=False,silent=False):
         '''
 
         :param mapcube:
@@ -772,7 +778,7 @@ class Stackplot:
             self.sCutlngth.on_changed(sCutlngth_update)
         return
 
-    def cutslit_fromfile(self, infile, color=None):
+    def cutslit_fromfile(self, infile, color=None, mask=None):
         if self.cutslitbd:
             with open('{}'.format(infile), 'rb') as sf:
                 cutslit = pickle.load(sf)
@@ -789,9 +795,10 @@ class Stackplot:
                 self.cutslitbd.scale = 1.0
             self.cutslitbd.xx = cutslit['x']
             self.cutslitbd.yy = cutslit['y']
-            self.cutslitbd.clickedpoints.set_data(self.cutslitbd.xx, self.cutslitbd.yy)
+            if mask is None:
+                self.cutslitbd.clickedpoints.set_data(self.cutslitbd.xx, self.cutslitbd.yy)
             self.cutslitbd.clickedpoints.figure.canvas.draw()
-            self.cutslitbd.update()
+            self.cutslitbd.update(mask=mask)
             # self.cutslitbd.clickedpoints.set_data(cutslit['x'], cutslit['y'])
             # self.cutslitbd.clickedpoints.figure.canvas.draw()
             # self.cutslitbd.cutslitplt = cutslit['cutslit']

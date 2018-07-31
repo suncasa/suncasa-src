@@ -98,9 +98,9 @@ def lightcurves(timerange, outdir='./', specfile=None, goes=True, hessifile=None
     if len(tidx_spec) > 1:
         spec_tim_plt = spec_tim[tidx_spec[0]:tidx_spec[-1]].plot_date
         flux_colors = []
-        for idx, fidx in enumerate(fidx_plt):
-            flux_plt = medfilt(spec[fidx, tidx_spec[0]:tidx_spec[-1]], 7)
-            p = ax.plot(spec_tim_plt, flux_plt / np.nanmax(flux_plt), label='{:.2f} GHz'.format(freqghz[fidx]))
+        for idx, fidx in enumerate(np.round(fidx_plt).astype(np.int)):
+            flux_plt = medfilt(spec[min(fidx, nfreq - 1), tidx_spec[0]:tidx_spec[-1]], 7)
+            p = ax.plot(spec_tim_plt, flux_plt / np.nanmax(flux_plt), label='{:.2f} GHz'.format(freqghz[min(fidx, nfreq - 1)]))
             flux_colors.append(p[0].get_color())
         ax.set_ylabel('Flux (Normalized)')
         ax.set_ylim(0, 1.1)
@@ -115,8 +115,8 @@ def lightcurves(timerange, outdir='./', specfile=None, goes=True, hessifile=None
         ax.fmt_xdata = formatter
         ax.set_xlim(tr_plt.plot_date)
         ax.set_xlabel('Start time ({})'.format(tr_plt[0].datetime.strftime('%d-%b-%y %H:%M:%S')))
-        for idx, fidx in enumerate(fidx_plt):
-            ax.axhline(freqghz[fidx], color=flux_colors[idx], ls=':')
+        for idx, fidx in enumerate(np.round(fidx_plt).astype(np.int)):
+            ax.axhline(freqghz[min(fidx, nfreq - 1)], color=flux_colors[idx], ls=':')
     else:
         print('Warning: No radio data in the timerange. Proceed without dynamic spectrum.')
 
