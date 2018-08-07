@@ -1141,10 +1141,10 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 if os.path.exists(imagename + '.image') or os.path.exists(imagename + '.flux'):
                     os.system('rm -rf ' + imagename + '.*')
                 sto = stokes.replace(',', '')
-                print 'do clean for ' + timerange + ' in spw ' + spw + ' stokes ' + sto
+                print 'do clean for ' + timerange + ' in spw ' + spw[0] + ' stokes ' + sto
                 print 'Original phasecenter: ' + str(ra0) + str(dec0)
                 print 'use phasecenter: ' + phasecenter
-                clean(vis=vis, imagename=imagename, selectdata=True, spw=spw, timerange=timerange, stokes=sto, niter=niter, interactive=interactive,
+                clean(vis=vis, imagename=imagename, selectdata=True, spw=spw[0], timerange=timerange, stokes=sto, niter=niter, interactive=interactive,
                       npercycle=50, imsize=imsize, cell=cell, restoringbeam=restoringbeam, weighting='briggs', robust=robust, phasecenter=phasecenter)
                 os.system('rm -rf ' + imagename + '.psf')
                 os.system('rm -rf ' + imagename + '.flux')
