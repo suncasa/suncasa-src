@@ -113,6 +113,7 @@ def downloadAIAdata(trange, wavelength=None, outdir='./'):
     if os.path.exists('/tmp/suds/'):
         os.system('rm -rf /tmp/suds/')
 
+
 def trange2aiafits(trange, aiawave, aiadir):
     trange = Time(trange)
     if len(trange.iso) == 2:
@@ -798,12 +799,13 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
     nspw = len(spwInfo)
     if not spw:
         spwselec = '0~' + str(nspw - 1)
+        spw = [spwselec]
     else:
         if type(spw) is list:
             spwselec = ';'.join(spw)
         else:
             spwselec = spw
-    spw=spw.split(';')
+            spw = [spw]  # spw=spw.split(';')
     staql = {'timerange': timerange, 'spw': spwselec}
     if ms.msselect(staql, onlyparse=True):
         ndx = ms.msselectedindices()
@@ -870,8 +872,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             qlookfigdir = os.path.join(workdir, 'qlookimgs/')
             imresfile = os.path.join(qlookfitsdir, '{}.imres.npz'.format(os.path.basename(vis)))
             if overwrite:
-                imres = mk_qlook_image(vis, timerange=timerange, spws=spw, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir,
-                                       phasecenter=phasecenter, stokes=stokes, robust=robust, niter=niter, imsize=imsize, cell=cell, c_external=True)
+                imres = mk_qlook_image(vis, timerange=timerange, spws=spw, twidth=twidth, ncpu=ncpu, imagedir=qlookfitsdir, phasecenter=phasecenter,
+                                       stokes=stokes, robust=robust, niter=niter, imsize=imsize, cell=cell, c_external=True)
             else:
                 if os.path.exists(imresfile):
                     imres = np.load(imresfile)
@@ -1090,6 +1092,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
         if plotaia:
             if not aiafits:
                 newlist = trange2aiafits(Time([starttim1, endtim1]), aiawave, aiadir)
+            else:
+                newlist = [aiafits]
 
             try:
                 aiafits = newlist[0]
@@ -1141,7 +1145,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 if os.path.exists(imagename + '.image') or os.path.exists(imagename + '.flux'):
                     os.system('rm -rf ' + imagename + '.*')
                 sto = stokes.replace(',', '')
-                print 'do clean for ' + timerange + ' in spw ' + spw[0] + ' stokes ' + sto
+                spw = ';'.join(spw)
+                print 'do clean for ' + timerange + ' in spw ' + spw + ' stokes ' + sto
                 print 'Original phasecenter: ' + str(ra0) + str(dec0)
                 print 'use phasecenter: ' + phasecenter
                 clean(vis=vis, imagename=imagename, selectdata=True, spw=spw[0], timerange=timerange, stokes=sto, niter=niter, interactive=interactive,
