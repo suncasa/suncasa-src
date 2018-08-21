@@ -399,8 +399,8 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             cmaps = ['jet', 'RdBu']
         print 'plot the dynamic spectrum in pol ' + pol
 
-        hnspw = nspw / 2
-        ncols = max(hnspw + 2, 1)  # 1 image: 1x1, 1 dspec:2x2
+        hnspw = max(nspw / 2, 1)
+        ncols = hnspw + 2  # 1 image: 1x1, 1 dspec:2x2
         nrows = 2 + 2
         fig = plt.figure(figsize=(12, 8))
         gs = gridspec.GridSpec(nrows, ncols)
