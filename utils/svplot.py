@@ -1203,10 +1203,12 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 print 'do clean for ' + timerange + ' in spw ' + spw + ' stokes ' + sto
                 print 'Original phasecenter: ' + str(ra0) + str(dec0)
                 print 'use phasecenter: ' + phasecenter
+
                 clean(vis=vis, imagename=imagename, selectdata=True, spw=spw, timerange=timerange, stokes=sto,
                       niter=niter, interactive=interactive,
                       npercycle=50, imsize=imsize, cell=cell, restoringbeam=restoringbeam, weighting='briggs',
                       robust=robust, phasecenter=phasecenter)
+
                 os.system('rm -rf ' + imagename + '.psf')
                 os.system('rm -rf ' + imagename + '.flux')
                 os.system('rm -rf ' + imagename + '.model')
