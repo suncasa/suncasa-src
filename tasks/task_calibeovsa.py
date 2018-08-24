@@ -382,5 +382,8 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
                 concatvis = os.path.join(msoutdir, concatvis)
             ce.concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=keep_orig_ms, cols2rm="model,corrected")
             return [concatvis]
+        else:
+            split(vis=vis[0], outputvis=concatvis, datacolumn='corrected')
+            return [concatvis]
     else:
         return vis
