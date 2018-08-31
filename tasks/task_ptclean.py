@@ -64,9 +64,9 @@ def clean_iter(tim, freq, vis, imageprefix, imagesuffix,
         # inp(taskname = 'clean')
         os.system('rm -rf {}*'.format(imname))
 
-        if mask.endwiths('/'):
+        if mask.endswith('/'):
             mask = mask[:-1]
-        if mask.endwiths('.mask'):
+        if mask.endswith('.mask'):
             os.system('cp -r {} {}'.format(mask,mask+str(btidx)))
             mask = mask+str(btidx)
             dormmask=True
