@@ -63,15 +63,6 @@ def clean_iter(tim, freq, vis, imageprefix, imagesuffix,
     if overwrite or (len(glob.glob(imname + '*'))==0):
         # inp(taskname = 'clean')
         os.system('rm -rf {}*'.format(imname))
-
-        if mask.endswith('/'):
-            mask = mask[:-1]
-        if mask.endswith('.mask'):
-            os.system('cp -r {} {}'.format(mask,mask+str(btidx)))
-            mask = mask+str(btidx)
-            dormmask=True
-        else:
-            dormmask = False
         try:
             clean(vis=vis, imagename=imname, outlierfile=outlierfile, field=field,
                   spw=spw, selectdata=selectdata, timerange=timerange, uvrange=uvrange,
@@ -102,9 +93,6 @@ def clean_iter(tim, freq, vis, imageprefix, imagesuffix,
         except:
             print('error in cleaning image: ' + btstr)
             return [False, btstr, etstr, '']
-        if dormmask:
-            if os.path.exists(mask):
-                shutil.rmtree(mask)
     else:
         print imname+' exists. Clean task aborted.'
 
