@@ -85,7 +85,9 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     etime = Time(btime.mjd + dur, format='mjd')
 
     try:
-        cmdstr = "https://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
+        cmdstr = "https://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
+            observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
+                                                                                                  ',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
         cmdstr = cmdstr.replace("'", "%27")
         try:
             context = ssl._create_unverified_context()
@@ -208,7 +210,8 @@ def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
     msinfo['decs'] = decs
     msinfo['observatory'] = observatory
     if msinfofile:
-        np.savez(msinfofile, vis=vis, scans=scans, fieldids=fieldids, btimes=btimes, btimestr=btimestr, inttimes=inttimes, ras=ras, decs=decs,
+        np.savez(msinfofile, vis=vis, scans=scans, fieldids=fieldids, btimes=btimes, btimestr=btimestr,
+                 inttimes=inttimes, ras=ras, decs=decs,
                  observatory=observatory)
     return msinfo
 
@@ -307,7 +310,8 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
     nreftime = len(reftime)
     helio = []
     for reftime0 in reftime:
-        helio0 = dict.fromkeys(['reftimestr', 'reftime', 'ra', 'dec', 'ra_fld', 'dec_fld', 'raoff', 'decoff', 'refx', 'refy', 'p0'])
+        helio0 = dict.fromkeys(
+            ['reftimestr', 'reftime', 'ra', 'dec', 'ra_fld', 'dec_fld', 'raoff', 'decoff', 'refx', 'refy', 'p0'])
         helio0['reftimestr'] = reftime0
         if '~' in reftime0:
             # if reftime0 is specified as a timerange
@@ -350,6 +354,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
 
         # find out phase center RA and DEC in the measurement set according to the reference time
         # if polyfit, then use the 2nd order polynomial coeffs
+        inttime = np.nanmean(inttimes)
         ind = bisect.bisect_left(btimes, tref_d)
         if ind > 1:
             dt = tref_d - btimes[ind - 1]
@@ -369,7 +374,16 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
             scanlen = 10.  # radom value
             dt = 0.
         if ind < 1:
-            raise ValueError, 'Reference time does not fall into the scan list!'
+            if np.abs((tref_d - btimes[0]) * 24 * 3600) < inttime / 2.0:
+                ind = 1
+                ra_b = ra_rads[ind - 1]
+                ra_e = ra_b
+                dec_b = dec_rads[ind - 1]
+                dec_e = dec_b
+                scanlen = 10.  # radom value
+                dt = 0.
+            else:
+                raise ValueError, 'Reference time does not fall into the scan list!'
         if polyfit:
             ra = cra[0] * tref_d ** 2. + cra[1] * tref_d + cra[2]
             dec = cdec[0] * tref_d ** 2. + cdec[1] * tref_d + cdec[2]
@@ -501,7 +515,8 @@ def getbeam(imagefile=None, beamfile=None):
     return bmaj, bmin, bpa, beamunit, bpaunit
 
 
-def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, reftime=None, fitsfile=None, beamfile=None, offsetfile=None, toTb=None,
+def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, reftime=None, fitsfile=None, beamfile=None,
+          offsetfile=None, toTb=None,
           scl100=None, verbose=False, p_ang=False, overwrite=True, usephacenter=True, deletehistory=False):
     ''' 
     main routine to register CASA images
@@ -655,7 +670,8 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             prtidx += 1
 
         header = hdu[0].header
-        (cdelt1, cdelt2) = (-header['cdelt1'] * 3600., header['cdelt2'] * 3600.)  # Original CDELT1, 2 are for RA and DEC in degrees
+        (cdelt1, cdelt2) = (
+        -header['cdelt1'] * 3600., header['cdelt2'] * 3600.)  # Original CDELT1, 2 are for RA and DEC in degrees
         header['cdelt1'] = cdelt1
         header['cdelt2'] = cdelt2
         header['cunit1'] = 'arcsec'
