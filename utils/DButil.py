@@ -1408,6 +1408,36 @@ def smapmeshgrid2(smap, angle=None, rescale=1.0, origin=1):
     return xnew, ynew
 
 
+def map2wcsgrids(snpmap, cell=True, antialiased=True):
+    '''
+
+    :param snpmap:
+    :param cell: if True, return the coordinates of the pixel centers. if False, return the coordinates of the pixel boundaries
+    :return:
+    '''
+    # embed()
+    import astropy.units as u
+    if cell:
+        ny, nx = snpmap.data.shape
+        offset = 0.0
+    else:
+        ny, nx = snpmap.data.shape
+        nx += 1
+        ny += 1
+        offset = -0.5
+    if antialiased:
+        XX, YY = np.array([0, nx - 1]) + offset, np.array([0, ny - 1]) + offset
+        mesh = snpmap.pixel_to_world(XX * u.pix, YY * u.pix)
+        mapx, mapy = np.linspace(mesh[0].Tx.value,mesh[-1].Tx.value,nx), np.linspace(mesh[0].Ty.value,mesh[-1].Ty.value,ny)
+        mapx = np.tile(mapx,ny).reshape(ny,nx)
+        mapy = np.tile(mapy,nx).reshape(nx,ny).transpose()
+    else:
+        XX, YY = np.meshgrid(np.arange(nx) + offset, np.arange(ny) + offset)
+        mesh = snpmap.pixel_to_world(XX * u.pix, YY * u.pix)
+        mapx, mapy = mesh.Tx.value, mesh.Ty.value
+    return mapx, mapy
+
+
 def smapradialfilter(smap, grid=None):
     if grid:
         x, y = grid
