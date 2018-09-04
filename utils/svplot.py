@@ -585,7 +585,6 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 if aiamap:
                     if plt_composite:
                         if n == 0:
-                            pdb.set_trace()
                             aiamap.plot(axes=ax, cmap='gray',
                                         norm=colors.LogNorm(vmin=0.1, vmax=np.nanmax(aiamap.data)))
                     else:
