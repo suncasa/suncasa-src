@@ -365,7 +365,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         spec_plt = [spec_plt]
         print 'plot the dynamic spectrum in pol ' + pol  # ax1 = fig.add_subplot(211)
 
-        hnspw = nspw / 2
+        hnspw = max(nspw / 2, 1)
         ncols = hnspw
         nrows = 2 + 2  # 1 image: 1x1, 1 dspec:2x4
         fig = plt.figure(figsize=(8, 8))
