@@ -23,7 +23,10 @@ def fits_wrap_spw(fitsfiles, outfitsfile='output.fits', df=0.5e9, nband=30):
     for sidx, fitsf in enumerate(fitsfiles):
         hdu = fits.open(fitsf, mode='update')
         for pidx in range(npol):
-            bdidx = int(np.round((hdu[0].header['crval3'] - freqref) / df))
+            if nband == 30:
+                bdidx = int(np.round((hdu[0].header['crval3'] - freqref) / df))
+            else:
+                bdidx = sidx
             if len(hdu[0].data.shape) == 2:
                 data[pidx, bdidx, :, :] = hdu[0].data
             else:
@@ -31,5 +34,5 @@ def fits_wrap_spw(fitsfiles, outfitsfile='output.fits', df=0.5e9, nband=30):
     if os.path.exists(outfitsfile):
         os.system('rm -rf {}'.format(outfitsfile))
     fits.writeto(outfitsfile, data, header)
-    print('wrapped fits writed to '+outfitsfile)
+    print('wrapped fits writed to ' + outfitsfile)
     return
