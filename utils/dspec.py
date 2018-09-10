@@ -165,13 +165,12 @@ def plt_dspec(specfile=None, pol='I', dmin=None, dmax=None,
 
     specdata = np.load(specfile)
     spec = specdata['spec']
-    npol = specdata['npol']
-    nbl = specdata['nbl']
-    ntim = specdata['ntim']
-    nfreq = specdata['nfreq']
     tim = specdata['tim']
     freq = specdata['freq']
     bl = specdata['bl'].item()
+    #npol = specdata['npol']
+    #nbl = specdata['nbl']
+    (npol, nbl, nfreq, ntim)=spec.shape
 
     if timerange:
         if type(timerange[0]) is str:
