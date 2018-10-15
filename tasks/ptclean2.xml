@@ -254,59 +254,6 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 <!--                            Image Definition Parameters                                         -->
 <!--============================================== -->
 
-    <param type="any" name="imagename" required="true">
-     <shortdescription>Pre-name of output images</shortdescription>
-<description>Pre-name of output images
-
-                       example : imagename='try'
-
-                       Output images will be (a subset of) :
-
-                       try.psf              - Point spread function
-                       try.residual      - Residual image
-                       try.image         - Restored image
-                       try.model         - Model image (contains only flux components)
-                       try.sumwt        - Single pixel image containing sum-of-weights.
-                                                 (for natural weighting, sensitivity=1/sqrt(sumwt))
-                       try.pb              - Primary beam model (values depend on the gridder used)
-
-                       Widefield projection algorithms (gridder=mosaic,awproject) will
-                       compute the following images too.
-                       try.weight        - FT of gridded weights or the
-                                                 un-normalized sum of PB-square (for all pointings)
-                                                 Here, PB = sqrt(weight) normalized to a maximum of 1.0
-
-                       For multi-term wideband imaging, all relevant images above will
-                       have additional .tt0,.tt1, etc suffixes to indicate Taylor terms,
-                       plus the following extra output images.
-                       try.alpha            - spectral index
-                       try.alpha.error   - estimate of error on spectral index
-                       try.beta              - spectral curvature (if nterms \> 2)
-
-                       Tip : Include a directory name in 'imagename' for all
-                               output images to be sent there instead of the
-                               current working directory : imagename='mydir/try'
-
-                       Tip : Restarting an imaging run without changing 'imagename'
-                               implies continuation from the existing model image on disk.
-                                - If 'startmodel' was initially specified it needs to be set to ""
-                                  for the restart run (or tclean will exit with an error message).
-                                - By default, the residual image and psf will be recomputed
-                                  but if no changes were made to relevant parameters between
-                                  the runs, set calcres=False, calcpsf=False to resume directly from
-                                  the minor cycle without the (unnecessary) first major cycle.
-                                To automatically change 'imagename' with a numerical
-                                increment, set restart=False (see tclean docs for 'restart').
-
-                        Note : All imaging runs will by default produce restored images.
-                                  For a niter=0 run, this will be redundant and can optionally
-                                  be turned off via the 'restoration=T/F' parameter.
-
-</description>
-      <any type="variant" limittypes="int string stringArray"/>
-      <value type="string"></value>
-    </param>
-
     <param type="any" name="imsize" > <!-- subparam="true"> -->
      <shortdescription>Number of pixels</shortdescription>
 <description>Number of pixels
