@@ -78,8 +78,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 
     <param type="bool" name="selectdata" visibility="hidden">
      <shortdescription>Enable data selection parameters</shortdescription>
-<description>Enable data selection parameters.
-</description>
+    <description>Enable data selection parameters.</description>
       <value type="bool">True</value>
     </param>
 
