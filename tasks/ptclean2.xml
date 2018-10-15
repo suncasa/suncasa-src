@@ -37,8 +37,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
             </param>
 
             <param type="string" name="imagesuffix">
-                <description>Suffix of output image names (usually useful in specifyting the image type, version,
-                    etc.)
+                <description>Suffix of output image names (usually useful in specifyting the image type, version, etc.)
                 </description>
                 <value></value>
             </param>
