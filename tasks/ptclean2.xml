@@ -2383,6 +2383,14 @@ HPX HEALPix grid.  -->
        </notequals>
       </when>
 -->
+    <when param="doreg">
+    <equals type="bool" value="False"/>
+    <equals type="bool" value="True">
+          <default param="usephacenter"><value>True</value></default>
+          <default param="reftime"><value type="string"></value></default>
+          <default param="toTb"><value>False</value></default>
+        </equals>
+        </when>
 
      <when param="selectdata">
       <equals type="bool" value="True">

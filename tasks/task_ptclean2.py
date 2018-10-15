@@ -106,8 +106,8 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
             return [False, btstr, etstr, '']
 
 
-def ptclean2(vis, imageprefix, imagesuffix, ncpu, timerange, twidth, doreg, usephacenter, reftime, toTb, overwrite,
-            field, spw, selectdata, uvrange, antenna, scan, observation, intent, datacolumn, imsize, cell, phasecenter,
+def ptclean2(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, overwrite,
+            selectdata,field, spw,timerange,  uvrange, antenna, scan, observation, intent, datacolumn, imsize, cell, phasecenter,
             stokes, projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
             interpolation, gridder, facets, chanchunks, wprojplanes, vptable, usepointing, mosweight, aterm, psterm,
             wbawp, conjbeams, cfcache, computepastep, rotatepastep, pblimit, normtype, deconvolver, scales, nterms,
