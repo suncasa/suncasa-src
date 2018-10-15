@@ -7,6 +7,13 @@ from functools import partial
 from time import time
 import glob
 
+def get_time(vis):
+    ms.open(vis)
+    ms.selectinit()
+    timfreq = ms.getdata(['time', 'axis_info'], ifraxis=True)
+    tim = timfreq['time']
+    ms.close()
+    return tim
 
 def clean_iter(tim, vis, imageprefix, imagesuffix,
                twidth, doreg, usephacenter, reftime, ephem, msinfo, toTb, overwrite,
@@ -135,14 +142,7 @@ def ptclean2(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
         msinfo = None
 
     # get number of time pixels
-    ms.open(vis)
-    ms.selectinit()
-    timfreq = ms.getdata(['time', 'axis_info'], ifraxis=True)
-    tim = timfreq['time']
-    # dt = tim[1]-tim[0] #need to change to median of all time intervals
-    dt = np.median(np.diff(tim))
-    freq = timfreq['axis_info']['freq_axis']['chan_freq'].flatten()
-    ms.close()
+    tim = get_time(vis)
 
     if twidth < 1:
         casalog.post('twidth less than 1. Change to 1')
