@@ -31,6 +31,7 @@ from matplotlib.widgets import Slider
 from matplotlib.widgets import Button
 from sunpy.physics.transforms.solar_rotation import mapcube_solar_derotate
 import warnings
+from sunpy.instr.aia import aiaprep
 
 warnings.filterwarnings('ignore')
 
@@ -310,12 +311,68 @@ class Stackplot:
             else:
                 self.mapcube_fromfile(infile)
 
+    def get_plot_title(self, smap, title):
+        titletext = ''
+        if 'observatory' in title:
+            titletext = titletext + ' {}'.format(smap.observatory)
+        if 'detector' in title:
+            titletext = titletext + ' {}'.format(smap.detector)
+        if 'wavelength' in title:
+            titletext = titletext + ' {}'.format(smap.wavelength)
+        if 'time' in title:
+            titletext = titletext + ' {}'.format(smap.meta['date-obs'])
+        return titletext
+
     def plot_map(self, smap, dspec=None, diff=False, cmap=None, SymLogNorm=False, linthresh=0.5, returnImAx=False,
-                 layout_vert=False, uni_cm=False,
+                 layout_vert=False, uni_cm=False, draw_limb=False, draw_grid=False, colortitle=None,
+                 title=['observatory', 'detector', 'wavelength', 'time'], fov=fov,
                  *args, **kwargs):
         import sunpy.cm.cm as cm  ## to bootstrap sdoaia color map
         import matplotlib.cm as cm
         import matplotlib.colors as colors
+        def plot_limb(axes, smap):
+            rsun = smap.rsun_obs
+            phi = np.linspace(-180, 180, num=181) * u.deg
+            x = np.cos(phi) * rsun
+            y = np.sin(phi) * rsun
+            axes.plot(x, y, color='w', linestyle='-')
+
+        def plot_grid(axes, smap, grid_spacing=10. * u.deg):
+            def hgs2hcc(rsun, lon, lat, B0, L0):
+                lon_L0 = lon - L0
+                x = rsun * np.cos(lat) * np.sin(lon)
+                y = rsun * (np.sin(lat) * np.cos(B0) - np.cos(lat) * np.cos(lon_L0) * np.sin(B0))
+                z = rsun * (np.sin(lat) * np.sin(B0) + np.cos(lat) * np.cos(lon_L0) * np.cos(B0))
+                return x, y, z
+
+            def hcc2hpc(x, y, z, dsun):
+                d = np.sqrt(x ** 2 + y ** 2 + (dsun - z) ** 2)
+                Tx = np.arctan2(x, dsun - z)
+                Ty = np.arcsin(y / d)
+                return Tx, Ty
+
+            dsun = smap.dsun
+            rsun = smap.rsun_meters
+
+            b0 = smap.heliographic_latitude.to(u.deg)
+            l0 = smap.heliographic_longitude.to(u.deg)
+            hg_longitude_deg = np.linspace(-90, 90, num=91) * u.deg
+            hg_latitude_deg = np.arange(0, 90, grid_spacing.to(u.deg).value)
+            hg_latitude_deg = np.hstack([-hg_latitude_deg[1:][::-1], hg_latitude_deg]) * u.deg
+            for lat in hg_latitude_deg:
+                c = hgs2hcc(rsun, hg_longitude_deg, lat * np.ones(91), b0, l0)
+                coords = hcc2hpc(c[0], c[1], c[2], dsun)
+                axes.plot(coords[0].to(u.arcsec), coords[1].to(u.arcsec), color='w', linestyle=':')
+
+            hg_longitude_deg = np.arange(0, 90, grid_spacing.to(u.deg).value)
+            hg_longitude_deg = np.hstack([-hg_longitude_deg[1:][::-1], hg_longitude_deg]) * u.deg
+            hg_latitude_deg = np.linspace(-90, 90, num=91) * u.deg
+
+            for lon in hg_longitude_deg:
+                c = hgs2hcc(rsun, lon * np.ones(91), hg_latitude_deg, b0, l0)
+                coords = hcc2hpc(c[0], c[1], c[2], dsun)
+                axes.plot(coords[0].to(u.arcsec), coords[1].to(u.arcsec), color='w', linestyle=':')
+
         try:
             clrange = DButil.sdo_aia_scale_dict(wavelength=smap.meta['wavelnth'])
         except:
@@ -372,6 +429,22 @@ class Stackplot:
             else:
                 ylabel = 'Y-position [{ypos}]'.format(ypos=smap.spatial_units.axis2)
 
+        # try:
+        #     smap.draw_limb()
+        # except:
+        #     pass
+        #
+        # try:
+        #     smap.draw_grid()
+        # except:
+        #     pass
+        if draw_limb:
+            plot_limb(ax, smap)
+        if draw_grid:
+            if type(draw_grid) in [int, float]:
+                plot_grid(ax, smap, draw_grid * u.deg)
+            else:
+                plot_grid(ax, smap, 10 * u.deg)
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         imshow_args.update({'extent': list(smap.xrange.to(u.arcsec).value) + list(smap.yrange.to(u.arcsec).value)})
@@ -379,11 +452,19 @@ class Stackplot:
             im1 = ax.imshow(np.rot90(smap.data, 2), **imshow_args)
         else:
             im1 = ax.imshow(smap.data, **imshow_args)
-        plt.title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, smap.meta['date-obs']))
+        # ['observatory', 'detector', 'wavelength', 'time']
+        titletext = self.get_plot_title(smap, title)
+        ax.set_title(titletext)
+        print(imshow_args['extent'])
+        if fov:
+            ax.set_xlim(fov[:2])
+            ax.set_ylim(fov[2:])
         self.divider_im = make_axes_locatable(ax)
         cax = self.divider_im.append_axes('right', size='1.5%', pad=0.05)
         cax.tick_params(direction='in')
-        plt.colorbar(im1, ax=ax, cax=cax, label='DN counts per second')
+        if colortitle is None:
+            colortitle = 'DN counts per second'
+        plt.colorbar(im1, ax=ax, cax=cax, label=colortitle)
         ax.set_autoscale_on(False)
         if dspec:
             fig = plt.gcf()
@@ -429,7 +510,7 @@ class Stackplot:
                 return ax  # ax.autoscale(True, 'both', True)  # ax.autoscale_view(True, True, True)  # ax.relim(visible_only=True)
 
     def make_mapcube(self, trange, outfile=None, fov=None, wavelength='171', binpix=1, dt_data=1, derotate=False,
-                     tosave=True, superpixel=False):
+                     tosave=True, superpixel=False, aia_prep=False):
         if isinstance(trange, list):
             if isinstance(trange[0], Time):
                 trange = Time([trange[0], trange[-1]])
@@ -448,6 +529,8 @@ class Stackplot:
         for ll in tqdm(fitsfile[::dt_data]):
             maptmp = sunpy.map.Map(ll)
             self.exptime_orig.append(maptmp.exposure_time.value)
+            if aia_prep:
+                maptmp = aiaprep(maptmp)
             if fov:
                 x0, x1, y0, y1 = fov
                 try:
@@ -487,7 +570,7 @@ class Stackplot:
 
         if tosave:
             if not outfile:
-                outfile = 'mapcube_{0}_bin{3}_dtdata{4}_{1}_{2}'.format(mapcube[0].meta['wavelnth'],
+                outfile = 'mapcube_{0}_bin{3}_dtdata{4}_{1}_{2}.mapcube'.format(mapcube[0].meta['wavelnth'],
                                                                         trange[0].isot[:-4].replace(':', ''),
                                                                         trange[1].isot[:-4].replace(':', ''), binpix,
                                                                         dt_data)
@@ -502,7 +585,7 @@ class Stackplot:
         t0 = time.time()
         with open(infile, 'rb') as sf:
             print('Loading mapcube....')
-            tmp = pickle.load(sf)
+            tmp = pickle.load(sf, encoding='latin1')
             if isinstance(tmp, dict):
                 if not isinstance(tmp['mp'], sunpy.map.mapcube.MapCube):
                     print('Load failed. mapcube must be a instance of sunpy.map.mapcube.MapCube')
@@ -525,14 +608,14 @@ class Stackplot:
             mapcube = self.mapcube
         mp_info = self.mapcube_info(mapcube)
         if not outfile:
-            outfile = 'mapcube_{0}_{1}_{2}'.format(mapcube[0].meta['wavelnth'],
-                                                   self.trange[0].isot[:-4].replace(':', ''),
-                                                   self.trange[1].isot[:-4].replace(':', ''))
+            outfile = 'mapcube_{0}_{1}_{2}.mapcube'.format(mapcube[0].meta['wavelnth'],
+                                                           self.trange[0].isot[:-4].replace(':', ''),
+                                                           self.trange[1].isot[:-4].replace(':', ''))
         with open(outfile, 'wb') as sf:
             print('Saving mapcube to {}'.format(outfile))
             pickle.dump({'mp': mapcube, 'trange': mp_info['trange'], 'fov': mp_info['fov'], 'binpix': mp_info['binpix'],
                          'dt_data': self.dt_data,
-                         'fitsfile': self.fitsfile,'exptime_orig':self.exptime_orig}, sf)
+                         'fitsfile': self.fitsfile, 'exptime_orig': self.exptime_orig}, sf)
         print('It took {} to save the mapcube.'.format(time.time() - t0))
 
     def mapcube_drot(self):
@@ -622,17 +705,20 @@ class Stackplot:
 
         if tosave:
             if not outfile:
-                outfile = 'mapcube_{5}_{0}_bin{3}_dtdata{4}_{1}_{2}'.format(self.mapcube[0].meta['wavelnth'],
-                                                                            self.trange[0].isot[:-4].replace(':', ''),
-                                                                            self.trange[1].isot[:-4].replace(':', ''),
-                                                                            self.binpix, self.dt_data,
-                                                                            mode)
+                outfile = 'mapcube_{5}_{0}_bin{3}_dtdata{4}_{1}_{2}.mapcube'.format(self.mapcube[0].meta['wavelnth'],
+                                                                                    self.trange[0].isot[:-4].replace(
+                                                                                        ':', ''),
+                                                                                    self.trange[1].isot[:-4].replace(
+                                                                                        ':', ''),
+                                                                                    self.binpix, self.dt_data,
+                                                                                    mode)
             self.mapcube_tofile(outfile=outfile, mapcube=mapcube_diff)
         self.mapcube_diff = mapcube_diff
         return mapcube_diff
 
     def plot_mapcube(self, mapcube=None, hdr=False, vmax=None, vmin=None, cmap=None, diff=False, sav_img=False,
-                     out_dir=None, dpi=100, anim=False, silent=False):
+                     out_dir=None, dpi=100, anim=False, silent=False, draw_limb=False, draw_grid=False,
+                     colortitle=None, title=['observatory', 'detector', 'wavelength', 'time'], fov=[], fps=15):
         '''
 
         :param mapcube:
@@ -662,16 +748,20 @@ class Stackplot:
         if hdr:
             maplist = []
             for idx, smap in enumerate(tqdm(mapcube_plot)):
-                smap = DButil.sdo_aia_scale_hdr(smap)
+                if type(hdr) is bool:
+                    smap = DButil.sdo_aia_scale_hdr(smap)
+                else:
+                    smap = DButil.sdo_aia_scale_hdr(smap, sigma=hdr)
                 maplist.append(sunpy.map.Map(smap.data, mapcube_plot[idx].meta))
             mapcube_plot = sunpy.map.Map(maplist, cube=True)
         if not diff:
-            maplist = []
-            for idx, smap in enumerate(tqdm(mapcube_plot)):
-                mapdata = mapcube_plot[idx].data
-                mapdata[np.where(smap.data < 1)] = 1
-                maplist.append(sunpy.map.Map(mapdata, mapcube_plot[idx].meta))
-            mapcube_plot = sunpy.map.Map(maplist, cube=True)
+            if mapcube_plot[0].detector == 'AIA':
+                maplist = []
+                for idx, smap in enumerate(tqdm(mapcube_plot)):
+                    mapdata = mapcube_plot[idx].data
+                    mapdata[np.where(smap.data < 1)] = 1
+                    maplist.append(sunpy.map.Map(mapdata, mapcube_plot[idx].meta))
+                mapcube_plot = sunpy.map.Map(maplist, cube=True)
         self.mapcube_plot = mapcube_plot
         # sp = stackplot(parent_obj = self, mapcube = mapcube_plot)
         fig_mapcube = plt.figure()
@@ -691,7 +781,9 @@ class Stackplot:
             if out_dir is None:
                 out_dir = './'
 
-            ax, im1 = self.plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, cmap=cmap, diff=diff, returnImAx=True)
+            ax, im1 = self.plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, cmap=cmap, diff=diff, returnImAx=True,
+                                    draw_limb=draw_limb, draw_grid=draw_grid, colortitle=colortitle, title=title,
+                                    fov=fov)
             if anim:
                 import matplotlib
                 matplotlib.use("Agg")
@@ -703,8 +795,8 @@ class Stackplot:
                     # smap.data[smap.data<1]=1
                     im1.set_data(smap.data)
                     # im1.set_extent(list(smap.xrange.value) + list(smap.yrange.value))
-                    ax.set_title(
-                        '{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, smap.meta['t_obs']))
+                    titletext = self.get_plot_title(smap, title)
+                    ax.set_title(titletext)
                     fig_mapcube.canvas.draw()
                     return
 
@@ -723,7 +815,7 @@ class Stackplot:
             if anim:
                 print('Saving movie to {}'.format(out_dir))
                 Writer = animation.writers['ffmpeg']
-                writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+                writer = Writer(fps=fps, metadata=dict(artist='Me'), bitrate=1800)
                 ani.save('{0}/{2}{1}.mp4'.format(out_dir, mapcube_plot[0].meta['wavelnth'], mapcube_plot[0].detector),
                          writer=writer)
             else:
@@ -749,7 +841,9 @@ class Stackplot:
                                                                     smap.detector), format='png', dpi=dpi)
                 plt.ion()
         else:
-            ax, im1 = self.plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, cmap=cmap, diff=diff, returnImAx=True)
+            ax, im1 = self.plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, cmap=cmap, diff=diff, returnImAx=True,
+                                    draw_limb=draw_limb, draw_grid=draw_grid, colortitle=colortitle, title=title,
+                                    fov=fov)
             plt.subplots_adjust(bottom=0.10)
             dims = mapcube_plot[0].dimensions
             diagpix = int(np.sqrt(dims[0] ** 2 + dims[1] ** 2).value)
@@ -784,11 +878,8 @@ class Stackplot:
                 smap = mapcube_plot[int(frm)]
                 # smap.data[smap.data<1]=1
                 im1.set_data(smap.data)
-                if smap.meta.has_key('t_obs'):
-                    tstr = smap.meta['t_obs']
-                else:
-                    tstr = smap.meta['date-obs']
-                ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
+                titletext = self.get_plot_title(smap, title)
+                ax.set_title(titletext)
                 fig_mapcube.canvas.draw()
 
             sFrame.on_changed(sFrame_update)
@@ -825,7 +916,7 @@ class Stackplot:
     def cutslit_fromfile(self, infile, color=None, mask=None):
         if self.cutslitbd:
             with open('{}'.format(infile), 'rb') as sf:
-                cutslit = pickle.load(sf)
+                cutslit = pickle.load(sf, encoding='latin1')
             if 'cutlength' in cutslit.keys():
                 self.sCutlngth.set_val(cutslit['cutlength'])
             if 'cutang' in cutslit.keys():
@@ -946,8 +1037,9 @@ class Stackplot:
                 cmap = 'gray_r'
 
         dspec = {'dspec': self.stackplt,
-                 'x': np.hstack((self.tplt.plot_date, self.tplt.plot_date[-1]+np.nanmean(np.diff(self.tplt.plot_date)))),
-                 'y': np.hstack((cutslitplt['dist'], cutslitplt['dist'][-1]+np.nanmean(np.diff(cutslitplt['dist'])))),
+                 'x': np.hstack(
+                     (self.tplt.plot_date, self.tplt.plot_date[-1] + np.nanmean(np.diff(self.tplt.plot_date)))),
+                 'y': np.hstack((cutslitplt['dist'], cutslitplt['dist'][-1] + np.nanmean(np.diff(cutslitplt['dist'])))),
                  'ytitle': 'Distance [arcsec]',
                  'ctitle': 'DN counts per second', 'args': {'norm': norm, 'cmap': cmap}}
 
@@ -1103,5 +1195,3 @@ class Stackplot:
     @classmethod
     def set_fits_dir(cls, fitsdir):
         cls.fitsdir = fitsdir  # def __repr__(self):  #     if self.mpcube:  #         print('')
-
-        # @property  # def mapcubefile(self):  #     return self.mapcubefile  #  # @mapcubefile.setter  # def mapcubefile(self, infile):  #     with open(infile, 'rb') as sf:  #         print('Loading mapcube....')  #         self.mpcube = pickle.load(sf)  #  # @mapcubefile.deleter  # def mapcubefile(self):  #     print('Delete mapcube')  #     self.mpcube = None

@@ -1,15 +1,12 @@
 import os
 from taskinit import *
 import numpy as np
-#from suncasa.vla import vla_prep
-#from suncasa.eovsa import eovsa_prep as ep
 from suncasa.utils import helioimage2fits as hf
 import shutil
 import multiprocessing as mprocs
 from functools import partial
 from time import time
 import glob
-import pdb
 
 def clean_iter(tim, freq, vis, imageprefix, imagesuffix, 
                ncpu, twidth, doreg, usephacenter, reftime, ephem, msinfo, toTb, overwrite,

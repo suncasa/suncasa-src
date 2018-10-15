@@ -164,7 +164,8 @@ def img2html_movie(imgprefix, outname='movie', img_fmt='png'):
     fi.write('if (!height) {height=get_window_height(.75,512);}\n')
     fi.write('\n')
     fi.write('if (!win || win.closed) {\n')
-    fi.write(' win = open("","img","width="+width.toString()+",height="+height.toString()+",scrollbars=yes,resizable=yes"); \n')
+    fi.write(
+        ' win = open("","img","width="+width.toString()+",height="+height.toString()+",scrollbars=yes,resizable=yes"); \n')
     fi.write('}\n')
     fi.write('\n')
     fi.write('// dynamically create HTML, adding a CLOSE button\n')
@@ -177,7 +178,8 @@ def img2html_movie(imgprefix, outname='movie', img_fmt='png'):
     fi.write(' }\n')
     fi.write(" d.write('<img src='+url+'>');\n")
     fi.write(" d.write('<br><br><br>');\n")
-    fi.write(' d.write(\'<form><b><input type="button" value="CLOSE" onClick="self.close();"></b></form></center>\'); \n')
+    fi.write(
+        ' d.write(\'<form><b><input type="button" value="CLOSE" onClick="self.close();"></b></form></center>\'); \n')
     fi.write(" d.write('</html></body>');\n")
     fi.write(' d.close();\n')
     fi.write(' win.focus();\n')
@@ -499,9 +501,14 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
             ow = '-y'
         else:
             ow = ''
-        outdstr = ' '.join(['-{} {}'.format(k, v) for k, v in outd.iteritems()])
-        cmd = 'ffmpeg -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} '.format(tmpdir, img_ext, outdstr) + '{0} {1}.mp4'.format(ow,
-                                                                                                                                              outname)
+        try:
+            outdstr = ' '.join(['-{} {}'.format(k, v) for k, v in outd.iteritems()])
+        except:
+            outdstr = ' '.join(['-{} {}'.format(k, outd[k]) for k in outd])
+        cmd = 'ffmpeg -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} '.format(tmpdir, img_ext,
+                                                                                             outdstr) + '{0} {1}.mp4'.format(
+            ow,
+            outname)
         print(cmd)
         subprocess.check_output(['bash', '-c', cmd])
         os.system('rm -rf {}'.format(tmpdir))
@@ -514,13 +521,15 @@ def image_fill_gap(image):
         image_slice = image[idx, :]
         mask_nan = np.isnan(image_slice)
         if np.sum(~mask_nan) > 0 and np.sum(mask_nan) > 0:
-            image_slice[mask_nan] = np.interp(np.flatnonzero(mask_nan), np.flatnonzero(~mask_nan), image_slice[~mask_nan])
+            image_slice[mask_nan] = np.interp(np.flatnonzero(mask_nan), np.flatnonzero(~mask_nan),
+                                              image_slice[~mask_nan])
             image[idx, :] = image_slice
     for idx in range(image.shape[1]):
         image_slice = image[:, idx]
         mask_nan = np.isnan(image_slice)
         if np.sum(~mask_nan) > 0 and np.sum(mask_nan) > 0:
-            image_slice[mask_nan] = np.interp(np.flatnonzero(mask_nan), np.flatnonzero(~mask_nan), image_slice[~mask_nan])
+            image_slice[mask_nan] = np.interp(np.flatnonzero(mask_nan), np.flatnonzero(~mask_nan),
+                                              image_slice[~mask_nan])
             image[:, idx] = image_slice
     return image
 
@@ -556,7 +565,8 @@ def getspwfromfreq(vis, freqrange):
 
 def initconfig(suncasa_dir):
     if not os.path.exists(suncasa_dir + 'DataBrowser/config.json'):
-        os.system('cp {} {}'.format(suncasa_dir + 'DataBrowser/config_init.json', suncasa_dir + 'DataBrowser/config.json'))
+        os.system(
+            'cp {} {}'.format(suncasa_dir + 'DataBrowser/config_init.json', suncasa_dir + 'DataBrowser/config.json'))
         return True
     else:
         return False
@@ -736,41 +746,44 @@ def tplt(mapcube):
     return Time(t)
 
 
-def sdo_aia_scale_hdr(smap):
-    import sunpy.map
-    wavelnth = '{:0.0f}'.format(smap.wavelength.value)
-    pxscale_x, pxscal_y = smap.scale
+def sdo_aia_scale_hdr(amap, sigma=5.0):
+    import sunpy.map as smap
+    from astropy.coordinates import SkyCoord
+    wavelnth = '{:0.0f}'.format(amap.wavelength.value)
+    pxscale_x, pxscal_y = amap.scale
     pxscale = (pxscale_x + pxscal_y) / 2
-    r_sun = smap.rsun_obs / pxscale
-    x = np.arange(smap.dimensions.x.value)
-    y = np.arange(smap.dimensions.y.value)
+    r_sun = amap.rsun_obs / pxscale
+    x = np.arange(amap.dimensions.x.value)
+    y = np.arange(amap.dimensions.y.value)
     xx, yy = np.meshgrid(x, y) * u.pix
-    crpix1, crpix2 = smap.data_to_pixel(0 * u.arcsec, 0 * u.arcsec)
+    crpix1, crpix2 = amap.world_to_pixel(SkyCoord(0 * u.arcsec, 0 * u.arcsec, frame=amap.coordinate_frame))
     rdist = np.sqrt((xx - (crpix1 - 1.0 * u.pix)) ** 2 + (yy - (crpix2 - 1.0 * u.pix)) ** 2)
     ind_disk = np.where(rdist <= r_sun)
-    ind_limb = np.where(rdist < r_sun)
+    # ind_limb = np.where(rdist < r_sun)
     rdist[ind_disk] = r_sun
     rfilter = rdist / r_sun - 1
     rfilter = rfilter.value
     if wavelnth == '94':
-        mapdata = smap.data * np.exp(rfilter * 4)
+        mapdata = amap.data * np.exp(rfilter * 4)
     elif wavelnth == '131':
-        mapdata = smap.data * (np.sqrt(rfilter * 5) + 1)
+        mapdata = amap.data * (np.sqrt(rfilter * 5) + 1)
     elif wavelnth == '171':
-        mapdata = smap.data * np.exp(rfilter * 5)
+        mapdata = amap.data * np.exp(rfilter * 5)
     elif wavelnth == '193':
-        mapdata = smap.data * np.exp(rfilter * 3)
+        mapdata = amap.data * np.exp(rfilter * 3)
     elif wavelnth == '211':
-        mapdata = smap.data * np.exp(rfilter * 3)
+        mapdata = amap.data * np.exp(rfilter * 3)
     elif wavelnth == '304':
-        mapdata = smap.data * np.exp(rfilter * 5)
+        mapdata = amap.data * np.exp(rfilter * 5)
     elif wavelnth == '335':
-        mapdata = smap.data * np.exp(rfilter * 3)
+        mapdata = amap.data * np.exp(rfilter * 3)
     elif wavelnth == '6173':
         pass
     elif wavelnth == '1':
         pass
-    return sunpy.map.Map(mapdata, smap.meta)
+    else:
+        mapdata = amap.data * np.exp(rfilter * sigma)
+    return smap.Map(mapdata, amap.meta)
 
 
 def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
@@ -882,7 +895,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
         elif imagetype == 'BDRimage':
             return {'low': -1.5, 'high': 1.5, 'log': False}
     else:
-        return None
+        return {'high': None, 'log': False, 'low': None}
 
 
 def sdo_aia_scale(image=None, wavelength=None):
@@ -947,7 +960,8 @@ def readsdofile(datadir=None, wavelength=None, trange=None, isexists=False, timt
             for i in range(delta.days + 1):
                 ymd = d1 + td(days=i)
                 sdofitspathtmp = glob.glob(
-                    datadir + '/{:04d}/{:02d}/{:02d}/aia.lev1_*Z.{}.image_lev1.fits'.format(ymd.year, ymd.month, ymd.day, wavelength))
+                    datadir + '/{:04d}/{:02d}/{:02d}/aia.lev1_*Z.{}.image_lev1.fits'.format(ymd.year, ymd.month,
+                                                                                            ymd.day, wavelength))
                 if len(sdofitspathtmp) > 0:
                     sdofitspath = sdofitspath + sdofitspathtmp
             if len(sdofitspath) == 0:
@@ -955,29 +969,37 @@ def readsdofile(datadir=None, wavelength=None, trange=None, isexists=False, timt
                     return sdofitspath
                 else:
                     raise ValueError(
-                        'No SDO file found under {} at the time range of {} to {}. Download the data with EvtBrowser first.'.format(datadir,
-                                                                                                                                    jdtimestr[0],
-                                                                                                                                    jdtimestr[1]))
+                        'No SDO file found under {} at the time range of {} to {}. Download the data with EvtBrowser first.'.format(
+                            datadir,
+                            jdtimestr[0],
+                            jdtimestr[1]))
             sdofits = [os.path.basename(ll) for ll in sdofitspath]
-            sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofits],
-                               format='iso', scale='utc')
+            sdotimeline = Time(
+                [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in
+                 sdofits],
+                format='iso', scale='utc')
             sdofitspathnew = [x for (y, x) in sorted(zip(sdotimeline.jd, sdofitspath))]
             sdofitsnew = [os.path.basename(ll) for ll in sdofitspathnew]
             sdotimelinenew = Time(
-                [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofitsnew], format='iso',
+                [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in
+                 sdofitsnew], format='iso',
                 scale='utc')
             sdofile = list(
-                np.array(sdofitspathnew)[np.where(np.logical_and(trange[0].jd <= sdotimelinenew.jd, sdotimelinenew.jd <= trange[1].jd))[0]])
+                np.array(sdofitspathnew)[
+                    np.where(np.logical_and(trange[0].jd <= sdotimelinenew.jd, sdotimelinenew.jd <= trange[1].jd))[0]])
             return sdofile
     else:
         jdtimstr = trange.iso
         ymd = jdtimstr.split(' ')[0].split('-')
-        sdofitspath = glob.glob(datadir + '/{}/{}/{}/aia.lev1_*Z.{}.image_lev1.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
+        sdofitspath = glob.glob(
+            datadir + '/{}/{}/{}/aia.lev1_*Z.{}.image_lev1.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
         if len(sdofitspath) == 0:
             return []  # raise ValueError('No SDO file found under {}.'.format(datadir))
         sdofits = [os.path.basename(ll) for ll in sdofitspath]
-        sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofits],
-                           format='iso', scale='utc')
+        sdotimeline = Time(
+            [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in
+             sdofits],
+            format='iso', scale='utc')
         if timtol < np.min(np.abs(sdotimeline.jd - trange.jd)):
             return []  # raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
         idxaia = np.argmin(np.abs(sdotimeline.jd - trange.jd))
@@ -1026,7 +1048,9 @@ def readsdofileX(datadir=None, wavelength=None, trange=None, isexists=False, tim
             delta = d2 - d1
             for i in range(delta.days + 1):
                 ymd = d1 + td(days=i)
-                sdofitspathtmp = glob.glob(datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd.year, ymd.month, ymd.day, wavelength))
+                sdofitspathtmp = glob.glob(
+                    datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd.year, ymd.month, ymd.day,
+                                                                                wavelength))
                 if len(sdofitspathtmp) > 0:
                     sdofitspath = sdofitspath + sdofitspathtmp
             if len(sdofitspath) == 0:
@@ -1034,29 +1058,37 @@ def readsdofileX(datadir=None, wavelength=None, trange=None, isexists=False, tim
                     return sdofitspath
                 else:
                     raise ValueError(
-                        'No SDO file found under {} at the time range of {} to {}. Download the data with EvtBrowser first.'.format(datadir,
-                                                                                                                                    jdtimestr[0],
-                                                                                                                                    jdtimestr[1]))
+                        'No SDO file found under {} at the time range of {} to {}. Download the data with EvtBrowser first.'.format(
+                            datadir,
+                            jdtimestr[0],
+                            jdtimestr[1]))
             sdofits = [os.path.basename(ll) for ll in sdofitspath]
-            sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofits],
-                               format='iso', scale='utc')
+            sdotimeline = Time(
+                [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in
+                 sdofits],
+                format='iso', scale='utc')
             sdofitspathnew = [x for (y, x) in sorted(zip(sdotimeline.jd, sdofitspath))]
             sdofitsnew = [os.path.basename(ll) for ll in sdofitspathnew]
             sdotimelinenew = Time(
-                [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofitsnew], format='iso',
+                [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in
+                 sdofitsnew], format='iso',
                 scale='utc')
             sdofile = list(
-                np.array(sdofitspathnew)[np.where(np.logical_and(trange.jd[0] <= sdotimelinenew.jd, sdotimelinenew.jd <= trange.jd[1]))[0]])
+                np.array(sdofitspathnew)[
+                    np.where(np.logical_and(trange.jd[0] <= sdotimelinenew.jd, sdotimelinenew.jd <= trange.jd[1]))[0]])
             return sdofile
     else:
         jdtimstr = trange.iso
         ymd = jdtimstr.split(' ')[0].split('-')
-        sdofitspath = glob.glob(datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
+        sdofitspath = glob.glob(
+            datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
         if len(sdofitspath) == 0:
             return []  # raise ValueError('No SDO file found under {}.'.format(datadir))
         sdofits = [os.path.basename(ll) for ll in sdofitspath]
-        sdotimeline = Time([insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in sdofits],
-                           format='iso', scale='utc')
+        sdotimeline = Time(
+            [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in
+             sdofits],
+            format='iso', scale='utc')
         if timtol <= np.min(np.abs(sdotimeline.jd - trange.jd)):
             return []  # raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
         idxaia = np.argmin(np.abs(sdotimeline.jd - trange.jd))
@@ -1140,9 +1172,9 @@ def improfile(z, xi, yi, interp='cubic'):
         raise ValueError('xi or yi must contain at least two elements!')
     for idx, ll in enumerate(xi):
         if not 0 < ll < imgshape[1]:
-            raise ValueError('xi out of range!')
+            return np.nan
         if not 0 < yi[idx] < imgshape[0]:
-            raise ValueError('yi out of range!')  # xx, yy = np.meshgrid(x, y)
+            return np.nan
     if len(xi) == 2:
         length = np.hypot(np.diff(xi), np.diff(yi))[0]
         x, y = np.linspace(xi[0], xi[1], length), np.linspace(yi[0], yi[1], length)
@@ -1199,8 +1231,10 @@ def polsfromfitsheader(header):
     :return pols: polarisation stokes
     '''
     try:
-        stokeslist = ['{}'.format(int(ll)) for ll in (header["CRVAL4"] + np.arange(header["NAXIS4"]) * header["CDELT4"])]
-        stokesdict = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3': 'RL', '-4': 'LR', '-5': 'XX', '-6': 'YY', '-7': 'XY',
+        stokeslist = ['{}'.format(int(ll)) for ll in
+                      (header["CRVAL4"] + np.arange(header["NAXIS4"]) * header["CDELT4"])]
+        stokesdict = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3': 'RL', '-4': 'LR',
+                      '-5': 'XX', '-6': 'YY', '-7': 'XY',
                       '-8': 'YX'}
         pols = map(lambda x: stokesdict[x], stokeslist)
     except:
@@ -1215,7 +1249,8 @@ def freqsfromfitsheader(header):
     :return pols: polarisation stokes
     '''
     try:
-        freqs = ['{:.3f}'.format(ll / 1e9) for ll in (header["CRVAL3"] + np.arange(header["NAXIS3"]) * header["CDELT3"])]
+        freqs = ['{:.3f}'.format(ll / 1e9) for ll in
+                 (header["CRVAL3"] + np.arange(header["NAXIS3"]) * header["CDELT3"])]
         return freqs
     except:
         print("error in fits header!")
@@ -1260,10 +1295,15 @@ def transfitdict2DF(datain, gaussfit=True, getcentroid=False):
                         if gaussfit:
                             majoraxis = datain['outputs'][tidx][ppit]['results'][comp]['shape']['majoraxis']['value']
                             minoraxis = datain['outputs'][tidx][ppit]['results'][comp]['shape']['minoraxis']['value']
-                            positionangle = datain['outputs'][tidx][ppit]['results'][comp]['shape']['positionangle']['value']
-                            bmajor = datain['outputs'][tidx][ppit]['results'][comp]['beam']['beamarcsec']['major']['value']
-                            bminor = datain['outputs'][tidx][ppit]['results'][comp]['beam']['beamarcsec']['minor']['value']
-                            bpositionangle = datain['outputs'][tidx][ppit]['results'][comp]['beam']['beamarcsec']['positionangle']['value']
+                            positionangle = datain['outputs'][tidx][ppit]['results'][comp]['shape']['positionangle'][
+                                'value']
+                            bmajor = datain['outputs'][tidx][ppit]['results'][comp]['beam']['beamarcsec']['major'][
+                                'value']
+                            bminor = datain['outputs'][tidx][ppit]['results'][comp]['beam']['beamarcsec']['minor'][
+                                'value']
+                            bpositionangle = \
+                                datain['outputs'][tidx][ppit]['results'][comp]['beam']['beamarcsec']['positionangle'][
+                                    'value']
                             shape_majoraxis.append(majoraxis)
                             shape_minoraxis.append(minoraxis)
                             shape_positionangle.append(positionangle)
@@ -1277,16 +1317,23 @@ def transfitdict2DF(datain, gaussfit=True, getcentroid=False):
                             mkey = 'centroid'
                         else:
                             mkey = 'shape'
-                        longitude = datain['outputs'][tidx][ppit]['results'][comp][mkey]['direction']['m0']['value'] * ra2arcsec
-                        latitude = datain['outputs'][tidx][ppit]['results'][comp][mkey]['direction']['m1']['value'] * ra2arcsec
-                        longitude_err = datain['outputs'][tidx][ppit]['results'][comp]['shape']['direction']['error']['longitude']['value']
-                        latitude_err = datain['outputs'][tidx][ppit]['results'][comp]['shape']['direction']['error']['latitude']['value']
+                        longitude = datain['outputs'][tidx][ppit]['results'][comp][mkey]['direction']['m0'][
+                                        'value'] * ra2arcsec
+                        latitude = datain['outputs'][tidx][ppit]['results'][comp][mkey]['direction']['m1'][
+                                       'value'] * ra2arcsec
+                        longitude_err = \
+                            datain['outputs'][tidx][ppit]['results'][comp]['shape']['direction']['error']['longitude'][
+                                'value']
+                        latitude_err = \
+                            datain['outputs'][tidx][ppit]['results'][comp]['shape']['direction']['error']['latitude'][
+                                'value']
                         shape_longitude.append(longitude)
                         shape_latitude.append(latitude)
                         shape_longitude_err.append(longitude_err)
                         shape_latitude_err.append(latitude_err)
                         peak.append(fluxpeak)
-                        freqstrs.append('{:.3f}'.format(datain['outputs'][tidx][ppit]['results'][comp]['spectrum']['frequency']['m0']['value']))
+                        freqstrs.append('{:.3f}'.format(
+                            datain['outputs'][tidx][ppit]['results'][comp]['spectrum']['frequency']['m0']['value']))
                         fits_local.append(datain['imagenames'][tidx].split('/')[-1])
                 if gaussfit:
                     dspecDFtmp['shape_latitude{}'.format(ppit)] = pd.Series(shape_latitude)
@@ -1345,7 +1392,8 @@ def dspecDFfilter(dspecDF, pol):
     :return: the output dspecDF
     '''
     colnlistcom = ['shape_latitude', 'shape_longitude', 'peak', 'shape_latitude_err', 'shape_longitude_err']
-    colnlistgaus = ['shape_majoraxis', 'shape_minoraxis', 'shape_positionangle', 'beam_major', 'beam_minor', 'beam_positionangle']
+    colnlistgaus = ['shape_majoraxis', 'shape_minoraxis', 'shape_positionangle', 'beam_major', 'beam_minor',
+                    'beam_positionangle']
     ## above are the columns to filter
     colnlistess = dspecDF.columns.tolist()
     if getcolctinDF(dspecDF, 'peak')[0] > 0:
@@ -1395,7 +1443,8 @@ def smapmeshgrid2(smap, angle=None, rescale=1.0, origin=1):
     ref_pix = smap.reference_pixel
     ref_coord = smap.reference_coordinate
     scale = smap.scale
-    XX, YY = np.meshgrid(np.arange(smap.data.shape[1] * rescale) / rescale, np.arange(smap.data.shape[0] * rescale) / rescale)
+    XX, YY = np.meshgrid(np.arange(smap.data.shape[1] * rescale) / rescale,
+                         np.arange(smap.data.shape[0] * rescale) / rescale)
     x, y = XX * u.pix, YY * u.pix
     try:
         x = (x - ref_pix[0] + origin * u.pix) * scale[0] + ref_coord.x
@@ -1428,9 +1477,10 @@ def map2wcsgrids(snpmap, cell=True, antialiased=True):
     if antialiased:
         XX, YY = np.array([0, nx - 1]) + offset, np.array([0, ny - 1]) + offset
         mesh = snpmap.pixel_to_world(XX * u.pix, YY * u.pix)
-        mapx, mapy = np.linspace(mesh[0].Tx.value,mesh[-1].Tx.value,nx), np.linspace(mesh[0].Ty.value,mesh[-1].Ty.value,ny)
-        mapx = np.tile(mapx,ny).reshape(ny,nx)
-        mapy = np.tile(mapy,nx).reshape(nx,ny).transpose()
+        mapx, mapy = np.linspace(mesh[0].Tx.value, mesh[-1].Tx.value, nx), np.linspace(mesh[0].Ty.value,
+                                                                                       mesh[-1].Ty.value, ny)
+        mapx = np.tile(mapx, ny).reshape(ny, nx)
+        mapy = np.tile(mapy, nx).reshape(nx, ny).transpose()
     else:
         XX, YY = np.meshgrid(np.arange(nx) + offset, np.arange(ny) + offset)
         mesh = snpmap.pixel_to_world(XX * u.pix, YY * u.pix)
@@ -1631,7 +1681,8 @@ def XCorrMap(z, x, y, doxscale=True):
                 yidxa[idx1 - 1, idx2] = idx2
                 yidxv[idx1 - 1, idx2] = idx1 - 1
 
-    return {'zfit': zfit, 'ccmax': ccmax, 'ccpeak': ccpeak, 'x': x, 'nx': len(x), 'xfit': xfit, 'nxfit': nxfit, 'y': y, 'ny': ny, 'yv': yv, 'ya': ya,
+    return {'zfit': zfit, 'ccmax': ccmax, 'ccpeak': ccpeak, 'x': x, 'nx': len(x), 'xfit': xfit, 'nxfit': nxfit, 'y': y,
+            'ny': ny, 'yv': yv, 'ya': ya,
             'yidxv': yidxv, 'yidxa': yidxa}
 
 
