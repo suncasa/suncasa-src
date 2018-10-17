@@ -7,13 +7,6 @@ from functools import partial
 from time import time
 import glob
 
-def get_time(vis):
-    ms.open(vis)
-    ms.selectinit()
-    timfreq = ms.getdata(['time', 'axis_info'], ifraxis=True)
-    tim = timfreq['time']
-    ms.close()
-    return tim
 
 def clean_iter(tim, vis, imageprefix, imagesuffix,
                twidth, doreg, usephacenter, reftime, ephem, msinfo, toTb, overwrite,
@@ -33,7 +26,6 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
         et = btidx + twidth - 1
     else:
         et = len(tim) - 1
-
 
     if bt == 0:
         bt_d = tim[bt] - ((tim[bt + 1] - tim[bt]) / 2)
@@ -113,16 +105,16 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
             return [False, btstr, etstr, '']
 
 
-def ptclean2(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, overwrite,
-            selectdata,field, spw,timerange,  uvrange, antenna, scan, observation, intent, datacolumn, imsize, cell, phasecenter,
-            stokes, projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
-            interpolation, gridder, facets, chanchunks, wprojplanes, vptable, usepointing, mosweight, aterm, psterm,
-            wbawp, conjbeams, cfcache, computepastep, rotatepastep, pblimit, normtype, deconvolver, scales, nterms,
-            smallscalebias, restoration, restoringbeam, pbcor, outlierfile, weighting, robust, npixels, uvtaper, niter,
-            gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive, usemask,
-            mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold, smoothfactor,
-            minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart, savemodel,
-            calcres, calcpsf, parallel):
+def ptclean2(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, overwrite, selectdata,
+             field, spw, timerange, uvrange, antenna, scan, observation, intent, datacolumn, imsize, cell, phasecenter,
+             stokes, projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
+             interpolation, gridder, facets, chanchunks, wprojplanes, vptable, usepointing, mosweight, aterm, psterm,
+             wbawp, conjbeams, cfcache, computepastep, rotatepastep, pblimit, normtype, deconvolver, scales, nterms,
+             smallscalebias, restoration, restoringbeam, pbcor, outlierfile, weighting, robust, npixels, uvtaper, niter,
+             gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive, usemask,
+             mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold, smoothfactor,
+             minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart, savemodel,
+             calcres, calcpsf, parallel):
     if not (type(ncpu) is int):
         casalog.post('ncpu should be an integer')
         ncpu = 8
@@ -142,7 +134,11 @@ def ptclean2(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
         msinfo = None
 
     # get number of time pixels
-    tim = get_time(vis)
+    ms.open(vis)
+    ms.selectinit()
+    timfreq = ms.getdata(['time', 'axis_info'], ifraxis=True)
+    tim = timfreq['time']
+    ms.close()
 
     if twidth < 1:
         casalog.post('twidth less than 1. Change to 1')

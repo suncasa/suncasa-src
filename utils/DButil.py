@@ -1468,12 +1468,12 @@ def map2wcsgrids(snpmap, cell=True, antialiased=True):
     import astropy.units as u
     if cell:
         ny, nx = snpmap.data.shape
-        offset = 0.0
+        offset = 0.5
     else:
         ny, nx = snpmap.data.shape
         nx += 1
         ny += 1
-        offset = -0.5
+        offset = 0.0
     if antialiased:
         XX, YY = np.array([0, nx - 1]) + offset, np.array([0, ny - 1]) + offset
         mesh = snpmap.pixel_to_world(XX * u.pix, YY * u.pix)
