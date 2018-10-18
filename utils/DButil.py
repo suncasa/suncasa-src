@@ -1242,6 +1242,18 @@ def polsfromfitsheader(header):
     return pols
 
 
+def headerfix(header):
+    ## this code fix the header problem of fits out from CASA 5.4+ which leads to a streched solar image
+    import copy
+    hdr = copy.copy(header)
+    for hd in header:
+        if hd.upper().startswith('PC'):
+            if not hd.upper().startswith('PC0'):
+                hd_ = 'PC0' + hd.upper().replace('PC', '')
+                hdr.pop(hd)
+                hdr[hd_] = header[hd]
+    return hdr
+
 def freqsfromfitsheader(header):
     '''
     get frequency in GHz from fits header
