@@ -6,10 +6,12 @@ import struct
 from scipy.io.idl import readsav
 from datetime import datetime
 from taskinit import ms, tb, qa
+import matplotlib.dates as mdates
+from matplotlib.dates import date2num, AutoDateFormatter, AutoDateLocator
 
 
 def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='', scan='', datacolumn='data',
-              domedian=False, timeran=None, spw=None, verbose=False):
+              domedian=False, timeran=None, spw=None, timebin='0s', verbose=False):
     from split_cli import split_cli as split
 
     msfile = vis
@@ -32,14 +34,13 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
         os.system('rm -rf ' + vis_spl)
 
     split(vis=msfile, outputvis=vis_spl, timerange=timeran, antenna=bl, field=field, scan=scan, spw=spw,
-          uvrange=uvrange, datacolumn=datacolumn)
+          uvrange=uvrange, timebin=timebin, datacolumn=datacolumn)
     ms.open(vis_spl, nomodify=False)
     if verbose:
         print 'Regridding into a single spectral window...'
         # print 'Reading data spw by spw'
     ms.cvel(outframe='LSRK', mode='frequency', interp='nearest')
-    # ms.selectinit(datadescid=0, reset=True)
-    ms.selectinit(reset=True)
+    ms.selectinit(datadescid=0, reset=True)
     data = ms.getdata(['amplitude', 'time', 'axis_info'], ifraxis=True)
     ms.close()
     os.system('rm -rf ' + vis_spl)
@@ -106,6 +107,8 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
         (npol, nbl, nfreq, ntim) = specdata['spec'].shape
         spec = specdata['spec']
         tim = specdata['tim']
+        tim_ = Time(tim / 3600. / 24., format='mjd')
+        tim_plt = tim_.plot_date
         freq = specdata['freq']
         if not 'bl' in vars():
             bl = specdata['bl']
@@ -170,19 +173,21 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                         print str(i) + ' frames done'
                     timeran = [tstart + i * dtframe, tstart + i * dtframe + framedur]
                     tidx1 = np.where((tim >= timeran[0]) & (tim <= timeran[1]))[0]
-                    tim1 = tim[tidx1]
+                    tim1 = tim_[tidx1]
                     freq1 = freq[fidx] / 1e9
-                    # the following is wrong
                     spec_plt1 = spec_plt[fidx, :][:, tidx1]
-                    ax1.pcolormesh(tim1, freq1, spec_plt1, cmap='jet', vmin=dmin, vmax=dmax)
-                    ax1.set_xlim(tim1[0], tim1[-1])
+                    ax1.pcolormesh(tim1.plot_date, freq1, spec_plt1, cmap='jet', vmin=dmin, vmax=dmax)
+                    ax1.set_xlim(tim1[0].plot_date, tim1[-1].plot_date)
                     ax1.set_ylim(freq1[0], freq1[-1])
                     ax1.set_ylabel('Frequency (GHz)')
                     ax1.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + pol)
                     if timestr:
-                        labels = ax1.get_xticks().tolist()
-                        newlabels = [qa.time(qa.quantity(lb, 's'))[0] for lb in labels]
-                        ax1.set_xticklabels(newlabels)
+                        # date_format = mdates.DateFormatter('%H:%M:%S.%f')
+                        # ax1.xaxis_date()
+                        # ax1.xaxis.set_major_formatter(date_format)
+                        locator = AutoDateLocator()
+                        ax1.xaxis.set_major_locator(locator)
+                        ax1.xaxis.set_major_formatter(AutoDateFormatter(locator))
                     ax1.set_autoscale_on(False)
                     if goessav:
                         if goes_trange:
@@ -193,24 +198,17 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                             idx = range(len(ts))
                         ts_plt = ts[idx]
                         lc0_plt = lc0[idx]
-                        ts_plt_dt = [datetime.strptime(qa.time(qa.quantity(t, 's'), form='ymd')[0], '%Y/%m/%d/%H:%M:%S')
-                                     for t in ts_plt]
                         utbase = qa.convert(qa.quantity('0001/01/01/00:00:00'), 'd')['value'] + 1
                         ts_plt_d = ts_plt / 3600. / 24. - utbase
-                        # ts_plt_d = dates.date2num(ts_plt_dt)
                         ax2.plot_date(ts_plt_d, lc0_plt, 'b-')
-                        ax2.axvspan(tim1[0] / 3600. / 24. - utbase, tim1[-1] / 3600. / 24. - utbase, color='red',
+                        ax2.axvspan(tim1[0].mjd - utbase, tim1[-1].mjd - utbase, color='red',
                                     alpha=0.5)
                         ax2.set_yscale('log')
-                        # ax2.set_xlim(goes_trange)
-                        # labels=ax2.get_xticks().tolist()
-                        # newlabels=[qa.time(qa.quantity(lb,'s'))[0] for lb in labels]
-                        # ax2.set_xticklabels(newlabels)
                         ax2.set_title('GOES 1-8 A')
 
-                    tstartstr_ = qa.time(qa.quantity(tim1[0], 's'))[0]
-                    tendstr_ = qa.time(qa.quantity(tim1[-1], 's'))[0]
-                    timstr = tstartstr_.replace(':', '') + '-' + tendstr_.replace(':', '')
+                    tstartstr_ = tim1[0].datetime.strftime('%Y-%m-%dT%H%M%S.%f')[:-3]
+                    tendstr_ = tim1[1].datetime.strftime('%H%M%S.%f')[:-3]
+                    timstr = tstartstr_ + '-' + tendstr_
                     figfile = 'dspec_t' + timstr + '.png'
                     if not os.path.isdir('dspec'):
                         os.makedirs('dspec')
@@ -220,14 +218,14 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 f = plt.figure(figsize=(8, 4), dpi=100)
                 ax = f.add_subplot(111)
                 freqghz = freq / 1e9
-                ax.pcolormesh(tim, freqghz, spec_plt, cmap='jet', vmin=dmin, vmax=dmax)
-                ax.set_xlim(tim[tidx[0]], tim[tidx[-1]])
+                ax.pcolormesh(tim_plt, freqghz, spec_plt, cmap='jet', vmin=dmin, vmax=dmax)
+                ax.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 try:
                     from sunpy import lightcurve
                     from sunpy.time import TimeRange, parse_time
-                    t1 = Time(tim[tidx[0]] / 86400, format='mjd')
-                    t2 = Time(tim[tidx[-1]] / 86400, format='mjd')
+                    t1 = tim_[tidx[0]]
+                    t2 = tim_[tidx[-1]]
                     tr = TimeRange(t1.iso, t2.iso)
                     goes = lightcurve.GOESLightCurve.create(tr)
                     goes.data['xrsb'] = 2 * (np.log10(goes.data['xrsb'])) + 26
@@ -244,11 +242,10 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                     pass
 
                 def format_coord(x, y):
-                    col = np.argmin(np.absolute(tim - x))
+                    col = np.argmin(np.absolute(tim_plt - x))
                     row = np.argmin(np.absolute(freqghz - y))
                     if col >= 0 and col < ntim and row >= 0 and row < nfreq:
-                        timv = tim[col]
-                        timstr = qa.time(qa.quantity(timv, 's'), form='clean', prec=9)[0]
+                        timstr = tim_[col].isot
                         flux = spec_plt[row, col]
                         return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} Jy'.format(col, timstr, y, flux)
                     else:
@@ -261,9 +258,12 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 else:
                     ax.set_title('Medium dynamic spectrum')
                 if timestr:
-                    labels = ax.get_xticks().tolist()
-                    newlabels = [qa.time(qa.quantity(lb, 's'))[0] for lb in labels]
-                    ax.set_xticklabels(newlabels)
+                    # date_format = mdates.DateFormatter('%H:%M:%S.%f')
+                    # ax.xaxis_date()
+                    # ax.xaxis.set_major_formatter(date_format)
+                    locator = AutoDateLocator()
+                    ax.xaxis.set_major_locator(locator)
+                    ax.xaxis.set_major_formatter(AutoDateFormatter(locator))
                 ax.set_autoscale_on(False)
 
         else:
@@ -283,16 +283,15 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
 
             ax1 = f.add_subplot(211)
             freqghz = freq / 1e9
-            ax1.pcolormesh(tim, freqghz, spec_plt_1, cmap='jet', vmin=dmin, vmax=dmax)
-            ax1.set_xlim(tim[tidx[0]], tim[tidx[-1]])
+            ax1.pcolormesh(tim_plt, freqghz, spec_plt_1, cmap='jet', vmin=dmin, vmax=dmax)
+            ax1.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
             ax1.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
 
             def format_coord(x, y):
-                col = np.argmin(np.absolute(tim - x))
+                col = np.argmin(np.absolute(tim_plt - x))
                 row = np.argmin(np.absolute(freqghz - y))
                 if col >= 0 and col < ntim and row >= 0 and row < nfreq:
-                    timv = tim[col]
-                    timstr = qa.time(qa.quantity(timv, 's'), form='clean', prec=9)[0]
+                    timstr = tim_[col].isot
                     flux = spec_plt[row, col]
                     return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} Jy'.format(col, timstr, y, flux)
                 else:
@@ -301,26 +300,31 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
             ax1.format_coord = format_coord
             ax1.set_ylabel('Frequency (GHz)')
             if timestr:
-                labels = ax1.get_xticks().tolist()
-                newlabels = [qa.time(qa.quantity(lb, 's'))[0] for lb in labels]
-                ax1.set_xticklabels(newlabels)
+                # date_format = mdates.DateFormatter('%H:%M:%S.%f')
+                # ax1.xaxis_date()
+                # ax1.xaxis.set_major_formatter(date_format)
+                locator = AutoDateLocator()
+                ax1.xaxis.set_major_locator(locator)
+                ax1.xaxis.set_major_formatter(AutoDateFormatter(locator))
             ax1.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[0])
             ax1.set_autoscale_on(False)
             ax2 = f.add_subplot(212)
-            ax2.pcolormesh(tim, freqghz, spec_plt_2, cmap='jet', vmin=dmin, vmax=dmax)
-            ax2.set_xlim(tim[tidx[0]], tim[tidx[-1]])
+            ax2.pcolormesh(tim_plt, freqghz, spec_plt_2, cmap='jet', vmin=dmin, vmax=dmax)
+            ax2.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
             ax2.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
             if timestr:
-                labels = ax2.get_xticks().tolist()
-                newlabels = [qa.time(qa.quantity(lb, 's'))[0] for lb in labels]
-                ax2.set_xticklabels(newlabels)
+                # date_format = mdates.DateFormatter('%H:%M:%S.%f')
+                # ax2.xaxis_date()
+                # ax2.xaxis.set_major_formatter(date_format)
+                locator = AutoDateLocator()
+                ax2.xaxis.set_major_locator(locator)
+                ax2.xaxis.set_major_formatter(AutoDateFormatter(locator))
 
             def format_coord(x, y):
-                col = np.argmin(np.absolute(tim - x))
+                col = np.argmin(np.absolute(tim_plt - x))
                 row = np.argmin(np.absolute(freqghz - y))
                 if col >= 0 and col < ntim and row >= 0 and row < nfreq:
-                    timv = tim[col]
-                    timstr = qa.time(qa.quantity(timv, 's'), form='clean', prec=9)[0]
+                    timstr = tim_[col].isot
                     flux = spec_plt[row, col]
                     return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} Jy'.format(col, timstr, y, flux)
                 else:
