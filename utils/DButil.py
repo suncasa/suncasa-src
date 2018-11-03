@@ -1646,6 +1646,7 @@ def XCorrMap(z, x, y, doxscale=True):
     :param y: y axis
     :return:
     '''
+    from tqdm import tqdm
     from scipy.interpolate import splev, splrep
     if doxscale:
         xfit = np.linspace(x[0], x[-1], 10 * len(x) + 1)
@@ -1668,7 +1669,7 @@ def XCorrMap(z, x, y, doxscale=True):
     yv = ccpeak.copy()
     yidxa = ccpeak.copy()
     yidxv = ccpeak.copy()
-    for idx1 in range(1, ny):
+    for idx1 in tqdm(range(1, ny)):
         for idx2 in range(0, idx1):
             lightcurve1 = zfit[idx1, :]
             lightcurve2 = zfit[idx2, :]

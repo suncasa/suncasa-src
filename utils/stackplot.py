@@ -593,7 +593,10 @@ class Stackplot:
                 self.mapcube = tmp['mp']
                 self.dt_data = tmp['dt_data']
                 self.fitsfile = tmp['fitsfile']
-                self.exptime_orig = tmp['exptime_orig']
+                if 'exptime_orig' in tmp.keys():
+                    self.exptime_orig = tmp['exptime_orig']
+                else:
+                    self.exptime_orig = []
             else:
                 if not isinstance(tmp, sunpy.map.mapcube.MapCube):
                     print('Load failed. mapcube must be a instance of sunpy.map.mapcube.MapCube')

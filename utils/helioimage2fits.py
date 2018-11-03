@@ -54,15 +54,18 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
             # btime = Time(summary['BeginTime'], format='mjd')
             # etime = Time(summary['EndTime'], format='mjd')
             ## alternative way to avoid conflicts with importeovsa, if needed -- more time consuming
-            ms.open(vis)
-            metadata = ms.metadata()
-            if metadata.observatorynames()[0] == 'EVLA':
-                observatory = '-5'
-            elif metadata.observatorynames()[0] == 'EOVSA':
-                observatory = '-81'
-            elif metadata.observatorynames()[0] == 'ALMA':
-                observatory = '-7'
-            ms.close()
+            if observatory=='geocentric':
+                observatory='500'
+            else:
+                ms.open(vis)
+                metadata = ms.metadata()
+                if metadata.observatorynames()[0] == 'EVLA':
+                    observatory = '-5'
+                elif metadata.observatorynames()[0] == 'EOVSA':
+                    observatory = '-81'
+                elif metadata.observatorynames()[0] == 'ALMA':
+                    observatory = '-7'
+                ms.close()
             tb.open(vis)
             btime_vis = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
             etime_vis = Time(tb.getcell('TIME', tb.nrows() - 1) / 24. / 3600., format='mjd')
@@ -97,6 +100,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         lines = f.readlines()
         f.close()
     except:
+        #todo use geocentric coordinate for the new VLA data
         import requests, collections
         params = collections.OrderedDict()
         params['batch'] = '1'
@@ -106,7 +110,10 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         params['ANG_FORMAT'] = "'DEG'"
         params['CAL_FORMAT'] = "'BOTH'"
         params['SOLAR_ELONG'] = "'0,180'"
-        params['CENTER'] = "'{}@399'".format(observatory)
+        if observatory=='500':
+            params['CENTER'] = "'500'"
+        else:
+            params['CENTER'] = "'{}@399'".format(observatory)
         params['COMMAND'] = "'10'"
         params['START_TIME'] = "'{}'".format(btime.iso[:-4].replace(' ', ','))
         params['STOP_TIME'] = "'{}'".format(etime.iso[:-4].replace(' ', ','))
