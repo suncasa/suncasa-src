@@ -505,10 +505,10 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
             outdstr = ' '.join(['-{} {}'.format(k, v) for k, v in outd.iteritems()])
         except:
             outdstr = ' '.join(['-{} {}'.format(k, outd[k]) for k in outd])
-        cmd = 'ffmpeg -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} '.format(tmpdir, img_ext,
-                                                                                             outdstr) + '{0} {1}.mp4'.format(
-            ow,
-            outname)
+        cmd = 'ffmpeg -r {3} -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} '.format(tmpdir, img_ext,
+                                                                                                    outdstr,
+                                                                                                    fps) + '{0} {1}.mp4'.format(
+            ow, outname)
         print(cmd)
         subprocess.check_output(['bash', '-c', cmd])
         os.system('rm -rf {}'.format(tmpdir))
@@ -1253,6 +1253,7 @@ def headerfix(header):
                 hdr.pop(hd)
                 hdr[hd_] = header[hd]
     return hdr
+
 
 def freqsfromfitsheader(header):
     '''
