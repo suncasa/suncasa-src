@@ -21,6 +21,7 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
                smoothfactor, minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart,
                savemodel, calcres, calcpsf, parallel, btidx):
     from tclean_cli import tclean_cli as tclean
+    from split_cli import split_cli as split
     bt = btidx  # 0
     if bt + twidth < len(tim) - 1:
         et = btidx + twidth - 1
@@ -42,6 +43,9 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
     etstr = qa.time(qa.quantity(et_d, 's'), prec=9, form='fits')[0]
     print 'cleaning timerange: ' + timerange
 
+    split(vis=vis, outputvis="SUN_L_test_20181015_1s_1M_spw7.ms", keepmms=True, field="",
+          spw="7", scan="", antenna="", correlation="", timerange="", intent="", array="", uvrange="", observation="",
+          feed="", datacolumn="data", keepflags=True, width=1, timebin="1s", combine="")
     image0 = btstr.replace(':', '').replace('-', '')
     imname = imageprefix + image0 + imagesuffix
     if overwrite or (len(glob.glob(imname + '*')) == 0):
@@ -133,6 +137,13 @@ def ptclean2(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
         ephem = None
         msinfo = None
 
+    if imageprefix:
+        workdir=os.path.dirname(imageprefix)
+    else:
+        workdir='./'
+    tmpdir = workdir+'/tmp/'
+    if not os.path.exists(tmpdir):
+        os.makedirs(tmpdir)
     # get number of time pixels
     ms.open(vis)
     ms.selectinit()
@@ -202,18 +213,17 @@ def ptclean2(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
     t0 = time()
     # parallelization
     if ncpu > 1:
-        para = 1
-    else:
-        para = 0
-    if para:
         import multiprocessing as mprocs
         casalog.post('Perform clean in parallel ...')
+        print('Perform clean in parallel ...')
         pool = mprocs.Pool(ncpu)
         # res = pool.map_async(clnpart, iterable)
         res = pool.map(clnpart, iterable)
         pool.close()
         pool.join()
     else:
+        casalog.post('Perform clean in single process ...')
+        print('Perform clean in single process ...')
         for i in iterable:
             res.append(clnpart(i))
 
