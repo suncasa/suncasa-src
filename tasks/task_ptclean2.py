@@ -19,8 +19,9 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
                niter, gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive,
                usemask, mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold,
                smoothfactor, minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart,
-               savemodel, calcres, calcpsf, parallel, btidx):
+               savemodel, calcres, calcpsf, parallel, tmpdir, btidx):
     from tclean_cli import tclean_cli as tclean
+    from split_cli import split_cli as split
     bt = btidx  # 0
     if bt + twidth < len(tim) - 1:
         et = btidx + twidth - 1
@@ -44,10 +45,20 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
 
     image0 = btstr.replace(':', '').replace('-', '')
     imname = imageprefix + image0 + imagesuffix
+    ms_tmp = tmpdir + image0 + '.ms'
+    print('checkpoint 1')
+    # split(vis=vis, outputvis=ms_tmp, field=field, scan=scan, antenna=antenna, timerange=timerange,
+    #       datacolumn=datacolumn)
+    ms.open(vis)
+    print('checkpoint 1-1')
+    ms.split(ms_tmp,field=field, scan=scan, baseline=antenna, time=timerange,whichcol=datacolumn)
+    print('checkpoint 1-2')
+    ms.close()
+    print('checkpoint 2')
     if overwrite or (len(glob.glob(imname + '*')) == 0):
         os.system('rm -rf {}*'.format(imname))
         try:
-            tclean(vis=vis, selectdata=selectdata, field=field, spw=spw, timerange=timerange, uvrange=uvrange,
+            tclean(vis=ms_tmp, selectdata=selectdata, field=field, spw=spw, timerange=timerange, uvrange=uvrange,
                    antenna=antenna, scan=scan, observation=observation, intent=intent, datacolumn=datacolumn,
                    imagename=imname, imsize=imsize, cell=cell, phasecenter=phasecenter, stokes=stokes,
                    projection=projection, startmodel=startmodel, specmode=specmode, reffreq=reffreq, nchan=nchan,
@@ -66,6 +77,7 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
                    minbeamfrac=minbeamfrac, cutthreshold=cutthreshold, growiterations=growiterations,
                    dogrowprune=dogrowprune, minpercentchange=minpercentchange, verbose=verbose, restart=restart,
                    savemodel=savemodel, calcres=calcres, calcpsf=calcpsf, parallel=parallel)
+            print('checkpoint 3')
             clnjunks = ['.flux', '.mask', '.model', '.psf', '.residual', '.pb', '.sumwt', '.image.pbcor']
             for clnjunk in clnjunks:
                 if os.path.exists(imname + clnjunk):
@@ -133,6 +145,13 @@ def ptclean2(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
         ephem = None
         msinfo = None
 
+    if imageprefix:
+        workdir = os.path.dirname(imageprefix)
+    else:
+        workdir = './'
+    tmpdir = workdir + '/tmp/'
+    if not os.path.exists(tmpdir):
+        os.makedirs(tmpdir)
     # get number of time pixels
     ms.open(vis)
     ms.selectinit()
@@ -197,23 +216,21 @@ def ptclean2(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
                       npixels, uvtaper, niter, gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction,
                       maxpsffraction, interactive, usemask, mask, pbmask, sidelobethreshold, noisethreshold,
                       lownoisethreshold, negativethreshold, smoothfactor, minbeamfrac, cutthreshold, growiterations,
-                      dogrowprune, minpercentchange, verbose, restart, savemodel, calcres, calcpsf, parallel)
+                      dogrowprune, minpercentchange, verbose, restart, savemodel, calcres, calcpsf, parallel, tmpdir)
     timelapse = 0
     t0 = time()
     # parallelization
     if ncpu > 1:
-        para = 1
-    else:
-        para = 0
-    if para:
         import multiprocessing as mprocs
         casalog.post('Perform clean in parallel ...')
+        print('Perform clean in parallel ...')
         pool = mprocs.Pool(ncpu)
-        # res = pool.map_async(clnpart, iterable)
         res = pool.map(clnpart, iterable)
         pool.close()
         pool.join()
     else:
+        casalog.post('Perform clean in single process ...')
+        print('Perform clean in single process ...')
         for i in iterable:
             res.append(clnpart(i))
 
@@ -227,5 +244,8 @@ def ptclean2(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
         results['BeginTime'].append(r[1])
         results['EndTime'].append(r[2])
         results['ImageName'].append(r[3])
+
+    if os.path.exists(tmpdir):
+        os.system('rm -rf ' + tmpdir)
 
     return results

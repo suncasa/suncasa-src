@@ -1216,7 +1216,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 imagefile = imagename + '.image'
             fitsfile = imagefile + '.fits'
             hf.imreg(vis=vis, ephem=eph, imagefile=imagefile, timerange=timerange, reftime=reftime, fitsfile=fitsfile,
-                     verbose=True, overwrite=True)
+                     verbose=True, overwrite=True, scl100=True, toTb=True)
         print 'fits file ' + fitsfile + ' selected'
         ax4.cla()
         ax5.cla()
