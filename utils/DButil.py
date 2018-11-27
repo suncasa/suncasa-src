@@ -480,8 +480,28 @@ def smooth(x, window_len=11, window='hanning'):
         return y[window_len - 1:-(window_len - 1)]
 
 
-def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num=0, crf=15, fps=10, overwrite=False):
+def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num=0, crf=15, fps=10, overwrite=False,
+              crop=[], title=[], dpi=200,keeptmp=False,usetmp=False):
+    '''
+
+    :param imgprefix:
+    :param img_ext:
+    :param outname:
+    :param size:
+    :param start_num:
+    :param crf:
+    :param fps:
+    :param overwrite:
+    :param title: the timestamp on each frame
+    :param crop: 4-tuple of integer specifies the cropping pixels [x0, x1, y0, y1]
+    :param dpi:
+    :param keeptmp:
+    :param usetmp: use the image in the default tmp folder
+    :return:
+    '''
     import subprocess, os
+    from tqdm import tqdm
+    import matplotlib.pyplot as plt
     if type(imgprefix) is list:
         imgs = imgprefix
         imgprefix = os.path.dirname(imgprefix[0])
@@ -492,8 +512,31 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
         tmpdir = os.path.join(os.path.dirname(imgprefix), 'img_tmp') + '/'
         if not os.path.exists(tmpdir):
             os.makedirs(tmpdir)
-        for idx, ll in enumerate(imgs):
-            os.system('cp {} {}/{:04d}.{}'.format(ll, tmpdir, idx, img_ext))
+        if usetmp:
+            pass
+        else:
+            if crop != [] or title != []:
+                plt.ioff()
+                fig, ax = plt.subplots(figsize=[float(ll)/dpi for ll in size.split('x')])
+                for idx, ll in enumerate(tqdm(imgs)):
+                    data = plt.imread(ll)
+                    if crop != []:
+                        x0, x1, y0, y1 = crop
+                        data = data[y0:y1 + 1, x0:x1 + 1, :]
+                    if idx == 0:
+                        im = ax.imshow(data)
+                        ax.set_axis_off()
+                    else:
+                        im.set_array(data)
+                    if title != []:
+                        ax.set_title(title[idx])
+                    if idx == 0:
+                        fig.tight_layout()
+                    fig.savefig('{}/{:04d}.{}'.format(tmpdir, idx,img_ext), dpi=dpi, format=img_ext)
+                plt.close(fig)
+            else:
+                for idx, ll in enumerate(imgs):
+                    os.system('cp {} {}/{:04d}.{}'.format(ll, tmpdir, idx, img_ext))
         outd = {'r': fps, 's': size, 'start_number': start_num, 'crf': crf}
         if size is None:
             outd.pop('s')
@@ -511,7 +554,8 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
             ow, outname)
         print(cmd)
         subprocess.check_output(['bash', '-c', cmd])
-        os.system('rm -rf {}'.format(tmpdir))
+        if not keeptmp:
+            os.system('rm -rf {}'.format(tmpdir))
     else:
         print('Images not found!')
 
@@ -1633,10 +1677,79 @@ def get_contour_data(X, Y, Z, levels=[0.5, 0.7, 0.9]):
 #     return g.ravel()
 
 
-def c_correlate(a, v):
+def c_correlate(a, v, returnx=False):
     a = (a - np.mean(a)) / (np.std(a) * len(a))
     v = (v - np.mean(v)) / np.std(v)
-    return np.correlate(a, v, mode='same')
+    if returnx:
+        return np.arange(len(a)) - np.floor(len(a) / 2.0), np.correlate(a, v, mode='same')
+    else:
+        return np.correlate(a, v, mode='same')
+
+
+def c_correlateX(a, v, returnx=False, returnav=False, s=0):
+    '''
+
+    :param a:
+    :param v: a and v can be a dict in following format {'x':[],'y':[]}. The length of a and v can be different.
+    :param returnx:
+    :return:
+    '''
+    from scipy.interpolate import splev, splrep
+    import numpy.ma as ma
+
+    if isinstance(a, dict):
+        max_a = np.nanmax(a['x'])
+        min_a = np.nanmin(a['x'])
+        max_v = np.nanmax(v['x'])
+        min_v = np.nanmin(v['x'])
+        max_ = min(max_a, max_v)
+        min_ = max(min_a, min_v)
+        if not max_ > min_:
+            print('the x ranges of a and v have no overlap.')
+            return None
+        a_x = ma.masked_outside(a['x'].copy(), min_, max_)
+        if isinstance(a['y'], np.ma.core.MaskedArray):
+            a_y = ma.masked_array(a['y'].copy(), a['y'].mask | a_x.mask)
+            a_x = ma.masked_array(a_x, a_y.mask)
+        else:
+            a_y = ma.masked_array(a['y'].copy(), a_x.mask)
+        v_x = ma.masked_outside(v['x'].copy(), min_, max_)
+        if isinstance(v['y'], np.ma.core.MaskedArray):
+            v_y = ma.masked_array(v['y'].copy(), v['y'].mask | v_x.mask)
+            v_x = ma.masked_array(v_x, v_y.mask)
+        else:
+            v_y = ma.masked_array(v['y'].copy(), v_x.mask)
+
+        dx_a = np.abs(np.nanmean(np.diff(a_x)))
+        dx_v = np.abs(np.nanmean(np.diff(v_x)))
+        if dx_a >= dx_v:
+            v_ = v_y.compressed()
+            x_ = v_x.compressed()
+            tck = splrep(a_x.compressed(), a_y.compressed(), s=s)
+            ys = splev(x_, tck)
+            a_ = ys
+
+        elif dx_a < dx_v:
+            a_ = a_y.compressed()
+            x_ = a_x.compressed()
+            tck = splrep(v_x.compressed(), v_y.compressed(), s=s)
+            ys = splev(x_, tck)
+            v_ = ys
+
+    else:
+        a_ = a.copy()
+        v_ = v.copy()
+        x_ = None
+    a_ = (a_ - np.nanmean(a_)) / (np.nanstd(a_) * len(a_))
+    v_ = (v_ - np.nanmean(v_)) / np.nanstd(v_)
+    if returnx:
+        if x_ is None:
+            return np.arange(len(a_)) - np.floor(len(a_) / 2.0), np.correlate(a_, v_, mode='same')
+        else:
+            return (np.arange(len(a_)) - np.floor(len(a_) / 2.0)) * np.nanmean(np.diff(x_)), np.correlate(a_, v_,
+                                                                                                          mode='same'), x_, a_, v_
+    else:
+        return np.correlate(a_, v_, mode='same')
 
 
 def XCorrMap(z, x, y, doxscale=True):
