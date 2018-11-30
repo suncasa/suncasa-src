@@ -1033,12 +1033,13 @@ class Stackplot:
         maplist = []
         for idx, smap in enumerate(tqdm(mapcube)):
             if frm_range[0] <= idx <= frm_range[-1]:
-                data = smap.data
+                data = smap.data.copy()
                 if threshold is not None:
                     data = ma.masked_less(data, threshold)
-
+                else:
+                    data = ma.masked_array(data)
                 data = data ** gamma
-                maplist.append(sunpy.map.Map(data, mapcube[idx].meta))
+                maplist.append(sunpy.map.Map(data.data, mapcube[idx].meta))
                 intens = getimprofile(data, self.cutslitbd.cutslitplt, xrange=smap.xrange.to(u.arcsec).value,
                                       yrange=smap.yrange.to(u.arcsec).value)
                 stackplt.append(intens['y'])
