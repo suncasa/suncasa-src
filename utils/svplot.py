@@ -714,7 +714,7 @@ def dspec_external(vis, workdir='./', specfile=None):
         specfile = os.path.join(workdir, os.path.basename(vis) + '.dspec.npz')
     os.system('rm -rf {}'.format(dspecscript))
     fi = open(dspecscript, 'wb')
-    fi.write('from suncasa.utils import dspec2 as ds \n')
+    fi.write('from suncasa.utils import dspec as ds \n')
     fi.write('specdata = ds.get_dspec("{0}", specfile="{1}", domedian=True, verbose=True, savespec=True) \n'.format(vis,
                                                                                                                     specfile))
     fi.close()
@@ -736,7 +736,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                        If not provided, use the entire range (*BE CAREFUL, COULD BE VERY SLOW*)
             spw: spectral window selection following the CASA syntax. 
                  Examples: spw='1:2~60' (spw id 1, channel range 2-60); spw='*:1.2~1.3GHz' (selects all channels within 1.2-1.3 GHz; note the *) 
-            specfile: supply dynamic spectrum save file (from suncasa.utils.dspec2.get_dspec()). Otherwise
+            specfile: supply dynamic spectrum save file (from suncasa.utils.dspec.get_dspec()). Otherwise
                       generate a median dynamic spectrum on the fly
     Optional inputs:
             bl: baseline to generate dynamic spectrum
