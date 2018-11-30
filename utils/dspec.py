@@ -33,8 +33,12 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
     if os.path.exists(vis_spl):
         os.system('rm -rf ' + vis_spl)
 
-    split(vis=msfile, outputvis=vis_spl, timerange=timeran, antenna=bl, field=field, scan=scan, spw=spw,
-          uvrange=uvrange, timebin=timebin, datacolumn=datacolumn)
+    ms.open(msfile, nomodify=False)
+    ms.split(outputms=vis_spl, whichcol=datacolumn, time=timeran, spw=spw, baseline=bl, field=field, scan=scan,
+             uvrange=uvrange, timebin=timebin)
+    ms.close()
+    # split(vis=msfile, outputvis=vis_spl, timerange=timeran, antenna=bl, field=field, scan=scan, spw=spw,
+    #       uvrange=uvrange, timebin=timebin, datacolumn=datacolumn)
     ms.open(vis_spl, nomodify=False)
     if verbose:
         print 'Regridding into a single spectral window...'
