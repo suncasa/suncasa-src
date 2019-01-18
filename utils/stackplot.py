@@ -76,6 +76,39 @@ def runningmean(data, window, ix):
     return {'idx': ix, 'y': DButil.smooth(x, window[0]) / DButil.smooth(x, window[1])}
 
 
+def XCorrMap(data, refpix=[0, 0]):
+    def c_correlate(a, v, returnx=False):
+        a = (a - np.mean(a)) / (np.std(a) * len(a))
+        v = (v - np.mean(v)) / np.std(v)
+        if returnx:
+            return np.arange(len(a)) - np.floor(len(a) / 2.0), np.correlate(a, v, mode='same')
+        else:
+            return np.correlate(a, v, mode='same')
+
+    from tqdm import tqdm
+    ny, nx, nt = data.shape
+    ccmax = np.empty((ny, nx))
+    ccmax[:] = np.nan
+    ccpeak = np.empty((ny, nx))
+    ccpeak[:] = np.nan
+
+    lc_ref = data[refpix[0], refpix[1], :]
+    for xidx in tqdm(range(0, ny - 1)):
+        for yidx in range(0, nx - 1):
+            lc = data[xidx, yidx, :]
+            ccval = c_correlate(lc, lc_ref)
+            if sum(lc) != 0:
+                cmax = np.nanmax(ccval)
+                cpeak = np.nanargmax(ccval) - (nt - 1) / 2
+            else:
+                cmax = 0
+                cpeak = 0
+            ccmax[xidx, yidx - 1] = cmax
+            ccpeak[xidx, yidx - 1] = cpeak
+
+    return {'ny': ny, 'nx': nx, 'nt': nt, 'ccmax': ccmax, 'ccpeak': ccpeak}
+
+
 def FitSlit(xx, yy, cutwidth, cutang, cutlength, s=None, method='Polyfit', ascending=True):
     if len(xx) <= 3 or method == 'Polyfit':
         '''polynomial fit'''
@@ -662,9 +695,43 @@ class Stackplot:
         self.mapcube = sunpy.map.Map(maplist, cube=True)
         self.binpix *= binpix
 
+    def mapcube_diff_denoise(self, log=False, vmax=None, vmin=None):
+        datacube = self.mapcube.as_array().astype(np.float)
+        if vmax is None:
+            vmax = np.nanmax(datacube)
+            if log:
+                if vmax < 0:
+                    vmax = 0
+                else:
+                    vmax = np.log10(vmax)
+        if vmin is None:
+            vmin = np.nanmin(datacube)
+            if log:
+                if vmin < 0:
+                    vmin = 0
+                else:
+                    vmin = np.log10(vmin)
+
+        datacube_diff = self.mapcube_diff.as_array().astype(np.float)
+
+        if log:
+            datacube[datacube < 10. ** vmin] = 10. ** vmin
+            datacube[datacube > 10. ** vmax] = 10. ** vmax
+            datacube_diff = datacube_diff * (np.log10(datacube) - vmin) / (vmax - vmin)
+        else:
+            datacube[datacube < vmin] = vmin
+            datacube[datacube > vmax] = vmax
+            datacube_diff = datacube_diff * (datacube - vmin) / (vmax - vmin)
+
+        maplist = []
+        for idx, ll in enumerate(tqdm(self.mapcube)):
+            maplist.append(sunpy.map.Map(datacube_diff[:, :, idx], self.mapcube[idx].meta))
+        mapcube_diff = sunpy.map.Map(maplist, cube=True)
+        self.mapcube_diff = mapcube_diff
+        return mapcube_diff
+
     def mapcube_mkdiff(self, mode='rdiff', dt_frm=3, medfilt=None, gaussfilt=None, bfilter=False, lowcut=0.1,
-                       highcut=0.5, window=[None, None], outfile=None,
-                       tosave=False):
+                       highcut=0.5, window=[None, None], outfile=None, tosave=False):
         '''
 
         :param mode: accept modes: rdiff, rratio, bdiff, bratio, dtrend
@@ -1054,12 +1121,18 @@ class Stackplot:
             print('Too few timestamps. Failed to make a stack plot map.')
         return mapcube
 
+    def stackplt_wrap(self):
+        cutslitplt = self.cutslitbd.cutslitplt
+        dspec = {'dspec': self.stackplt, 'x': np.hstack(
+            (self.tplt.plot_date, self.tplt.plot_date[-1] + np.nanmean(np.diff(self.tplt.plot_date)))),
+                 'y': np.hstack((cutslitplt['dist'], cutslitplt['dist'][-1] + np.nanmean(np.diff(cutslitplt['dist'])))),
+                 'ytitle': 'Distance [arcsec]',
+                 'ctitle': 'DN counts per second'}
+        return dspec
+
     def stackplt_tofile(self, outfile=None, stackplt=None):
         if not stackplt:
-            cutslitplt = self.cutslitbd.cutslitplt
-            dspec = {'dspec': self.stackplt, 'x': self.tplt.plot_date, 'y': cutslitplt['dist'],
-                     'ytitle': 'Distance [arcsec]',
-                     'ctitle': 'DN counts per second'}
+            dspec = self.stackplt_wrap()
         with open('{}'.format(outfile), 'wb') as sf:
             pickle.dump(dspec, sf)
 
@@ -1105,12 +1178,8 @@ class Stackplot:
             except:
                 cmap = 'gray_r'
 
-        dspec = {'dspec': self.stackplt,
-                 'x': np.hstack(
-                     (self.tplt.plot_date, self.tplt.plot_date[-1] + np.nanmean(np.diff(self.tplt.plot_date)))),
-                 'y': np.hstack((cutslitplt['dist'], cutslitplt['dist'][-1] + np.nanmean(np.diff(cutslitplt['dist'])))),
-                 'ytitle': 'Distance [arcsec]',
-                 'ctitle': 'DN counts per second', 'args': {'norm': norm, 'cmap': cmap}}
+        dspec = self.stackplt_wrap()
+        dspec['args'] = {'norm': norm, 'cmap': cmap}
 
         dtplot = np.mean(np.diff(self.tplt.plot_date))
         dspec['axvspan'] = [self.tplt[0].plot_date, self.tplt[0].plot_date + dtplot]
@@ -1253,13 +1322,27 @@ class Stackplot:
         if not mapcube:
             mapcube = self.mapcube
         t = []
-        for idx, smap in enumerate(mapcube):
-            if smap.meta.has_key('t_obs'):
-                tstr = smap.meta['t_obs']
+
+        smap = mapcube[0]
+        if smap.meta.has_key('date-obs'):
+            key = 'date-obs'
+        else:
+            if smap.meta.has_key('date_obs'):
+                key = 'date_obs'
             else:
-                tstr = smap.meta['date-obs']
+                if smap.meta.has_key('t_obs'):
+                    key = 't_obs'
+                else:
+                    print('Check you fits header. No time keywords found in the header!')
+                    return None
+
+        for idx, smap in enumerate(mapcube):
+            tstr = smap.meta[key]
             t.append(tstr)
-        return Time(t)
+        t = Time(t)
+        if key == 't_obs':
+            t = Time(t.mjd - self.exptime_orig / 2.0 / 24. / 3600., format='mjd')
+        return t
 
     @classmethod
     def set_fits_dir(cls, fitsdir):
