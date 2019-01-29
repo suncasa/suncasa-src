@@ -787,7 +787,7 @@ class Stackplot:
             if window[0] is None:
                 window[0] = 0
             if window[1] is None:
-                window[1] = nt / 2
+                window[1] = int(nt / 2)
             print('detrending the mapcube in time domain.....')
             for ly in tqdm(range(ny)):
                 runningmean_partial = partial(runningmean, datacube[ly], window)
