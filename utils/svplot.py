@@ -714,7 +714,7 @@ def dspec_external(vis, workdir='./', specfile=None):
         specfile = os.path.join(workdir, os.path.basename(vis) + '.dspec.npz')
     os.system('rm -rf {}'.format(dspecscript))
     fi = open(dspecscript, 'wb')
-    fi.write('from suncasa.utils import dspec2 as ds \n')
+    fi.write('from suncasa.utils import dspec as ds \n')
     fi.write('specdata = ds.get_dspec("{0}", specfile="{1}", domedian=True, verbose=True, savespec=True) \n'.format(vis,
                                                                                                                     specfile))
     fi.close()
@@ -736,7 +736,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                        If not provided, use the entire range (*BE CAREFUL, COULD BE VERY SLOW*)
             spw: spectral window selection following the CASA syntax. 
                  Examples: spw='1:2~60' (spw id 1, channel range 2-60); spw='*:1.2~1.3GHz' (selects all channels within 1.2-1.3 GHz; note the *) 
-            specfile: supply dynamic spectrum save file (from suncasa.utils.dspec2.get_dspec()). Otherwise
+            specfile: supply dynamic spectrum save file (from suncasa.utils.dspec.get_dspec()). Otherwise
                       generate a median dynamic spectrum on the fly
     Optional inputs:
             bl: baseline to generate dynamic spectrum
@@ -1292,12 +1292,18 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             aiamap.plot(axes=ax4, vmin=0)
             ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize=12)
             aiamap.draw_limb()
-            aiamap.draw_grid()
+            try:
+                aiamap.draw_grid()
+            except:
+                pass
             aiamap.draw_rectangle((xyrange[0][0], xyrange[1][0]) * u.arcsec, sz_x, sz_y)
             aiamap.plot(axes=ax6, vmin=0)
             ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize=12)
             aiamap.draw_limb()
-            aiamap.draw_grid()
+            try:
+                aiamap.draw_grid()
+            except:
+                pass
             aiamap.draw_rectangle((xyrange[0][0], xyrange[1][0]) * u.arcsec, sz_x, sz_y)
             if rmap:
                 ax4.contour(rmapx.value, rmapy.value, rmap1.data, levels=clevels1 * np.nanmax(rmap1.data),
@@ -1354,10 +1360,16 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
 
             subaiamap.plot(axes=ax5, title='', vmin=0)
             subaiamap.draw_limb()
-            subaiamap.draw_grid()
+            try:
+                subaiamap.draw_grid()
+            except:
+                pass
             subaiamap.plot(axes=ax7, title='', vmin=0)
             subaiamap.draw_limb()
-            subaiamap.draw_grid()
+            try:
+                subaiamap.draw_grid()
+            except:
+                pass
             ax5.contour(subrmapx.value, subrmapy.value, subrmap1.data, levels=clevels1 * np.nanmax(subrmap1.data),
                         cmap=cm.jet)
             ax7.contour(subrmapx.value, subrmapy.value, subrmap2.data, levels=clevels2 * np.nanmax(subrmap2.data),
