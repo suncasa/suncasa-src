@@ -32,8 +32,10 @@ from matplotlib.widgets import Button
 from sunpy.physics.transforms.solar_rotation import mapcube_solar_derotate
 import warnings
 from sunpy.instr.aia import aiaprep
+from suncasa.utils.lineticks import LineTicks
+import pdb
 
-warnings.filterwarnings('ignore')
+#warnings.filterwarnings('ignore')
 
 
 def resettable(f):
@@ -315,12 +317,19 @@ class CutslitBuilder:
 
 class Stackplot:
     instrum_meta = {'SDO/AIA': {'scale': 0.6 * u.arcsec / u.pix}}
+    #try to find predefined data directory, AIA_LVL1 takes precedence
+    aia_lvl1 = os.getenv('AIA_LVL1')
     suncasadb = os.getenv('SUNCASADB')
-    if not suncasadb:
-        print('Environmental variable for SUNCASA database path not defined')
-        print('Use default path')
-        suncasadb = './'
-    fitsdir = suncasadb + '/aiaBrowserData/Download/'
+    if aia_lvl1:
+        print('Use '+aia_lvl1+' as the file searching path')
+        fitsdir=aia_lvl1
+    else:
+        if suncasadb:
+            fitsdir = suncasadb + '/aiaBrowserData/Download/'
+        else:
+            print('Environmental variable for either AIA_LVL1 or SUNCASADB not defined')
+            print('Use current path')
+            fitsdir = './'
     mapcube = None
     mapcube_diff = None
     mapcube_plot = None
@@ -559,11 +568,11 @@ class Stackplot:
         if isinstance(trange, list):
             if isinstance(trange[0], Time):
                 trange = Time([trange[0], trange[-1]])
-                fitsfile = DButil.readsdofile(datadir=self.fitsdir, wavelength=wavelength, jdtime=trange.jd)
+                fitsfile = DButil.readsdofile(datadir=self.fitsdir, wavelength=wavelength, trange=trange)
             else:
                 fitsfile = trange
         elif isinstance(trange, Time):
-            fitsfile = DButil.readsdofile(datadir=self.fitsdir, wavelength=wavelength, jdtime=trange.jd)
+            fitsfile = DButil.readsdofile(datadir=self.fitsdir, wavelength=wavelength, trange=trange)
         else:
             fitsfile = trange
             print(
@@ -1191,9 +1200,17 @@ class Stackplot:
                                                      returnImAx=True, uni_cm=uni_cm,
                                                      layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
-            ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
+            cuttraj, = ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
             ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
             ax.plot(cutslitplt['xs1'], cutslitplt['ys1'], color='white', ls='dotted')
+            dists = cutslitplt['dist']
+            dist_ticks=ax2.axes.get_yticks()
+            dist_ticks_idx = []
+            for m,dt in enumerate(dist_ticks):
+                ddist_med = np.median(np.abs(np.diff(dists)))
+                if np.min(np.abs(dists-dt)) < (1.5 * ddist_med):
+                    dist_ticks_idx.append(np.argmin(np.abs(dists-dt)))
+            maj_t = LineTicks(cuttraj, dist_ticks_idx, 10, lw=2, label=['{:.0f}"'.format(dt) for dt in dist_ticks]) 
             if anim:
                 import matplotlib
                 matplotlib.use("Agg")
@@ -1269,9 +1286,17 @@ class Stackplot:
                                                      returnImAx=True, uni_cm=uni_cm,
                                                      layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
-            ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
+            cuttraj, = ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
             ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
             ax.plot(cutslitplt['xs1'], cutslitplt['ys1'], color='white', ls='dotted')
+            dists = cutslitplt['dist']
+            dist_ticks=ax2.axes.get_yticks()
+            dist_ticks_idx = []
+            for m,dt in enumerate(dist_ticks):
+                ddist_med = np.median(np.abs(np.diff(dists)))
+                if np.min(np.abs(dists-dt)) < (1.5 * ddist_med):
+                    dist_ticks_idx.append(np.argmin(np.abs(dists-dt)))
+            maj_t = LineTicks(cuttraj, dist_ticks_idx, 10, lw=2, label=['{:.0f}"'.format(dt) for dt in dist_ticks]) 
             axcolor = 'lightgoldenrodyellow'
             axframe2 = plt.axes([0.1, 0.03, 0.40, 0.02], facecolor=axcolor)
             sframe2 = Slider(axframe2, 'frame', 0, len(mapcube_plot) - 1, valinit=0, valfmt='%0.0f')
