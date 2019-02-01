@@ -1,15 +1,12 @@
 import os
 from taskinit import *
 import numpy as np
-#from suncasa.vla import vla_prep
-#from suncasa.eovsa import eovsa_prep as ep
 from suncasa.utils import helioimage2fits as hf
 import shutil
 import multiprocessing as mprocs
 from functools import partial
 from time import time
 import glob
-import pdb
 
 def clean_iter(tim, freq, vis, imageprefix, imagesuffix, 
                ncpu, twidth, doreg, usephacenter, reftime, ephem, msinfo, toTb, overwrite,
@@ -103,7 +100,7 @@ def clean_iter(tim, freq, vis, imageprefix, imagesuffix,
             # check if ephemfile and msinfofile exist
             if not ephem:
                 print("ephemeris info does not exist, querying from JPL Horizons on the fly")
-                ephem = hf.read_horizons(vis)
+                ephem = hf.read_horizons(vis=vis)
             if not msinfo:
                 print("ms info not provided, generating one on the fly")
                 msinfo = hf.read_msinfo(vis)
@@ -142,7 +139,7 @@ def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, re
     if doreg:
         # check if ephem and msinfo exist. If not, generate one on the fly
         try:
-            ephem = hf.read_horizons(vis)
+            ephem = hf.read_horizons(vis=vis)
         except ValueError:
             print("error in obtaining ephemeris")
         try:
@@ -151,6 +148,7 @@ def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, re
             print("error in getting ms info")
     else:
         ephem = None
+        msinfo = None
 
     # get number of time pixels
     ms.open(vis)
@@ -224,8 +222,7 @@ def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, re
     timelapse = 0
     t0 = time()
     # parallelization
-    para = 1
-    if para:
+    if ncpu > 1:
         casalog.post('Perform clean in parallel ...')
         pool = mprocs.Pool(ncpu)
         # res = pool.map_async(clnpart, iterable)

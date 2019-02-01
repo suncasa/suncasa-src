@@ -36,7 +36,7 @@ class PuffinMap:
     """
     __slots__ = ['smap', 'plot_height', 'plot_width', 'x', 'y', 'dw', 'dh', 'x_range', 'y_range']
 
-    def __init__(self, data=None, header=None, smap=None, plot_height=None, plot_width=None, webgl=False, *args,
+    def __init__(self, data=None, header=None, smap=None, plot_height=None, plot_width=None, *args,
                  **kwargs):
         if not smap:
             smap = sunpy.map.Map((data, header))
@@ -45,7 +45,6 @@ class PuffinMap:
             plot_height = 400.0
         if not plot_width:
             plot_width = 400.0
-        self.webgl = webgl
         self.plot_height = plot_height
         self.plot_width = plot_width
 
@@ -57,7 +56,11 @@ class PuffinMap:
         dw (UnitsSpecProperty) - The widths of the plot regions that the images will occupy.
         dh (UnitsSpecProperty) - The height of the plot region that the image will occupy.
         """
-        dx, dy = self.smap.scale.x.value, self.smap.scale.y.value
+        try:
+            dx, dy = self.smap.scale.x.value, self.smap.scale.y.value
+        except:
+            dx, dy = self.smap.scale[0].value, self.smap.scale[1].value
+
         self.dx, self.dy = dx, dy
         x0, x1 = self.smap.xrange.value[0] - dx / 2.0, self.smap.xrange.value[1] + dx / 2.0
         y0, y1 = self.smap.yrange.value[0] - dy / 2.0, self.smap.yrange.value[1] + dy / 2.0
@@ -69,7 +72,8 @@ class PuffinMap:
 
     def meshgrid(self, rescale=1.0, *args, **kwargs):
         XX, YY = np.meshgrid(np.arange(self.smap.data.shape[1] * rescale), np.arange(self.smap.data.shape[0] * rescale))
-        x, y = self.smap.pixel_to_data(XX / rescale * u.pix, YY / rescale * u.pix)
+        mesh =  self.smap.pixel_to_world(XX / rescale * u.pix, YY / rescale * u.pix)
+        x,y = mesh.Tx,mesh.Tx
         return x, y
 
     def meshgridpix(self, rescale=1.0, *args, **kwargs):
@@ -81,13 +85,14 @@ class PuffinMap:
     def ImageSource(self, *args, **kwargs):
         """maps the Sunpy map to Bokeh DataSource
         """
-        XX, YY = (np.arange(self.smap.data.shape[0]), np.zeros(self.smap.data.shape[0]))
-        x = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)[0]
-        XX, YY = (np.zeros(self.smap.data.shape[1]), np.arange(self.smap.data.shape[1]))
-        y = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)[1]
+        # XX, YY = (np.arange(self.smap.data.shape[0]), np.zeros(self.smap.data.shape[0]))
+        # x = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)[0]
+        # XX, YY = (np.zeros(self.smap.data.shape[1]), np.arange(self.smap.data.shape[1]))
+        # y = self.smap.pixel_to_data(XX * u.pix, YY * u.pix)[1]
         data = self.smap.data.copy()
         data[~np.isnan(data)] = data[~np.isnan(data)] / self.smap.exposure_time.value
-        return {'data': [data], 'xx': [x], 'yy': [y]}
+        # return {'data': [data], 'xx': [x], 'yy': [y]}
+        return {'data': [data]}
 
     def DrawGridSource(self, grid_spacing=15 * u.deg, *args, **kwargs):
         """maps the Longitude and Latitude grids to Bokeh DataSource
@@ -109,7 +114,7 @@ class PuffinMap:
         # draw the latitude lines
         for lat in hg_latitude_deg:
             x, y = wcs.convert_hg_hpc(hg_longitude_deg, lat * np.ones(361), b0_deg=b0, l0_deg=l0, dsun_meters=dsun,
-                                      angle_units=units.x, occultation=True)
+                                      angle_units=units.axis1, occultation=True)
             valid = np.logical_and(np.isfinite(x), np.isfinite(y))
             x = x[valid]
             y = y[valid]
@@ -122,7 +127,7 @@ class PuffinMap:
         # draw the longitude lines
         for lon in hg_longitude_deg:
             x, y = wcs.convert_hg_hpc(lon * np.ones(181), hg_latitude_deg, b0_deg=b0, l0_deg=l0, dsun_meters=dsun,
-                                      angle_units=units[0], occultation=True)
+                                      angle_units=units.axis1, occultation=True)
             valid = np.logical_and(np.isfinite(x), np.isfinite(y))
             x = x[valid]
             y = y[valid]
@@ -199,7 +204,7 @@ class PuffinMap:
             dw = self.dw
             dh = self.dh
 
-        p_image = figure(tools=tools, webgl=self.webgl, x_range=x_range,
+        p_image = figure(tools=tools, x_range=x_range,
                          y_range=y_range, title=title, plot_height=self.plot_height,
                          plot_width=self.plot_width, *args, **kwargs)
         p_image.xaxis.axis_label = p_xaxis_axislabel

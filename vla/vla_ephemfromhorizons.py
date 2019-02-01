@@ -7,15 +7,22 @@ def make_ephem(vis, ephemfile=None):
     from taskinit import tb
     quantities = ['1', '14', '15', '17', '19', '20', '24', '32']
     quantities = ','.join(quantities)
-    tb.open(vis)
-    btime = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
-    etime = Time(tb.getcell('TIME', tb.nrows() - 1) / 24. / 3600., format='mjd')
+    tb.open(vis + '/OBSERVATION')
+    trs = {'BegTime': [], 'EndTime': []}
+    for ll in range(tb.nrows()):
+        tim0, tim1 = Time(tb.getcell('TIME_RANGE', ll) / 24 / 3600, format='mjd')
+        trs['BegTime'].append(tim0)
+        trs['EndTime'].append(tim1)
     tb.close()
+    trs['BegTime'] = Time(trs['BegTime'])
+    trs['EndTime'] = Time(trs['EndTime'])
+    btime = np.min(trs['BegTime'])
+    etime = np.max(trs['EndTime'])
     print "Beginning time of this scan " + btime.iso
     print "End time of this scan " + etime.iso
 
-    btime = Time((btime.mjd - 1.0/60./24.), format='mjd')
-    etime = Time((etime.mjd + 1.0/60./24.), format='mjd')
+    btime = Time((btime.mjd - 1.0 / 60 / 24), format='mjd')
+    etime = Time((etime.mjd + 1.0 / 60 / 24), format='mjd')
     startdate = btime.iso.replace(' ', ',')[:-7]
     enddate = etime.iso.replace(' ', ',')[:-7]
     cmd = ["COMMAND= '10'", "CENTER= '-5@399'", "MAKE_EPHEM= 'YES'", "TABLE_TYPE= 'OBSERVER'",
@@ -58,11 +65,10 @@ def make_ephem(vis, ephemfile=None):
                 #         fb.write(l.replace('*m','').replace('*t',''))
 
 
-def make_ephem_tb(vis, output_casa_table_name=None):
+def make_ephem_tb(ephemfile, output_casa_table_name=None):
     import recipes.ephemerides.JPLephem_reader2 as jplreader
     import os.path
-    ephemfile = 'sun-ephem.txt'
-    make_ephem(vis, ephemfile=ephemfile)
+
     if os.path.isfile(ephemfile):
         output_dictionary = jplreader.readJPLephem(ephemfile)
         time_range_string = str(int(output_dictionary['earliest']['m0']['value'])) + '-' + str(

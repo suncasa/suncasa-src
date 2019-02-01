@@ -10,6 +10,353 @@ __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
 
 
+def img2html_movie(imgprefix, outname='movie', img_fmt='png'):
+    imgfiles = glob.glob(imgprefix + '*.' + img_fmt)
+    imgfiles = sorted(imgfiles)
+
+    # try:
+    import matplotlib.image as mpimg
+    img = mpimg.imread(imgfiles[0])
+    height, width, dummy = img.shape
+    # except:
+    #     from PIL import Image
+    #     img = Image.open(imgfiles[0])
+    #     width, height = img.size
+    #     img.close()
+
+    nfiles = len(imgfiles)
+    htmlfile = os.path.join(os.path.dirname(imgprefix), '{}.html'.format(outname))
+    fi = open(htmlfile, 'w')
+    fi.write('<HTML>\n')
+    fi.write('\n')
+    fi.write('<HEAD>\n')
+    fi.write('<TITLE> Javascript Movie Player </TITLE>\n')
+    fi.write('\n')
+    fi.write('</HEAD>\n')
+    fi.write('\n')
+    fi.write('<BODY FONT=3 BGCOLOR=FFFFFF LINK=#0000CC VLINK=#0000CC TEXT=#000000> \n')
+    fi.write('\n')
+    fi.write('<SCRIPT language="Javascript">\n')
+    fi.write('<!--\n')
+    fi.write('//\n')
+    fi.write('// DYNAMICALLY CREATED HTML - DO NOT EDIT\n')
+    fi.write('//\n')
+    fi.write('// Javascript program to produce fast animations by reading from cache\n')
+    fi.write('// Written: 7 July 1997, Zarro, NASA/GSFC\n')
+    fi.write('// Modified: 27 July 1997, Freeland, LSAL - added nice SWING option\n')
+    fi.write('// Modified: 9 Oct 1998, Zarro, SMA/GSFC - added context window button\n')
+    fi.write('// Modified: 14 Oct 1998, Zarro, SMA/GSFC - load images asynchronously\n')
+    fi.write('// Modified: 23 Aug 1999, William Thompson, GSFC - make button text black\n')
+    fi.write('\n')
+    fi.write('// Following variables control movie speed, labels, etc.\n')
+    fi.write('\n')
+    fi.write('var imax = {}, inc = 1.50, delay = 250;\n'.format(nfiles))
+    fi.write('var num_loaded_images = 0;\n')
+    fi.write('var frame=-1, speed=10;\n')
+    fi.write('var timeout_id=null;\n')
+    fi.write('var dir=1, playing=0, swingon=0, run=0;\n')
+    fi.write('var bname = "Reverse";\n')
+    fi.write('var url_path = ".";\n')
+    fi.write('var context = "frame00.gif";\n')
+    fi.write('var ctitle ="test";\n')
+    fi.write('var url_context=url_path+"/"+context;\n')
+    fi.write('var iwidth = {},iheight = {};\n'.format(width, height))
+    fi.write('var index=0;\n')
+    fi.write('\n')
+    fi.write('// -->\n')
+    fi.write('</SCRIPT>\n')
+    fi.write('\n')
+    fi.write('<CENTER>\n')
+    fi.write('\n')
+    fi.write('<H1> Javascript Movie Player </H1>\n')
+    fi.write('<P>\n')
+    fi.write('\n')
+    fi.write('<TABLE BORDER="10" CELLPADDING="8">\n')
+    fi.write('<TR>\n')
+    fi.write('<TD align="center"> \n')
+    fi.write('<img NAME=animation ALT="FRAME" width={} height={}>\n'.format(width, height))
+    fi.write('</TR>\n')
+    fi.write('</TABLE>\n')
+    fi.write('<P>\n')
+    fi.write('\n')
+    fi.write('<FORM NAME="form">\n')
+    fi.write(' <FONT COLOR="Black">\n')
+    fi.write(' <INPUT TYPE=button VALUE="Start" onClick="start_play();">\n')
+    fi.write(' <INPUT TYPE=button VALUE="Pause" onClick="stop_play();">\n')
+    fi.write(' <INPUT TYPE=button VALUE="Faster" onClick="speed*=inc; show_speed();">\n')
+    fi.write(' <INPUT TYPE=button VALUE="Slower" onClick="speed/=inc; show_speed();">\n')
+    fi.write(' <INPUT TYPE=button VALUE="Step" onClick="oneStep();">\n')
+    fi.write(' <INPUT TYPE=button NAME="direction" VALUE="Reverse" onClick="reverse();">\n')
+    fi.write(' <INPUT TYPE=button VALUE="Swing Mode:" onClick="swing_mode();">\n')
+    fi.write(' <INPUT TYPE=text VALUE="OFF" NAME="swing" SIZE=3>\n')
+    fi.write('\n')
+    fi.write(' </FONT>\n')
+    fi.write(' <BR>\n')
+    fi.write(' Frame: <INPUT TYPE=text VALUE="" NAME="frame" SIZE=22> \n')
+    fi.write(' &nbsp; Speed:<INPUT TYPE=text VALUE="" NAME="rate" SIZE=4> (frames/sec)\n')
+    fi.write('</FORM>\n')
+    fi.write(' \n')
+    fi.write('</FORM>\n')
+    fi.write('</CENTER>\n')
+    fi.write('\n')
+    fi.write('<P>\n')
+    fi.write('<HR>\n')
+    fi.write('<B>Document</B>: <I><SCRIPT>document.write(document.title);</SCRIPT></I><BR>\n')
+    fi.write('<B>URL</B>: <I><SCRIPT>document.write(document.URL);</SCRIPT></I><BR>\n')
+    fi.write('<B>Last Update</B>: <I><SCRIPT>document.write(document.lastModified);</SCRIPT></I><BR>\n')
+    fi.write('\n')
+    fi.write('\n')
+    fi.write('<SCRIPT LANGUAGE="JavaScript">\n')
+    fi.write('<!--\n')
+    fi.write('\n')
+    fi.write('function get_window_width(fac,def) {  // Return window width\n')
+    fi.write('\n')
+    fi.write(' \n')
+    fi.write('var width;\n')
+    fi.write('if (!fac) {fac=.75;}\n')
+    fi.write('if (!def) {def=512;}\n')
+    fi.write('\n')
+    fi.write('if (window.screen) {\n')
+    fi.write(' width=parseInt(fac*parseFloat(window.screen.width));\n')
+    fi.write('} else {\n')
+    fi.write(' width=def;\n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('return width;\n')
+    fi.write('\n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('/////////////////////////////////////////////////////////////////////////////\n')
+    fi.write('\n')
+    fi.write('function get_window_height(fac,def) {   // Return window height\n')
+    fi.write('\n')
+    fi.write(' \n')
+    fi.write('var height;\n')
+    fi.write('if (!fac) {fac=.75;}\n')
+    fi.write('if (!def) {def=512;}\n')
+    fi.write('\n')
+    fi.write('if (window.screen) {\n')
+    fi.write(' height=parseInt(fac*parseFloat(window.screen.height));\n')
+    fi.write('} else {\n')
+    fi.write(' height=def;\n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('return height;\n')
+    fi.write('\n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('/////////////////////////////////////////////////////////////////////////////\n')
+    fi.write('// Javascript Pop-up image Window\n')
+    fi.write('// Written: Zarro (SAC/GSFC), October 1998, (dzarro@solar.stanford.edu)\n')
+    fi.write('\n')
+    fi.write('var win;\n')
+    fi.write('\n')
+    fi.write('function pop_img(url,title,width,height) {\n')
+    fi.write('\n')
+    fi.write('if (!url) {\n')
+    fi.write(" alert('Image URL not entered');\n")
+    fi.write(' return false;\n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('// default to fit within 75% of browser window, or 512x512\n')
+    fi.write('\n')
+    fi.write('if (!width) {width=get_window_width(.75,512);}\n')
+    fi.write('if (!height) {height=get_window_height(.75,512);}\n')
+    fi.write('\n')
+    fi.write('if (!win || win.closed) {\n')
+    fi.write(
+        ' win = open("","img","width="+width.toString()+",height="+height.toString()+",scrollbars=yes,resizable=yes"); \n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('// dynamically create HTML, adding a CLOSE button\n')
+    fi.write('\n')
+    fi.write('if (win) {\n')
+    fi.write(' d=win.document;\n')
+    fi.write(' d.write(\'<html><head><title>Image Window</title></head><body bgcolor="white"><center>\');\n')
+    fi.write(' if (title) {\n')
+    fi.write("  d.write('<h1>'+title+'</h1>');\n")
+    fi.write(' }\n')
+    fi.write(" d.write('<img src='+url+'>');\n")
+    fi.write(" d.write('<br><br><br>');\n")
+    fi.write(
+        ' d.write(\'<form><b><input type="button" value="CLOSE" onClick="self.close();"></b></form></center>\'); \n')
+    fi.write(" d.write('</html></body>');\n")
+    fi.write(' d.close();\n')
+    fi.write(' win.focus();\n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('return true;     \n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('///////////////////////////////////////////////////////////////////////////\n')
+    fi.write('\n')
+    fi.write('function load_img() {        // asynchronously load all images into cache\n')
+    fi.write(' for (i=0; i < imax ; i++) {\n')
+    fi.write('  id[i]=setTimeout("load_src()",0);\n')
+    fi.write(' }\n')
+    fi.write(' return;\n')
+    fi.write('}\n')
+    fi.write('/////////////////////////////////////////////////////////////////////////////\n')
+    fi.write('\n')
+    fi.write('function load_src() {      // load individual images into cache\n')
+    fi.write('\n')
+    fi.write(' if (index < imax) {\n')
+    fi.write('  if (iwidth && iheight) {\n')
+    fi.write('   images[index] = new Image(iwidth,iheight);\n')
+    fi.write('  } else {\n')
+    fi.write('   images[index] = new Image();\n')
+    fi.write('  }\n')
+    fi.write('  images[index].onload=count_images;\n')
+    fi.write('  images[index].src = urls[index];\n')
+    fi.write('  index++;\n')
+    fi.write(' }\n')
+    fi.write(' return;\n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('/////////////////////////////////////////////////////////////////////////////\n')
+    fi.write('\n')
+    fi.write("function clear_ids() {         // clear asynchronous id's\n")
+    fi.write(' for (i=0; i < imax ; i++) {clearTimeout(id[i]);}\n')
+    fi.write(' return;\n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('\n')
+    fi.write('/////////////////////////////////////////////////////////////////////////////\n')
+    fi.write('\n')
+    fi.write('function count_images() // count images as they are loaded into cache\n')
+    fi.write('{ \n')
+    fi.write(' if (++num_loaded_images == imax) {\n')
+    fi.write('  show_speed();\n')
+    fi.write('  clear_ids();\n')
+    fi.write('  animate();\n')
+    fi.write(' } else {\n')
+    fi.write('  document.animation.src=images[num_loaded_images-1].src;\n')
+    fi.write('  document.form.frame.value="Loading "+num_loaded_images+" of "+imax; \n')
+    fi.write(' }\n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('///////////////////////////////////////////////////////////////////////////\n')
+    fi.write('\n')
+    fi.write('function image_abort() //  abort loading images\n')
+    fi.write('{ \n')
+    fi.write(' imax=num_loaded_images;\n')
+    fi.write(' if (!images[num_loaded_images].complete) imax=imax-1;\n')
+    fi.write(' alert("Aborting");\n')
+    fi.write(' if (imax > -1) animate(); \n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('///////////////////////////////////////////////////////////////////////////\n')
+    fi.write('\n')
+    fi.write('function image_error(message) //  abort loading images\n')
+    fi.write('{ \n')
+    fi.write(' alert(message);\n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('///////////////////////////////////////////////////////////////////////////\n')
+    fi.write('\n')
+    fi.write('function start_play()  // start movie\n')
+    fi.write('{\n')
+    fi.write(' if (playing == 0) {\n')
+    fi.write('  if (timeout_id == null && num_loaded_images==imax) animate();\n')
+    fi.write(' }\n')
+    fi.write('} \n')
+    fi.write('\n')
+    fi.write('///////////////////////////////////////////////////////////////////////////\n')
+    fi.write('\n')
+    fi.write('function stop_play() // stop movie\n')
+    fi.write('{ \n')
+    fi.write(' if (timeout_id) clearTimeout(timeout_id); \n')
+    fi.write('  timeout_id=null;\n')
+    fi.write('  playing = 0;\n')
+    fi.write('} \n')
+    fi.write('\n')
+    fi.write('///////////////////////////////////////////////////////////////////////////\n')
+    fi.write('\n')
+    fi.write('function swing_mode()    // set swing mode\n')
+    fi.write('{\n')
+    fi.write(' if (swingon) {\n')
+    fi.write('  swingon=0;\n')
+    fi.write('  document.form.swing.value="OFF";\n')
+    fi.write(' }\n')
+    fi.write('  else {\n')
+    fi.write('  swingon=1;\n')
+    fi.write('  document.form.swing.value="ON";\n')
+    fi.write(' }\n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('///////////////////////////////////////////////////////////////////////////\n')
+    fi.write('  \n')
+    fi.write('function animate()  // control movie loop\n')
+    fi.write('{\n')
+    fi.write(' var j;\n')
+    fi.write(' frame=(frame+dir+imax)%imax;\n')
+    fi.write(' j=frame+1;\n')
+    fi.write(' if (images[frame].complete) {\n')
+    fi.write('  document.animation.src=images[frame].src;\n')
+    fi.write('  document.form.frame.value="Displaying "+j+" of "+imax;\n')
+    fi.write('  if (swingon && (j == imax || frame == 0)) reverse();\n')
+    fi.write('  timeout_id=setTimeout("animate()",delay);\n')
+    fi.write('  playing=1;\n')
+    fi.write(' }\n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('///////////////////////////////////////////////////////////////////////////\n')
+    fi.write('\n')
+    fi.write('function oneStep() // step frames\n')
+    fi.write('{\n')
+    fi.write(' var j;\n')
+    fi.write(' if (timeout_id) clearTimeout(timeout_id); timeout_id=null;\n')
+    fi.write(' frame=(frame+dir+imax)%imax;\n')
+    fi.write(' j=frame+1;\n')
+    fi.write(' if (images[frame].complete) {\n')
+    fi.write('  document.animation.src=images[frame].src;\n')
+    fi.write('  document.form.frame.value="Displaying "+j+" of "+imax;\n')
+    fi.write('  playing=0;\n')
+    fi.write(' }\n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('///////////////////////////////////////////////////////////////////////////\n')
+    fi.write('\n')
+    fi.write('function reverse()  // reverse direction\n')
+    fi.write('{\n')
+    fi.write(' dir=-dir;\n')
+    fi.write(' if (dir > 0) document.form.direction.value="Reverse"; bname="Reverse";\n')
+    fi.write(' if (dir < 0) document.form.direction.value="Forward"; bname="Forward";\n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('///////////////////////////////////////////////////////////////////////////\n')
+    fi.write('\n')
+    fi.write('function show_speed()      // show speed\n')
+    fi.write('{\n')
+    fi.write('  document.form.rate.value=Math.round(speed);\n')
+    fi.write('  delay = 1000.0/speed; \n')
+    fi.write('}\n')
+    fi.write('\n')
+    fi.write('///////////////////////////////////////////////////////////////////////////\n')
+    fi.write('// actual image loading is done here\n')
+    fi.write('\n')
+    fi.write('show_speed();\n')
+    fi.write('images = new Array(imax);          \n')
+    fi.write('urls= new Array(imax);\n')
+    fi.write('id= new Array(imax);\n')
+    fi.write('\n')
+    fi.write('\n')
+    for i in range(nfiles):
+        fi.write('urls[{}]=url_path+"/{}";\n'.format(i, os.path.basename(imgfiles[i])))
+    fi.write('\n')
+    fi.write('load_img();\n')
+    fi.write('\n')
+    fi.write('// -->\n')
+    fi.write('</SCRIPT>\n')
+    fi.write('\n')
+    fi.write('</BODY>\n')
+    fi.write('</HTML>\n')
+    fi.write('\n')
+    fi.close()  # pdb.set_trace()
+    print('Write movie to {}'.format(htmlfile))
+    print('To open -----> firefox {} &'.format(os.path.abspath(htmlfile)))
+
+
 def my_timer(orig_func):
     import time
 
@@ -24,7 +371,7 @@ def my_timer(orig_func):
     return wrapper
 
 
-def spectrogram2wav(spec, threshld=None, gama = 1, fs=1.0, t_length=None, w=1, wavfile='output.wav'):
+def spectrogram2wav(spec, threshld=None, gama=1, fs=1.0, t_length=None, w=1, wavfile='output.wav'):
     '''
     Convert spectrogram to audio in WAV format
     :param spec: spec.shape (nfreq, ntime)
@@ -47,6 +394,12 @@ def spectrogram2wav(spec, threshld=None, gama = 1, fs=1.0, t_length=None, w=1, w
             if np.sum(~mask_nan) > 0:
                 p_slice[mask_nan] = np.interp(np.flatnonzero(mask_nan), np.flatnonzero(~mask_nan), p_slice[~mask_nan])
                 spec[:, idx] = p_slice
+        for idx in range(spec.shape[0]):
+            p_slice = spec[idx, :]
+            mask_nan = np.isnan(p_slice)
+            if np.sum(~mask_nan) > 0:
+                p_slice[mask_nan] = np.interp(np.flatnonzero(mask_nan), np.flatnonzero(~mask_nan), p_slice[~mask_nan])
+                spec[idx, :] = p_slice
 
     # smooth the dynamic spectrum
     if w > 1:
@@ -102,16 +455,16 @@ def smooth(x, window_len=11, window='hanning'):
     """
 
     if x.ndim != 1:
-        raise ValueError, "smooth only accepts 1 dimension arrays."
+        raise ValueError("smooth only accepts 1 dimension arrays.")
 
     if x.size < window_len:
-        raise ValueError, "Input vector needs to be bigger than window size."
+        raise ValueError("Input vector needs to be bigger than window size.")
 
     if window_len < 3:
         return x
 
     if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
-        raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
+        raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
 
     s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
     # print(len(s))
@@ -121,20 +474,69 @@ def smooth(x, window_len=11, window='hanning'):
         w = eval('np.' + window + '(window_len)')
 
     y = np.convolve(w / w.sum(), s, mode='same')
-    y = y[window_len - 1:-(window_len - 1)]
-    return y
+    if len(x) == len(y):
+        return y
+    else:
+        return y[window_len - 1:-(window_len - 1)]
 
 
-def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num=0, crf=15, fps=10, overwrite=False):
+def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num=0, crf=15, fps=10, overwrite=False,
+              crop=[], title=[], dpi=200,keeptmp=False,usetmp=False):
+    '''
+
+    :param imgprefix:
+    :param img_ext:
+    :param outname:
+    :param size:
+    :param start_num:
+    :param crf:
+    :param fps:
+    :param overwrite:
+    :param title: the timestamp on each frame
+    :param crop: 4-tuple of integer specifies the cropping pixels [x0, x1, y0, y1]
+    :param dpi:
+    :param keeptmp:
+    :param usetmp: use the image in the default tmp folder
+    :return:
+    '''
     import subprocess, os
-    imgs = glob.glob(imgprefix + '*.' + img_ext)
+    from tqdm import tqdm
+    import matplotlib.pyplot as plt
+    if type(imgprefix) is list:
+        imgs = imgprefix
+        imgprefix = os.path.dirname(imgprefix[0])
+    else:
+        imgs = glob.glob(imgprefix + '*.' + img_ext)
     if imgs:
         imgs = sorted(imgs)
-        tmpdir = '{}img_tmp/'.format(imgprefix)
+        tmpdir = os.path.join(os.path.dirname(imgprefix), 'img_tmp') + '/'
         if not os.path.exists(tmpdir):
             os.makedirs(tmpdir)
-        for idx, ll in enumerate(imgs):
-            os.system('cp {} {}img_tmp/{:04d}.{}'.format(ll, imgprefix, idx, img_ext))
+        if usetmp:
+            pass
+        else:
+            if crop != [] or title != []:
+                plt.ioff()
+                fig, ax = plt.subplots(figsize=[float(ll)/dpi for ll in size.split('x')])
+                for idx, ll in enumerate(tqdm(imgs)):
+                    data = plt.imread(ll)
+                    if crop != []:
+                        x0, x1, y0, y1 = crop
+                        data = data[y0:y1 + 1, x0:x1 + 1, :]
+                    if idx == 0:
+                        im = ax.imshow(data)
+                        ax.set_axis_off()
+                    else:
+                        im.set_array(data)
+                    if title != []:
+                        ax.set_title(title[idx])
+                    if idx == 0:
+                        fig.tight_layout()
+                    fig.savefig('{}/{:04d}.{}'.format(tmpdir, idx,img_ext), dpi=dpi, format=img_ext)
+                plt.close(fig)
+            else:
+                for idx, ll in enumerate(imgs):
+                    os.system('cp {} {}/{:04d}.{}'.format(ll, tmpdir, idx, img_ext))
         outd = {'r': fps, 's': size, 'start_number': start_num, 'crf': crf}
         if size is None:
             outd.pop('s')
@@ -142,15 +544,38 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
             ow = '-y'
         else:
             ow = ''
-        outdstr = ' '.join(['-{} {}'.format(k, v) for k, v in outd.iteritems()])
-        cmd = 'ffmpeg -f image2 -i {}img_tmp/%04d.png -vcodec libx264 -pix_fmt yuv420p {} '.format(imgprefix,
-                                                                                                   outdstr) + '{0} {1}.mp4'.format(
-            ow, outname)
-        print cmd
+        try:
+            outdstr = ' '.join(['-{} {}'.format(k, v) for k, v in outd.iteritems()])
+        except:
+            outdstr = ' '.join(['-{} {}'.format(k, outd[k]) for k in outd])
+        cmd = 'ffmpeg -r {3} -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} '.format(tmpdir, img_ext,
+                                                                                                    outdstr,
+                                                                                                    fps) + '{0} {1}.mp4'.format(
+            ow, os.path.join(os.path.dirname(imgprefix), outname))
+        print(cmd)
         subprocess.check_output(['bash', '-c', cmd])
-        os.system('rm -rf {}'.format(tmpdir))
+        if not keeptmp:
+            os.system('rm -rf {}'.format(tmpdir))
     else:
         print('Images not found!')
+
+
+def image_fill_gap(image):
+    for idx in range(image.shape[0]):
+        image_slice = image[idx, :]
+        mask_nan = np.isnan(image_slice)
+        if np.sum(~mask_nan) > 0 and np.sum(mask_nan) > 0:
+            image_slice[mask_nan] = np.interp(np.flatnonzero(mask_nan), np.flatnonzero(~mask_nan),
+                                              image_slice[~mask_nan])
+            image[idx, :] = image_slice
+    for idx in range(image.shape[1]):
+        image_slice = image[:, idx]
+        mask_nan = np.isnan(image_slice)
+        if np.sum(~mask_nan) > 0 and np.sum(mask_nan) > 0:
+            image_slice[mask_nan] = np.interp(np.flatnonzero(mask_nan), np.flatnonzero(~mask_nan),
+                                              image_slice[~mask_nan])
+            image[:, idx] = image_slice
+    return image
 
 
 def getspwfromfreq(vis, freqrange):
@@ -171,12 +596,12 @@ def getspwfromfreq(vis, freqrange):
     freqIdx0 = np.where(freqInfo == freq0)
     freqIdx1 = np.where(freqInfo == freq1)
     sz_freqInfo = freqInfo.shape
-    ms_spw = ['{}'.format(ll) for ll in xrange(freqIdx0[0], freqIdx1[0] + 1)]
+    ms_spw = ['{}'.format(ll) for ll in range(freqIdx0[0], freqIdx1[0] + 1)]
     if len(ms_spw) == 1:
         ms_chan = ['{}~{}'.format(freqIdx0[1][0], freqIdx1[1][0])]
     else:
         ms_chan = ['{}~{}'.format(freqIdx0[1][0], sz_freqInfo[1] - 1)] + ['0~{}'.format(sz_freqInfo[1] - 1) for ll in
-                                                                          xrange(freqIdx0[0] + 1, freqIdx1[0])]
+                                                                          range(freqIdx0[0] + 1, freqIdx1[0])]
         ms_chan.append('0~{}'.format(freqIdx1[1][0]))
     spw = ','.join('{}:{}'.format(t[0], t[1]) for t in zip(ms_spw, ms_chan))
     return spw
@@ -200,7 +625,7 @@ def initconfig(suncasa_dir):
 #                 the base name will be removed from the paths.
 #     :return:
 #     '''
-#     import os
+#   DEll19432017  import os
 #     if not isdir:
 #         dirlist = [os.path.dirname(ff) for ff in dirlist]
 #     dirs = list(set(dirlist))
@@ -265,6 +690,8 @@ def getSDOdir(config, database_dir, suncasa_dir):
     try:
         if config['datadir']['SDOdir']:
             SDOdir = config['datadir']['SDOdir']
+            if SDOdir.startwith('$'):
+                SDOdir = os.path.expandvars(SDOdir)
             if not os.path.exists(SDOdir):
                 os.makedirs(SDOdir)
         else:
@@ -330,60 +757,77 @@ def getfreeport():
     return port
 
 
-def normalize_aiamap(smap):
+def normalize_aiamap(aiamap):
     '''
     do expisure normalization of an aia map
     :param aia map made from sunpy.map:
     :return: normalised aia map
     '''
+    import sunpy.map as smap
     try:
-        if smap.observatory == 'SDO' and smap.instrument[0:3] == 'AIA':
-            data = smap.data
-            data[~np.isnan(data)] = data[~np.isnan(data)] / smap.exposure_time.value
+        if aiamap.observatory == 'SDO' and aiamap.instrument[0:3] == 'AIA':
+            data = aiamap.data
+            data[~np.isnan(data)] = data[~np.isnan(data)] / aiamap.exposure_time.value
             data[data < 0] = 0
-            smap.data = data
-            smap.meta['exptime'] = 1.0
-            return smap
+            aiamap.meta['exptime'] = 1.0
+            aiamap = smap.Map(data, aiamap.meta)
+            return aiamap
         else:
             raise ValueError('input sunpy map is not from aia.')
     except:
         raise ValueError('check your input map. There are some errors in it.')
 
 
-def sdo_aia_scale_hdr(smap):
-    wavelnth = '{:0.0f}'.format(smap.wavelength.value)
-    pxscale_x, pxscal_y = smap.scale
+def tplt(mapcube):
+    from astropy.time import Time
+    t = []
+    for idx, mp in enumerate(mapcube):
+        if mp.meta.has_key('t_obs'):
+            tstr = mp.meta['t_obs']
+        else:
+            tstr = mp.meta['date-obs']
+        t.append(tstr)
+    return Time(t)
+
+
+def sdo_aia_scale_hdr(amap, sigma=5.0):
+    import sunpy.map as smap
+    from astropy.coordinates import SkyCoord
+    wavelnth = '{:0.0f}'.format(amap.wavelength.value)
+    pxscale_x, pxscal_y = amap.scale
     pxscale = (pxscale_x + pxscal_y) / 2
-    r_sun = smap.rsun_obs / pxscale
-    x = np.arange(smap.dimensions.x.value)
-    y = np.arange(smap.dimensions.y.value)
+    r_sun = amap.rsun_obs / pxscale
+    x = np.arange(amap.dimensions.x.value)
+    y = np.arange(amap.dimensions.y.value)
     xx, yy = np.meshgrid(x, y) * u.pix
-    crpix1, crpix2 = smap.data_to_pixel(0 * u.arcsec, 0 * u.arcsec)
+    crpix1, crpix2 = amap.world_to_pixel(SkyCoord(0 * u.arcsec, 0 * u.arcsec, frame=amap.coordinate_frame))
     rdist = np.sqrt((xx - (crpix1 - 1.0 * u.pix)) ** 2 + (yy - (crpix2 - 1.0 * u.pix)) ** 2)
     ind_disk = np.where(rdist <= r_sun)
-    ind_limb = np.where(rdist < r_sun)
+    # ind_limb = np.where(rdist < r_sun)
     rdist[ind_disk] = r_sun
     rfilter = rdist / r_sun - 1
     rfilter = rfilter.value
     if wavelnth == '94':
-        smap.data = smap.data * np.exp(rfilter * 4)
+        mapdata = amap.data * np.exp(rfilter * 4)
     elif wavelnth == '131':
-        smap.data = smap.data * (np.sqrt(rfilter * 5) + 1)
+        mapdata = amap.data * (np.sqrt(rfilter * 5) + 1)
     elif wavelnth == '171':
-        smap.data = smap.data * np.exp(rfilter * 5)
+        mapdata = amap.data * np.exp(rfilter * 5)
     elif wavelnth == '193':
-        smap.data = smap.data * np.exp(rfilter * 3)
+        mapdata = amap.data * np.exp(rfilter * 3)
     elif wavelnth == '211':
-        smap.data = smap.data * np.exp(rfilter * 3)
+        mapdata = amap.data * np.exp(rfilter * 3)
     elif wavelnth == '304':
-        smap.data = smap.data * np.exp(rfilter * 5)
+        mapdata = amap.data * np.exp(rfilter * 5)
     elif wavelnth == '335':
-        smap.data = smap.data * np.exp(rfilter * 3)
+        mapdata = amap.data * np.exp(rfilter * 3)
     elif wavelnth == '6173':
         pass
     elif wavelnth == '1':
         pass
-    return smap
+    else:
+        mapdata = amap.data * np.exp(rfilter * sigma)
+    return smap.Map(mapdata, amap.meta)
 
 
 def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
@@ -452,8 +896,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
             return {'low': -1.5, 'high': 1.5, 'log': False}
     elif wavelength == '304':
         if imagetype == 'image':
-            return {'low': 1, 'high': 10000, 'log': True}
-            # return {'low': 1, 'high': 500, 'log': True}
+            return {'low': 1, 'high': 10000, 'log': True}  # return {'low': 1, 'high': 500, 'log': True}
         elif imagetype == 'RDimage':
             return {'low': -300, 'high': 300, 'log': False}
         elif imagetype == 'BDimage':
@@ -496,7 +939,7 @@ def sdo_aia_scale_dict(wavelength=None, imagetype='image'):
         elif imagetype == 'BDRimage':
             return {'low': -1.5, 'high': 1.5, 'log': False}
     else:
-        return None
+        return {'high': None, 'log': False, 'low': None}
 
 
 def sdo_aia_scale(image=None, wavelength=None):
@@ -527,12 +970,12 @@ def insertchar(source_str, insert_str, pos):
 #     '''
 
 
-def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timtol=1):
+def readsdofile(datadir=None, wavelength=None, trange=None, isexists=False, timtol=1):
     '''
     read sdo file from local database
     :param datadir:
     :param wavelength:
-    :param jdtime: the timestamp or timerange in Julian days. if is timerange, return a list of files in the timerange
+    :param trange: the timestamp or timerange in Julian days. if is timerange, return a list of files in the timerange
     :param isexists: check if file exist. if files exist, return file name
     :param timtol: time difference tolerance in days for considering data as the same timestamp
     :return:
@@ -542,63 +985,157 @@ def readsdofile(datadir=None, wavelength=None, jdtime=None, isexists=False, timt
     from datetime import date
     from datetime import timedelta as td
 
+    trange = Time(trange)
     wavelength = str(wavelength)
     wavelength = wavelength.lower()
     if timtol < 12. / 3600 / 24:
         timtol = 12. / 3600 / 24
-    if isinstance(jdtime, list) or isinstance(jdtime, tuple) or type(jdtime) == np.ndarray:
-        if len(jdtime) != 2:
-            raise ValueError('jdtime must be a number or a two elements array/list/tuple')
+
+    if len(trange.iso) == 2:
+        if trange[1] < trange[0]:
+            raise ValueError('start time must be occur earlier than end time!')
         else:
-            if jdtime[1] < jdtime[0]:
-                raise ValueError('start time must be occur earlier than end time!')
-            else:
-                sdofitspath = []
-                jdtimestr = [Time(ll, format='jd').iso for ll in jdtime]
-                ymd = [ll.split(' ')[0].split('-') for ll in jdtimestr]
-                d1 = date(int(ymd[0][0]), int(ymd[0][1]), int(ymd[0][2]))
-                d2 = date(int(ymd[1][0]), int(ymd[1][1]), int(ymd[1][2]))
-                delta = d2 - d1
-                for i in xrange(delta.days + 1):
-                    ymd = d1 + td(days=i)
-                    sdofitspathtmp = glob.glob(
-                        datadir + '/{:04d}/{:02d}/{:02d}/aia.lev1_*Z.{}.image_lev1.fits'.format(ymd.year, ymd.month,
-                                                                                                ymd.day, wavelength))
-                    if len(sdofitspathtmp) > 0:
-                        sdofitspath = sdofitspath + sdofitspathtmp
-                if len(sdofitspath) == 0:
-                    if isexists:
-                        return sdofitspath
-                    else:
-                        raise ValueError(
-                            'No SDO file found under {} at the time range of {} to {}. Download the data with EvtBrowser first.'.format(
-                                datadir, jdtimestr[0], jdtimestr[1]))
-                sdofits = [os.path.basename(ll) for ll in sdofitspath]
-                sdotimeline = Time(
-                    [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for
-                     ll in sdofits], format='iso', scale='utc')
-                sdofitspathnew = [x for (y, x) in sorted(zip(sdotimeline.jd, sdofitspath))]
-                sdofitsnew = [os.path.basename(ll) for ll in sdofitspathnew]
-                sdotimelinenew = Time(
-                    [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for
-                     ll in sdofitsnew], format='iso', scale='utc')
-                sdofile = list(np.array(sdofitspathnew)[np.where(
-                    np.logical_and(jdtime[0] < sdotimelinenew.jd, sdotimelinenew.jd < jdtime[1]))[0]])
-                return sdofile
+            sdofitspath = []
+            jdtimestr = [Time(ll, format='jd').iso for ll in trange]
+            ymd = [ll.split(' ')[0].split('-') for ll in jdtimestr]
+            d1 = date(int(ymd[0][0]), int(ymd[0][1]), int(ymd[0][2]))
+            d2 = date(int(ymd[1][0]), int(ymd[1][1]), int(ymd[1][2]))
+            delta = d2 - d1
+            for i in range(delta.days + 1):
+                ymd = d1 + td(days=i)
+                sdofitspathtmp = glob.glob(
+                    datadir + '/{:04d}/{:02d}/{:02d}/aia.lev1_*Z.{}.image_lev1.fits'.format(ymd.year, ymd.month,
+                                                                                            ymd.day, wavelength))
+                if len(sdofitspathtmp) > 0:
+                    sdofitspath = sdofitspath + sdofitspathtmp
+            if len(sdofitspath) == 0:
+                if isexists:
+                    return sdofitspath
+                else:
+                    raise ValueError(
+                        'No SDO file found under {} at the time range of {} to {}. Download the data with EvtBrowser first.'.format(
+                            datadir,
+                            jdtimestr[0],
+                            jdtimestr[1]))
+            sdofits = [os.path.basename(ll) for ll in sdofitspath]
+            sdotimeline = Time(
+                [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in
+                 sdofits],
+                format='iso', scale='utc')
+            sdofitspathnew = [x for (y, x) in sorted(zip(sdotimeline.jd, sdofitspath))]
+            sdofitsnew = [os.path.basename(ll) for ll in sdofitspathnew]
+            sdotimelinenew = Time(
+                [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in
+                 sdofitsnew], format='iso',
+                scale='utc')
+            sdofile = list(
+                np.array(sdofitspathnew)[
+                    np.where(np.logical_and(trange[0].jd <= sdotimelinenew.jd, sdotimelinenew.jd <= trange[1].jd))[0]])
+            return sdofile
     else:
-        jdtimstr = Time(jdtime, format='jd').iso
+        jdtimstr = trange.iso
         ymd = jdtimstr.split(' ')[0].split('-')
         sdofitspath = glob.glob(
             datadir + '/{}/{}/{}/aia.lev1_*Z.{}.image_lev1.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
         if len(sdofitspath) == 0:
-            raise ValueError('No SDO file found under {}.'.format(datadir))
+            return []  # raise ValueError('No SDO file found under {}.'.format(datadir))
         sdofits = [os.path.basename(ll) for ll in sdofitspath]
         sdotimeline = Time(
             [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in
-             sdofits], format='iso', scale='utc')
-        if timtol < np.min(np.abs(sdotimeline.jd - jdtime)):
-            raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
-        idxaia = np.argmin(np.abs(sdotimeline.jd - jdtime))
+             sdofits],
+            format='iso', scale='utc')
+        if timtol < np.min(np.abs(sdotimeline.jd - trange.jd)):
+            return []  # raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
+        idxaia = np.argmin(np.abs(sdotimeline.jd - trange.jd))
+        sdofile = sdofitspath[idxaia]
+        if isexists:
+            return sdofile
+        else:
+            try:
+                sdomap = sunpy.map.Map(sdofile)
+                return sdomap
+            except:
+                raise ValueError('File not found or invalid input')
+
+
+def readsdofileX(datadir=None, wavelength=None, trange=None, isexists=False, timtol=1):
+    '''
+    read sdo file from local database
+    :param datadir:
+    :param wavelength:
+    :param trange: time object. the timestamp or timerange. if is timerange, return a list of files in the timerange
+    :param isexists: check if file exist. if files exist, return file name
+    :param timtol: time difference tolerance in days for considering data as the same timestamp
+    :return:
+    '''
+    from astropy.time import Time
+    import sunpy.map
+    from datetime import date
+    from datetime import timedelta as td
+
+    trange = Time(trange)
+    wavelength = str(wavelength)
+    wavelength = wavelength.lower()
+    if timtol < 12. / 3600 / 24:
+        timtol = 12. / 3600 / 24
+    # import pdb
+    # pdb.set_trace()
+    if len(trange.iso) == 2:
+        if trange.jd[1] < trange.jd[0]:
+            raise ValueError('start time must be occur earlier than end time!')
+        else:
+            sdofitspath = []
+            jdtimestr = trange.iso
+            ymd = [ll.split(' ')[0].split('-') for ll in jdtimestr]
+            d1 = date(int(ymd[0][0]), int(ymd[0][1]), int(ymd[0][2]))
+            d2 = date(int(ymd[1][0]), int(ymd[1][1]), int(ymd[1][2]))
+            delta = d2 - d1
+            for i in range(delta.days + 1):
+                ymd = d1 + td(days=i)
+                sdofitspathtmp = glob.glob(
+                    datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd.year, ymd.month, ymd.day,
+                                                                                wavelength))
+                if len(sdofitspathtmp) > 0:
+                    sdofitspath = sdofitspath + sdofitspathtmp
+            if len(sdofitspath) == 0:
+                if isexists:
+                    return sdofitspath
+                else:
+                    raise ValueError(
+                        'No SDO file found under {} at the time range of {} to {}. Download the data with EvtBrowser first.'.format(
+                            datadir,
+                            jdtimestr[0],
+                            jdtimestr[1]))
+            sdofits = [os.path.basename(ll) for ll in sdofitspath]
+            sdotimeline = Time(
+                [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in
+                 sdofits],
+                format='iso', scale='utc')
+            sdofitspathnew = [x for (y, x) in sorted(zip(sdotimeline.jd, sdofitspath))]
+            sdofitsnew = [os.path.basename(ll) for ll in sdofitspathnew]
+            sdotimelinenew = Time(
+                [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in
+                 sdofitsnew], format='iso',
+                scale='utc')
+            sdofile = list(
+                np.array(sdofitspathnew)[
+                    np.where(np.logical_and(trange.jd[0] <= sdotimelinenew.jd, sdotimelinenew.jd <= trange.jd[1]))[0]])
+            return sdofile
+    else:
+        jdtimstr = trange.iso
+        ymd = jdtimstr.split(' ')[0].split('-')
+        sdofitspath = glob.glob(
+            datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
+        if len(sdofitspath) == 0:
+            return []  # raise ValueError('No SDO file found under {}.'.format(datadir))
+        sdofits = [os.path.basename(ll) for ll in sdofitspath]
+        sdotimeline = Time(
+            [insertchar(insertchar(ll.split('.')[2].replace('T', ' ').replace('Z', ''), ':', -4), ':', -2) for ll in
+             sdofits],
+            format='iso', scale='utc')
+        if timtol <= np.min(np.abs(sdotimeline.jd - trange.jd)):
+            return []  # raise ValueError('No SDO file found at the select timestamp. Download the data with EvtBrowser first.')
+        idxaia = np.argmin(np.abs(sdotimeline.jd - trange.jd))
         sdofile = sdofitspath[idxaia]
         if isexists:
             return sdofile
@@ -679,10 +1216,9 @@ def improfile(z, xi, yi, interp='cubic'):
         raise ValueError('xi or yi must contain at least two elements!')
     for idx, ll in enumerate(xi):
         if not 0 < ll < imgshape[1]:
-            raise ValueError('xi out of range!')
+            return np.nan
         if not 0 < yi[idx] < imgshape[0]:
-            raise ValueError('yi out of range!')
-            # xx, yy = np.meshgrid(x, y)
+            return np.nan
     if len(xi) == 2:
         length = np.hypot(np.diff(xi), np.diff(yi))[0]
         x, y = np.linspace(xi[0], xi[1], length), np.linspace(yi[0], yi[1], length)
@@ -707,9 +1243,11 @@ def canvaspix_to_data(smap, x, y):
     :param y: canvas Pixel coordinates of the CTYPE2 axis. (Normally solar-y)
     :return: world coordinates
     '''
-    xynew = smap.pixel_to_data(x * u.pix, y * u.pix)
-    xnew = xynew[0].value
-    ynew = xynew[1].value
+    # xynew = smap.pixel_to_data(x * u.pix, y * u.pix)
+    mesh = smap.pixel_to_world(x * u.pix, y * u.pix)
+    mapx, mapy = mesh.Tx, mesh.Tx
+    xnew = mapx[0].value
+    ynew = mapy[1].value
     return [xnew, ynew]
 
 
@@ -740,11 +1278,25 @@ def polsfromfitsheader(header):
         stokeslist = ['{}'.format(int(ll)) for ll in
                       (header["CRVAL4"] + np.arange(header["NAXIS4"]) * header["CDELT4"])]
         stokesdict = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3': 'RL', '-4': 'LR',
-                      '-5': 'XX', '-6': 'YY', '-7': 'XY', '-8': 'YX'}
+                      '-5': 'XX', '-6': 'YY', '-7': 'XY',
+                      '-8': 'YX'}
         pols = map(lambda x: stokesdict[x], stokeslist)
     except:
         print("error in fits header!")
     return pols
+
+
+def headerfix(header):
+    ## this code fix the header problem of fits out from CASA 5.4+ which leads to a streched solar image
+    import copy
+    hdr = copy.copy(header)
+    for hd in header:
+        if hd.upper().startswith('PC'):
+            if not hd.upper().startswith('PC0'):
+                hd_ = 'PC0' + hd.upper().replace('PC', '')
+                hdr.pop(hd)
+                hdr[hd_] = header[hd]
+    return hdr
 
 
 def freqsfromfitsheader(header):
@@ -937,19 +1489,60 @@ def dspecDF2text(DFfile, outfile=None):
         raise ValueError('provide input file name!')
 
 
-def smapmeshgrid2(smap, rescale=1.0):
+def smapmeshgrid2(smap, angle=None, rescale=1.0, origin=1):
     import astropy.units as u
+    if angle is None:
+        mrot = smap.rotation_matrix
+    else:
+        sin = np.sin(angle)
+        cos = np.cos(angle)
+        mrot = np.array([[cos, -sin], [sin, cos]])
     ref_pix = smap.reference_pixel
+    ref_coord = smap.reference_coordinate
     scale = smap.scale
-    mrot = smap.rotation_matrix
     XX, YY = np.meshgrid(np.arange(smap.data.shape[1] * rescale) / rescale,
                          np.arange(smap.data.shape[0] * rescale) / rescale)
     x, y = XX * u.pix, YY * u.pix
-    x = (x - ref_pix[0] + 1.0 * u.pix) * scale[0]
-    y = (y - ref_pix[1] + 1.0 * u.pix) * scale[1]
+    try:
+        x = (x - ref_pix[0] + origin * u.pix) * scale[0] + ref_coord.x
+        y = (y - ref_pix[1] + origin * u.pix) * scale[1] + ref_coord.y
+    except:
+        x = (x - ref_pix[0] + origin * u.pix) * scale[0] + ref_coord.Tx
+        y = (y - ref_pix[1] + origin * u.pix) * scale[1] + ref_coord.Ty
     xnew = mrot[0, 0] * x + mrot[0, 1] * y
     ynew = mrot[1, 0] * x + mrot[1, 1] * y
     return xnew, ynew
+
+
+def map2wcsgrids(snpmap, cell=True, antialiased=True):
+    '''
+
+    :param snpmap:
+    :param cell: if True, return the coordinates of the pixel centers. if False, return the coordinates of the pixel boundaries
+    :return:
+    '''
+    # embed()
+    import astropy.units as u
+    if cell:
+        ny, nx = snpmap.data.shape
+        offset = 0.5
+    else:
+        ny, nx = snpmap.data.shape
+        nx += 1
+        ny += 1
+        offset = 0.0
+    if antialiased:
+        XX, YY = np.array([0, nx - 1]) + offset, np.array([0, ny - 1]) + offset
+        mesh = snpmap.pixel_to_world(XX * u.pix, YY * u.pix)
+        mapx, mapy = np.linspace(mesh[0].Tx.value, mesh[-1].Tx.value, nx), np.linspace(mesh[0].Ty.value,
+                                                                                       mesh[-1].Ty.value, ny)
+        mapx = np.tile(mapx, ny).reshape(ny, nx)
+        mapy = np.tile(mapy, nx).reshape(nx, ny).transpose()
+    else:
+        XX, YY = np.meshgrid(np.arange(nx) + offset, np.arange(ny) + offset)
+        mesh = snpmap.pixel_to_world(XX * u.pix, YY * u.pix)
+        mapx, mapy = mesh.Tx.value, mesh.Ty.value
+    return mapx, mapy
 
 
 def smapradialfilter(smap, grid=None):
@@ -1011,15 +1604,15 @@ def regridspec(spec, x, y, nxmax=None, nymax=None, interp=False):
         tt = np.linspace(x[0], x[-1], nt)
         ff = np.linspace(y[0], y[-1], nf)
         grid_x, grid_y = np.meshgrid(tt, ff)
-        for p in xrange(npol):
-            for b in xrange(nbl):
+        for p in range(npol):
+            for b in range(nbl):
                 specnew[p, b, :, :] = regridimage(spec[p, b, :, :], x, y, grid=[grid_x, grid_y])
     else:
         xstep, ystep = 1, 1
         if nxmax:
             if nt > nxmax:
                 import math
-                xstep = math.ceil(float(nt) / nxmax)
+                xstep = int(math.ceil(float(nt) / nxmax))
         if nymax:
             if nf > nymax:
                 ystep = int(float(nf) / nymax)
@@ -1047,7 +1640,7 @@ def get_contour_data(X, Y, Z, levels=[0.5, 0.7, 0.9]):
             # thecol = 3 * [None]
             theiso = '{:.0f}%'.format(cs.get_array()[isolevelid] / Z.max() * 100)
             isolevelid += 1
-            # for i in xrange(3):
+            # for i in range(3):
             # thecol[i] = int(255 * isocol[i])
             thecol = '#%02x%02x%02x' % (220, 220, 220)
             # thecol = '#03FFF9'
@@ -1084,10 +1677,79 @@ def get_contour_data(X, Y, Z, levels=[0.5, 0.7, 0.9]):
 #     return g.ravel()
 
 
-def c_correlate(a, v):
+def c_correlate(a, v, returnx=False):
     a = (a - np.mean(a)) / (np.std(a) * len(a))
     v = (v - np.mean(v)) / np.std(v)
-    return np.correlate(a, v, mode='same')
+    if returnx:
+        return np.arange(len(a)) - np.floor(len(a) / 2.0), np.correlate(a, v, mode='same')
+    else:
+        return np.correlate(a, v, mode='same')
+
+
+def c_correlateX(a, v, returnx=False, returnav=False, s=0):
+    '''
+
+    :param a:
+    :param v: a and v can be a dict in following format {'x':[],'y':[]}. The length of a and v can be different.
+    :param returnx:
+    :return:
+    '''
+    from scipy.interpolate import splev, splrep
+    import numpy.ma as ma
+
+    if isinstance(a, dict):
+        max_a = np.nanmax(a['x'])
+        min_a = np.nanmin(a['x'])
+        max_v = np.nanmax(v['x'])
+        min_v = np.nanmin(v['x'])
+        max_ = min(max_a, max_v)
+        min_ = max(min_a, min_v)
+        if not max_ > min_:
+            print('the x ranges of a and v have no overlap.')
+            return None
+        a_x = ma.masked_outside(a['x'].copy(), min_, max_)
+        if isinstance(a['y'], np.ma.core.MaskedArray):
+            a_y = ma.masked_array(a['y'].copy(), a['y'].mask | a_x.mask)
+            a_x = ma.masked_array(a_x, a_y.mask)
+        else:
+            a_y = ma.masked_array(a['y'].copy(), a_x.mask)
+        v_x = ma.masked_outside(v['x'].copy(), min_, max_)
+        if isinstance(v['y'], np.ma.core.MaskedArray):
+            v_y = ma.masked_array(v['y'].copy(), v['y'].mask | v_x.mask)
+            v_x = ma.masked_array(v_x, v_y.mask)
+        else:
+            v_y = ma.masked_array(v['y'].copy(), v_x.mask)
+
+        dx_a = np.abs(np.nanmean(np.diff(a_x)))
+        dx_v = np.abs(np.nanmean(np.diff(v_x)))
+        if dx_a >= dx_v:
+            v_ = v_y.compressed()
+            x_ = v_x.compressed()
+            tck = splrep(a_x.compressed(), a_y.compressed(), s=s)
+            ys = splev(x_, tck)
+            a_ = ys
+
+        elif dx_a < dx_v:
+            a_ = a_y.compressed()
+            x_ = a_x.compressed()
+            tck = splrep(v_x.compressed(), v_y.compressed(), s=s)
+            ys = splev(x_, tck)
+            v_ = ys
+
+    else:
+        a_ = a.copy()
+        v_ = v.copy()
+        x_ = None
+    a_ = (a_ - np.nanmean(a_)) / (np.nanstd(a_) * len(a_))
+    v_ = (v_ - np.nanmean(v_)) / np.nanstd(v_)
+    if returnx:
+        if x_ is None:
+            return np.arange(len(a_)) - np.floor(len(a_) / 2.0), np.correlate(a_, v_, mode='same')
+        else:
+            return (np.arange(len(a_)) - np.floor(len(a_) / 2.0)) * np.nanmean(np.diff(x_)), np.correlate(a_, v_,
+                                                                                                          mode='same'), x_, a_, v_
+    else:
+        return np.correlate(a_, v_, mode='same')
 
 
 def XCorrMap(z, x, y, doxscale=True):
@@ -1098,6 +1760,7 @@ def XCorrMap(z, x, y, doxscale=True):
     :param y: y axis
     :return:
     '''
+    from tqdm import tqdm
     from scipy.interpolate import splev, splrep
     if doxscale:
         xfit = np.linspace(x[0], x[-1], 10 * len(x) + 1)
@@ -1120,8 +1783,8 @@ def XCorrMap(z, x, y, doxscale=True):
     yv = ccpeak.copy()
     yidxa = ccpeak.copy()
     yidxv = ccpeak.copy()
-    for idx1 in xrange(1, ny):
-        for idx2 in xrange(0, idx1):
+    for idx1 in tqdm(range(1, ny)):
+        for idx2 in range(0, idx1):
             lightcurve1 = zfit[idx1, :]
             lightcurve2 = zfit[idx2, :]
             ccval = c_correlate(lightcurve1, lightcurve2)
@@ -1146,7 +1809,8 @@ def XCorrMap(z, x, y, doxscale=True):
                 yidxv[idx1 - 1, idx2] = idx1 - 1
 
     return {'zfit': zfit, 'ccmax': ccmax, 'ccpeak': ccpeak, 'x': x, 'nx': len(x), 'xfit': xfit, 'nxfit': nxfit, 'y': y,
-            'ny': ny, 'yv': yv, 'ya': ya, 'yidxv': yidxv, 'yidxa': yidxa}
+            'ny': ny, 'yv': yv, 'ya': ya,
+            'yidxv': yidxv, 'yidxa': yidxa}
 
 
 class ButtonsPlayCTRL():
@@ -1165,41 +1829,4 @@ class ButtonsPlayCTRL():
         BUT_last = Button(label='>>', width=plot_width, button_type='primary')
         self.buttons = [BUT_first, BUT_prev, BUT_play, BUT_next, BUT_last]
 
-        # class FileDialog():
-        #     '''
-        #     produce a file dialog button widget for bokeh plot
-        #     '''
-        #     import Tkinter
-        #     import tkFileDialog
-        #
-        #     def __init__(self, plot_width=30, labels={'dir':'...','open':'open','save':'save'}, *args,
-        #                  **kwargs):
-        #         from bokeh.models import Button
-        #         buttons = {}
-        #         for k,v in labels.items():
-        #             buttons[k] = Button(label=v, width=plot_width)
-        #         self.buttons = buttons
-        #
-        #     def askdirectory(self):
-        #         tkRoot = Tkinter.Tk()
-        #         tkRoot.withdraw()  # Close the root window
-        #         in_path = tkFileDialog.askdirectory()
-        #         tkRoot.destroy()
-        #         if in_path:
-        #             return in_path
-        #
-        #     def askopenfilename(self):
-        #         tkRoot = Tkinter.Tk()
-        #         tkRoot.withdraw()  # Close the root window
-        #         in_path = tkFileDialog.askopenfilename()
-        #         tkRoot.destroy()
-        #         if in_path:
-        #             return in_path
-        #
-        #     def asksaveasfilename(self):
-        #         tkRoot = Tkinter.Tk()
-        #         tkRoot.withdraw()  # Close the root window
-        #         in_path = tkFileDialog.asksaveasfilename()
-        #         tkRoot.destroy()
-        #         if in_path:
-        #             return in_path
+        # class FileDialog():  #     '''  #     produce a file dialog button widget for bokeh plot  #     '''  #     import Tkinter  #     import tkFileDialog  #  #     def __init__(self, plot_width=30, labels={'dir':'...','open':'open','save':'save'}, *args,  #                  **kwargs):  #         from bokeh.models import Button  #         buttons = {}  #         for k,v in labels.items():  #             buttons[k] = Button(label=v, width=plot_width)  #         self.buttons = buttons  #  #     def askdirectory(self):  #         tkRoot = Tkinter.Tk()  #         tkRoot.withdraw()  # Close the root window  #         in_path = tkFileDialog.askdirectory()  #         tkRoot.destroy()  #         if in_path:  #             return in_path  #  #     def askopenfilename(self):  #         tkRoot = Tkinter.Tk()  #         tkRoot.withdraw()  # Close the root window  #         in_path = tkFileDialog.askopenfilename()  #         tkRoot.destroy()  #         if in_path:  #             return in_path  #  #     def asksaveasfilename(self):  #         tkRoot = Tkinter.Tk()  #         tkRoot.withdraw()  # Close the root window  #         in_path = tkFileDialog.asksaveasfilename()  #         tkRoot.destroy()  #         if in_path:  #             return in_path

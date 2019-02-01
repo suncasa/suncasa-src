@@ -9,7 +9,6 @@ from taskinit import ms, tb, qa
 import matplotlib.dates as mdates
 from matplotlib.dates import date2num, AutoDateFormatter, AutoDateLocator
 
-# get something changed
 
 def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='', scan='', datacolumn='data',
               domedian=False, timeran=None, spw=None, timebin='0s', verbose=False):
@@ -34,12 +33,8 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
     if os.path.exists(vis_spl):
         os.system('rm -rf ' + vis_spl)
 
-    ms.open(msfile, nomodify=False)
-    ms.split(outputms=vis_spl, whichcol=datacolumn, time=timeran, spw=spw, baseline=bl, field=field, scan=scan,
-             uvrange=uvrange, timebin=timebin)
-    ms.close()
-    # split(vis=msfile, outputvis=vis_spl, timerange=timeran, antenna=bl, field=field, scan=scan, spw=spw,
-    #       uvrange=uvrange, timebin=timebin, datacolumn=datacolumn)
+    split(vis=msfile, outputvis=vis_spl, timerange=timeran, antenna=bl, field=field, scan=scan, spw=spw,
+          uvrange=uvrange, timebin=timebin, datacolumn=datacolumn)
     ms.open(vis_spl, nomodify=False)
     if verbose:
         print 'Regridding into a single spectral window...'
