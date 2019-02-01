@@ -32,8 +32,10 @@ from matplotlib.widgets import Button
 from sunpy.physics.transforms.solar_rotation import mapcube_solar_derotate
 import warnings
 from sunpy.instr.aia import aiaprep
+from suncasa.utils.lineticks import LineTicks
+import pdb
 
-warnings.filterwarnings('ignore')
+#warnings.filterwarnings('ignore')
 
 
 def resettable(f):
@@ -1198,9 +1200,17 @@ class Stackplot:
                                                      returnImAx=True, uni_cm=uni_cm,
                                                      layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
-            ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
+            cuttraj, = ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
             ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
             ax.plot(cutslitplt['xs1'], cutslitplt['ys1'], color='white', ls='dotted')
+            dists = cutslitplt['dist']
+            dist_ticks=ax2.axes.get_yticks()
+            dist_ticks_idx = []
+            for m,dt in enumerate(dist_ticks):
+                ddist_med = np.median(np.abs(np.diff(dists)))
+                if np.min(np.abs(dists-dt)) < (1.5 * ddist_med):
+                    dist_ticks_idx.append(np.argmin(np.abs(dists-dt)))
+            maj_t = LineTicks(cuttraj, dist_ticks_idx, 10, lw=2, label=['{:.0f}"'.format(dt) for dt in dist_ticks]) 
             if anim:
                 import matplotlib
                 matplotlib.use("Agg")
@@ -1276,9 +1286,17 @@ class Stackplot:
                                                      returnImAx=True, uni_cm=uni_cm,
                                                      layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
-            ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
+            cuttraj, = ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
             ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
             ax.plot(cutslitplt['xs1'], cutslitplt['ys1'], color='white', ls='dotted')
+            dists = cutslitplt['dist']
+            dist_ticks=ax2.axes.get_yticks()
+            dist_ticks_idx = []
+            for m,dt in enumerate(dist_ticks):
+                ddist_med = np.median(np.abs(np.diff(dists)))
+                if np.min(np.abs(dists-dt)) < (1.5 * ddist_med):
+                    dist_ticks_idx.append(np.argmin(np.abs(dists-dt)))
+            maj_t = LineTicks(cuttraj, dist_ticks_idx, 10, lw=2, label=['{:.0f}"'.format(dt) for dt in dist_ticks]) 
             axcolor = 'lightgoldenrodyellow'
             axframe2 = plt.axes([0.1, 0.03, 0.40, 0.02], facecolor=axcolor)
             sframe2 = Slider(axframe2, 'frame', 0, len(mapcube_plot) - 1, valinit=0, valfmt='%0.0f')
