@@ -315,12 +315,19 @@ class CutslitBuilder:
 
 class Stackplot:
     instrum_meta = {'SDO/AIA': {'scale': 0.6 * u.arcsec / u.pix}}
+    #try to find predefined data directory, AIA_LVL1 takes precedence
+    aia_lvl1 = os.getenv('AIA_LVL1')
     suncasadb = os.getenv('SUNCASADB')
-    if not suncasadb:
-        print('Environmental variable for SUNCASA database path not defined')
-        print('Use default path')
-        suncasadb = './'
-    fitsdir = suncasadb + '/aiaBrowserData/Download/'
+    if aia_lvl1:
+        print('Use '+aia_lvl1+' as the file searching path')
+        fitsdir=aia_lvl1
+    else:
+        if suncasadb:
+            fitsdir = suncasadb + '/aiaBrowserData/Download/'
+        else:
+            print('Environmental variable for either AIA_LVL1 or SUNCASADB not defined')
+            print('Use current path')
+            fitsdir = './'
     mapcube = None
     mapcube_diff = None
     mapcube_plot = None
@@ -559,11 +566,11 @@ class Stackplot:
         if isinstance(trange, list):
             if isinstance(trange[0], Time):
                 trange = Time([trange[0], trange[-1]])
-                fitsfile = DButil.readsdofile(datadir=self.fitsdir, wavelength=wavelength, jdtime=trange.jd)
+                fitsfile = DButil.readsdofile(datadir=self.fitsdir, wavelength=wavelength, trange=trange)
             else:
                 fitsfile = trange
         elif isinstance(trange, Time):
-            fitsfile = DButil.readsdofile(datadir=self.fitsdir, wavelength=wavelength, jdtime=trange.jd)
+            fitsfile = DButil.readsdofile(datadir=self.fitsdir, wavelength=wavelength, trange=trange)
         else:
             fitsfile = trange
             print(
