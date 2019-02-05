@@ -71,14 +71,14 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
             etime_vis = Time(tb.getcell('TIME', tb.nrows() - 1) / 24. / 3600., format='mjd')
             tb.close()
             if verbose:
-                print "Beginning time of this scan " + btime_vis.iso
-                print "End time of this scan " + etime_vis.iso
+                print("Beginning time of this scan " + btime_vis.iso)
+                print("End time of this scan " + etime_vis.iso)
 
             # extend the start and end time for jpl horizons by 0.5 hr on each end
             btime = Time(btime_vis.mjd - 0.5 / 24., format='mjd')
             dur = etime_vis.mjd - btime_vis.mjd + 1.0 / 24.
         except:
-            print 'error in reading ms file: ' + vis + ' to obtain the ephemeris!'
+            print('error in reading ms file: ' + vis + ' to obtain the ephemeris!')
             return -1
 
     # default the observatory to VLA, if none provided
@@ -278,7 +278,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
             msinfo0 = msinfo
         else:
             raise ValueError, 'msinfo should be either a numpy npz or a dictionary'
-    print 'msinfo is derived from: ', msinfo0['vis']
+    print('msinfo is derived from: ', msinfo0['vis'])
     scans = msinfo0['scans']
     fieldids = msinfo0['fieldids']
     btimes = msinfo0['btimes']
@@ -312,7 +312,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
     if type(reftime) == str:
         reftime = [reftime]
     if (not isinstance(reftime, list)):
-        print 'input "reftime" is not a valid list. Abort...'
+        print('input "reftime" is not a valid list. Abort...')
 
     nreftime = len(reftime)
     helio = []
@@ -337,7 +337,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                     tbg_d += int(btimes[0])
                 tref_d = (tbg_d + tend_d) / 2.
             except:
-                print 'Error in converting the input reftime: ' + str(reftime0) + '. Aborting...'
+                print('Error in converting the input reftime: ' + str(reftime0) + '. Aborting...')
         else:
             # if reftime0 is specified as a single value
             try:
@@ -354,7 +354,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                 #    tdur_s = np.mean(inttimes)
                 tdur_s = 1.
             except:
-                print 'Error in converting the input reftime: ' + str(reftime0) + '. Aborting...'
+                print('Error in converting the input reftime: ' + str(reftime0) + '. Aborting...')
         helio0['reftime'] = tref_d
         # helio0['date-obs'] = qa.time(qa.quantity(tbg_d, 'd'), form='fits', prec=10)[0]
         # helio0['exptime'] = tdur_s
@@ -428,7 +428,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                 p0 = p0[0]
                 delta0 = delta0[0]
             except:
-                print "Error in retrieving info from ephemeris!"
+                print("Error in retrieving info from ephemeris!")
         if ra0 < 0:
             ra0 += 2. * np.pi
 
@@ -507,7 +507,7 @@ def getbeam(imagefile=None, beamfile=None):
         bpaunit.append(bpaunit_)
         chans.append(chans_)
     if beamfile:  # write beams to ascii file
-        print 'Writing beam info to ascii file...'
+        print('Writing beam info to ascii file...')
         f = open(beamfile, 'w')
         f.write('CHANNEL No., BMAJ (' + beamunit[0] + '), BMIN (' + beamunit[0] + '), BPA (' + bpaunit[0] + ')')
         f.write("\n")
@@ -576,7 +576,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
         raise ValueError, 'Number of input images does not equal to number of output fits files!'
     nimg = len(imagefile)
     if verbose:
-        print str(nimg) + ' images to process...'
+        print(str(nimg) + ' images to process...')
 
     if verbose:
         print('point {}: {}'.format(prtidx, time.time() - t0))
@@ -598,7 +598,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
 
     for n, img in enumerate(imagefile):
         if verbose:
-            print 'processing image #' + str(n)
+            print('processing image #' + str(n))
         fitsf = fitsfile[n]
         timeran = timerange[n]
         # obtain duration of the image as FITS header exptime
@@ -609,7 +609,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             tdur_s = (tend_d - tbg_d) * 3600. * 24.
             dateobs = qa.time(qa.quantity(tbg_d, 'd'), form='fits', prec=10)[0]
         except:
-            print 'Error in converting the input timerange: ' + str(timeran) + '. Proceeding to the next image...'
+            print('Error in converting the input timerange: ' + str(timeran) + '. Proceeding to the next image...')
             continue
 
         if verbose:
@@ -661,8 +661,8 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             xoff = hel['refx']
             yoff = hel['refy']
         if verbose:
-            print 'offset of image phase center to visibility phase center (arcsec): ', dx, dy
-            print 'offset of visibility phase center to solar disk center (arcsec): ', xoff, yoff
+            print('offset of image phase center to visibility phase center (arcsec): ', dx, dy)
+            print('offset of visibility phase center to solar disk center (arcsec): ', xoff, yoff)
         (crval1, crval2) = (xoff + dx, yoff + dy)
         # update the fits header to heliocentric coordinates
 
@@ -768,7 +768,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                     c_l = qa.constants('c')['value']
                     factor = 2. * k_b * nu ** 2 / c_l ** 2  # SI unit
                     jy_to_si = 1e-26
-                    # print nu/1e9, beam_area, factor
+                    # print(nu/1e9, beam_area, factor)
                     factor2 = 1.
                     if scl100:
                         factor2 = 100.
