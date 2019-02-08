@@ -551,7 +551,7 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
         cmd = 'ffmpeg -r {3} -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} '.format(tmpdir, img_ext,
                                                                                                     outdstr,
                                                                                                     fps) + '{0} {1}.mp4'.format(
-            ow, outname)
+            ow, os.path.join(os.path.dirname(imgprefix), outname))
         print(cmd)
         subprocess.check_output(['bash', '-c', cmd])
         if not keeptmp:

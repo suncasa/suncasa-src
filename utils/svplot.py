@@ -1294,12 +1294,18 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             aiamap.plot(axes=ax4, vmin=0)
             ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize=12)
             aiamap.draw_limb()
-            aiamap.draw_grid()
+            try:
+                aiamap.draw_grid()
+            except:
+                pass
             aiamap.draw_rectangle((xyrange[0][0], xyrange[1][0]) * u.arcsec, sz_x, sz_y)
             aiamap.plot(axes=ax6, vmin=0)
             ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize=12)
             aiamap.draw_limb()
-            aiamap.draw_grid()
+            try:
+                aiamap.draw_grid()
+            except:
+                pass
             aiamap.draw_rectangle((xyrange[0][0], xyrange[1][0]) * u.arcsec, sz_x, sz_y)
             if rmap:
                 ax4.contour(rmapx.value, rmapy.value, rmap1.data, levels=clevels1 * np.nanmax(rmap1.data),
@@ -1356,10 +1362,16 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
 
             subaiamap.plot(axes=ax5, title='', vmin=0)
             subaiamap.draw_limb()
-            subaiamap.draw_grid()
+            try:
+                subaiamap.draw_grid()
+            except:
+                pass
             subaiamap.plot(axes=ax7, title='', vmin=0)
             subaiamap.draw_limb()
-            subaiamap.draw_grid()
+            try:
+                subaiamap.draw_grid()
+            except:
+                pass
             ax5.contour(subrmapx.value, subrmapy.value, subrmap1.data, levels=clevels1 * np.nanmax(subrmap1.data),
                         cmap=cm.jet)
             ax7.contour(subrmapx.value, subrmapy.value, subrmap2.data, levels=clevels2 * np.nanmax(subrmap2.data),

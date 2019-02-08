@@ -32,8 +32,10 @@ from matplotlib.widgets import Button
 from sunpy.physics.transforms.solar_rotation import mapcube_solar_derotate
 import warnings
 from sunpy.instr.aia import aiaprep
+from suncasa.utils.lineticks import LineTicks
+import pdb
 
-warnings.filterwarnings('ignore')
+#warnings.filterwarnings('ignore')
 
 
 def resettable(f):
@@ -74,6 +76,39 @@ def b_filter(data, lowcut, highcut, fs, ix):
 def runningmean(data, window, ix):
     x = data[ix]
     return {'idx': ix, 'y': DButil.smooth(x, window[0]) / DButil.smooth(x, window[1])}
+
+
+def XCorrMap(data, refpix=[0, 0]):
+    def c_correlate(a, v, returnx=False):
+        a = (a - np.mean(a)) / (np.std(a) * len(a))
+        v = (v - np.mean(v)) / np.std(v)
+        if returnx:
+            return np.arange(len(a)) - np.floor(len(a) / 2.0), np.correlate(a, v, mode='same')
+        else:
+            return np.correlate(a, v, mode='same')
+
+    from tqdm import tqdm
+    ny, nx, nt = data.shape
+    ccmax = np.empty((ny, nx))
+    ccmax[:] = np.nan
+    ccpeak = np.empty((ny, nx))
+    ccpeak[:] = np.nan
+
+    lc_ref = data[refpix[0], refpix[1], :]
+    for xidx in tqdm(range(0, ny - 1)):
+        for yidx in range(0, nx - 1):
+            lc = data[xidx, yidx, :]
+            ccval = c_correlate(lc, lc_ref)
+            if sum(lc) != 0:
+                cmax = np.nanmax(ccval)
+                cpeak = np.nanargmax(ccval) - (nt - 1) / 2
+            else:
+                cmax = 0
+                cpeak = 0
+            ccmax[xidx, yidx - 1] = cmax
+            ccpeak[xidx, yidx - 1] = cpeak
+
+    return {'ny': ny, 'nx': nx, 'nt': nt, 'ccmax': ccmax, 'ccpeak': ccpeak}
 
 
 def FitSlit(xx, yy, cutwidth, cutang, cutlength, s=None, method='Polyfit', ascending=True):
@@ -282,12 +317,19 @@ class CutslitBuilder:
 
 class Stackplot:
     instrum_meta = {'SDO/AIA': {'scale': 0.6 * u.arcsec / u.pix}}
+    #try to find predefined data directory, AIA_LVL1 takes precedence
+    aia_lvl1 = os.getenv('AIA_LVL1')
     suncasadb = os.getenv('SUNCASADB')
-    if not suncasadb:
-        print('Environmental variable for SUNCASA database path not defined')
-        print('Use default path')
-        suncasadb = './'
-    fitsdir = suncasadb + '/aiaBrowserData/Download/'
+    if aia_lvl1:
+        print('Use '+aia_lvl1+' as the file searching path')
+        fitsdir=aia_lvl1
+    else:
+        if suncasadb:
+            fitsdir = suncasadb + '/aiaBrowserData/Download/'
+        else:
+            print('Environmental variable for either AIA_LVL1 or SUNCASADB not defined')
+            print('Use current path')
+            fitsdir = './'
     mapcube = None
     mapcube_diff = None
     mapcube_plot = None
@@ -526,11 +568,11 @@ class Stackplot:
         if isinstance(trange, list):
             if isinstance(trange[0], Time):
                 trange = Time([trange[0], trange[-1]])
-                fitsfile = DButil.readsdofile(datadir=self.fitsdir, wavelength=wavelength, jdtime=trange.jd)
+                fitsfile = DButil.readsdofile(datadir=self.fitsdir, wavelength=wavelength, trange=trange)
             else:
                 fitsfile = trange
         elif isinstance(trange, Time):
-            fitsfile = DButil.readsdofile(datadir=self.fitsdir, wavelength=wavelength, jdtime=trange.jd)
+            fitsfile = DButil.readsdofile(datadir=self.fitsdir, wavelength=wavelength, trange=trange)
         else:
             fitsfile = trange
             print(
@@ -662,9 +704,43 @@ class Stackplot:
         self.mapcube = sunpy.map.Map(maplist, cube=True)
         self.binpix *= binpix
 
+    def mapcube_diff_denoise(self, log=False, vmax=None, vmin=None):
+        datacube = self.mapcube.as_array().astype(np.float)
+        if vmax is None:
+            vmax = np.nanmax(datacube)
+            if log:
+                if vmax < 0:
+                    vmax = 0
+                else:
+                    vmax = np.log10(vmax)
+        if vmin is None:
+            vmin = np.nanmin(datacube)
+            if log:
+                if vmin < 0:
+                    vmin = 0
+                else:
+                    vmin = np.log10(vmin)
+
+        datacube_diff = self.mapcube_diff.as_array().astype(np.float)
+
+        if log:
+            datacube[datacube < 10. ** vmin] = 10. ** vmin
+            datacube[datacube > 10. ** vmax] = 10. ** vmax
+            datacube_diff = datacube_diff * (np.log10(datacube) - vmin) / (vmax - vmin)
+        else:
+            datacube[datacube < vmin] = vmin
+            datacube[datacube > vmax] = vmax
+            datacube_diff = datacube_diff * (datacube - vmin) / (vmax - vmin)
+
+        maplist = []
+        for idx, ll in enumerate(tqdm(self.mapcube)):
+            maplist.append(sunpy.map.Map(datacube_diff[:, :, idx], self.mapcube[idx].meta))
+        mapcube_diff = sunpy.map.Map(maplist, cube=True)
+        self.mapcube_diff = mapcube_diff
+        return mapcube_diff
+
     def mapcube_mkdiff(self, mode='rdiff', dt_frm=3, medfilt=None, gaussfilt=None, bfilter=False, lowcut=0.1,
-                       highcut=0.5, window=[None, None], outfile=None,
-                       tosave=False):
+                       highcut=0.5, window=[None, None], outfile=None, tosave=False):
         '''
 
         :param mode: accept modes: rdiff, rratio, bdiff, bratio, dtrend
@@ -720,7 +796,7 @@ class Stackplot:
             if window[0] is None:
                 window[0] = 0
             if window[1] is None:
-                window[1] = nt / 2
+                window[1] = int(nt / 2)
             print('detrending the mapcube in time domain.....')
             for ly in tqdm(range(ny)):
                 runningmean_partial = partial(runningmean, datacube[ly], window)
@@ -1033,12 +1109,13 @@ class Stackplot:
         maplist = []
         for idx, smap in enumerate(tqdm(mapcube)):
             if frm_range[0] <= idx <= frm_range[-1]:
-                data = smap.data
+                data = smap.data.copy()
                 if threshold is not None:
                     data = ma.masked_less(data, threshold)
-
+                else:
+                    data = ma.masked_array(data)
                 data = data ** gamma
-                maplist.append(sunpy.map.Map(data, mapcube[idx].meta))
+                maplist.append(sunpy.map.Map(data.data, mapcube[idx].meta))
                 intens = getimprofile(data, self.cutslitbd.cutslitplt, xrange=smap.xrange.to(u.arcsec).value,
                                       yrange=smap.yrange.to(u.arcsec).value)
                 stackplt.append(intens['y'])
@@ -1053,12 +1130,18 @@ class Stackplot:
             print('Too few timestamps. Failed to make a stack plot map.')
         return mapcube
 
+    def stackplt_wrap(self):
+        cutslitplt = self.cutslitbd.cutslitplt
+        dspec = {'dspec': self.stackplt, 'x': np.hstack(
+            (self.tplt.plot_date, self.tplt.plot_date[-1] + np.nanmean(np.diff(self.tplt.plot_date)))),
+                 'y': np.hstack((cutslitplt['dist'], cutslitplt['dist'][-1] + np.nanmean(np.diff(cutslitplt['dist'])))),
+                 'ytitle': 'Distance [arcsec]',
+                 'ctitle': 'DN counts per second'}
+        return dspec
+
     def stackplt_tofile(self, outfile=None, stackplt=None):
         if not stackplt:
-            cutslitplt = self.cutslitbd.cutslitplt
-            dspec = {'dspec': self.stackplt, 'x': self.tplt.plot_date, 'y': cutslitplt['dist'],
-                     'ytitle': 'Distance [arcsec]',
-                     'ctitle': 'DN counts per second'}
+            dspec = self.stackplt_wrap()
         with open('{}'.format(outfile), 'wb') as sf:
             pickle.dump(dspec, sf)
 
@@ -1104,12 +1187,8 @@ class Stackplot:
             except:
                 cmap = 'gray_r'
 
-        dspec = {'dspec': self.stackplt,
-                 'x': np.hstack(
-                     (self.tplt.plot_date, self.tplt.plot_date[-1] + np.nanmean(np.diff(self.tplt.plot_date)))),
-                 'y': np.hstack((cutslitplt['dist'], cutslitplt['dist'][-1] + np.nanmean(np.diff(cutslitplt['dist'])))),
-                 'ytitle': 'Distance [arcsec]',
-                 'ctitle': 'DN counts per second', 'args': {'norm': norm, 'cmap': cmap}}
+        dspec = self.stackplt_wrap()
+        dspec['args'] = {'norm': norm, 'cmap': cmap}
 
         dtplot = np.mean(np.diff(self.tplt.plot_date))
         dspec['axvspan'] = [self.tplt[0].plot_date, self.tplt[0].plot_date + dtplot]
@@ -1121,9 +1200,17 @@ class Stackplot:
                                                      returnImAx=True, uni_cm=uni_cm,
                                                      layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
-            ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
+            cuttraj, = ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
             ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
             ax.plot(cutslitplt['xs1'], cutslitplt['ys1'], color='white', ls='dotted')
+            dists = cutslitplt['dist']
+            dist_ticks=ax2.axes.get_yticks()
+            dist_ticks_idx = []
+            for m,dt in enumerate(dist_ticks):
+                ddist_med = np.median(np.abs(np.diff(dists)))
+                if np.min(np.abs(dists-dt)) < (1.5 * ddist_med):
+                    dist_ticks_idx.append(np.argmin(np.abs(dists-dt)))
+            maj_t = LineTicks(cuttraj, dist_ticks_idx, 10, lw=2, label=['{:.0f}"'.format(dt) for dt in dist_ticks]) 
             if anim:
                 import matplotlib
                 matplotlib.use("Agg")
@@ -1199,9 +1286,17 @@ class Stackplot:
                                                      returnImAx=True, uni_cm=uni_cm,
                                                      layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
-            ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
+            cuttraj, = ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
             ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
             ax.plot(cutslitplt['xs1'], cutslitplt['ys1'], color='white', ls='dotted')
+            dists = cutslitplt['dist']
+            dist_ticks=ax2.axes.get_yticks()
+            dist_ticks_idx = []
+            for m,dt in enumerate(dist_ticks):
+                ddist_med = np.median(np.abs(np.diff(dists)))
+                if np.min(np.abs(dists-dt)) < (1.5 * ddist_med):
+                    dist_ticks_idx.append(np.argmin(np.abs(dists-dt)))
+            maj_t = LineTicks(cuttraj, dist_ticks_idx, 10, lw=2, label=['{:.0f}"'.format(dt) for dt in dist_ticks]) 
             axcolor = 'lightgoldenrodyellow'
             axframe2 = plt.axes([0.1, 0.03, 0.40, 0.02], facecolor=axcolor)
             sframe2 = Slider(axframe2, 'frame', 0, len(mapcube_plot) - 1, valinit=0, valfmt='%0.0f')
@@ -1252,13 +1347,27 @@ class Stackplot:
         if not mapcube:
             mapcube = self.mapcube
         t = []
-        for idx, smap in enumerate(mapcube):
-            if smap.meta.has_key('t_obs'):
-                tstr = smap.meta['t_obs']
+
+        smap = mapcube[0]
+        if smap.meta.has_key('date-obs'):
+            key = 'date-obs'
+        else:
+            if smap.meta.has_key('date_obs'):
+                key = 'date_obs'
             else:
-                tstr = smap.meta['date-obs']
+                if smap.meta.has_key('t_obs'):
+                    key = 't_obs'
+                else:
+                    print('Check you fits header. No time keywords found in the header!')
+                    return None
+
+        for idx, smap in enumerate(mapcube):
+            tstr = smap.meta[key]
             t.append(tstr)
-        return Time(t)
+        t = Time(t)
+        if key == 't_obs':
+            t = Time(t.mjd - self.exptime_orig / 2.0 / 24. / 3600., format='mjd')
+        return t
 
     @classmethod
     def set_fits_dir(cls, fitsdir):
