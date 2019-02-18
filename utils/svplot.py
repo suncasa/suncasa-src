@@ -26,6 +26,7 @@ import pickle
 import datetime
 import matplotlib as mpl
 import matplotlib.cm as cm
+import sunpy.cm.cm as cm_sunpy
 import matplotlib.colors as colors
 import matplotlib.patches as patches
 from matplotlib import gridspec
@@ -36,6 +37,17 @@ from pkg_resources import parse_version
 import pdb
 import time
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from suncasa.utils import plot_mapX as pmX
+
+
+def msclearhistory(msfile):
+    from taskinit import tb
+    tb.open(msfile + '/HISTORY', nomodify=False)
+    nrows = tb.nrows()
+    if nrows > 0:
+        tb.removerows(range(nrows))
+    tb.close()
+
 
 aiadir_default = '/srg/data/sdo/aia/level1/'
 
@@ -111,7 +123,7 @@ def downloadAIAdata(trange, wavelength=None, outdir='./'):
                                                                   vsonamestrs[6],
                                                                   vsonamestrs[7]).upper() + vsonamestrs[2][
                                                                                             :-1] + '.image_lev1.fits'
-            print ll, jsocnamestr
+            print(ll, jsocnamestr)
             os.system('mv {} {}/{}'.format(ll, outdir, jsocnamestr))
     if os.path.exists('/tmp/suds/'):
         os.system('rm -rf /tmp/suds/')
@@ -164,7 +176,7 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
             spws = ['1~5', '6~10', '11~15', '16~25']
     if observatory == 'EOVSA':
         if stokes != 'XX,YY':
-            print 'Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
+            print('Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV')
             stokes = 'I,V'
 
     # pdb.set_trace()
@@ -335,7 +347,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     suc_sort = suc[inds].reshape(ntime, nspw)
     spws_sort = spws[inds].reshape(ntime, nspw)
     if verbose:
-        print '{0:d} figures to plot'.format(ntime)
+        print('{0:d} figures to plot'.format(ntime))
     plt.ioff()
     import matplotlib.gridspec as gridspec
     spec = specdata['spec']
@@ -363,7 +375,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         elif pol == 'V':
             spec_plt = (spec[0, 0, :, :] - spec[1, 0, :, :]) / 2.
         spec_plt = [spec_plt]
-        print 'plot the dynamic spectrum in pol ' + pol  # ax1 = fig.add_subplot(211)
+        print('plot the dynamic spectrum in pol ' + pol)
 
         hnspw = max(nspw / 2, 1)
         ncols = hnspw
@@ -397,7 +409,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             spec_plt = [I_plot, V_plot]
             polstr = ['I', 'V']
             cmaps = ['jet', 'RdBu']
-        print 'plot the dynamic spectrum in pol ' + pol
+        print('plot the dynamic spectrum in pol ' + pol)
 
         hnspw = max(nspw / 2, 1)
         ncols = hnspw + 2  # 1 image: 1x1, 1 dspec:2x2
@@ -452,14 +464,14 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         # fig=plt.figure(figsize=(9,6))
         # fig.suptitle('EOVSA @ '+plttime.iso[:19])
         if verbose:
-            print 'Plotting image at: ', plttime.iso
+            print('Plotting image at: ', plttime.iso)
 
         if i == 0:
             dspecvspans = []
             for pol in range(npols):
                 ax = axs_dspec[pol]
                 im_spec = ax.pcolormesh(timstrr[tidx], freqghz, spec_plt[pol][:, tidx] / 1e4, cmap=cmaps[pol],
-                                        vmax=dmax, vmin=dmin)
+                                        vmax=dmax, vmin=dmin, rasterized=True)
                 ax.set_xlim(timstrr[tidx[0]], timstrr[tidx[-1]])
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 ax.set_ylabel('Frequency [GHz]')
@@ -485,7 +497,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 if pol == npols - 1:
                     ax.xaxis_date()
                     ax.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
-                    ax.set_xlabel('Time [UT]')
+                    ax.set_xlabel('Time [UT]', fontsize=9)
                     for xlabel in ax.get_xmajorticklabels():
                         xlabel.set_rotation(30)
                         xlabel.set_horizontalalignment("right")
@@ -504,7 +516,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 cax_spec.tick_params(direction='in')
                 clb_spec = plt.colorbar(im_spec, ax=ax, cax=cax_spec)
-                clb_spec.set_label('Flxu [sfu]')
+                clb_spec.set_label('Flux [sfu]')
         else:
             for pol in range(npols):
                 xy = dspecvspans[pol].get_xy()
@@ -526,7 +538,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 aiamap = DButil.normalize_aiamap(aiamap)
             except:
                 aiamap = None
-                print 'error in reading aiafits. Proceed without AIA'
+                print('error in reading aiafits. Proceed without AIA')
         else:
             aiamap = None
 
@@ -585,17 +597,12 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 if aiamap:
                     if plt_composite:
                         if n == 0:
-                            aiamap.plot(axes=ax, cmap='gray',
-                                        norm=colors.LogNorm(vmin=0.1, vmax=np.nanmax(aiamap.data)))
+                            aiamap_ = pmX.Sunmap(aiamap)
+                            aiamap_.imshow(axes=ax, cmap='gray',
+                                           norm=colors.LogNorm(vmin=0.1, vmax=np.nanmax(aiamap.data)))
                     else:
-                        aiamap.plot(axes=ax, vmin=0)
-                    XX, YY = np.meshgrid(np.arange(rmap.data.shape[1]), np.arange(rmap.data.shape[0]))
-                    try:
-                        rmapx, rmapy = rmap.pixel_to_data(XX * u.pix, YY * u.pix)
-                    except:
-                        rmapxy = rmap.pixel_to_data(XX * u.pix, YY * u.pix)
-                        rmapx = rmapxy.Tx
-                        rmapy = rmapxy.Ty
+                        aiamap_ = pmX.Sunmap(aiamap)
+                        aiamap_.imshow(axes=ax, vmin=0, cmap='gray')
                     try:
                         clevels1 = np.linspace(imin, imax, 5)
                     except:
@@ -603,16 +610,17 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                             clevels1 = np.array(clevels) * np.nanmax(rmap.data)
                         except:
                             clevels1 = np.linspace(0.2, 0.9, 5) * np.nanmax(rmap.data)
+                    rmap_ = pmX.Sunmap(rmap)
                     if plt_composite:
-                        ax.contour(rmapx.value, rmapy.value, rmap.data, levels=clevels1,
-                                   colors=[cm.get_cmap(cmap)(float(n) / (nspw - 1))] * len(clevels1), alpha=alpha_cont)
+                        rmap_.contour(axes=ax, levels=clevels1,
+                                      colors=[cm.get_cmap(cmap)(float(n) / (nspw - 1))] * len(clevels1),
+                                      alpha=alpha_cont)
                     else:
-                        ax.contour(rmapx.value, rmapy.value, rmap.data, levels=clevels1, cmap=cm.get_cmap(cmap))
+                        rmap_.contour(axes=ax, levels=clevels1, cmap=cm.get_cmap(cmap))
                 else:
-                    rmap.plot_settings['cmap'] = plt.get_cmap(cmaps[pol])
-                    rmap.plot(axes=ax, vmax=imax, vmin=imin)
-                    rmap.draw_limb()
-                    rmap.draw_grid()
+                    rmap_.imshow(axes=ax, vmax=imax, vmin=imin)
+                    rmap_.draw_limb(axes=ax)
+                    rmap_.draw_grid(axes=ax)
                 if custom_mapcubes:
                     for cmpcidx, cmpc in enumerate(custom_mapcubes['mapcube']):
                         dtcmpc = np.mean(np.diff(cmpc_plttimes_mjd[cmpcidx]))
@@ -633,19 +641,12 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                             else:
                                 label = '-'.join(['{:.0f}'.format(ll) for ll in cmp.measurement.value]) + ' {}'.format(
                                     cmp.measurement.unit)
-                            XX, YY = np.meshgrid(np.arange(cmp.data.shape[1]), np.arange(cmp.data.shape[0]))
-                            try:
-                                cmpx, cmpy = cmp.pixel_to_data(XX * u.pix, YY * u.pix)
-                            except:
-                                cmpxy = cmp.pixel_to_data(XX * u.pix, YY * u.pix)
-                                cmpx = cmpxy.Tx
-                                cmpy = cmpxy.Ty
-                            ax.contour(cmpx.value, cmpy.value, cmp.data, levels=np.array(levels) * np.nanmax(cmp.data),
-                                       colors=color)
+                            cmp_ = pmX.Sunmap(cmp)
+                            cmp_.contour(axes=ax, levels=np.array(levels) * np.nanmax(cmp.data), colors=color)
                             ax.text(0.97, (len(custom_mapcubes['mapcube']) - cmpcidx - 1) * 0.06 + 0.03, label,
                                     horizontalalignment='right',
                                     verticalalignment='bottom', transform=ax.transAxes, color=color)
-                ax.set_autoscale_on(False)
+                ax.set_autoscale_on(True)
                 if fov:
                     # pass
                     if parse_version(sunpy.__version__) > parse_version('0.8.0'):
@@ -655,8 +656,8 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                         ax.set_xlim(fov[0])
                         ax.set_ylim(fov[1])
                 else:
-                    ax.set_xlim([-1080, 1080])
-                    ax.set_ylim([-1080, 1080])
+                    ax.set_xlim([-1229, 1229])
+                    ax.set_ylim([-1229, 1229])
                 if plt_composite:
                     if nspw <= 10:
                         try:
@@ -678,7 +679,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                                 transform=ax.transAxes, fontweight='bold',
                                 ha='right')
                 if pol == 0 and n == 0:
-                    timetext = ax.text(0.99, 0.98, '', color='w', fontweight='bold', fontsize=12, ha='right', va='top',
+                    timetext = ax.text(0.99, 0.98, '', color='w', fontweight='bold', fontsize=9, ha='right', va='top',
                                        transform=ax.transAxes)
                 timetext.set_text(plttime.iso[:19])
                 ax.set_title(' ')
@@ -700,7 +701,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         if not os.path.exists(figdir_):
             os.makedirs(figdir_)
         if verbose:
-            print 'Saving plot to: ' + os.path.join(figdir_, figname)
+            print('Saving plot to: ' + os.path.join(figdir_, figname))
         plt.savefig(os.path.join(figdir_, figname))
     plt.close(fig)
     if not moviename:
@@ -727,7 +728,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
            imsize=[512], cell=['5.0arcsec'],
            interactive=False, usemsphacenter=True, imagefile=None, fitsfile=None, plotaia=True, aiawave=171,
            aiafits=None, aiadir=None, savefig=False,
-           mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=True, imax=None, imin=None, plt_composite=False):
+           mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=True, imax=None, imin=None, plt_composite=False,
+           clearmshistory=False):
     '''
     Required inputs:
             vis: calibrated CASA measurement set
@@ -770,7 +772,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             xyrange = [[xc - xlen / 2.0, xc + xlen / 2.0], [yc - ylen / 2.0, yc + ylen / 2.0]]
     stokes_allowed = ['RR,LL', 'I,V', 'RRLL', 'IV', 'XXYY', 'XX,YY']
     if not stokes in stokes_allowed:
-        print 'wrong stokes parameter ' + str(stokes) + '. Allowed values are ' + ';  '.join(stokes_allowed)
+        print('wrong stokes parameter ' + str(stokes) + '. Allowed values are ' + ';  '.join(stokes_allowed))
         return -1
     if stokes == 'RRLL':
         stokes = 'RR,LL'
@@ -782,8 +784,10 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
     if vis[-1] == '/':
         vis = vis[:-1]
     if not os.path.exists(vis):
-        print 'input measurement not exist'
+        print('input measurement not exist')
         return -1
+    if clearmshistory:
+        msclearhistory(vis)
     if aiafits is None:
         aiafits = ''
     # split the data
@@ -827,7 +831,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 starttim1 = Time(qa.quantity(tstart, 'd')['value'], format='mjd')
                 endtim1 = Time(qa.quantity(tend, 'd')['value'], format='mjd')
         except ValueError:
-            print "keyword 'timerange' in wrong format"
+            print("keyword 'timerange' in wrong format")
     midtime_mjd = (starttim1.mjd + endtim1.mjd) / 2.
 
     if vis.endswith('/'):
@@ -865,17 +869,17 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
         bfreqghz = bfreq / 1e9
         efreqghz = efreq / 1e9
         if verbose:
-            print 'selected timerange {}'.format(timerange)
-            print 'selected frequency range {0:6.3f} to {1:6.3f} GHz'.format(bfreqghz, efreqghz)
+            print('selected timerange {}'.format(timerange))
+            print('selected frequency range {0:6.3f} to {1:6.3f} GHz'.format(bfreqghz, efreqghz))
     else:
-        print "spw or timerange selection failed. Aborting..."
+        print("spw or timerange selection failed. Aborting...")
         ms.close()
         return -1
     ms.close()
 
     if observatory == 'EOVSA':
         if stokes == 'RRLL' or stokes == 'RR,LL':
-            print 'Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
+            print('Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV')
             stokes = 'I,V'
 
     if mkmovie:
@@ -886,7 +890,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
         else:
             eph = hf.read_horizons(t0=Time(midtime_mjd, format='mjd'))
             if observatory == 'EOVSA' or (not usemsphacenter):
-                print 'This is EOVSA data'
+                print('This is EOVSA data')
                 # use RA and DEC from FIELD ID 0
                 tb.open(vis + '/FIELD')
                 phadir = tb.getcol('PHASE_DIR').flatten()
@@ -894,7 +898,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 ra0 = phadir[0]
                 dec0 = phadir[1]
                 if stokes == 'RRLL' or stokes == 'RR,LL':
-                    print 'Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
+                    print('Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be IV')
                     stokes = 'I,V'
             else:
                 ra0 = eph['ra'][0]
@@ -912,7 +916,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 newra = ra0 + raoff
                 newdec = dec0 + decoff
                 phasecenter = 'J2000 ' + str(newra) + 'rad ' + str(newdec) + 'rad'
-            print 'use phasecenter: ' + phasecenter
+            print('use phasecenter: ' + phasecenter)
             qlookfitsdir = os.path.join(workdir, 'qlookfits/')
             qlookfigdir = os.path.join(workdir, 'qlookimgs/')
             imresfile = os.path.join(qlookfitsdir, '{}.imres.npz'.format(os.path.basename(vis)))
@@ -952,10 +956,20 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
         timstrr = spec_tim.plot_date
         plt.ion()
         fig = plt.figure(figsize=(12, 7), dpi=100)
-        gs1 = gridspec.GridSpec(3, 1)
-        gs1.update(left=0.08, right=0.32, wspace=0.05)
-        gs2 = gridspec.GridSpec(2, 2)
-        gs2.update(left=0.38, right=0.98, hspace=0.02, wspace=0.02)
+        # gs1 = gridspec.GridSpec(3, 1)
+        # gs1.update(left=0.08, right=0.32, wspace=0.05)
+        # gs2 = gridspec.GridSpec(2, 2)
+        # gs2.update(left=0.38, right=0.98, hspace=0.02, wspace=0.02)
+
+        ax1 = plt.subplot2grid((6, 8), (0, 0), rowspan=2, colspan=2)
+        ax2 = plt.subplot2grid((6, 8), (2, 0), rowspan=2, colspan=2)
+        ax3 = plt.subplot2grid((6, 8), (4, 0), rowspan=2, colspan=2)
+        ax4 = plt.subplot2grid((6, 8), (0, 2), rowspan=3, colspan=3)
+        ax5 = plt.subplot2grid((6, 8), (3, 2), rowspan=3, colspan=3)
+        ax6 = plt.subplot2grid((6, 8), (0, 5), rowspan=3, colspan=3, sharex=ax4, sharey=ax4)
+        ax7 = plt.subplot2grid((6, 8), (3, 5), rowspan=3, colspan=3, sharex=ax5, sharey=ax5)
+        # ax6 = plt.subplot(gs2[0, 1], sharex=ax4, sharey=ax4)
+        # ax7 = plt.subplot(gs2[1, 1], sharex=ax5, sharey=ax5)
 
         if npol > 1:
             spec_1 = np.absolute(spec[0, 0, :, :])
@@ -970,35 +984,32 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             # linear feeds
             polstr = ['XX', 'YY']
 
-        print 'plot the dynamic spectrum in pol ' + ' & '.join(polstr)
-        ax1 = plt.subplot(gs1[0])
-        ax1.pcolormesh(timstrr, freqghz, spec_1, cmap='jet', vmin=dmin, vmax=dmax)
+        print('plot the dynamic spectrum in pol ' + ' & '.join(polstr))
+        # ax1 = plt.subplot(gs1[0])
+        ax1.pcolormesh(timstrr, freqghz, spec_1, cmap='jet', vmin=dmin, vmax=dmax, rasterized=True)
         ax1.set_xlim(timstrr[tidx[0]], timstrr[tidx[-1]])
         ax1.xaxis_date()
         ax1.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
         # ax1.set_xticklabels(['']*10)
         ax1.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
-        ax1.set_ylabel('Frequency (GHz)', fontsize=10)
-        ax1.set_title(observatory + ' ' + datstr + ' ' + polstr[0] + ' & ' + polstr[1], fontsize=12)
-        ax1.set_autoscale_on(False)
+        ax1.set_ylabel('Frequency (GHz)', fontsize=9)
+        ax1.set_title(observatory + ' ' + datstr + ' ' + polstr[0] + ' & ' + polstr[1], fontsize=9)
+        ax1.set_autoscale_on(True)
         ax1.add_patch(patches.Rectangle((bt, bfreqghz), et - bt, efreqghz - bfreqghz, ec='w', fill=False))
         ax1.plot([(bt + et) / 2.], [(bfreqghz + efreqghz) / 2.], '*w', ms=12)
         for tick in ax1.get_xticklabels():
             tick.set_fontsize(8)
-        for tick in ax1.get_yticklabels():
-            tick.set_fontsize(8)
-        ax2 = plt.subplot(gs1[1])
-        ax2.pcolormesh(timstrr, freqghz, spec_2, cmap='jet', vmin=dmin, vmax=dmax)
+
+        # ax2 = plt.subplot(gs1[1])
+        ax2.pcolormesh(timstrr, freqghz, spec_2, cmap='jet', vmin=dmin, vmax=dmax, rasterized=True)
         ax2.set_xlim(timstrr[tidx[0]], timstrr[tidx[-1]])
         ax2.xaxis_date()
         ax2.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
         ax2.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
-        ax2.set_ylabel('Frequency (GHz)', fontsize=10)
+        ax2.set_ylabel('Frequency (GHz)', fontsize=9)
         for tick in ax2.get_xticklabels():
             tick.set_fontsize(8)
-        for tick in ax2.get_yticklabels():
-            tick.set_fontsize(8)
-        ax2.set_autoscale_on(False)
+        ax2.set_autoscale_on(True)
         ax2.add_patch(patches.Rectangle((bt, bfreqghz), et - bt, efreqghz - bfreqghz, ec='w', fill=False))
         ax2.plot([(bt + et) / 2.], [(bfreqghz + efreqghz) / 2.], '*w', ms=12)
 
@@ -1011,9 +1022,9 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             btgoes = datstrg + ' ' + qa.time(qa.quantity(tim[0] - 1800, 's'), form='clean', prec=9)[0]
             etgoes = datstrg + ' ' + qa.time(qa.quantity(tim[tidx[-1] - 1] + 1800, 's'), form='clean', prec=9)[0]
         if verbose:
-            print 'Acquire GOES soft X-ray data in from ' + btgoes + ' to ' + etgoes
+            print('Acquire GOES soft X-ray data in from ' + btgoes + ' to ' + etgoes)
 
-        ax3 = plt.subplot(gs1[2])
+        # ax3 = plt.subplot(gs1[2])
 
         try:
             from sunpy import lightcurve as lc
@@ -1090,12 +1101,12 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 os.system('python {}'.format(goesscript))
                 os.system('rm -rf {}'.format(goesscript))
             except NameError:
-                print "Bad input names"
+                print("Bad input names")
             except ValueError:
-                print "Bad input values"
+                print("Bad input values")
             except:
-                print "Unexpected error:", sys.exc_info()[0]
-                print "Error in generating GOES light curves. Proceed without GOES..."
+                print("Unexpected error:", sys.exc_info()[0])
+                print("Error in generating GOES light curves. Proceed without GOES...")
 
             if os.path.exists(goesdatafile):
                 fi1 = file(goesdatafile, 'rb')
@@ -1117,16 +1128,18 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             ax3.set_ylim([-7, -3])
             ax3.set_yticks([-7, -6, -5, -4, -3])
             ax3.set_yticklabels([r'$10^{-7}$', r'$10^{-6}$', r'$10^{-5}$', r'$10^{-4}$', r'$10^{-3}$'])
-            ax3.set_title('Goes Soft X-ray', fontsize=12)
+            ax3.set_title('Goes Soft X-ray', fontsize=9)
             ax3.set_ylabel('Watts m$^{-2}$')
             ax3.set_xlabel(datetime.datetime.isoformat(goest.data.index[0])[0:10])
             ax3.axvspan(dates[899], dates[dates.size - 899], alpha=0.2)
+            for tick in ax3.get_xticklabels():
+                tick.set_fontsize(8)
 
-            ax2 = ax3.twinx()
-            # ax2.set_yscale("log")
-            ax2.set_ylim([-7, -3])
-            ax2.set_yticks([-7, -6, -5, -4, -3])
-            ax2.set_yticklabels(['B', 'C', 'M', 'X', ''])
+            ax3_2 = ax3.twinx()
+            # ax3_2.set_yscale("log")
+            ax3_2.set_ylim([-7, -3])
+            ax3_2.set_yticks([-7, -6, -5, -4, -3])
+            ax3_2.set_yticklabels(['B', 'C', 'M', 'X', ''])
 
             ax3.yaxis.grid(True, 'major')
             ax3.xaxis.grid(False, 'major')
@@ -1137,11 +1150,12 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
 
             ax3.fmt_xdata = mpl.dates.DateFormatter('%H:%M')
         except:
-            print 'Error in downloading GOES soft X-ray data. Proceeding with out soft X-ray plot.'
+            print('Error in downloading GOES soft X-ray data. Proceeding with out soft X-ray plot.')
 
         # third part
         # start to download the fits files
         if plotaia:
+            cmap_aia = cm_sunpy.get_cmap('sdoaia{}'.format(aiawave))
             if not aiafits:
                 newlist = trange2aiafits(Time([starttim1, endtim1]), aiawave, aiadir)
             else:
@@ -1151,14 +1165,14 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 aiafits = newlist[0]
                 aiamap = smap.Map(aiafits)
             except:
-                print 'error in reading aiafits. Proceed without AIA'
+                print('error in reading aiafits. Proceed without AIA')
 
         # RCP or I
-        ax4 = plt.subplot(gs2[0, 0])
-        ax5 = plt.subplot(gs2[1, 0])
+        # ax4 = plt.subplot(gs2[0, 0])
+        # ax5 = plt.subplot(gs2[1, 0])
         # LCP or V
-        ax6 = plt.subplot(gs2[0, 1], sharex=ax4, sharey=ax4)
-        ax7 = plt.subplot(gs2[1, 1], sharex=ax5, sharey=ax5)
+        # ax6 = plt.subplot(gs2[0, 1], sharex=ax4, sharey=ax4)
+        # ax7 = plt.subplot(gs2[1, 1], sharex=ax5, sharey=ax5)
 
         if fitsfile:
             pass
@@ -1166,7 +1180,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             if not imagefile:
                 eph = hf.read_horizons(t0=Time(midtime_mjd, format='mjd'))
                 if observatory == 'EOVSA' or (not usemsphacenter):
-                    print 'This is EOVSA data'
+                    print('This is EOVSA data')
                     # use RA and DEC from FIELD ID 0
                     tb.open(vis + '/FIELD')
                     phadir = tb.getcol('PHASE_DIR').flatten()
@@ -1174,8 +1188,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                     ra0 = phadir[0]
                     dec0 = phadir[1]
                     if stokes == 'RRLL' or stokes == 'RR,LL':
-                        print 'Provide stokes: ' + str(
-                            stokes) + '. However EOVSA has linear feeds. Force stokes to be IV'
+                        print('Provide stokes: ' + str(
+                            stokes) + '. However EOVSA has linear feeds. Force stokes to be IV')
                         stokes = 'I,V'
                 else:
                     ra0 = eph['ra'][0]
@@ -1199,9 +1213,9 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                     os.system('rm -rf ' + imagename + '.*')
                 sto = stokes.replace(',', '')
                 spw = ';'.join(spw)
-                print 'do clean for ' + timerange + ' in spw ' + spw + ' stokes ' + sto
-                print 'Original phasecenter: ' + str(ra0) + str(dec0)
-                print 'use phasecenter: ' + phasecenter
+                print('do clean for ' + timerange + ' in spw ' + spw + ' stokes ' + sto)
+                print('Original phasecenter: ' + str(ra0) + str(dec0))
+                print('use phasecenter: ' + phasecenter)
 
                 clean(vis=vis, imagename=imagename, selectdata=True, spw=spw, timerange=timerange, stokes=sto,
                       niter=niter, interactive=interactive,
@@ -1217,7 +1231,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             fitsfile = imagefile + '.fits'
             hf.imreg(vis=vis, ephem=eph, imagefile=imagefile, timerange=timerange, reftime=reftime, fitsfile=fitsfile,
                      verbose=True, overwrite=True, scl100=True, toTb=True)
-        print 'fits file ' + fitsfile + ' selected'
+        print('fits file ' + fitsfile + ' selected')
         ax4.cla()
         ax5.cla()
         ax6.cla()
@@ -1231,7 +1245,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             hdu.data[np.isnan(hdu.data)] = 0.0
             rmap = smap.Map(hdu.data[0, 0, :, :], hdu.header)
         except:
-            print 'radio fits file not recognized by sunpy.map. Aborting...'
+            print('radio fits file not recognized by sunpy.map. Aborting...')
             return -1
         if npol > 1:
 
@@ -1245,14 +1259,6 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 cmaps = [cm.jet] * 2
             rmap1 = smap.Map(data1, hdu.header)
             rmap2 = smap.Map(data2, hdu.header)
-
-        XX, YY = np.meshgrid(np.arange(rmap.data.shape[1]), np.arange(rmap.data.shape[0]))
-        try:
-            rmapx, rmapy = rmap.pixel_to_data(XX * u.pix, YY * u.pix)
-        except:
-            rmapxy = rmap.pixel_to_data(XX * u.pix, YY * u.pix)
-            rmapx = rmapxy.Tx
-            rmapy = rmapxy.Ty
 
         if not xyrange:
             if xycen:
@@ -1272,7 +1278,7 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             x2 = x0 + sz_x / 2.
             y1 = y0 - sz_y / 2.
             y2 = y0 + sz_y / 2.
-            xyrange = [[x1.value, x2.value], [y1.value, y2.value]]
+            xyrange = [[x1.to(u.arcsec).value, x2.to(u.arcsec).value], [y1.to(u.arcsec).value, y2.to(u.arcsec).value]]
         else:
             sz_x = (xyrange[0][1] - xyrange[0][0]) * u.arcsec
             sz_y = (xyrange[1][1] - xyrange[1][0]) * u.arcsec
@@ -1283,113 +1289,81 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
         else:
             clevels2 = np.linspace(0.2, 0.9, 5)
         if 'aiamap' in vars():
-            aiamap.plot_settings['cmap'] = plt.get_cmap('binary')
             if rmap:
                 title = 'AIA {0:.0f} + {1} {2:6.3f} GHz'.format(aiamap.wavelength.value, observatory,
                                                                 (bfreqghz + efreqghz) / 2.0)
             else:
                 title = 'AIA {0:.0f}'.format(aiamap.wavelength.value)
-            aiamap.plot(axes=ax4, vmin=0)
-            ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize=12)
-            aiamap.draw_limb()
-            try:
-                aiamap.draw_grid()
-            except:
-                pass
-            aiamap.draw_rectangle((xyrange[0][0], xyrange[1][0]) * u.arcsec, sz_x, sz_y)
-            aiamap.plot(axes=ax6, vmin=0)
-            ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize=12)
-            aiamap.draw_limb()
-            try:
-                aiamap.draw_grid()
-            except:
-                pass
-            aiamap.draw_rectangle((xyrange[0][0], xyrange[1][0]) * u.arcsec, sz_x, sz_y)
+            aiamap_ = pmX.Sunmap(aiamap)
+            aiamap_.imshow(axes=ax4, cmap=cmap_aia, norm=colors.LogNorm(vmin=1.0))
+            ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize=9)
+            aiamap_.draw_limb(axes=ax4)
+            aiamap_.draw_grid(axes=ax4)
+            aiamap_.draw_rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value, axes=ax4)
+            aiamap_.imshow(axes=ax6, cmap=cmap_aia, norm=colors.LogNorm(vmin=1.0))
+            ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize=9)
+            aiamap_.draw_limb(axes=ax6)
+            aiamap_.draw_grid(axes=ax6)
+            aiamap_.draw_rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value, axes=ax6)
             if rmap:
-                ax4.contour(rmapx.value, rmapy.value, rmap1.data, levels=clevels1 * np.nanmax(rmap1.data),
-                            cmap=cmaps[0])
-                ax6.contour(rmapx.value, rmapy.value, rmap2.data, levels=clevels2 * np.nanmax(rmap2.data),
-                            cmap=cmaps[1])
+                rmap1_ = pmX.Sunmap(rmap1)
+                rmap1_.contour(axes=ax4, levels=clevels1 * np.nanmax(rmap1.data), cmap=cmaps[0])
+                rmap2_ = pmX.Sunmap(rmap2)
+                rmap2_.contour(axes=ax6, levels=clevels2 * np.nanmax(rmap2.data), cmap=cmaps[1])
             ax4.text(0.02, 0.02, 'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'),
                      verticalalignment='bottom',
-                     horizontalalignment='left', transform=ax4.transAxes, color='k', fontsize=10)
+                     horizontalalignment='left', transform=ax4.transAxes, color='k', fontsize=9)
             ax6.text(0.02, 0.02, 'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'),
                      verticalalignment='bottom',
-                     horizontalalignment='left', transform=ax6.transAxes, color='k', fontsize=10)
+                     horizontalalignment='left', transform=ax6.transAxes, color='k', fontsize=9)
+            aiamap_ = pmX.Sunmap(aiamap)
+            aiamap_.imshow(axes=ax5, cmap=cmap_aia, norm=colors.LogNorm(vmin=1.0))
+            aiamap_.draw_limb(axes=ax5)
+            aiamap_.draw_grid(axes=ax5)
+            aiamap_.imshow(axes=ax7, cmap=cmap_aia, norm=colors.LogNorm(vmin=1.0))
+            aiamap_.draw_limb(axes=ax7)
+            aiamap_.draw_grid(axes=ax7)
+            rmap1_.contour(axes=ax5, levels=clevels1 * np.nanmax(rmap1.data), cmap=cm.jet)
+            rmap2_.contour(axes=ax5, levels=clevels2 * np.nanmax(rmap2.data), cmap=cm.RdBu)
         else:
             title = '{0} {1:6.3f} GHz'.format(observatory, (bfreqghz + efreqghz) / 2.0)
-            rmap1.plot(axes=ax4, cmap=cmaps[0])
-            ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize=12)
-            rmap1.draw_limb()
-            rmap1.draw_grid()
-            rmap1.draw_rectangle((xyrange[0][0], xyrange[1][0]) * u.arcsec, sz_x, sz_y)
-            rmap2.plot(axes=ax6, cmap=cmaps[1])
-            ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize=12)
-            rmap2.draw_limb()
-            rmap2.draw_grid()
-            rmap2.draw_rectangle((xyrange[0][0], xyrange[1][0]) * u.arcsec, sz_x, sz_y)
-        ax4.set_xlim(-1200, 1200)
-        ax4.set_ylim(-1200, 1200)
-        ax6.set_xlim(-1200, 1200)
-        ax6.set_ylim(-1200, 1200)
+            rmap1_ = pmX.Sunmap(rmap1)
+            rmap1_.imshow(axes=ax4, cmap=cmaps[0])
+            ax4.set_title(title + ' ' + stokes.split(',')[0], fontsize=9)
+            rmap1_.draw_limb(axes=ax4)
+            rmap1_.draw_grid(axes=ax4)
+            rmap1_.draw_rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value, axes=ax4)
+            rmap2_ = pmX.Sunmap(rmap2)
+            rmap2_.imshow(axes=ax6, cmap=cmaps[1])
+            ax6.set_title(title + ' ' + stokes.split(',')[1], fontsize=9)
+            rmap2_.draw_limb(axes=ax6)
+            rmap2_.draw_grid(axes=ax6)
+            rmap2_.draw_rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value, axes=ax6)
+            rmap1_.imshow(axes=ax5, cmap=cmaps[0])
+            rmap1_.draw_limb(axes=ax5)
+            rmap1_.draw_grid(axes=ax5)
+            rmap2_.imshow(axes=ax7, cmap=cmaps[1])
+            rmap2_.draw_limb(axes=ax7)
+            rmap2_.draw_grid(axes=ax7)
 
-        try:
-            subrmap1 = rmap1.submap(xyrange[0] * u.arcsec, xyrange[1] * u.arcsec)
-            subrmap2 = rmap2.submap(xyrange[0] * u.arcsec, xyrange[1] * u.arcsec)
-        except:
-            bl = SkyCoord(xyrange[0][0] * u.arcsec, xyrange[1][0] * u.arcsec, frame=rmap1.coordinate_frame)
-            tr = SkyCoord(xyrange[0][1] * u.arcsec, xyrange[1][1] * u.arcsec, frame=rmap1.coordinate_frame)
-            subrmap1 = rmap1.submap(bl, tr)
-            subrmap2 = rmap2.submap(bl, tr)
-
-        XX, YY = np.meshgrid(np.arange(subrmap1.data.shape[1]), np.arange(subrmap1.data.shape[0]))
-        try:
-            subrmapx, subrmapy = subrmap1.pixel_to_data(XX * u.pix, YY * u.pix)
-        except:
-            subrmapxy = subrmap1.pixel_to_data(XX * u.pix, YY * u.pix)
-            subrmapx = subrmapxy.Tx
-            subrmapy = subrmapxy.Ty
-
-        if 'aiamap' in vars():
-            try:
-                subaiamap = aiamap.submap(xyrange[0] * u.arcsec, xyrange[1] * u.arcsec)
-            except:
-                bl = SkyCoord(xyrange[0][0] * u.arcsec, xyrange[1][0] * u.arcsec, frame=aiamap.coordinate_frame)
-                tr = SkyCoord(xyrange[0][1] * u.arcsec, xyrange[1][1] * u.arcsec, frame=aiamap.coordinate_frame)
-                subaiamap = aiamap.submap(bl, tr)
-
-            subaiamap.plot(axes=ax5, title='', vmin=0)
-            subaiamap.draw_limb()
-            try:
-                subaiamap.draw_grid()
-            except:
-                pass
-            subaiamap.plot(axes=ax7, title='', vmin=0)
-            subaiamap.draw_limb()
-            try:
-                subaiamap.draw_grid()
-            except:
-                pass
-            ax5.contour(subrmapx.value, subrmapy.value, subrmap1.data, levels=clevels1 * np.nanmax(subrmap1.data),
-                        cmap=cm.jet)
-            ax7.contour(subrmapx.value, subrmapy.value, subrmap2.data, levels=clevels2 * np.nanmax(subrmap2.data),
-                        cmap=cm.RdBu)  # subaiamap.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
-        else:
-            subrmap1.plot(axes=ax5, cmap=cmaps[0], title='')
-            subrmap1.draw_limb()
-            subrmap1.draw_grid()
-            subrmap2.plot(axes=ax7, cmap=cmaps[1], title='')
-            subrmap2.draw_limb()
-            subrmap2.draw_grid()  # ax5.contour(subrmapx.value, subrmapy.value, subrmap1.data,  #            levels=clevels1 * np.nanmax(subrmap1.data), cmap=cm.gray)  # ax7.contour(subrmapx.value, subrmapy.value, subrmap2.data,  #            levels=clevels2 * np.nanmax(subrmap2.data), cmap=cm.gray)  # subrmap1.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)  # subrmap2.draw_rectangle((fov[0][0], fov[1][0]) * u.arcsec, 400 * u.arcsec, 400 * u.arcsec)
-        ax5.set_xlim(xyrange[0])
-        ax5.set_ylim(xyrange[1])
-        ax5.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f')[:-3], verticalalignment='bottom',
-                 horizontalalignment='left',
-                 transform=ax5.transAxes, color='k', fontsize=10)
+        ax6.set_xlim(-1229, 1229)
+        ax6.set_ylim(-1229, 1229)
         ax7.set_xlim(xyrange[0])
         ax7.set_ylim(xyrange[1])
+        ax5.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f')[:-3], verticalalignment='bottom',
+                 horizontalalignment='left',
+                 transform=ax5.transAxes, color='k', fontsize=9)
         ax7.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f')[:-3], verticalalignment='bottom',
                  horizontalalignment='left',
-                 transform=ax7.transAxes, color='k', fontsize=10)
+                 transform=ax7.transAxes, color='k', fontsize=9)
 
+        for ax in [ax1, ax2, ax3, ax3_2, ax4, ax5, ax6, ax7]:
+            for tick in ax.get_xticklabels():
+                tick.set_fontsize(8)
+            for tick in ax.get_yticklabels():
+                tick.set_fontsize(8)
+            ax.set_xlabel(ax.get_xlabel(), fontsize=9)
+            ax.set_ylabel(ax.get_ylabel(), fontsize=9)
+        fig.subplots_adjust(top=0.94, bottom=0.07, left=0.06, right=0.98, hspace=0.5, wspace=0.36)
+        fig.canvas.draw_idle()
         fig.show()

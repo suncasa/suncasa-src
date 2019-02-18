@@ -19,14 +19,15 @@ from sunpy import map as smap
 import numpy as np
 # from suncasa.utils import DButil
 import warnings
+import matplotlib.patches as patches
 
 
-class Sunmap(smap.GenericMap):
+class Sunmap():
 
     def __init__(self, sunmap):
         self.sunmap = sunmap
 
-    def map2wcsgrids(self, sunpymap=None, cell=False, antialiased=True):
+    def map2wcsgrids(self, sunpymap=None, cell=False):
         '''
 
         :param sunpymap:
@@ -37,23 +38,22 @@ class Sunmap(smap.GenericMap):
         import astropy.units as u
         if sunpymap is None:
             sunpymap = self.sunmap
+        ny, nx = sunpymap.data.shape
+        x0, x1 = sunpymap.xrange.to(u.arcsec).value
+        y0, y1 = sunpymap.yrange.to(u.arcsec).value
+        dx = sunpymap.scale.axis1.to(u.arcsec / u.pix).value
+        dy = sunpymap.scale.axis2.to(u.arcsec / u.pix).value
+
         if cell:
-            ny, nx = sunpymap.data.shape
-            offset = 0.5
-        else:
-            ny, nx = sunpymap.data.shape
-            offset = 0.0
-        if antialiased:
-            XX, YY = np.array([0, nx - 1]) + offset, np.array([0, ny - 1]) + offset
-            mesh = sunpymap.pixel_to_world(XX * u.pix, YY * u.pix)
-            mapx, mapy = np.linspace(mesh[0].Tx.value, mesh[-1].Tx.value, nx), np.linspace(mesh[0].Ty.value,
-                                                                                           mesh[-1].Ty.value, ny)
+            mapx, mapy = np.linspace(x0, x1, nx), np.linspace(y0, y1, ny)
             mapx = np.tile(mapx, ny).reshape(ny, nx)
             mapy = np.tile(mapy, nx).reshape(nx, ny).transpose()
         else:
-            XX, YY = np.meshgrid(np.arange(nx) + offset, np.arange(ny) + offset)
-            mesh = sunpymap.pixel_to_world(XX * u.pix, YY * u.pix)
-            mapx, mapy = mesh.Tx.value, mesh.Ty.value
+            nx += 1
+            ny += 1
+            mapx, mapy = np.linspace(x0 - dx / 2.0, x1 + dx / 2.0, nx), np.linspace(y0 - dy / 2.0, y1 + dy / 2.0, ny)
+            mapx = np.tile(mapx, ny).reshape(ny, nx)
+            mapy = np.tile(mapy, nx).reshape(nx, ny).transpose()
         return mapx, mapy
 
     def get_map_extent(self, sunpymap=None, rot=0):
@@ -117,19 +117,20 @@ class Sunmap(smap.GenericMap):
             axes.set_ylabel('-Solar X [arcsec]')
         return im
 
-    def contour(self, axes=None, rot=0, **kwargs):
+    def contour(self, axes=None, rot=0, mapx=None, mapy=None, **kwargs):
         sunpymap = self.sunmap
         if axes is None:
             axes = plt.subplot()
         rot = rot % 360
-        if rot == 0:
-            mapx, mapy = self.map2wcsgrids(cell=False)
-        elif rot == 90:
-            mapy, mapx = self.map2wcsgrids(cell=False)
-        elif rot == 180:
-            mapx, mapy = self.map2wcsgrids(cell=False)
-        elif rot == 270:
-            mapy, mapx = self.map2wcsgrids(cell=False)
+        if (mapx is None) or (mapy is None):
+            if rot == 0:
+                mapx, mapy = self.map2wcsgrids(cell=True)
+            elif rot == 90:
+                mapy, mapx = self.map2wcsgrids(cell=True)
+            elif rot == 180:
+                mapx, mapy = self.map2wcsgrids(cell=True)
+            elif rot == 270:
+                mapy, mapx = self.map2wcsgrids(cell=True)
         im = axes.contour(mapx, mapy, sunpymap.data, **kwargs)
 
         extent = self.get_map_extent(rot=rot)
@@ -142,7 +143,7 @@ class Sunmap(smap.GenericMap):
         if 'c' not in kwargs and 'color' not in kwargs:
             kwargs['c'] = 'w'
         if 'ls' not in kwargs and 'linestyle' not in kwargs:
-            kwargs['ls'] = '-'
+            kwargs['ls'] = 'solid'
         sunpymap = self.sunmap
         if axes is None:
             axes = plt.gca()
@@ -175,7 +176,7 @@ class Sunmap(smap.GenericMap):
         if 'c' not in kwargs and 'color' not in kwargs:
             kwargs['c'] = 'w'
         if 'ls' not in kwargs and 'linestyle' not in kwargs:
-            kwargs['ls'] = ':'
+            kwargs['ls'] = 'dotted'
         dsun = sunpymap.dsun
         rsun = sunpymap.rsun_meters
         if axes is None:
@@ -200,13 +201,25 @@ class Sunmap(smap.GenericMap):
             coords = hcc2hpc(c[0], c[1], c[2], dsun)
             im += axes.plot(coords[0].to(u.arcsec), coords[1].to(u.arcsec), **kwargs)
 
+    def draw_rectangle(self, bottom_left, width, height, axes=None, **kwargs):
+        if 'ec' not in kwargs and 'edgecolor' not in kwargs:
+            kwargs['ec'] = 'w'
+        if 'ls' not in kwargs and 'linestyle' not in kwargs:
+            kwargs['ls'] = 'solid'
+        if 'fill' not in kwargs:
+            kwargs['fill'] = False
+        if axes is None:
+            axes = plt.gca()
+        axes.set_autoscale_on(False)
+        im = axes.add_patch(patches.Rectangle(bottom_left, width, height, **kwargs))
+        return im
 
     def imshow_RGB(self, maps, axes=None, returndataonly=False):
         from scipy import ndimage
         from astropy.coordinates import SkyCoord
         mapR = maps[0]
         znewR = mapR.data
-        aiamapx, aiamapy = self.map2wcsgrids(sunpymap=mapR, cell=False, antialiased=False)
+        aiamapx, aiamapy = self.map2wcsgrids(sunpymap=mapR, cell=False)
         mapG = maps[1]
         XX, YY = mapG.data_to_pixel(SkyCoord(aiamapx * u.arcsec, aiamapy * u.arcsec, frame=mapG.coordinate_frame))
         znewG = ndimage.map_coordinates(mapG.data, [YY, XX], order=1)

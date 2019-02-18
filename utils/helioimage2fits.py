@@ -45,7 +45,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
             return -1
     if vis:
         if not os.path.exists(vis):
-            print 'Input ms data ' + vis + ' does not exist! '
+            print('Input ms data ' + vis + ' does not exist! ')
             return -1
         try:
             # ms.open(vis)
@@ -263,7 +263,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
          reftime = '22:25:20~22:25:40'
     '''
     if not vis or not os.path.exists(vis):
-        raise ValueError, 'Please provide information of the MS database!'
+        raise ValueError('Please provide information of the MS database!')
     if not ephem:
         ephem = read_horizons(vis=vis)
     if not msinfo:
@@ -273,11 +273,11 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
             try:
                 msinfo0 = np.load(msinfo)
             except:
-                raise ValueError, 'The specified input msinfo file does not exist!'
+                raise ValueError('The specified input msinfo file does not exist!')
         elif isinstance(msinfo, dict):
             msinfo0 = msinfo
         else:
-            raise ValueError, 'msinfo should be either a numpy npz or a dictionary'
+            raise ValueError('msinfo should be either a numpy npz or a dictionary')
     print('msinfo is derived from: ', msinfo0['vis'])
     scans = msinfo0['scans']
     fieldids = msinfo0['fieldids']
@@ -308,7 +308,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
 
     # find out phase center infomation in ms according to the input time or timerange #
     if not reftime:
-        raise ValueError, 'Please specify a reference time of the image'
+        raise ValueError('Please specify a reference time of the image')
     if type(reftime) == str:
         reftime = [reftime]
     if (not isinstance(reftime, list)):
@@ -390,7 +390,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                 scanlen = 10.  # radom value
                 dt = 0.
             else:
-                raise ValueError, 'Reference time does not fall into the scan list!'
+                raise ValueError('Reference time does not fall into the scan list!')
         if polyfit:
             ra = cra[0] * tref_d ** 2. + cra[1] * tref_d + cra[2]
             dec = cdec[0] * tref_d ** 2. + cdec[1] * tref_d + cdec[2]
@@ -460,7 +460,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
 def getbeam(imagefile=None, beamfile=None):
     ia = iatool()
     if not imagefile:
-        raise ValueError, 'Please specify input images'
+        raise ValueError('Please specify input images')
     bmaj = []
     bmin = []
     bpa = []
@@ -471,7 +471,7 @@ def getbeam(imagefile=None, beamfile=None):
     for n in range(nimg):
         img = imagefile[n]
         if not os.path.exists(img):
-            raise ValueError, 'The input image does not exist!'
+            raise ValueError('The input image does not exist!')
         ia.open(img)
         sum = ia.summary()
         bmaj_ = []
@@ -558,9 +558,9 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
         prtidx += 1
 
     if not imagefile:
-        raise ValueError, 'Please specify input image'
+        raise ValueError('Please specify input image')
     if not timerange:
-        raise ValueError, 'Please specify timerange of the input image'
+        raise ValueError('Please specify timerange of the input image')
     if type(imagefile) == str:
         imagefile = [imagefile]
     if type(timerange) == str:
@@ -571,9 +571,9 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
         fitsfile = [fitsfile]
     nimg = len(imagefile)
     if len(timerange) != nimg:
-        raise ValueError, 'Number of input images does not equal to number of timeranges!'
+        raise ValueError('Number of input images does not equal to number of timeranges!')
     if len(fitsfile) != nimg:
-        raise ValueError, 'Number of input images does not equal to number of output fits files!'
+        raise ValueError('Number of input images does not equal to number of output fits files!')
     nimg = len(imagefile)
     if verbose:
         print(str(nimg) + ' images to process...')
@@ -586,7 +586,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
         if type(reftime) == str:
             reftime = [reftime] * nimg
         if len(reftime) != nimg:
-            raise ValueError, 'Number of reference times does not match that of input images!'
+            raise ValueError('Number of reference times does not match that of input images!')
         helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=reftime, usephacenter=usephacenter)
     else:
         # use the supplied timerange to register the image
@@ -618,11 +618,15 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
 
         hel = helio[n]
         if not os.path.exists(img):
-            raise ValueError, 'Please specify input image'
+            raise ValueError('Please specify input image')
         if os.path.exists(fitsf) and not overwrite:
-            raise ValueError, 'Specified fits file already exists and overwrite is set to False. Aborting...'
+            raise ValueError('Specified fits file already exists and overwrite is set to False. Aborting...')
         else:
             p0 = hel['p0']
+            tb.open(img+'/logtable', nomodify=False)
+            nobs = tb.nrows()
+            tb.removerows([i + 1 for i in range(nobs - 1)])
+            tb.close()
             ia.open(img)
             imr = ia.rotate(pa=str(-p0) + 'deg')
             imr.tofits(fitsf, history=False, overwrite=overwrite)
@@ -649,7 +653,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             try:
                 offset = np.load(offsetfile)
             except:
-                raise ValueError, 'The specified offsetfile does not exist!'
+                raise ValueError('The specified offsetfile does not exist!')
             reftimes_d = offset['reftimes_d']
             xoffs = offset['xoffs']
             yoffs = offset['yoffs']
