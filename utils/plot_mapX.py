@@ -139,6 +139,28 @@ class Sunmap():
 
         return im
 
+    def contourf(self, axes=None, rot=0, mapx=None, mapy=None, **kwargs):
+        sunpymap = self.sunmap
+        if axes is None:
+            axes = plt.subplot()
+        rot = rot % 360
+        if (mapx is None) or (mapy is None):
+            if rot == 0:
+                mapx, mapy = self.map2wcsgrids(cell=True)
+            elif rot == 90:
+                mapy, mapx = self.map2wcsgrids(cell=True)
+            elif rot == 180:
+                mapx, mapy = self.map2wcsgrids(cell=True)
+            elif rot == 270:
+                mapy, mapx = self.map2wcsgrids(cell=True)
+        im = axes.contourf(mapx, mapy, sunpymap.data, **kwargs)
+
+        extent = self.get_map_extent(rot=rot)
+        axes.set_xlim(extent[:2])
+        axes.set_ylim(extent[2:])
+
+        return im
+
     def draw_limb(self, axes=None, **kwargs):
         if 'c' not in kwargs and 'color' not in kwargs:
             kwargs['c'] = 'w'

@@ -20,15 +20,13 @@ from scipy import signal
 from suncasa.utils import DButil
 from scipy.interpolate import splev, splrep
 import scipy.ndimage
-from IPython import embed
 import time
 from tqdm import *
 from copy import deepcopy
 from functools import partial
 import multiprocessing as mp
 import gc
-from matplotlib.widgets import Slider
-from matplotlib.widgets import Button
+from matplotlib.widgets import Slider, Button
 from sunpy.physics.transforms.solar_rotation import mapcube_solar_derotate
 import warnings
 from sunpy.instr.aia import aiaprep
@@ -249,6 +247,422 @@ def polyfit(x, y, length, deg):
     ys = p(xs)
     rms = np.sqrt(np.sum((np.polyval(z, x) - y) ** 2) / len(x))
     return {'xs': xs, 'ys': ys, 'rms': rms}
+
+
+class LightCurveBuilder:
+    def __init__(self, stackplt, axes, scale=1.0, color='white'):
+        self.stackplt = stackplt
+        self.axes_dspec = axes
+        self.lghtcurvline, = self.axes_dspec.plot([], [], color=color, ls='-')
+        self.lghtcurvlines = []
+        self.clickedpoints, = self.axes_dspec.plot([], [], '+', color=color)
+        self.scale = scale
+        self.color = color
+        self.xx = list(self.clickedpoints.get_xdata())
+        self.yy = list(self.clickedpoints.get_ydata())
+        self.cid = self.clickedpoints.figure.canvas.mpl_connect('button_press_event', self)
+        ax_dspec_pos = self.axes_dspec.get_position().extents
+        wbut = (ax_dspec_pos[2] - ax_dspec_pos[0]) * 0.5 / 4
+        y0but = ax_dspec_pos[3] + 0.01
+        hbut = 0.03
+        self.bcut_curvsav = Button(plt.axes([ax_dspec_pos[2] - wbut, y0but, wbut, hbut]), 'Save')
+        self.bcut_curvdel = Button(plt.axes([ax_dspec_pos[2] - wbut * 2.1, y0but, wbut, hbut]), 'Delete')
+        self.lightcurves = []
+        self.clickedpoints_text = []
+        self.vmax = np.nanmax(self.stackplt['dspec'])
+        self.vmin = np.nanmin(self.stackplt['dspec'])
+        self.ymax = np.nanmax(self.stackplt['y'])
+        self.ymin = np.nanmin(self.stackplt['y'])
+        self.bcut_curvsav.on_clicked(self.save)
+        self.bcut_curvdel.on_clicked(self.delete)
+
+    def __call__(self, event):
+        tmode = '{}'.format(self.clickedpoints.figure.canvas.toolbar.mode)
+        if tmode == '':
+            if event.inaxes != self.axes_dspec:
+                return
+            if event.button == 1:
+                if len(self.xx) == 0:
+                    self.xx.append(event.xdata)
+                    self.yy.append(event.ydata)
+                else:
+                    self.xx = [event.xdata]
+                    self.yy = [event.ydata]
+            elif event.button == 3:
+                if len(self.xx) > 0:
+                    self.xx.pop()
+                    self.yy.pop()
+            self.clickedpoints.set_data(self.xx, self.yy)
+            self.clickedpoints.figure.canvas.draw()
+            self.update()
+        else:
+            if event.inaxes != self.axes_dspec:
+                return
+            if event.button == 1 or event.button == 3:
+                self.clickedpoints.figure.canvas.toolbar.set_message('Uncheck toolbar button {} first!'.format(tmode))
+
+    def update(self, mask=None):
+        xx = np.array(self.xx, dtype=np.float64)
+        yy = np.array(self.yy, dtype=np.float64)
+        lightcurveplt = {'x': [], 'flux': [], 'fluxscale': None}
+        if len(self.xx) > 0:
+            lightcurveplt['x'] = (self.stackplt['x'][1:] + self.stackplt['x'][:-1]) / 2.0
+            xdiff = np.abs(lightcurveplt['x'] - xx[0])
+            xidx, = np.where(xdiff == np.nanmin(xdiff))
+            ddist = np.abs(self.stackplt['y'] - yy[0])
+            yidx, = np.where(ddist == np.nanmin(ddist))
+            lightcurveplt['flux'] = ma.masked_invalid(self.stackplt['dspec'][yidx[0], :])
+            lightcurveplt['fluxscale'] = lambda x: (x - x[xidx[0]]) / (self.vmax - self.vmin) * (
+                    self.ymax - self.ymin) * 0.2 + self.stackplt['y'][
+                                                       yidx[0]]
+            x = lightcurveplt['x']
+            flux = lightcurveplt['fluxscale'](lightcurveplt['flux'])
+        else:
+            x = []
+            flux = []
+
+        self.lightcurveplt = lightcurveplt
+
+        self.lghtcurvline.set_data(x, flux)
+        self.lghtcurvline.figure.canvas.draw()
+
+    def save(self, event):
+        if len(self.lightcurveplt['x']) > 0:
+            if len(self.lightcurves) > 0:
+                x0s = [lc['lghtcurv']['x'][0] for lc in self.lightcurves]
+                if self.lightcurveplt['x'][0] >= x0s[-1]:
+                    indx = len(self.lightcurves)
+                else:
+                    indx = next(x[0] for x in enumerate(x0s) if x[1] > self.lightcurveplt['x'][0])
+            else:
+                indx = len(self.lightcurves)
+            self.lightcurves.insert(indx, {'x': self.clickedpoints.get_xdata(), 'y': self.clickedpoints.get_ydata(),
+                                           'lghtcurv': self.lightcurveplt})
+            self.xx = []
+            self.yy = []
+            self.clickedpoints.set_data(self.xx, self.yy)
+            lghtcurvline, = self.axes_dspec.plot(self.lightcurves[indx]['lghtcurv']['x'],
+                                                 self.lightcurves[indx]['lghtcurv']['fluxscale'](
+                                                     self.lightcurves[indx]['lghtcurv']['flux']),
+                                                 color=self.color, ls=':')
+            self.lghtcurvlines.insert(indx, lghtcurvline)
+            self.update()
+            # self.update_text()
+            self.clickedpoints.figure.canvas.draw()
+
+    def delete(self, event):
+        if len(self.lghtcurvlines) > 0:
+            self.lghtcurvlines[-1].remove()
+            self.lghtcurvlines.pop()
+            self.lightcurves.pop()
+            self.clickedpoints.figure.canvas.draw()
+
+    def delete_byindex(self, index):
+        self.lghtcurvlines[index].remove()
+        del self.lghtcurvlines[index]
+        del self.lightcurves[index]
+        # self.update_text()
+        self.clickedpoints.figure.canvas.draw()
+
+    def update_text(self):
+        for tx in self.clickedpoints_text:
+            tx.remove()
+        self.clickedpoints_text = []
+        for idx, lc in enumerate(self.lightcurves):
+            text = self.axes_dspec.text(lc['lghtcurv']['x'][-1],
+                                        lc['lghtcurv']['fluxscale'](lc['lghtcurv']['flux'][-1]),
+                                        '{}'.format(idx), color=self.color, transform=self.axes_dspec.transData,
+                                        ha='left', va='bottom')
+            self.clickedpoints_text.append(text)
+
+    def lightcurves_tofile(self, outfile=None, lightcurves=None):
+        if not lightcurves:
+            lightcurves = self.lightcurves
+        with open('{}'.format(outfile), 'wb') as sf:
+            pickle.dump(lightcurves, sf)
+
+    def lightcurves_fromfile(self, infile, color=None):
+        if color is not None:
+            self.color = color
+        with open('{}'.format(infile), 'rb') as sf:
+            self.lightcurves = pickle.load(sf, encoding='latin1')
+        for sl in self.lghtcurvlines:
+            sl.remove()
+        self.lghtcurvlines = []
+
+        for tx in self.clickedpoints_text:
+            tx.remove()
+        self.clickedpoints_text = []
+        for idx, lc in enumerate(self.lightcurves):
+            lghtcurvline, = self.axes_dspec.plot(lc['lghtcurv']['x'],
+                                                 lc['lghtcurv']['fluxscale'](lc['lghtcurv']['flux']),
+                                                 color=self.color, ls=':')
+            self.lghtcurvlines.append(lghtcurvline)
+
+
+class SpaceTimeSlitBuilder:
+    def __init__(self, axes, cutlength=80, cutsmooth=10.0, scale=1.0, color='white'):
+        if isinstance(axes, list):
+            self.axes_dspec = axes[0]
+            naxes = len(axes)
+            if naxes >= 2:
+                self.axes_speed = axes[1]
+                self.speedline, = self.axes_speed.plot([], [], color=color, ls='-')
+                self.speedlines = []
+            else:
+                self.axes_speed = None
+            if naxes >= 3:
+                self.axes_accel = axes[2]
+                self.accelline, = self.axes_accel.plot([], [], color=color, ls='-')
+                self.accellines = []
+            else:
+                self.axes_accel = None
+        else:
+            self.axes_dspec = axes
+            self.axes_speed = None
+            self.axes_accel = None
+            self.speedlines = []
+            self.accellines = []
+        self.clickedpoints, = self.axes_dspec.plot([], [], 'o', color=color)
+        self.slitline, = self.axes_dspec.plot([], [], color=color, ls=':')
+        self.cutlength = cutlength
+        self.scale = scale
+        self.color = color
+        self.xx = list(self.clickedpoints.get_xdata())
+        self.yy = list(self.clickedpoints.get_ydata())
+        self.cid = self.clickedpoints.figure.canvas.mpl_connect('button_press_event', self)
+        ax_dspec_pos = self.axes_dspec.get_position().extents
+        wbut = (ax_dspec_pos[2] - ax_dspec_pos[0]) * 0.5 / 4
+        y0but = ax_dspec_pos[3] + 0.01
+        hbut = 0.03
+        self.bcut_cutsav = Button(plt.axes([ax_dspec_pos[2] - wbut, y0but, wbut, hbut]), 'Save')
+        self.bcut_cutdel = Button(plt.axes([ax_dspec_pos[2] - wbut * 2.1, y0but, wbut, hbut]), 'Delete')
+        self.cutsmooth = cutsmooth
+        self.spacetimeslits = []
+        self.slitlines = []
+        self.slitlines_text = []
+
+        self.bcut_cutsav.on_clicked(self.save)
+        self.bcut_cutdel.on_clicked(self.delete)
+
+    def __call__(self, event):
+        tmode = '{}'.format(self.clickedpoints.figure.canvas.toolbar.mode)
+        if tmode == '':
+            if event.inaxes != self.axes_dspec:
+                return
+            if event.button == 1:
+                self.xx.append(event.xdata)
+                self.yy.append(event.ydata)
+            elif event.button == 3:
+                if len(self.xx) > 0:
+                    self.xx.pop()
+                    self.yy.pop()
+            self.clickedpoints.set_data(self.xx, self.yy)
+            self.clickedpoints.figure.canvas.draw()
+            self.update()
+        else:
+            if event.inaxes != self.axes_dspec:
+                return
+            if event.button == 1 or event.button == 3:
+                self.clickedpoints.figure.canvas.toolbar.set_message('Uncheck toolbar button {} first!'.format(tmode))
+
+    def FitSlit(self, xx, yy, cutlength, method='Polyfit', s=0, ascending=True):
+        '''polynomial fit'''
+        # xs = np.linspace(np.nanmin(xx), np.nanmax(xx), cutlength)
+        # z = np.polyfit(x=xx, y=yy, deg=3)
+        # p = np.poly1d(z)
+        # ys = p(xs)
+        if len(xx) <= 3 or method == 'Polyfit':
+            '''polynomial fit'''
+            out = DButil.polyfit(xx, yy, cutlength, len(xx) - 1 if len(xx) <= 3 else 2)
+            xs, ys, posangs = out['xs'], out['ys'], out['posangs']
+        else:
+            if method == 'Param_Spline':
+                '''parametic spline fit'''
+                out = DButil.paramspline(xx, yy, cutlength, s=s)
+                xs, ys, posangs = out['xs'], out['ys'], out['posangs']
+            else:
+                '''spline fit'''
+                out = DButil.spline(xx, yy, cutlength, s=s)
+                xs, ys, posangs = out['xs'], out['ys'], out['posangs']
+
+        if not ascending and (method != 'Param_Spline' or len(xx) <= 3):
+            xs, ys = xs[::-1], ys[::-1]
+        dist = DButil.findDist(xs, ys)
+        dists = np.cumsum(dist)
+        return {'xcen': xs, 'ycen': ys, 'dist': dists}
+
+    def update(self, mask=None):
+        xx = np.array(self.xx, dtype=np.float64)
+        yy = np.array(self.yy, dtype=np.float64)
+
+        if len(self.xx) <= 1:
+            spacetimeslitplt = {'xcen': [], 'ycen': [], 'dist': [], 'speed': [], 'accel': []}
+        else:
+            if len(self.xx) <= 3:
+                spacetimeslitplt = self.FitSlit(xx, yy, self.cutlength, method='Polyfit')
+            else:
+                spacetimeslitplt = self.FitSlit(xx, yy, self.cutlength, s=len(xx) / 100.0 * self.cutsmooth,
+                                                method='Param_Spline')
+        self.spacetimeslitplt = spacetimeslitplt
+        if len(self.xx) >= 2:
+            edge_order = 1
+            if len(self.xx) >= 3:
+                edge_order = 2
+            if self.axes_speed:
+                spacetimeslitplt['speed'] = np.gradient(spacetimeslitplt['ycen'], spacetimeslitplt['xcen'],
+                                                        edge_order=edge_order)
+            if self.axes_accel:
+                spacetimeslitplt['accel'] = np.gradient(spacetimeslitplt['speed'], spacetimeslitplt['xcen'],
+                                                        edge_order=edge_order)
+        else:
+            spacetimeslitplt['speed'] = []
+            spacetimeslitplt['accel'] = []
+        if mask is None:
+            x = spacetimeslitplt['xcen']
+            dist = spacetimeslitplt['ycen']
+            if self.axes_speed: speed = spacetimeslitplt['speed']
+            if self.axes_accel: accel = spacetimeslitplt['accel']
+        else:
+            x = ma.masked_array(spacetimeslitplt['xcen'], mask)
+            dist = ma.masked_array(spacetimeslitplt['ycen'], mask)
+            if self.axes_speed: speed = ma.masked_array(spacetimeslitplt['speed'], mask)
+            if self.axes_accel: accel = ma.masked_array(spacetimeslitplt['accel'], mask)
+        self.slitline.set_data(x, dist)
+        if self.axes_speed:
+            self.speedline.set_data(x, speed)
+            if len(speed) >= 2:
+                vmax = np.nanmax(speed)
+                vmin = np.nanmin(speed)
+                for ll in self.spacetimeslits:
+                    vmax_ = np.nanmax(ll['cutslit']['speed'])
+                    if vmax < vmax_:
+                        vmax = vmax_
+                    vmin_ = np.nanmin(ll['cutslit']['speed'])
+                    if vmin > vmin_:
+                        vmin = vmin_
+                vmargin = (vmax - vmin) * 0.1
+                self.axes_speed.set_ylim(vmin - vmargin, vmax + vmargin)
+        if self.axes_accel:
+            self.accelline.set_data(x, accel)
+            if len(accel) >= 2:
+                vmax = np.nanmax(accel)
+                vmin = np.nanmin(accel)
+                for ll in self.spacetimeslits:
+                    vmax_ = np.nanmax(ll['cutslit']['accel'])
+                    if vmax < vmax_:
+                        vmax = vmax_
+                    vmin_ = np.nanmin(ll['cutslit']['accel'])
+                    if vmin > vmin_:
+                        vmin = vmin_
+                vmargin = (vmax - vmin) * 0.1
+                self.axes_accel.set_ylim(vmin - vmargin, vmax + vmargin)
+        self.slitline.figure.canvas.draw()
+
+    def save(self, event):
+        if len(self.spacetimeslitplt['xcen']) > 0:
+            if len(self.spacetimeslits) > 1:
+                x0s = [cut['cutslit']['xcen'][0] for cut in self.spacetimeslits]
+
+                if self.spacetimeslitplt['xcen'][0] >= x0s[-1]:
+                    indx = len(self.spacetimeslits)
+                else:
+                    indx = next(x[0] for x in enumerate(x0s) if x[1] > self.spacetimeslitplt['xcen'][0])
+            else:
+                indx = len(self.spacetimeslits)
+            self.spacetimeslits.insert(indx, {'x': self.clickedpoints.get_xdata(), 'y': self.clickedpoints.get_ydata(),
+                                              'cutslit': self.spacetimeslitplt})
+            self.xx = []
+            self.yy = []
+            self.clickedpoints.set_data(self.xx, self.yy)
+            slitline, = self.axes_dspec.plot(self.spacetimeslits[indx]['cutslit']['xcen'],
+                                             self.spacetimeslits[indx]['cutslit']['ycen'],
+                                             color=self.color, ls=':')
+            self.slitlines.insert(indx, slitline)
+            if self.axes_speed:
+                speedline, = self.axes_speed.plot(self.spacetimeslits[indx]['cutslit']['xcen'],
+                                                  self.spacetimeslits[indx]['cutslit']['speed'], color=self.color,
+                                                  ls='-')
+                self.speedlines.insert(indx, speedline)
+            if self.axes_accel:
+                accelline, = self.axes_accel.plot(self.spacetimeslits[indx]['cutslit']['xcen'],
+                                                  self.spacetimeslits[indx]['cutslit']['accel'], color=self.color,
+                                                  ls='-')
+                self.accellines.insert(indx, accelline)
+            self.update()
+            self.update_text()
+            self.clickedpoints.figure.canvas.draw()
+
+    def delete(self, event):
+        if len(self.slitlines) > 0:
+            self.slitlines[-1].remove()
+            self.slitlines_text[-1].remove()
+            self.slitlines.pop()
+            self.slitlines_text.pop()
+            self.spacetimeslits.pop()
+            if self.axes_speed:
+                self.speedlines[-1].remove()
+                self.speedlines.pop()
+            if self.axes_accel:
+                self.accellines[-1].remove()
+                self.accellines.pop()
+            self.clickedpoints.figure.canvas.draw()
+
+    def delete_byindex(self, index):
+        self.slitlines[index].remove()
+        del self.slitlines[index]
+        del self.spacetimeslits[index]
+        if self.axes_speed:
+            del self.speedlines[index]
+        if self.axes_accel:
+            del self.accellines[index]
+        self.update_text()
+        self.clickedpoints.figure.canvas.draw()
+
+    def update_text(self):
+        for tx in self.slitlines_text:
+            tx.remove()
+        self.slitlines_text = []
+        for idx, cut in enumerate(self.spacetimeslits):
+            text = self.axes_dspec.text(cut['cutslit']['xcen'][-1], cut['cutslit']['ycen'][-1],
+                                        '{}'.format(idx), color=self.color, transform=self.axes_dspec.transData,
+                                        ha='left', va='bottom')
+            self.slitlines_text.append(text)
+
+    def spacetimeslits_tofile(self, outfile=None, spacetimeslits=None):
+        if not spacetimeslits:
+            spacetimeslits = self.spacetimeslits
+        with open('{}'.format(outfile), 'wb') as sf:
+            pickle.dump(spacetimeslits, sf)
+
+    def spacetimeslits_fromfile(self, infile, color=None):
+        if color is not None:
+            self.color = color
+        with open('{}'.format(infile), 'rb') as sf:
+            self.spacetimeslits = pickle.load(sf, encoding='latin1')
+        for tx in self.slitlines_text:
+            tx.remove()
+        self.slitlines_text = []
+        for sl in self.slitlines:
+            sl.remove()
+        self.slitlines = []
+        self.speedlines = []
+        self.accellines = []
+        for idx, cut in enumerate(self.spacetimeslits):
+            text = self.axes_dspec.text(cut['cutslit']['xcen'][-1], cut['cutslit']['ycen'][-1],
+                                        '{}'.format(idx), color=self.color, transform=self.axes_dspec.transData,
+                                        ha='left', va='bottom')
+            self.slitlines_text.append(text)
+            slitline, = self.axes_dspec.plot(cut['cutslit']['xcen'], cut['cutslit']['ycen'], color=self.color, ls=':')
+            self.slitlines.append(slitline)
+            if self.axes_speed:
+                speedline, = self.axes_speed.plot(cut['cutslit']['xcen'], cut['cutslit']['speed'], color=self.color,
+                                                  ls='-')
+                self.speedlines.append(speedline)
+            if self.axes_accel:
+                accelline, = self.axes_accel.plot(cut['cutslit']['xcen'], cut['cutslit']['accel'], color=self.color,
+                                                  ls='-')
+                self.accellines.append(accelline)
 
 
 class CutslitBuilder:
@@ -534,10 +948,10 @@ class Stackplot:
                 xlabel.set_rotation(30)
                 xlabel.set_horizontalalignment("right")
             ax2.yaxis.set_label_text(dspec['ytitle'])
-            self.divider_dspec = make_axes_locatable(ax2)
-            cax = self.divider_dspec.append_axes('right', size='1.5%', pad=0.05)
-            cax.tick_params(direction='in')
-            plt.colorbar(im2, ax=ax2, cax=cax, label=dspec['ctitle'])
+            # self.divider_dspec = make_axes_locatable(ax2)
+            # cax = self.divider_dspec.append_axes('right', size='1.5%', pad=0.05)
+            # cax.tick_params(direction='in')
+            # plt.colorbar(im2, ax=ax2, cax=cax, label=dspec['ctitle'])
             ax2.set_autoscale_on(False)
             if 'axvspan' in dspec.keys():
                 vspan = ax2.axvspan(dspec['axvspan'][0], dspec['axvspan'][1], alpha=0.5, color='white')
@@ -987,7 +1401,7 @@ class Stackplot:
             pixscale = ((self.fov[1] - self.fov[0]) / dims[0].value + (self.fov[3] - self.fov[2]) / dims[1].value) / 2.0
             axFrame = plt.axes([0.10, 0.03, 0.40, 0.02], facecolor=axcolor)
             # axFrame = self.divider_im.append_axes('bottom', size='1.5%', pad=0.2)
-            sFrame = Slider(axFrame, 'frame', 0, len(mapcube_plot) - 1, valinit=0, valfmt='%0.0f')
+            self.sFrame = Slider(axFrame, 'frame', 0, len(mapcube_plot) - 1, valinit=0, valfmt='%0.0f')
             axCutwdth = plt.axes([0.65, 0.02, 0.20, 0.01], facecolor=axcolor)
             # axCutwdth = self.divider_im.append_axes('bottom', size='1.5%', pad=0.2)
             self.sCutwdth = Slider(axCutwdth, 'Width[pix]', 1, int(diagpix / 4.0), valinit=5, valfmt='%0.0f')
@@ -1008,15 +1422,14 @@ class Stackplot:
             # bStackplt.on_clicked(bStackplt_update)
 
             def sFrame_update(val):
-                frm = sFrame.val
+                frm = self.sFrame.val
                 smap = mapcube_plot[int(frm)]
-                # smap.data[smap.data<1]=1
                 im1.set_data(smap.data)
                 titletext = self.get_plot_title(smap, title)
                 ax.set_title(titletext)
                 fig_mapcube.canvas.draw()
 
-            sFrame.on_changed(sFrame_update)
+            self.sFrame.on_changed(sFrame_update)
 
             def sCutwdth_update(val):
                 wdth = self.sCutwdth.val
@@ -1045,12 +1458,53 @@ class Stackplot:
                 self.cutslitbd.update()
 
             self.sCutsmooth.on_changed(sCutsmooth_update)
+
+            nfrms = len(self.tplt)
+            ax_pos = ax.get_position().extents
+
+            wbut_index = (ax_pos[2] - ax_pos[0]) * 0.5 / 4
+            x0but_index = ax_pos[0] + (ax_pos[2] - ax_pos[0]) * 0.1 + np.arange(4) * wbut_index
+            y0but_index = ax_pos[3] + 0.05
+            hbut = 0.03
+            axfrst = plt.axes([x0but_index[0], y0but_index, wbut_index, hbut])
+            axprev = plt.axes([x0but_index[1], y0but_index, wbut_index, hbut])
+            axnext = plt.axes([x0but_index[2], y0but_index, wbut_index, hbut])
+            axlast = plt.axes([x0but_index[3], y0but_index, wbut_index, hbut])
+            self.bfrst_pltmpcub = Button(axfrst, '<<')
+            self.bprev_pltmpcub = Button(axprev, '<')
+            self.bnext_pltmpcub = Button(axnext, '>')
+            self.blast_pltmpcub = Button(axlast, '>>')
+
+            def next_frm(event):
+                frm = (int(self.sFrame.val) + 1) % nfrms
+                self.sFrame.set_val(frm)
+
+            def prev_frm(event):
+                frm = (int(self.sFrame.val) - 1) % nfrms
+                self.sFrame.set_val(frm)
+
+            def frst_frm(event):
+                self.sFrame.set_val(0)
+
+            def last_frm(event):
+                self.sFrame.set_val(nfrms - 1)
+
+            self.bfrst_pltmpcub.on_clicked(frst_frm)
+            self.bprev_pltmpcub.on_clicked(prev_frm)
+            self.bnext_pltmpcub.on_clicked(next_frm)
+            self.blast_pltmpcub.on_clicked(last_frm)
+
         return ax
 
     def cutslit_fromfile(self, infile, color=None, mask=None):
-        if self.cutslitbd:
-            with open('{}'.format(infile), 'rb') as sf:
-                cutslit = pickle.load(sf, encoding='latin1')
+        def cutslit_fromfile_(infile, color=None, mask=None):
+            if isinstance(infile, str):
+                with open('{}'.format(infile), 'rb') as sf:
+                    cutslit = pickle.load(sf, encoding='latin1')
+            elif isinstance(infile, dict):
+                cutslit = infile
+            else:
+                raise ValueError("infile format error. Must be type of str or dict.")
             if 'cutlength' in cutslit.keys():
                 self.sCutlngth.set_val(cutslit['cutlength'])
             if 'cutang' in cutslit.keys():
@@ -1070,29 +1524,18 @@ class Stackplot:
                 self.cutslitbd.clickedpoints.set_data(self.cutslitbd.xx, self.cutslitbd.yy)
             self.cutslitbd.clickedpoints.figure.canvas.draw()
             self.cutslitbd.update(mask=mask)
-            # self.cutslitbd.clickedpoints.set_data(cutslit['x'], cutslit['y'])
-            # self.cutslitbd.clickedpoints.figure.canvas.draw()
-            # self.cutslitbd.cutslitplt = cutslit['cutslit']
-            # self.cutslitbd.slitline.set_data(cutslit['cutslit']['xcen'], cutslit['cutslit']['ycen'])
-            # self.cutslitbd.slitline0.set_data(cutslit['cutslit']['xs0'], cutslit['cutslit']['ys0'])
-            # self.cutslitbd.slitline1.set_data(cutslit['cutslit']['xs1'], cutslit['cutslit']['ys1'])
-            # self.cutslitbd.slitline.figure.canvas.draw()
-            # self.cutslitbd.slitline0.figure.canvas.draw()
-            # self.cutslitbd.slitline1.figure.canvas.draw()
             if color:
                 self.cutslitbd.slitline.set_color(color)
                 self.cutslitbd.slitline0.set_color(color)
                 self.cutslitbd.slitline1.set_color(color)
-        else:
-            print('plot_mapcube first before loading cutslit from file!')
+
+        if not self.cutslitbd:
+            self.plot_mapcube()
+        cutslit_fromfile_(infile, color=color, mask=mask)
 
     def cutslit_tofile(self, outfile=None, cutslit=None):
         if not cutslit:
-            cutslit = {'x': self.cutslitbd.clickedpoints.get_xdata(), 'y': self.cutslitbd.clickedpoints.get_ydata(),
-                       'cutslit': self.cutslitbd.cutslitplt, 'cutlength': self.cutslitbd.cutlength,
-                       'cutwidth': self.cutslitbd.cutwidth,
-                       'cutang': self.cutslitbd.cutang, 'cutsmooth': self.cutslitbd.cutsmooth,
-                       'scale': self.cutslitbd.scale}
+            cutslit = self.cutslit
         with open('{}'.format(outfile), 'wb') as sf:
             pickle.dump(cutslit, sf)
 
@@ -1137,7 +1580,7 @@ class Stackplot:
             (self.tplt.plot_date, self.tplt.plot_date[-1] + np.nanmean(np.diff(self.tplt.plot_date)))),
                  'y': np.hstack((cutslitplt['dist'], cutslitplt['dist'][-1] + np.nanmean(np.diff(cutslitplt['dist'])))),
                  'ytitle': 'Distance [arcsec]',
-                 'ctitle': 'DN counts per second'}
+                 'ctitle': 'DN counts per second', 'cutslit': self.cutslit}
         return dspec
 
     def stackplt_tofile(self, outfile=None, stackplt=None):
@@ -1146,8 +1589,17 @@ class Stackplot:
         with open('{}'.format(outfile), 'wb') as sf:
             pickle.dump(dspec, sf)
 
+    def stackplt_fromfile(self, infile, **kwargs):
+        with open('{}'.format(infile), 'rb') as sf:
+            stackplt = pickle.load(sf, encoding='latin1')
+        self.cutslit_fromfile(stackplt['cutslit'])
+        self.stackplt = stackplt['dspec']
+        if 'refresh' in kwargs.keys():
+            kwargs.pop('refresh')
+        self.plot_stackplot(refresh=False, **kwargs)
+
     def plot_stackplot(self, mapcube=None, hdr=False, vmax=None, vmin=None, cmap=None, layout_vert=False, diff=False,
-                       uni_cm=False, sav_img=False,
+                       uni_cm=True, sav_img=False,
                        out_dir=None, dpi=100, anim=False, frm_range=[], cutslitplt=None, silent=False, refresh=True,
                        threshold=None, gamma=1.0):
         if mapcube:
@@ -1165,6 +1617,14 @@ class Stackplot:
                 smap = DButil.sdo_aia_scale_hdr(smap)
                 maplist.append(sunpy.map.Map(smap.data, mapcube_plot[idx].meta))
             mapcube_plot = sunpy.map.Map(maplist, cube=True)
+        if type(frm_range) is list:
+            if len(frm_range) == 2:
+                if not (0 <= frm_range[0] < len(mapcube_plot)):
+                    frm_range[0] = 0
+                if not (0 <= frm_range[-1] < len(mapcube_plot)):
+                    frm_range[-1] = len(mapcube_plot)
+            else:
+                frm_range = [0, len(mapcube_plot)]
         if refresh:
             mapcube_plot = self.make_stackplot(mapcube_plot, frm_range=frm_range, threshold=threshold, gamma=gamma)
         if layout_vert:
@@ -1197,7 +1657,7 @@ class Stackplot:
             if out_dir is None:
                 out_dir = './'
 
-            ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[0], dspec, vmax=vmax, vmin=vmin, diff=diff,
+            ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[frm_range[0]], dspec, vmax=vmax, vmin=vmin, diff=diff,
                                                      returnImAx=True, uni_cm=uni_cm,
                                                      layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
@@ -1212,14 +1672,17 @@ class Stackplot:
                 if np.min(np.abs(dists - dt)) < (1.5 * ddist_med):
                     dist_ticks_idx.append(np.argmin(np.abs(dists - dt)))
             maj_t = LineTicks(cuttraj, dist_ticks_idx, 10, lw=2, label=['{:.0f}"'.format(dt) for dt in dist_ticks])
+            ax2.set_xlim(dspec['x'][frm_range[0]], dspec['x'][frm_range[-1]])
+
             if anim:
                 import matplotlib
                 matplotlib.use("Agg")
                 import matplotlib.animation as animation
-                nframe = len(mapcube_plot)
+                # nframe = len(mapcube_plot)
+                nframe = frm_range[-1] - frm_range[0]
 
                 def update_frame2(num):
-                    frm = int(num)
+                    frm = int(num) + frm_range[0]
                     smap = mapcube_plot[frm]
                     # smap.data[smap.data<1]=1
                     im1.set_data(smap.data)
@@ -1258,6 +1721,7 @@ class Stackplot:
                 plt.ioff()
                 print('Saving images to {}'.format(out_dir))
                 for frm, smap in enumerate(tqdm(mapcube_plot)):
+                    if frm < frm_range[0] or frm > frm_range[1] - 1: continue
                     im1.set_data(smap.data)
                     # im1.set_extent(list(smap.xrange.value) + list(smap.yrange.value))
                     # ax.set_xlim(list(smap.xrange.value))
@@ -1283,7 +1747,7 @@ class Stackplot:
                                                                               smap.detector), format='png', dpi=dpi)
                 plt.ion()
         else:
-            ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[0], dspec, vmax=vmax, vmin=vmin, diff=diff,
+            ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[frm_range[0]], dspec, vmax=vmax, vmin=vmin, diff=diff,
                                                      returnImAx=True, uni_cm=uni_cm, cmap=cmap,
                                                      layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
@@ -1299,28 +1763,161 @@ class Stackplot:
                     dist_ticks_idx.append(np.argmin(np.abs(dists - dt)))
             maj_t = LineTicks(cuttraj, dist_ticks_idx, 10, lw=2, label=['{:.0f}"'.format(dt) for dt in dist_ticks])
             axcolor = 'lightgoldenrodyellow'
-            axframe2 = plt.axes([0.1, 0.03, 0.40, 0.02], facecolor=axcolor)
-            sframe2 = Slider(axframe2, 'frame', 0, len(mapcube_plot) - 1, valinit=0, valfmt='%0.0f')
+            ax2.set_xlim(dspec['x'][frm_range[0]], dspec['x'][frm_range[-1]])
+            ax2_pos = ax2.get_position().extents
+            # axframe2 = plt.axes([ax2_pos[0], 0.03, ax2_pos[2]-ax2_pos[0], 0.02], facecolor=axcolor)
+            axframe2 = plt.axes([ax2_pos[0], ax2_pos[1], ax2_pos[2] - ax2_pos[0], ax2_pos[3] - ax2_pos[1]],
+                                facecolor=axcolor, frame_on=False)
+            self.sframe2 = Slider(axframe2, '', frm_range[0], frm_range[-1] - 1, valinit=frm_range[0],
+                                  valfmt='frm %0.0f',
+                                  alpha=0.0)
+            nfrms = len(self.tplt)
 
             def update2(val):
-                frm = int(sframe2.val)
-                smap = mapcube_plot[frm]
-                im1.set_data(smap.data)
-                if smap.meta.has_key('t_obs'):
-                    tstr = smap.meta['t_obs']
+                tmode = '{}'.format(self.fig_mapcube.canvas.toolbar.mode)
+                if tmode == '':
+                    frm = int(self.sframe2.val)
+                    smap = mapcube_plot[frm]
+                    im1.set_data(smap.data)
+                    if smap.meta.has_key('t_obs'):
+                        tstr = smap.meta['t_obs']
+                    else:
+                        tstr = smap.meta['date-obs']
+                    ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
+                    vspan_xy = vspan.get_xy()
+                    vspan_xy[np.array([0, 1, 4]), 0] = self.tplt[frm].plot_date
+                    if frm < nfrms - 1:
+                        vspan_xy[np.array([2, 3]), 0] = self.tplt[frm + 1].plot_date
+                    else:
+                        vspan_xy[np.array([2, 3]), 0] = self.tplt[frm].plot_date
+                    vspan.set_xy(vspan_xy)
+                    fig_mapcube.canvas.draw()
                 else:
-                    tstr = smap.meta['date-obs']
-                ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
-                vspan_xy = vspan.get_xy()
-                vspan_xy[np.array([0, 1, 4]), 0] = self.tplt[frm].plot_date
-                if frm < len(self.tplt) - 1:
-                    vspan_xy[np.array([2, 3]), 0] = self.tplt[frm + 1].plot_date
-                else:
-                    vspan_xy[np.array([2, 3]), 0] = self.tplt[frm].plot_date
-                vspan.set_xy(vspan_xy)
-                fig_mapcube.canvas.draw()
+                    self.fig_mapcube.canvas.toolbar.set_message(
+                        'Uncheck toolbar button {} first!'.format(tmode))
 
-            sframe2.on_changed(update2)
+            self.sframe2.on_changed(update2)
+
+            wbut_index = (ax2_pos[2] - ax2_pos[0]) * 0.5 / 4
+            x0but_index = ax2_pos[0] + np.arange(4) * wbut_index
+            y0but_index = ax2_pos[3] + 0.01
+            hbut = 0.03
+            axfrst = plt.axes([x0but_index[0], y0but_index, wbut_index, hbut])
+            axprev = plt.axes([x0but_index[1], y0but_index, wbut_index, hbut])
+            axnext = plt.axes([x0but_index[2], y0but_index, wbut_index, hbut])
+            axlast = plt.axes([x0but_index[3], y0but_index, wbut_index, hbut])
+            self.bfrst = Button(axfrst, '<<')
+            self.bprev = Button(axprev, '<')
+            self.bnext = Button(axnext, '>')
+            self.blast = Button(axlast, '>>')
+
+            def next_frm(event):
+                frm = (int(self.sframe2.val) + 1) % nfrms
+                self.sframe2.set_val(frm)
+
+            def prev_frm(event):
+                frm = (int(self.sframe2.val) - 1) % nfrms
+                self.sframe2.set_val(frm)
+
+            def frst_frm(event):
+                self.sframe2.set_val(0)
+
+            def last_frm(event):
+                self.sframe2.set_val(nfrms - 1)
+
+            self.bfrst.on_clicked(frst_frm)
+            self.bprev.on_clicked(prev_frm)
+            self.bnext.on_clicked(next_frm)
+            self.blast.on_clicked(last_frm)
+
+            wbut_anal = 1.5 * wbut_index
+            axtraject = plt.axes([ax2_pos[2] - wbut_anal, y0but_index, wbut_anal, hbut])
+            self.btraject = Button(axtraject, 'trajectory')
+
+            def stackplt_traject(event):
+                self.stackplt_traject_fromfile(self.stackplt_wrap(), frm_range=frm_range, cmap=cmap, vmax=vmax,
+                                               vmin=vmin, gamma=gamma)
+
+            self.btraject.on_clicked(stackplt_traject)
+
+            axlghtcurv = plt.axes([ax2_pos[2] - 2.1 * wbut_anal, y0but_index, wbut_anal, hbut])
+            self.blghtcurv = Button(axlghtcurv, 'lightcurve')
+
+            def stackplt_lghtcurv(event):
+                self.stackplt_lghtcurv_fromfile(self.stackplt_wrap(), frm_range=frm_range, cmap=cmap, vmax=vmax,
+                                                vmin=vmin, gamma=gamma)
+
+            self.blghtcurv.on_clicked(stackplt_lghtcurv)
+
+        return
+
+    def stackplt_traject_fromfile(self, infile, frm_range=[], cmap='inferno', vmax=None, vmin=None, gamma=1.0):
+        if isinstance(infile, str):
+            with open('{}'.format(infile), 'rb') as sf:
+                stackplt = pickle.load(sf, encoding='latin1')
+        elif isinstance(infile, dict):
+            stackplt = infile
+        else:
+            raise ValueError("infile format error. Must be type of str or dict.")
+        # fig_stpanal = plt.figure()
+        # axs_stpanal = []
+        # axs_stpanal.append(fig_stpanal.add_subplot(2, 1, 1))
+        # axs_stpanal.append(fig_stpanal.add_subplot(4, 1, 3, sharex=axs_stpanal[-1]))
+        # axs_stpanal.append(fig_stpanal.add_subplot(4, 1, 4, sharex=axs_stpanal[-1]))
+        # axs_stpanal.append(fig_stpanal.add_subplot(3, 1, 1))
+        # axs_stpanal.append(fig_stpanal.add_subplot(4, 1, 3, sharex=axs_stpanal[-1]))
+        fig_stpanal, axs_stpanal = plt.subplots(nrows=2, sharex=True)
+        axs_stpanal = list(axs_stpanal.ravel())
+        axs_stpanal[1].set_autoscalex_on(False)
+        axs_stpanal[1].set_autoscaley_on(True)
+        axs_stpanal[1].set_ylabel('Speed [arcsec s$^{-1}$]')
+        # axs_stpanal[2].set_autoscalex_on(False)
+        # axs_stpanal[2].set_autoscaley_on(True)
+        # axs_stpanal[2].set_ylabel('Acceleration [arcsec s$^{-2}$]')
+        x, y, dspec = stackplt['x'], stackplt['y'], stackplt['dspec']
+        x = (x - x[0]) * 24 * 3600
+        ax = axs_stpanal[0]
+        im = ax.pcolormesh(x, y, dspec ** gamma, cmap=cmap,
+                           vmax=vmax, vmin=vmin, rasterized=True)
+        ax.set_xlim(x[frm_range[0]], x[frm_range[-1]])
+        ax = axs_stpanal[-1]
+        ax.set_xlabel('seconds since {}'.format(Time(stackplt['x'][0], format='plot_date').iso[:-4]))
+        self.spacetimeslitbd = SpaceTimeSlitBuilder(axs_stpanal, cutlength=50, color='red')
+
+        axCutsmooth = plt.axes([0.35, 0.01, 0.40, 0.015])
+        self.stCutsmooth = Slider(axCutsmooth, 'Smooth', 0.0, 100.0, valinit=10, valfmt='%0.0f')
+
+        def sCutsmooth_update(val):
+            self.spacetimeslitbd.cutsmooth = self.stCutsmooth.val
+            self.spacetimeslitbd.update()
+
+        self.stCutsmooth.on_changed(sCutsmooth_update)
+        return
+
+    def stackplt_lghtcurv_fromfile(self, infile, frm_range=[], cmap='inferno', vmax=None, vmin=None, gamma=1.0):
+        if isinstance(infile, str):
+            with open('{}'.format(infile), 'rb') as sf:
+                stackplt = pickle.load(sf, encoding='latin1')
+        elif isinstance(infile, dict):
+            stackplt = infile
+        else:
+            raise ValueError("infile format error. Must be type of str or dict.")
+        fig, ax = plt.subplots(nrows=1, ncols=1)
+        ax.set_autoscalex_on(False)
+        x, y, dspec = stackplt['x'], stackplt['y'], stackplt['dspec']
+        im = ax.pcolormesh(x, y, dspec ** gamma, cmap=cmap,
+                           vmax=vmax, vmin=vmin, rasterized=True)
+        ax.set_xlim(x[frm_range[0]], x[frm_range[-1]])
+        date_format = mdates.DateFormatter('%H:%M:%S')
+        ax.xaxis_date()
+        ax.xaxis.set_major_formatter(date_format)
+        for xlabel in ax.get_xmajorticklabels():
+            xlabel.set_rotation(30)
+            xlabel.set_horizontalalignment("right")
+        ax.yaxis.set_label_text(stackplt['ytitle'])
+        ax.set_autoscale_on(False)
+        ax.set_xlabel('Time')
+        self.lightcurvebd = LightCurveBuilder(stackplt, ax, color='red')
         return
 
     def mapcube_info(self, mapcube=None):
@@ -1342,6 +1939,14 @@ class Stackplot:
     #         pass
     #     else:n
     #         mapcube = self.mapcube_plot
+
+    @property
+    def cutslit(self):
+        return {'x': self.cutslitbd.clickedpoints.get_xdata(), 'y': self.cutslitbd.clickedpoints.get_ydata(),
+                'cutslit': self.cutslitbd.cutslitplt, 'cutlength': self.cutslitbd.cutlength,
+                'cutwidth': self.cutslitbd.cutwidth,
+                'cutang': self.cutslitbd.cutang, 'cutsmooth': self.cutslitbd.cutsmooth,
+                'scale': self.cutslitbd.scale}
 
     @property
     def tplt(self, mapcube=None):

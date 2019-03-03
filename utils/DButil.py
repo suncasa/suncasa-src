@@ -1523,25 +1523,22 @@ def map2wcsgrids(snpmap, cell=True, antialiased=True):
     '''
     # embed()
     import astropy.units as u
+    ny, nx = snpmap.data.shape
+    x0, x1 = snpmap.xrange.to(u.arcsec).value
+    y0, y1 = snpmap.yrange.to(u.arcsec).value
+    dx = snpmap.scale.axis1.to(u.arcsec / u.pix).value
+    dy = snpmap.scale.axis2.to(u.arcsec / u.pix).value
+
     if cell:
-        ny, nx = snpmap.data.shape
-        offset = 0.5
-    else:
-        ny, nx = snpmap.data.shape
-        nx += 1
-        ny += 1
-        offset = 0.0
-    if antialiased:
-        XX, YY = np.array([0, nx - 1]) + offset, np.array([0, ny - 1]) + offset
-        mesh = snpmap.pixel_to_world(XX * u.pix, YY * u.pix)
-        mapx, mapy = np.linspace(mesh[0].Tx.value, mesh[-1].Tx.value, nx), np.linspace(mesh[0].Ty.value,
-                                                                                       mesh[-1].Ty.value, ny)
+        mapx, mapy = np.linspace(x0, x1, nx), np.linspace(y0, y1, ny)
         mapx = np.tile(mapx, ny).reshape(ny, nx)
         mapy = np.tile(mapy, nx).reshape(nx, ny).transpose()
     else:
-        XX, YY = np.meshgrid(np.arange(nx) + offset, np.arange(ny) + offset)
-        mesh = snpmap.pixel_to_world(XX * u.pix, YY * u.pix)
-        mapx, mapy = mesh.Tx.value, mesh.Ty.value
+        nx += 1
+        ny += 1
+        mapx, mapy = np.linspace(x0 - dx / 2.0, x1 + dx / 2.0, nx), np.linspace(y0 - dy / 2.0, y1 + dy / 2.0, ny)
+        mapx = np.tile(mapx, ny).reshape(ny, nx)
+        mapy = np.tile(mapy, nx).reshape(nx, ny).transpose()
     return mapx, mapy
 
 
