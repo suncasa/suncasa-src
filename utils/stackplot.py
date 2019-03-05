@@ -253,7 +253,7 @@ class LightCurveBuilder:
     def __init__(self, stackplt, axes, scale=1.0, color='white'):
         self.stackplt = stackplt
         self.axes_dspec = axes
-        self.lghtcurvline, = self.axes_dspec.plot([], [], color=color, ls='-')
+        self.lghtcurvline, = self.axes_dspec.plot([], [], color=color, ls='-', lw=1.0)
         self.lghtcurvlines = []
         self.clickedpoints, = self.axes_dspec.plot([], [], '+', color=color)
         self.scale = scale
@@ -313,7 +313,7 @@ class LightCurveBuilder:
             yidx, = np.where(ddist == np.nanmin(ddist))
             lightcurveplt['flux'] = ma.masked_invalid(self.stackplt['dspec'][yidx[0], :])
             lightcurveplt['fluxscale'] = lambda x: (x - x[xidx[0]]) / (self.vmax - self.vmin) * (
-                    self.ymax - self.ymin) * 0.2 + self.stackplt['y'][
+                    self.ymax - self.ymin) * 0.3 + self.stackplt['y'][
                                                        yidx[0]]
             x = lightcurveplt['x']
             flux = lightcurveplt['fluxscale'](lightcurveplt['flux'])
@@ -344,7 +344,7 @@ class LightCurveBuilder:
             lghtcurvline, = self.axes_dspec.plot(self.lightcurves[indx]['lghtcurv']['x'],
                                                  self.lightcurves[indx]['lghtcurv']['fluxscale'](
                                                      self.lightcurves[indx]['lghtcurv']['flux']),
-                                                 color=self.color, ls=':')
+                                                 color=self.color, ls='-', lw=0.5)
             self.lghtcurvlines.insert(indx, lghtcurvline)
             self.update()
             # self.update_text()
@@ -396,7 +396,7 @@ class LightCurveBuilder:
         for idx, lc in enumerate(self.lightcurves):
             lghtcurvline, = self.axes_dspec.plot(lc['lghtcurv']['x'],
                                                  lc['lghtcurv']['fluxscale'](lc['lghtcurv']['flux']),
-                                                 color=self.color, ls=':')
+                                                 color=self.color, ls='-', lw=0.5)
             self.lghtcurvlines.append(lghtcurvline)
 
 
