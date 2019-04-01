@@ -261,7 +261,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 if bl:
                     ax.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + pol)
                 else:
-                    ax.set_title('Medium dynamic spectrum')
+                    ax.set_title('Median dynamic spectrum')
                 if timestr:
                     # date_format = mdates.DateFormatter('%H:%M:%S.%f')
                     # ax.xaxis_date()
