@@ -3,6 +3,7 @@ from dateutil import parser
 from astropy.time import Time
 import numpy as np
 
+
 def map2smap(sswmap):
     def mp2smap(sswmp):
         header = {}
@@ -20,10 +21,13 @@ def map2smap(sswmap):
             elif k == 'DX':
                 header['CDELT1'] = sswmp[idx]
             elif k == 'XUNITS':
-                if sswmp[idx] == 'arcsecs':
+                cunit1 = sswmp[idx]
+                if isinstance(cunit1, bytes):
+                    cunit1 = cunit1.decode('utf-8')
+                if cunit1 == 'arcsecs':
                     header['CUNIT1'] = 'arcsec'
                 else:
-                    header['CUNIT1'] = sswmp[idx]
+                    header['CUNIT1'] = cunit1
             elif k == 'L0':
                 header['HGLN_OBS'] = sswmp[idx]
             elif k == 'YC':
@@ -33,23 +37,29 @@ def map2smap(sswmap):
             elif k == 'RSUN_OBS':
                 header['CDELT2'] = sswmp[idx]
             elif k == 'YUNITS':
-                if sswmp[idx] == 'arcsecs':
+                cunit1 = sswmp[idx]
+                if isinstance(cunit1, bytes):
+                    cunit1 = cunit1.decode('utf-8')
+                if cunit1 == 'arcsecs':
                     header['CUNIT2'] = 'arcsec'
                 else:
-                    header['CUNIT2'] = sswmp[idx]
+                    header['CUNIT2'] = cunit1
             elif k == 'B0':
                 header['HGLT_OBS'] = sswmp[idx]
             elif k == 'ID':
-                if 'SDO AIA' in sswmp[idx]:
+                telescop = sswmp[idx]
+                if isinstance(telescop, bytes):
+                    telescop = telescop.decode('utf-8')
+                if 'SDO AIA' in telescop:
                     header['TELESCOP'] = 'SDO AIA'
-                elif 'SDO HMI' in sswmp[idx]:
+                elif 'SDO HMI' in telescop:
                     header['TELESCOP'] = 'SDO HMI'
-                elif 'EOVSA' in sswmp[idx]:
+                elif 'EOVSA' in telescop:
                     header['TELESCOP'] = 'EOVSA'
-                elif 'VLA' in sswmp[idx]:
+                elif 'VLA' in telescop:
                     header['TELESCOP'] = 'VLA'
                 else:
-                    header['TELESCOP'] = sswmp[idx]
+                    header['TELESCOP'] = telescop
             else:
                 header[k] = sswmp[idx]
         header['CTYPE1'] = 'HPLN-TAN'
@@ -65,6 +75,5 @@ def map2smap(sswmap):
         for mp in sswmap:
             res.append(mp2smap(mp))
         return res
-    elif  isinstance(sswmap, np.record):
+    elif isinstance(sswmap, np.record):
         return mp2smap(sswmap)
-

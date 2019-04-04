@@ -147,7 +147,8 @@ def trange2aiafits(trange, aiawave, aiadir):
 
 def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna='', imagedir=None, spws=[], toTb=True,
                    overwrite=True, doslfcal=False,
-                   phasecenter='', robust=0.0, niter=500, imsize=[512], cell=['5.0arcsec'], c_external=True):
+                   phasecenter='', robust=0.0, niter=500, imsize=[512], cell=['5.0arcsec'], reftime='',
+                   c_external=True):
     vis = [vis]
     subdir = ['/']
 
@@ -233,7 +234,8 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
                        'twidth': twidth, 'uvrange': uvrange,
                        'spw': spw, 'ncpu': ncpu, 'niter': 1000, 'gain': 0.05, 'antenna': antenna, 'imsize': imsize,
                        'cell': cell, 'stokes': sto,
-                       'doreg': True, 'overwrite': overwrite, 'toTb': toTb, 'restoringbeam': restoringbeam,
+                       'doreg': True, 'reftime': reftime, 'overwrite': overwrite, 'toTb': toTb,
+                       'restoringbeam': restoringbeam,
                        'weighting': 'briggs', 'robust': robust,
                        'uvtaper': True, 'outertaper': ['30arcsec'], 'phasecenter': phasecenter}
             for key, val in inpdict.items():
@@ -260,7 +262,7 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
             res = ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, timerange=timerange, twidth=twidth,
                           uvrange=uvrange, spw=spw,
                           ncpu=ncpu, niter=niter, gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=sto,
-                          doreg=True, overwrite=overwrite,
+                          doreg=True, reftime=reftime, overwrite=overwrite,
                           toTb=toTb, restoringbeam=restoringbeam, weighting='briggs', robust=robust, uvtaper=True,
                           outertaper=['30arcsec'],
                           phasecenter=phasecenter)
@@ -724,7 +726,7 @@ def dspec_external(vis, workdir='./', specfile=None):
 
 def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uvrange=None, stokes='RR,LL', dmin=None,
            dmax=None, goestime=None,
-           reftime=None, xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0, niter=500,
+           reftime='', xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0, niter=500,
            imsize=[512], cell=['5.0arcsec'],
            interactive=False, usemsphacenter=True, imagefile=None, fitsfile=None, plotaia=True, aiawave=171,
            aiafits=None, aiadir=None, savefig=False,
@@ -922,9 +924,8 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
             imresfile = os.path.join(qlookfitsdir, '{}.imres.npz'.format(os.path.basename(vis)))
             if overwrite:
                 imres = mk_qlook_image(vis, timerange=timerange, spws=spw, twidth=twidth, ncpu=ncpu,
-                                       imagedir=qlookfitsdir, phasecenter=phasecenter,
-                                       stokes=stokes, robust=robust, niter=niter, imsize=imsize, cell=cell,
-                                       c_external=True)
+                                       imagedir=qlookfitsdir, phasecenter=phasecenter, stokes=stokes, robust=robust,
+                                       niter=niter, imsize=imsize, cell=cell, reftime=reftime, c_external=True)
             else:
                 if os.path.exists(imresfile):
                     imres = np.load(imresfile)
@@ -932,17 +933,13 @@ def svplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uv
                 else:
                     print('Image results file not found; Creating new images.')
                     imres = mk_qlook_image(vis, timerange=timerange, spws=spw, twidth=twidth, ncpu=ncpu,
-                                           imagedir=qlookfitsdir,
-                                           phasecenter=phasecenter, stokes=stokes, robust=robust, niter=niter,
-                                           imsize=imsize, cell=cell,
-                                           c_external=True)
+                                           imagedir=qlookfitsdir, phasecenter=phasecenter, stokes=stokes, robust=robust,
+                                           niter=niter, imsize=imsize, cell=cell, reftime=reftime, c_external=True)
             if not os.path.exists(qlookfigdir):
                 os.makedirs(qlookfigdir)
             plt_qlook_image(imres, timerange=timerange, figdir=qlookfigdir, specdata=specdata, verbose=True,
-                            stokes=stokes, fov=xyrange, imax=imax,
-                            imin=imin, dmax=dmax, dmin=dmin, aiafits=aiafits, aiawave=aiawave, aiadir=aiadir,
-                            plt_composite=plt_composite,
-                            plotaia=plotaia)
+                            stokes=stokes, fov=xyrange, imax=imax, imin=imin, dmax=dmax, dmin=dmin, aiafits=aiafits,
+                            aiawave=aiawave, aiadir=aiadir, plt_composite=plt_composite, plotaia=plotaia)
 
     else:
         spec = specdata['spec']

@@ -131,6 +131,26 @@ def contour(sunpymap, axes=None, rot=0, **kwargs):
 
     return im
 
+def contourf(sunpymap, axes=None, rot=0, mapx=None, mapy=None, rangereverse=False, **kwargs):
+    if axes is None:
+        axes = plt.subplot()
+    rot = rot % 360
+    if (mapx is None) or (mapy is None):
+        if rot == 0:
+            mapx, mapy = map2wcsgrids(sunpymap, cell=True)
+        elif rot == 90:
+            mapy, mapx = map2wcsgrids(sunpymap, cell=True)
+        elif rot == 180:
+            mapx, mapy = map2wcsgrids(sunpymap, cell=True)
+        elif rot == 270:
+            mapy, mapx = map2wcsgrids(sunpymap, cell=True)
+    im = axes.contourf(mapx, mapy, sunpymap.data, **kwargs)
+
+    extent = get_map_extent(sunpymap, rot=rot)
+    axes.set_xlim(extent[:2])
+    axes.set_ylim(extent[2:])
+
+    return im
 
 def imshow_RGB(maps, axes=None, returndataonly=False):
     from scipy import ndimage

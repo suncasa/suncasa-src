@@ -77,15 +77,16 @@ def runningmean(data, window, ix):
     return {'idx': ix, 'y': DButil.smooth(x, window[0]) / DButil.smooth(x, window[1])}
 
 
-def XCorrMap(data, refpix=[0, 0]):
-    def c_correlate(a, v, returnx=False):
-        a = (a - np.mean(a)) / (np.std(a) * len(a))
-        v = (v - np.mean(v)) / np.std(v)
-        if returnx:
-            return np.arange(len(a)) - np.floor(len(a) / 2.0), np.correlate(a, v, mode='same')
-        else:
-            return np.correlate(a, v, mode='same')
+def c_correlate(a, v, returnx=False):
+    a = (a - np.mean(a)) / (np.std(a) * len(a))
+    v = (v - np.mean(v)) / np.std(v)
+    if returnx:
+        return np.arange(len(a)) - np.floor(len(a) / 2.0), np.correlate(a, v, mode='same')
+    else:
+        return np.correlate(a, v, mode='same')
 
+
+def XCorrMap(data, refpix=[0, 0]):
     from tqdm import tqdm
     ny, nx, nt = data.shape
     ccmax = np.empty((ny, nx))
@@ -108,6 +109,67 @@ def XCorrMap(data, refpix=[0, 0]):
             ccpeak[xidx, yidx - 1] = cpeak
 
     return {'ny': ny, 'nx': nx, 'nt': nt, 'ccmax': ccmax, 'ccpeak': ccpeak}
+
+
+def XCorrStackplt(z, x, y, doxscale=True):
+    '''
+    get the cross correlation map along y axis
+    :param z: data
+    :param x: x axis
+    :param y: y axis
+    :return:
+    '''
+    from tqdm import tqdm
+    from scipy.interpolate import splev, splrep
+    if doxscale:
+        xfit = np.linspace(x[0], x[-1], 10 * len(x) + 1)
+        zfit = np.zeros((len(y), len(xfit)))
+        for yidx1, yq in enumerate(y):
+            xx = x
+            yy = z[yidx1, :]
+            s = len(yy)  # (len(yy) - np.sqrt(2 * len(yy)))*2
+            tck = splrep(xx, yy, s=s)
+            ys = splev(xfit, tck)
+            zfit[yidx1, :] = ys
+    else:
+        xfit = x
+        zfit = z
+    ny, nxfit = zfit.shape
+    ccpeak = np.empty((ny - 1, ny - 1))
+    ccpeak[:] = np.nan
+    ccmax = ccpeak.copy()
+    ya = ccpeak.copy()
+    yv = ccpeak.copy()
+    yidxa = ccpeak.copy()
+    yidxv = ccpeak.copy()
+    for idx1 in tqdm(range(1, ny)):
+        for idx2 in range(0, idx1):
+            lightcurve1 = zfit[idx1, :]
+            lightcurve2 = zfit[idx2, :]
+            ccval = c_correlate(lightcurve1, lightcurve2)
+            if sum(lightcurve1) != 0 and sum(lightcurve2) != 0:
+                cmax = np.amax(ccval)
+                cpeak = np.argmax(ccval) - (nxfit - 1) / 2
+            else:
+                cmax = 0
+                cpeak = 0
+            ccmax[idx2, idx1 - 1] = cmax
+            ccpeak[idx2, idx1 - 1] = cpeak
+            ya[idx2, idx1 - 1] = y[idx1 - 1]
+            yv[idx2, idx1 - 1] = y[idx2]
+            yidxa[idx2, idx1 - 1] = idx1 - 1
+            yidxv[idx2, idx1 - 1] = idx2
+            # if idx1 - 1 != idx2:
+            #     ccmax[idx1 - 1, idx2] = cmax
+            #     ccpeak[idx1 - 1, idx2] = cpeak
+            #     ya[idx1 - 1, idx2] = y[idx2]
+            #     yv[idx1 - 1, idx2] = y[idx1 - 1]
+            #     yidxa[idx1 - 1, idx2] = idx2
+            #     yidxv[idx1 - 1, idx2] = idx1 - 1
+
+    return {'zfit': zfit, 'ccmax': ccmax, 'ccpeak': ccpeak, 'x': x, 'nx': len(x), 'xfit': xfit, 'nxfit': nxfit, 'y': y,
+            'ny': ny, 'yv': yv, 'ya': ya,
+            'yidxv': yidxv, 'yidxa': yidxa}
 
 
 def FitSlit(xx, yy, cutwidth, cutang, cutlength, s=None, method='Polyfit', ascending=True):
@@ -1555,7 +1617,17 @@ class Stackplot:
             if frm_range[0] <= idx <= frm_range[-1]:
                 data = smap.data.copy()
                 if threshold is not None:
-                    data = ma.masked_less(data, threshold)
+                    if isinstance(threshold,dict):
+                        if 'outside' in threshold.keys():
+                            thrhd = threshold['outside']
+                            data = ma.masked_outside(data, thrhd[0],thrhd[1])
+                        elif 'inside' in threshold.keys():
+                            thrhd = threshold['inside']
+                            data = ma.masked_inside(data, thrhd[0],thrhd[1])
+                        else:
+                            data = ma.masked_array(data)
+                    else:
+                        data = ma.masked_less(data, threshold)
                 else:
                     data = ma.masked_array(data)
                 data = data ** gamma
@@ -1657,7 +1729,8 @@ class Stackplot:
             if out_dir is None:
                 out_dir = './'
 
-            ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[frm_range[0]], dspec, vmax=vmax, vmin=vmin, diff=diff,
+            ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[frm_range[0]], dspec, vmax=vmax, vmin=vmin, cmap=cmap,
+                                                     diff=diff,
                                                      returnImAx=True, uni_cm=uni_cm,
                                                      layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
@@ -1740,11 +1813,17 @@ class Stackplot:
                     vspan.set_xy(vspan_xy)
                     t_map = Time(tstr)
                     fig_mapcube.canvas.draw()
-                    fig_mapcube.savefig('{0}/Stackplot-{3}{1}-{2}.png'.format(out_dir, smap.meta['wavelnth'],
-                                                                              t_map.iso.replace(' ', 'T').replace(':',
+                    try:
+                        outname = '{0}/Stackplot-{3}{1}-{2}.png'.format(out_dir, smap.meta['wavelnth'],
+                                                                        t_map.iso.replace(' ', 'T').replace(':',
+                                                                                                            '').replace(
+                                                                            '-', '')[:-4],
+                                                                        smap.detector)
+                    except:
+                        outname = '{0}/Stackplot-{2}-{1}.png'.format(out_dir, t_map.iso.replace(' ', 'T').replace(':',
                                                                                                                   '').replace(
-                                                                                  '-', '')[:-4],
-                                                                              smap.detector), format='png', dpi=dpi)
+                            '-', '')[:-4], smap.detector)
+                    fig_mapcube.savefig(outname, format = 'png', dpi = dpi)
                 plt.ion()
         else:
             ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[frm_range[0]], dspec, vmax=vmax, vmin=vmin, diff=diff,
@@ -1894,7 +1973,8 @@ class Stackplot:
         self.stCutsmooth.on_changed(sCutsmooth_update)
         return
 
-    def stackplt_lghtcurv_fromfile(self, infile, frm_range=[], cmap='inferno', vmax=None, vmin=None, gamma=1.0):
+    def stackplt_lghtcurv_fromfile(self, infile, frm_range=[], cmap='inferno', vmax=None, vmin=None, gamma=1.0,
+                                   log=False,axes=None):
         if isinstance(infile, str):
             with open('{}'.format(infile), 'rb') as sf:
                 stackplt = pickle.load(sf, encoding='latin1')
@@ -1902,11 +1982,19 @@ class Stackplot:
             stackplt = infile
         else:
             raise ValueError("infile format error. Must be type of str or dict.")
-        fig, ax = plt.subplots(nrows=1, ncols=1)
+        if axes is None:
+            fig, ax = plt.subplots(nrows=1, ncols=1)
+        else:
+            ax = axes
         ax.set_autoscalex_on(False)
         x, y, dspec = stackplt['x'], stackplt['y'], stackplt['dspec']
-        im = ax.pcolormesh(x, y, dspec ** gamma, cmap=cmap,
-                           vmax=vmax, vmin=vmin, rasterized=True)
+        if log:
+            im = ax.pcolormesh(x, y, dspec ** gamma, cmap=cmap,
+                               norm=colors.LogNorm(vmax=vmax, vmin=vmin), rasterized=True)
+        else:
+            im = ax.pcolormesh(x, y, dspec ** gamma, cmap=cmap,
+                               norm=colors.Normalize(vmax=vmax, vmin=vmin), rasterized=True)
+
         ax.set_xlim(x[frm_range[0]], x[frm_range[-1]])
         date_format = mdates.DateFormatter('%H:%M:%S')
         ax.xaxis_date()

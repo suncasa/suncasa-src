@@ -20,6 +20,7 @@ import numpy as np
 # from suncasa.utils import DButil
 import warnings
 import matplotlib.patches as patches
+import numpy.ma as ma
 
 
 class Sunmap():
@@ -56,7 +57,7 @@ class Sunmap():
             mapy = np.tile(mapy, nx).reshape(nx, ny).transpose()
         return mapx, mapy
 
-    def get_map_extent(self, sunpymap=None, rot=0):
+    def get_map_extent(self, sunpymap=None, rot=0, rangereverse=False):
         if sunpymap is None:
             sunpymap = self.sunmap
         rot = rot % 360
@@ -75,9 +76,12 @@ class Sunmap():
         else:
             extent = np.array(sunpymap.xrange.to(u.arcsec).value.tolist() + sunpymap.yrange.to(u.arcsec).value.tolist())
             extent = extent - np.array([sunpymap.scale.axis1.value] * 2 + [sunpymap.scale.axis2.value] * 2) / 2.0
+        if rangereverse:
+            x0, x1, y0, y1 = extent
+            extent = -np.array([x1, x0, y1, y0])
         return extent
 
-    def imshow(self, axes=None, rot=0, **kwargs):
+    def imshow(self, axes=None, rot=0, rangereverse=False, maskon=False, image_enhance=False, **kwargs):
         '''
         :param sunpymap:
         :param axes:
@@ -101,8 +105,52 @@ class Sunmap():
             warnings.warn('rot must be an integer multiple of 90. rot not implemented!')
             imdata = sunpymap.data
             rot = 0
-        extent = self.get_map_extent(rot=rot)
-        im = axes.imshow(imdata, extent=extent, origin='lower', **kwargs)
+        extent = self.get_map_extent(rot=rot, rangereverse=rangereverse)
+
+        if maskon:
+            if isinstance(maskon, bool):
+                imdataplt = ma.masked_invalid(imdata)
+            elif isinstance(maskon, dict):
+                if 'masked_equal' in maskon.keys():
+                    imdataplt = ma.masked_equal(imdata, maskon['masked_equal'])
+                elif 'masked_greater' in maskon.keys():
+                    imdataplt = ma.masked_greater(imdata, maskon['masked_greater'])
+                elif 'masked_less' in maskon.keys():
+                    imdataplt = ma.masked_less(imdata, maskon['masked_less'])
+                elif 'masked_greater_equal' in maskon.keys():
+                    imdataplt = ma.masked_greater_equal(imdata, maskon['masked_greater_equal'])
+                elif 'masked_less_equal' in maskon.keys():
+                    imdataplt = ma.masked_less_equal(imdata, maskon['masked_less_equal'])
+                elif 'masked_outside' in maskon.keys():
+                    v1, v2 = maskon['masked_outside']
+                    imdataplt = ma.masked_outside(imdata, v1, v2)
+                elif 'masked_inside' in maskon.keys():
+                    v1, v2 = maskon['masked_inside']
+                    imdataplt = ma.masked_inside(imdata, v1, v2)
+                elif 'masked_invalid' in maskon.keys():
+                    imdataplt = ma.masked_invalid(imdata)
+                else:
+                    raise ValueError('maskon key wrong.')
+                immask = imdataplt.mask
+            else:
+                raise TypeError('maskon must be bool or dict type.')
+        else:
+            imdataplt = imdata.copy()
+
+        if image_enhance:
+            dmax = np.nanmax(imdataplt)
+            dmin = np.nanmin(imdataplt)
+            from skimage.exposure import equalize_adapthist
+            if isinstance(image_enhance,dict):
+                imdataplt = equalize_adapthist(imdataplt,**image_enhance) * (dmax - dmin) + dmin
+            else:
+                imdataplt = equalize_adapthist(imdataplt) * (dmax - dmin) + dmin
+
+        if maskon:
+            imdataplt = ma.masked_array(imdataplt, immask)
+
+        im = axes.imshow(imdataplt, extent=extent, origin='lower', **kwargs)
+
         if rot == 0:
             axes.set_xlabel('Solar X [arcsec]')
             axes.set_ylabel('Solar Y [arcsec]')
@@ -117,7 +165,7 @@ class Sunmap():
             axes.set_ylabel('-Solar X [arcsec]')
         return im
 
-    def contour(self, axes=None, rot=0, mapx=None, mapy=None, **kwargs):
+    def contour(self, axes=None, rot=0, mapx=None, mapy=None, rangereverse=False, **kwargs):
         sunpymap = self.sunmap
         if axes is None:
             axes = plt.subplot()
@@ -133,13 +181,13 @@ class Sunmap():
                 mapy, mapx = self.map2wcsgrids(cell=True)
         im = axes.contour(mapx, mapy, sunpymap.data, **kwargs)
 
-        extent = self.get_map_extent(rot=rot)
+        extent = self.get_map_extent(rot=rot, rangereverse=rangereverse)
         axes.set_xlim(extent[:2])
         axes.set_ylim(extent[2:])
 
         return im
 
-    def contourf(self, axes=None, rot=0, mapx=None, mapy=None, **kwargs):
+    def contourf(self, axes=None, rot=0, mapx=None, mapy=None, rangereverse=False, **kwargs):
         sunpymap = self.sunmap
         if axes is None:
             axes = plt.subplot()
@@ -155,13 +203,13 @@ class Sunmap():
                 mapy, mapx = self.map2wcsgrids(cell=True)
         im = axes.contourf(mapx, mapy, sunpymap.data, **kwargs)
 
-        extent = self.get_map_extent(rot=rot)
+        extent = self.get_map_extent(rot=rot, rangereverse=rangereverse)
         axes.set_xlim(extent[:2])
         axes.set_ylim(extent[2:])
 
         return im
 
-    def draw_limb(self, axes=None, **kwargs):
+    def draw_limb(self, axes=None, rangereverse=False, **kwargs):
         if 'c' not in kwargs and 'color' not in kwargs:
             kwargs['c'] = 'w'
         if 'ls' not in kwargs and 'linestyle' not in kwargs:
@@ -236,7 +284,7 @@ class Sunmap():
         im = axes.add_patch(patches.Rectangle(bottom_left, width, height, **kwargs))
         return im
 
-    def imshow_RGB(self, maps, axes=None, returndataonly=False):
+    def imshow_RGB(self, maps, axes=None, returndataonly=False, rangereverse=False):
         from scipy import ndimage
         from astropy.coordinates import SkyCoord
         mapR = maps[0]
@@ -278,6 +326,6 @@ class Sunmap():
                 pass
             else:
                 axes = plt.subplot()
-            extent = self.get_map_extent(sunpymap=mapR)
+            extent = self.get_map_extent(sunpymap=mapR, rangereverse=rangereverse)
             return axes.imshow(np.stack([znewR, znewG, znewB], axis=-1),
                                extent=extent, origin='lower')
