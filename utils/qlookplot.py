@@ -1016,6 +1016,10 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
             ax.set_xlim(timstrr[tidx[0]], timstrr[tidx[-1]])
             ax.xaxis_date()
             ax.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
+            locator = mpl.dates.AutoDateLocator()
+            ax.xaxis.set_major_locator(locator)
+            for tick in ax.get_xticklabels():
+                tick.set_rotation(30)
             ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
             ax.set_ylabel('Frequency (GHz)', fontsize=9)
             if axidx == 0:
@@ -1162,6 +1166,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
 
             formatter = mpl.dates.DateFormatter('%H:%M')
             ax3.xaxis.set_major_formatter(formatter)
+            locator = mpl.dates.AutoDateLocator()
+            ax3.xaxis.set_major_locator(locator)
 
             ax3.fmt_xdata = mpl.dates.DateFormatter('%H:%M')
         except:
