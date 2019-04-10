@@ -62,7 +62,7 @@ def get_band(sfreq=None, sdf=None, date=None):
         df =[]
         for i in itm:
             freq.append(i[0])
-            df.append(i[1])
+            df.append(np.nanmean(i[1]))
         bandlist.append({'band':k,'freq':freq,'df':df})
 
     return bandlist
