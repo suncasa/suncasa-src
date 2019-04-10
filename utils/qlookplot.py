@@ -1240,7 +1240,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                             spstr = spwran[0] + '~' + spwran[1]
                         else:
                             spstr = spwran[0]
-                        imagename = os.path.join(workdir, visname + 's_' + spstr + '.outim')
+                        imagename = os.path.join(workdir, visname + '_s' + spstr + '.outim')
                         if os.path.exists(imagename + '.image') or os.path.exists(imagename + '.flux'):
                             os.system('rm -rf ' + imagename + '.*')
                         sto = stokes.replace(',', '')
