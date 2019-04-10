@@ -7,7 +7,7 @@ import aipy
 from taskinit import tb, casalog
 from split_cli import split_cli as split
 from suncasa.eovsa import impteovsa as ipe
-import Time
+from astropy.time import Time
 
 def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, doscaling, keep_nsclms, fileidx):
     from taskinit import tb, casalog

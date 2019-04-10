@@ -4,7 +4,7 @@ import time
 import os
 import scipy.constants as constants
 from taskinit import smtool, me, casalog
-import Time
+from astropy.time import Time
 
 
 def jd2mjds(tjd=None):
