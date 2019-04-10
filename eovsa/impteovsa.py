@@ -54,16 +54,18 @@ def get_band(sfreq=None, sdf=None, date=None):
         import eovsapy.chan_util_bc as chan_util
 
     bands = chan_util.freq2bdname(sfreq)
-
-    spwinfo = zip(bands,sfreq,sdf)
+    cidxs = range(len(sfreq))
+    spwinfo = zip(bands,sfreq,sdf,cidxs)
     for k, g in groupby(sorted(spwinfo), key=itemgetter(0)):
-        itm = map(itemgetter(1,2), g)
+        itm = map(itemgetter(1,2,3), g)
         freq=[]
         df =[]
+        cidx = []
         for i in itm:
             freq.append(i[0])
             df.append(i[1])
-        bandlist.append({'band':k,'freq':freq,'df':np.nanmean(df)})
+            cidx.append(i[2])
+        bandlist.append({'band':k,'freq':freq,'df':np.nanmean(df),'cidx':cidx})
 
     return bandlist
 
