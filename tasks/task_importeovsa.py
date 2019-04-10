@@ -7,7 +7,7 @@ import aipy
 from taskinit import tb, casalog
 from split_cli import split_cli as split
 from suncasa.eovsa import impteovsa as ipe
-
+import Time
 
 def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, doscaling, keep_nsclms, fileidx):
     from taskinit import tb, casalog
@@ -53,7 +53,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     flag = np.ones((npol, nf, time_steps, npairs), dtype=bool)
     out = np.zeros((npol, nf, time_steps, npairs), dtype=np.complex64)  # Cross-correlations
     uvwarray = np.zeros((3, time_steps, npairs), dtype=np.float)
-    chan_band = ipe.get_band(sfreq=sfreq, sdf=sdf)
+    chan_band = ipe.get_band(sfreq=sfreq, sdf=sdf, date=Time(uv['time'], format='jd'))
     nband = len(chan_band)
 
     uv.rewind()

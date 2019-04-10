@@ -1,10 +1,11 @@
 import numpy as np
-import eovsapy.chan_util_bc as chan_util_bc
 import aipy
 import time
 import os
 import scipy.constants as constants
 from taskinit import smtool, me, casalog
+import Time
+
 
 def jd2mjds(tjd=None):
     tmjds = (tjd - 2400000.5) * 24. * 3600.
@@ -27,55 +28,43 @@ def bl_list2(nant=16):
     return bl2ord
 
 
-def get_band_edge(nband=34):
-    # Input the frequencies from UV, returen the indices frequency edges of all bands
-    idx_start_freq = [0]
-    ntmp = 0
-    for i in range(1, nband + 1):
-        ntmp += len(chan_util_bc.start_freq(i))
-        idx_start_freq.append(ntmp)
+# def get_band_edge(nband=34):
+#     # Input the frequencies from UV, returen the indices frequency edges of all bands
+#     idx_start_freq = [0]
+#     ntmp = 0
+#     for i in range(1, nband + 1):
+#         ntmp += len(chan_util_bc.start_freq(i))
+#         idx_start_freq.append(ntmp)
+#
+#     return np.asarray(idx_start_freq)
 
-    return np.asarray(idx_start_freq)
 
-
-def get_band(sfreq=None, sdf=None):
+def get_band(sfreq=None, sdf=None, date=None):
     # Input the frequencies from UV
     # return a dictionary contains the band information:
     # freq : center frequency of channels
     # df :  frequency resolution
-    # list of channel index 'cidx': the length of the list is the number of channels in this band
-    # list of channel index in a band with filled gap 'cidxstd': the index of channels in this band
-    # and the grouped index list cidxstd_group
     from operator import itemgetter
     from itertools import groupby
-    nband = 34
+    # nband = 34
     bandlist = []
-    for i in xrange(1, nband + 1):
-        bandse = np.array([1.0, 1.5]) + (i - 1) * 0.5
-        chans = []
-        for ll, item in enumerate(sfreq):
-            if bandse[0] <= item < bandse[1]:
-                chans.append(item)
-                sdf2 = sdf[ll]
-        if not chans:
-            pass
-        else:
-            nchan = int(round((chans[-1] - chans[0]) / sdf2) + 1)
-            chans_std = (chans[0] + np.linspace(0, nchan - 1, nchan) * sdf2).astype('float32').tolist()
-            chanidx = range(0, len(chans))
-            chanidxstd = [chans_std.index(ll) for ll in np.asarray(chans, dtype='float32')]
-            bandlist.append({'band': i, 'freq': chans, 'df': sdf2, 'cidx': chanidx, 'cidxstd': chanidxstd})
-    for i in xrange(0, len(bandlist)):
-        if i == 0:
-            pass
-        else:
-            bandlist[i]['cidx'] = [ll + bandlist[i - 1]['cidx'][-1] + 1 for ll in bandlist[i]['cidx']]
-            bandlist[i]['cidxstd'] = [ll + bandlist[i - 1]['cidxstd'][-1] + 1 for ll in bandlist[i]['cidxstd']]
-        data = bandlist[i]['cidxstd']
-        ranges = []
-        for k, g in groupby(enumerate(data), lambda (i, x): i - x):
-            ranges.append(map(itemgetter(1), g))
-        bandlist[i]['cidxstd_group'] = ranges
+    if date.mjd > Time('2019-02-02 12:00:00').mjd:
+        import eovsapy.chan_util_52 as chan_util
+    else:
+        import eovsapy.chan_util_bc as chan_util
+
+    bands = chan_util.freq2bdname(sfreq)
+
+    spwinfo = zip(bands,sfreq,sdf)
+    for k, g in groupby(sorted(spwinfo), key=itemgetter(0)):
+        itm = map(itemgetter(1,2), g)
+        freq=[]
+        df =[]
+        for i in itm:
+            freq.append(i[0])
+            df.append(i[1])
+        bandlist.append({'band':k,'freq':freq,'df':df})
+
     return bandlist
 
 
@@ -125,7 +114,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
     sdf = uv['sdf'][good_idx]
     project = uv['proj'].replace('\x00', '')
     source_id = uv['source'].replace('\x00', '')
-    chan_band = get_band(sfreq=sfreq, sdf=sdf)
+    chan_band = get_band(sfreq=sfreq, sdf=sdf, date=Time(ref_time_jd, format='jd'))
     msname = list(idbfile.split('/')[-1])
     msname = outpath + ''.join(msname) + '_tmp.ms'
 
@@ -191,7 +180,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
                 referencetime=ref_time)
 
     for l, cband in enumerate(chan_band):
-        nchannels = len(cband['cidx'])
+        nchannels = len(cband['freq'])
         stokes = 'XX YY XY YX'
         sm.setspwindow(spwname='band{:02d}'.format(cband['band']),
                        freq='{:22.19f}'.format(cband['freq'][0] - cband['df'] / 2.0) + 'GHz',

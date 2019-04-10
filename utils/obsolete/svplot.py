@@ -262,7 +262,7 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
             res = res['res'].item()
         else:
             res = ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, timerange=timerange, twidth=twidth,
-                          uvrange=uvrange, spw=spw, mask=mask, uvrange=uvrange,
+                          uvrange=uvrange, spw=spw, mask=mask,
                           ncpu=ncpu, niter=niter, gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=sto,
                           doreg=True, reftime=reftime, overwrite=overwrite,
                           toTb=toTb, restoringbeam=restoringbeam, weighting='briggs', robust=robust, uvtaper=True,
