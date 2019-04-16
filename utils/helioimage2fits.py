@@ -9,6 +9,7 @@ from taskinit import ms, tb, qa, iatool
 from astropy.time import Time
 from sunpy import sun
 import astropy.units as u
+import warnings
 
 try:
     from astropy.io import fits as pyfits
@@ -470,35 +471,39 @@ def getbeam(imagefile=None, beamfile=None):
     nimg = len(imagefile)
     for n in range(nimg):
         img = imagefile[n]
-        if not os.path.exists(img):
-            raise ValueError('The input image does not exist!')
-        ia.open(img)
-        sum = ia.summary()
         bmaj_ = []
         bmin_ = []
         bpa_ = []
-        if sum.has_key('perplanebeams'):  # beam vary with frequency
-            nbeams = sum['perplanebeams']['nChannels']
-            beams = sum['perplanebeams']['beams']
-            chans_ = [key[1:] for key in beams.keys()]
-            chans_.sort(key=float)
-            for chan in chans_:
-                bmaj0 = beams['*' + chan]['*0']['major']['value']
-                bmaj_.append(bmaj0)
-                bmin0 = beams['*' + chan]['*0']['minor']['value']
-                bmin_.append(bmin0)
-                bpa0 = beams['*' + chan]['*0']['positionangle']['value']
-                bpa_.append(bpa0)
-            beamunit_ = beams['*' + chans_[0]]['*0']['major']['unit']
-            bpaunit_ = beams['*' + chans_[0]]['*0']['positionangle']['unit']
-        if sum.has_key('restoringbeam'):  # only one beam
-            bmaj_.append(sum['restoringbeam']['major']['value'])
-            bmin_.append(sum['restoringbeam']['minor']['value'])
-            bpa_.append(sum['restoringbeam']['positionangle']['value'])
-            beamunit_ = sum['restoringbeam']['major']['unit']
-            bpaunit_ = sum['restoringbeam']['positionangle']['unit']
-            nbeams = 1
-            chans_ = [0]
+        if not os.path.exists(img):
+            warnings.warn('{} does not exist!'.format(img))
+            beamunit_ = []
+            bpaunit_ = []
+            chans_ = []
+        else:
+            ia.open(img)
+            sum = ia.summary()
+            if sum.has_key('perplanebeams'):  # beam vary with frequency
+                nbeams = sum['perplanebeams']['nChannels']
+                beams = sum['perplanebeams']['beams']
+                chans_ = [key[1:] for key in beams.keys()]
+                chans_.sort(key=float)
+                for chan in chans_:
+                    bmaj0 = beams['*' + chan]['*0']['major']['value']
+                    bmaj_.append(bmaj0)
+                    bmin0 = beams['*' + chan]['*0']['minor']['value']
+                    bmin_.append(bmin0)
+                    bpa0 = beams['*' + chan]['*0']['positionangle']['value']
+                    bpa_.append(bpa0)
+                beamunit_ = beams['*' + chans_[0]]['*0']['major']['unit']
+                bpaunit_ = beams['*' + chans_[0]]['*0']['positionangle']['unit']
+            if sum.has_key('restoringbeam'):  # only one beam
+                bmaj_.append(sum['restoringbeam']['major']['value'])
+                bmin_.append(sum['restoringbeam']['minor']['value'])
+                bpa_.append(sum['restoringbeam']['positionangle']['value'])
+                beamunit_ = sum['restoringbeam']['major']['unit']
+                bpaunit_ = sum['restoringbeam']['positionangle']['unit']
+                nbeams = 1
+                chans_ = [0]
 
         bmaj.append(bmaj_)
         bmin.append(bmin_)
@@ -550,12 +555,6 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
 
     if deletehistory:
         msclearhistory(vis)
-    if verbose:
-        import time
-        t0 = time.time()
-        prtidx = 1
-        print('point {}: {}'.format(prtidx, time.time() - t0))
-        prtidx += 1
 
     if not imagefile:
         raise ValueError('Please specify input image')
@@ -578,9 +577,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
     if verbose:
         print(str(nimg) + ' images to process...')
 
-    if verbose:
-        print('point {}: {}'.format(prtidx, time.time() - t0))
-        prtidx += 1
+
 
     if reftime:  # use as reference time to find solar disk RA and DEC to register the image, but not the actual timerange associated with the image
         if type(reftime) == str:
@@ -592,13 +589,14 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
         # use the supplied timerange to register the image
         helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=timerange, usephacenter=usephacenter)
 
-    if verbose:
-        print('point {}: {}'.format(prtidx, time.time() - t0))
-        prtidx += 1
+
+
+    if toTb:
+        (bmajs, bmins, bpas, beamunits, bpaunits) = getbeam(imagefile=imagefile, beamfile=beamfile)
 
     for n, img in enumerate(imagefile):
         if verbose:
-            print('processing image #' + str(n))
+            print('processing image #' + str(n)+' '+img)
         fitsf = fitsfile[n]
         timeran = timerange[n]
         # obtain duration of the image as FITS header exptime
@@ -612,182 +610,168 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             print('Error in converting the input timerange: ' + str(timeran) + '. Proceeding to the next image...')
             continue
 
-        if verbose:
-            print('point {}: {}'.format(prtidx, time.time() - t0))
-            prtidx += 1
+
 
         hel = helio[n]
         if not os.path.exists(img):
-            raise ValueError('Please specify input image')
-        if os.path.exists(fitsf) and not overwrite:
-            raise ValueError('Specified fits file already exists and overwrite is set to False. Aborting...')
+            warnings.warn('{} does not existed!'.format(img))
         else:
-            p0 = hel['p0']
-            tb.open(img+'/logtable', nomodify=False)
-            nobs = tb.nrows()
-            tb.removerows([i + 1 for i in range(nobs - 1)])
-            tb.close()
-            ia.open(img)
-            imr = ia.rotate(pa=str(-p0) + 'deg')
-            imr.tofits(fitsf, history=False, overwrite=overwrite)
-            imr.close()
-            imsum = ia.summary()
-            ia.close()
+            if os.path.exists(fitsf) and not overwrite:
+                raise ValueError('Specified fits file already exists and overwrite is set to False. Aborting...')
+            else:
+                p0 = hel['p0']
+                tb.open(img+'/logtable', nomodify=False)
+                nobs = tb.nrows()
+                tb.removerows([i + 1 for i in range(nobs - 1)])
+                tb.close()
+                ia.open(img)
+                imr = ia.rotate(pa=str(-p0) + 'deg')
+                imr.tofits(fitsf, history=False, overwrite=overwrite)
+                imr.close()
+                imsum = ia.summary()
+                ia.close()
 
-        if verbose:
-            print('point {}: {}'.format(prtidx, time.time() - t0))
-            prtidx += 1
 
-        # construct the standard fits header
-        # RA and DEC of the reference pixel crpix1 and crpix2
-        (imra, imdec) = (imsum['refval'][0], imsum['refval'][1])
-        # find out the difference of the image center to the CASA phase center
-        # RA and DEC difference in arcseconds
-        ddec = degrees((imdec - hel['dec_fld'])) * 3600.
-        dra = degrees((imra - hel['ra_fld']) * cos(hel['dec_fld'])) * 3600.
-        # Convert into image heliocentric offsets
-        prad = -radians(hel['p0'])
-        dx = (-dra) * cos(prad) - ddec * sin(prad)
-        dy = (-dra) * sin(prad) + ddec * cos(prad)
-        if offsetfile:
+
+            # construct the standard fits header
+            # RA and DEC of the reference pixel crpix1 and crpix2
+            (imra, imdec) = (imsum['refval'][0], imsum['refval'][1])
+            # find out the difference of the image center to the CASA phase center
+            # RA and DEC difference in arcseconds
+            ddec = degrees((imdec - hel['dec_fld'])) * 3600.
+            dra = degrees((imra - hel['ra_fld']) * cos(hel['dec_fld'])) * 3600.
+            # Convert into image heliocentric offsets
+            prad = -radians(hel['p0'])
+            dx = (-dra) * cos(prad) - ddec * sin(prad)
+            dy = (-dra) * sin(prad) + ddec * cos(prad)
+            if offsetfile:
+                try:
+                    offset = np.load(offsetfile)
+                except:
+                    raise ValueError('The specified offsetfile does not exist!')
+                reftimes_d = offset['reftimes_d']
+                xoffs = offset['xoffs']
+                yoffs = offset['yoffs']
+                timg_d = hel['reftime']
+                ind = bisect.bisect_left(reftimes_d, timg_d)
+                xoff = xoffs[ind - 1]
+                yoff = yoffs[ind - 1]
+            else:
+                xoff = hel['refx']
+                yoff = hel['refy']
+            if verbose:
+                print('offset of image phase center to visibility phase center (arcsec): ', dx, dy)
+                print('offset of visibility phase center to solar disk center (arcsec): ', xoff, yoff)
+            (crval1, crval2) = (xoff + dx, yoff + dy)
+            # update the fits header to heliocentric coordinates
+
+
+
+            hdu = pyfits.open(fitsf, mode='update')
+
+
+
+            header = hdu[0].header
+            (cdelt1, cdelt2) = (
+            -header['cdelt1'] * 3600., header['cdelt2'] * 3600.)  # Original CDELT1, 2 are for RA and DEC in degrees
+            header['cdelt1'] = cdelt1
+            header['cdelt2'] = cdelt2
+            header['cunit1'] = 'arcsec'
+            header['cunit2'] = 'arcsec'
+            header['crval1'] = crval1
+            header['crval2'] = crval2
+            header['ctype1'] = 'HPLN-TAN'
+            header['ctype2'] = 'HPLT-TAN'
+            header['date-obs'] = dateobs  # begin time of the image
+            if not p_ang:
+                hel['p0'] = 0
             try:
-                offset = np.load(offsetfile)
+                # this works for pyfits version of CASA 4.7.0 but not CASA 4.6.0
+                if tdur_s:
+                    header.set('exptime', tdur_s)
+                else:
+                    header.set('exptime', 1.)
+                header.set('p_angle', hel['p0'])
+                header.set('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value)
+                header.set('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value)
+                header.set('rsun_ref', sun.constants.radius.value)
+                header.set('hgln_obs', 0.)
+                header.set('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value)
             except:
-                raise ValueError('The specified offsetfile does not exist!')
-            reftimes_d = offset['reftimes_d']
-            xoffs = offset['xoffs']
-            yoffs = offset['yoffs']
-            timg_d = hel['reftime']
-            ind = bisect.bisect_left(reftimes_d, timg_d)
-            xoff = xoffs[ind - 1]
-            yoff = yoffs[ind - 1]
-        else:
-            xoff = hel['refx']
-            yoff = hel['refy']
-        if verbose:
-            print('offset of image phase center to visibility phase center (arcsec): ', dx, dy)
-            print('offset of visibility phase center to solar disk center (arcsec): ', xoff, yoff)
-        (crval1, crval2) = (xoff + dx, yoff + dy)
-        # update the fits header to heliocentric coordinates
+                # this works for astropy.io.fits
+                if tdur_s:
+                    header.append(('exptime', tdur_s))
+                else:
+                    header.append(('exptime', 1.))
+                header.append(('p_angle', hel['p0']))
+                header.append(('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value))
+                header.append(('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value))
+                header.append(('rsun_ref', sun.constants.radius.value))
+                header.append(('hgln_obs', 0.))
+                header.append(('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value))
 
-        if verbose:
-            print('point {}: {}'.format(prtidx, time.time() - t0))
-            prtidx += 1
 
-        hdu = pyfits.open(fitsf, mode='update')
 
-        if verbose:
-            print('point {}: {}'.format(prtidx, time.time() - t0))
-            prtidx += 1
+            # update intensity units, i.e. to brightness temperature?
+            if toTb:
+                # get restoring beam info
+                bmaj = bmajs[n]
+                bmin = bmins[n]
+                beamunit = beamunits[n]
+                data = hdu[0].data  # remember the data order is reversed due to the FITS convension
+                dim = data.ndim
+                sz = data.shape
+                keys = header.keys()
+                values = header.values()
+                # which axis is frequency?
+                faxis = keys[values.index('FREQ')][-1]
+                faxis_ind = dim - int(faxis)
+                if header['BUNIT'].lower() == 'jy/beam':
+                    header['BUNIT'] = 'K'
+                    header['BTYPE'] = 'Brightness Temperature'
+                    for i in range(sz[faxis_ind]):
+                        nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * (i + 1 - header['CRPIX' + faxis])
+                        if header['CUNIT' + faxis] == 'KHz':
+                            nu *= 1e3
+                        if header['CUNIT' + faxis] == 'MHz':
+                            nu *= 1e6
+                        if header['CUNIT' + faxis] == 'GHz':
+                            nu *= 1e9
+                        if len(bmaj) > 1:  # multiple (per-plane) beams
+                            bmajtmp = bmaj[i]
+                            bmintmp = bmin[i]
+                        else:  # one single beam
+                            bmajtmp = bmaj[0]
+                            bmintmp = bmin[0]
+                        if beamunit == 'arcsec':
+                            bmaj0 = np.radians(bmajtmp / 3600.)
+                            bmin0 = np.radians(bmajtmp / 3600.)
+                        if beamunit == 'arcmin':
+                            bmaj0 = np.radians(bmajtmp / 60.)
+                            bmin0 = np.radians(bmintmp / 60.)
+                        if beamunit == 'deg':
+                            bmaj0 = np.radians(bmajtmp)
+                            bmin0 = np.radians(bmintmp)
+                        if beamunit == 'rad':
+                            bmaj0 = bmajtmp
+                            bmin0 = bmintmp
+                        beam_area = bmaj0 * bmin0 * np.pi / (4. * log(2.))
+                        k_b = qa.constants('k')['value']
+                        c_l = qa.constants('c')['value']
+                        factor = 2. * k_b * nu ** 2 / c_l ** 2  # SI unit
+                        jy_to_si = 1e-26
+                        # print(nu/1e9, beam_area, factor)
+                        factor2 = 1.
+                        if scl100:
+                            factor2 = 100.
+                        if faxis == '3':
+                            data[:, i, :, :] *= jy_to_si / beam_area / factor * factor2
+                        if faxis == '4':
+                            data[i, :, :, :] *= jy_to_si / beam_area / factor * factor2
 
-        header = hdu[0].header
-        (cdelt1, cdelt2) = (
-        -header['cdelt1'] * 3600., header['cdelt2'] * 3600.)  # Original CDELT1, 2 are for RA and DEC in degrees
-        header['cdelt1'] = cdelt1
-        header['cdelt2'] = cdelt2
-        header['cunit1'] = 'arcsec'
-        header['cunit2'] = 'arcsec'
-        header['crval1'] = crval1
-        header['crval2'] = crval2
-        header['ctype1'] = 'HPLN-TAN'
-        header['ctype2'] = 'HPLT-TAN'
-        header['date-obs'] = dateobs  # begin time of the image
-        if not p_ang:
-            hel['p0'] = 0
-        try:
-            # this works for pyfits version of CASA 4.7.0 but not CASA 4.6.0
-            if tdur_s:
-                header.set('exptime', tdur_s)
-            else:
-                header.set('exptime', 1.)
-            header.set('p_angle', hel['p0'])
-            header.set('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value)
-            header.set('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value)
-            header.set('rsun_ref', sun.constants.radius.value)
-            header.set('hgln_obs', 0.)
-            header.set('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value)
-        except:
-            # this works for astropy.io.fits
-            if tdur_s:
-                header.append(('exptime', tdur_s))
-            else:
-                header.append(('exptime', 1.))
-            header.append(('p_angle', hel['p0']))
-            header.append(('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value))
-            header.append(('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value))
-            header.append(('rsun_ref', sun.constants.radius.value))
-            header.append(('hgln_obs', 0.))
-            header.append(('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value))
 
-        if verbose:
-            print('point {}: {}'.format(prtidx, time.time() - t0))
-            prtidx += 1
 
-        # update intensity units, i.e. to brightness temperature?
-        if toTb:
-            # get restoring beam info
-            (bmajs, bmins, bpas, beamunits, bpaunits) = getbeam(imagefile=imagefile, beamfile=beamfile)
-            bmaj = bmajs[n]
-            bmin = bmins[n]
-            beamunit = beamunits[n]
-            data = hdu[0].data  # remember the data order is reversed due to the FITS convension
-            dim = data.ndim
-            sz = data.shape
-            keys = header.keys()
-            values = header.values()
-            # which axis is frequency?
-            faxis = keys[values.index('FREQ')][-1]
-            faxis_ind = dim - int(faxis)
-            if header['BUNIT'].lower() == 'jy/beam':
-                header['BUNIT'] = 'K'
-                header['BTYPE'] = 'Brightness Temperature'
-                for i in range(sz[faxis_ind]):
-                    nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * (i + 1 - header['CRPIX' + faxis])
-                    if header['CUNIT' + faxis] == 'KHz':
-                        nu *= 1e3
-                    if header['CUNIT' + faxis] == 'MHz':
-                        nu *= 1e6
-                    if header['CUNIT' + faxis] == 'GHz':
-                        nu *= 1e9
-                    if len(bmaj) > 1:  # multiple (per-plane) beams
-                        bmajtmp = bmaj[i]
-                        bmintmp = bmin[i]
-                    else:  # one single beam
-                        bmajtmp = bmaj[0]
-                        bmintmp = bmin[0]
-                    if beamunit == 'arcsec':
-                        bmaj0 = np.radians(bmajtmp / 3600.)
-                        bmin0 = np.radians(bmajtmp / 3600.)
-                    if beamunit == 'arcmin':
-                        bmaj0 = np.radians(bmajtmp / 60.)
-                        bmin0 = np.radians(bmintmp / 60.)
-                    if beamunit == 'deg':
-                        bmaj0 = np.radians(bmajtmp)
-                        bmin0 = np.radians(bmintmp)
-                    if beamunit == 'rad':
-                        bmaj0 = bmajtmp
-                        bmin0 = bmintmp
-                    beam_area = bmaj0 * bmin0 * np.pi / (4. * log(2.))
-                    k_b = qa.constants('k')['value']
-                    c_l = qa.constants('c')['value']
-                    factor = 2. * k_b * nu ** 2 / c_l ** 2  # SI unit
-                    jy_to_si = 1e-26
-                    # print(nu/1e9, beam_area, factor)
-                    factor2 = 1.
-                    if scl100:
-                        factor2 = 100.
-                    if faxis == '3':
-                        data[:, i, :, :] *= jy_to_si / beam_area / factor * factor2
-                    if faxis == '4':
-                        data[i, :, :, :] *= jy_to_si / beam_area / factor * factor2
+            hdu.flush()
+            hdu.close()
 
-        if verbose:
-            print('point {}: {}'.format(prtidx, time.time() - t0))
-            prtidx += 1
 
-        hdu.flush()
-        hdu.close()
-
-        if verbose:
-            print('point {}: {}'.format(prtidx, time.time() - t0))
-            prtidx += 1

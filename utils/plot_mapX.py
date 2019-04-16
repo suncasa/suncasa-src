@@ -149,21 +149,40 @@ class Sunmap():
         if maskon:
             imdataplt = ma.masked_array(imdataplt, immask)
 
-        im = axes.imshow(imdataplt, extent=extent, origin='lower', **kwargs)
+        if isinstance(axes,list):
+            ims = []
+            for ax in axes:
+                im = ax.imshow(imdataplt, extent=extent, origin='lower', **kwargs)
+                ims.append(im)
+                if rot == 0:
+                    ax.set_xlabel('Solar X [arcsec]')
+                    ax.set_ylabel('Solar Y [arcsec]')
+                elif rot == 90:
+                    ax.set_xlabel('-Solar Y [arcsec]')
+                    ax.set_ylabel('Solar X [arcsec]')
+                elif rot == 180:
+                    ax.set_xlabel('-Solar X [arcsec]')
+                    ax.set_ylabel('-Solar Y [arcsec]')
+                elif rot == 270:
+                    ax.set_xlabel('Solar Y [arcsec]')
+                    ax.set_ylabel('-Solar X [arcsec]')
+            return ims
+        else:
+            im = axes.imshow(imdataplt, extent=extent, origin='lower', **kwargs)
 
-        if rot == 0:
-            axes.set_xlabel('Solar X [arcsec]')
-            axes.set_ylabel('Solar Y [arcsec]')
-        elif rot == 90:
-            axes.set_xlabel('-Solar Y [arcsec]')
-            axes.set_ylabel('Solar X [arcsec]')
-        elif rot == 180:
-            axes.set_xlabel('-Solar X [arcsec]')
-            axes.set_ylabel('-Solar Y [arcsec]')
-        elif rot == 270:
-            axes.set_xlabel('Solar Y [arcsec]')
-            axes.set_ylabel('-Solar X [arcsec]')
-        return im
+            if rot == 0:
+                axes.set_xlabel('Solar X [arcsec]')
+                axes.set_ylabel('Solar Y [arcsec]')
+            elif rot == 90:
+                axes.set_xlabel('-Solar Y [arcsec]')
+                axes.set_ylabel('Solar X [arcsec]')
+            elif rot == 180:
+                axes.set_xlabel('-Solar X [arcsec]')
+                axes.set_ylabel('-Solar Y [arcsec]')
+            elif rot == 270:
+                axes.set_xlabel('Solar Y [arcsec]')
+                axes.set_ylabel('-Solar X [arcsec]')
+            return im
 
     def contour(self, axes=None, rot=0, mapx=None, mapy=None, rangereverse=False, **kwargs):
         sunpymap = self.sunmap
@@ -179,13 +198,23 @@ class Sunmap():
                 mapx, mapy = self.map2wcsgrids(cell=True)
             elif rot == 270:
                 mapy, mapx = self.map2wcsgrids(cell=True)
-        im = axes.contour(mapx, mapy, sunpymap.data, **kwargs)
 
-        extent = self.get_map_extent(rot=rot, rangereverse=rangereverse)
-        axes.set_xlim(extent[:2])
-        axes.set_ylim(extent[2:])
 
-        return im
+        if isinstance(axes,list):
+            ims = []
+            for ax in axes:
+                im = ax.contour(mapx, mapy, sunpymap.data, **kwargs)
+                ims.append(im)
+                extent = self.get_map_extent(rot=rot, rangereverse=rangereverse)
+                ax.set_xlim(extent[:2])
+                ax.set_ylim(extent[2:])
+            return ims
+        else:
+            im = axes.contour(mapx, mapy, sunpymap.data, **kwargs)
+            extent = self.get_map_extent(rot=rot, rangereverse=rangereverse)
+            axes.set_xlim(extent[:2])
+            axes.set_ylim(extent[2:])
+            return im
 
     def contourf(self, axes=None, rot=0, mapx=None, mapy=None, rangereverse=False, **kwargs):
         sunpymap = self.sunmap
@@ -201,13 +230,22 @@ class Sunmap():
                 mapx, mapy = self.map2wcsgrids(cell=True)
             elif rot == 270:
                 mapy, mapx = self.map2wcsgrids(cell=True)
-        im = axes.contourf(mapx, mapy, sunpymap.data, **kwargs)
 
-        extent = self.get_map_extent(rot=rot, rangereverse=rangereverse)
-        axes.set_xlim(extent[:2])
-        axes.set_ylim(extent[2:])
-
-        return im
+        if isinstance(axes,list):
+            ims = []
+            for ax in axes:
+                im = ax.contourf(mapx, mapy, sunpymap.data, **kwargs)
+                ims.append(im)
+                extent = self.get_map_extent(rot=rot, rangereverse=rangereverse)
+                ax.set_xlim(extent[:2])
+                ax.set_ylim(extent[2:])
+            return ims
+        else:
+            im = axes.contourf(mapx, mapy, sunpymap.data, **kwargs)
+            extent = self.get_map_extent(rot=rot, rangereverse=rangereverse)
+            axes.set_xlim(extent[:2])
+            axes.set_ylim(extent[2:])
+            return im
 
     def draw_limb(self, axes=None, rangereverse=False, **kwargs):
         if 'c' not in kwargs and 'color' not in kwargs:
@@ -217,13 +255,22 @@ class Sunmap():
         sunpymap = self.sunmap
         if axes is None:
             axes = plt.gca()
-        axes.set_autoscale_on(False)
+
         rsun = sunpymap.rsun_obs
         phi = np.linspace(-180, 180, num=181) * u.deg
         x = np.cos(phi) * rsun
         y = np.sin(phi) * rsun
-        im = axes.plot(x, y, **kwargs)
-        return im
+        if isinstance(axes,list):
+            ims = []
+            for ax in axes:
+                ax.set_autoscale_on(False)
+                im = ax.plot(x, y, **kwargs)
+                ims.append(im)
+            return ims
+        else:
+            axes.set_autoscale_on(False)
+            im = axes.plot(x, y, **kwargs)
+            return im
 
     def draw_grid(self, axes=None, grid_spacing=None, **kwargs):
         sunpymap = self.sunmap
@@ -260,7 +307,11 @@ class Sunmap():
         for lat in hg_latitude_deg:
             c = hgs2hcc(rsun, hg_longitude_deg, lat * np.ones(91), b0, l0)
             coords = hcc2hpc(c[0], c[1], c[2], dsun)
-            im += axes.plot(coords[0].to(u.arcsec), coords[1].to(u.arcsec), **kwargs)
+            if isinstance(axes, list):
+                for ax in axes:
+                    im += ax.plot(coords[0].to(u.arcsec), coords[1].to(u.arcsec), **kwargs)
+            else:
+                im += axes.plot(coords[0].to(u.arcsec), coords[1].to(u.arcsec), **kwargs)
 
         hg_longitude_deg = np.arange(0, 90, grid_spacing.to(u.deg).value)
         hg_longitude_deg = np.hstack([-hg_longitude_deg[1:][::-1], hg_longitude_deg]) * u.deg
@@ -269,7 +320,13 @@ class Sunmap():
         for lon in hg_longitude_deg:
             c = hgs2hcc(rsun, lon * np.ones(91), hg_latitude_deg, b0, l0)
             coords = hcc2hpc(c[0], c[1], c[2], dsun)
-            im += axes.plot(coords[0].to(u.arcsec), coords[1].to(u.arcsec), **kwargs)
+
+            if isinstance(axes, list):
+                for ax in axes:
+                    im += ax.plot(coords[0].to(u.arcsec), coords[1].to(u.arcsec), **kwargs)
+            else:
+                im += axes.plot(coords[0].to(u.arcsec), coords[1].to(u.arcsec), **kwargs)
+        return im
 
     def draw_rectangle(self, bottom_left, width, height, axes=None, **kwargs):
         if 'ec' not in kwargs and 'edgecolor' not in kwargs:
@@ -280,9 +337,18 @@ class Sunmap():
             kwargs['fill'] = False
         if axes is None:
             axes = plt.gca()
-        axes.set_autoscale_on(False)
-        im = axes.add_patch(patches.Rectangle(bottom_left, width, height, **kwargs))
-        return im
+
+        if isinstance(axes,list):
+            ims = []
+            for ax in axes:
+                ax.set_autoscale_on(False)
+                im = ax.add_patch(patches.Rectangle(bottom_left, width, height, **kwargs))
+                ims.append(im)
+            return ims
+        else:
+            axes.set_autoscale_on(False)
+            im = axes.add_patch(patches.Rectangle(bottom_left, width, height, **kwargs))
+            return im
 
     def imshow_RGB(self, maps, axes=None, returndataonly=False, rangereverse=False):
         from scipy import ndimage
@@ -327,5 +393,13 @@ class Sunmap():
             else:
                 axes = plt.subplot()
             extent = self.get_map_extent(sunpymap=mapR, rangereverse=rangereverse)
-            return axes.imshow(np.stack([znewR, znewG, znewB], axis=-1),
-                               extent=extent, origin='lower')
+            if isinstance(axes, list):
+                ims = []
+                for ax in axes:
+                    im = ax.imshow(np.stack([znewR, znewG, znewB], axis=-1),
+                                   extent=extent, origin='lower')
+                    ims.append(im)
+                return ims
+            else:
+                return axes.imshow(np.stack([znewR, znewG, znewB], axis=-1),
+                                   extent=extent, origin='lower')
