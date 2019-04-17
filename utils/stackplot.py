@@ -1343,12 +1343,24 @@ class Stackplot:
         :return:
         '''
         if mapcube:
-            mapcube_plot = deepcopy(mapcube)
+            try:
+                mapcube_plot = deepcopy(mapcube)
+            except:
+                mapcube_plot_list = [deepcopy(m) for m in mapcube]
+                mapcube_plot = sunpy.map.Map(mapcube_plot_list, cube=True)
         else:
             if diff:
-                mapcube_plot = deepcopy(self.mapcube_diff)
+                try:
+                    mapcube_plot = deepcopy(self.mapcube_diff)
+                except:
+                    mapcube_plot_list = [deepcopy(m) for m in self.mapcube_diff]
+                    mapcube_plot = sunpy.map.Map(mapcube_plot_list, cube=True)
             else:
-                mapcube_plot = deepcopy(self.mapcube)
+                try:
+                    mapcube_plot = deepcopy(self.mapcube)
+                except:
+                    mapcube_plot_list = [deepcopy(m) for m in self.mapcube]
+                    mapcube_plot = sunpy.map.Map(mapcube_plot_list, cube=True)
         if mapcube_plot is None:
             print('No mapcube found. Load a mapcube first!')
             return
@@ -1675,9 +1687,17 @@ class Stackplot:
                        out_dir=None, dpi=100, anim=False, frm_range=[], cutslitplt=None, silent=False, refresh=True,
                        threshold=None, gamma=1.0):
         if mapcube:
-            mapcube_plot = deepcopy(mapcube)
+            try:
+                mapcube_plot = deepcopy(mapcube)
+            except:
+                mapcube_plot_list = [deepcopy(m) for m in mapcube]
+                mapcube_plot = sunpy.map.Map(mapcube_plot_list, cube=True)
         else:
-            mapcube_plot = deepcopy(self.mapcube_plot)
+            try:
+                mapcube_plot = deepcopy(self.mapcube_plot)
+            except:
+                mapcube_plot_list = [deepcopy(m) for m in self.mapcube_plot]
+                mapcube_plot = sunpy.map.Map(mapcube_plot_list, cube=True)
         if mapcube_plot is None:
             print('No mapcube found. Load a mapcube first!')
             return
