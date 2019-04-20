@@ -7,7 +7,7 @@ import aipy
 from taskinit import tb, casalog
 from split_cli import split_cli as split
 from suncasa.eovsa import impteovsa as ipe
-
+from astropy.time import Time
 
 def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, doscaling, keep_nsclms, fileidx):
     from taskinit import tb, casalog
@@ -53,7 +53,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     flag = np.ones((npol, nf, time_steps, npairs), dtype=bool)
     out = np.zeros((npol, nf, time_steps, npairs), dtype=np.complex64)  # Cross-correlations
     uvwarray = np.zeros((3, time_steps, npairs), dtype=np.float)
-    chan_band = ipe.get_band(sfreq=sfreq, sdf=sdf)
+    chan_band = ipe.get_band(sfreq=sfreq, sdf=sdf, date=Time(uv['time'], format='jd'))
     nband = len(chan_band)
 
     uv.rewind()
@@ -286,32 +286,36 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
 
     if not visprefix:
         visprefix = './'
+    else:
+        if os.path.exists(visprefix):
+            pass
+        else:
+            casalog.post("The output path {} does not exist. Abort.".format(visprefix))
+            return False
     if not timebin:
         timebin = '0s'
     if not width:
         width = 1
     import sys
-    print 10
     sys.stdout.flush()
     if udb_corr:
         udbcorr_path = visprefix + '/tmp_UDBcorr/'
-        print 0
+
         sys.stdout.flush()
         if not os.path.exists(udbcorr_path):
             os.makedirs(udbcorr_path)
-        print 1
+
         sys.stdout.flush()
         from eovsapy import pipeline_cal as pc
-        print 2
+
         sys.stdout.flush()
         filelist_tmp = []
         for ll in filelist:
             filelist_tmp.append(pc.udb_corr(ll, outpath=udbcorr_path, calibrate=True))
         filelist = filelist_tmp
-        print 3
+
         sys.stdout.flush()
 
-    print 4
     sys.stdout.flush()
     if not modelms:
         if nocreatms:
