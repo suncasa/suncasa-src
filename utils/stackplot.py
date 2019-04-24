@@ -1764,6 +1764,8 @@ class Stackplot:
                 ddist_med = np.median(np.abs(np.diff(dists)))
                 if np.min(np.abs(dists - dt)) < (1.5 * ddist_med):
                     dist_ticks_idx.append(np.argmin(np.abs(dists - dt)))
+
+
             maj_t = LineTicks(cuttraj, dist_ticks_idx, 10, lw=2, label=['{:.0f}"'.format(dt) for dt in dist_ticks])
             ax2.set_xlim(dspec['x'][frm_range[0]], dspec['x'][frm_range[-1]])
 
@@ -1860,6 +1862,7 @@ class Stackplot:
                 ddist_med = np.median(np.abs(np.diff(dists)))
                 if np.min(np.abs(dists - dt)) < (1.5 * ddist_med):
                     dist_ticks_idx.append(np.argmin(np.abs(dists - dt)))
+
             maj_t = LineTicks(cuttraj, dist_ticks_idx, 10, lw=2, label=['{:.0f}"'.format(dt) for dt in dist_ticks])
             axcolor = 'lightgoldenrodyellow'
             ax2.set_xlim(dspec['x'][frm_range[0]], dspec['x'][frm_range[-1]])

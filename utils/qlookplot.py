@@ -560,6 +560,12 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     if len(sz) == 4:
                         data = rmap.data[min(polmap[pols[pol]], rmap.meta['naxis4'] - 1), 0, :, :].reshape(
                             (sz[2], sz[3]))
+                    elif len(sz) == 3:
+                        data = rmap.data[min(polmap[pols[pol]], rmap.meta['naxis4'] - 1), :, :].reshape(
+                            (sz[2], sz[3]))
+                    else:
+                        data = rmap.data
+
                     data[np.isnan(data)] = 0.0
                     data = data / 1e4
                     rmap = smap.Map(data, rmap.meta)

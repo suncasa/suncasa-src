@@ -6,10 +6,11 @@ def get_perp_vec(u1, u2, direction=1):
 
     x1, y1 = u1
     x2, y2 = u2
-    vx, vy = x2-x1, y2-y1
+    vx, vy = x2 - x1, y2 - y1
     v = np.linalg.norm((vx, vy))
-    wx, wy = -vy/v * direction, vx/v * direction
+    wx, wy = -vy / v * direction, vx / v * direction
     return wx, wy
+
 
 def get_av_vec(u1, u2):
     """Return the average unit vector between u1 and u2."""
@@ -17,11 +18,12 @@ def get_av_vec(u1, u2):
     u1x, u1y = u1
     u2x, u2y = u2
     dx, dy = u1x + u2x, u1y + u2y
-    dlen = np.linalg.norm((dx,dy))
-    return dx/dlen, dy/dlen
+    dlen = np.linalg.norm((dx, dy))
+    return dx / dlen, dy / dlen
+
 
 class LineTicks:
-    def __init__(self, line, idx, tick_length, direction=1, label=None,
+    def __init__(self, line, idx, tick_length, direction=1, label=None, label_color='k',
                  **kwargs):
         self.line = line
         self.idx = idx
@@ -30,6 +32,7 @@ class LineTicks:
         self.label = label
         self.ticks = []
         self.tick_labels = []
+        self.label_color = label_color
 
         self.tick_styles = kwargs
         # If no colour is specified for the ticks, set it to the line colour
@@ -39,13 +42,19 @@ class LineTicks:
         self.ax = line.axes
         self.ax.callbacks.connect('xlim_changed', self.on_change_lims)
         self.ax.callbacks.connect('ylim_changed', self.on_change_lims)
-        cid = self.ax.figure.canvas.mpl_connect('resize_event',self.on_resize) 
+        cid = self.ax.figure.canvas.mpl_connect('resize_event', self.on_resize)
+
+        # get scale tick_length in display coordinates to data coordinates
+        xy1, xy2 = self.ax.transData.inverted().transform([[0, 0], [self.tick_length, 0]])
+        self.tick_length = xy2[0]-xy1[0]
+
         self.add_ticks(self.ax)
 
     def add_ticks(self, ax):
         ax.set_autoscale_on(False)  # Otherwise, infinite loop
         # Transform to  display coordinates
-        z =ax.transData.transform(np.array(self.line.get_data()).T)
+        # z =ax.transData.transform(np.array(self.line.get_data()).T)
+        z = np.array(self.line.get_data()).T
         x, y = zip(*z)
 
         # Remove existing ticks
@@ -59,13 +68,13 @@ class LineTicks:
             ax.texts.remove(ticklabel)
         self.tick_labels = []
 
-        for j,i in enumerate(self.idx):
+        for j, i in enumerate(self.idx):
             if i == 0:
                 # The first tick is perpendicular to the line between the
                 # first two points
                 tx, ty = get_perp_vec((x[0], y[0]), (x[1], y[1]),
                                       self.direction)
-            elif i == len(x)-1:
+            elif i == len(x) - 1:
                 # The last tick is perpendicular to the line between the
                 # last two points
                 tx, ty = get_perp_vec((x[-2], y[-2]), (x[-1], y[-1]),
@@ -73,20 +82,18 @@ class LineTicks:
             else:
                 # General tick marks bisect the incoming and outgoing line
                 # segments
-                u1 = get_perp_vec((x[i-1], y[i-1]), (x[i], y[i]),
+                u1 = get_perp_vec((x[i - 1], y[i - 1]), (x[i], y[i]),
                                   self.direction)
-                u2 = get_perp_vec((x[i], y[i]), (x[i+1], y[i+1]),
+                u2 = get_perp_vec((x[i], y[i]), (x[i + 1], y[i + 1]),
                                   self.direction)
                 tx, ty = get_av_vec(u1, u2)
             tx, ty = self.tick_length * tx, self.tick_length * ty
-            this_tick, = ax.plot((x[i],x[i]+tx), (y[i],y[i]+ty),
-                transform=transforms.IdentityTransform(), **self.tick_styles)
+            this_tick, = ax.plot((x[i], x[i] + tx), (y[i], y[i] + ty), **self.tick_styles)
             self.ticks.append(this_tick)
 
             if self.label:
-                this_ticklabel = ax.text(x[i]+tx*3, y[i]+ty*3, self.label[j],
-                        transform=transforms.IdentityTransform(),
-                        ha='center', va='center', clip_on=True)
+                this_ticklabel = ax.text(x[i] + tx * 4, y[i] + ty * 4, self.label[j],
+                                         ha='center', va='center', clip_on=True, color=self.label_color)
                 self.tick_labels.append(this_ticklabel)
 
     def on_change_lims(self, ax):
