@@ -8,7 +8,7 @@ from datetime import datetime
 from taskinit import ms, tb, qa
 import matplotlib.dates as mdates
 from matplotlib.dates import date2num, AutoDateFormatter, AutoDateLocator
-
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 # get something changed
 
 def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='', scan='', datacolumn='data',
@@ -151,12 +151,12 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
             elif pol == 'V':
                 spec_plt = (spec[0, b, :, :] - spec[1, b, :, :]) / 2.
             if movie:
-                f = plt.figure(figsize=(16, 8), dpi=100)
+                fig = plt.figure(figsize=(16, 8), dpi=100)
                 if goessav:
                     gs = gridspec.GridSpec(2, 1, height_ratios=[2, 1])
                     gs.update(left=0.06, right=0.97, top=0.95, bottom=0.06)
-                    ax1 = f.add_subplot(gs[0])
-                    ax2 = f.add_subplot(gs[1])
+                    ax1 = fig.add_subplot(gs[0])
+                    ax2 = fig.add_subplot(gs[1])
                     if os.path.exists(goessav):
                         goes = readsav(goessav)
                         # IDL anytim 0 sec correspond to 1979 Jan 01, convert to mjd time
@@ -166,7 +166,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                         lc0 = goes['yclean'][0, :]
                         lc1 = goes['yclean'][1, :]
                 else:
-                    ax1 = f.add_subplot(211)
+                    ax1 = fig.add_subplot(211)
                 tstart = tim[tidx[0]]
                 tend = tim[tidx[-1]]
                 tstartstr = qa.time(qa.quantity(tstart, 's'))[0]
@@ -217,13 +217,17 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                     figfile = 'dspec_t' + timstr + '.png'
                     if not os.path.isdir('dspec'):
                         os.makedirs('dspec')
-                    f.savefig('dspec/' + figfile)
+                    fig.savefig('dspec/' + figfile)
                     plt.cla()
             else:
-                f = plt.figure(figsize=(8, 4), dpi=100)
-                ax = f.add_subplot(111)
+                fig = plt.figure(figsize=(8, 4), dpi=100)
+                ax = fig.add_subplot(111)
                 freqghz = freq / 1e9
-                ax.pcolormesh(tim_plt, freqghz, spec_plt, cmap='jet', vmin=dmin, vmax=dmax)
+                im = ax.pcolormesh(tim_plt, freqghz, spec_plt, cmap='jet', vmin=dmin, vmax=dmax)
+                divider = make_axes_locatable(ax)
+                cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
+                clb_spec = plt.colorbar(im, ax=ax, cax=cax_spec)
+                clb_spec.set_label('Flux [Jy/Beam]')
                 ax.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 try:
@@ -272,7 +276,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 ax.set_autoscale_on(False)
 
         else:
-            f = plt.figure(figsize=(8, 6), dpi=100)
+            fig = plt.figure(figsize=(8, 6), dpi=100)
             R_plot = np.absolute(spec[0, b, :, :])
             L_plot = np.absolute(spec[1, b, :, :])
             I_plot = (R_plot + L_plot) / 2.
@@ -286,9 +290,14 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 spec_plt_2 = V_plot
                 polstr = ['I', 'V']
 
-            ax1 = f.add_subplot(211)
+            ax1 = fig.add_subplot(211)
             freqghz = freq / 1e9
             ax1.pcolormesh(tim_plt, freqghz, spec_plt_1, cmap='jet', vmin=dmin, vmax=dmax)
+            divider = make_axes_locatable(ax1)
+            cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
+            clb_spec = plt.colorbar(im, ax=ax1, cax=cax_spec)
+            clb_spec.set_label('Flux [Jy/Beam]')
+
             ax1.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
             ax1.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
 
@@ -313,8 +322,12 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 ax1.xaxis.set_major_formatter(AutoDateFormatter(locator))
             ax1.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[0])
             ax1.set_autoscale_on(False)
-            ax2 = f.add_subplot(212)
+            ax2 = fig.add_subplot(212)
             ax2.pcolormesh(tim_plt, freqghz, spec_plt_2, cmap='jet', vmin=dmin, vmax=dmax)
+            divider = make_axes_locatable(ax2)
+            cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
+            clb_spec = plt.colorbar(im, ax=ax2, cax=cax_spec)
+            clb_spec.set_label('Flux [Jy/Beam]')
             ax2.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
             ax2.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
             if timestr:

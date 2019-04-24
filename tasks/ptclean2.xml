@@ -241,7 +241,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
     <param type="string" name="datacolumn"> <!--  subparam="true">  -->
      <shortdescription>Data column to image(data,corrected)</shortdescription>
 <description>Data column to image (data or observed, corrected)
-                     default:'corrected'
+                     default:'data'
                      ( If 'corrected' does not exist, it will use 'data' instead )
 
 </description>

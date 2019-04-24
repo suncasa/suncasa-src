@@ -481,7 +481,7 @@ def smooth(x, window_len=11, window='hanning'):
 
 
 def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num=0, crf=15, fps=10, overwrite=False,
-              crop=[], title=[], dpi=200,keeptmp=False,usetmp=False):
+              crop=[], title=[], dpi=200, keeptmp=False, usetmp=False):
     '''
 
     :param imgprefix:
@@ -517,7 +517,7 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
         else:
             if crop != [] or title != []:
                 plt.ioff()
-                fig, ax = plt.subplots(figsize=[float(ll)/dpi for ll in size.split('x')])
+                fig, ax = plt.subplots(figsize=[float(ll) / dpi for ll in size.split('x')])
                 for idx, ll in enumerate(tqdm(imgs)):
                     data = plt.imread(ll)
                     if crop != []:
@@ -532,7 +532,7 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
                         ax.set_title(title[idx])
                     if idx == 0:
                         fig.tight_layout()
-                    fig.savefig('{}/{:04d}.{}'.format(tmpdir, idx,img_ext), dpi=dpi, format=img_ext)
+                    fig.savefig('{}/{:04d}.{}'.format(tmpdir, idx, img_ext), dpi=dpi, format=img_ext)
                 plt.close(fig)
             else:
                 for idx, ll in enumerate(imgs):
@@ -766,8 +766,9 @@ def normalize_aiamap(aiamap):
     import sunpy.map as smap
     try:
         if aiamap.observatory == 'SDO' and aiamap.instrument[0:3] == 'AIA':
-            data = aiamap.data
-            data[~np.isnan(data)] = data[~np.isnan(data)] / aiamap.exposure_time.value
+            data = aiamap.data.copy().astype(np.float)
+            idxpix = ~np.isnan(data)
+            data[idxpix] = data[idxpix] / aiamap.exposure_time.value
             data[data < 0] = 0
             aiamap.meta['exptime'] = 1.0
             aiamap = smap.Map(data, aiamap.meta)
@@ -1523,38 +1524,41 @@ def map2wcsgrids(snpmap, cell=True, antialiased=True):
     '''
     # embed()
     import astropy.units as u
+    ny, nx = snpmap.data.shape
+    x0, x1 = snpmap.xrange.to(u.arcsec).value
+    y0, y1 = snpmap.yrange.to(u.arcsec).value
+    dx = snpmap.scale.axis1.to(u.arcsec / u.pix).value
+    dy = snpmap.scale.axis2.to(u.arcsec / u.pix).value
+
     if cell:
-        ny, nx = snpmap.data.shape
-        offset = 0.5
-    else:
-        ny, nx = snpmap.data.shape
-        nx += 1
-        ny += 1
-        offset = 0.0
-    if antialiased:
-        XX, YY = np.array([0, nx - 1]) + offset, np.array([0, ny - 1]) + offset
-        mesh = snpmap.pixel_to_world(XX * u.pix, YY * u.pix)
-        mapx, mapy = np.linspace(mesh[0].Tx.value, mesh[-1].Tx.value, nx), np.linspace(mesh[0].Ty.value,
-                                                                                       mesh[-1].Ty.value, ny)
+        mapx, mapy = np.linspace(x0, x1, nx), np.linspace(y0, y1, ny)
         mapx = np.tile(mapx, ny).reshape(ny, nx)
         mapy = np.tile(mapy, nx).reshape(nx, ny).transpose()
     else:
-        XX, YY = np.meshgrid(np.arange(nx) + offset, np.arange(ny) + offset)
-        mesh = snpmap.pixel_to_world(XX * u.pix, YY * u.pix)
-        mapx, mapy = mesh.Tx.value, mesh.Ty.value
+        nx += 1
+        ny += 1
+        mapx, mapy = np.linspace(x0 - dx / 2.0, x1 + dx / 2.0, nx), np.linspace(y0 - dy / 2.0, y1 + dy / 2.0, ny)
+        mapx = np.tile(mapx, ny).reshape(ny, nx)
+        mapy = np.tile(mapy, nx).reshape(nx, ny).transpose()
     return mapx, mapy
 
 
-def smapradialfilter(smap, grid=None):
+def smapradialfilter(sunpymap, factor=5, grid=None):
+    from sunpy import map as smap
     if grid:
         x, y = grid
     else:
-        x, y = smapmeshgrid2(smap)
-    r = smap.rsun_obs
+        x, y = smapmeshgrid2(sunpymap)
+    r = sunpymap.rsun_obs
     rr = np.sqrt(x * x + y * y)
     maskout = rr > r
-    smap.data[maskout] = smap.data[maskout] * np.exp(5 * (rr[maskout] / r - 1))
-    return smap
+    try:
+        sunpymap.data[maskout] = sunpymap.data[maskout] * np.exp(factor * (rr[maskout] / r - 1))
+    except:
+        data = sunpymap.data.copy()
+        data[maskout] = data[maskout] * np.exp(factor * (rr[maskout] / r - 1))
+        sunpymap = smap.Map(data, sunpymap.meta)
+    return sunpymap
 
 
 def regridimage(values, x, y, grid=None, resize=[1.0, 1.0]):
