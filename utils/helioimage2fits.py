@@ -20,6 +20,29 @@ except:
         raise ImportError('Neither astropy nor pyfits exists in this CASA installation')
 
 
+def headerfix(header, PC_coor=True):
+    ## this code fix the header problem of fits out from CASA 5.4+ which leads to a streched solar image
+    ## set PC_coor equal to True will reset the rotation matrix.
+
+    import copy
+    hdr = copy.copy(header)
+    for hd in header:
+        if hd.upper().startswith('PC'):
+            if not hd.upper().startswith('PC0'):
+                pcidxs = hd.upper().replace('PC', '')
+                hd_ = 'PC0' + pcidxs
+                hdr.pop(hd)
+                if PC_coor:
+                    pc0, pc1 = pcidxs.split('_')
+                    if pc0 == pc1:
+                        hdr[hd_] = 1.0
+                    else:
+                        hdr[hd_] = 0.0
+                else:
+                    hdr[hd_] = header[hd]
+    return hdr
+
+
 # from astropy.constants import R_sun, au
 
 def msclearhistory(msfile):
@@ -55,8 +78,8 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
             # btime = Time(summary['BeginTime'], format='mjd')
             # etime = Time(summary['EndTime'], format='mjd')
             ## alternative way to avoid conflicts with importeovsa, if needed -- more time consuming
-            if observatory=='geocentric':
-                observatory='500'
+            if observatory == 'geocentric':
+                observatory = '500'
             else:
                 ms.open(vis)
                 metadata = ms.metadata()
@@ -101,7 +124,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         lines = f.readlines()
         f.close()
     except:
-        #todo use geocentric coordinate for the new VLA data
+        # todo use geocentric coordinate for the new VLA data
         import requests, collections
         params = collections.OrderedDict()
         params['batch'] = '1'
@@ -111,7 +134,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         params['ANG_FORMAT'] = "'DEG'"
         params['CAL_FORMAT'] = "'BOTH'"
         params['SOLAR_ELONG'] = "'0,180'"
-        if observatory=='500':
+        if observatory == '500':
             params['CENTER'] = "'500'"
         else:
             params['CENTER'] = "'{}@399'".format(observatory)
@@ -577,8 +600,6 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
     if verbose:
         print(str(nimg) + ' images to process...')
 
-
-
     if reftime:  # use as reference time to find solar disk RA and DEC to register the image, but not the actual timerange associated with the image
         if type(reftime) == str:
             reftime = [reftime] * nimg
@@ -589,14 +610,12 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
         # use the supplied timerange to register the image
         helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=timerange, usephacenter=usephacenter)
 
-
-
     if toTb:
         (bmajs, bmins, bpas, beamunits, bpaunits) = getbeam(imagefile=imagefile, beamfile=beamfile)
 
     for n, img in enumerate(imagefile):
         if verbose:
-            print('processing image #' + str(n)+' '+img)
+            print('processing image #' + str(n) + ' ' + img)
         fitsf = fitsfile[n]
         timeran = timerange[n]
         # obtain duration of the image as FITS header exptime
@@ -610,8 +629,6 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             print('Error in converting the input timerange: ' + str(timeran) + '. Proceeding to the next image...')
             continue
 
-
-
         hel = helio[n]
         if not os.path.exists(img):
             warnings.warn('{} does not existed!'.format(img))
@@ -620,7 +637,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 raise ValueError('Specified fits file already exists and overwrite is set to False. Aborting...')
             else:
                 p0 = hel['p0']
-                tb.open(img+'/logtable', nomodify=False)
+                tb.open(img + '/logtable', nomodify=False)
                 nobs = tb.nrows()
                 tb.removerows([i + 1 for i in range(nobs - 1)])
                 tb.close()
@@ -630,8 +647,6 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 imr.close()
                 imsum = ia.summary()
                 ia.close()
-
-
 
             # construct the standard fits header
             # RA and DEC of the reference pixel crpix1 and crpix2
@@ -665,15 +680,11 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             (crval1, crval2) = (xoff + dx, yoff + dy)
             # update the fits header to heliocentric coordinates
 
-
-
             hdu = pyfits.open(fitsf, mode='update')
-
-
 
             header = hdu[0].header
             (cdelt1, cdelt2) = (
-            -header['cdelt1'] * 3600., header['cdelt2'] * 3600.)  # Original CDELT1, 2 are for RA and DEC in degrees
+                -header['cdelt1'] * 3600., header['cdelt2'] * 3600.)  # Original CDELT1, 2 are for RA and DEC in degrees
             header['cdelt1'] = cdelt1
             header['cdelt2'] = cdelt2
             header['cunit1'] = 'arcsec'
@@ -709,8 +720,6 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 header.append(('rsun_ref', sun.constants.radius.value))
                 header.append(('hgln_obs', 0.))
                 header.append(('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value))
-
-
 
             # update intensity units, i.e. to brightness temperature?
             if toTb:
@@ -769,9 +778,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                         if faxis == '4':
                             data[i, :, :, :] *= jy_to_si / beam_area / factor * factor2
 
-
+            header = headerfix(header)
 
             hdu.flush()
             hdu.close()
-
-
