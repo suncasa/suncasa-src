@@ -46,13 +46,13 @@ class Sunmap():
         dy = sunpymap.scale.axis2.to(u.arcsec / u.pix).value
 
         if cell:
-            mapx, mapy = np.linspace(x0, x1, nx), np.linspace(y0, y1, ny)
+            mapx, mapy = np.linspace(x0, x1, nx) - dx / 2.0, np.linspace(y0, y1, ny) - dy / 2.0
             mapx = np.tile(mapx, ny).reshape(ny, nx)
             mapy = np.tile(mapy, nx).reshape(nx, ny).transpose()
         else:
             nx += 1
             ny += 1
-            mapx, mapy = np.linspace(x0 - dx / 2.0, x1 + dx / 2.0, nx), np.linspace(y0 - dy / 2.0, y1 + dy / 2.0, ny)
+            mapx, mapy = np.linspace(x0 - dx, x1 + dx, nx), np.linspace(y0 - dy, y1 + dy, ny)
             mapx = np.tile(mapx, ny).reshape(ny, nx)
             mapy = np.tile(mapy, nx).reshape(nx, ny).transpose()
         return mapx, mapy
@@ -141,15 +141,15 @@ class Sunmap():
             dmax = np.nanmax(imdataplt)
             dmin = np.nanmin(imdataplt)
             from skimage.exposure import equalize_adapthist
-            if isinstance(image_enhance,dict):
-                imdataplt = equalize_adapthist(imdataplt,**image_enhance) * (dmax - dmin) + dmin
+            if isinstance(image_enhance, dict):
+                imdataplt = equalize_adapthist(imdataplt, **image_enhance) * (dmax - dmin) + dmin
             else:
                 imdataplt = equalize_adapthist(imdataplt) * (dmax - dmin) + dmin
 
         if maskon:
             imdataplt = ma.masked_array(imdataplt, immask)
 
-        if isinstance(axes,list):
+        if isinstance(axes, list):
             ims = []
             for ax in axes:
                 im = ax.imshow(imdataplt, extent=extent, origin='lower', **kwargs)
@@ -199,8 +199,7 @@ class Sunmap():
             elif rot == 270:
                 mapy, mapx = self.map2wcsgrids(cell=True)
 
-
-        if isinstance(axes,list):
+        if isinstance(axes, list):
             ims = []
             for ax in axes:
                 im = ax.contour(mapx, mapy, sunpymap.data, **kwargs)
@@ -231,7 +230,7 @@ class Sunmap():
             elif rot == 270:
                 mapy, mapx = self.map2wcsgrids(cell=True)
 
-        if isinstance(axes,list):
+        if isinstance(axes, list):
             ims = []
             for ax in axes:
                 im = ax.contourf(mapx, mapy, sunpymap.data, **kwargs)
@@ -260,7 +259,7 @@ class Sunmap():
         phi = np.linspace(-180, 180, num=181) * u.deg
         x = np.cos(phi) * rsun
         y = np.sin(phi) * rsun
-        if isinstance(axes,list):
+        if isinstance(axes, list):
             ims = []
             for ax in axes:
                 ax.set_autoscale_on(False)
@@ -338,7 +337,7 @@ class Sunmap():
         if axes is None:
             axes = plt.gca()
 
-        if isinstance(axes,list):
+        if isinstance(axes, list):
             ims = []
             for ax in axes:
                 ax.set_autoscale_on(False)

@@ -847,7 +847,8 @@ class Stackplot:
             titletext = titletext + ' {}'.format(smap.meta['date-obs'])
         return titletext
 
-    def plot_map(self, smap, dspec=None, diff=False, cmap=None, SymLogNorm=False, linthresh=0.5, returnImAx=False,
+    def plot_map(self, smap, dspec=None, diff=False, norm=None, cmap=None, SymLogNorm=False, linthresh=0.5,
+                 returnImAx=False,
                  layout_vert=False, uni_cm=False, draw_limb=False, draw_grid=False, colortitle=None,
                  title=['observatory', 'detector', 'wavelength', 'time'], fov=fov,
                  *args, **kwargs):
@@ -917,17 +918,19 @@ class Stackplot:
             vmax = kwargs['vmax']
         else:
             vmax = clrange['high']
-        if diff:
-            if SymLogNorm:
-                norm = colors.SymLogNorm(linthresh=linthresh, vmin=vmin, vmax=vmax)
+        print(norm)
+        if norm is None:
+            if diff:
+                if SymLogNorm:
+                    norm = colors.SymLogNorm(linthresh=linthresh, vmin=vmin, vmax=vmax)
+                else:
+                    norm = colors.Normalize(vmin=vmin, vmax=vmax)
             else:
-                norm = colors.Normalize(vmin=vmin, vmax=vmax)
-        else:
-            if clrange['log']:
-                norm = colors.LogNorm(vmin=vmin, vmax=vmax)
-            else:
-                norm = colors.Normalize(vmin=vmin, vmax=vmax)
-
+                if clrange['log']:
+                    norm = colors.LogNorm(vmin=vmin, vmax=vmax)
+                else:
+                    norm = colors.Normalize(vmin=vmin, vmax=vmax)
+        print(norm)
         if not cmap:
             try:
                 cmap = cm.get_cmap('sdoaia{}'.format(smap.meta['wavelnth']))
@@ -1326,8 +1329,8 @@ class Stackplot:
         self.mapcube_diff = mapcube_diff
         return mapcube_diff
 
-    def plot_mapcube(self, mapcube=None, hdr=False, vmax=None, vmin=None, cmap=None, diff=False, sav_img=False,
-                     out_dir=None, dpi=100, anim=False, silent=False, draw_limb=False, draw_grid=False,
+    def plot_mapcube(self, mapcube=None, hdr=False, norm=None, vmax=None, vmin=None, cmap=None, diff=False,
+                     sav_img=False, out_dir=None, dpi=100, anim=False, silent=False, draw_limb=False, draw_grid=False,
                      colortitle=None, title=['observatory', 'detector', 'wavelength', 'time'], fov=[], fps=15):
         '''
 
@@ -1403,7 +1406,8 @@ class Stackplot:
             if out_dir is None:
                 out_dir = './'
 
-            ax, im1 = self.plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, cmap=cmap, diff=diff, returnImAx=True,
+            ax, im1 = self.plot_map(mapcube_plot[0], norm=norm, vmax=vmax, vmin=vmin, cmap=cmap, diff=diff,
+                                    returnImAx=True,
                                     draw_limb=draw_limb, draw_grid=draw_grid, colortitle=colortitle, title=title,
                                     fov=fov)
             if anim:
@@ -1463,7 +1467,8 @@ class Stackplot:
                                                                     smap.detector), format='png', dpi=dpi)
                 plt.ion()
         else:
-            ax, im1 = self.plot_map(mapcube_plot[0], vmax=vmax, vmin=vmin, cmap=cmap, diff=diff, returnImAx=True,
+            ax, im1 = self.plot_map(mapcube_plot[0], norm=norm, vmax=vmax, vmin=vmin, cmap=cmap, diff=diff,
+                                    returnImAx=True,
                                     draw_limb=draw_limb, draw_grid=draw_grid, colortitle=colortitle, title=title,
                                     fov=fov)
             plt.subplots_adjust(bottom=0.10)
@@ -1629,13 +1634,13 @@ class Stackplot:
             if frm_range[0] <= idx <= frm_range[-1]:
                 data = smap.data.copy()
                 if threshold is not None:
-                    if isinstance(threshold,dict):
+                    if isinstance(threshold, dict):
                         if 'outside' in threshold.keys():
                             thrhd = threshold['outside']
-                            data = ma.masked_outside(data, thrhd[0],thrhd[1])
+                            data = ma.masked_outside(data, thrhd[0], thrhd[1])
                         elif 'inside' in threshold.keys():
                             thrhd = threshold['inside']
-                            data = ma.masked_inside(data, thrhd[0],thrhd[1])
+                            data = ma.masked_inside(data, thrhd[0], thrhd[1])
                         else:
                             data = ma.masked_array(data)
                     else:
@@ -1682,7 +1687,8 @@ class Stackplot:
             kwargs.pop('refresh')
         self.plot_stackplot(refresh=False, **kwargs)
 
-    def plot_stackplot(self, mapcube=None, hdr=False, vmax=None, vmin=None, cmap=None, layout_vert=False, diff=False,
+    def plot_stackplot(self, mapcube=None, hdr=False, norm=None, vmax=None, vmin=None, cmap=None, layout_vert=False,
+                       diff=False,
                        uni_cm=True, sav_img=False,
                        out_dir=None, dpi=100, anim=False, frm_range=[], cutslitplt=None, silent=False, refresh=True,
                        threshold=None, gamma=1.0):
@@ -1732,7 +1738,9 @@ class Stackplot:
             vmax = clrange['high']
         if not vmin:
             vmin = clrange['low']
-        norm = colors.Normalize(vmin=np.min(self.stackplt), vmax=np.max(self.stackplt))
+        if (norm is None) and (not diff):
+            norm = colors.Normalize(vmin=np.min(self.stackplt), vmax=np.max(self.stackplt))
+
         cutslitplt = self.cutslitbd.cutslitplt
         if not cmap:
             try:
@@ -1749,9 +1757,8 @@ class Stackplot:
             if out_dir is None:
                 out_dir = './'
 
-            ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[frm_range[0]], dspec, vmax=vmax, vmin=vmin, cmap=cmap,
-                                                     diff=diff,
-                                                     returnImAx=True, uni_cm=uni_cm,
+            ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[frm_range[0]], dspec, norm=norm, vmax=vmax, vmin=vmin,
+                                                     cmap=cmap, diff=diff, returnImAx=True, uni_cm=uni_cm,
                                                      layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
             cuttraj, = ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
@@ -1764,7 +1771,6 @@ class Stackplot:
                 ddist_med = np.median(np.abs(np.diff(dists)))
                 if np.min(np.abs(dists - dt)) < (1.5 * ddist_med):
                     dist_ticks_idx.append(np.argmin(np.abs(dists - dt)))
-
 
             maj_t = LineTicks(cuttraj, dist_ticks_idx, 10, lw=2, label=['{:.0f}"'.format(dt) for dt in dist_ticks])
             ax2.set_xlim(dspec['x'][frm_range[0]], dspec['x'][frm_range[-1]])
@@ -1845,11 +1851,11 @@ class Stackplot:
                         outname = '{0}/Stackplot-{2}-{1}.png'.format(out_dir, t_map.iso.replace(' ', 'T').replace(':',
                                                                                                                   '').replace(
                             '-', '')[:-4], smap.detector)
-                    fig_mapcube.savefig(outname, format = 'png', dpi = dpi)
+                    fig_mapcube.savefig(outname, format='png', dpi=dpi)
                 plt.ion()
         else:
-            ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[frm_range[0]], dspec, vmax=vmax, vmin=vmin, diff=diff,
-                                                     returnImAx=True, uni_cm=uni_cm, cmap=cmap,
+            ax, im1, ax2, im2, vspan = self.plot_map(mapcube_plot[frm_range[0]], dspec, norm=norm, vmax=vmax, vmin=vmin,
+                                                     diff=diff, returnImAx=True, uni_cm=uni_cm, cmap=cmap,
                                                      layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
             cuttraj, = ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
@@ -1997,7 +2003,7 @@ class Stackplot:
         return
 
     def stackplt_lghtcurv_fromfile(self, infile, frm_range=[], cmap='inferno', vmax=None, vmin=None, gamma=1.0,
-                                   log=False,axes=None):
+                                   log=False, axes=None):
         if isinstance(infile, str):
             with open('{}'.format(infile), 'rb') as sf:
                 stackplt = pickle.load(sf, encoding='latin1')

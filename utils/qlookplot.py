@@ -15,13 +15,9 @@ from astropy.time import Time
 from astropy.io import fits
 from taskinit import ms, tb, qa, iatool
 from clean_cli import clean_cli as clean
-from sunpy import lightcurve
-from sunpy.time import TimeRange
 from matplotlib.dates import DateFormatter
 from astropy.io import fits
-from sunpy import lightcurve as lc
 from astropy.coordinates import SkyCoord
-from sunpy.time import TimeRange, parse_time
 import pickle
 import datetime
 import matplotlib as mpl
