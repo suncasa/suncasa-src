@@ -24,23 +24,25 @@ def headerfix(header, PC_coor=True):
     ## this code fix the header problem of fits out from CASA 5.4+ which leads to a streched solar image
     ## set PC_coor equal to True will reset the rotation matrix.
 
-    import copy
-    hdr = copy.copy(header)
-    for hd in header:
-        if hd.upper().startswith('PC'):
-            if not hd.upper().startswith('PC0'):
-                pcidxs = hd.upper().replace('PC', '')
+    keys2remove = []
+    for k in header:
+        if k.upper().startswith('PC'):
+            if not k.upper().startswith('PC0'):
+                print(k)
+                pcidxs = k.upper().replace('PC', '')
                 hd_ = 'PC0' + pcidxs
-                hdr.pop(hd)
+                keys2remove.append(k)
                 if PC_coor:
-                    pc0, pc1 = pcidxs.split('_')
-                    if pc0 == pc1:
-                        hdr[hd_] = 1.0
+                    pcidx0, pcidx1 = pcidxs.split('_')
+                    if pcidx0 == pcidx1:
+                        header[hd_] = 1.0
                     else:
-                        hdr[hd_] = 0.0
+                        header[hd_] = 0.0
                 else:
-                    hdr[hd_] = header[hd]
-    return hdr
+                    header[hd_] = header[k]
+    for k in keys2remove:
+        header.remove(k)
+    return header
 
 
 # from astropy.constants import R_sun, au
