@@ -215,7 +215,7 @@ def MakeSlit(pointDF):
     return cutslitplt
 
 
-def getimprofile(data, cutslit, xrange=None, yrange=None):
+def getimprofile(data, cutslit, xrange=None, yrange=None, get_peak=False):
     num = len(cutslit['xcen'])
     if num > 1:
         intens = np.zeros(num)
@@ -232,7 +232,10 @@ def getimprofile(data, cutslit, xrange=None, yrange=None):
             ys1 = cutslit['ys1']
         for ll in range(num):
             inten = DButil.improfile(data, [xs0[ll], xs1[ll]], [ys0[ll], ys1[ll]], interp='nearest')
-            intens[ll] = np.mean(inten)
+            if get_peak:
+                intens[ll] = np.nanmax(inten)
+            else:
+                intens[ll] = np.nanmean(inten)
         intensdist = {'x': cutslit['dist'], 'y': intens}
         return intensdist
 
@@ -1618,7 +1621,7 @@ class Stackplot:
         with open('{}'.format(outfile), 'wb') as sf:
             pickle.dump(cutslit, sf)
 
-    def make_stackplot(self, mapcube, frm_range=[], threshold=None, gamma=1.0):
+    def make_stackplot(self, mapcube, frm_range=[], threshold=None, gamma=1.0, get_peak=False):
         stackplt = []
         print('making the stack plot...')
         if type(frm_range) is list:
@@ -1650,7 +1653,7 @@ class Stackplot:
                 data = data ** gamma
                 maplist.append(sunpy.map.Map(data.data, mapcube[idx].meta))
                 intens = getimprofile(data, self.cutslitbd.cutslitplt, xrange=smap.xrange.to(u.arcsec).value,
-                                      yrange=smap.yrange.to(u.arcsec).value)
+                                      yrange=smap.yrange.to(u.arcsec).value, get_peak=get_peak)
                 stackplt.append(intens['y'])
             else:
                 stackplt.append(np.zeros_like(self.cutslitbd.cutslitplt['dist']) * np.nan)
@@ -1688,10 +1691,8 @@ class Stackplot:
         self.plot_stackplot(refresh=False, **kwargs)
 
     def plot_stackplot(self, mapcube=None, hdr=False, norm=None, vmax=None, vmin=None, cmap=None, layout_vert=False,
-                       diff=False,
-                       uni_cm=True, sav_img=False,
-                       out_dir=None, dpi=100, anim=False, frm_range=[], cutslitplt=None, silent=False, refresh=True,
-                       threshold=None, gamma=1.0):
+                       diff=False, uni_cm=True, sav_img=False, out_dir=None, dpi=100, anim=False, frm_range=[],
+                       cutslitplt=None, silent=False, refresh=True, threshold=None, gamma=1.0, get_peak=False):
         if mapcube:
             try:
                 mapcube_plot = deepcopy(mapcube)
@@ -1710,11 +1711,12 @@ class Stackplot:
         if not isinstance(mapcube_plot, sunpy.map.mapcube.MapCube):
             print('mapcube must be a instance of sunpy.map.mapcube.MapCube')
             return
-            maplist = []
-            for idx, smap in enumerate(tqdm(mapcube_plot)):
-                smap = DButil.sdo_aia_scale_hdr(smap)
-                maplist.append(sunpy.map.Map(smap.data, mapcube_plot[idx].meta))
-            mapcube_plot = sunpy.map.Map(maplist, cube=True)
+            if hdr:
+                maplist = []
+                for idx, smap in enumerate(tqdm(mapcube_plot)):
+                    # smap = DButil.sdo_aia_scale_hdr(smap)
+                    maplist.append(sunpy.map.Map(smap.data, mapcube_plot[idx].meta))
+                mapcube_plot = sunpy.map.Map(maplist, cube=True)
         if type(frm_range) is list:
             if len(frm_range) == 2:
                 if not (0 <= frm_range[0] < len(mapcube_plot)):
@@ -1724,7 +1726,8 @@ class Stackplot:
             else:
                 frm_range = [0, len(mapcube_plot)]
         if refresh:
-            mapcube_plot = self.make_stackplot(mapcube_plot, frm_range=frm_range, threshold=threshold, gamma=gamma)
+            mapcube_plot = self.make_stackplot(mapcube_plot, frm_range=frm_range, threshold=threshold, gamma=gamma,
+                                               get_peak=get_peak)
         if layout_vert:
             fig_mapcube = plt.figure(figsize=(7, 7))
         else:
