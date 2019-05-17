@@ -28,7 +28,6 @@ def headerfix(header, PC_coor=True):
     for k in header:
         if k.upper().startswith('PC'):
             if not k.upper().startswith('PC0'):
-                print(k)
                 pcidxs = k.upper().replace('PC', '')
                 hd_ = 'PC0' + pcidxs
                 keys2remove.append(k)
@@ -683,7 +682,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             # update the fits header to heliocentric coordinates
 
             hdu = pyfits.open(fitsf, mode='update')
-
+            hdu[0].verify('fix')
             header = hdu[0].header
             (cdelt1, cdelt2) = (
                 -header['cdelt1'] * 3600., header['cdelt2'] * 3600.)  # Original CDELT1, 2 are for RA and DEC in degrees

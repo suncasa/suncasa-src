@@ -37,6 +37,13 @@ from suncasa.utils import plot_mapX as pmX
 import warnings
 
 
+def warn(*args, **kwargs):
+    pass
+
+
+warnings.warn = warn
+
+
 def msclearhistory(msfile):
     from taskinit import tb
     tb.open(msfile + '/HISTORY', nomodify=False)
@@ -512,7 +519,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     # ax.set_position(mpl.transforms.Bbox([[x0_new, y0_new], [x1_new, y1_new]]))
                     ax.xaxis.set_visible(False)
                 divider = make_axes_locatable(ax)
-                cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
+                cax_spec = divider.append_axes('right', size='3.0%', pad=0.05)
                 cax_spec.tick_params(direction='in')
                 clb_spec = plt.colorbar(im_spec, ax=ax, cax=cax_spec)
                 clb_spec.set_label('Flux [sfu]')
@@ -535,6 +542,9 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                                                      timtol=12. / 3600. / 24)
                 aiamap = smap.Map(aiafits)
                 aiamap = DButil.normalize_aiamap(aiamap)
+                data = aiamap.data
+                data[data < 1.0] = 1.0
+                aiamap = smap.Map(data, aiamap.meta)
             except:
                 aiamap = None
                 print('error in reading aiafits. Proceed without AIA')
@@ -602,22 +612,23 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                         if n == 0:
                             aiamap_ = pmX.Sunmap(aiamap)
                             aiamap_.imshow(axes=ax, cmap='gray',
-                                           norm=colors.LogNorm(vmin=0.1, vmax=np.nanmax(aiamap.data)))
+                                           norm=colors.LogNorm(vmin=1.0, vmax=np.nanmax(aiamap.data)))
                     else:
                         aiamap_ = pmX.Sunmap(aiamap)
-                        aiamap_.imshow(axes=ax, vmin=0, cmap='gray')
+                        aiamap_.imshow(axes=ax, vmin=1.0, cmap='gray',
+                                       norm=colors.LogNorm(vmin=1.0, vmax=np.nanmax(aiamap.data)))
                     try:
-                        clevels1 = np.linspace(imin, imax, 5)
+                        clevels1 = np.linspace(imin, imax, 3)
                     except:
                         try:
                             clevels1 = np.array(clevels) * np.nanmax(rmap.data)
                         except:
-                            clevels1 = np.linspace(0.2, 0.9, 5) * np.nanmax(rmap.data)
+                            clevels1 = np.linspace(0.5, 1.0, 2) * np.nanmax(rmap.data)
                     rmap_ = pmX.Sunmap(rmap)
                     if nspw > 1:
-                        rmap_.contour(axes=ax, levels=clevels1,
-                                      colors=[colors_spws[n]] * len(clevels1),
-                                      alpha=alpha_cont)
+                        rmap_.contourf(axes=ax, levels=clevels1,
+                                       colors=[colors_spws[n]] * len(clevels1),
+                                       alpha=alpha_cont)
                     else:
                         rmap_.contour(axes=ax, levels=clevels1, cmap=cm.get_cmap(cmap))
                 else:
@@ -652,12 +663,12 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 ax.set_autoscale_on(True)
                 if fov:
                     # pass
-                    if parse_version(sunpy.__version__) > parse_version('0.8.0'):
-                        ax.set_xlim([fov[0][0], fov[1][0]])
-                        ax.set_ylim([fov[0][1], fov[1][1]])
-                    else:
-                        ax.set_xlim(fov[0])
-                        ax.set_ylim(fov[1])
+                    # if parse_version(sunpy.__version__) > parse_version('0.8.0'):
+                    #     ax.set_xlim([fov[0][0], fov[1][0]])
+                    #     ax.set_ylim([fov[0][1], fov[1][1]])
+                    # else:
+                    ax.set_xlim(fov[0])
+                    ax.set_ylim(fov[1])
                 else:
                     ax.set_xlim([-1229, 1229])
                     ax.set_ylim([-1229, 1229])
@@ -686,17 +697,17 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                                        transform=ax.transAxes)
                 timetext.set_text(plttime.iso[:19])
                 ax.set_title(' ')
-                # ax.set_title('spw '+spws_sort[i,n])
-                # ax.text(0.01,0.02, plttime.isot,transform=ax.transAxes,color='white')
                 ax.xaxis.set_visible(False)
                 ax.yaxis.set_visible(False)
         if nspw > 10:
-            divider = make_axes_locatable(ax)
-            cax_freq = divider.append_axes('right', size='1.5%', pad=0.05)
-            cax_freq.tick_params(direction='in')
-            Freqs = [np.mean(fq) for fq in Freq]
-            mpl.colorbar.ColorbarBase(cax_freq, cmap=cmap, norm=colors.Normalize(vmax=Freqs[-1], vmin=Freqs[0]))
-            cax_freq.set_ylabel('Frequency [GHz]')
+            for pol in range(npols):
+                ax = axs[pol]
+                divider = make_axes_locatable(ax)
+                cax_freq = divider.append_axes('right', size='3.0%', pad=0.05)
+                cax_freq.tick_params(direction='in')
+                Freqs = [np.mean(fq) for fq in Freq]
+                mpl.colorbar.ColorbarBase(cax_freq, cmap=cmap, norm=colors.Normalize(vmax=Freqs[-1], vmin=Freqs[0]))
+                cax_freq.set_ylabel('Frequency [GHz]')
         figname = observatory + '_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:19] + '.png'
         # fig_tdt = plttime.to_datetime())
         # fig_subdir = fig_tdt.strftime("%Y/%m/%d/")
@@ -729,24 +740,24 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
               dmax=None, goestime=None,
               reftime='', xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0, niter=500,
               imsize=[512], cell=['5.0arcsec'], mask='',
-              interactive=False, usemsphacenter=True, imagefile=None, rfitsfile=None, plotaia=True, aiawave=171,
+              interactive=False, usemsphacenter=True, imagefile=None, outfits='', plotaia=True, aiawave=171,
               aiafits=None, aiadir=None, savefig=False,
               mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=False, imax=None, imin=None,
-              clearmshistory=False, clevels=None):
+              clearmshistory=False, clevels=None, calpha=0.5):
     '''
     Required inputs:
             vis: calibrated CASA measurement set
     Important optional inputs:
-            timerange: timerange for clean. Standard CASA time selection format. 
+            timerange: timerange for clean. Standard CASA time selection format.
                        If not provided, use the entire range (*BE CAREFUL, COULD BE VERY SLOW*)
-            spw: spectral window selection following the CASA syntax. 
+            spw: spectral window selection following the CASA syntax.
                  Examples: spw='1:2~60' (spw id 1, channel range 2-60); spw='*:1.2~1.3GHz' (selects all channels within 1.2-1.3 GHz; note the *)
                  spw can be a list of spectral windows, i.e, ['0', '1', '2', '3', '4', '5', '6', '7']
             specfile: supply dynamic spectrum save file (from suncasa.utils.dspec.get_dspec()). Otherwise
                       generate a median dynamic spectrum on the fly
     Optional inputs:
             bl: baseline to generate dynamic spectrum
-            uvrange: uvrange to select baselines for generating dynamic spectrum 
+            uvrange: uvrange to select baselines for generating dynamic spectrum
             stokes: polarization of the clean image, can be 'RR,LL' or 'I,V'
             dmin,dmax: color bar parameter
             goestime: goes plot time, example ['2016/02/18 18:00:00','2016/02/18 23:00:00']
@@ -755,11 +766,11 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
             xycen: center of the image in helioprojective coordinates (HPLN/HPLT), in arcseconds. Example: [900, -150.]
             mask: only accept CASA region format (https://casaguides.nrao.edu/index.php/CASA_Region_Format)
             fov: field of view in arcsecs. Example: [500., 500.]
-            xyrange: field of view in solar XY coordinates. Format: [[x1,x2],[y1,y2]]. Example: [[900., 1200.],[0,300]] 
+            xyrange: field of view in solar XY coordinates. Format: [[x1,x2],[y1,y2]]. Example: [[900., 1200.],[0,300]]
                      ***NOTE: THIS PARAMETER OVERWRITES XYCEN AND FOV***
             aiawave: wave length of aia file in a
             imagefile: if imagefile provided, use it. Otherwise do clean and generate a new one.
-            fitsfile: if fitsfile provided, use it. Otherwise generate a new one
+            outfits: if outfits provided, use it. Otherwise generate a new one
             savefig: whether to save the figure
             imax/imin: maximum/minimum value for radio image scaling
             clevels: clevels for the contours
@@ -909,7 +920,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
     if mkmovie:
         plt.ioff()
         # fig = plt.figure(figsize=(12, 7.5), dpi=100)
-        if rfitsfile:
+        if outfits:
             pass
         else:
             eph = hf.read_horizons(t0=Time(midtime_mjd, format='mjd'))
@@ -964,7 +975,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                 os.makedirs(qlookfigdir)
             plt_qlook_image(imres, timerange=timerange, figdir=qlookfigdir, specdata=specdata, verbose=True,
                             stokes=stokes, fov=xyrange, imax=imax, imin=imin, dmax=dmax, dmin=dmin, aiafits=aiafits,
-                            aiawave=aiawave, aiadir=aiadir, plotaia=plotaia)
+                            aiawave=aiawave, aiadir=aiadir, plotaia=plotaia, alpha_cont=calpha)
 
     else:
         cfreqs = []
@@ -977,9 +988,9 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
         spec_tim = Time(specdata['tim'] / 3600. / 24., format='mjd')
         timstrr = spec_tim.plot_date
         plt.ion()
-        fig = plt.figure(figsize=(12, 7), dpi=100)
+        fig = plt.figure(figsize=(11.65, 8.74), dpi=100)
         ax1 = plt.subplot2grid((6, 8), (0, 0), rowspan=2, colspan=2)
-        ax2 = plt.subplot2grid((6, 8), (2, 0), rowspan=2, colspan=2)
+        ax2 = plt.subplot2grid((6, 8), (2, 0), rowspan=2, colspan=2, sharex=ax1, sharey=ax1)
         ax3 = plt.subplot2grid((6, 8), (4, 0), rowspan=2, colspan=2)
         ax4 = plt.subplot2grid((6, 8), (0, 2), rowspan=3, colspan=3)
         ax5 = plt.subplot2grid((6, 8), (3, 2), rowspan=3, colspan=3)
@@ -1002,28 +1013,27 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
             else:
                 specs[pols[0]] = np.absolute(spec[0, 0, :, :])
 
-        print('plot the dynamic spectrum in pol ' + ' & '.join(stokes))
+        print('plot the dynamic spectrum in pol ' + ' & '.join(pols))
 
         axs = [ax1, ax2]
         for axidx, ax in enumerate(axs):
             if axidx < npol_in:
                 ax.pcolormesh(timstrr, freqghz, specs[pols[axidx]], cmap='jet', vmin=dmin, vmax=dmax, rasterized=True)
-            ax.set_xlim(timstrr[0], timstrr[-1])
-            ax.xaxis_date()
-            ax.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
-            locator = mpl.dates.AutoDateLocator()
-            ax.xaxis.set_major_locator(locator)
-            for tick in ax.get_xticklabels():
-                tick.set_rotation(30)
-            ax.set_ylim(freqghz[0], freqghz[-1])
-            ax.set_ylabel('Frequency (GHz)', fontsize=9)
-            if axidx == 0:
-                ax.set_title(observatory + ' ' + datstr + ' ' + ' & '.join(stokes), fontsize=9)
+                ax.set_title(observatory + ' ' + datstr + ' ' + pols[axidx], fontsize=9)
             ax.set_autoscale_on(True)
             ax.add_patch(patches.Rectangle((bt, bfreqghz), et - bt, efreqghz - bfreqghz, ec='w', fill=False))
             ax.plot([(bt + et) / 2.], [(bfreqghz + efreqghz) / 2.], '*w', ms=12)
             for tick in ax.get_xticklabels():
+                tick.set_rotation(30)
                 tick.set_fontsize(8)
+            ax.set_ylabel('Frequency (GHz)', fontsize=9)
+            if axidx == 1:
+                ax.xaxis_date()
+                ax.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
+                locator = mpl.dates.AutoDateLocator()
+                ax.xaxis.set_major_locator(locator)
+                ax.set_xlim(timstrr[0], timstrr[-1])
+                ax.set_ylim(freqghz[0], freqghz[-1])
 
         # import pdb
         # pdb.set_trace()
@@ -1108,6 +1118,10 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
             try:
                 aiafits = newlist[0]
                 aiamap = smap.Map(aiafits)
+                aiamap = DButil.normalize_aiamap(aiamap)
+                data = aiamap.data
+                data[data < 1.0] = 1.0
+                aiamap = smap.Map(data, aiamap.meta)
             except:
                 print('error in reading aiafits. Proceed without AIA')
 
@@ -1118,7 +1132,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
         # ax6 = plt.subplot(gs2[0, 1], sharex=ax4, sharey=ax4)
         # ax7 = plt.subplot(gs2[1, 1], sharex=ax5, sharey=ax5)
 
-        if rfitsfile:
+        if (os.path.exists(outfits)) and (not overwrite):
             pass
         else:
             if not imagefile:
@@ -1154,7 +1168,22 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
 
                 if nspws > 1:
                     imagefiles, fitsfiles = [], []
+                    if restoringbeam == ['']:
+                        restoringbm = ['']
+                    else:
+                        tb.open(vis + '/SPECTRAL_WINDOW')
+                        reffreqs = tb.getcol('REF_FREQUENCY')
+                        bdwds = tb.getcol('TOTAL_BANDWIDTH')
+                        cfreqs = reffreqs + bdwds / 2.
+                        tb.close()
+                        sbeam = 35.
                     for sp in spw:
+                        if not restoringbeam == ['']:
+                            try:
+                                cfreq = cfreqs[int(sp)]
+                                restoringbm = [str(max(sbeam * cfreqs[1] / cfreq, 10.)) + 'arcsec']
+                            except:
+                                restoringbm = restoringbeam
                         spwran = [s.zfill(2) for s in sp.split('~')]
                         if len(spwran) == 2:
                             spstr = spwran[0] + '~' + spwran[1]
@@ -1164,13 +1193,14 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                         if os.path.exists(imagename + '.image') or os.path.exists(imagename + '.flux'):
                             os.system('rm -rf ' + imagename + '.*')
                         sto = stokes.replace(',', '')
+
                         print('do clean for ' + timerange + ' in spw ' + sp + ' stokes ' + sto)
                         print('Original phasecenter: ' + str(ra0) + str(dec0))
                         print('use phasecenter: ' + phasecenter)
-
+                        print('use beamsize {}'.format(restoringbm))
                         clean(vis=vis, imagename=imagename, selectdata=True, spw=sp, timerange=timerange, stokes=sto,
                               niter=niter, interactive=interactive, mask=mask, uvrange=uvrange,
-                              npercycle=50, imsize=imsize, cell=cell, restoringbeam=restoringbeam, weighting='briggs',
+                              npercycle=50, imsize=imsize, cell=cell, restoringbeam=restoringbm, weighting='briggs',
                               robust=robust, phasecenter=phasecenter)
 
                         os.system('rm -rf ' + imagename + '.psf')
@@ -1179,31 +1209,32 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                         os.system('rm -rf ' + imagename + '.mask')
                         os.system('rm -rf ' + imagename + '.residual')
                         imagefile = imagename + '.image'
-                        rfitsfile = imagefile + '.fits'
+                        ofits = imagefile + '.fits'
                         imagefiles.append(imagefile)
-                        fitsfiles.append(rfitsfile)
+                        fitsfiles.append(ofits)
                     hf.imreg(vis=vis, imagefile=imagefiles, timerange=[timerange] * len(imagefiles), reftime=reftime,
                              fitsfile=fitsfiles,
                              verbose=verbose, overwrite=True, scl100=True, toTb=True)
                     print('fits file ' + ','.join(fitsfiles) + ' selected')
                     from suncasa.utils import fits_wrap as fw
-                    rfitsfile = visname + '.outim.image.fits'
-                    fw.fits_wrap_spwX(fitsfiles, outfitsfile=rfitsfile)
+                    if not outfits:
+                        outfits = visname + '.outim.image.fits'
+                    fw.fits_wrap_spwX(fitsfiles, outfitsfile=outfits)
                     warnings.warn(
                         "If the provided spw is not equally spaced, the frequency information of the fits file {} that combining {} could be a wrong. Use it with caution!".format(
-                            rfitsfile, ','.join(fitsfiles)))
+                            outfits, ','.join(fitsfiles)))
 
                 else:
                     imagename = os.path.join(workdir, visname + '.outim')
                     if os.path.exists(imagename + '.image') or os.path.exists(imagename + '.flux'):
                         os.system('rm -rf ' + imagename + '.*')
                     sto = stokes.replace(',', '')
-                    spw = ';'.join(spw)
-                    print('do clean for ' + timerange + ' in spw ' + spw + ' stokes ' + sto)
+                    print('do clean for ' + timerange + ' in spw ' + ';'.join(spw) + ' stokes ' + sto)
                     print('Original phasecenter: ' + str(ra0) + str(dec0))
                     print('use phasecenter: ' + phasecenter)
 
-                    clean(vis=vis, imagename=imagename, selectdata=True, spw=spw, timerange=timerange, stokes=sto,
+                    clean(vis=vis, imagename=imagename, selectdata=True, spw=';'.join(spw), timerange=timerange,
+                          stokes=sto,
                           niter=niter, interactive=interactive, mask=mask, uvrange=uvrange,
                           npercycle=50, imsize=imsize, cell=cell, restoringbeam=restoringbeam, weighting='briggs',
                           robust=robust, phasecenter=phasecenter)
@@ -1214,23 +1245,25 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                     os.system('rm -rf ' + imagename + '.mask')
                     os.system('rm -rf ' + imagename + '.residual')
                     imagefile = imagename + '.image'
-                    rfitsfile = imagefile + '.fits'
+                    if not outfits:
+                        outfits = imagefile + '.fits'
                     hf.imreg(vis=vis, imagefile=imagefile, timerange=timerange, reftime=reftime,
-                             fitsfile=rfitsfile,
+                             fitsfile=outfits,
                              verbose=verbose, overwrite=True, scl100=True, toTb=True)
-                    print('fits file ' + rfitsfile + ' selected')
+                    print('fits file ' + outfits + ' selected')
             else:
-                rfitsfile = imagefile + '.fits'
+                if not outfits:
+                    outfits = imagefile + '.fits'
                 hf.imreg(vis=vis, imagefile=imagefile, timerange=timerange, reftime=reftime,
-                         fitsfile=rfitsfile,
+                         fitsfile=outfits,
                          verbose=verbose, overwrite=True, scl100=True, toTb=True)
-                print('fits file ' + rfitsfile + ' selected')
+                print('fits file ' + outfits + ' selected')
         ax4.cla()
         ax5.cla()
         ax6.cla()
         ax7.cla()
 
-        rfits = rfitsfile
+        rfits = outfits
         # if nspws>1:
         #     pass
         # else:
@@ -1327,15 +1360,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                         clvls[pol] = np.array(clevels)
 
         if 'aiamap' in vars():
-            if rmap:
-                if nspws < 2:
-                    title = 'AIA {0:.0f} + {1} {2:6.3f} GHz'.format(aiamap.wavelength.value, observatory,
-                                                                    (bfreqghz + efreqghz) / 2.0)
-                else:
-                    title = 'AIA {0:.0f} + {1} multi spw {2:6.3f} GHz'.format(aiamap.wavelength.value, observatory,
-                                                                              (bfreqghz + efreqghz) / 2.0)
-            else:
-                title = 'AIA {0:.0f}'.format(aiamap.wavelength.value)
+            title0 = 'AIA {0:.0f}'.format(aiamap.wavelength.value)
             aiamap_ = pmX.Sunmap(aiamap)
 
             axs = [ax4, ax6]
@@ -1343,7 +1368,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
             aiamap_.draw_grid(axes=axs)
             aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=colors.LogNorm(vmin=1.0))
             for axidx, ax in enumerate(axs):
-                ax.set_title(title + ' ' + pol, fontsize=9)
+                ax.set_title(title0, fontsize=9)
                 rect = mpl.patches.Rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value, edgecolor='w',
                                              facecolor='none')
                 ax.add_patch(rect)
@@ -1351,7 +1376,6 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
             axs = [ax5, ax7]
             aiamap_.draw_limb(axes=axs)
             aiamap_.draw_grid(axes=axs)
-            # for axidx, ax in enumerate(axs):
             aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=colors.LogNorm(vmin=1.0))
 
             axs = [[ax4, ax5], [ax6, ax7]]
@@ -1362,19 +1386,19 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                     rmap_plt_ = pmX.Sunmap(rmap_plt)
                     rmap_plt_.contourf(axes=[axs[pidx][0], axs[pidx][1]], colors=rcmap,
                                        levels=clvls[pol] * np.nanmax(rmap_plt.data),
-                                       alpha=0.2)
-                    axs[pidx][0].set_title(title + ' ' + pols[0], fontsize=9)
+                                       alpha=calpha)
                     rmap_plt_.draw_limb(axes=[axs[pidx][0], axs[pidx][1]])
                     rmap_plt_.draw_grid(axes=[axs[pidx][0], axs[pidx][1]])
                     if s == 0:
+                        if nspws < 2:
+                            title = title0 + ' {0} {1:6.3f} GHz'.format(observatory, (bfreqghz + efreqghz) / 2.0)
+                        else:
+                            title = title0 + ' {0} multi spws'.format(observatory)
+                        axs[pidx][0].set_title(title + ' ' + pols[pidx], fontsize=9)
                         rect = mpl.patches.Rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value,
                                                      edgecolor='w',
                                                      facecolor='none')
                         axs[pidx][0].add_patch(rect)
-                    # rmap_plt_.contourf(axes=axs[pidx][1], colors=rcmap, levels=clvls[pol] * np.nanmax(rmap_plt.data),
-                    #                    alpha=0.2)
-                    # rmap_plt_.draw_limb(axes=axs[pidx][1])
-                    # rmap_plt_.draw_grid(axes=axs[pidx][1])
 
             ax4.text(0.02, 0.02, 'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'),
                      verticalalignment='bottom',
@@ -1390,7 +1414,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                     rmap_plt = smap.Map(datas[pol][0, :, :], hdu.header)
                     rmap_plt_ = pmX.Sunmap(rmap_plt)
                     rmap_plt_.imshow(axes=[axs[pidx][0], axs[pidx][1]], cmap=cmaps[pol])
-                    axs[pidx][0].set_title(title + ' ' + pols[0], fontsize=9)
+                    axs[pidx][0].set_title(title + ' ' + pols[pidx], fontsize=9)
                     rmap_plt_.draw_limb(axes=[axs[pidx][0], axs[pidx][1]])
                     rmap_plt_.draw_grid(axes=[axs[pidx][0], axs[pidx][1]])
                     rect = mpl.patches.Rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value, edgecolor='w',
@@ -1407,8 +1431,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                         rmap_plt = smap.Map(datas[pol][s, :, :], hdu.header)
                         rmap_plt_ = pmX.Sunmap(rmap_plt)
                         rmap_plt_.contourf(axes=[axs[pidx][0], axs[pidx][1]], colors=rcmap,
-                                           levels=clvls[pol] * np.nanmax(rmap_plt.data), alpha=0.2)
-                        axs[pidx][0].set_title(title + ' ' + pols[0], fontsize=9)
+                                           levels=clvls[pol] * np.nanmax(rmap_plt.data), alpha=calpha)
+                        axs[pidx][0].set_title(title + ' ' + pols[pidx], fontsize=9)
                         rmap_plt_.draw_limb(axes=[axs[pidx][0], axs[pidx][1]])
                         rmap_plt_.draw_grid(axes=[axs[pidx][0], axs[pidx][1]])
                         if s == 0:
@@ -1417,7 +1441,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                                                          facecolor='none')
                             axs[pidx][0].add_patch(rect)
                         # rmap_plt_.contourf(axes=axs[pidx][1], colors=rcmap,
-                        #                    levels=clvls[pol] * np.nanmax(rmap_plt.data), alpha=0.2)
+                        #                    levels=clvls[pol] * np.nanmax(rmap_plt.data), alpha=calpha)
                         # rmap_plt_.draw_limb(axes=axs[pidx][1])
                         # rmap_plt_.draw_grid(axes=axs[pidx][1])
 
@@ -1425,10 +1449,10 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
         ax6.set_ylim(-1229, 1229)
         ax7.set_xlim(xyrange[0])
         ax7.set_ylim(xyrange[1])
-        ax6.set_ylabel([])
-        ax6.set_yticklabels([])
-        ax7.set_ylabel([])
-        ax7.set_yticklabels([])
+        ax4.set_ylabel('')
+        # ax6.set_yticklabels([])
+        ax5.set_ylabel('')
+        # ax7.set_yticklabels([])
         ax5.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f')[:-3], verticalalignment='bottom',
                  horizontalalignment='left',
                  transform=ax5.transAxes, color='k', fontsize=9)
@@ -1468,7 +1492,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                 cb = colorbar.ColorbarBase(cax, norm=colors.Normalize(vmax=cfreqs[-1], vmin=cfreqs[0]),
                                            cmap=plt.cm.RdYlBu,
                                            orientation='vertical', boundaries=bounds, spacing='uniform', ticks=ticks,
-                                           format='%4.1f', alpha=0.8)
+                                           format='%4.1f', alpha=calpha)
                 ax.text(0.5, 1.04, 'MW', ha='center', va='bottom', transform=cax.transAxes, color='k',
                         fontweight='normal')
                 ax.text(0.5, 1.01, '[GHz]', ha='center', va='bottom', transform=cax.transAxes, color='k',
@@ -1480,3 +1504,4 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
 
         fig.canvas.draw_idle()
         fig.show()
+    return outfits
