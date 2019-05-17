@@ -348,7 +348,7 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
     # print res
     t1 = time.time()
     timelapse = t1 - t0
-    print 'It took %f secs to complete' % timelapse
+    print('It took %f secs to complete' % timelapse)
 
     # results = pd.DataFrame({'succeeded': [], 'msfile': [], 'durtim': []})
     # for r in res:

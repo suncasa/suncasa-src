@@ -9,7 +9,63 @@ from taskinit import ms, tb, qa
 import matplotlib.dates as mdates
 from matplotlib.dates import date2num, AutoDateFormatter, AutoDateLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-# get something changed
+
+stokestype = [
+    'Undefined',
+    # undefined value = 0
+    'I',
+    'Q',
+    'U',
+    # standard stokes parameters
+    'V',
+    #
+    'RR',
+    'RL',
+    'LR',
+    # circular correlation products
+    'LL',
+    #
+    'XX',
+    'XY',
+    'YX',
+    # linear correlation products
+    'YY',
+    #
+    'RX',
+    'RY',
+    'LX',
+    'LY',
+    'XR',
+    'XL',
+    'YR',
+    # mixed correlation products
+    'YL',
+    #
+    'PP',
+    'PQ',
+    'QP',
+    # general quasi-orthogonal correlation products
+    'QQ',
+    #
+    'RCircular',
+    'LCircular',
+    # single dish polarization types
+    'Linear',
+    # Polarized intensity ((Q^2+U^2+V^2)^(1/2))
+    'Ptotal',
+    # Linearly Polarized intensity ((Q^2+U^2)^(1/2))
+    'Plinear',
+    # Polarization Fraction (Ptotal/I)
+    'PFtotal',
+    # Linear Polarization Fraction (Plinear/I)
+    'PFlinear',
+    # Linear Polarization Angle (0.5 arctan(U/Q)) (in radians)
+    'Pangle']
+
+stokesenum = {}
+for k, v in zip(range(len(stokestype)), stokestype):
+    stokesenum[k] = v
+
 
 def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='', scan='', datacolumn='data',
               domedian=False, timeran=None, spw=None, timebin='0s', verbose=False):
@@ -29,7 +85,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
         uvrange = ''
     # Open the ms and plot dynamic spectrum
     if verbose:
-        print 'Splitting selected data...'
+        print('Splitting selected data...')
     vis_spl = './tmpms.splitted'
     if os.path.exists(vis_spl):
         os.system('rm -rf ' + vis_spl)
@@ -38,12 +94,18 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
     ms.split(outputms=vis_spl, whichcol=datacolumn, time=timeran, spw=spw, baseline=bl, field=field, scan=scan,
              uvrange=uvrange, timebin=timebin)
     ms.close()
+    try:
+        tb.open(vis_spl + '/POLARIZATION')
+        corrtype = tb.getcell('CORR_TYPE', 0)
+        pols = [stokesenum[p] for p in corrtype]
+    except:
+        pols = []
     # split(vis=msfile, outputvis=vis_spl, timerange=timeran, antenna=bl, field=field, scan=scan, spw=spw,
     #       uvrange=uvrange, timebin=timebin, datacolumn=datacolumn)
     ms.open(vis_spl, nomodify=False)
     if verbose:
-        print 'Regridding into a single spectral window...'
-        # print 'Reading data spw by spw'
+        print('Regridding into a single spectral window...')
+        # print('Reading data spw by spw')
     ms.cvel(outframe='LSRK', mode='frequency', interp='nearest')
     ms.selectinit(datadescid=0, reset=True)
     data = ms.getdata(['amplitude', 'time', 'axis_info'], ifraxis=True)
@@ -52,7 +114,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
     specamp = data['amplitude']
     (npol, nfreq, nbl, ntim) = specamp.shape
     if verbose:
-        print 'npol, nfreq, nbl, ntime:', data['amplitude'].shape
+        print('npol, nfreq, nbl, ntime:', data['amplitude'].shape)
     spec = np.swapaxes(specamp, 2, 1)
     freq = data['axis_info']['freq_axis']['chan_freq'].reshape(nfreq)
     tim = data['time']
@@ -74,11 +136,12 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
         if os.path.exists(specfile):
             os.system('rm -rf ' + specfile)
         np.savez(specfile, spec=ospec, tim=tim, freq=freq,
-                 timeran=timeran, spw=spw, bl=bl, uvrange=uvrange)
+                 timeran=timeran, spw=spw, bl=bl, uvrange=uvrange, pol=pols)
         if verbose:
-            print 'Median dynamic spectrum saved as: ' + specfile
+            print('Median dynamic spectrum saved as: ' + specfile)
 
-    return {'spec': ospec, 'tim': tim, 'freq': freq, 'timeran': timeran, 'spw': spw, 'bl': bl, 'uvrange': uvrange}
+    return {'spec': ospec, 'tim': tim, 'freq': freq, 'timeran': timeran, 'spw': spw, 'bl': bl, 'uvrange': uvrange,
+            'pol': pols}
 
 
 def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
@@ -101,8 +164,8 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
     import numpy
     from numpy import log10
     from astropy.time import Time
-    if pol != 'RR' and pol != 'LL' and pol != 'RRLL' and pol != 'I' and pol != 'V' and pol != 'IV':
-        print "Please enter 'RR', 'LL', 'RRLL', 'I', 'V', 'IV' for pol"
+    if pol not in ['RR', 'LL', 'RRLL', 'XX', 'YY', 'XXYY', 'I', 'V', 'IV']:
+        print("Please enter 'RR', 'LL', 'RRLL','XX', 'YY', 'XXYY', 'I', 'V', 'IV' for pol")
         return 0
 
     if type(specdata) is str:
@@ -110,17 +173,22 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
         bl = specdata['bl'].item()
     try:
         (npol, nbl, nfreq, ntim) = specdata['spec'].shape
-        spec = specdata['spec']
+        spec = specdata['spec']/1.e4
         tim = specdata['tim']
         tim_ = Time(tim / 3600. / 24., format='mjd')
         tim_plt = tim_.plot_date
         freq = specdata['freq']
         if not 'bl' in vars():
             bl = specdata['bl']
+
     except:
         print('format of specdata not recognized. Check your input')
         return -1
 
+    if 'pol' in specdata.keys():
+        pols = specdata['pol']
+    else:
+        pols = []
     if timerange:
         if type(timerange[0]) is str:
             timerange = [qa.convert(qa.quantity(t), 's')['value'] for t in timerange]
@@ -133,7 +201,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
         fidx = range(nfreq)
 
     # setup plot parameters
-    print 'ploting dynamic spectrum...'
+    print('ploting dynamic spectrum...')
     spec_med = np.median(np.absolute(spec))
     # if not dmin:
     #    dmin = spec_med / 20.
@@ -141,15 +209,21 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
     #    dmax = spec_med * 5.
     # do the plot
     for b in range(nbl):
-        if pol != 'RRLL' and pol != 'IV':
-            if pol == 'RR':
+        if pol not in ['RRLL', 'IV', 'XXYY']:
+            if pol in ['RR', 'XX']:
                 spec_plt = spec[0, b, :, :]
-            elif pol == 'LL':
+            elif pol in ['LL', 'YY']:
                 spec_plt = spec[1, b, :, :]
             elif pol == 'I':
-                spec_plt = (spec[0, b, :, :] + spec[1, b, :, :]) / 2.
+                if ('XX' in pols) or ('YY' in pols):
+                    spec_plt = spec[0, b, :, :] + spec[1, b, :, :]
+                else:
+                    spec_plt = (spec[0, b, :, :] + spec[1, b, :, :]) / 2.
             elif pol == 'V':
-                spec_plt = (spec[0, b, :, :] - spec[1, b, :, :]) / 2.
+                if ('XX' in pols) or ('YY' in pols):
+                    spec_plt = spec[0, b, :, :] - spec[1, b, :, :]
+                else:
+                    spec_plt = (spec[0, b, :, :] - spec[1, b, :, :]) / 2.
             if movie:
                 fig = plt.figure(figsize=(16, 8), dpi=100)
                 if goessav:
@@ -172,10 +246,10 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 tstartstr = qa.time(qa.quantity(tstart, 's'))[0]
                 tendstr = qa.time(qa.quantity(tend, 's'))[0]
                 nfrm = int((tend - tstart) / dtframe) + 1
-                print 'Movie mode set. ' + str(nfrm) + ' frames to plot from ' + tstartstr + ' to ' + tendstr
+                print('Movie mode set. ' + str(nfrm) + ' frames to plot from ' + tstartstr + ' to ' + tendstr)
                 for i in range(nfrm):
                     if (i != 0) and (i % 10 == 0):
-                        print str(i) + ' frames done'
+                        print(str(i) + ' frames done')
                     timeran = [tstart + i * dtframe, tstart + i * dtframe + framedur]
                     tidx1 = np.where((tim >= timeran[0]) & (tim <= timeran[1]))[0]
                     tim1 = tim_[tidx1]
@@ -190,7 +264,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                         # date_format = mdates.DateFormatter('%H:%M:%S.%f')
                         # ax1.xaxis_date()
                         # ax1.xaxis.set_major_formatter(date_format)
-                        locator = AutoDateLocator()
+                        locator = AutoDateLocator(minticks=2)
                         ax1.xaxis.set_major_locator(locator)
                         ax1.xaxis.set_major_formatter(AutoDateFormatter(locator))
                     ax1.set_autoscale_on(False)
@@ -270,7 +344,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                     # date_format = mdates.DateFormatter('%H:%M:%S.%f')
                     # ax.xaxis_date()
                     # ax.xaxis.set_major_formatter(date_format)
-                    locator = AutoDateLocator()
+                    locator = AutoDateLocator(minticks=2)
                     ax.xaxis.set_major_locator(locator)
                     ax.xaxis.set_major_formatter(AutoDateFormatter(locator))
                 ax.set_autoscale_on(False)
@@ -281,10 +355,10 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
             L_plot = np.absolute(spec[1, b, :, :])
             I_plot = (R_plot + L_plot) / 2.
             V_plot = (R_plot - L_plot) / 2.
-            if pol == 'RRLL':
+            if pol in ['RRLL', 'XXYY']:
                 spec_plt_1 = R_plot
                 spec_plt_2 = L_plot
-                polstr = ['RR', 'LL']
+                polstr = [pol[:2], pol[2:]]
             if pol == 'IV':
                 spec_plt_1 = I_plot
                 spec_plt_2 = V_plot
@@ -292,11 +366,11 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
 
             ax1 = fig.add_subplot(211)
             freqghz = freq / 1e9
-            ax1.pcolormesh(tim_plt, freqghz, spec_plt_1, cmap='jet', vmin=dmin, vmax=dmax)
+            im = ax1.pcolormesh(tim_plt, freqghz, spec_plt_1, cmap='jet', vmin=dmin, vmax=dmax)
             divider = make_axes_locatable(ax1)
             cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
             clb_spec = plt.colorbar(im, ax=ax1, cax=cax_spec)
-            clb_spec.set_label('Flux [Jy/Beam]')
+            clb_spec.set_label('Flux [sfu]')
 
             ax1.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
             ax1.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
@@ -306,7 +380,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 row = np.argmin(np.absolute(freqghz - y))
                 if col >= 0 and col < ntim and row >= 0 and row < nfreq:
                     timstr = tim_[col].isot
-                    flux = spec_plt[row, col]
+                    flux = spec_plt_1[row, col]
                     return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} Jy'.format(col, timstr, y, flux)
                 else:
                     return 'x = {0}, y = {1:.3f}'.format(x, y)
@@ -317,24 +391,24 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 # date_format = mdates.DateFormatter('%H:%M:%S.%f')
                 # ax1.xaxis_date()
                 # ax1.xaxis.set_major_formatter(date_format)
-                locator = AutoDateLocator()
+                locator = AutoDateLocator(minticks=2)
                 ax1.xaxis.set_major_locator(locator)
                 ax1.xaxis.set_major_formatter(AutoDateFormatter(locator))
             ax1.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[0])
             ax1.set_autoscale_on(False)
             ax2 = fig.add_subplot(212)
-            ax2.pcolormesh(tim_plt, freqghz, spec_plt_2, cmap='jet', vmin=dmin, vmax=dmax)
+            im = ax2.pcolormesh(tim_plt, freqghz, spec_plt_2, cmap='jet', vmin=dmin, vmax=dmax)
             divider = make_axes_locatable(ax2)
             cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
             clb_spec = plt.colorbar(im, ax=ax2, cax=cax_spec)
-            clb_spec.set_label('Flux [Jy/Beam]')
+            clb_spec.set_label('Flux [sfu]')
             ax2.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
             ax2.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
             if timestr:
                 # date_format = mdates.DateFormatter('%H:%M:%S.%f')
                 # ax2.xaxis_date()
                 # ax2.xaxis.set_major_formatter(date_format)
-                locator = AutoDateLocator()
+                locator = AutoDateLocator(minticks=2)
                 ax2.xaxis.set_major_locator(locator)
                 ax2.xaxis.set_major_formatter(AutoDateFormatter(locator))
 
@@ -343,7 +417,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 row = np.argmin(np.absolute(freqghz - y))
                 if col >= 0 and col < ntim and row >= 0 and row < nfreq:
                     timstr = tim_[col].isot
-                    flux = spec_plt[row, col]
+                    flux = spec_plt_2[row, col]
                     return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} Jy'.format(col, timstr, y, flux)
                 else:
                     return 'x = {0}, y = {1:.3f}'.format(x, y)
@@ -353,20 +427,22 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
             ax2.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[1])
             ax2.set_autoscale_on(False)
 
+        fig.tight_layout()
+
 
 def wrt_dspec(specfile=None, specdat=None):
     try:
         specfile
     except NameError:
-        print 'No input centfile specified for reading. Aborting...'
+        print('No input centfile specified for reading. Aborting...')
     if not specdat:
-        print 'Output file name is not specified, use the default convention'
+        print('Output file name is not specified, use the default convention')
         specdat = specfile.replace('npz', 'dat')
     specdata = np.load(specfile)
     spec = np.copy(specdata['spec'][:, :, :, :])
     npl, nbl, nf, nt = spec.shape
-    print 'Dimension of the data cube -- # of pol, # of baseline, # of frequency, # of time:'
-    print npl, nbl, nf, nt
+    print('Dimension of the data cube -- # of pol, # of baseline, # of frequency, # of time:')
+    print(npl, nbl, nf, nt)
     nele = npl * nbl * nf * nt
     # need to transpose to nf, nt, npl, nbl
     spec = np.transpose(spec, (2, 3, 0, 1))
