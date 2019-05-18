@@ -20,7 +20,7 @@ def msclearhistory(msfile):
     tb.close()
 
 
-def getphasecenter(vis, timerange='', xycen=None, usemsphacenter=True):
+def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=True):
     '''
 
     :param vis:
