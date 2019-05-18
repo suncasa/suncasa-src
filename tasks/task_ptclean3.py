@@ -41,7 +41,7 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
                 qa.time(qa.quantity(et_d, 's'), prec=9, form='ymd')[0]
     btstr = qa.time(qa.quantity(bt_d, 's'), prec=9, form='fits')[0]
     etstr = qa.time(qa.quantity(et_d, 's'), prec=9, form='fits')[0]
-    print 'cleaning timerange: ' + timerange
+    print('cleaning timerange: ' + timerange)
 
     image0 = btstr.replace(':', '').replace('-', '')
     imname = imageprefix + image0 + imagesuffix
@@ -80,15 +80,20 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
                    dogrowprune=dogrowprune, minpercentchange=minpercentchange, verbose=verbose, restart=restart,
                    savemodel=savemodel, calcres=calcres, calcpsf=calcpsf, parallel=parallel)
             # print('checkpoint 3')
-            clnjunks = ['.flux', '.mask', '.model', '.psf', '.residual', '.pb', '.sumwt', '.image.pbcor']
+            if pbcor:
+                clnjunks = ['.flux', '.mask', '.model', '.psf', '.residual', '.pb', '.sumwt', '.image']
+            else:
+                clnjunks = ['.flux', '.mask', '.model', '.psf', '.residual', '.pb', '.sumwt', '.image.pbcor']
             for clnjunk in clnjunks:
                 if os.path.exists(imname + clnjunk):
                     shutil.rmtree(imname + clnjunk)
+            if pbcor:
+                os.system('mv {} {}'.format(imname + '.image.pbcor', imname + '.image'))
         except:
             print('error in cleaning image: ' + btstr)
             return [False, btstr, etstr, '']
     else:
-        print imname + ' exists. Clean task aborted.'
+        print(imname + ' exists. Clean task aborted.')
 
     if doreg and not os.path.isfile(imname + '.fits'):
         # ephem.keys()
@@ -191,20 +196,20 @@ def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
             if tim[etidx] > et_s:
                 etidx -= 1
             if etidx <= btidx:
-                print "ending time must be greater than starting time"
-                print "reinitiating to the entire time range"
+                print("ending time must be greater than starting time")
+                print("reinitiating to the entire time range")
                 btidx = 0
                 etidx = len(tim) - 1
         except ValueError:
-            print "keyword 'timerange' has a wrong format"
+            print("keyword 'timerange' has a wrong format")
 
     btstr = qa.time(qa.quantity(tim[btidx], 's'), prec=9, form='fits')[0]
     etstr = qa.time(qa.quantity(tim[etidx], 's'), prec=9, form='fits')[0]
 
     iterable = range(btidx, etidx + 1, twidth)
-    print 'First time pixel: ' + btstr
-    print 'Last time pixel: ' + etstr
-    print str(len(iterable)) + ' images to clean...'
+    print('First time pixel: ' + btstr)
+    print('Last time pixel: ' + etstr)
+    print(str(len(iterable)) + ' images to clean...')
 
     res = []
     # partition
@@ -238,7 +243,7 @@ def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
 
     t1 = time()
     timelapse = t1 - t0
-    print 'It took %f secs to complete' % timelapse
+    print('It took %f secs to complete' % timelapse)
     # repackage this into a single dictionary
     results = {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': []}
     for r in res:
