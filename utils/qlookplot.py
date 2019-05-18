@@ -14,7 +14,7 @@ from astropy import units as u
 from astropy.time import Time
 from astropy.io import fits
 from taskinit import ms, tb, qa, iatool
-from clean_cli import clean_cli as clean
+from tclean_cli import tclean_cli as tclean
 from matplotlib.dates import DateFormatter
 from astropy.io import fits
 from astropy.coordinates import SkyCoord
@@ -554,8 +554,6 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         colors_spws = cm.get_cmap(cmap)(np.linspace(0, 1, nspw))
         for n in range(nspw):
             image = images_sort[i, n]
-            # fig.add_subplot(nspw/3, 3, n+1)
-            # fig.add_subplot(2, nspw / 2, n + 1)
             for pol in range(npols):
                 if suci[n]:
                     try:
@@ -662,16 +660,11 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                                     verticalalignment='bottom', transform=ax.transAxes, color=color)
                 ax.set_autoscale_on(True)
                 if fov:
-                    # pass
-                    # if parse_version(sunpy.__version__) > parse_version('0.8.0'):
-                    #     ax.set_xlim([fov[0][0], fov[1][0]])
-                    #     ax.set_ylim([fov[0][1], fov[1][1]])
-                    # else:
                     ax.set_xlim(fov[0])
                     ax.set_ylim(fov[1])
                 else:
-                    ax.set_xlim([-1229, 1229])
-                    ax.set_ylim([-1229, 1229])
+                    ax.set_xlim([-1220, 1220])
+                    ax.set_ylim([-1220, 1220])
                 if nspw > 1:
                     if nspw <= 10:
                         try:
@@ -988,7 +981,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
         spec_tim = Time(specdata['tim'] / 3600. / 24., format='mjd')
         timstrr = spec_tim.plot_date
         plt.ion()
-        fig = plt.figure(figsize=(11.65, 8.74), dpi=100)
+        # fig = plt.figure(figsize=(11.65, 8.74), dpi=100)
+        fig = plt.figure(figsize=(11.80, 8.80), dpi=100)
         ax1 = plt.subplot2grid((6, 8), (0, 0), rowspan=2, colspan=2)
         ax2 = plt.subplot2grid((6, 8), (2, 0), rowspan=2, colspan=2, sharex=ax1, sharey=ax1)
         ax3 = plt.subplot2grid((6, 8), (4, 0), rowspan=2, colspan=2)
@@ -1125,13 +1119,6 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
             except:
                 print('error in reading aiafits. Proceed without AIA')
 
-        # RCP or I
-        # ax4 = plt.subplot(gs2[0, 0])
-        # ax5 = plt.subplot(gs2[1, 0])
-        # LCP or V
-        # ax6 = plt.subplot(gs2[0, 1], sharex=ax4, sharey=ax4)
-        # ax7 = plt.subplot(gs2[1, 1], sharex=ax5, sharey=ax5)
-
         if (os.path.exists(outfits)) and (not overwrite):
             pass
         else:
@@ -1198,17 +1185,30 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                         print('Original phasecenter: ' + str(ra0) + str(dec0))
                         print('use phasecenter: ' + phasecenter)
                         print('use beamsize {}'.format(restoringbm))
-                        clean(vis=vis, imagename=imagename, selectdata=True, spw=sp, timerange=timerange, stokes=sto,
-                              niter=niter, interactive=interactive, mask=mask, uvrange=uvrange,
-                              npercycle=50, imsize=imsize, cell=cell, restoringbeam=restoringbm, weighting='briggs',
-                              robust=robust, phasecenter=phasecenter)
+                        tclean(vis=vis,
+                               imagename=imagename,
+                               selectdata=True,
+                               spw=sp,
+                               timerange=timerange,
+                               stokes=sto,
+                               niter=niter,
+                               interactive=interactive,
+                               mask=mask,
+                               uvrange=uvrange,
+                               pbcor=True,
+                               imsize=imsize,
+                               cell=cell,
+                               restoringbeam=restoringbm,
+                               weighting='briggs',
+                               robust=robust,
+                               phasecenter=phasecenter)
 
                         os.system('rm -rf ' + imagename + '.psf')
                         os.system('rm -rf ' + imagename + '.flux')
                         os.system('rm -rf ' + imagename + '.model')
                         os.system('rm -rf ' + imagename + '.mask')
-                        os.system('rm -rf ' + imagename + '.residual')
-                        imagefile = imagename + '.image'
+                        os.system('rm -rf ' + imagename + '.image')
+                        imagefile = imagename + '.image.pbcor'
                         ofits = imagefile + '.fits'
                         imagefiles.append(imagefile)
                         fitsfiles.append(ofits)
@@ -1233,18 +1233,31 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                     print('Original phasecenter: ' + str(ra0) + str(dec0))
                     print('use phasecenter: ' + phasecenter)
 
-                    clean(vis=vis, imagename=imagename, selectdata=True, spw=';'.join(spw), timerange=timerange,
-                          stokes=sto,
-                          niter=niter, interactive=interactive, mask=mask, uvrange=uvrange,
-                          npercycle=50, imsize=imsize, cell=cell, restoringbeam=restoringbeam, weighting='briggs',
-                          robust=robust, phasecenter=phasecenter)
+                    tclean(vis=vis,
+                           imagename=imagename,
+                           selectdata=True,
+                           spw=';'.join(spw),
+                           timerange=timerange,
+                           stokes=sto,
+                           niter=niter,
+                           interactive=interactive,
+                           mask=mask,
+                           uvrange=uvrange,
+                           pbcor=True,
+                           imsize=imsize,
+                           cell=cell,
+                           restoringbeam=restoringbeam,
+                           weighting='briggs',
+                           robust=robust,
+                           phasecenter=phasecenter)
 
                     os.system('rm -rf ' + imagename + '.psf')
                     os.system('rm -rf ' + imagename + '.flux')
                     os.system('rm -rf ' + imagename + '.model')
                     os.system('rm -rf ' + imagename + '.mask')
                     os.system('rm -rf ' + imagename + '.residual')
-                    imagefile = imagename + '.image'
+                    os.system('rm -rf ' + imagename + '.image')
+                    imagefile = imagename + '.image.pbcor'
                     if not outfits:
                         outfits = imagefile + '.fits'
                     hf.imreg(vis=vis, imagefile=imagefile, timerange=timerange, reftime=reftime,
@@ -1285,36 +1298,38 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
             warnings.warn("The input stokes setting is not matching those in the provided fitsfile.")
         datas = {}
         cmaps = {}
+        cmap_I = plt.cm.jet
+        cmap_V = plt.cm.RdBu
         if npol_in > 1:
             if npol_fits > 1:
                 if stokes == 'I,V':
                     datas['I'] = (hdu.data[0, :, :, :] + hdu.data[1, :, :, :]) / 2.0
                     datas['V'] = (hdu.data[0, :, :, :] - hdu.data[1, :, :, :]) / 2.0
-                    cmaps['I'] = cm.jet
-                    cmaps['V'] = cm.RdBu
+                    cmaps['I'] = cmap_I
+                    cmaps['V'] = cmap_V
                 else:
                     datas[pols[0]] = hdu.data[polmap[pols[0]], :, :, :]
                     datas[pols[1]] = hdu.data[polmap[pols[1]], :, :, :]
-                    cmaps[pols[0]] = cm.jet
-                    cmaps[pols[1]] = cm.jet
+                    cmaps[pols[0]] = cmap_I
+                    cmaps[pols[1]] = cmap_I
             else:
                 datas[pols[0]] = hdu.data[0, :, :, :]
-                cmaps[pols[0]] = cm.jet
+                cmaps[pols[0]] = cmap_I
         else:
             if npol_fits > 1:
                 if pols[0] in ['I', 'V']:
                     if pols[0] == 'I':
                         datas['I'] = (hdu.data[0, :, :, :] + hdu.data[1, :, :, :]) / 2.0
-                        cmaps['I'] = cm.jet
+                        cmaps['I'] = cmap_I
                     else:
                         datas['V'] = (hdu.data[0, :, :, :] - hdu.data[1, :, :, :]) / 2.0
-                        cmaps['V'] = cm.RdBu
+                        cmaps['V'] = cmap_V
                 else:
                     datas[pols[0]] = hdu.data[polmap[pols[0]], :, :, :]
-                    cmaps[pols[0]] = cm.jet
+                    cmaps[pols[0]] = cmap_I
             else:
                 datas[pols[0]] = hdu.data[0, :, :, :]
-                cmaps[pols[0]] = cm.jet
+                cmaps[pols[0]] = cmap_I
 
         if not xyrange:
             if xycen:
@@ -1381,12 +1396,16 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
             axs = [[ax4, ax5], [ax6, ax7]]
             for s, sp in enumerate(spw):
                 for pidx, pol in enumerate(pols):
-                    rcmap = [cmaps[pol](float(s) / len(spw))] * len(clvls[pol])
+                    # rcmap = [cmaps[pol](float(s) / len(spw))] * len(clvls[pol])
+                    rcmap = [plt.cm.RdYlBu(float(s) / len(spw))] * len(clvls[pol])
                     rmap_plt = smap.Map(datas[pol][s, :, :], hdu.header)
                     rmap_plt_ = pmX.Sunmap(rmap_plt)
-                    rmap_plt_.contourf(axes=[axs[pidx][0], axs[pidx][1]], colors=rcmap,
-                                       levels=clvls[pol] * np.nanmax(rmap_plt.data),
-                                       alpha=calpha)
+                    if nspws > 1:
+                        rmap_plt_.contourf(axes=[axs[pidx][0], axs[pidx][1]], colors=rcmap,
+                                           levels=clvls[pol] * np.nanmax(rmap_plt.data), alpha=calpha)
+                    else:
+                        rmap_plt_.contour(axes=[axs[pidx][0], axs[pidx][1]], cmap=cmaps[pol],
+                                          levels=clvls[pol] * np.nanmax(rmap_plt.data), alpha=calpha)
                     rmap_plt_.draw_limb(axes=[axs[pidx][0], axs[pidx][1]])
                     rmap_plt_.draw_grid(axes=[axs[pidx][0], axs[pidx][1]])
                     if s == 0:
@@ -1402,10 +1421,10 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
 
             ax4.text(0.02, 0.02, 'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'),
                      verticalalignment='bottom',
-                     horizontalalignment='left', transform=ax4.transAxes, color='k', fontsize=9)
+                     horizontalalignment='left', transform=ax4.transAxes, color='w', fontsize=9)
             ax6.text(0.02, 0.02, 'AIA {0:.0f} '.format(aiamap.wavelength.value) + aiamap.date.strftime('%H:%M:%S'),
                      verticalalignment='bottom',
-                     horizontalalignment='left', transform=ax6.transAxes, color='k', fontsize=9)
+                     horizontalalignment='left', transform=ax6.transAxes, color='w', fontsize=9)
         else:
             axs = [[ax4, ax5], [ax6, ax7]]
             if nspws < 2:
@@ -1445,8 +1464,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                         # rmap_plt_.draw_limb(axes=axs[pidx][1])
                         # rmap_plt_.draw_grid(axes=axs[pidx][1])
 
-        ax6.set_xlim(-1229, 1229)
-        ax6.set_ylim(-1229, 1229)
+        ax6.set_xlim(-1220, 1220)
+        ax6.set_ylim(-1220, 1220)
         ax7.set_xlim(xyrange[0])
         ax7.set_ylim(xyrange[1])
         ax4.set_ylabel('')
@@ -1473,7 +1492,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
             ax.set_xlabel(ax.get_xlabel(), fontsize=9)
             ax.set_ylabel(ax.get_ylabel(), fontsize=9)
 
-        fig.subplots_adjust(top=0.94, bottom=0.07, left=0.06, right=0.95, hspace=0.80, wspace=0.88)
+        fig.subplots_adjust(top=0.94, bottom=0.07, left=0.06, right=0.94, hspace=0.80, wspace=0.88)
 
         if nspws >= 2:
             try:
@@ -1481,7 +1500,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                 axs = [ax4, ax7]
                 ax1_pos = axs[0].get_position().extents
                 ax2_pos = axs[1].get_position().extents
-                caxcenter = (ax1_pos[2] + ax2_pos[0]) / 2.0
+                caxcenter = (ax1_pos[2] + ax2_pos[0]) / 2.0 - ax1_pos[2] + ax2_pos[2]
                 caxwidth = (ax2_pos[0] - ax1_pos[2]) / 2.0
                 cayheight = ax1_pos[3] - 0.05 - ax2_pos[1]
 
