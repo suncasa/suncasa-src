@@ -44,6 +44,65 @@ def warn(*args, **kwargs):
 warnings.warn = warn
 
 
+def get_goes_data(t=None, sat_num=None):
+    ''' Reads GOES data from https://umbra.nascom.nasa.gov/ repository, for date
+        and satellite number provided.  If sat_num is None, data for all available
+        satellites are downloaded, with some sanity check used to decide the best.
+        If the Time() object t is None, data for the day before the current date
+        are read (since there is a delay of 1 day in availability of the data).
+
+        Returns:
+           goes_t    GOES time array in plot_date format
+           goes_data GOES 1-8 A lightcurve
+        '''
+    from sunpy.util.config import get_and_create_download_dir
+    import shutil
+    from astropy.io import fits
+    import urllib2
+    import ssl
+    if t is None:
+        t = Time(Time.now().mjd - 1, format='mjd')
+    yr = t.iso[:4]
+    datstr = t.iso[:10].replace('-', '')
+    context = ssl._create_unverified_context()
+    if sat_num is None:
+        f = urllib2.urlopen('https://umbra.nascom.nasa.gov/goes/fits/' + yr, context=context)
+        lines = f.readlines()
+        sat_num = []
+        for line in lines:
+            idx = line.find(datstr)
+            if idx != -1:
+                sat_num.append(line[idx - 2:idx])
+    if type(sat_num) is int:
+        sat_num = [str(sat_num)]
+    filenames = []
+    for sat in sat_num:
+        filename = 'go' + sat + datstr + '.fits'
+        url = 'https://umbra.nascom.nasa.gov/goes/fits/' + yr + '/' + filename
+        f = urllib2.urlopen(url, context=context)
+        with open(get_and_create_download_dir() + '/' + filename, 'wb') as g:
+            shutil.copyfileobj(f, g)
+        filenames.append(get_and_create_download_dir() + '/' + filename)
+    pmerit = 0
+    for file in filenames:
+        gfits = fits.open(file)
+        data = gfits[2].data['FLUX'][0][:, 0]
+        good, = np.where(data > 1.e-8)
+        tsecs = gfits[2].data['TIME'][0]
+        merit = len(good)
+        date_elements = gfits[0].header['DATE-OBS'].split('/')
+        if merit > pmerit:
+            print('File:', file, 'is best')
+            pmerit = merit
+            goes_data = data
+            goes_t = Time(date_elements[2] + '-' + date_elements[1] + '-' + date_elements[0]).plot_date + tsecs / 86400.
+    try:
+        return goes_t, goes_data
+    except:
+        print('No good GOES data for', datstr)
+        return None, None
+
+
 def msclearhistory(msfile):
     from taskinit import tb
     tb.open(msfile + '/HISTORY', nomodify=False)
@@ -1056,27 +1115,34 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
         dates = mpl.dates.date2num(parse_time(goest.data.index))
 
         try:
-            goesdif = np.diff(goest.data['xrsb'])
+            if np.abs(goest.data['xrsb'].mean()) > 1e-9:
+                goesdata = goest.data['xrsb']
+                goesdif = np.diff(goest.data['xrsb'])
+            else:
+                dates, goesdata = get_goes_data(Time((tim[-1] + tim[0]) / 3600. / 24. / 2.0, format='mjd'))
+                goesdif = np.diff(goesdata)
+
             gmax = np.nanmax(goesdif)
             gmin = np.nanmin(goesdif)
             ran = gmax - gmin
             db = 2.8 / ran
             goesdifp = goesdif * db + gmin + (-6)
-            ax3.plot_date(dates, np.log10(goest.data['xrsb']), '-', label='1.0--8.0 $\AA$', color='red', lw=2)
-            ax3.plot_date(dates[0:-1], goesdifp, '-', label='derivate', color='blue', lw=0.4)
+            ax3.step(dates, np.log10(goesdata), '-', label='1.0--8.0 $\AA$', color='red', lw=1.0)
+            ax3.step(dates[0:-1], goesdifp, '-', label='derivate', color='blue', lw=0.5)
 
             ax3.set_ylim([-8, -3])
             ax3.set_yticks([-8, -7, -6, -5, -4, -3])
             ax3.set_yticklabels([r'$10^{-8}$', r'$10^{-7}$', r'$10^{-6}$', r'$10^{-5}$', r'$10^{-4}$', r'$10^{-3}$'])
             ax3.set_title('Goes Soft X-ray', fontsize=9)
             ax3.set_ylabel('Watts m$^{-2}$')
-            ax3.set_xlabel(datetime.datetime.isoformat(goest.data.index[0])[0:10])
+            ax3.set_xlabel(Time(dates[0], format='plot_date').iso[0:10])
             ax3.axvspan(Time(tim[0] / 24 / 3600, format='mjd').plot_date,
                         Time(tim[-1] / 24 / 3600, format='mjd').plot_date, alpha=0.2)
             ax3.set_xlim(Time([btgoes, etgoes]).plot_date)
 
             for tick in ax3.get_xticklabels():
                 tick.set_fontsize(8)
+                tick.set_rotation(30)
 
             ax3_2 = ax3.twinx()
             # ax3_2.set_yscale("log")
@@ -1177,8 +1243,10 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                         else:
                             spstr = spwran[0]
                         imagename = os.path.join(workdir, visname + '_s' + spstr + '.outim')
-                        if os.path.exists(imagename + '.image') or os.path.exists(imagename + '.flux'):
-                            os.system('rm -rf ' + imagename + '.*')
+                        junks = ['.image', '.image.pbcor', '.flux']
+                        for junk in junks:
+                            if os.path.exists(imagename + junk):
+                                os.system('rm -rf ' + imagename + junk +'*')
                         sto = stokes.replace(',', '')
 
                         print('do clean for ' + timerange + ' in spw ' + sp + ' stokes ' + sto)
@@ -1203,11 +1271,10 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                                robust=robust,
                                phasecenter=phasecenter)
 
-                        os.system('rm -rf ' + imagename + '.psf')
-                        os.system('rm -rf ' + imagename + '.flux')
-                        os.system('rm -rf ' + imagename + '.model')
-                        os.system('rm -rf ' + imagename + '.mask')
-                        os.system('rm -rf ' + imagename + '.image')
+                        junks = ['.flux', '.model', '.psf', '.residual', '.mask', '.image', '.pb', '.sumwt']
+                        for junk in junks:
+                            if os.path.exists(imagename + junk):
+                                os.system('rm -rf ' + imagename + junk)
                         imagefile = imagename + '.image.pbcor'
                         ofits = imagefile + '.fits'
                         imagefiles.append(imagefile)
@@ -1226,8 +1293,10 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
 
                 else:
                     imagename = os.path.join(workdir, visname + '.outim')
-                    if os.path.exists(imagename + '.image') or os.path.exists(imagename + '.flux'):
-                        os.system('rm -rf ' + imagename + '.*')
+                    junks = ['.image', '.image.pbcor', '.flux']
+                    for junk in junks:
+                        if os.path.exists(imagename + junk):
+                            os.system('rm -rf ' + imagename + junk +'*')
                     sto = stokes.replace(',', '')
                     print('do clean for ' + timerange + ' in spw ' + ';'.join(spw) + ' stokes ' + sto)
                     print('Original phasecenter: ' + str(ra0) + str(dec0))
@@ -1251,12 +1320,10 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                            robust=robust,
                            phasecenter=phasecenter)
 
-                    os.system('rm -rf ' + imagename + '.psf')
-                    os.system('rm -rf ' + imagename + '.flux')
-                    os.system('rm -rf ' + imagename + '.model')
-                    os.system('rm -rf ' + imagename + '.mask')
-                    os.system('rm -rf ' + imagename + '.residual')
-                    os.system('rm -rf ' + imagename + '.image')
+                    junks = ['.flux', '.model', '.psf', '.residual', '.mask', '.image', '.pb', '.sumwt']
+                    for junk in junks:
+                        if os.path.exists(imagename + junk):
+                            os.system('rm -rf ' + imagename + junk)
                     imagefile = imagename + '.image.pbcor'
                     if not outfits:
                         outfits = imagefile + '.fits'
