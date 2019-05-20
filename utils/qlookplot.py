@@ -425,7 +425,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     pol = ''.join(pols)
     spec_tim = Time(specdata['tim'] / 3600. / 24., format='mjd')
     tidx, = np.where(np.logical_and(spec_tim > tr[0], spec_tim < tr[1]))
-    timstrr = spec_tim.plot_date
+    spec_tim_plt = spec_tim.plot_date
     if npols == 1:
         if pol == 'RR':
             spec_plt = spec[0, 0, :, :]
@@ -535,16 +535,16 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             dspecvspans = []
             for pol in range(npols):
                 ax = axs_dspec[pol]
-                im_spec = ax.pcolormesh(timstrr[tidx], freqghz, spec_plt[pol][:, tidx] / 1e4, cmap=cmaps[pol],
+                im_spec = ax.pcolormesh(spec_tim_plt[tidx], freqghz, spec_plt[pol][:, tidx] / 1e4, cmap=cmaps[pol],
                                         vmax=dmax, vmin=dmin, rasterized=True)
-                ax.set_xlim(timstrr[tidx[0]], timstrr[tidx[-1]])
+                ax.set_xlim(spec_tim_plt[tidx[0]], spec_tim_plt[tidx[-1]])
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 ax.set_ylabel('Frequency [GHz]')
                 for idx, freq in enumerate(Freq):
                     if nspw <= 10:
                         ax.axhspan(freq[0], freq[1], linestyle='dotted', edgecolor='w', alpha=0.7, facecolor='none')
                         xtext, ytext = ax.transAxes.inverted().transform(
-                            ax.transData.transform([timstrr[tidx[0]], np.mean(freq)]))
+                            ax.transData.transform([spec_tim_plt[tidx[0]], np.mean(freq)]))
                         ax.text(xtext + 0.01, ytext, 'spw ' + Spw[idx], color='w', transform=ax.transAxes,
                                 fontweight='bold', ha='left', va='center',
                                 fontsize=8, alpha=0.5)
@@ -1038,7 +1038,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
         freq = specdata['freq']
         freqghz = freq / 1e9
         spec_tim = Time(specdata['tim'] / 3600. / 24., format='mjd')
-        timstrr = spec_tim.plot_date
+        spec_tim_plt = spec_tim.plot_date
         plt.ion()
         # fig = plt.figure(figsize=(11.65, 8.74), dpi=100)
         fig = plt.figure(figsize=(11.80, 8.80), dpi=100)
@@ -1071,7 +1071,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
         axs = [ax1, ax2]
         for axidx, ax in enumerate(axs):
             if axidx < npol_in:
-                ax.pcolormesh(timstrr, freqghz, specs[pols[axidx]], cmap='jet', vmin=dmin, vmax=dmax, rasterized=True)
+                ax.pcolormesh(spec_tim_plt, freqghz, specs[pols[axidx]], cmap='jet', vmin=dmin, vmax=dmax,
+                              rasterized=True)
                 ax.set_title(observatory + ' ' + datstr + ' ' + pols[axidx], fontsize=9)
             ax.set_autoscale_on(True)
             ax.add_patch(patches.Rectangle((bt, bfreqghz), et - bt, efreqghz - bfreqghz, ec='w', fill=False))
@@ -1085,7 +1086,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                 ax.xaxis.set_major_formatter(DateFormatter("%H:%M:%S"))
                 locator = mpl.dates.AutoDateLocator()
                 ax.xaxis.set_major_locator(locator)
-                ax.set_xlim(timstrr[0], timstrr[-1])
+                ax.set_xlim(spec_tim_plt[0], spec_tim_plt[-1])
                 ax.set_ylim(freqghz[0], freqghz[-1])
 
         # import pdb
@@ -1135,9 +1136,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
             ax3.set_yticklabels([r'$10^{-8}$', r'$10^{-7}$', r'$10^{-6}$', r'$10^{-5}$', r'$10^{-4}$', r'$10^{-3}$'])
             ax3.set_title('Goes Soft X-ray', fontsize=9)
             ax3.set_ylabel('Watts m$^{-2}$')
-            ax3.set_xlabel(Time(dates[0], format='plot_date').iso[0:10])
-            ax3.axvspan(Time(tim[0] / 24 / 3600, format='mjd').plot_date,
-                        Time(tim[-1] / 24 / 3600, format='mjd').plot_date, alpha=0.2)
+            ax3.set_xlabel(Time(spec_tim_plt[0], format='plot_date').iso[0:10])
+            ax3.axvspan(spec_tim_plt[0], spec_tim_plt[-1], alpha=0.2)
             ax3.set_xlim(Time([btgoes, etgoes]).plot_date)
 
             for tick in ax3.get_xticklabels():
@@ -1246,7 +1246,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                         junks = ['.image', '.image.pbcor', '.flux']
                         for junk in junks:
                             if os.path.exists(imagename + junk):
-                                os.system('rm -rf ' + imagename + junk +'*')
+                                os.system('rm -rf ' + imagename + junk + '*')
                         sto = stokes.replace(',', '')
 
                         print('do clean for ' + timerange + ' in spw ' + sp + ' stokes ' + sto)
@@ -1296,7 +1296,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                     junks = ['.image', '.image.pbcor', '.flux']
                     for junk in junks:
                         if os.path.exists(imagename + junk):
-                            os.system('rm -rf ' + imagename + junk +'*')
+                            os.system('rm -rf ' + imagename + junk + '*')
                     sto = stokes.replace(',', '')
                     print('do clean for ' + timerange + ' in spw ' + ';'.join(spw) + ' stokes ' + sto)
                     print('Original phasecenter: ' + str(ra0) + str(dec0))
