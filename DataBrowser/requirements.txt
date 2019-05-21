@@ -1,4 +1,0 @@
-bokeh=0.12.3
-sunpy>=0.7.4
-pandas>=0.19.2
-scikit-image>=0.12.3
