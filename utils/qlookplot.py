@@ -1129,7 +1129,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
             db = 2.8 / ran
             goesdifp = goesdif * db + gmin + (-6)
             ax3.step(dates, np.log10(goesdata), '-', label='1.0--8.0 $\AA$', color='red', lw=1.0)
-            ax3.step(dates[0:-1], goesdifp, '-', label='derivate', color='blue', lw=0.5)
+            ax3.step(dates[0:-1], goesdifp, '-', label='Derivative', color='blue', lw=0.5)
 
             ax3.set_ylim([-8, -3])
             ax3.set_yticks([-8, -7, -6, -5, -4, -3])
