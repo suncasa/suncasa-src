@@ -1742,14 +1742,18 @@ class Stackplot:
         if not vmin:
             vmin = clrange['low']
         if (norm is None) and (not diff):
-            norm = colors.Normalize(vmin=np.min(self.stackplt), vmax=np.max(self.stackplt))
+            if clrange['log']:
+                norm = colors.LogNorm(vmin=np.min(self.stackplt), vmax=np.max(self.stackplt))
+            else:
+                norm = colors.Normalize(vmin=np.min(self.stackplt), vmax=np.max(self.stackplt))
+
 
         cutslitplt = self.cutslitbd.cutslitplt
         if not cmap:
             try:
                 cmap = cm.get_cmap('sdoaia{}'.format(mapcube_plot[0].meta['wavelnth']))
             except:
-                cmap = 'gray_r'
+                pass
 
         dspec = self.stackplt_wrap()
         dspec['args'] = {'norm': norm, 'cmap': cmap}
