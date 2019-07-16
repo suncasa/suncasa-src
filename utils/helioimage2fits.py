@@ -19,10 +19,11 @@ except:
     except ImportError:
         raise ImportError('Neither astropy nor pyfits exists in this CASA installation')
 
-
 def headerfix(header, PC_coor=True):
-    ## this code fix the header problem of fits out from CASA 5.4+ which leads to a streched solar image
-    ## set PC_coor equal to True will reset the rotation matrix.
+    '''
+    this code fix the header problem of fits out from CASA 5.4+ which leads to a streched solar image
+    set PC_coor equal to True will reset the rotation matrix.
+    '''
 
     keys2remove = []
     for k in header:
@@ -56,6 +57,29 @@ def msclearhistory(msfile):
 
 
 def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
+    '''
+    This function visits JPL Horizons to retrieve J2000 topocentric RA and DEC of the solar disk center
+    as a function of time.
+
+    Keyword arguments:
+    t0: Referece time in astropy.Time format
+    dur: duration of the returned coordinates. Default to 2 minutes
+    vis: CASA visibility dataset (in measurement set format). If provided, use entire duration from
+         the visibility data
+    observatory: observatory code (from JPL Horizons). If not provided, use information from visibility.
+         if no visibility found, use earth center (code=500)
+    verbose: True to provide extra information
+
+    Usage:
+    >>> from astropy.time import Time
+    >>> out = read_horizons(t0=Time('2017-09-10 16:00:00'), observatory='-81')
+    >>> out = read_horizons(vis = 'mydata.ms')
+
+    History:
+    BC (sometime in 2014): function was first wrote, followed by a number of edits by BC and SY
+    BC (2019-07-16): Added docstring documentation
+
+    '''
     import urllib2
     import ssl
     if not t0 and not vis:
@@ -106,9 +130,9 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
             print('error in reading ms file: ' + vis + ' to obtain the ephemeris!')
             return -1
 
-    # default the observatory to VLA, if none provided
+    # default the observatory to geocentric, if none provided
     if not observatory:
-        observatory = '-5'
+        observatory = '500'
 
     etime = Time(btime.mjd + dur, format='mjd')
 
@@ -303,7 +327,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
             msinfo0 = msinfo
         else:
             raise ValueError('msinfo should be either a numpy npz or a dictionary')
-    print('msinfo is derived from: ', msinfo0['vis'])
+    print('msinfo is derived from: {0:s}'.format(msinfo0['vis']))
     scans = msinfo0['scans']
     fieldids = msinfo0['fieldids']
     btimes = msinfo0['btimes']
@@ -574,6 +598,19 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris.
                                      Otherwise assume the phasecenter is correctly pointed to the solar disk center
                                      (EOVSA case)
+    Usage:
+    >>> from suncasa.utils import helioimage2fits as hf
+    >>> hf.imreg(vis='mydata.ms', imagefile='myimage.image', fitsfile='myimage.fits', 
+                 timerange='2017/08/21/20:21:10~2017/08/21/20:21:18')
+    The output fits file is 'myimage.fits'
+
+    History:
+    BC (sometime in 2014): function was first wrote, followed by a number of edits by BC and SY
+    BC (2019-07-16): Added checks for stokes parameter. Verified that for converting from Jy/beam to brightness temperature,
+                     the convention of 2*k_b*T should always be used. I.e., for unpolarized source, stokes I, RR, LL, XX, YY, 
+                     etc. in the output CASA images from (t)clean should all have same values of radio intensity 
+                     (in Jy/beam) and brightness temperature (in K).
+
     '''
     ia = iatool()
 
@@ -676,8 +713,8 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 xoff = hel['refx']
                 yoff = hel['refy']
             if verbose:
-                print('offset of image phase center to visibility phase center (arcsec): ', dx, dy)
-                print('offset of visibility phase center to solar disk center (arcsec): ', xoff, yoff)
+                print('offset of image phase center to visibility phase center (arcsec): dx={0:.2f}, dy={1:.2f}'.format(dx, dy))
+                print('offset of visibility phase center to solar disk center (arcsec): dx={0:.2f}, dy={1:.2f}'.format(xoff, yoff))
             (crval1, crval2) = (xoff + dx, yoff + dy)
             # update the fits header to heliocentric coordinates
 
@@ -722,6 +759,26 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 header.append(('hgln_obs', 0.))
                 header.append(('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value))
 
+            # check if stokes parameter exist
+            exist_stokes = False
+            stokes_mapper = {'I':1, 'Q':2, 'U':3, 'V':4, 'RR':-1, 'LL':-2, 
+                             'RL':-3, 'LR':-4, 'XX':-5, 'YY':-6, 'XY':-7, 'YX':-8}
+            if 'CRVAL3' in header.keys():
+                if header['CTYPE3'] == 'STOKES':
+                    stokenum = header['CRVAL3']
+                    exist_stokes=True
+            if 'CRVAL4' in header.keys():
+                if header['CTYPE4'] == 'STOKES':
+                    stokenum = header['CRVAL4']
+                    exist_stokes=True
+            if exist_stokes:
+                stokesstr = stokes_mapper.keys()[stokes_mapper.values().index(stokenum)]
+                if verbose:
+                        print('This image is in Stokes '+stokesstr)
+            else:
+                print('STOKES Information does not seem to exist! Assuming Stokes I')
+                stokenum=1
+
             # update intensity units, i.e. to brightness temperature?
             if toTb:
                 # get restoring beam info
@@ -736,6 +793,11 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 # which axis is frequency?
                 faxis = keys[values.index('FREQ')][-1]
                 faxis_ind = dim - int(faxis)
+                # find out the polarization of this image
+                k_b = qa.constants('k')['value']
+                c_l = qa.constants('c')['value']
+                # Always use 2*kb for all polarizations
+                const = 2. * k_b / c_l ** 2
                 if header['BUNIT'].lower() == 'jy/beam':
                     header['BUNIT'] = 'K'
                     header['BTYPE'] = 'Brightness Temperature'
@@ -766,9 +828,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                             bmaj0 = bmajtmp
                             bmin0 = bmintmp
                         beam_area = bmaj0 * bmin0 * np.pi / (4. * log(2.))
-                        k_b = qa.constants('k')['value']
-                        c_l = qa.constants('c')['value']
-                        factor = 2. * k_b * nu ** 2 / c_l ** 2  # SI unit
+                        factor = const * nu ** 2  # SI unit
                         jy_to_si = 1e-26
                         # print(nu/1e9, beam_area, factor)
                         factor2 = 1.
@@ -783,8 +843,6 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
 
             hdu.flush()
             hdu.close()
-
-
 
 def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=True):
     '''
