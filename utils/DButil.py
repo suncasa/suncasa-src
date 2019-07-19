@@ -548,12 +548,19 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
             outdstr = ' '.join(['-{} {}'.format(k, v) for k, v in outd.iteritems()])
         except:
             outdstr = ' '.join(['-{} {}'.format(k, outd[k]) for k in outd])
-        cmd = 'ffmpeg -r {3} -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} '.format(tmpdir, img_ext,
-                                                                                                    outdstr,
-                                                                                                    fps) + '{0} {1}.mp4'.format(
-            ow, os.path.join(os.path.dirname(imgprefix), outname))
+        try:
+            cmd = 'ffmpeg -r {3} -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} '.format(tmpdir, img_ext,
+                                                                                                        outdstr,
+                                                                                                        fps) + '{0} {1}.mp4'.format(
+                ow, os.path.join(os.path.dirname(imgprefix), outname))
+            subprocess.check_output(['bash', '-c', cmd])
+        except:
+            cmd = 'ffmpeg -r {3} -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2"'.format(tmpdir, img_ext,
+                                                                                                        outdstr,
+                                                                                                        fps) + '{0} {1}.mp4'.format(
+                ow, os.path.join(os.path.dirname(imgprefix), outname))
+            subprocess.check_output(['bash', '-c', cmd])
         print(cmd)
-        subprocess.check_output(['bash', '-c', cmd])
         if not keeptmp:
             os.system('rm -rf {}'.format(tmpdir))
     else:
