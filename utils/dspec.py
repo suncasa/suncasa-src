@@ -173,7 +173,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
         bl = specdata['bl'].item()
     try:
         (npol, nbl, nfreq, ntim) = specdata['spec'].shape
-        spec = specdata['spec']/1.e4
+        spec = specdata['spec'] / 1.e4
         tim = specdata['tim']
         tim_ = Time(tim / 3600. / 24., format='mjd')
         tim_plt = tim_.plot_date
@@ -456,3 +456,52 @@ def wrt_dspec(specfile=None, specdat=None):
     with open(specdat, 'wb') as f:
         f.write(buf)
     f.close()
+
+
+def common_elements(a, b):
+    a_set = set(a)
+    b_set = set(b)
+
+    # check length
+    if len(a_set.intersection(b_set)) > 0:
+        return (a_set.intersection(b_set))
+    else:
+        return ("no common elements")
+
+
+def concat_dspec(specfiles, outfile=None, savespec=False):
+    '''
+    concatenate a list of specfiles in time axis
+    :param specfiles: a list of specfile to concatenate
+    :return: concatenated specdata
+    '''
+    from tqdm import tqdm
+    if isinstance(specfiles, list):
+        if len(specfiles) > 1:
+            specfiles = sorted(specfiles)
+        else:
+            print('Abort. Only one specfile is provided.')
+            return -1
+    else:
+        print('Please provide a list of specfiles')
+        return -1
+
+    # todo add duplicate checking in time and frequency axis
+    specdata = {}
+
+    specdata_ = np.load(specfiles[0])
+    for k, v in specdata_.iteritems():
+        specdata[k] = v
+
+    for spfile in tqdm(specfiles[1:]):
+        specdata_ = np.load(spfile)
+        specdata['spec'] = np.concatenate((specdata['spec'], specdata_['spec']), axis=-1)
+        specdata['tim'] = np.hstack((specdata['tim'], specdata_['tim']))
+
+    if savespec:
+        if not outfile:
+            specfile = 'dspec.npz'
+        if os.path.exists(specfile):
+            os.system('rm -rf ' + specfile)
+        np.savez(specfile, **specdata)
+    return specdata

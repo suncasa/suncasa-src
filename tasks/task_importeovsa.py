@@ -9,6 +9,44 @@ from split_cli import split_cli as split
 from suncasa.eovsa import impteovsa as ipe
 from astropy.time import Time
 
+
+def udb_corr_external(filelist, udbcorr_path):
+    import pickle
+    udbcorr_script = os.path.join('udbcorr_ext.py')
+    if os.path.exists(udbcorr_script):
+        os.system('rm -rf {}'.format(udbcorr_script))
+    udbcorr_file = os.path.join('udbcorr_tmp.pickle')
+    if os.path.exists(udbcorr_file):
+        os.system('rm -rf {}'.format(udbcorr_file))
+    with open(udbcorr_file, 'wb') as sf:
+        pickle.dump(filelist, sf)
+
+    fi = open(udbcorr_script, 'wb')
+    fi.write('import pickle \n')
+    fi.write('import pipeline_cal as pc \n')
+    fi.write('import sys \n')
+    fi.write('syspath = sys.path \n')
+    fi.write("sys.path = [l for l in syspath if 'casa' not in l] \n")
+
+    fi.write("with open('{}', 'rb') as sf: \n".format(udbcorr_file))
+    fi.write('    filelist = pickle.load(sf) \n')
+
+    fi.write('filelist_tmp = [] \n')
+    fi.write('for ll in filelist: \n')
+    fi.write("    filelist_tmp.append(pc.udb_corr(ll, outpath='{}/', calibrate=True)) \n".format(udbcorr_path))
+    fi.write('filelist = filelist_tmp \n')
+    fi.write("with open('{}', 'wb') as sf: \n".format(udbcorr_file))
+    fi.write('    pickle.dump(filelist,sf) \n')
+    fi.close()
+
+    os.system('/common/anaconda2/bin/python {}'.format(udbcorr_script))
+
+    with open(udbcorr_file, 'rb') as sf:
+        filelist = pickle.load(sf)
+
+    return filelist
+
+
 def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, doscaling, keep_nsclms, fileidx):
     from taskinit import tb, casalog
     filename = filelist[fileidx]
@@ -238,11 +276,13 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     if not (timebin == '0s' and width == 1):
         msfile = msname + '.split'
         if doscaling:
-            split(vis=msname_scl, outputvis=msname_scl + '.split', datacolumn='data', timebin=timebin, width=width, keepflags=False)
+            split(vis=msname_scl, outputvis=msname_scl + '.split', datacolumn='data', timebin=timebin, width=width,
+                  keepflags=False)
             os.system('rm -rf {}'.format(msname_scl))
             msfile_scl = msname_scl + '.split'
         if not (doscaling and not keep_nsclms):
-            split(vis=msname, outputvis=msname + '.split', datacolumn='data', timebin=timebin, width=width, keepflags=False)
+            split(vis=msname, outputvis=msname + '.split', datacolumn='data', timebin=timebin, width=width,
+                  keepflags=False)
             os.system('rm -rf {}'.format(msname))
     else:
         msfile = msname
@@ -255,7 +295,8 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         return [True, msfile, durtim]
 
 
-def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=None, udb_corr=True, nocreatms=None, doconcat=None, modelms=None,
+def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=None, udb_corr=True, nocreatms=None,
+                doconcat=None, modelms=None,
                 doscaling=False, keep_nsclms=False):
     casalog.origin('importeovsa')
 
@@ -296,27 +337,13 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
         timebin = '0s'
     if not width:
         width = 1
-    import sys
-    sys.stdout.flush()
+
     if udb_corr:
         udbcorr_path = visprefix + '/tmp_UDBcorr/'
-
-        sys.stdout.flush()
         if not os.path.exists(udbcorr_path):
             os.makedirs(udbcorr_path)
+        filelist = udb_corr_external(filelist, udbcorr_path)
 
-        sys.stdout.flush()
-        from eovsapy import pipeline_cal as pc
-
-        sys.stdout.flush()
-        filelist_tmp = []
-        for ll in filelist:
-            filelist_tmp.append(pc.udb_corr(ll, outpath=udbcorr_path, calibrate=True))
-        filelist = filelist_tmp
-
-        sys.stdout.flush()
-
-    sys.stdout.flush()
     if not modelms:
         if nocreatms:
             filename = filelist[0]
@@ -335,11 +362,13 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
     if ncpu == 1:
         res = []
         for fidx, ll in enumerate(filelist):
-            res.append(importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, doscaling, keep_nsclms, fidx))
+            res.append(
+                importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, doscaling, keep_nsclms, fidx))
     if ncpu > 1:
         import multiprocessing as mprocs
         from functools import partial
-        imppart = partial(importeovsa_iter, filelist, timebin, width, visprefix, nocreatms, modelms, doscaling, keep_nsclms)
+        imppart = partial(importeovsa_iter, filelist, timebin, width, visprefix, nocreatms, modelms, doscaling,
+                          keep_nsclms)
         pool = mprocs.Pool(ncpu)
         res = pool.map(imppart, iterable)
         pool.close()
