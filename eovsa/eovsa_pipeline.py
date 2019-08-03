@@ -22,16 +22,16 @@ udbmsdir = os.getenv('EOVSAUDBMS')
 udbdir = os.getenv('EOVSAUDB')
 
 if not udbmsdir:
-    print 'Environmental variable for EOVSA udbms path not defined'
-    print 'Use default path on pipeline'
+    print('Environmental variable for EOVSA udbms path not defined')
+    print('Use default path on pipeline')
     udbmsdir = '/data1/eovsa/fits/UDBms/'
 if not udbmsscldir:
-    print 'Environmental variable for scaled EOVSA udbms path not defined'
-    print 'Use default path on pipeline'
+    print('Environmental variable for scaled EOVSA udbms path not defined')
+    print('Use default path on pipeline')
     udbmsscldir = '/data1/eovsa/fits/UDBms_scl/'
 if not udbdir:
-    print 'Environmental variable for EOVSA udb path not defined'
-    print 'Use default path on pipeline'
+    print('Environmental variable for EOVSA udb path not defined')
+    print('Use default path on pipeline')
     udbdir = '/data1/eovsa/fits/UDB/'
 
 
@@ -93,7 +93,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
         etime = Time(btime.mjd + 1, format='mjd')
         trange = Time([btime, etime])
 
-    print 'Selected timerange in UTC: ', trange.iso
+    print('Selected timerange in UTC: ', trange.iso)
 
     sclist = ra.findfiles(trange, projid='NormalObserving', srcid='Sun')
     udbfilelist = sclist['scanlist']
@@ -106,7 +106,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
     outpath = '{}{}/'.format(udbmspath, tdatetime.strftime("%Y%m"))
     if not os.path.exists(outpath):
         if verbose:
-            print outpath + ' does not exist. Making a new directory.'
+            print(outpath + ' does not exist. Making a new directory.')
         os.makedirs(outpath)
         msfiles = []
     else:
@@ -233,12 +233,12 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
                           psfmode='clark', imsize=[512, 512], cell=['5arcsec'], niter=100, gain=0.05, stokes='I', weighting='natural',
                           restoringbeam=[str(bmsz) + 'arcsec'], pbcor=False, interactive=False, usescratch=True)
                 except:
-                    print 'error in cleaning spw: ' + spw
+                    print('error in cleaning spw: ' + spw)
                     break
                 gaincal(vis=slfcalms, refant='0', antenna=antenna, caltable=slfcal_tb, spw=spw, uvrange='', gaintable=[], selectdata=True,
                         timerange='', solint='600s', gaintype='G', calmode='p', combine='', minblperant=3, minsnr=2, append=False)
                 if not os.path.exists(slfcal_tb):
-                    print 'No solution found in spw: ' + spw
+                    print('No solution found in spw: ' + spw)
                     break
                 else:
                     clearcal(slfcalms)
@@ -352,7 +352,7 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
     suc_sort = suc[inds].reshape(ntime, nspw)
     spws_sort = spws[inds].reshape(ntime, nspw)
     if verbose:
-        print '{0:d} figures to plot'.format(ntime)
+        print('{0:d} figures to plot'.format(ntime))
     plt.ioff()
     fig = plt.figure(figsize=(8, 8))
     plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
@@ -373,7 +373,7 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
         else:
             fig.text(0.01, 0.98, plttime.iso[:19], color='w', fontweight='bold', fontsize=12, ha='left')
         if verbose:
-            print 'Plotting image at: ', plttime.iso
+            print('Plotting image at: ', plttime.iso)
         for n in range(nspw):
             plt.ioff()
             image = images_sort[i, n]
@@ -454,7 +454,7 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
         if not os.path.exists(figdir_):
             os.makedirs(figdir_)
         if verbose:
-            print 'Saving plot to :' + figdir_ + figname
+            print('Saving plot to :' + figdir_ + figname)
         plt.savefig(figdir_ + figname)
     plt.close(fig)
 

@@ -834,6 +834,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
         aiadir = './'
     if xycen:
         xc, yc = xycen
+        if len(fov) == 1:
+            fov = fov * 2
         xlen, ylen = fov
         # if parse_version(sunpy.__version__) > parse_version('0.8.0'):
         #     xyrange = [[xc - xlen / 2.0, yc - ylen / 2.0], [xc + xlen / 2.0, yc + ylen / 2.0]]

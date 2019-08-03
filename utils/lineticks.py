@@ -23,7 +23,7 @@ def get_av_vec(u1, u2):
 
 
 class LineTicks:
-    def __init__(self, line, idx, tick_length, direction=1, label=None, label_color='k',
+    def __init__(self, line, idx, tick_length,tick_shift=3.0, direction=1, label=None, label_color='k',fontsize='xx-small',
                  **kwargs):
         self.line = line
         self.idx = idx
@@ -33,7 +33,8 @@ class LineTicks:
         self.ticks = []
         self.tick_labels = []
         self.label_color = label_color
-
+        self.fontsize = fontsize
+        self.tick_shift = tick_shift
         self.tick_styles = kwargs
         # If no colour is specified for the ticks, set it to the line colour
         if not set(('c', 'color')).intersection(kwargs.keys()):
@@ -92,8 +93,8 @@ class LineTicks:
             self.ticks.append(this_tick)
 
             if self.label:
-                this_ticklabel = ax.text(x[i] + tx * 4, y[i] + ty * 4, self.label[j],
-                                         ha='center', va='center', clip_on=True, color=self.label_color)
+                this_ticklabel = ax.text(x[i] + tx * self.tick_shift, y[i] + ty * self.tick_shift, self.label[j],
+                                         ha='center', va='center', clip_on=True, color=self.label_color,fontsize=self.fontsize)
                 self.tick_labels.append(this_ticklabel)
 
     def on_change_lims(self, ax):
