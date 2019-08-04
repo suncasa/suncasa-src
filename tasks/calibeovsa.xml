@@ -40,9 +40,11 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
             'refamp': reference amplitude calibration (not used anymore)
             'phacal': daily phase calibration
             'fluxcal': flux calibration based on total-power measurements
-             default value: ['refpha','phacal','fluxcal']
-             *** note if fluxcal is already done to the UDB/IDB miriad files, it should not be performed again ***
+             default value: ['refpha','phacal']
+             *** note fluxcal is already implemented in udb_corr when doing importeovsa, should not be used anymore ****
              *** pipeline only uses ['refpha','phacal']
+
+        caltbdir -- string. Place to hold calibration tables. Default is current directory. Pipeline should use /data1/eovsa/caltable
 
         interp -- string. How interpolation is done for phacal? 'nearest' or 'linear'
 
@@ -65,9 +67,13 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 
         stokes -- string. Which stokes for the quicklook image. CASA syntax. Default 'XX'
 
+        dosplit -- boolean. Split the corrected data column?
+
+        outputvis -- string. Output visibility file after split 
+
         doconcat -- boolean. If more than one visibility dataset provided, concatenate all into one or make separate outputs if True
 
-        msoutdir -- string. Directory to place the concatenated dataset
+        concatvis -- string. Output visibility file after concatenation
 
         keep_orig_ms -- boolean. Default True. Inherited from suncasa.eovsa.concateovsa.
                 Keep the original seperated ms datasets after concatenation?
@@ -84,7 +90,12 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
         <param type="any" name="caltype">
             <description>Types of calibrations to perform</description>
             <any type="variant" limittypes="string stringArray"/>
-            <value type="stringArray">"refpha","phacal","fluxcal"</value>
+            <value type="stringArray">"refpha","phacal"</value>
+        </param>
+
+        <param type="string" name="caltbdir">
+            <description>Directory to place calibration tables.</description>
+            <value type="string"></value>
         </param>
 
         <param type="string" name="interp">
@@ -109,7 +120,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 
         <param type="bool" name="doimage">
             <description>If True, produce a quicklook image after calibration (sunpy must be installed).</description>
-            <value>True</value>
+            <value>False</value>
         </param>
 
         <param type="string" name="imagedir" subparam="true">
@@ -137,23 +148,29 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
             <value type="string">XX</value>
         </param>
 
-        <param type="bool" name="doconcat">
-            <description>If more than one visibility dataset provided, concatenate all into one or make separate outputs if True.</description>
+        <param type="bool" name="dosplit">
+            <description>If True, plit the corrected data column as output visibility file.</description>
             <value>False</value>
         </param>
 
-        <param type="string" name="msoutdir" subparam="true">
-            <description>Path of output concatenated ms. Default is current directory.</description>
-            <value type="string">.</value>
+        <param type="any" name="outputvis" subparam="true">
+	    <any type="variant" limittypes="string stringArray"/>
+            <description>Name of output visibility file. Default is the name of the first vis file ended with ".corrected.ms".</description>
+            <value type="string"></value>
+        </param>
+
+        <param type="bool" name="doconcat">
+            <description>If True, and if more than one visibility dataset provided, concatenate all into one visibility.</description>
+            <value>False</value>
         </param>
 
         <param type="string" name="concatvis" subparam="true">
-            <description>Name of output visibility file. Default is the name of the first vis file appended by a suffix: _concat.</description>
+            <description>Name of output visibility file. Default is the name of the first + last vis file ended with ".corrected.ms".</description>
             <value type="string"></value>
         </param>
 
         <param type="bool" name="keep_orig_ms" subparam="true">
-            <description>Keep the original seperated ms datasets after concatenation?</description>
+            <description>Keep the original seperated ms datasets after split?</description>
             <value>True</value>
         </param>
 
@@ -175,10 +192,17 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
                     <default param="stokes"><value type="string">XX</value></default>
                 </equals>
             </when>
+            <when param="dosplit">
+                <equals type="bool" value="False"/>
+                <equals type="bool" value="True">
+                    <default param="outputvis"><value type="string"></value></default>
+                    <default param="keep_orig_ms"><value type="bool">True</value></default>
+                </equals>
+            </when>
             <when param="doconcat">
                 <equals type="bool" value="False"/>
                 <equals type="bool" value="True">
-                    <default param="msoutdir"><value type="string">.</value></default>
+                    <default param="concatvis"><value type="string"></value></default>
                     <default param="keep_orig_ms"><value type="bool">True</value></default>
                 </equals>
             </when>

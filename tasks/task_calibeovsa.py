@@ -10,6 +10,7 @@ from taskinit import casalog, tb, ms
 from gencal_cli import gencal_cli as gencal
 from clearcal_cli import clearcal_cli as clearcal
 from applycal_cli import applycal_cli as applycal
+from flagdata_cli import flagdata_cli as flagdata
 from clean_cli import clean_cli as clean
 from split_cli import split_cli as split
 from bandpass_cli import bandpass_cli as bandpass
@@ -19,16 +20,9 @@ from eovsapy import stateframe as stf
 from eovsapy import dbutil as db
 from eovsapy import pipeline_cal as pc
 
-# check if the calibration table directory is defined
-caltbdir = os.getenv('EOVSACAL')
-if not caltbdir:
-    print('Task calibeovsa')
-    caltbdir = '/data1/eovsa/caltable/'
-    print('Environmental variable for EOVSA calibration table path not defined')
-    print('Use default path on pipeline ' + caltbdir)
 
-def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, flagant='13~15', doimage=False, imagedir=None, antenna=None,
-               timerange=None, spw=None, stokes=None, doconcat=False, msoutdir=None, concatvis=None, keep_orig_ms=True):
+def calibeovsa(vis=None, caltype=None, caltbdir=None, interp=None, docalib=True, doflag=True, flagant='13~15', doimage=False, imagedir=None, antenna=None,
+               timerange=None, spw=None, stokes=None, dosplit=False, outputvis=None, doconcat=False, concatvis=None, keep_orig_ms=True):
     '''
 
     :param vis: EOVSA visibility dataset(s) to be calibrated 
@@ -50,11 +44,19 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
             vis[idx] = f[:-1]
         vis[idx] = str(vis[idx])
 
+    # check if the calibration table directory is defined
+    # pipeline should always use "caltbdir = /data1/eovsa/caltable/"
+    if not caltbdir:
+        print('Task calibeovsa')
+        print('Path for generating calibration tables not defined')
+        print('Use current path ' + caltbdir)
+        caltbdir = './'
+
     for msfile in vis:
         casalog.origin('calibeovsa')
         if not caltype:
             casalog.post("Caltype not provided. Perform reference phase calibration and daily phase calibration.")
-            caltype = ['refpha', 'phacal', 'fluxcal']  ## use this line after the phacal is applied  # caltype = ['refcal']
+            caltype = ['refpha', 'phacal']  ## use this line after the phacal is applied  # caltype = ['refcal']
         if not os.path.exists(msfile):
             casalog.post("Input visibility does not exist. Aborting...")
             continue
@@ -391,25 +393,39 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
                 eomap.plot_settings['cmap'] = plt.get_cmap('jet')
                 eomap.plot()
                 eomap.draw_limb()
-                eomap.draw_grid()
+                # the next line would cause trouble in higher versions of SunPy, as it requires WCS
+                # eomap.draw_grid()
 
             plt.show()
 
+    if dosplit:
+        if not doconcat:
+            if not outputvis:
+                outputvis = [vis[n].split('.')[0] + '.corrected.ms' for n in range(len(vis))]
+            for n in range(len(vis)):
+                split(vis=vis[n], outputvis=outputvis[n], datacolumn='corrected')
+                if not keep_orig_ms:
+                    os.system('rm -rf {}'.format(vis[n]))
+    else:
+        outputvis = vis
+
     if doconcat:
+        #doconcat imply dosplit
         from suncasa.tasks import concateovsa_cli as ce
         # from suncasa.eovsa import concateovsa as ce
-        if msoutdir is None:
-            msoutdir = './'
         if not concatvis:
-            concatvis = os.path.basename(vis[0])
-            concatvis = msoutdir + '/' + concatvis.split('.')[0] + '_concat.ms'
+            if len(vis) == 1:
+                vis0 = os.path.basename(vis[0])
+                concatvis = vis0.split('.')[0] + '.corrected.ms'
+            if len(vis) > 1:
+                visb = os.path.basename(vis[0])
+                vise = os.path.basename(vis[-1])
+                concatvis = visb.split('.')[0]  + '-' + vise.split('.')[0][3:] + '.corrected.ms'
         else:
-            concatvis = os.path.join(msoutdir, concatvis)
-        if len(vis) > 1:
-            ce.concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=keep_orig_ms, cols2rm="model,corrected")
-            return [concatvis]
-        else:
-            split(vis=vis[0], outputvis=concatvis, datacolumn='corrected')
-            return [concatvis]
+            if len(vis) == 1:
+                split(vis=vis0, outputvis=concatvis, datacolumn='corrected')
+            if len(vis) > 1:
+                ce.concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=keep_orig_ms, cols2rm="model,corrected")
+        return [concatvis]
     else:
-        return vis
+        return outputvis
