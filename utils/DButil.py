@@ -798,7 +798,7 @@ def tplt(mapcube):
     return Time(t)
 
 
-def sdo_aia_scale_hdr(amap, sigma=5.0):
+def sdo_aia_scale_hdr(amap, sigma=None):
     import sunpy.map as smap
     from astropy.coordinates import SkyCoord
     wavelnth = '{:0.0f}'.format(amap.wavelength.value)
@@ -815,26 +815,30 @@ def sdo_aia_scale_hdr(amap, sigma=5.0):
     rdist[ind_disk] = r_sun
     rfilter = rdist / r_sun - 1
     rfilter = rfilter.value
-    if wavelnth == '94':
-        mapdata = amap.data * np.exp(rfilter * 4)
-    elif wavelnth == '131':
-        mapdata = amap.data * (np.sqrt(rfilter * 5) + 1)
-    elif wavelnth == '171':
-        mapdata = amap.data * np.exp(rfilter * 5)
-    elif wavelnth == '193':
-        mapdata = amap.data * np.exp(rfilter * 3)
-    elif wavelnth == '211':
-        mapdata = amap.data * np.exp(rfilter * 3)
-    elif wavelnth == '304':
-        mapdata = amap.data * np.exp(rfilter * 5)
-    elif wavelnth == '335':
-        mapdata = amap.data * np.exp(rfilter * 3)
-    elif wavelnth == '6173':
-        pass
-    elif wavelnth == '1':
-        pass
-    else:
+    if sigma:
         mapdata = amap.data * np.exp(rfilter * sigma)
+    else:
+        if wavelnth == '94':
+            mapdata = amap.data * np.exp(rfilter * 4)
+        elif wavelnth == '131':
+            mapdata = amap.data * (np.sqrt(rfilter * 5) + 1)
+        elif wavelnth == '171':
+            mapdata = amap.data * np.exp(rfilter * 5)
+        elif wavelnth == '193':
+            mapdata = amap.data * np.exp(rfilter * 3)
+        elif wavelnth == '211':
+            mapdata = amap.data * np.exp(rfilter * 3)
+        elif wavelnth == '304':
+            mapdata = amap.data * np.exp(rfilter * 5)
+        elif wavelnth == '335':
+            mapdata = amap.data * np.exp(rfilter * 3)
+        elif wavelnth == '6173':
+            pass
+        elif wavelnth == '1':
+            pass
+        else:
+            sigma=5.0
+            mapdata = amap.data * np.exp(rfilter * sigma)
     return smap.Map(mapdata, amap.meta)
 
 

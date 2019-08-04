@@ -18,7 +18,6 @@ from eovsapy import cal_header as ch
 from eovsapy import stateframe as stf
 from eovsapy import dbutil as db
 from eovsapy import pipeline_cal as pc
-from importeovsa_cli import importeovsa_cli as importeovsa
 
 # check if the calibration table directory is defined
 caltbdir = os.getenv('EOVSACAL')
@@ -27,7 +26,6 @@ if not caltbdir:
     caltbdir = '/data1/eovsa/caltable/'
     print('Environmental variable for EOVSA calibration table path not defined')
     print('Use default path on pipeline ' + caltbdir)
-
 
 def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, flagant='13~15', doimage=False, imagedir=None, antenna=None,
                timerange=None, spw=None, stokes=None, doconcat=False, msoutdir=None, concatvis=None, keep_orig_ms=True):
@@ -50,6 +48,7 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
     for idx, f in enumerate(vis):
         if f[-1] == '/':
             vis[idx] = f[:-1]
+        vis[idx] = str(vis[idx])
 
     for msfile in vis:
         casalog.origin('calibeovsa')
@@ -71,7 +70,7 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
         nspw = tb.nrows()
         bdname = tb.getcol('NAME')
         bd_nchan = tb.getcol('NUM_CHAN')
-        bd = [int(b[4:]) - 1 for b in bdname]  # band index from 0 to 33
+        bd = [int(b[4:]) - 1 for b in bdname]
         # nchans = tb.getcol('NUM_CHAN')
         # reffreqs = tb.getcol('REF_FREQUENCY')
         # cenfreqs = np.zeros((nspw))
@@ -82,6 +81,7 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
         antlist = [str(ll) for ll in range(len(antname) - 1)]
         antennas = ','.join(antlist)
         tb.close()
+
 
         # get time stamp, use the beginning of the file
         tb.open(msfile + '/OBSERVATION')
@@ -137,15 +137,17 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
 
             para_pha = []
             para_amp = []
-            calpha = np.zeros((nspw, 15, 2))
-            calamp = np.zeros((nspw, 15, 2))
+            calpha = np.zeros((nspw, nant-1, 2))
+            calamp = np.zeros((nspw, nant-1, 2))
             for s in range(nspw):
-                for n in range(15):
+                for n in range(nant-1):
                     for p in range(2):
                         calpha[s, n, p] = pha[n, p, bd[s]]
                         calamp[s, n, p] = amp[n, p, bd[s]]
                         para_pha.append(np.degrees(pha[n, p, bd[s]]))
                         para_amp.append(amp[n, p, bd[s]])
+
+
 
         if 'fluxcal' in caltype:
             calfac = pc.get_calfac(Time(t_mid.iso.split(' ')[0] + 'T23:59:59'))
@@ -195,22 +197,46 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
             caltb_pha = dirname + t_ref.isot[:-4].replace(':', '').replace('-', '') + '.refpha'
             if not os.path.exists(caltb_pha):
                 gencal(vis=msfile, caltable=caltb_pha, caltype='ph', antenna=antennas, pol='X,Y', spw='0~' + str(nspw - 1), parameter=para_pha)
+                tb.open(caltb_pha, nomodify=False)
+                phaflag_ = refcal['flag'][:,:,np.array(bd)]
+                phaflag_new = np.full((nant, 2, nspw), True,dtype=np.bool)
+                phaflag_new[:-1,...] = phaflag_
+                phaflag_new = np.moveaxis(phaflag_new, 0, 2).reshape(2, 1, 800)
+                tb.putcol('FLAG', phaflag_new)
+                tb.close()
+
+                # tb.open(caltb_pha, nomodify=False)
+                # phaparam = np.angle(tb.getcol('CPARAM'),deg=True)
+                # phaparam_ = np.degrees(refcal['pha'][:,:,np.array(bd)])
+                # phaparam2 = np.zeros((nant, 2, nspw))
+                # phaparam2[:-1,...] = phaparam_
+                # # phaparam2 = phaparam2.swapaxes(0,1).reshape(2,1,800)
+                # phaparam2 = np.moveaxis(phaparam2,0,2).reshape(2,1,800)
+                # tb.close()
+
             gaintables.append(caltb_pha)
         if ('refamp' in caltype) or ('refcal' in caltype):
             # caltb_amp = os.path.basename(vis).replace('.ms', '.refamp')
             caltb_amp = dirname + t_ref.isot[:-4].replace(':', '').replace('-', '') + '.refamp'
             if not os.path.exists(caltb_amp):
                 gencal(vis=msfile, caltable=caltb_amp, caltype='amp', antenna=antennas, pol='X,Y', spw='0~' + str(nspw - 1), parameter=para_amp)
+                tb.open(caltb_amp, nomodify=False)
+                ampflag_ = refcal['flag'][:,:,np.array(bd)]
+                ampflag_new = np.full((nant, 2, nspw), True,dtype=np.bool)
+                ampflag_new[:-1,...] = ampflag_
+                ampflag_new = np.moveaxis(ampflag_new, 0, 2).reshape(2, 1, 800)
+                tb.putcol('FLAG', ampflag_new)
+                tb.close()
             gaintables.append(caltb_amp)
 
         # calibration for the change of delay center between refcal time and beginning of scan -- hopefully none!
         xml, buf = ch.read_calX(4, t=[t_ref, btime], verbose=False)
         if buf:
             dly_t2 = Time(stf.extract(buf[0], xml['Timestamp']), format='lv')
-            dlycen_ns2 = stf.extract(buf[0], xml['Delaycen_ns'])[:15]
+            dlycen_ns2 = stf.extract(buf[0], xml['Delaycen_ns'])[:nant-1]
             xml, buf = ch.read_calX(4, t=t_ref)
             dly_t1 = Time(stf.extract(buf, xml['Timestamp']), format='lv')
-            dlycen_ns1 = stf.extract(buf, xml['Delaycen_ns'])[:15]
+            dlycen_ns1 = stf.extract(buf, xml['Delaycen_ns'])[:nant-1]
             dlycen_ns_diff = dlycen_ns2 - dlycen_ns1
             for n in range(2):
                 dlycen_ns_diff[:, n] -= dlycen_ns_diff[0, n]

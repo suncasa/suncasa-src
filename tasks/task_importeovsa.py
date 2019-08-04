@@ -9,6 +9,13 @@ from split_cli import split_cli as split
 from suncasa.eovsa import impteovsa as ipe
 from astropy.time import Time
 
+idbdir = os.getenv('EOVSAIDB')
+
+if not idbdir:
+    print('Environmental variable for EOVSA idb path not defined')
+    print('Use default path on pipeline')
+    idbdir = '/data1/eovsa/fits/IDB/'
+
 
 def udb_corr_external(filelist, udbcorr_path):
     import pickle
@@ -33,7 +40,10 @@ def udb_corr_external(filelist, udbcorr_path):
 
     fi.write('filelist_tmp = [] \n')
     fi.write('for ll in filelist: \n')
-    fi.write("    filelist_tmp.append(pc.udb_corr(ll, outpath='{}/', calibrate=True)) \n".format(udbcorr_path))
+    fi.write("    try: \n")
+    fi.write("        filelist_tmp.append(pc.udb_corr(ll, outpath='{}/', calibrate=True)) \n".format(udbcorr_path))
+    fi.write("    except: \n")
+    fi.write("        pass \n")
     fi.write('filelist = filelist_tmp \n')
     fi.write("with open('{}', 'wb') as sf: \n".format(udbcorr_file))
     fi.write('    pickle.dump(filelist,sf) \n')
@@ -44,6 +54,70 @@ def udb_corr_external(filelist, udbcorr_path):
     with open(udbcorr_file, 'rb') as sf:
         filelist = pickle.load(sf)
 
+    return filelist
+
+
+def trange2filelist(trange=[], verbose=False):
+    '''This finds all solar IDB files within a timerange;
+       Required inputs:
+       trange - can be 1) a single string or Time() object in UTC: use the entire day, e.g., '2017-08-01' or Time('2017-08-01')
+                          if just a date, find all scans withing the same date in local time.
+                          if a complete time stamp, find the local date first (which may be different from that provided,
+                            and return all scans within that day
+                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
+                       3) None -- use current date Time.now()
+    '''
+    import dump_tsys as dtsys
+    if trange:
+        if type(trange) == list or type(trange) == str:
+            try:
+                trange = Time(trange)
+            except:
+                print('trange format not recognised. Abort....')
+                return None
+    else:
+        print('Please give a time range. Abort....')
+        return None
+    # if type(trange) == Time:
+    try:
+        # if single Time object, the following line would report an error
+        nt = len(trange)
+        if len(trange) > 1:
+            # more than one value
+            trange = Time([trange[0], trange[-1]])
+        else:
+            # single value in a list
+            trange = Time(np.array([-1.0, 1.0]) * 5 / 24. / 60. + trange[0].mjd, format='mjd')
+    except:
+        trange = Time(np.array([-1.0, 1.0]) * 5 / 24. / 60. + trange.mjd, format='mjd')
+
+    t1 = trange[0].datetime
+    t2 = trange[1].datetime
+    daydelta = (t2.date() - t1.date()).days
+    if t1.date() != t2.date():
+        # End day is different than start day, so read and concatenate two fdb files
+        info = dtsys.rd_fdb(trange[0])
+        for ll in range(daydelta):
+            info2 = dtsys.rd_fdb(Time(trange[0].mjd + ll + 1, format='mjd'))
+            if info2:
+                for key in info.keys():
+                    info.update({key: np.append(info[key], info2[key])})
+    else:
+        # Both start and end times are on the same day
+        info = dtsys.rd_fdb(trange[0])
+
+    sidx = np.where(
+        np.logical_and(info['SOURCEID'] == 'Sun', info['PROJECTID'] == 'NormalObserving') & np.logical_and(
+            info['ST_TS'].astype(np.float) >= trange[0].lv,
+            info['ST_TS'].astype(np.float) <= trange[
+                1].lv))
+    filelist = info['FILE'][sidx]
+    if verbose:
+        print(
+            '{} file found in the time range from {} to {}: '.format(len(filelist), t1.strftime('%Y-%m-%d %H:%M:%S UT'),
+                                                                     t2.strftime('%Y-%m-%d %H:%M:%S UT')))
+    inpath = '{}/{}/'.format(idbdir, trange[0].datetime.strftime("%Y%m%d"))
+    filelist = [inpath + ll for ll in filelist]
     return filelist
 
 
@@ -300,11 +374,11 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
                 doscaling=False, keep_nsclms=False):
     casalog.origin('importeovsa')
 
-    # if type(idbfiles) == Time:
-    #     filelist = ri.get_trange_files(idbfiles)
-    # else:
-    #     # If input type is not Time, assume that it is the list of files to read
-    filelist = idbfiles
+    if type(idbfiles) == Time:
+        filelist = trange2filelist(idbfiles)
+    else:
+        # If input type is not Time, assume that it is the list of files to read
+        filelist = idbfiles
 
     if type(filelist) == str:
         filelist = [filelist]
@@ -403,6 +477,9 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
     # except:
     #     print 'errors occurred when creating the output summary.'
 
+    if udb_corr:
+        os.system('rm -rf {}'.format(udbcorr_path))
+
     if doconcat:
         from suncasa.tasks import concateovsa_cli as ce
         msname = os.path.basename(filelist[0])
@@ -417,7 +494,9 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
             msfiles = list(np.array(results['msfile'])[np.where(np.array(results['succeeded']) == True)])
             concatvis = visprefix + msname + '-{:d}m{}.ms'.format(durtim, '')
         ce.concateovsa(msfiles, concatvis, datacolumn='data', keep_orig_ms=True, cols2rm="model,corrected")
-        return True
+        return concatvis
+    else:
+        msfiles = list(np.array(results['msfile'])[np.where(np.array(results['succeeded']) == True)])
+        return [str(m) for m in msfiles]
 
-    if udb_corr:
-        os.system('rm -rf {}'.format(udbcorr_path))
+

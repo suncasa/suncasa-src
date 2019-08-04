@@ -21,12 +21,12 @@ def concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2
             msfiles[idx] = str(ll)[:-1]
     datacolumn = datacolumn.lower()
     if datacolumn == 'data':
-        print 'DATA columns will be concatenated.'
+        print('DATA columns will be concatenated.')
         for ll in msfiles:
             clearcal(vis=str(ll), addmodel=True)
     elif datacolumn == 'corrected':
         # try:
-        print 'CORRECTED columns will be concatenated.'
+        print('CORRECTED columns will be concatenated.')
         tmpdir = os.path.join(visprefix, 'tmp_ms') + os.path.sep
         if not os.path.exists(tmpdir):
             os.makedirs(tmpdir)
@@ -93,7 +93,7 @@ def concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2
         if col in colnames:
             try:
                 tb.removecols(col)
-                print 'Column {} removed.'.format(col)
+                print('Column {} removed.'.format(col))
             except:
                 pass
     tb.close()

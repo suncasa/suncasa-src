@@ -68,9 +68,10 @@ for k, v in zip(range(len(stokestype)), stokestype):
 
 
 def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='', scan='', datacolumn='data',
-              domedian=False, timeran=None, spw=None, timebin='0s', verbose=False):
-    from split_cli import split_cli as split
-
+              domedian=False, timeran=None, spw=None, timebin='0s', regridfreq=False, fillnan=None, verbose=False):
+    # from split_cli import split_cli as split
+    if vis.endswith('/'):
+        vis = vis[:-1]
     msfile = vis
     if not spw:
         spw = ''
@@ -81,6 +82,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
     if domedian:
         if not uvrange:
             uvrange = '0.2~0.8km'
+        bl = ''
     else:
         uvrange = ''
     # Open the ms and plot dynamic spectrum
@@ -90,33 +92,65 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
     if os.path.exists(vis_spl):
         os.system('rm -rf ' + vis_spl)
 
+    # split(vis=msfile, outputvis=vis_spl, timerange=timeran, antenna=bl, field=field, scan=scan, spw=spw,
+    #       uvrange=uvrange, timebin=timebin, datacolumn=datacolumn)
+
     ms.open(msfile, nomodify=False)
     ms.split(outputms=vis_spl, whichcol=datacolumn, time=timeran, spw=spw, baseline=bl, field=field, scan=scan,
              uvrange=uvrange, timebin=timebin)
     ms.close()
+    if verbose:
+        print('Regridding into a single spectral window...')
+        # print('Reading data spw by spw')
+
     try:
         tb.open(vis_spl + '/POLARIZATION')
         corrtype = tb.getcell('CORR_TYPE', 0)
         pols = [stokesenum[p] for p in corrtype]
+        tb.close()
     except:
         pols = []
-    # split(vis=msfile, outputvis=vis_spl, timerange=timeran, antenna=bl, field=field, scan=scan, spw=spw,
-    #       uvrange=uvrange, timebin=timebin, datacolumn=datacolumn)
-    ms.open(vis_spl, nomodify=False)
-    if verbose:
-        print('Regridding into a single spectral window...')
-        # print('Reading data spw by spw')
-    ms.cvel(outframe='LSRK', mode='frequency', interp='nearest')
-    ms.selectinit(datadescid=0, reset=True)
-    data = ms.getdata(['amplitude', 'time', 'axis_info'], ifraxis=True)
+
+    if regridfreq:
+        ms.open(vis_spl, nomodify=False)
+        ms.cvel(outframe='LSRK', mode='frequency', interp='nearest')
+        ms.selectinit(datadescid=0, reset=True)
+        data = ms.getdata(['amplitude', 'time', 'axis_info'], ifraxis=True)
+        specamp = data['amplitude']
+        freq = data['axis_info']['freq_axis']['chan_freq']
+
+    else:
+        ms.open(vis_spl)
+        ms.selectinit(datadescid=0, reset=True)
+        spwinfo = ms.getspectralwindowinfo()
+        specamp = []
+        freq = []
+        for descid in range(len(spwinfo.keys())):
+            ms.selectinit(datadescid=0, reset=True)
+            ms.selectinit(datadescid=descid)
+            data = ms.getdata(['amplitude', 'time', 'axis_info'], ifraxis=True)
+            specamp_ = data['amplitude']
+            freq_ = data['axis_info']['freq_axis']['chan_freq']
+            if fillnan is not None:
+                flag_ = ms.getdata(['flag', 'time', 'axis_info'], ifraxis=True)['flag']
+                if type(fillnan) in [int, float, long]:
+                    specamp_[flag_] = float(fillnan)
+                else:
+                    specamp_[flag_] = 0.0
+            specamp.append(specamp_)
+            freq.append(freq_)
+        specamp = np.concatenate(specamp, axis=1)
+        freq = np.concatenate(freq, axis=0)
+        ms.selectinit(datadescid=0, reset=True)
     ms.close()
-    os.system('rm -rf ' + vis_spl)
-    specamp = data['amplitude']
+    # os.system('rm -rf ' + vis_spl)
     (npol, nfreq, nbl, ntim) = specamp.shape
+    freq = freq.reshape(nfreq)
+
     if verbose:
-        print('npol, nfreq, nbl, ntime:', data['amplitude'].shape)
+        print('npol, nfreq, nbl, ntime:', (npol, nfreq, nbl, ntim))
     spec = np.swapaxes(specamp, 2, 1)
-    freq = data['axis_info']['freq_axis']['chan_freq'].reshape(nfreq)
+
     tim = data['time']
 
     if domedian:
@@ -159,6 +193,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
     goes_trange: plot only the specified time range for goes
     timestr: display time as strings on X-axis -- currently the times do not update themselves when zooming in
     """
+
     # Set up variables 
     import matplotlib.pyplot as plt
     import numpy
@@ -169,7 +204,10 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
         return 0
 
     if type(specdata) is str:
-        specdata = np.load(specdata)
+        try:
+            specdata = np.load(specdata)
+        except:
+            specdata = np.load(specdata, encoding='latin1')
         bl = specdata['bl'].item()
     try:
         (npol, nbl, nfreq, ntim) = specdata['spec'].shape
@@ -180,6 +218,10 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
         freq = specdata['freq']
         if not 'bl' in vars():
             bl = specdata['bl']
+        import matplotlib
+        from pkg_resources import parse_version
+        if parse_version(matplotlib.__version__) < parse_version('1.5.0'):
+            spec[np.isnan(spec)] = 0.0
 
     except:
         print('format of specdata not recognized. Check your input')
@@ -301,7 +343,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 divider = make_axes_locatable(ax)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax, cax=cax_spec)
-                clb_spec.set_label('Flux [Jy/Beam]')
+                clb_spec.set_label('Flux [sfu/Beam]')
                 ax.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 try:
@@ -330,7 +372,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                     if col >= 0 and col < ntim and row >= 0 and row < nfreq:
                         timstr = tim_[col].isot
                         flux = spec_plt[row, col]
-                        return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} Jy'.format(col, timstr, y, flux)
+                        return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} sfu'.format(col, timstr, y, flux)
                     else:
                         return 'x = {0}, y = {1:.3f}'.format(x, y)
 
@@ -381,7 +423,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 if col >= 0 and col < ntim and row >= 0 and row < nfreq:
                     timstr = tim_[col].isot
                     flux = spec_plt_1[row, col]
-                    return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} Jy'.format(col, timstr, y, flux)
+                    return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} sfu'.format(col, timstr, y, flux)
                 else:
                     return 'x = {0}, y = {1:.3f}'.format(x, y)
 
@@ -418,7 +460,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 if col >= 0 and col < ntim and row >= 0 and row < nfreq:
                     timstr = tim_[col].isot
                     flux = spec_plt_2[row, col]
-                    return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} Jy'.format(col, timstr, y, flux)
+                    return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} sfu'.format(col, timstr, y, flux)
                 else:
                     return 'x = {0}, y = {1:.3f}'.format(x, y)
 

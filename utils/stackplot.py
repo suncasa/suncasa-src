@@ -1222,12 +1222,12 @@ class Stackplot:
         self.mapcube_diff = mapcube_diff
         return mapcube_diff
 
-    def mapcube_mkdiff(self, mode='rdiff', dt_frm=3, medfilt=None, gaussfilt=None, bfilter=False, lowcut=0.1,
+    def mapcube_mkdiff(self, mode='rdiff', dt=36., medfilt=None, gaussfilt=None, bfilter=False, lowcut=0.1,
                        highcut=0.5, window=[None, None], outfile=None, tosave=False):
         '''
 
         :param mode: accept modes: rdiff, rratio, bdiff, bratio, dtrend
-        :param dt_frm:
+        :param dt: time difference in second between frames when [rdiff, rratio, bdiff, bratio] is invoked
         :param medfilt:
         :param gaussfilt:
         :param bfilter: do butter bandpass filter
@@ -1256,7 +1256,7 @@ class Stackplot:
             for idx, ll in enumerate(tqdm(self.mapcube)):
                 maplist.append(deepcopy(ll))
                 tjd_ = tplt[idx]
-                sidx = np.argmin(np.abs(tplt - (tjd_ - 12. * dt_frm / 3600. / 24.)))
+                sidx = np.argmin(np.abs(tplt - (tjd_ - dt / 3600. / 24.)))
                 # if idx - dt_frm < 0:
                 #     sidx = 0
                 # else:
@@ -1265,12 +1265,12 @@ class Stackplot:
                     mapdata = datacube[:, :, idx] - datacube[:, :, sidx]
                     mapdata[np.isnan(mapdata)] = 0.0
                 elif mode == 'rratio':
-                    mapdata = datacube[:, :, idx] / datacube[:, :, sidx]
+                    mapdata = datacube[:, :, idx].astype(np.float) / datacube[:, :, sidx].astype(np.float)
                     mapdata[np.isnan(mapdata)] = 1.0
                 elif mode == 'bdiff':
                     mapdata = datacube[:, :, idx] - datacube[:, :, 0]
                 elif mode == 'bratio':
-                    mapdata = datacube[:, :, idx] / datacube[:, :, 0]
+                    mapdata = datacube[:, :, idx].astype(np.float) / datacube[:, :, 0].astype(np.float)
                 maplist[idx] = sunpy.map.Map(mapdata, maplist[idx].meta)
         elif mode == 'dtrend':
             datacube_ft = np.zeros_like(datacube)
