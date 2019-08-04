@@ -43,6 +43,12 @@ def warn(*args, **kwargs):
 
 warnings.warn = warn
 
+def checkspecnan(spec):
+    import matplotlib
+    from pkg_resources import parse_version
+    if parse_version(matplotlib.__version__) < parse_version('1.5.0'):
+        spec[np.isnan(spec)] = 0.0
+    return spec
 
 def get_goes_data(t=None, sat_num=None):
     ''' Reads GOES data from https://umbra.nascom.nasa.gov/ repository, for date
@@ -416,6 +422,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     plt.ioff()
     import matplotlib.gridspec as gridspec
     spec = specdata['spec']
+    spec = checkspecnan(spec)
     (npol, nbl, nfreq, ntim) = spec.shape
     # tidx = range(ntim)
     fidx = range(nfreq)
@@ -1034,6 +1041,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
     else:
         cfreqs = []
         spec = specdata['spec']
+        spec = checkspecnan(spec)
         (npol_fits, nbl, nfreq, ntim) = spec.shape
         fidx = range(nfreq)
         tim = specdata['tim']

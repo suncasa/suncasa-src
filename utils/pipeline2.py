@@ -6,6 +6,6 @@ from eovsapy.html_movie import html_movie
 mjdnow = ep.Time.now().mjd
 t = ep.Time(mjdnow - 6, format='mjd')
 date = t.iso[:10]
-ep.qlook_image_pipeline(date, synoptic=True)
+ep.qlook_image_pipeline(date, ncpu=1, synoptic=True)
 html_movie(t, imgprefix='eovsa_qlimg_')
 html_movie(t, imgprefix='eovsa_qlimg_', synoptic=True)

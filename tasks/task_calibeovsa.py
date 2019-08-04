@@ -19,8 +19,6 @@ from eovsapy import cal_header as ch
 from eovsapy import stateframe as stf
 from eovsapy import dbutil as db
 from eovsapy import pipeline_cal as pc
-from importeovsa_cli import importeovsa_cli as importeovsa
-
 
 
 def calibeovsa(vis=None, caltype=None, caltbdir=None, interp=None, docalib=True, doflag=True, flagant='13~15', doimage=False, imagedir=None, antenna=None,
@@ -44,6 +42,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir=None, interp=None, docalib=True,
     for idx, f in enumerate(vis):
         if f[-1] == '/':
             vis[idx] = f[:-1]
+        vis[idx] = str(vis[idx])
 
     # check if the calibration table directory is defined
     # pipeline should always use "caltbdir = /data1/eovsa/caltable/"

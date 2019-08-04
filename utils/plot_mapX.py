@@ -17,7 +17,7 @@ from sunpy import map as smap
 # from IPython import embed
 # from astropy.coordinates import SkyCoord
 import numpy as np
-# from suncasa.utils import DButil
+from suncasa.utils import DButil
 import warnings
 import matplotlib.patches as patches
 import numpy.ma as ma
@@ -25,8 +25,17 @@ import numpy.ma as ma
 
 class Sunmap():
 
-    def __init__(self, sunmap):
-        self.sunmap = sunmap
+    def __init__(self, sunmap, aia=False):
+        if aia:
+            try:
+                sunmap = DButil.normalize_aiamap(sunmap)
+            except:
+                pass
+            data = sunmap.data
+            data[data < 1.0] = 1.0
+            self.sunmap = smap.Map(data, sunmap.meta)
+        else:
+            self.sunmap = sunmap
 
     def map2wcsgrids(self, sunpymap=None, cell=False):
         '''
