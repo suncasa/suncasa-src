@@ -20,7 +20,7 @@ from eovsapy import dbutil as db
 from eovsapy import pipeline_cal as pc
 
 
-def calibeovsa(vis=None, caltype=None, caltbdir=None, interp=None, docalib=True, doflag=True, flagant='13~15', doimage=False, imagedir=None, antenna=None,
+def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, doflag=True, flagant='13~15', doimage=False, imagedir=None, antenna=None,
                timerange=None, spw=None, stokes=None, dosplit=False, outputvis=None, doconcat=False, concatvis=None, keep_orig_ms=True):
     '''
 
@@ -48,7 +48,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir=None, interp=None, docalib=True,
     if not caltbdir:
         print('Task calibeovsa')
         print('Path for generating calibration tables not defined')
-        print('Use current path ' + caltbdir)
+        print('Use current path')
         caltbdir = './'
 
     for msfile in vis:
