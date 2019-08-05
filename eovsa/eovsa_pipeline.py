@@ -16,6 +16,7 @@ import numpy as np
 udbmsscldir = os.getenv('EOVSAUDBMSSCL')
 udbmsdir = os.getenv('EOVSAUDBMS')
 udbdir = os.getenv('EOVSAUDB')
+caltbdir = os.getenv('EOVSACAL')
 
 if not udbmsdir:
     print('Environmental variable for EOVSA udbms path not defined')
@@ -29,6 +30,13 @@ if not udbdir:
     print('Environmental variable for EOVSA udb path not defined')
     print('Use default path on pipeline')
     udbdir = '/data1/eovsa/fits/UDB/'
+# check if the calibration table directory is defined
+
+if not caltbdir:
+    print('Task calibeovsa')
+    caltbdir = '/data1/eovsa/caltable/'
+    print('Environmental variable for EOVSA calibration table path not defined')
+    print('Use default path on pipeline ' + caltbdir)
 
 
 def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
@@ -167,12 +175,16 @@ def calib_pipeline(trange, doimport=False, synoptic=False):
             invis[idx] = f[:-1]
 
     if synoptic:
-        vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], interp='nearest', doflag=True, flagant='13~15',
+        vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], caltbdir=caltbdir, interp='nearest',
+                                    doflag=True,
+                                    flagant='13~15',
                                     doimage=False, doconcat=True,
                                     msoutdir=os.path.dirname(invis[0]),
                                     concatvis=os.path.basename(invis[0])[:11] + '.ms', keep_orig_ms=False)
     else:
-        vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], interp='nearest', doflag=True, flagant='13~15',
+        vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], caltbdir=caltbdir, interp='nearest',
+                                    doflag=True,
+                                    flagant='13~15',
                                     doimage=False, doconcat=True,
                                     msoutdir=os.path.dirname(invis[0]), keep_orig_ms=False)
     return vis
