@@ -419,13 +419,11 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
             if len(vis) > 1:
                 visb = os.path.basename(vis[0])
                 vise = os.path.basename(vis[-1])
-                concatvis = visb.split('.')[0]  + '-' + vise.split('.')[0][3:] + '.corrected.ms'
-        else:
-            if len(vis) == 1:
-                vis0 = os.path.basename(vis[0])
-                split(vis=vis0, outputvis=concatvis, datacolumn='corrected')
-            if len(vis) > 1:
-                ce.concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=keep_orig_ms, cols2rm="model,corrected")
+                concatvis = visb.split('.')[0] + '-' + vise.split('.')[0][3:] + '.corrected.ms'
+        if len(vis) == 1:
+            split(vis=vis[0], outputvis=concatvis, datacolumn='corrected')
+        if len(vis) > 1:
+            ce.concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=keep_orig_ms, cols2rm="model,corrected")
         return [concatvis]
     else:
         return outputvis
