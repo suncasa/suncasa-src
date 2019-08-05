@@ -143,7 +143,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
         freq = np.concatenate(freq, axis=0)
         ms.selectinit(datadescid=0, reset=True)
     ms.close()
-    # os.system('rm -rf ' + vis_spl)
+    os.system('rm -rf ' + vis_spl)
     (npol, nfreq, nbl, ntim) = specamp.shape
     freq = freq.reshape(nfreq)
 

@@ -10,7 +10,6 @@ from taskinit import casalog, tb, ms
 from gencal_cli import gencal_cli as gencal
 from clearcal_cli import clearcal_cli as clearcal
 from applycal_cli import applycal_cli as applycal
-from flagdata_cli import flagdata_cli as flagdata
 from clean_cli import clean_cli as clean
 from split_cli import split_cli as split
 from bandpass_cli import bandpass_cli as bandpass
