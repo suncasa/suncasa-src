@@ -43,12 +43,14 @@ def warn(*args, **kwargs):
 
 warnings.warn = warn
 
+
 def checkspecnan(spec):
     import matplotlib
     from pkg_resources import parse_version
     if parse_version(matplotlib.__version__) < parse_version('1.5.0'):
         spec[np.isnan(spec)] = 0.0
     return spec
+
 
 def get_goes_data(t=None, sat_num=None):
     ''' Reads GOES data from https://umbra.nascom.nasa.gov/ repository, for date
@@ -797,10 +799,11 @@ def dspec_external(vis, workdir='./', specfile=None):
 
 def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None, uvrange='', stokes='RR,LL', dmin=None,
               dmax=None, goestime=None,
-              reftime='', xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0, niter=500,
+              reftime='', xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0,
+              weighting='briggs', niter=500,
               imsize=[512], cell=['5.0arcsec'], mask='',
               interactive=False, usemsphacenter=True, imagefile=None, outfits='', plotaia=True, aiawave=171,
-              aiafits=None, aiadir=None, savefig=False,
+              aiafits=None, aiadir=None, savefig=False, datacolumn='data',
               mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=False, imax=None, imin=None,
               clearmshistory=False, clevels=None, calpha=0.5):
     '''
@@ -1239,7 +1242,10 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                         bdwds = tb.getcol('TOTAL_BANDWIDTH')
                         cfreqs = reffreqs + bdwds / 2.
                         tb.close()
-                        sbeam = 35.
+                        try:
+                            sbeam=np.float(restoringbeam[0].replace('arcsec',''))
+                        except:
+                            sbeam = 35.
                     for sp in spw:
                         if not restoringbeam == ['']:
                             try:
@@ -1276,8 +1282,9 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                                pbcor=True,
                                imsize=imsize,
                                cell=cell,
+                               datacolumn=datacolumn,
                                restoringbeam=restoringbm,
-                               weighting='briggs',
+                               weighting=weighting,
                                robust=robust,
                                phasecenter=phasecenter)
 
@@ -1325,8 +1332,9 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                            pbcor=True,
                            imsize=imsize,
                            cell=cell,
+                           datacolumn=datacolumn,
                            restoringbeam=restoringbeam,
-                           weighting='briggs',
+                           weighting=weighting,
                            robust=robust,
                            phasecenter=phasecenter)
 
