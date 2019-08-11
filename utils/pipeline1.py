@@ -1,4 +1,4 @@
-#!/common/casa/casa-release-5.0.0-218.el6/lib/casa/bin/casa
+#!/common/casa/casa-release-5.4.1-31.el6/bin/casa
 from suncasa.eovsa import eovsa_pipeline as ep
 
 # Set to run 5 days earlier than the current date
