@@ -179,14 +179,13 @@ def calib_pipeline(trange, doimport=False, synoptic=False):
                                     doflag=True,
                                     flagant='13~15',
                                     doimage=False, doconcat=True,
-                                    msoutdir=os.path.dirname(invis[0]),
-                                    concatvis=os.path.basename(invis[0])[:11] + '.ms', keep_orig_ms=False)
+                                    concatvis=invis[0][:11] + '.ms', keep_orig_ms=False)
     else:
         vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], caltbdir=caltbdir, interp='nearest',
                                     doflag=True,
                                     flagant='13~15',
                                     doimage=False, doconcat=True,
-                                    msoutdir=os.path.dirname(invis[0]), keep_orig_ms=False)
+                                    keep_orig_ms=False)
     return vis
 
 
