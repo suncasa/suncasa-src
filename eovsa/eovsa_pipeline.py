@@ -206,7 +206,7 @@ def calib_pipeline(trange, doimport=False, synoptic=False):
 
 
 def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, stokes=None, antenna='0~12',
-                   lowcutoff_freq=3.9, imagedir=None, spws=['1~5', '6~10', '11~15', '16~25'], toTb=True, overwrite=True,
+                   lowcutoff_freq=3.7, imagedir=None, spws=['1~5', '6~10', '11~15', '16~25'], toTb=True, overwrite=True,
                    doslfcal=False, verbose=False):
     '''
        trange: can be 1) a single Time() object: use the entire day
