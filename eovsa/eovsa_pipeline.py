@@ -39,6 +39,21 @@ if not caltbdir:
     print('Use default path on pipeline ' + caltbdir)
 
 
+def getspwfreq(vis):
+    '''
+
+    :param vis:
+    :return: mid frequencies in GHz of each spw in the vis
+    '''
+    tb.open(vis + '/SPECTRAL_WINDOW')
+    reffreqs = tb.getcol('REF_FREQUENCY')
+    bdwds = tb.getcol('TOTAL_BANDWIDTH')
+    cfreqs = reffreqs + bdwds / 2.
+    tb.close()
+    cfreqs = cfreqs / 1.0e9
+    return cfreqs
+
+
 def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
     '''This finds all solar UDBms files within a timerange; If the UDBms file does not exist 
        in EOVSAUDBMSSCL, create one by calling importeovsa
@@ -191,8 +206,8 @@ def calib_pipeline(trange, doimport=False, synoptic=False):
 
 
 def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, stokes=None, antenna='0~12',
-                   imagedir=None, spws=['1~5', '6~10', '11~15', '16~25'], toTb=True, overwrite=True, doslfcal=False,
-                   verbose=False):
+                   lowcutoff_freq=3.9, imagedir=None, spws=['1~5', '6~10', '11~15', '16~25'], toTb=True, overwrite=True,
+                   doslfcal=False, verbose=False):
     '''
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
@@ -237,10 +252,13 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
         if doslfcal:
             slfcalms = './' + msfilebs + '.xx'
             split(msfile, outputvis=slfcalms, datacolumn='corrected', correlation='XX')
+        cfreqs = getspwfreq(msfile)
         for spw in spws:
             antenna = antenna0
+            if spw == '':
+                continue
             spwran = [s.zfill(2) for s in spw.split('~')]
-            freqran = [int(s) * 0.5 + 2.9 for s in spw.split('~')]
+            freqran = [cfreqs[int(s)] for s in spw.split('~')]
             cfreq = np.mean(freqran)
             bmsz = max(150. / cfreq, 20.)
             uvrange = '<10klambda'
@@ -271,12 +289,6 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
                              applymode='calonly', calwt=False)
                     msfile = slfcalms
 
-            # if cfreq < 10.:
-            #     imsize = 512
-            #     cell = ['5arcsec']
-            # else:
-            #     imsize = 1024
-            #     cell = ['2.5arcsec']
             imsize = 512
             cell = ['5arcsec']
             if len(spwran) == 2:
@@ -289,11 +301,6 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             if cfreq > 10.:
                 antenna = antenna + ';!0&1;!0&2'  # deselect the shortest baselines
 
-            # res = ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=twidth, uvrange=uvrange,
-            #               spw=spw, ncpu=ncpu, niter=1000,
-            #               gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=stokes, doreg=True,
-            #               usephacenter=False, overwrite=overwrite,
-            #               toTb=toTb, restoringbeam=restoringbeam, uvtaper=True, outertaper=['30arcsec'])
             res = ptclean3(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=twidth, uvrange=uvrange,
                            spw=spw, ncpu=ncpu, niter=1000,
                            gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=stokes, doreg=True,
@@ -319,21 +326,19 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
         tim = timfreq['time']
         ms.close()
 
+        cfreqs = getspwfreq(msfile)
         imdir = imagedir + subdir[0]
         if not os.path.exists(imdir):
             os.makedirs(imdir)
         for spw in spws:
+            if spw == '':
+                spw = '{:d}~{:d}'.format(next(x[0] for x in enumerate(cfreqs) if x[1] > lowcutoff_freq),
+                                         len(cfreqs) - 1)
             spwran = [s.zfill(2) for s in spw.split('~')]
-            freqran = [int(s) * 0.5 + 2.9 for s in spw.split('~')]
+            freqran = [cfreqs[int(s)] for s in spw.split('~')]
             cfreq = np.mean(freqran)
             bmsz = max(150. / cfreq, 20.)
             uvrange = '<10klambda'
-            # if cfreq < 10.:
-            #     imsize = 512
-            #     cell = ['5arcsec']
-            # else:
-            #     imsize = 1024
-            #     cell = ['2.5arcsec']
             imsize = 512
             cell = ['5arcsec']
             if len(spwran) == 2:
@@ -343,14 +348,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
 
             restoringbeam = ['{0:.1f}arcsec'.format(bmsz)]
             imagesuffix = '.synoptic.spw' + spwstr.replace('~', '-')
-            # if cfreq > 10.:
-            #     antenna = antenna + ';!0&1;!0&2'  #deselect the shortest baselines
 
-            # res = ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=len(tim), uvrange=uvrange,
-            #               spw=spw, ncpu=1, niter=1000,
-            #               gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=stokes, doreg=True,
-            #               usephacenter=False, overwrite=overwrite,
-            #               toTb=toTb, restoringbeam=restoringbeam, uvtaper=True, outertaper=['30arcsec'])
             res = ptclean3(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=len(tim), uvrange=uvrange,
                            spw=spw, ncpu=1, niter=1000,
                            gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=stokes, doreg=True,
@@ -380,10 +378,11 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
     from matplotlib import colors
     import astropy.units as u
     from suncasa.utils import plot_mapX as pmX
-    from matplotlib import gridspec as gridspec
+    # from matplotlib import gridspec as gridspec
 
     if not figdir:
         figdir = './'
+
     nspw = len(set(imres['Spw']))
     plttimes = list(set(imres['BeginTime']))
     ntime = len(plttimes)
@@ -397,17 +396,10 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
     images_sort = images[inds].reshape(ntime, nspw)
     btimes_sort = btimes[inds].reshape(ntime, nspw)
     suc_sort = suc[inds].reshape(ntime, nspw)
-    spws_sort = spws[inds].reshape(ntime, nspw)
     if verbose:
         print('{0:d} figures to plot'.format(ntime))
     plt.ioff()
     fig = plt.figure(figsize=(8, 8))
-    # if nspw ==30:
-    #     fig = plt.figure(figsize=(10, 12))
-    #     gs = gridspec.GridSpec(5, 6)
-    # else:
-    #     fig = plt.figure(figsize=(7, 14))
-    #     gs = gridspec.GridSpec(5, 10)
 
     plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
     axs = []
@@ -430,8 +422,6 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
             if pltst == 0:
                 i0 = i
                 pltst = 1
-        # fig=plt.figure(figsize=(9,6))
-        # fig.suptitle('EOVSA @ '+plttime.iso[:19])
         if i == i0:
             if synoptic:
                 timetext = fig.text(0.01, 0.98, plttime.iso[:10], color='w', fontweight='bold', fontsize=12, ha='left')
@@ -447,9 +437,10 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
         for n in range(nspw):
             plt.ioff()
             if i == i0:
-                # fig.add_subplot(nspw/3, 3, n+1)
-                ax = fig.add_subplot(nspw / 2, 2, n + 1)
-                # ax = fig.add_subplot(gs[n])
+                if nspw == 1:
+                    ax = fig.add_subplot(111)
+                else:
+                    ax = fig.add_subplot(nspw / 2, 2, n + 1)
                 axs.append(ax)
             else:
                 ax = axs[n]
@@ -487,8 +478,6 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
                 eomap_.draw_grid(axes=ax)
                 ax.set_xlim([-1080, 1080])
                 ax.set_ylim([-1080, 1080])
-                # spwran = spws_sort[i, n]
-                # freqran = [int(s) * 0.5 + 2.9 for s in spwran.split('~')]
                 ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(eomap.meta['crval3'] / 1e9,
                                                                    (eomap.meta['crval3'] + eomap.meta['cdelt3']) / 1e9),
                         color='w', transform=ax.transAxes, fontweight='bold', ha='right')
@@ -517,7 +506,7 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
     plt.close(fig)
 
 
-def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False, synoptic=False):
+def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False, synoptic=False, overwrite=True):
     ''' date: date string or Time object. e.g., '2017-07-15' or Time('2017-07-15')
     '''
     import pytz
@@ -532,9 +521,9 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
 
     if date.mjd > Time('2019-02-02 12:00:00').mjd:
         # spws = ['0~4', '5~14', '15~27', '28~43']
-        spws = ['6~10', '11~20', '21~30', '31~43']
+        spws = ['6~10', '11~20', '21~30', '31~43', '']
     else:
-        spws = ['1~5', '6~10', '11~15', '16~25']
+        spws = ['1~5', '6~10', '11~15', '16~25', '']
 
     qlookfitsdir = os.getenv('EOVSAQLOOKFITS')
     qlookfigdir = os.getenv('EOVSAQLOOKFIG')
@@ -563,9 +552,16 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
             return None
 
     imres = mk_qlook_image(date, twidth=twidth, ncpu=ncpu, doimport=doimport, docalib=docalib, imagedir=imagedir,
-                           spws=spws, verbose=True)
+                           spws=spws, verbose=True, overwrite=overwrite)
     figdir = qlookfigdir
     plt_qlook_image(imres, figdir=figdir, verbose=True)
     if imres['Synoptic']['Succeeded']:
         figdir = synopticfigdir
-        plt_qlook_image(imres['Synoptic'], figdir=figdir, verbose=True, synoptic=True)
+        imres_bds = {}
+        imres_allbd = {}
+        for k, v in imres['Synoptic'].items():
+            imres_bds[k] = v[:4]
+            imres_allbd[k] = v[4:]
+
+        plt_qlook_image(imres_bds, figdir=figdir, verbose=True, synoptic=True)
+        plt_qlook_image(imres_allbd, figdir=figdir + 'FullBD/', verbose=True, synoptic=True)
