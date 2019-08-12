@@ -9,7 +9,7 @@ from gaincal_cli import gaincal_cli as gaincal
 from applycal_cli import applycal_cli as applycal
 from suncasa.tasks import task_calibeovsa as calibeovsa
 from eovsapy import refcal_anal as ra
-from taskinit import ms
+from taskinit import ms, tb
 import os
 import numpy as np
 
@@ -214,8 +214,8 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             vis = [trange]
             tsts = []
             for v in vis:
-                tb.open(v+'/OBSERVATION')
-                tsts.append(Time(tb.getcell('TIME_RANGE')[0]/24/3600,format='mjd').datetime)
+                tb.open(v + '/OBSERVATION')
+                tsts.append(Time(tb.getcell('TIME_RANGE')[0] / 24 / 3600, format='mjd').datetime)
                 tb.close()
     subdir = [tst.strftime("%Y/%m/%d/") for tst in tsts]
 
