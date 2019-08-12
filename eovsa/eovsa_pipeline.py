@@ -179,7 +179,8 @@ def calib_pipeline(trange, doimport=False, synoptic=False):
                                     doflag=True,
                                     flagant='13~15',
                                     doimage=False, doconcat=True,
-                                    concatvis=invis[0][:11] + '.ms', keep_orig_ms=False)
+                                    concatvis=os.path.join(os.path.dirname(invis[0]),
+                                                           os.path.basename(invis[0])[:11] + '.ms'), keep_orig_ms=False)
     else:
         vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], caltbdir=caltbdir, interp='nearest',
                                     doflag=True,
@@ -203,15 +204,20 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
         mslist = trange2ms(trange=trange, doimport=doimport)
         vis = mslist['ms']
         tsts = [l.to_datetime() for l in mslist['tstlist']]
-        subdir = [tst.strftime("%Y/%m/%d/") for tst in tsts]
     if type(trange) == str:
         try:
             date = Time(trange)
             mslist = trange2ms(trange=trange, doimport=doimport)
             vis = mslist['ms']
+            tsts = [l.to_datetime() for l in mslist['tstlist']]
         except:
             vis = [trange]
-        subdir = ['/']
+            tsts = []
+            for v in vis:
+                tb.open(v+'/OBSERVATION')
+                tsts.append(Time(tb.getcell('TIME_RANGE')[0]/24/3600,format='mjd').datetime)
+                tb.close()
+    subdir = [tst.strftime("%Y/%m/%d/") for tst in tsts]
 
     for idx, f in enumerate(vis):
         if f[-1] == '/':
@@ -265,12 +271,14 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
                              applymode='calonly', calwt=False)
                     msfile = slfcalms
 
-            if cfreq < 10.:
-                imsize = 512
-                cell = ['5arcsec']
-            else:
-                imsize = 1024
-                cell = ['2.5arcsec']
+            # if cfreq < 10.:
+            #     imsize = 512
+            #     cell = ['5arcsec']
+            # else:
+            #     imsize = 1024
+            #     cell = ['2.5arcsec']
+            imsize = 512
+            cell = ['5arcsec']
             if len(spwran) == 2:
                 spwstr = spwran[0] + '~' + spwran[1]
             else:
@@ -320,12 +328,14 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             cfreq = np.mean(freqran)
             bmsz = max(150. / cfreq, 20.)
             uvrange = '<10klambda'
-            if cfreq < 10.:
-                imsize = 512
-                cell = ['5arcsec']
-            else:
-                imsize = 1024
-                cell = ['2.5arcsec']
+            # if cfreq < 10.:
+            #     imsize = 512
+            #     cell = ['5arcsec']
+            # else:
+            #     imsize = 1024
+            #     cell = ['2.5arcsec']
+            imsize = 512
+            cell = ['5arcsec']
             if len(spwran) == 2:
                 spwstr = spwran[0] + '~' + spwran[1]
             else:
@@ -521,7 +531,8 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
         return None
 
     if date.mjd > Time('2019-02-02 12:00:00').mjd:
-        spws = ['0~4', '5~14', '15~27', '28~43']
+        # spws = ['0~4', '5~14', '15~27', '28~43']
+        spws = ['6~10', '11~20', '21~30', '31~43']
     else:
         spws = ['1~5', '6~10', '11~15', '16~25']
 
@@ -538,6 +549,9 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
         synopticfigdir = '/common/webplots/SynopticImg/'
         if not os.path.exists(synopticfigdir): os.makedirs(synopticfigdir)
 
+    if docalib:
+        vis = calib_pipeline(date, doimport=doimport, synoptic=synoptic)
+
     imagedir = qlookfitsdir
     if synoptic:
         vis_synoptic = os.path.join(udbmsdir, date.datetime.strftime("%Y%m"),
@@ -547,8 +561,6 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
         else:
             print('Whole-day ms file {} not existed. About..... Use pipeline1.py to make one.'.format(vis_synoptic))
             return None
-    if docalib:
-        vis = calib_pipeline(date, doimport=doimport, synoptic=synoptic)
 
     imres = mk_qlook_image(date, twidth=twidth, ncpu=ncpu, doimport=doimport, docalib=docalib, imagedir=imagedir,
                            spws=spws, verbose=True)
