@@ -206,8 +206,8 @@ def calib_pipeline(trange, doimport=False, synoptic=False):
 
 
 def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, stokes=None, antenna='0~12',
-                   imagedir=None, spws=['1~5', '6~10', '11~15', '16~25'], toTb=True, overwrite=True, doslfcal=False,
-                   verbose=False):
+                   lowcutoff_freq=3.9, imagedir=None, spws=['1~5', '6~10', '11~15', '16~25'], toTb=True, overwrite=True,
+                   doslfcal=False, verbose=False):
     '''
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
@@ -332,7 +332,8 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             os.makedirs(imdir)
         for spw in spws:
             if spw == '':
-                spw = '{:d}~{:d}'.format(next(x[0] for x in enumerate(cfreqs) if x[1] >  3.7),len(cfreqs) - 1)
+                spw = '{:d}~{:d}'.format(next(x[0] for x in enumerate(cfreqs) if x[1] > lowcutoff_freq),
+                                         len(cfreqs) - 1)
             spwran = [s.zfill(2) for s in spw.split('~')]
             freqran = [cfreqs[int(s)] for s in spw.split('~')]
             cfreq = np.mean(freqran)
@@ -563,4 +564,4 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
             imres_allbd[k] = v[4:]
 
         plt_qlook_image(imres_bds, figdir=figdir, verbose=True, synoptic=True)
-        plt_qlook_image(imres_allbd, figdir=figdir+'FullBD/', verbose=True, synoptic=True)
+        plt_qlook_image(imres_allbd, figdir=figdir + 'FullBD/', verbose=True, synoptic=True)
