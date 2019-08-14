@@ -300,8 +300,8 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             imagesuffix = '.spw' + spwstr.replace('~', '-')
             if cfreq > 10.:
                 antenna = antenna + ';!0&1;!0&2'  # deselect the shortest baselines
-            else:
-                antenna = antenna + ';!0&1'  # deselect the shortest baselines
+            # else:
+            #     antenna = antenna + ';!0&1'  # deselect the shortest baselines
 
             res = ptclean3(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=twidth, uvrange=uvrange,
                            spw=spw, ncpu=ncpu, niter=1000,
@@ -333,6 +333,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
         if not os.path.exists(imdir):
             os.makedirs(imdir)
         for spw in spws:
+            antenna = antenna0
             if spw == '':
                 spw = '{:d}~{:d}'.format(next(x[0] for x in enumerate(cfreqs) if x[1] > lowcutoff_freq),
                                          len(cfreqs) - 1)
@@ -340,7 +341,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             freqran = [cfreqs[int(s)] for s in spw.split('~')]
             cfreq = np.mean(freqran)
             bmsz = max(150. / cfreq, 20.)
-            uvrange = '<10klambda'
+            uvrange = ''
             imsize = 512
             cell = ['5arcsec']
             if len(spwran) == 2:
@@ -453,10 +454,16 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
                     eomap = smap.Map(image)
                 except:
                     continue
-                sz = eomap.data.shape
+                data = eomap.data
+                sz = data.shape
                 if len(sz) == 4:
-                    eomap.data = eomap.data.reshape((sz[2], sz[3]))
-                eomap.data[np.isnan(eomap.data)] = 0.0
+                    data = data.reshape((sz[2], sz[3]))
+                data[np.isnan(data)] = 0.0
+                # add a basin flux to the image to avoid negative values
+                data = data + 0.8e5
+                data[data < 0] = 0.0
+                data = np.sqrt(data)
+                eomap = smap.Map(data, eomap.meta)
                 # resample the image for plotting
                 dim = u.Quantity([256, 256], u.pixel)
                 eomap = eomap.resample(dim)
@@ -474,7 +481,8 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
                 eomap = smap.Map(data, header)
             if i == i0:
                 eomap_ = pmX.Sunmap(eomap)
-                im = eomap_.imshow(axes=ax, cmap='jet', norm=colors.Normalize(vmin=-1e5, vmax=1e6))
+                # im = eomap_.imshow(axes=ax, cmap='jet', norm=colors.LogNorm(vmin=0.1, vmax=1e8))
+                im = eomap_.imshow(axes=ax, cmap='jet', norm=colors.Normalize(vmin=150, vmax=700))
                 ims.append(im)
                 if not synoptic:
                     eomap_.draw_limb(axes=ax)
