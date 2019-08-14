@@ -300,6 +300,8 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             imagesuffix = '.spw' + spwstr.replace('~', '-')
             if cfreq > 10.:
                 antenna = antenna + ';!0&1;!0&2'  # deselect the shortest baselines
+            else:
+                antenna = antenna + ';!0&1'  # deselect the shortest baselines
 
             res = ptclean3(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=twidth, uvrange=uvrange,
                            spw=spw, ncpu=ncpu, niter=1000,
@@ -348,6 +350,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
 
             restoringbeam = ['{0:.1f}arcsec'.format(bmsz)]
             imagesuffix = '.synoptic.spw' + spwstr.replace('~', '-')
+            antenna = antenna + ';!0&1'  # deselect the shortest baselines
 
             res = ptclean3(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=len(tim), uvrange=uvrange,
                            spw=spw, ncpu=1, niter=1000,
@@ -478,8 +481,9 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
                 eomap_.draw_grid(axes=ax)
                 ax.set_xlim([-1080, 1080])
                 ax.set_ylim([-1080, 1080])
-                ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(eomap.meta['crval3'] / 1e9,
-                                                                   (eomap.meta['crval3'] + eomap.meta['cdelt3']) / 1e9),
+                cfreq = eomap.meta['crval3'] / 1.0e9
+                bdwid = eomap.meta['cdelt3'] / 1.0e9
+                ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(cfreq - bdwid / 2.0, cfreq + bdwid / 2.0),
                         color='w', transform=ax.transAxes, fontweight='bold', ha='right')
                 ax.set_title(' ')
                 ax.set_xlabel('')
