@@ -300,6 +300,8 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             imagesuffix = '.spw' + spwstr.replace('~', '-')
             if cfreq > 10.:
                 antenna = antenna + ';!0&1;!0&2'  # deselect the shortest baselines
+            # else:
+            #     antenna = antenna + ';!0&1'  # deselect the shortest baselines
 
             res = ptclean3(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=twidth, uvrange=uvrange,
                            spw=spw, ncpu=ncpu, niter=1000,
@@ -331,6 +333,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
         if not os.path.exists(imdir):
             os.makedirs(imdir)
         for spw in spws:
+            antenna = antenna0
             if spw == '':
                 spw = '{:d}~{:d}'.format(next(x[0] for x in enumerate(cfreqs) if x[1] > lowcutoff_freq),
                                          len(cfreqs) - 1)
@@ -338,7 +341,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             freqran = [cfreqs[int(s)] for s in spw.split('~')]
             cfreq = np.mean(freqran)
             bmsz = max(150. / cfreq, 20.)
-            uvrange = '<10klambda'
+            uvrange = ''
             imsize = 512
             cell = ['5arcsec']
             if len(spwran) == 2:
@@ -348,6 +351,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
 
             restoringbeam = ['{0:.1f}arcsec'.format(bmsz)]
             imagesuffix = '.synoptic.spw' + spwstr.replace('~', '-')
+            antenna = antenna + ';!0&1'  # deselect the shortest baselines
 
             res = ptclean3(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=len(tim), uvrange=uvrange,
                            spw=spw, ncpu=1, niter=1000,
@@ -450,10 +454,16 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
                     eomap = smap.Map(image)
                 except:
                     continue
-                sz = eomap.data.shape
+                data = eomap.data
+                sz = data.shape
                 if len(sz) == 4:
-                    eomap.data = eomap.data.reshape((sz[2], sz[3]))
-                eomap.data[np.isnan(eomap.data)] = 0.0
+                    data = data.reshape((sz[2], sz[3]))
+                data[np.isnan(data)] = 0.0
+                # add a basin flux to the image to avoid negative values
+                data = data + 0.8e5
+                data[data < 0] = 0.0
+                data = np.sqrt(data)
+                eomap = smap.Map(data, eomap.meta)
                 # resample the image for plotting
                 dim = u.Quantity([256, 256], u.pixel)
                 eomap = eomap.resample(dim)
@@ -471,15 +481,17 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
                 eomap = smap.Map(data, header)
             if i == i0:
                 eomap_ = pmX.Sunmap(eomap)
-                im = eomap_.imshow(axes=ax, cmap='jet', norm=colors.Normalize(vmin=-1e5, vmax=1e6))
+                # im = eomap_.imshow(axes=ax, cmap='jet', norm=colors.LogNorm(vmin=0.1, vmax=1e8))
+                im = eomap_.imshow(axes=ax, cmap='jet', norm=colors.Normalize(vmin=150, vmax=700))
                 ims.append(im)
                 if not synoptic:
                     eomap_.draw_limb(axes=ax)
                 eomap_.draw_grid(axes=ax)
                 ax.set_xlim([-1080, 1080])
                 ax.set_ylim([-1080, 1080])
-                ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(eomap.meta['crval3'] / 1e9,
-                                                                   (eomap.meta['crval3'] + eomap.meta['cdelt3']) / 1e9),
+                cfreq = eomap.meta['crval3'] / 1.0e9
+                bdwid = eomap.meta['cdelt3'] / 1.0e9
+                ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(cfreq - bdwid / 2.0, cfreq + bdwid / 2.0),
                         color='w', transform=ax.transAxes, fontweight='bold', ha='right')
                 ax.set_title(' ')
                 ax.set_xlabel('')
