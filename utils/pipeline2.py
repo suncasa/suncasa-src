@@ -1,6 +1,9 @@
 #!/common/casa/casa-release-5.4.1-31.el6/bin/casa
 from suncasa.eovsa import eovsa_pipeline as ep
 from eovsapy.html_movie import html_movie
+import sys
+syspath = sys.path
+sys.path = [s for s in syspath if '.local' not in s]
 
 # Set to run 5 days earlier than current date
 mjdnow = ep.Time.now().mjd
