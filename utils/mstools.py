@@ -1,7 +1,7 @@
-from astropy.time import Time
-from suncasa.utils import helioimage2fits as hf
+# from astropy.time import Time
+# from suncasa.utils import helioimage2fits as hf
 from taskinit import tb, qa, ms
-import numpy as np
+# import numpy as np
 
 
 def msclearhistory(msfile):
@@ -18,4 +18,3 @@ def msclearhistory(msfile):
     if nrows > 0:
         tb.removerows(range(nrows))
     tb.close()
-

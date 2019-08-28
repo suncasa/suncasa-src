@@ -354,7 +354,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             antenna = antenna + ';!0&1'  # deselect the shortest baselines
 
             res = ptclean3(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=len(tim), uvrange=uvrange,
-                           spw=spw, ncpu=1, niter=1000,
+                           spw=spw, ncpu=1, niter=0,
                            gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=stokes, doreg=True,
                            usephacenter=False, overwrite=overwrite,
                            toTb=toTb, restoringbeam=restoringbeam, specmode="mfs", deconvolver="hogbom",
@@ -449,7 +449,7 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
             else:
                 ax = axs[n]
             image = images_sort[i, n]
-            if suci[n]:
+            if suci[n] or os.path.exists(image):
                 try:
                     eomap = smap.Map(image)
                 except:
@@ -469,10 +469,10 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
                 eomap = eomap.resample(dim)
             else:
                 # make an empty map
-                data = np.zeros((512, 512))
-                header = {"DATE-OBS": plttime.isot, "EXPTIME": 0., "CDELT1": 5., "NAXIS1": 512, "CRVAL1": 0.,
-                          "CRPIX1": 257, "CUNIT1": "arcsec",
-                          "CTYPE1": "HPLN-TAN", "CDELT2": 5., "NAXIS2": 512, "CRVAL2": 0., "CRPIX2": 257,
+                data = np.zeros((256, 256))
+                header = {"DATE-OBS": plttime.isot, "EXPTIME": 0., "CDELT1": 10., "NAXIS1": 256, "CRVAL1": 0.,
+                          "CRPIX1": 128.5, "CUNIT1": "arcsec",
+                          "CTYPE1": "HPLN-TAN", "CDELT2": 10., "NAXIS2": 256, "CRVAL2": 0., "CRPIX2": 128.5,
                           "CUNIT2": "arcsec", "CTYPE2": "HPLT-TAN",
                           "HGLT_OBS": sun.heliographic_solar_center(plttime)[1].value, "HGLN_OBS": 0.,
                           "RSUN_OBS": sun.solar_semidiameter_angular_size(plttime).value,
@@ -489,10 +489,13 @@ def plt_qlook_image(imres, figdir=None, verbose=True, synoptic=False):
                 eomap_.draw_grid(axes=ax)
                 ax.set_xlim([-1080, 1080])
                 ax.set_ylim([-1080, 1080])
-                cfreq = eomap.meta['crval3'] / 1.0e9
-                bdwid = eomap.meta['cdelt3'] / 1.0e9
-                ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(cfreq - bdwid / 2.0, cfreq + bdwid / 2.0),
-                        color='w', transform=ax.transAxes, fontweight='bold', ha='right')
+                try:
+                    cfreq = eomap.meta['crval3'] / 1.0e9
+                    bdwid = eomap.meta['cdelt3'] / 1.0e9
+                    ax.text(0.98, 0.01, '{0:.1f} - {1:.1f} GHz'.format(cfreq - bdwid / 2.0, cfreq + bdwid / 2.0),
+                            color='w', transform=ax.transAxes, fontweight='bold', ha='right')
+                except:
+                    pass
                 ax.set_title(' ')
                 ax.set_xlabel('')
                 ax.set_ylabel('')
