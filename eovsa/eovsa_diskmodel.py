@@ -2,10 +2,9 @@ import numpy as np
 from tqdm import tqdm
 import os
 
-
 from taskinit import ms, tb, qa
-# from taskinit import iatool as ia
-# from taskinit import cltool as cl
+from taskinit import iatool
+from taskinit import cltool
 from ft_cli import ft_cli as ft
 from delmod_cli import delmod_cli as delmod
 from uvsub_cli import uvsub_cli as uvsub
@@ -237,7 +236,11 @@ def diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d
         Note that the frequency increment used is '325MHz', which is the width of EOVSA bands
           (not the width of individual science channels)
     '''
+    ia = iatool()
+    cl = cltool()
     cl.done()
+    ia.done()
+
     try:
         aspect = 1.01  # Enlarge the equatorial disk by 1%
         eqradius = qa.quantity(eqradius)
