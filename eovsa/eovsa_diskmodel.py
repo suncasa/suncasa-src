@@ -3,12 +3,12 @@ from tqdm import tqdm
 import os
 
 
-# from taskinit import ms, tb, qa
+from taskinit import ms, tb, qa
 # from taskinit import iatool as ia
 # from taskinit import cltool as cl
-# from ft_cli import ft_cli as ft
-# from delmod_cli import delmod_cli as delmod
-# from uvsub_cli import uvsub_cli as uvsub
+from ft_cli import ft_cli as ft
+from delmod_cli import delmod_cli as delmod
+from uvsub_cli import uvsub_cli as uvsub
 
 
 def read_ms(vis):
