@@ -1,6 +1,7 @@
 import numpy as np
 from matplotlib import transforms
 
+
 def get_perp_vec(u1, u2, direction=1):
     """Return the unit vector perpendicular to the vector u2-u1."""
 
@@ -23,7 +24,8 @@ def get_av_vec(u1, u2):
 
 
 class LineTicks:
-    def __init__(self, line, idx, tick_length,tick_shift=3.0, direction=1, label=None, label_color='k',fontsize='xx-small',
+    def __init__(self, line, idx, tick_length, tick_shift=3.0, direction=1, label=None, label_color='k',
+                 fontsize='xx-small',
                  **kwargs):
         self.line = line
         self.idx = idx
@@ -47,7 +49,7 @@ class LineTicks:
 
         # get scale tick_length in display coordinates to data coordinates
         xy1, xy2 = self.ax.transData.inverted().transform([[0, 0], [self.tick_length, 0]])
-        self.tick_length = xy2[0]-xy1[0]
+        self.tick_length = xy2[0] - xy1[0]
 
         self.add_ticks(self.ax)
 
@@ -94,7 +96,8 @@ class LineTicks:
 
             if self.label:
                 this_ticklabel = ax.text(x[i] + tx * self.tick_shift, y[i] + ty * self.tick_shift, self.label[j],
-                                         ha='center', va='center', clip_on=True, color=self.label_color,fontsize=self.fontsize)
+                                         ha='center', va='center', clip_on=True, color=self.label_color,
+                                         fontsize=self.fontsize)
                 self.tick_labels.append(this_ticklabel)
 
     def on_change_lims(self, ax):
@@ -102,4 +105,3 @@ class LineTicks:
 
     def on_resize(self, event):
         self.add_ticks(self.ax)
-

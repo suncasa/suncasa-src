@@ -119,6 +119,7 @@ class Sunmap():
         if maskon:
             if isinstance(maskon, bool):
                 imdataplt = ma.masked_invalid(imdata)
+                immask = imdataplt.mask
             elif isinstance(maskon, dict):
                 if 'masked_equal' in maskon.keys():
                     imdataplt = ma.masked_equal(imdata, maskon['masked_equal'])
