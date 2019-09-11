@@ -7,6 +7,7 @@ from taskinit import iatool
 from taskinit import cltool
 from ft_cli import ft_cli as ft
 from delmod_cli import delmod_cli as delmod
+from clearcal_cli import clearcal_cli as clearcal
 from uvsub_cli import uvsub_cli as uvsub
 
 
