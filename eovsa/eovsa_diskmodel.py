@@ -329,13 +329,16 @@ def insertdiskmodel(vis):
     dec = phadir[1]
     direction = 'J2000 ' + str(ra) + 'rad ' + str(dec) + 'rad'
 
-    for sp in tqdm(range(nspw),desc='Generating {} disk models'.format(nspw)):
+    for sp in tqdm(range(nspw), desc='Generating {} disk models'.format(nspw)):
         diskim.append(
-            diskmodel(outname=diskimdir+'disk{:02d}_'.format(sp), bdwidth=spwinfo[str(sp)], direction=direction, reffreq=frq[sp],
+            diskmodel(outname=diskimdir + 'disk{:02d}_'.format(sp), bdwidth=spwinfo[str(sp)], direction=direction,
+                      reffreq=frq[sp],
                       flux=fdens[sp], eqradius=dsize[sp], polradius=dsize[sp]))
 
+    clearcal(msfile)
     delmod(msfile, otf=True, scr=True)
-    for sp in tqdm(range(nspw),desc='Inserting disk model'):
+
+    for sp in tqdm(range(nspw), desc='Inserting disk model'):
         ft(vis=msfile, spw=str(sp), field='', model=str(diskim[sp]), nterms=1,
            reffreq="", complist="", incremental=False, usescratch=True)
 
