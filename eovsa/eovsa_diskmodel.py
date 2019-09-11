@@ -286,7 +286,7 @@ def diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d
     ia.modify(cl.torecord(), subtract=False)
     ia.close()
     ia.done()
-    cl.close()
+    # cl.close()
     cl.done()
     return diskim
 
