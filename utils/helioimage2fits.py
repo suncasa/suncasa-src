@@ -19,6 +19,7 @@ except:
     except ImportError:
         raise ImportError('Neither astropy nor pyfits exists in this CASA installation')
 
+
 def headerfix(header, PC_coor=True):
     '''
     this code fix the header problem of fits out from CASA 5.4+ which leads to a streched solar image
@@ -685,6 +686,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 imr.close()
                 imsum = ia.summary()
                 ia.close()
+                ia.done()
 
             # construct the standard fits header
             # RA and DEC of the reference pixel crpix1 and crpix2
@@ -713,8 +715,10 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 xoff = hel['refx']
                 yoff = hel['refy']
             if verbose:
-                print('offset of image phase center to visibility phase center (arcsec): dx={0:.2f}, dy={1:.2f}'.format(dx, dy))
-                print('offset of visibility phase center to solar disk center (arcsec): dx={0:.2f}, dy={1:.2f}'.format(xoff, yoff))
+                print('offset of image phase center to visibility phase center (arcsec): dx={0:.2f}, dy={1:.2f}'.format(
+                    dx, dy))
+                print('offset of visibility phase center to solar disk center (arcsec): dx={0:.2f}, dy={1:.2f}'.format(
+                    xoff, yoff))
             (crval1, crval2) = (xoff + dx, yoff + dy)
             # update the fits header to heliocentric coordinates
 
@@ -761,23 +765,23 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
 
             # check if stokes parameter exist
             exist_stokes = False
-            stokes_mapper = {'I':1, 'Q':2, 'U':3, 'V':4, 'RR':-1, 'LL':-2, 
-                             'RL':-3, 'LR':-4, 'XX':-5, 'YY':-6, 'XY':-7, 'YX':-8}
+            stokes_mapper = {'I': 1, 'Q': 2, 'U': 3, 'V': 4, 'RR': -1, 'LL': -2,
+                             'RL': -3, 'LR': -4, 'XX': -5, 'YY': -6, 'XY': -7, 'YX': -8}
             if 'CRVAL3' in header.keys():
                 if header['CTYPE3'] == 'STOKES':
                     stokenum = header['CRVAL3']
-                    exist_stokes=True
+                    exist_stokes = True
             if 'CRVAL4' in header.keys():
                 if header['CTYPE4'] == 'STOKES':
                     stokenum = header['CRVAL4']
-                    exist_stokes=True
+                    exist_stokes = True
             if exist_stokes:
                 stokesstr = stokes_mapper.keys()[stokes_mapper.values().index(stokenum)]
                 if verbose:
-                        print('This image is in Stokes '+stokesstr)
+                    print('This image is in Stokes ' + stokesstr)
             else:
                 print('STOKES Information does not seem to exist! Assuming Stokes I')
-                stokenum=1
+                stokenum = 1
 
             # update intensity units, i.e. to brightness temperature?
             if toTb:
@@ -843,6 +847,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
 
             hdu.flush()
             hdu.close()
+
 
 def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=True):
     '''
