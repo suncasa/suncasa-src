@@ -1,7 +1,7 @@
 import numpy as np
 from tqdm import tqdm
 import os
-
+from suncasa.utils import mstools
 from taskinit import ms, tb, qa
 from taskinit import iatool
 from taskinit import cltool
@@ -213,7 +213,7 @@ def fit_vs_freq(out):
 
 def diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d00m00.0s',
               reffreq='2.8GHz', flux=660000.0, eqradius='16.166arcmin', polradius='16.166arcmin',
-              pangle='21.1deg', index=None, cell='2.0arcsec'):
+              pangle='21.1deg', index=None, cell='2.0arcsec', overwrite=True):
     ''' Create a blank solar disk model image (or optionally a data cube)
 
         outname       String to use for part of the image and fits file names (default 'disk')
@@ -237,6 +237,14 @@ def diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d
         Note that the frequency increment used is '325MHz', which is the width of EOVSA bands
           (not the width of individual science channels)
     '''
+
+    diskim = outname + reffreq + '.im'
+    if os.path.exists(diskim):
+        if overwrite:
+            os.system('rm -rf {}'.format(diskim))
+        else:
+            return diskim
+
     ia = iatool()
     cl = cltool()
     cl.done()
@@ -269,9 +277,7 @@ def diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d
     cl.addcomponent(dir=direction, flux=flux * 2, fluxunit='Jy', freq=reffreq, shape='disk',
                     majoraxis=diamajor, minoraxis=diaminor, positionangle=pangle)
     cl.setrefdirframe(0, 'J2000')
-    diskim = outname + reffreq + '.im'
-    if os.path.exists(diskim):
-        os.system('rm -rf {}'.format(diskim))
+
     ia.fromshape(diskim, [mapsize, mapsize, 1, 1], overwrite=True)
     cs = ia.coordsys()
     cs.setunits(['rad', 'rad', '', 'Hz'])
@@ -291,7 +297,7 @@ def diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d
     return diskim
 
 
-def insertdiskmodel(vis):
+def insertdiskmodel(vis, overwrite_img_model=True):
     fdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
                       1613253, 1702751, 1800721, 1946756, 2096020, 2243951,
                       2367362, 2525968, 2699795, 2861604, 3054829, 3220450,
@@ -337,11 +343,12 @@ def insertdiskmodel(vis):
         diskim.append(
             diskmodel(outname=diskimdir + 'disk{:02d}_'.format(sp), bdwidth=spwinfo[str(sp)], direction=direction,
                       reffreq=frq[sp],
-                      flux=fdens[sp], eqradius=dsize[sp], polradius=dsize[sp]))
+                      flux=fdens[sp], eqradius=dsize[sp], polradius=dsize[sp], overwrite=overwrite_img_model))
 
     clearcal(msfile)
     delmod(msfile, otf=True, scr=True)
 
+    mstools.clearflagrow(msfile, mode='clear')
     for sp in tqdm(range(nspw), desc='Inserting disk model', ascii=True):
         ft(vis=msfile, spw=str(sp), field='', model=str(diskim[sp]), nterms=1,
            reffreq="", complist="", incremental=False, usescratch=True)
