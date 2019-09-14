@@ -132,7 +132,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
                                '-118.286952892965deg',
                                '37.2331698901026deg',
                                '1207.1339m')
-    lon, lat, rad = [me.measure(refpos_wgs84, 'itrf')[x]['value'] for x in 'm0', 'm1', 'm2']
+    lon, lat, rad = [me.measure(refpos_wgs84, 'itrf')[x]['value'] for x in ['m0', 'm1', 'm2']]
     # 3x3 transform matrix. Each row is a normal vector, i.e. the rows are (dE,dN,dU)
     # ----------- local xyz ------------
     xform = np.array([

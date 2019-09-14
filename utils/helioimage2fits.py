@@ -20,6 +20,32 @@ except:
         raise ImportError('Neither astropy nor pyfits exists in this CASA installation')
 
 
+def headerfix(header, PC_coor=True):
+    '''
+    this code fix the header problem of fits out from CASA 5.4+ which leads to a streched solar image
+    set PC_coor equal to True will reset the rotation matrix.
+    '''
+
+    keys2remove = []
+    for k in header:
+        if k.upper().startswith('PC'):
+            if not k.upper().startswith('PC0'):
+                pcidxs = k.upper().replace('PC', '')
+                hd_ = 'PC0' + pcidxs
+                keys2remove.append(k)
+                if PC_coor:
+                    pcidx0, pcidx1 = pcidxs.split('_')
+                    if pcidx0 == pcidx1:
+                        header[hd_] = 1.0
+                    else:
+                        header[hd_] = 0.0
+                else:
+                    header[hd_] = header[k]
+    for k in keys2remove:
+        header.remove(k)
+    return header
+
+
 # from astropy.constants import R_sun, au
 
 def msclearhistory(msfile):
@@ -32,6 +58,29 @@ def msclearhistory(msfile):
 
 
 def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
+    '''
+    This function visits JPL Horizons to retrieve J2000 topocentric RA and DEC of the solar disk center
+    as a function of time.
+
+    Keyword arguments:
+    t0: Referece time in astropy.Time format
+    dur: duration of the returned coordinates. Default to 2 minutes
+    vis: CASA visibility dataset (in measurement set format). If provided, use entire duration from
+         the visibility data
+    observatory: observatory code (from JPL Horizons). If not provided, use information from visibility.
+         if no visibility found, use earth center (code=500)
+    verbose: True to provide extra information
+
+    Usage:
+    >>> from astropy.time import Time
+    >>> out = read_horizons(t0=Time('2017-09-10 16:00:00'), observatory='-81')
+    >>> out = read_horizons(vis = 'mydata.ms')
+
+    History:
+    BC (sometime in 2014): function was first wrote, followed by a number of edits by BC and SY
+    BC (2019-07-16): Added docstring documentation
+
+    '''
     import urllib2
     import ssl
     if not t0 and not vis:
@@ -55,8 +104,8 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
             # btime = Time(summary['BeginTime'], format='mjd')
             # etime = Time(summary['EndTime'], format='mjd')
             ## alternative way to avoid conflicts with importeovsa, if needed -- more time consuming
-            if observatory=='geocentric':
-                observatory='500'
+            if observatory == 'geocentric':
+                observatory = '500'
             else:
                 ms.open(vis)
                 metadata = ms.metadata()
@@ -82,9 +131,9 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
             print('error in reading ms file: ' + vis + ' to obtain the ephemeris!')
             return -1
 
-    # default the observatory to VLA, if none provided
+    # default the observatory to geocentric, if none provided
     if not observatory:
-        observatory = '-5'
+        observatory = '500'
 
     etime = Time(btime.mjd + dur, format='mjd')
 
@@ -101,7 +150,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         lines = f.readlines()
         f.close()
     except:
-        #todo use geocentric coordinate for the new VLA data
+        # todo use geocentric coordinate for the new VLA data
         import requests, collections
         params = collections.OrderedDict()
         params['batch'] = '1'
@@ -111,7 +160,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         params['ANG_FORMAT'] = "'DEG'"
         params['CAL_FORMAT'] = "'BOTH'"
         params['SOLAR_ELONG'] = "'0,180'"
-        if observatory=='500':
+        if observatory == '500':
             params['CENTER'] = "'500'"
         else:
             params['CENTER'] = "'{}@399'".format(observatory)
@@ -279,7 +328,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
             msinfo0 = msinfo
         else:
             raise ValueError('msinfo should be either a numpy npz or a dictionary')
-    print('msinfo is derived from: ', msinfo0['vis'])
+    print('msinfo is derived from: {0:s}'.format(msinfo0['vis']))
     scans = msinfo0['scans']
     fieldids = msinfo0['fieldids']
     btimes = msinfo0['btimes']
@@ -550,6 +599,19 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris.
                                      Otherwise assume the phasecenter is correctly pointed to the solar disk center
                                      (EOVSA case)
+    Usage:
+    >>> from suncasa.utils import helioimage2fits as hf
+    >>> hf.imreg(vis='mydata.ms', imagefile='myimage.image', fitsfile='myimage.fits', 
+                 timerange='2017/08/21/20:21:10~2017/08/21/20:21:18')
+    The output fits file is 'myimage.fits'
+
+    History:
+    BC (sometime in 2014): function was first wrote, followed by a number of edits by BC and SY
+    BC (2019-07-16): Added checks for stokes parameter. Verified that for converting from Jy/beam to brightness temperature,
+                     the convention of 2*k_b*T should always be used. I.e., for unpolarized source, stokes I, RR, LL, XX, YY, 
+                     etc. in the output CASA images from (t)clean should all have same values of radio intensity 
+                     (in Jy/beam) and brightness temperature (in K).
+
     '''
     ia = iatool()
 
@@ -577,8 +639,6 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
     if verbose:
         print(str(nimg) + ' images to process...')
 
-
-
     if reftime:  # use as reference time to find solar disk RA and DEC to register the image, but not the actual timerange associated with the image
         if type(reftime) == str:
             reftime = [reftime] * nimg
@@ -589,14 +649,12 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
         # use the supplied timerange to register the image
         helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=timerange, usephacenter=usephacenter)
 
-
-
     if toTb:
         (bmajs, bmins, bpas, beamunits, bpaunits) = getbeam(imagefile=imagefile, beamfile=beamfile)
 
     for n, img in enumerate(imagefile):
         if verbose:
-            print('processing image #' + str(n)+' '+img)
+            print('processing image #' + str(n) + ' ' + img)
         fitsf = fitsfile[n]
         timeran = timerange[n]
         # obtain duration of the image as FITS header exptime
@@ -610,8 +668,6 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             print('Error in converting the input timerange: ' + str(timeran) + '. Proceeding to the next image...')
             continue
 
-
-
         hel = helio[n]
         if not os.path.exists(img):
             warnings.warn('{} does not existed!'.format(img))
@@ -620,7 +676,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 raise ValueError('Specified fits file already exists and overwrite is set to False. Aborting...')
             else:
                 p0 = hel['p0']
-                tb.open(img+'/logtable', nomodify=False)
+                tb.open(img + '/logtable', nomodify=False)
                 nobs = tb.nrows()
                 tb.removerows([i + 1 for i in range(nobs - 1)])
                 tb.close()
@@ -630,8 +686,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 imr.close()
                 imsum = ia.summary()
                 ia.close()
-
-
+                ia.done()
 
             # construct the standard fits header
             # RA and DEC of the reference pixel crpix1 and crpix2
@@ -660,20 +715,18 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 xoff = hel['refx']
                 yoff = hel['refy']
             if verbose:
-                print('offset of image phase center to visibility phase center (arcsec): ', dx, dy)
-                print('offset of visibility phase center to solar disk center (arcsec): ', xoff, yoff)
+                print('offset of image phase center to visibility phase center (arcsec): dx={0:.2f}, dy={1:.2f}'.format(
+                    dx, dy))
+                print('offset of visibility phase center to solar disk center (arcsec): dx={0:.2f}, dy={1:.2f}'.format(
+                    xoff, yoff))
             (crval1, crval2) = (xoff + dx, yoff + dy)
             # update the fits header to heliocentric coordinates
 
-
-
             hdu = pyfits.open(fitsf, mode='update')
-
-
-
+            hdu[0].verify('fix')
             header = hdu[0].header
             (cdelt1, cdelt2) = (
-            -header['cdelt1'] * 3600., header['cdelt2'] * 3600.)  # Original CDELT1, 2 are for RA and DEC in degrees
+                -header['cdelt1'] * 3600., header['cdelt2'] * 3600.)  # Original CDELT1, 2 are for RA and DEC in degrees
             header['cdelt1'] = cdelt1
             header['cdelt2'] = cdelt2
             header['cunit1'] = 'arcsec'
@@ -710,7 +763,25 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 header.append(('hgln_obs', 0.))
                 header.append(('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value))
 
-
+            # check if stokes parameter exist
+            exist_stokes = False
+            stokes_mapper = {'I': 1, 'Q': 2, 'U': 3, 'V': 4, 'RR': -1, 'LL': -2,
+                             'RL': -3, 'LR': -4, 'XX': -5, 'YY': -6, 'XY': -7, 'YX': -8}
+            if 'CRVAL3' in header.keys():
+                if header['CTYPE3'] == 'STOKES':
+                    stokenum = header['CRVAL3']
+                    exist_stokes = True
+            if 'CRVAL4' in header.keys():
+                if header['CTYPE4'] == 'STOKES':
+                    stokenum = header['CRVAL4']
+                    exist_stokes = True
+            if exist_stokes:
+                stokesstr = stokes_mapper.keys()[stokes_mapper.values().index(stokenum)]
+                if verbose:
+                    print('This image is in Stokes ' + stokesstr)
+            else:
+                print('STOKES Information does not seem to exist! Assuming Stokes I')
+                stokenum = 1
 
             # update intensity units, i.e. to brightness temperature?
             if toTb:
@@ -726,6 +797,11 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 # which axis is frequency?
                 faxis = keys[values.index('FREQ')][-1]
                 faxis_ind = dim - int(faxis)
+                # find out the polarization of this image
+                k_b = qa.constants('k')['value']
+                c_l = qa.constants('c')['value']
+                # Always use 2*kb for all polarizations
+                const = 2. * k_b / c_l ** 2
                 if header['BUNIT'].lower() == 'jy/beam':
                     header['BUNIT'] = 'K'
                     header['BTYPE'] = 'Brightness Temperature'
@@ -756,9 +832,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                             bmaj0 = bmajtmp
                             bmin0 = bmintmp
                         beam_area = bmaj0 * bmin0 * np.pi / (4. * log(2.))
-                        k_b = qa.constants('k')['value']
-                        c_l = qa.constants('c')['value']
-                        factor = 2. * k_b * nu ** 2 / c_l ** 2  # SI unit
+                        factor = const * nu ** 2  # SI unit
                         jy_to_si = 1e-26
                         # print(nu/1e9, beam_area, factor)
                         factor2 = 1.
@@ -769,9 +843,91 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                         if faxis == '4':
                             data[i, :, :, :] *= jy_to_si / beam_area / factor * factor2
 
-
+            header = headerfix(header)
 
             hdu.flush()
             hdu.close()
 
 
+def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=True):
+    '''
+    return the phase center in RA and DEC of a given solar coordinates
+
+    :param vis: input measurement sets file
+    :param timerange: can be a string or astropy.time.core.Time object, or a 2-element list of string or Time object
+    :param xycen:  solar x-pos and y-pos in arcsec
+    :param usemsphacenter:
+    :return:
+    phasecenter
+    midtim: mid time of the given timerange
+    '''
+    tb.open(vis + '/POINTING')
+    tst = Time(tb.getcell('TIME_ORIGIN', 0) / 24. / 3600., format='mjd')
+    ted = Time(tb.getcell('TIME_ORIGIN', tb.nrows() - 1) / 24. / 3600., format='mjd')
+    tb.close()
+    datstr = tst.iso[:10]
+
+    if isinstance(timerange, Time):
+        try:
+            (sttim, edtim) = timerange
+        except:
+            sttim = timerange
+            edtim = sttim
+    else:
+        if timerange == '':
+            sttim = tst
+            edtim = ted
+        else:
+            try:
+                (tstart, tend) = timerange.split('~')
+                if tstart[2] == ':':
+                    sttim = Time(datstr + 'T' + tstart)
+                    edtim = Time(datstr + 'T' + tend)
+                    # timerange = '{0}/{1}~{0}/{2}'.format(datstr.replace('-', '/'), tstart, tend)
+                else:
+                    sttim = Time(qa.quantity(tstart, 'd')['value'], format='mjd')
+                    edtim = Time(qa.quantity(tend, 'd')['value'], format='mjd')
+            except:
+                try:
+                    if timerange[2] == ':':
+                        sttim = Time(datstr + 'T' + timerange)
+                        edtim = sttim
+                    else:
+                        sttim = Time(qa.quantity(timerange, 'd')['value'], format='mjd')
+                        edtim = sttim
+                except ValueError:
+                    print("keyword 'timerange' in wrong format")
+
+    ms.open(vis)
+    metadata = ms.metadata()
+    observatory = metadata.observatorynames()[0]
+    ms.close()
+
+    midtim_mjd = (sttim.mjd + edtim.mjd) / 2.
+    midtim = Time(midtim_mjd, format='mjd')
+    eph = read_horizons(t0=midtim)
+    if observatory == 'EOVSA' or (not usemsphacenter):
+        print('This is EOVSA data')
+        # use RA and DEC from FIELD ID 0
+        tb.open(vis + '/FIELD')
+        phadir = tb.getcol('PHASE_DIR').flatten()
+        tb.close()
+        ra0 = phadir[0]
+        dec0 = phadir[1]
+    else:
+        ra0 = eph['ra'][0]
+        dec0 = eph['dec'][0]
+
+    if not xycen:
+        # use solar disk center as default
+        phasecenter = 'J2000 ' + str(ra0) + 'rad ' + str(dec0) + 'rad'
+    else:
+        x0 = np.radians(xycen[0] / 3600.)
+        y0 = np.radians(xycen[1] / 3600.)
+        p0 = np.radians(eph['p0'][0])  # p angle in radians
+        raoff = -((x0) * np.cos(p0) - y0 * np.sin(p0)) / np.cos(eph['dec'][0])
+        decoff = (x0) * np.sin(p0) + y0 * np.cos(p0)
+        newra = ra0 + raoff
+        newdec = dec0 + decoff
+        phasecenter = 'J2000 ' + str(newra) + 'rad ' + str(newdec) + 'rad'
+    return phasecenter, midtim

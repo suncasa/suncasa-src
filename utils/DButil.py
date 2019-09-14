@@ -548,12 +548,19 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
             outdstr = ' '.join(['-{} {}'.format(k, v) for k, v in outd.iteritems()])
         except:
             outdstr = ' '.join(['-{} {}'.format(k, outd[k]) for k in outd])
-        cmd = 'ffmpeg -r {3} -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} '.format(tmpdir, img_ext,
-                                                                                                    outdstr,
-                                                                                                    fps) + '{0} {1}.mp4'.format(
-            ow, os.path.join(os.path.dirname(imgprefix), outname))
+        try:
+            cmd = 'ffmpeg -r {3} -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} '.format(tmpdir, img_ext,
+                                                                                                        outdstr,
+                                                                                                        fps) + '{0} {1}.mp4'.format(
+                ow, os.path.join(os.path.dirname(imgprefix), outname))
+            subprocess.check_output(['bash', '-c', cmd])
+        except:
+            cmd = 'ffmpeg -r {3} -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2"'.format(tmpdir, img_ext,
+                                                                                                        outdstr,
+                                                                                                        fps) + '{0} {1}.mp4'.format(
+                ow, os.path.join(os.path.dirname(imgprefix), outname))
+            subprocess.check_output(['bash', '-c', cmd])
         print(cmd)
-        subprocess.check_output(['bash', '-c', cmd])
         if not keeptmp:
             os.system('rm -rf {}'.format(tmpdir))
     else:
@@ -791,7 +798,7 @@ def tplt(mapcube):
     return Time(t)
 
 
-def sdo_aia_scale_hdr(amap, sigma=5.0):
+def sdo_aia_scale_hdr(amap, sigma=None):
     import sunpy.map as smap
     from astropy.coordinates import SkyCoord
     wavelnth = '{:0.0f}'.format(amap.wavelength.value)
@@ -808,26 +815,30 @@ def sdo_aia_scale_hdr(amap, sigma=5.0):
     rdist[ind_disk] = r_sun
     rfilter = rdist / r_sun - 1
     rfilter = rfilter.value
-    if wavelnth == '94':
-        mapdata = amap.data * np.exp(rfilter * 4)
-    elif wavelnth == '131':
-        mapdata = amap.data * (np.sqrt(rfilter * 5) + 1)
-    elif wavelnth == '171':
-        mapdata = amap.data * np.exp(rfilter * 5)
-    elif wavelnth == '193':
-        mapdata = amap.data * np.exp(rfilter * 3)
-    elif wavelnth == '211':
-        mapdata = amap.data * np.exp(rfilter * 3)
-    elif wavelnth == '304':
-        mapdata = amap.data * np.exp(rfilter * 5)
-    elif wavelnth == '335':
-        mapdata = amap.data * np.exp(rfilter * 3)
-    elif wavelnth == '6173':
-        pass
-    elif wavelnth == '1':
-        pass
-    else:
+    if sigma:
         mapdata = amap.data * np.exp(rfilter * sigma)
+    else:
+        if wavelnth == '94':
+            mapdata = amap.data * np.exp(rfilter * 4)
+        elif wavelnth == '131':
+            mapdata = amap.data * (np.sqrt(rfilter * 5) + 1)
+        elif wavelnth == '171':
+            mapdata = amap.data * np.exp(rfilter * 5)
+        elif wavelnth == '193':
+            mapdata = amap.data * np.exp(rfilter * 3)
+        elif wavelnth == '211':
+            mapdata = amap.data * np.exp(rfilter * 3)
+        elif wavelnth == '304':
+            mapdata = amap.data * np.exp(rfilter * 5)
+        elif wavelnth == '335':
+            mapdata = amap.data * np.exp(rfilter * 3)
+        elif wavelnth == '6173':
+            pass
+        elif wavelnth == '1':
+            pass
+        else:
+            sigma=5.0
+            mapdata = amap.data * np.exp(rfilter * sigma)
     return smap.Map(mapdata, amap.meta)
 
 

@@ -18,19 +18,11 @@ from eovsapy import cal_header as ch
 from eovsapy import stateframe as stf
 from eovsapy import dbutil as db
 from eovsapy import pipeline_cal as pc
-from importeovsa_cli import importeovsa_cli as importeovsa
-
-# check if the calibration table directory is defined
-caltbdir = os.getenv('EOVSACAL')
-if not caltbdir:
-    print 'Task calibeovsa'
-    caltbdir = '/data1/eovsa/caltable/'
-    print 'Environmental variable for EOVSA calibration table path not defined'
-    print 'Use default path on pipeline ' + caltbdir
 
 
-def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, flagant=None, doimage=False, imagedir=None, antenna=None,
-               timerange=None, spw=None, stokes=None, doconcat=False, msoutdir=None, concatvis=None, keep_orig_ms=True):
+def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, doflag=True, flagant='13~15',
+               doimage=False, imagedir=None, antenna=None, timerange=None, spw=None, stokes=None, dosplit=False,
+               outputvis=None, doconcat=False, concatvis=None, keep_orig_ms=True):
     '''
 
     :param vis: EOVSA visibility dataset(s) to be calibrated 
@@ -50,12 +42,21 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
     for idx, f in enumerate(vis):
         if f[-1] == '/':
             vis[idx] = f[:-1]
+        vis[idx] = str(vis[idx])
+
+    # check if the calibration table directory is defined
+    # pipeline should always use "caltbdir = /data1/eovsa/caltable/"
+    if not caltbdir:
+        print('Task calibeovsa')
+        print('Path for generating calibration tables not defined')
+        print('Use current path')
+        caltbdir = './'
 
     for msfile in vis:
         casalog.origin('calibeovsa')
         if not caltype:
             casalog.post("Caltype not provided. Perform reference phase calibration and daily phase calibration.")
-            caltype = ['refpha', 'phacal', 'fluxcal']  ## use this line after the phacal is applied  # caltype = ['refcal']
+            caltype = ['refpha', 'phacal']  ## use this line after the phacal is applied  # caltype = ['refcal']
         if not os.path.exists(msfile):
             casalog.post("Input visibility does not exist. Aborting...")
             continue
@@ -71,7 +72,7 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
         nspw = tb.nrows()
         bdname = tb.getcol('NAME')
         bd_nchan = tb.getcol('NUM_CHAN')
-        bd = [int(b[4:]) - 1 for b in bdname]  # band index from 0 to 33
+        bd = [int(b[4:]) - 1 for b in bdname]
         # nchans = tb.getcol('NUM_CHAN')
         # reffreqs = tb.getcol('REF_FREQUENCY')
         # cenfreqs = np.zeros((nspw))
@@ -102,7 +103,7 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
         # etime = Time(summary['EndTime'], format='mjd')
         ## stop using ms.summary to avoid conflicts with importeovsa
         t_mid = Time((btime.mjd + etime.mjd) / 2., format='mjd')
-        print "This scan observed from {} to {} UTC".format(btime.iso, etime.iso)
+        print("This scan observed from {} to {} UTC".format(btime.iso, etime.iso))
         gaintables = []
 
         if ('refpha' in caltype) or ('refamp' in caltype) or ('refcal' in caltype):
@@ -127,20 +128,21 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
             t_rbts = db.get_reboot(Time([t_ref, btime]))
             if not t_rbts:
                 casalog.post("Reference calibration is derived from observation at " + t_ref.iso)
-                print "Reference calibration is derived from observation at " + t_ref.iso
+                print("Reference calibration is derived from observation at " + t_ref.iso)
             else:
                 casalog.post(
                     "Oh crap! Roach reboot detected between the reference calibration time " + t_ref.iso + ' and the current observation at ' + btime.iso)
                 casalog.post("Aborting...")
-                print "Oh crap! Roach reboot detected between the reference calibration time " + t_ref.iso + ' and the current observation at ' + btime.iso
-                print "Aborting..."
+                print(
+                    "Oh crap! Roach reboot detected between the reference calibration time " + t_ref.iso + ' and the current observation at ' + btime.iso)
+                print("Aborting...")
 
             para_pha = []
             para_amp = []
-            calpha = np.zeros((nspw, 15, 2))
-            calamp = np.zeros((nspw, 15, 2))
+            calpha = np.zeros((nspw, nant - 1, 2))
+            calamp = np.zeros((nspw, nant - 1, 2))
             for s in range(nspw):
-                for n in range(15):
+                for n in range(nant - 1):
                     for p in range(2):
                         calpha[s, n, p] = pha[n, p, bd[s]]
                         calamp[s, n, p] = amp[n, p, bd[s]]
@@ -155,7 +157,8 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
                 # tpcalfac = calfac['tpcalfac']  # (ant x pol x freq)
                 caltb_autoamp = dirname + t_bp.isot[:-4].replace(':', '').replace('-', '') + '.bandpass'
                 if not os.path.exists(caltb_autoamp):
-                    bandpass(vis=msfile, caltable=caltb_autoamp, solint='inf', refant='eo01', minblperant=0, minsnr=0, bandtype='B', docallib=False)
+                    bandpass(vis=msfile, caltable=caltb_autoamp, solint='inf', refant='eo01', minblperant=0, minsnr=0,
+                             bandtype='B', docallib=False)
                     tb.open(caltb_autoamp, nomodify=False)  # (ant x spw)
                     bd_chanidx = np.hstack([[0], bd_nchan.cumsum()])
                     for ll in range(nspw):
@@ -181,41 +184,67 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
                     tb.close()
                     msg_prompt = "Scaling calibration is derived for {}.".format(msfile)
                     casalog.post(msg_prompt)
-                    print msg_prompt
+                    print(msg_prompt)
                 gaintables.append(caltb_autoamp)
             else:
                 msg_prompt = "Caution: No TPCAL is available on {}. No scaling calibration is derived for {}.".format(
                     t_mid.datetime.strftime('%b %d, %Y'), msfile)
                 casalog.post(msg_prompt)
-                print msg_prompt
+                print(msg_prompt)
 
         if ('refpha' in caltype) or ('refcal' in caltype):
             # caltb_pha = os.path.basename(vis).replace('.ms', '.refpha')
             # check if the calibration table already exists
             caltb_pha = dirname + t_ref.isot[:-4].replace(':', '').replace('-', '') + '.refpha'
             if not os.path.exists(caltb_pha):
-                gencal(vis=msfile, caltable=caltb_pha, caltype='ph', antenna=antennas, pol='X,Y', spw='0~' + str(nspw - 1), parameter=para_pha)
+                gencal(vis=msfile, caltable=caltb_pha, caltype='ph', antenna=antennas, pol='X,Y',
+                       spw='0~' + str(nspw - 1), parameter=para_pha)
+                tb.open(caltb_pha, nomodify=False)
+                phaflag_ = refcal['flag'][:, :, np.array(bd)]
+                phaflag_new = np.full((nant, 2, nspw), True, dtype=np.bool)
+                phaflag_new[:-1, ...] = phaflag_
+                phaflag_new = np.moveaxis(phaflag_new, 0, 2).reshape(2, 1, 800)
+                tb.putcol('FLAG', phaflag_new)
+                tb.close()
+
+                # tb.open(caltb_pha, nomodify=False)
+                # phaparam = np.angle(tb.getcol('CPARAM'),deg=True)
+                # phaparam_ = np.degrees(refcal['pha'][:,:,np.array(bd)])
+                # phaparam2 = np.zeros((nant, 2, nspw))
+                # phaparam2[:-1,...] = phaparam_
+                # # phaparam2 = phaparam2.swapaxes(0,1).reshape(2,1,800)
+                # phaparam2 = np.moveaxis(phaparam2,0,2).reshape(2,1,800)
+                # tb.close()
+
             gaintables.append(caltb_pha)
         if ('refamp' in caltype) or ('refcal' in caltype):
             # caltb_amp = os.path.basename(vis).replace('.ms', '.refamp')
             caltb_amp = dirname + t_ref.isot[:-4].replace(':', '').replace('-', '') + '.refamp'
             if not os.path.exists(caltb_amp):
-                gencal(vis=msfile, caltable=caltb_amp, caltype='amp', antenna=antennas, pol='X,Y', spw='0~' + str(nspw - 1), parameter=para_amp)
+                gencal(vis=msfile, caltable=caltb_amp, caltype='amp', antenna=antennas, pol='X,Y',
+                       spw='0~' + str(nspw - 1), parameter=para_amp)
+                tb.open(caltb_amp, nomodify=False)
+                ampflag_ = refcal['flag'][:, :, np.array(bd)]
+                ampflag_new = np.full((nant, 2, nspw), True, dtype=np.bool)
+                ampflag_new[:-1, ...] = ampflag_
+                ampflag_new = np.moveaxis(ampflag_new, 0, 2).reshape(2, 1, 800)
+                tb.putcol('FLAG', ampflag_new)
+                tb.close()
             gaintables.append(caltb_amp)
 
         # calibration for the change of delay center between refcal time and beginning of scan -- hopefully none!
         xml, buf = ch.read_calX(4, t=[t_ref, btime], verbose=False)
         if buf:
             dly_t2 = Time(stf.extract(buf[0], xml['Timestamp']), format='lv')
-            dlycen_ns2 = stf.extract(buf[0], xml['Delaycen_ns'])[:15]
+            dlycen_ns2 = stf.extract(buf[0], xml['Delaycen_ns'])[:nant - 1]
             xml, buf = ch.read_calX(4, t=t_ref)
             dly_t1 = Time(stf.extract(buf, xml['Timestamp']), format='lv')
-            dlycen_ns1 = stf.extract(buf, xml['Delaycen_ns'])[:15]
+            dlycen_ns1 = stf.extract(buf, xml['Delaycen_ns'])[:nant - 1]
             dlycen_ns_diff = dlycen_ns2 - dlycen_ns1
             for n in range(2):
                 dlycen_ns_diff[:, n] -= dlycen_ns_diff[0, n]
-            print 'Multi-band delay is derived from delay center difference at {} & {}'.format(dly_t1.iso, dly_t2.iso)
-            # print '=====Delays relative to Ant 14====='
+            print('Multi-band delay is derived from delay center difference at {} & {}'.format(dly_t1.iso, dly_t2.iso))
+            # print('=====Delays relative to Ant 14=====')
             # for i, dl in enumerate(dlacen_ns_diff[:, 0] - dlacen_ns_diff[13, 0]):
             #     ant = antlist[i]
             #     print 'Ant eo{0:02d}: x {1:.2f} ns & y {2:.2f} ns'.format(int(ant) + 1, dl
@@ -223,13 +252,14 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
             # caltb_mbd0 = os.path.basename(vis).replace('.ms', '.mbd0')
             caltb_dlycen = dirname + dly_t2.isot[:-4].replace(':', '').replace('-', '') + '.dlycen'
             if not os.path.exists(caltb_dlycen):
-                gencal(vis=msfile, caltable=caltb_dlycen, caltype='mbd', pol='X,Y', antenna=antennas, parameter=dlycen_ns_diff.flatten().tolist())
+                gencal(vis=msfile, caltable=caltb_dlycen, caltype='mbd', pol='X,Y', antenna=antennas,
+                       parameter=dlycen_ns_diff.flatten().tolist())
             gaintables.append(caltb_dlycen)
 
         if 'phacal' in caltype:
             phacals = np.array(ra.sql2phacalX([bt, et], neat=True, verbose=False))
             if not phacals.any() or len(phacals) == 0:
-                print "Found no phacal records in SQL database, will skip phase calibration"
+                print("Found no phacal records in SQL database, will skip phase calibration")
             else:
                 # first generate all phacal calibration tables if not already exist
                 t_phas = Time([phacal['t_pha'] for phacal in phacals])
@@ -260,7 +290,7 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
                 if interp == 'nearest':
                     tbind = np.argmin(np.abs(t_phas.mjd - t_mid.mjd))
                     dt = np.min(np.abs(t_phas.mjd - t_mid.mjd)) * 24.
-                    print "Selected nearest phase calibration table at " + t_phas[tbind].iso
+                    print("Selected nearest phase calibration table at " + t_phas[tbind].iso)
                     gaintables.append(caltbs_phambd[tbind])
                 if interp == 'linear':
                     # bphacal = ra.sql2phacalX(btime)
@@ -268,8 +298,8 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
                     bt_ind, = np.where(t_phas.mjd < btime.mjd)
                     et_ind, = np.where(t_phas.mjd > etime.mjd)
                     if len(bt_ind) == 0 and len(et_ind) == 0:
-                        print "No phacal found before or after the ms data within the day of observation"
-                        print "Skipping daily phase calibration"
+                        print("No phacal found before or after the ms data within the day of observation")
+                        print("Skipping daily phase calibration")
                     elif len(bt_ind) > 0 and len(et_ind) == 0:
                         gaintables.append(caltbs_phambd[bt_ind[-1]])
                     elif len(bt_ind) == 0 and len(et_ind) > 0:
@@ -284,11 +314,13 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
                         # set all flagged values to be zero
                         phambd_ns[np.where(bphacal['flag'] == 1)] = 0.
                         phambd_ns[np.where(ephacal['flag'] == 1)] = 0.
-                        caltb_phambd_interp = dirname + t_pha_mean.isot[:-4].replace(':', '').replace('-', '') + '.phambd'
+                        caltb_phambd_interp = dirname + t_pha_mean.isot[:-4].replace(':', '').replace('-',
+                                                                                                      '') + '.phambd'
                         if not os.path.exists(caltb_phambd_interp):
                             gencal(vis=msfile, caltable=caltb_phambd_interp, caltype='mbd', pol='X,Y', antenna=antennas,
                                    parameter=phambd_ns.flatten().tolist())
-                        print "Using phase calibration table interpolated between records at " + bphacal['t_pha'].iso + ' and ' + ephacal['t_pha'].iso
+                        print("Using phase calibration table interpolated between records at " + bphacal[
+                            't_pha'].iso + ' and ' + ephacal['t_pha'].iso)
                         gaintables.append(caltb_phambd_interp)
 
         if docalib:
@@ -309,7 +341,7 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
                 try:
                     flagdata(vis=msfile, antenna=flagant)
                 except:
-                    print "Something wrong with flagant. Abort..."
+                    print("Something wrong with flagant. Abort...")
 
         if doimage:
             from matplotlib import pyplot as plt
@@ -326,9 +358,9 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
                 spw = '1~3'
             if not imagedir:
                 imagedir = '.'
-            #(yr, mon, day) = (bt.datetime.year, bt.datetime.month, bt.datetime.day)
-            #dirname = imagedir + str(yr) + '/' + str(mon).zfill(2) + '/' + str(day).zfill(2) + '/'
-            #if not os.path.exists(dirname):
+            # (yr, mon, day) = (bt.datetime.year, bt.datetime.month, bt.datetime.day)
+            # dirname = imagedir + str(yr) + '/' + str(mon).zfill(2) + '/' + str(day).zfill(2) + '/'
+            # if not os.path.exists(dirname):
             #    os.makedirs(dirname)
             bds = [spw]
             nbd = len(bds)
@@ -339,12 +371,13 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
                 else:
                     bdstr = str(bd).zfill(2)
                 imname = imagedir + '/' + os.path.basename(msfile).replace('.ms', '.bd' + bdstr)
-                print 'Cleaning image: ' + imname
+                print('Cleaning image: ' + imname)
                 try:
-                    clean(vis=msfile, imagename=imname, antenna=antenna, spw=bd, timerange=timerange, imsize=[512], cell=['5.0arcsec'], stokes=stokes,
+                    clean(vis=msfile, imagename=imname, antenna=antenna, spw=bd, timerange=timerange, imsize=[512],
+                          cell=['5.0arcsec'], stokes=stokes,
                           niter=500)
                 except:
-                    print 'clean not successfull for band ' + str(bd)
+                    print('clean not successfull for band ' + str(bd))
                 else:
                     imgs.append(imname + '.image')
                 junks = ['.flux', '.mask', '.model', '.psf', '.residual']
@@ -365,25 +398,39 @@ def calibeovsa(vis=None, caltype=None, interp=None, docalib=True, doflag=True, f
                 eomap.plot_settings['cmap'] = plt.get_cmap('jet')
                 eomap.plot()
                 eomap.draw_limb()
-                eomap.draw_grid()
+                # the next line would cause trouble in higher versions of SunPy, as it requires WCS
+                # eomap.draw_grid()
 
             plt.show()
 
+    if dosplit:
+        if not doconcat:
+            if not outputvis:
+                outputvis = [vis[n].split('.')[0] + '.corrected.ms' for n in range(len(vis))]
+            for n in range(len(vis)):
+                split(vis=vis[n], outputvis=outputvis[n], datacolumn='corrected')
+                if not keep_orig_ms:
+                    os.system('rm -rf {}'.format(vis[n]))
+    else:
+        outputvis = vis
+
     if doconcat:
+        # doconcat imply dosplit
         from suncasa.tasks import concateovsa_cli as ce
         # from suncasa.eovsa import concateovsa as ce
-        if msoutdir is None:
-            msoutdir = './'
         if not concatvis:
-            concatvis = os.path.basename(vis[0])
-            concatvis = msoutdir + '/' + concatvis.split('.')[0] + '_concat.ms'
-        else:
-            concatvis = os.path.join(msoutdir, concatvis)
+            msoutdir = os.path.dirname(vis[0])
+            if len(vis) == 1:
+                vis0 = os.path.basename(vis[0])
+                concatvis = os.path.join(msoutdir, vis0.split('.')[0] + '.corrected.ms')
+            if len(vis) > 1:
+                visb = os.path.basename(vis[0])
+                vise = os.path.basename(vis[-1])
+                concatvis = os.path.join(msoutdir, visb.split('.')[0] + '-' + vise.split('.')[0][3:] + '.corrected.ms')
+        if len(vis) == 1:
+            split(vis=vis[0], outputvis=concatvis, datacolumn='corrected')
         if len(vis) > 1:
             ce.concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=keep_orig_ms, cols2rm="model,corrected")
-            return [concatvis]
-        else:
-            split(vis=vis[0], outputvis=concatvis, datacolumn='corrected')
-            return [concatvis]
+        return [concatvis]
     else:
-        return vis
+        return outputvis
