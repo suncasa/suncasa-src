@@ -431,6 +431,6 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
             split(vis=vis[0], outputvis=concatvis, datacolumn='corrected')
         if len(vis) > 1:
             ce.concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=keep_orig_ms, cols2rm="model,corrected")
-        return [concatvis]
+        return concatvis
     else:
         return outputvis
