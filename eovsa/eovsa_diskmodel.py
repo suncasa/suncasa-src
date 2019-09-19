@@ -297,8 +297,10 @@ def diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d
     return diskim
 
 
-def insertdiskmodel(vis, overwrite_img_model=True):
-    fdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
+def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite_img_model=True):
+    if fdens is None:
+        # Default flux density for solar minimum
+        fdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
                       1613253, 1702751, 1800721, 1946756, 2096020, 2243951,
                       2367362, 2525968, 2699795, 2861604, 3054829, 3220450,
                       3404182, 3602625, 3794312, 3962926, 4164667, 4360683,
@@ -307,16 +309,23 @@ def insertdiskmodel(vis, overwrite_img_model=True):
                       7258929, 7454951, 7742816, 7948976, 8203206, 8411834,
                       8656720, 8908130, 9087766, 9410760, 9571365, 9827078,
                       10023598, 8896671])
-    dsize = np.array(['1228.0arcsec', '1194.0arcsec', '1165.0arcsec', '1139.0arcsec', '1117.0arcsec',
-                      '1097.0arcsec', '1080.0arcsec', '1065.0arcsec', '1053.0arcsec', '1042.0arcsec', '1033.0arcsec',
-                      '1025.0arcsec', '1018.0arcsec', '1012.0arcsec',
-                      '1008.0arcsec', '1003.0arcsec', '1000.0arcsec', '997.0arcsec', '994.0arcsec', '992.0arcsec',
+    if dsize is None:
+        # Default solar disk radius for solar minimum
+        dsize = np.array(['1228.0arcsec', '1194.0arcsec', '1165.0arcsec', '1139.0arcsec', '1117.0arcsec',
+                      '1097.0arcsec', '1080.0arcsec', '1065.0arcsec', '1053.0arcsec', '1042.0arcsec', 
+                      '1033.0arcsec', '1025.0arcsec', '1018.0arcsec', '1012.0arcsec', '1008.0arcsec', 
+                      '1003.0arcsec', '1000.0arcsec', '997.0arcsec', '994.0arcsec', '992.0arcsec',
                       '990.0arcsec', '988.0arcsec', '986.0arcsec', '985.0arcsec', '983.0arcsec', '982.0arcsec',
                       '980.0arcsec', '979.0arcsec', '978.0arcsec', '976.0arcsec', '975.0arcsec', '974.0arcsec',
                       '972.0arcsec', '971.0arcsec', '970.0arcsec', '969.0arcsec', '968.0arcsec', '967.0arcsec',
                       '966.0arcsec', '965.0arcsec', '964.0arcsec', '964.0arcsec', '963.0arcsec', '962.0arcsec',
                       '962.0arcsec', '961.0arcsec', '960.0arcsec', '959.0arcsec', '957.0arcsec', '956.0arcsec'])
 
+    # Apply size scale adjustment (default is no adjustment)
+    for i in range(len(dsize)):
+        num, unit = dsize[i].split('arc')
+        dsize[i] = str(float(num)*sizescale)[:6]+'arc'+unit
+        
     msfile = vis
     ms.open(msfile)
     diskim = []

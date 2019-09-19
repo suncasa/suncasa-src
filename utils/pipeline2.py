@@ -9,7 +9,7 @@ sys.path = [s for s in syspath if '.local' not in s]
 mjdnow = ep.Time.now().mjd
 t = ep.Time(mjdnow - 6, format='mjd')
 # Uncomment below and set date to run for a given date
-# t = ep.Time('2019-08-09 20:00')
+t = ep.Time('2019-09-17 20:00')
 date = t.iso[:10]
 ep.qlook_image_pipeline(date, ncpu=1, synoptic=True)
 html_movie(t, imgprefix='eovsa_qlimg_')
