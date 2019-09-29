@@ -12,9 +12,11 @@ from eovsapy import refcal_anal as ra
 from taskinit import ms, tb
 import os
 import numpy as np
+from suncasa.eovsa import eovsa_diskmodel as ed
 
-udbmsscldir = os.getenv('EOVSAUDBMSSCL')
 udbmsdir = os.getenv('EOVSAUDBMS')
+udbmsscldir = os.getenv('EOVSAUDBMSSCL')
+udbmsslfcaleddir = os.getenv('EOVSAUDBMSSLFCALED')
 udbdir = os.getenv('EOVSAUDB')
 caltbdir = os.getenv('EOVSACAL')
 
@@ -26,6 +28,10 @@ if not udbmsscldir:
     print('Environmental variable for scaled EOVSA udbms path not defined')
     print('Use default path on pipeline')
     udbmsscldir = '/data1/eovsa/fits/UDBms_scl/'
+if not udbmsslfcaleddir:
+    print('Environmental variable for EOVSA udbms path not defined')
+    print('Use default path on pipeline')
+    udbmsslfcaleddir = '/data1/eovsa/fits/UDBms_slfcaled/'
 if not udbdir:
     print('Environmental variable for EOVSA udb path not defined')
     print('Use default path on pipeline')
@@ -202,6 +208,10 @@ def calib_pipeline(trange, doimport=False, synoptic=False):
                                     flagant='13~15',
                                     doimage=False, doconcat=True,
                                     keep_orig_ms=False)
+    udbmspath = udbmsslfcaleddir
+    tdate = invis[0].split('UDB')[-1][:8]
+    outpath = os.path.join(udbmspath, tdate[:6]) + '/'
+    vis = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms')
     return vis
 
 

@@ -11,6 +11,7 @@ t = ep.Time(mjdnow - 6, format='mjd')
 # Uncomment below and set date to run for a given date
 # t = ep.Time('2019-09-17 20:00')
 date = t.iso[:10]
-ep.qlook_image_pipeline(date, ncpu=1, synoptic=True)
+# ep.qlook_image_pipeline(date, ncpu=1, synoptic=True)
+ep.qlook_image_pipeline(date, ncpu=1)
 html_movie(t, imgprefix='eovsa_qlimg_')
-html_movie(t, imgprefix='eovsa_qlimg_', synoptic=True)
+# html_movie(t, imgprefix='eovsa_qlimg_', synoptic=True)
