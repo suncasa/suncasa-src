@@ -211,6 +211,8 @@ def calib_pipeline(trange, doimport=False, synoptic=False):
     udbmspath = udbmsslfcaleddir
     tdate = invis[0].split('UDB')[-1][:8]
     outpath = os.path.join(udbmspath, tdate[:6]) + '/'
+    if not os.path.exists(outpath):
+        os.makedirs(outpath)
     vis = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms')
     return vis
 
