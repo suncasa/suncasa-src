@@ -61,7 +61,7 @@ if not caltbdir:
 
 if not slfcaltbdir:
     print('Task calibeovsa')
-    caltbdir = '/data1/eovsa/slfcaltbdir/'
+    slfcaltbdir = '/data1/eovsa/slfcaltbdir/'
     print('Environmental variable for EOVSA disk calibration table path not defined')
     print('Use default path on pipeline ' + slfcaltbdir)
 
