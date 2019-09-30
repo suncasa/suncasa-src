@@ -405,6 +405,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
         print('Please change to a different working directory')
         return None
 
+
     # Copy original ms to local directory
     if os.path.basename(vis):
         shutil.rmtree(os.path.basename(vis))
