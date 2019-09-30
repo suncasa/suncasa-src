@@ -3,6 +3,13 @@ import numpy as np
 from tqdm import tqdm
 
 
+def get_trange(msfile):
+    from astropy.time import Time
+    tb.open(msfile)
+    tr = np.array([tb.getcell('TIME', 0),tb.getcell('TIME', tb.nrows() - 1)]) / 24. / 3600.
+    tb.close()
+    return Time(tr,format='mjd')
+
 def msclearhistory(msfile):
     '''Clears history in the a measurement sets file
 
@@ -89,4 +96,6 @@ def splitX(vis, datacolumn2='MODEL_DATA', overwrite=True, **kwargs):
     for row in tqdm(range(nrows), desc='writing {} column'.format(datacolumn2), ascii=True):
         tb.putcell(datacolumn2, row, data[row])
     tb.close()
+
+    os.system('rm -rf tmpms.ms')
     return outmsfile

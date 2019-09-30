@@ -13,12 +13,17 @@ from taskinit import ms, tb
 import os
 import numpy as np
 from suncasa.eovsa import eovsa_diskmodel as ed
+from suncasa.utils import mstools as mstl
 
 udbmsdir = os.getenv('EOVSAUDBMS')
 udbmsscldir = os.getenv('EOVSAUDBMSSCL')
 udbmsslfcaleddir = os.getenv('EOVSAUDBMSSLFCALED')
 udbdir = os.getenv('EOVSAUDB')
 caltbdir = os.getenv('EOVSACAL')
+slfcaltbdir = os.getenv('EOVSASLFCAL')
+qlookfitsdir = os.getenv('EOVSAQLOOKFITS')
+qlookfigdir = os.getenv('EOVSAQLOOKFIG')
+synopticfigdir = os.getenv('EOVSASYNOPTICFIG')
 
 if not udbmsdir:
     print('Environmental variable for EOVSA udbms path not defined')
@@ -38,11 +43,27 @@ if not udbdir:
     udbdir = '/data1/eovsa/fits/UDB/'
 # check if the calibration table directory is defined
 
+if not qlookfitsdir:
+    qlookfitsdir = '/data1/eovsa/fits/qlook_10m/'
+    if not os.path.exists(qlookfitsdir): os.makedirs(qlookfitsdir)
+if not qlookfigdir:
+    qlookfigdir = '/common/webplots/qlookimg_10m/'
+    if not os.path.exists(qlookfigdir): os.makedirs(qlookfigdir)
+if not synopticfigdir:
+    synopticfigdir = '/common/webplots/SynopticImg/'
+    if not os.path.exists(synopticfigdir): os.makedirs(synopticfigdir)
+
 if not caltbdir:
     print('Task calibeovsa')
     caltbdir = '/data1/eovsa/caltable/'
     print('Environmental variable for EOVSA calibration table path not defined')
     print('Use default path on pipeline ' + caltbdir)
+
+if not slfcaltbdir:
+    print('Task calibeovsa')
+    caltbdir = '/data1/eovsa/slfcaltbdir/'
+    print('Environmental variable for EOVSA disk calibration table path not defined')
+    print('Use default path on pipeline ' + slfcaltbdir)
 
 
 def getspwfreq(vis):
@@ -170,50 +191,62 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
                 'tedlist': sclist['tedlist']}
 
 
-def calib_pipeline(trange, doimport=False, synoptic=False):
+def calib_pipeline(trange, doimport=False, overwrite=False):
     ''' 
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
                       3) a single or a list of UDBms file(s)
                       4) None -- use current date Time.now()
     '''
+
     if type(trange) == Time:
-        mslist = trange2ms(trange=trange, doimport=doimport)
+        mslist = trange2ms(trange=trange, doimport=False)
         invis = mslist['ms']
-        tsts = [l.to_datetime() for l in mslist['tstlist']]
-        subdir = [tst.strftime("%Y/%m/%d/") for tst in tsts]
     if type(trange) == str:
         try:
-            date = Time(trange)
-            mslist = trange2ms(trange=trange, doimport=doimport)
+            mslist = trange2ms(trange=trange, doimport=False)
             invis = mslist['ms']
         except:
             invis = [trange]
-        subdir = ['/']
 
     for idx, f in enumerate(invis):
         if f[-1] == '/':
             invis[idx] = f[:-1]
 
-    if synoptic:
+    outputvis = os.path.join(os.path.dirname(invis[0]), os.path.basename(invis[0])[:11] + '.ms')
+
+    if overwrite or (not os.path.exists(outputvis)):
+        if type(trange) == Time:
+            mslist = trange2ms(trange=trange, doimport=doimport)
+            invis = mslist['ms']
+        if type(trange) == str:
+            try:
+                mslist = trange2ms(trange=trange, doimport=doimport)
+                invis = mslist['ms']
+            except:
+                invis = [trange]
+
+        for idx, f in enumerate(invis):
+            if f[-1] == '/':
+                invis[idx] = f[:-1]
         vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], caltbdir=caltbdir, interp='nearest',
                                     doflag=True,
                                     flagant='13~15',
                                     doimage=False, doconcat=True,
-                                    concatvis=os.path.join(os.path.dirname(invis[0]),
-                                                           os.path.basename(invis[0])[:11] + '.ms'), keep_orig_ms=False)
+                                    concatvis=outputvis, keep_orig_ms=False)
     else:
-        vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], caltbdir=caltbdir, interp='nearest',
-                                    doflag=True,
-                                    flagant='13~15',
-                                    doimage=False, doconcat=True,
-                                    keep_orig_ms=False)
+        vis = outputvis
+
     udbmspath = udbmsslfcaleddir
-    tdate = invis[0].split('UDB')[-1][:8]
+    tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     outpath = os.path.join(udbmspath, tdate[:6]) + '/'
     if not os.path.exists(outpath):
         os.makedirs(outpath)
-    vis = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms')
+    imgoutdir = os.path.join(qlookfitsdir, tdate.strftime("%Y/%m/%d/"))
+    if not os.path.exists(imgoutdir):
+        os.makedirs(imgoutdir)
+    vis = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms',
+                          slfcaltbdir=os.path.join(slfcaltbdir, tdate[:6]) + '/', imgoutdir=imgoutdir)
     return vis
 
 
@@ -547,23 +580,13 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
         return None
 
     if date.mjd > Time('2019-02-02 12:00:00').mjd:
-        # spws = ['0~4', '5~14', '15~27', '28~43']
-        spws = ['6~10', '11~20', '21~30', '31~43', '']
+        ## the last '' window is for fullBD synthesis image. Now obsolete.
+        # spws = ['6~10', '11~20', '21~30', '31~43', '']
+        spws = ['6~10', '11~20', '21~30', '31~43']
     else:
-        spws = ['1~5', '6~10', '11~15', '16~25', '']
-
-    qlookfitsdir = os.getenv('EOVSAQLOOKFITS')
-    qlookfigdir = os.getenv('EOVSAQLOOKFIG')
-    synopticfigdir = os.getenv('EOVSASYNOPTICFIG')
-    if not qlookfitsdir:
-        qlookfitsdir = '/data1/eovsa/fits/qlook_10m/'
-        if not os.path.exists(qlookfitsdir): os.makedirs(qlookfitsdir)
-    if not qlookfigdir:
-        qlookfigdir = '/common/webplots/qlookimg_10m/'
-        if not os.path.exists(qlookfigdir): os.makedirs(qlookfigdir)
-    if not synopticfigdir:
-        synopticfigdir = '/common/webplots/SynopticImg/'
-        if not os.path.exists(synopticfigdir): os.makedirs(synopticfigdir)
+        ## the last '' window is for fullBD synthesis image. Now obsolete.
+        # spws = ['1~5', '6~10', '11~15', '16~25', '']
+        spws = ['1~5', '6~10', '11~15', '16~25']
 
     if docalib:
         vis = calib_pipeline(date, doimport=doimport, synoptic=synoptic)
