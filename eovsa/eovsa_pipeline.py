@@ -238,15 +238,16 @@ def calib_pipeline(trange, doimport=False, overwrite=False):
         vis = outputvis
 
     udbmspath = udbmsslfcaleddir
-    tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
-    outpath = os.path.join(udbmspath, tdate[:6]) + '/'
+    tdate = mstl.get_trange(vis)[0]
+    outpath = os.path.join(udbmspath, tdate.datetime.strftime('%Y%m')) + '/'
     if not os.path.exists(outpath):
         os.makedirs(outpath)
-    imgoutdir = os.path.join(qlookfitsdir, tdate.strftime("%Y/%m/%d/"))
+    imgoutdir = os.path.join(qlookfitsdir, tdate.datetime.strftime("%Y/%m/%d/"))
     if not os.path.exists(imgoutdir):
         os.makedirs(imgoutdir)
     vis = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms',
-                          slfcaltbdir=os.path.join(slfcaltbdir, tdate[:6]) + '/', imgoutdir=imgoutdir)
+                          slfcaltbdir=os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/',
+                          imgoutdir=imgoutdir)
     return vis
 
 
