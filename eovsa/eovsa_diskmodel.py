@@ -17,6 +17,39 @@ from tclean_cli import tclean_cli as tclean
 from ft_cli import ft_cli as ft
 
 
+def writediskxml(dsize, fdens, xmlfile='SOLDISK.xml'):
+    import xml.etree.ElementTree as ET
+    # create the file structure
+    sdk = ET.Element('SOLDISK')
+    sdk_dsize = ET.SubElement(sdk, 'item')
+    sdk_fdens = ET.SubElement(sdk, 'item')
+    sdk_dsize.set('disk_size', ','.join(dsize))
+    sdk_fdens.set('flux_dens', ','.join(['{:.1f}Jy'.format(s) for s in fdens]))
+    # sdk_dsize.text = ','.join(dsize)
+    # sdk_fdens.text = ','.join(['{:.1f}Jy'.format(s) for s in fdens])
+
+    # create a new XML file with the results
+    mydata = ET.tostring(sdk)
+    with open(xmlfile, 'w') as sf:
+        sf.write(mydata)
+    return xmlfile
+
+
+def readdiskxml(xmlfile):
+    from argparse import Namespace
+    import xml.etree.ElementTree as ET
+    tree = ET.parse(xmlfile)
+    root = tree.getroot()
+
+    diskinfo = {}
+    for elem in root:
+        d = elem.attrib
+        for k, v in d.items():
+            diskinfo[k] = v
+
+    return diskinfo
+
+
 def read_ms(vis):
     ''' Read a CASA ms file and return a dictionary of amplitude, phase, uvdistance,
         uvangle, frequency (GHz) and time (MJD).  Currently only returns the XX IF channel.
@@ -369,6 +402,51 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite_img_mo
            reffreq="", complist="", incremental=False, usescratch=True)
 
     uvsub(vis=msfile)
+
+    # tb.open(os.path.join(msfile, 'DATA_DESCRIPTION'), nomodify=False)
+    #
+    # tabdesc = {'DISK_SIZE': {'comment': 'Size of solar disk',
+    #                          'dataManagerGroup': 'StandardStMan',
+    #                          'dataManagerType': 'StandardStMan',
+    #                          'keywords': {},
+    #                          'maxlen': 0,
+    #                          'option': 0,
+    #                          'valueType': 'double'},
+    #            'DISK_FLUX': {'comment': 'Flux [Jy] of solar disk',
+    #                          'dataManagerGroup': 'StandardStMan',
+    #                          'dataManagerType': 'StandardStMan',
+    #                          'keywords': {},
+    #                          'maxlen': 0,
+    #                          'option': 0,
+    #                          'valueType': 'double'},
+    #            '_define_hypercolumn_': {},
+    #            '_keywords_': {},
+    #            '_private_keywords_': {}}
+    #
+    # tb.addcols(tabdesc)
+    # tb.close()
+
+    # tabdesc = {'DISK_SIZE': {'comment': 'Size of solar disk',
+    #                          'dataManagerGroup': 'StandardStMan',
+    #                          'dataManagerType': 'StandardStMan',
+    #                          'keywords': {},
+    #                          'maxlen': 0,
+    #                          'option': 0,
+    #                          'valueType': 'double'},
+    #            'DISK_FLUX': {'comment': 'Flux [Jy] of solar disk',
+    #                          'dataManagerGroup': 'StandardStMan',
+    #                          'dataManagerType': 'StandardStMan',
+    #                          'keywords': {},
+    #                          'maxlen': 0,
+    #                          'option': 0,
+    #                          'valueType': 'double'},
+    #            '_define_hypercolumn_': {},
+    #            '_keywords_': {},
+    #            '_private_keywords_': {}}
+    # tb.create(os.path.join(msfile, 'SOLDISK'),tabdesc)
+    # tb.addrows(50)  # Add the rows _before_ filling the columns.
+    # tb.close()
+
     return msfile
 
 
@@ -423,8 +501,20 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     newsize = defaultsize * fac.to_value()
     dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize])
 
+    defaultfdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
+                             1613253, 1702751, 1800721, 1946756, 2096020, 2243951,
+                             2367362, 2525968, 2699795, 2861604, 3054829, 3220450,
+                             3404182, 3602625, 3794312, 3962926, 4164667, 4360683,
+                             4575677, 4767210, 4972824, 5211717, 5444632, 5648266,
+                             5926634, 6144249, 6339863, 6598018, 6802707, 7016012,
+                             7258929, 7454951, 7742816, 7948976, 8203206, 8411834,
+                             8656720, 8908130, 9087766, 9410760, 9571365, 9827078,
+                             10023598, 8896671])
+    fdens = defaultfdens
     # Insert the disk model (msfile is the same as vis, and will be used as the "original" vis file name)
     msfile = insertdiskmodel(vis, dsize=dsize)
+
+    diskxmlfile = writediskxml(dsize, fdens, xmlfile=vis + '.SOLDISK.xml')
 
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_1.pha')
@@ -473,7 +563,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     shutil.rmtree(vis3)
 
     # Return the name of the selfcaled ms
-    return final
+    return final, diskxmlfile
 
 
 def fd_images(vis, cleanup=False, niter=None, imgoutdir='./'):
@@ -573,10 +663,15 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./'):
     import glob
     from astropy.io import fits
 
+    if outputvis[-1] == '/':
+        outputvis = outputvis[:-1]
+    if vis[-1] == '/':
+        vis = vis[:-1]
+
     if not os.path.exists(slfcaltbdir):
         os.makedirs(slfcaltbdir)
     # Generate calibrated visibility by self calibrating on the solar disk
-    ms_slfcaled = disk_slfcal(vis, slfcaltbdir=slfcaltbdir)
+    ms_slfcaled, diskxmlfile = disk_slfcal(vis, slfcaltbdir=slfcaltbdir)
     # Make initial images from self-calibrated visibility file, and check T_b max
     fd_images(ms_slfcaled, imgoutdir=imgoutdir)
     # Check if any of the images has a bright source (T_b > 300,000 K), and if so, remake images
@@ -602,4 +697,7 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./'):
     if outputvis:
         os.system('mv {} {}'.format(ms_slfcaled, outputvis))
         ms_slfcaled = outputvis
-    return ms_slfcaled
+
+        os.system('mv {} {}'.format(diskxmlfile, os.path.dirname(outputvis)))
+        diskxmlfile = os.path.join(os.path.dirname(outputvis), diskxmlfile)
+    return ms_slfcaled, diskxmlfile

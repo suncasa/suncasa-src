@@ -245,9 +245,9 @@ def calib_pipeline(trange, doimport=False, overwrite=False):
     imgoutdir = os.path.join(qlookfitsdir, tdate.datetime.strftime("%Y/%m/%d/"))
     if not os.path.exists(imgoutdir):
         os.makedirs(imgoutdir)
-    vis = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms',
-                          slfcaltbdir=os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/',
-                          imgoutdir=imgoutdir)
+    vis, diskxmlfile = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms',
+                                       slfcaltbdir=os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/',
+                                       imgoutdir=imgoutdir)
     return vis
 
 
