@@ -17,16 +17,16 @@ from tclean_cli import tclean_cli as tclean
 from ft_cli import ft_cli as ft
 
 
-def writediskxml(dsize, fdens, xmlfile='SOLDISK.xml'):
+def writediskxml(dsize, fdens, freq, xmlfile='SOLDISK.xml'):
     import xml.etree.ElementTree as ET
     # create the file structure
     sdk = ET.Element('SOLDISK')
     sdk_dsize = ET.SubElement(sdk, 'item')
     sdk_fdens = ET.SubElement(sdk, 'item')
+    sdk_freqs = ET.SubElement(sdk, 'item')
     sdk_dsize.set('disk_size', ','.join(dsize))
     sdk_fdens.set('flux_dens', ','.join(['{:.1f}Jy'.format(s) for s in fdens]))
-    # sdk_dsize.text = ','.join(dsize)
-    # sdk_fdens.text = ','.join(['{:.1f}Jy'.format(s) for s in fdens])
+    sdk_freqs.set('freq', ','.join(freq))
 
     # create a new XML file with the results
     mydata = ET.tostring(sdk)
@@ -36,7 +36,7 @@ def writediskxml(dsize, fdens, xmlfile='SOLDISK.xml'):
 
 
 def readdiskxml(xmlfile):
-    from argparse import Namespace
+    import astropy.units as u
     import xml.etree.ElementTree as ET
     tree = ET.parse(xmlfile)
     root = tree.getroot()
@@ -45,9 +45,65 @@ def readdiskxml(xmlfile):
     for elem in root:
         d = elem.attrib
         for k, v in d.items():
-            diskinfo[k] = v
+            v_ = v.split(',')
+            v_ = [u.Unit(f).to_string().split(' ') for f in v_]
+            diskinfo[k] = []
+            for val, uni in v_:
+                diskinfo[k].append(float(val))
+            diskinfo[k] = np.array(diskinfo[k]) * u.Unit(uni)
 
     return diskinfo
+
+
+def image_adddisk(eofile, xmlfile):
+    from scipy.special import erfc
+    from sunpy import map as smap
+    from suncasa.utils import plot_mapX as pmX
+    from scipy import constants
+    import astropy.units as u
+
+    diskinfo = readdiskxml(xmlfile)
+
+    dsize = diskinfo['disk_size']
+    fdens = diskinfo['flux_dens']
+    freqs = diskinfo['freq']
+    eomap = smap.Map(eofile)
+    eomap_ = pmX.Sunmap(eomap)
+    header = eomap.meta
+    bmaj = header['bmaj'] * 3600 * u.arcsec
+    bmin = header['bmin'] * 3600 * u.arcsec
+    cell = header['cdelt1'] * u.Unit(header['cunit1'])
+    bmsize = (bmaj + bmin) / 2.0
+    data = eomap.data  # remember the data order is reversed due to the FITS convension
+    keys = header.keys()
+    values = header.values()
+    faxis = keys[values.index('FREQ')][-1]
+    nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * (1 - header['CRPIX' + faxis])
+    freqghz = nu / 1.0e9
+    mapx, mapy = eomap_.map2wcsgrids(cell=True)
+    rdisk = np.sqrt(mapx ** 2 + mapy ** 2)
+
+    p_dsize = np.poly1d(np.polyfit(freqs.value, dsize.value, 15))
+    p_fdens = np.poly1d(np.polyfit(freqs.value, fdens.value, 15))
+
+    k_b = constants.k
+    c_l = constants.c
+    const = 2. * k_b / c_l ** 2
+    bmaj0 = cell.to(u.rad).value
+    bmin0 = cell.to(u.rad).value
+    beam_area = bmaj0 * bmin0 * np.pi / (4. * np.log(2.))
+    factor = const * nu ** 2  # SI unit
+    jy_to_si = 1e-26
+    factor2 = 1.
+    jy2tb = jy_to_si / beam_area / factor * factor2
+    fdisk = erfc((rdisk - p_dsize(freqghz)) / bmsize.value) / 2.0
+    fdisk = fdisk / np.nansum(fdisk) * p_fdens(freqghz)
+    tbdisk = fdisk * jy2tb
+    tb_disk = np.nanmax(tbdisk)
+    datanew = data + tbdisk
+    datanew[np.isnan(datanew)] = 0.0
+    eomap_disk = smap.Map(datanew, header)
+    return eomap_disk, tb_disk
 
 
 def read_ms(vis):
@@ -336,7 +392,7 @@ def diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d
     return diskim
 
 
-def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite_img_model=True):
+def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite_img_model=True, xmlfile='SOLDISK.xml'):
     if fdens is None:
         # Default flux density for solar minimum
         fdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
@@ -366,7 +422,6 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite_img_mo
         dsize[i] = str(float(num) * sizescale)[:6] + 'arc' + unit
 
     msfile = vis
-    ms.open(msfile)
     diskim = []
     ms.open(msfile)
     spwinfo = ms.getspectralwindowinfo()
@@ -380,6 +435,8 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite_img_mo
         spw = spwinfo[str(sp)]
         frq.append('{:.4f}GHz'.format((spw['RefFreq'] + spw['TotalWidth'] / 2.0) / 1e9))
     frq = np.array(frq)
+
+    writediskxml(dsize, fdens, frq, xmlfile=xmlfile)
     tb.open(msfile + '/FIELD')
     phadir = tb.getcol('PHASE_DIR').flatten()
     tb.close()
@@ -511,10 +568,10 @@ def disk_slfcal(vis, slfcaltbdir='./'):
                              8656720, 8908130, 9087766, 9410760, 9571365, 9827078,
                              10023598, 8896671])
     fdens = defaultfdens
-    # Insert the disk model (msfile is the same as vis, and will be used as the "original" vis file name)
-    msfile = insertdiskmodel(vis, dsize=dsize)
 
-    diskxmlfile = writediskxml(dsize, fdens, xmlfile=vis + '.SOLDISK.xml')
+    diskxmlfile = vis + '.SOLDISK.xml'
+    # Insert the disk model (msfile is the same as vis, and will be used as the "original" vis file name)
+    msfile = insertdiskmodel(vis, dsize=dsize, fdens=fdens, xmlfile=diskxmlfile)
 
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_1.pha')
@@ -605,6 +662,7 @@ def fd_images(vis, cleanup=False, niter=None, imgoutdir='./'):
         shutil.rmtree('images')  # Remove all images and the folder named images
 
     # To add disk model image to the images, I can try scipy.ndimage routines gaussian_filter() and zoom()
+    return fitsfile
 
 
 def feature_slfcal(vis, niter=200, slfcaltbdir='./'):
@@ -659,8 +717,14 @@ def feature_slfcal(vis, niter=200, slfcaltbdir='./'):
     return vis2
 
 
-def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./'):
-    import glob
+def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir='./'):
+    import matplotlib.pyplot as plt
+    import matplotlib.colors as colors
+    from suncasa.utils import plot_mapX as pmX
+    import astropy.units as u
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+    import matplotlib as mpl
+    from glob import glob
     from astropy.io import fits
 
     if outputvis[-1] == '/':
@@ -673,10 +737,10 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./'):
     # Generate calibrated visibility by self calibrating on the solar disk
     ms_slfcaled, diskxmlfile = disk_slfcal(vis, slfcaltbdir=slfcaltbdir)
     # Make initial images from self-calibrated visibility file, and check T_b max
-    fd_images(ms_slfcaled, imgoutdir=imgoutdir)
+    outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir)
     # Check if any of the images has a bright source (T_b > 300,000 K), and if so, remake images
     # with fewer components and execute feature_slfcal
-    files = glob.glob('*.fits')
+    files = glob('*.fits')
     bright = False
     for file in files:
         data = fits.getdata(file)
@@ -689,7 +753,7 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./'):
         shutil.rmtree('images')
         fd_images(ms_slfcaled, niter=200, imgoutdir=imgoutdir)  # Does shallow clean for selfcal purposes
         ms_slfcaled2 = feature_slfcal(ms_slfcaled, slfcaltbdir=slfcaltbdir)  # Creates newly calibrated database
-        fd_images(ms_slfcaled2, imgoutdir=imgoutdir)  # Does deep clean for final image creation
+        outputfits = fd_images(ms_slfcaled2, imgoutdir=imgoutdir)  # Does deep clean for final image creation
         # Cleanup of interim ms's would be done here...
         shutil.rmtree(ms_slfcaled)
         ms_slfcaled = ms_slfcaled2
@@ -700,4 +764,39 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./'):
 
         os.system('mv {} {}'.format(diskxmlfile, os.path.dirname(outputvis)))
         diskxmlfile = os.path.join(os.path.dirname(outputvis), diskxmlfile)
+
+    eofiles = glob(imgoutdir + '/eovsa_????????.spw??-??.tb.fits')
+    eofiles = sorted(eofiles)
+    plt.ioff()
+    fig, axs = plt.subplots(2, 3, figsize=(15, 9))
+    axs = axs.ravel()
+
+    cmap = 'gist_heat'
+    for idx, eofile in enumerate(eofiles):
+        ax = axs[idx]
+        eomap_disk, tb_disk = image_adddisk(eofile, diskxmlfile)
+        norm = colors.Normalize(vmin=0., vmax=tb_disk * 1.75)
+        eomap_disk_ = pmX.Sunmap(eomap_disk)
+        eomap_disk_.imshow(axes=ax, cmap=cmap, norm=norm)
+        eomap_disk_.draw_limb(axes=ax)
+        eomap_disk_.draw_grid(axes=ax, grid_spacing=10. * u.deg)
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes('right', size='2.0%', pad=0.08)
+        cax.tick_params(direction='in')
+        clb = mpl.colorbar.ColorbarBase(cax, cmap=cmap, norm=colors.Normalize(vmin=0., vmax=tb_disk * 1.75 / 1e3))
+        clb.set_label(r'T$_b$ [$\times$10$^3$K]')
+        if idx != 3:
+            ax.set_xlabel('')
+            ax.set_ylabel('')
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+        ax.tick_params(direction="out")
+        ax.text(0.02, 0.98, 'EOVAS {:.1f} GHz   {} UT'.format(eomap_disk.meta['CRVAL3'] / 1e9,
+                                                              eomap_disk.date.strftime('%d-%b-%Y %H:%M:%S.%f')[:-3]),
+                transform=ax.transAxes, color='w', ha='left', va='top', fontsize=8, fontweight='bold')
+
+    fig.tight_layout()
+    fig.savefig(os.path.join(figoutdir, 'eovsa_qlimg_{}.png'.format(eomap_disk.date.strftime('%Y%m%d'))))
+    fig.close()
+    plt.ion()
     return ms_slfcaled, diskxmlfile

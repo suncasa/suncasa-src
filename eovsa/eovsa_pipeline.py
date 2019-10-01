@@ -245,9 +245,12 @@ def calib_pipeline(trange, doimport=False, overwrite=False):
     imgoutdir = os.path.join(qlookfitsdir, tdate.datetime.strftime("%Y/%m/%d/"))
     if not os.path.exists(imgoutdir):
         os.makedirs(imgoutdir)
+    figoutdir = os.path.join(synopticfigdir, tdate.datetime.strftime("%Y/"))
+    if not os.path.exists(figoutdir):
+        os.makedirs(figoutdir)
     vis, diskxmlfile = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms',
                                        slfcaltbdir=os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/',
-                                       imgoutdir=imgoutdir)
+                                       imgoutdir=imgoutdir, figoutdir=figoutdir)
     return vis
 
 
@@ -583,11 +586,12 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
     if date.mjd > Time('2019-02-02 12:00:00').mjd:
         ## the last '' window is for fullBD synthesis image. Now obsolete.
         # spws = ['6~10', '11~20', '21~30', '31~43', '']
-        spws = ['6~10', '11~20', '21~30', '31~43']
+        # spws = ['6~10', '11~20', '21~30', '31~43']
+        spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~49']
     else:
         ## the last '' window is for fullBD synthesis image. Now obsolete.
         # spws = ['1~5', '6~10', '11~15', '16~25', '']
-        spws = ['1~5', '6~10', '11~15', '16~25']
+        spws = ['1~3', '4~6', '7~10', '10~14', '15~20', '21~30']
 
     if docalib:
         vis = calib_pipeline(date, doimport=doimport, synoptic=synoptic)
@@ -606,13 +610,13 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
                            spws=spws, verbose=True, overwrite=overwrite)
     figdir = qlookfigdir
     plt_qlook_image(imres, figdir=figdir, verbose=True)
-    if imres['Synoptic']['Succeeded']:
-        figdir = synopticfigdir
-        imres_bds = {}
-        imres_allbd = {}
-        for k, v in imres['Synoptic'].items():
-            imres_bds[k] = v[:4]
-            imres_allbd[k] = v[4:]
-
-        plt_qlook_image(imres_bds, figdir=figdir, verbose=True, synoptic=True)
-        plt_qlook_image(imres_allbd, figdir=figdir + 'FullBD/', verbose=True, synoptic=True)
+    # if imres['Synoptic']['Succeeded']:
+    #     figdir = synopticfigdir
+    #     imres_bds = {}
+    #     # imres_allbd = {}
+    #     for k, v in imres['Synoptic'].items():
+    #         imres_bds[k] = v  # [:4]
+    #         # imres_allbd[k] = v[4:]
+    #
+    #     plt_qlook_image(imres_bds, figdir=figdir, verbose=True, synoptic=True)
+    #     # plt_qlook_image(imres_allbd, figdir=figdir + 'FullBD/', verbose=True, synoptic=True)
