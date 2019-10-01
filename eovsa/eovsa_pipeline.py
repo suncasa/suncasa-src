@@ -98,8 +98,6 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
        verbose - Boolean. If true, return more information
     '''
     import glob
-    import pytz
-    from datetime import datetime
     if trange is None:
         trange = Time.now()
     if type(trange) == list or type(trange) == str:
@@ -141,9 +139,6 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
 
     print('Selected timerange in UTC: ', trange.iso)
 
-    sclist = ra.findfiles(trange, projid='NormalObserving', srcid='Sun')
-    udbfilelist = sclist['scanlist']
-    udbfilelist = [os.path.basename(ll) for ll in udbfilelist]
     if doscaling:
         udbmspath = udbmsscldir
     else:
@@ -159,6 +154,11 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
         msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
 
     msfile_synoptic = os.path.join(outpath, 'UDB' + tdatetime.strftime("%Y%m%d") + '.ms')
+
+    sclist = ra.findfiles(trange, projid='NormalObserving', srcid='Sun')
+    udbfilelist = sclist['scanlist']
+    udbfilelist = [os.path.basename(ll) for ll in udbfilelist]
+
     if os.path.exists(msfile_synoptic):
         return {'mspath': outpath, 'udbpath': inpath, 'udbfile': sorted(udbfilelist), 'udb2ms': [],
                 'ms': [msfile_synoptic],
@@ -213,9 +213,7 @@ def calib_pipeline(trange, doimport=False, overwrite=False):
         if f[-1] == '/':
             invis[idx] = f[:-1]
 
-    outputvis = os.path.join(os.path.dirname(invis[0]), os.path.basename(invis[0])[:11] + '.ms')
-
-    if overwrite or (not os.path.exists(outputvis)):
+    if overwrite or (invis == []):
         if type(trange) == Time:
             mslist = trange2ms(trange=trange, doimport=doimport)
             invis = mslist['ms']
@@ -229,13 +227,15 @@ def calib_pipeline(trange, doimport=False, overwrite=False):
         for idx, f in enumerate(invis):
             if f[-1] == '/':
                 invis[idx] = f[:-1]
+
+        outputvis = os.path.join(os.path.dirname(invis[0]), os.path.basename(invis[0])[:11] + '.ms')
         vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], caltbdir=caltbdir, interp='nearest',
                                     doflag=True,
                                     flagant='13~15',
                                     doimage=False, doconcat=True,
                                     concatvis=outputvis, keep_orig_ms=False)
     else:
-        vis = outputvis
+        vis = invis[0]
 
     udbmspath = udbmsslfcaleddir
     tdate = mstl.get_trange(vis)[0]
