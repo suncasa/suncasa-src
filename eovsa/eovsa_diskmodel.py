@@ -796,7 +796,7 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir=
                 transform=ax.transAxes, color='w', ha='left', va='top', fontsize=8, fontweight='bold')
 
     fig.tight_layout()
-    fig.savefig(os.path.join(figoutdir, 'eovsa_qlimg_{}.png'.format(eomap_disk.date.strftime('%Y%m%d'))))
-    fig.close()
+    fig.savefig(os.path.join(figoutdir, 'eovsa_qlimg_{}.png'.format(eomap_disk.date.strftime('%Y%m%d'))),dpi=150)
+    plt.close(fig)
     plt.ion()
     return ms_slfcaled, diskxmlfile
