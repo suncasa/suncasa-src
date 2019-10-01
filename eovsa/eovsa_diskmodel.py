@@ -484,7 +484,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
         return None
 
     # Copy original ms to local directory
-    if os.path.basename(vis):
+    if os.path.exists(os.path.basename(vis)):
         shutil.rmtree(os.path.basename(vis))
     shutil.copytree(vis, os.path.basename(vis))
     vis = os.path.basename(vis)
