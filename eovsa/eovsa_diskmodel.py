@@ -770,7 +770,7 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir=
 
     eofiles = glob(imgoutdir + '/eovsa_????????.spw??-??.tb.fits')
     eofiles = sorted(eofiles)
-    # plt.ioff()
+    plt.ioff()
     fig, axs = plt.subplots(2, 3, figsize=(15, 9))
     axs = axs.ravel()
 
