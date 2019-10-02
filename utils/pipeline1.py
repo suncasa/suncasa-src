@@ -9,4 +9,4 @@ t = ep.Time('2019-09-04 20:00')
 print(t.iso)
 date = t.iso[:10]
 print(date)
-vis_corrected = ep.calib_pipeline(date, overwrite=True)
+vis_corrected = ep.calib_pipeline(date, overwrite=True, doimport=True)

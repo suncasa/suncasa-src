@@ -55,14 +55,14 @@ def readdiskxml(xmlfile):
     return diskinfo
 
 
-def image_adddisk(eofile, xmlfile):
+def image_adddisk(eofile, diskxmlfile):
     from scipy.special import erfc
     from sunpy import map as smap
     from suncasa.utils import plot_mapX as pmX
     from scipy import constants
     import astropy.units as u
 
-    diskinfo = readdiskxml(xmlfile)
+    diskinfo = readdiskxml(diskxmlfile)
 
     dsize = diskinfo['disk_size']
     fdens = diskinfo['flux_dens']
@@ -101,7 +101,7 @@ def image_adddisk(eofile, xmlfile):
     tbdisk = fdisk * jy2tb
     tb_disk = np.nanmax(tbdisk)
     datanew = data + tbdisk
-    datanew[np.isnan(datanew)] = 0.0
+    datanew[np.isnan(data)] = 0.0
     eomap_disk = smap.Map(datanew, header)
     return eomap_disk, tb_disk
 
@@ -657,7 +657,7 @@ def fd_images(vis, cleanup=False, niter=None, imgoutdir='./'):
         imagefile.append(imname + '.image')
         fitsfile.append(outfits)
     hf.imreg(vis=vis, imagefile=imagefile, fitsfile=fitsfile, timerange=[trange] * len(fitsfile), toTb=True,
-             overwrite=True)
+             usephacenter=False, overwrite=True)
     if rm_images:
         shutil.rmtree('images')  # Remove all images and the folder named images
 
@@ -737,7 +737,9 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir=
     # Generate calibrated visibility by self calibrating on the solar disk
     ms_slfcaled, diskxmlfile = disk_slfcal(vis, slfcaltbdir=slfcaltbdir)
     # Make initial images from self-calibrated visibility file, and check T_b max
-    outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir)
+    if os.path.exists('images'):
+        shutil.rmtree('images')
+    outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir, cleanup=True)
     # Check if any of the images has a bright source (T_b > 300,000 K), and if so, remake images
     # with fewer components and execute feature_slfcal
     files = glob('*.fits')
@@ -753,7 +755,8 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir=
         shutil.rmtree('images')
         fd_images(ms_slfcaled, niter=200, imgoutdir=imgoutdir)  # Does shallow clean for selfcal purposes
         ms_slfcaled2 = feature_slfcal(ms_slfcaled, slfcaltbdir=slfcaltbdir)  # Creates newly calibrated database
-        outputfits = fd_images(ms_slfcaled2, imgoutdir=imgoutdir)  # Does deep clean for final image creation
+        outputfits = fd_images(ms_slfcaled2, imgoutdir=imgoutdir,
+                               cleanup=True)  # Does deep clean for final image creation
         # Cleanup of interim ms's would be done here...
         shutil.rmtree(ms_slfcaled)
         ms_slfcaled = ms_slfcaled2
@@ -767,7 +770,7 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir=
 
     eofiles = glob(imgoutdir + '/eovsa_????????.spw??-??.tb.fits')
     eofiles = sorted(eofiles)
-    plt.ioff()
+    # plt.ioff()
     fig, axs = plt.subplots(2, 3, figsize=(15, 9))
     axs = axs.ravel()
 
@@ -796,7 +799,7 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir=
                 transform=ax.transAxes, color='w', ha='left', va='top', fontsize=8, fontweight='bold')
 
     fig.tight_layout()
-    fig.savefig(os.path.join(figoutdir, 'eovsa_qlimg_{}.png'.format(eomap_disk.date.strftime('%Y%m%d'))),dpi=150)
+    fig.savefig(os.path.join(figoutdir, 'eovsa_qlimg_{}.png'.format(eomap_disk.date.strftime('%Y%m%d'))), dpi=150)
     plt.close(fig)
     plt.ion()
     return ms_slfcaled, diskxmlfile
