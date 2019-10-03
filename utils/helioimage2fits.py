@@ -821,7 +821,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                             bmintmp = bmin[0]
                         if beamunit == 'arcsec':
                             bmaj0 = np.radians(bmajtmp / 3600.)
-                            bmin0 = np.radians(bmajtmp / 3600.)
+                            bmin0 = np.radians(bmintmp / 3600.)
                         if beamunit == 'arcmin':
                             bmaj0 = np.radians(bmajtmp / 60.)
                             bmin0 = np.radians(bmintmp / 60.)
