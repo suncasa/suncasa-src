@@ -80,7 +80,10 @@ def image_adddisk(eofile, diskxmlfile):
     faxis = keys[values.index('FREQ')][-1]
     nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * (1 - header['CRPIX' + faxis])
     freqghz = nu / 1.0e9
-    mapx, mapy = eomap_.map2wcsgrids(cell=True)
+    # mapx, mapy = eomap_.map2wcsgrids(cell=True)
+    mapx, mapy = eomap_.map2wcsgrids(cell=False)
+    mapx = mapx[1:, 1:]
+    mapy = mapy[1:, 1:]
     rdisk = np.sqrt(mapx ** 2 + mapy ** 2)
 
     p_dsize = np.poly1d(np.polyfit(freqs.value, dsize.value, 15))
@@ -768,9 +771,9 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir=
         os.system('mv {} {}'.format(diskxmlfile, os.path.dirname(outputvis)))
         diskxmlfile = os.path.join(os.path.dirname(outputvis), diskxmlfile)
 
+    plt.ioff()
     eofiles = glob(imgoutdir + '/eovsa_????????.spw??-??.tb.fits')
     eofiles = sorted(eofiles)
-    plt.ioff()
     fig, axs = plt.subplots(2, 3, figsize=(15, 9))
     axs = axs.ravel()
 
@@ -781,8 +784,8 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir=
         norm = colors.Normalize(vmin=0., vmax=tb_disk * 1.75)
         eomap_disk_ = pmX.Sunmap(eomap_disk)
         eomap_disk_.imshow(axes=ax, cmap=cmap, norm=norm)
-        eomap_disk_.draw_limb(axes=ax)
-        eomap_disk_.draw_grid(axes=ax, grid_spacing=10. * u.deg)
+        eomap_disk_.draw_limb(axes=ax, lw=0.75)
+        eomap_disk_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.75)
         divider = make_axes_locatable(ax)
         cax = divider.append_axes('right', size='2.0%', pad=0.08)
         cax.tick_params(direction='in')
