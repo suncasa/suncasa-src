@@ -80,7 +80,6 @@ def image_adddisk(eofile, diskxmlfile):
     faxis = keys[values.index('FREQ')][-1]
     nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * (1 - header['CRPIX' + faxis])
     freqghz = nu / 1.0e9
-    # mapx, mapy = eomap_.map2wcsgrids(cell=True)
     mapx, mapy = eomap_.map2wcsgrids(cell=False)
     mapx = mapx[1:, 1:]
     mapy = mapy[1:, 1:]
@@ -92,14 +91,14 @@ def image_adddisk(eofile, diskxmlfile):
     k_b = constants.k
     c_l = constants.c
     const = 2. * k_b / c_l ** 2
-    bmaj0 = cell.to(u.rad).value
-    bmin0 = cell.to(u.rad).value
-    beam_area = bmaj0 * bmin0 #* np.pi / (4. * np.log(2.))
+    pix_area = (cell.to(u.rad).value) ** 2
     factor = const * nu ** 2  # SI unit
     jy_to_si = 1e-26
     factor2 = 1.
-    jy2tb = jy_to_si / beam_area / factor * factor2
-    fdisk = erfc((rdisk - p_dsize(freqghz)) / bmsize.value) / 2.0
+    jy2tb = jy_to_si / pix_area / factor * factor2
+    factor_erfc = 2.0  ## erfc function ranges from 0 to 2
+    factor_fluxpol = 2.0  ## disk flux in fdens is doubled, because componentlist splits the flux into XX and YY
+    fdisk = erfc((rdisk - p_dsize(freqghz)) / bmsize.value) / factor_erfc / factor_fluxpol
     fdisk = fdisk / np.nansum(fdisk) * p_fdens(freqghz)
     tbdisk = fdisk * jy2tb
     tb_disk = np.nanmax(tbdisk)
@@ -751,9 +750,13 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     # Make initial images from self-calibrated visibility file, and check T_b max
     if os.path.exists('images'):
         shutil.rmtree('images')
-    outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir, cleanup=True)
+    outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir)
     # Check if any of the images has a bright source (T_b > 300,000 K), and if so, remake images
     # with fewer components and execute feature_slfcal
+<<<<<<< HEAD
+=======
+    # outputfits = glob('*.fits')
+>>>>>>> downstream/dev
     files = outputfits
     bright = False
     for file in files:
