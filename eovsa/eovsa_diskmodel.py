@@ -61,6 +61,7 @@ def image_adddisk(eofile, diskxmlfile):
     from suncasa.utils import plot_mapX as pmX
     from scipy import constants
     import astropy.units as u
+    from sunpy import io as sio
 
     diskinfo = readdiskxml(diskxmlfile)
 
@@ -86,7 +87,8 @@ def image_adddisk(eofile, diskxmlfile):
     rdisk = np.sqrt(mapx ** 2 + mapy ** 2)
 
     p_dsize = np.poly1d(np.polyfit(freqs.value, dsize.value, 15))
-    p_fdens = np.poly1d(np.polyfit(freqs.value, fdens.value, 15)) / 2.  # divide by 2 because fdens is 2x solar flux density
+    p_fdens = np.poly1d(
+        np.polyfit(freqs.value, fdens.value, 15)) / 2.  # divide by 2 because fdens is 2x solar flux density
 
     k_b = constants.k
     c_l = constants.c
@@ -97,15 +99,20 @@ def image_adddisk(eofile, diskxmlfile):
     factor2 = 1.
     jy2tb = jy_to_si / pix_area / factor * factor2
     factor_erfc = 2.0  ## erfc function ranges from 0 to 2
-    factor_fluxpol = 2.0  ## disk flux in fdens is doubled, because componentlist splits the flux into XX and YY
-    fdisk = erfc((rdisk - p_dsize(freqghz)) / bmsize.value) / factor_erfc / factor_fluxpol
+    fdisk = erfc((rdisk - p_dsize(freqghz)) / bmsize.value) / factor_erfc
     fdisk = fdisk / np.nansum(fdisk) * p_fdens(freqghz)
     tbdisk = fdisk * jy2tb
     tb_disk = np.nanmax(tbdisk)
     datanew = data + tbdisk
     datanew[np.isnan(data)] = 0.0
+    header['disktb'] = tb_disk
+    header['disktbunit'] = 'K'
     eomap_disk = smap.Map(datanew, header)
-    return eomap_disk, tb_disk
+    nametmp = eofile.split('.')
+    nametmp.insert(-1, 'disk')
+    outfits = '.'.join(nametmp)
+    sio.write_file(outfits, datanew.astype(np.float32), header)
+    return eomap_disk, tb_disk, outfits
 
 
 def read_ms(vis):
@@ -719,13 +726,58 @@ def feature_slfcal(vis, niter=200, slfcaltbdir='./'):
     return vis2
 
 
-def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None, figoutdir=None):
+
+def plt_eovsa_image(eofiles, figoutdir='./'):
     import matplotlib.pyplot as plt
     import matplotlib.colors as colors
     from suncasa.utils import plot_mapX as pmX
+    from sunpy import map as smap
     import astropy.units as u
     from mpl_toolkits.axes_grid1 import make_axes_locatable
     import matplotlib as mpl
+    plt.ioff()
+    fig = plt.figure(figsize=(15, 9))
+
+    axs = []
+    cmap = 'gist_heat'
+    for idx, eofile in enumerate(eofiles):
+        ax = fig.add_subplot(2, 3, idx + 1)
+        axs.append(ax)
+        # ax = axs[idx]
+        eomap = smap.Map(eofile)
+        tb_disk = eomap.meta['disktb']
+        norm = colors.Normalize(vmin=tb_disk * (-0.2), vmax=tb_disk * 1.75)
+        eomap_ = pmX.Sunmap(eomap)
+        eomap_.imshow(axes=ax, cmap=cmap, norm=norm)
+        eomap_.draw_limb(axes=ax, lw=0.75)
+        eomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.75)
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes('right', size='2.0%', pad=0.08)
+        cax.tick_params(direction='in')
+        clb = mpl.colorbar.ColorbarBase(cax, cmap=cmap, norm=colors.Normalize(vmin=0., vmax=tb_disk * 1.75 / 1e3))
+        clb.set_label(r'T$_b$ [$\times$10$^3$K]')
+        if idx != 3:
+            ax.set_xlabel('')
+            ax.set_ylabel('')
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+        ax.tick_params(direction="out")
+        ax.text(0.02, 0.98, 'EOVAS {:.1f} GHz   {} UT'.format(eomap.meta['CRVAL3'] / 1e9,
+                                                              eomap.date.strftime('%d-%b-%Y %H:%M:%S.%f')[:-3]),
+                transform=ax.transAxes, color='w', ha='left', va='top', fontsize=8, fontweight='bold')
+        ax.text(0.02, 0.02, 'Max Tb {:d} K'.format(np.int(np.max(eomap.data))),
+                transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=8, fontweight='bold')
+
+    fig.tight_layout()
+    figname = os.path.join(figoutdir, 'eovsa_qlimg_{}.png'.format(eomap.date.strftime('%Y%m%d')))
+    fig.savefig(figname, dpi=150)
+    plt.close(fig)
+    plt.ion()
+    return figname
+
+
+
+def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None, figoutdir=None):
     from glob import glob
     from astropy.io import fits
 
@@ -733,11 +785,11 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         workdir = '/data1/workdir'
     os.chdir(workdir)
     if slfcaltbdir is None:
-        slfcaltbdir = workdir+'/'
+        slfcaltbdir = workdir + '/'
     if imgoutdir is None:
-        imgoutbdir = workdir+'/'
+        imgoutbdir = workdir + '/'
     if figoutdir is None:
-        figoutdir = workdir+'/'
+        figoutdir = workdir + '/'
     if outputvis[-1] == '/':
         outputvis = outputvis[:-1]
     if vis[-1] == '/':
@@ -763,7 +815,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             break
     if bright:
         # A bright source exists, so do feature self-calibration
-        #shutil.rmtree('images')
+        # shutil.rmtree('images')
         fd_images(ms_slfcaled, niter=200, imgoutdir=imgoutdir)  # Does shallow clean for selfcal purposes
         ms_slfcaled2 = feature_slfcal(ms_slfcaled, slfcaltbdir=slfcaltbdir)  # Creates newly calibrated database
         outputfits = fd_images(ms_slfcaled2, imgoutdir=imgoutdir,
@@ -779,40 +831,14 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         os.system('mv {} {}'.format(diskxmlfile, os.path.dirname(outputvis)))
         diskxmlfile = os.path.join(os.path.dirname(outputvis), diskxmlfile)
 
-    plt.ioff()
     eofiles = glob(imgoutdir + '/eovsa_????????.spw??-??.tb.fits')
     eofiles = sorted(eofiles)
-    fig, axs = plt.subplots(2, 3, figsize=(15, 9))
-    axs = axs.ravel()
-
-    cmap = 'gist_heat'
+    eofiles_new = []
     for idx, eofile in enumerate(eofiles):
-        ax = axs[idx]
-        eomap_disk, tb_disk = image_adddisk(eofile, diskxmlfile)
-        norm = colors.Normalize(vmin=tb_disk * (-0.2), vmax=tb_disk * 1.75)
-        eomap_disk_ = pmX.Sunmap(eomap_disk)
-        eomap_disk_.imshow(axes=ax, cmap=cmap, norm=norm)
-        eomap_disk_.draw_limb(axes=ax, lw=0.75)
-        eomap_disk_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.75)
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes('right', size='2.0%', pad=0.08)
-        cax.tick_params(direction='in')
-        clb = mpl.colorbar.ColorbarBase(cax, cmap=cmap, norm=colors.Normalize(vmin=0., vmax=tb_disk * 1.75 / 1e3))
-        clb.set_label(r'T$_b$ [$\times$10$^3$K]')
-        if idx != 3:
-            ax.set_xlabel('')
-            ax.set_ylabel('')
-            ax.set_xticklabels([])
-            ax.set_yticklabels([])
-        ax.tick_params(direction="out")
-        ax.text(0.02, 0.98, 'EOVAS {:.1f} GHz   {} UT'.format(eomap_disk.meta['CRVAL3'] / 1e9,
-                                                              eomap_disk.date.strftime('%d-%b-%Y %H:%M:%S.%f')[:-3]),
-                transform=ax.transAxes, color='w', ha='left', va='top', fontsize=8, fontweight='bold')
-        ax.text(0.02, 0.02, 'Max Tb {:d} K'.format(np.int(np.max(eomap_disk.data))),
-                transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=8, fontweight='bold')
+        eomap_disk, tb_disk, eofile_new = image_adddisk(eofile, diskxmlfile)
+        eofiles_new.append(eofile_new)
 
-    fig.tight_layout()
-    fig.savefig(os.path.join(figoutdir, 'eovsa_qlimg_{}.png'.format(eomap_disk.date.strftime('%Y%m%d'))), dpi=150)
-    plt.close(fig)
-    plt.ion()
+    plt_eovsa_image(eofiles_new, figoutdir)
+
     return ms_slfcaled, diskxmlfile
+
