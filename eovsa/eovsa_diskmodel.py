@@ -753,10 +753,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir)
     # Check if any of the images has a bright source (T_b > 300,000 K), and if so, remake images
     # with fewer components and execute feature_slfcal
-<<<<<<< HEAD
-=======
-    # outputfits = glob('*.fits')
->>>>>>> downstream/dev
     files = outputfits
     bright = False
     for file in files:
