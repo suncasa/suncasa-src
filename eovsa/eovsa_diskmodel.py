@@ -87,14 +87,14 @@ def image_adddisk(eofile, diskxmlfile):
     rdisk = np.sqrt(mapx ** 2 + mapy ** 2)
 
     p_dsize = np.poly1d(np.polyfit(freqs.value, dsize.value, 15))
-    p_fdens = np.poly1d(np.polyfit(freqs.value, fdens.value, 15))
+    p_fdens = np.poly1d(np.polyfit(freqs.value, fdens.value, 15)) / 2.  # divide by 2 because fdens is 2x solar flux density
 
     k_b = constants.k
     c_l = constants.c
     const = 2. * k_b / c_l ** 2
     bmaj0 = cell.to(u.rad).value
     bmin0 = cell.to(u.rad).value
-    beam_area = bmaj0 * bmin0 * np.pi / (4. * np.log(2.))
+    beam_area = bmaj0 * bmin0 #* np.pi / (4. * np.log(2.))
     factor = const * nu ** 2  # SI unit
     jy_to_si = 1e-26
     factor2 = 1.
@@ -720,7 +720,7 @@ def feature_slfcal(vis, niter=200, slfcaltbdir='./'):
     return vis2
 
 
-def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir='./'):
+def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None, figoutdir=None):
     import matplotlib.pyplot as plt
     import matplotlib.colors as colors
     from suncasa.utils import plot_mapX as pmX
@@ -730,6 +730,15 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir=
     from glob import glob
     from astropy.io import fits
 
+    if workdir is None:
+        workdir = '/data1/workdir'
+    os.chdir(workdir)
+    if slfcaltbdir is None:
+        slfcaltbdir = workdir+'/'
+    if imgoutdir is None:
+        imgoutbdir = workdir+'/'
+    if figoutdir is None:
+        figoutdir = workdir+'/'
     if outputvis[-1] == '/':
         outputvis = outputvis[:-1]
     if vis[-1] == '/':
@@ -745,7 +754,7 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir=
     outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir, cleanup=True)
     # Check if any of the images has a bright source (T_b > 300,000 K), and if so, remake images
     # with fewer components and execute feature_slfcal
-    files = glob('*.fits')
+    files = outputfits
     bright = False
     for file in files:
         data = fits.getdata(file)
@@ -755,7 +764,7 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir=
             break
     if bright:
         # A bright source exists, so do feature self-calibration
-        shutil.rmtree('images')
+        #shutil.rmtree('images')
         fd_images(ms_slfcaled, niter=200, imgoutdir=imgoutdir)  # Does shallow clean for selfcal purposes
         ms_slfcaled2 = feature_slfcal(ms_slfcaled, slfcaltbdir=slfcaltbdir)  # Creates newly calibrated database
         outputfits = fd_images(ms_slfcaled2, imgoutdir=imgoutdir,
@@ -781,7 +790,7 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir=
     for idx, eofile in enumerate(eofiles):
         ax = axs[idx]
         eomap_disk, tb_disk = image_adddisk(eofile, diskxmlfile)
-        norm = colors.Normalize(vmin=0., vmax=tb_disk * 1.75)
+        norm = colors.Normalize(vmin=tb_disk * (-0.2), vmax=tb_disk * 1.75)
         eomap_disk_ = pmX.Sunmap(eomap_disk)
         eomap_disk_.imshow(axes=ax, cmap=cmap, norm=norm)
         eomap_disk_.draw_limb(axes=ax, lw=0.75)
@@ -800,6 +809,8 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir=
         ax.text(0.02, 0.98, 'EOVAS {:.1f} GHz   {} UT'.format(eomap_disk.meta['CRVAL3'] / 1e9,
                                                               eomap_disk.date.strftime('%d-%b-%Y %H:%M:%S.%f')[:-3]),
                 transform=ax.transAxes, color='w', ha='left', va='top', fontsize=8, fontweight='bold')
+        ax.text(0.02, 0.02, 'Max Tb {:d} K'.format(np.int(np.max(eomap_disk.data))),
+                transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=8, fontweight='bold')
 
     fig.tight_layout()
     fig.savefig(os.path.join(figoutdir, 'eovsa_qlimg_{}.png'.format(eomap_disk.date.strftime('%Y%m%d'))), dpi=150)
