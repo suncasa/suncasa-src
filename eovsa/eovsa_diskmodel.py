@@ -17,6 +17,16 @@ from tclean_cli import tclean_cli as tclean
 from ft_cli import ft_cli as ft
 
 
+def gaussian2d(x, y, amplitude, x0, y0, sigma_x, sigma_y, theta):
+    x0 = float(x0)
+    y0 = float(y0)
+    a = (np.cos(theta) ** 2) / (2 * sigma_x ** 2) + (np.sin(theta) ** 2) / (2 * sigma_y ** 2)
+    b = -(np.sin(2 * theta)) / (4 * sigma_x ** 2) + (np.sin(2 * theta)) / (4 * sigma_y ** 2)
+    c = (np.sin(theta) ** 2) / (2 * sigma_x ** 2) + (np.cos(theta) ** 2) / (2 * sigma_y ** 2)
+    g = amplitude * np.exp(- (a * ((x - x0) ** 2) + 2 * b * (x - x0) * (y - y0) + c * ((y - y0) ** 2)))
+    return g
+
+
 def writediskxml(dsize, fdens, freq, xmlfile='SOLDISK.xml'):
     import xml.etree.ElementTree as ET
     # create the file structure
@@ -55,7 +65,14 @@ def readdiskxml(xmlfile):
     return diskinfo
 
 
-def image_adddisk(eofile, diskxmlfile):
+def image_adddisk(eofile, diskxmlfile, edgeconvmode='frommergeddisk'):
+    '''
+
+    :param eofile:
+    :param diskxmlfile:
+    :param edgeconvmode: available mode: frommergeddisk,frombeam
+    :return:
+    '''
     from scipy.special import erfc
     from sunpy import map as smap
     from suncasa.utils import plot_mapX as pmX
@@ -73,35 +90,79 @@ def image_adddisk(eofile, diskxmlfile):
     header = eomap.meta
     bmaj = header['bmaj'] * 3600 * u.arcsec
     bmin = header['bmin'] * 3600 * u.arcsec
-    cell = header['cdelt1'] * u.Unit(header['cunit1'])
+    cell = (header['cdelt1'] * u.Unit(header['cunit1']) + header['cdelt2'] * u.Unit(header['cunit2'])) / 2.0
     bmsize = (bmaj + bmin) / 2.0
     data = eomap.data  # remember the data order is reversed due to the FITS convension
     keys = header.keys()
     values = header.values()
-    faxis = keys[values.index('FREQ')][-1]
-    nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * (1 - header['CRPIX' + faxis])
-    freqghz = nu / 1.0e9
     mapx, mapy = eomap_.map2wcsgrids(cell=False)
     mapx = mapx[1:, 1:]
     mapy = mapy[1:, 1:]
     rdisk = np.sqrt(mapx ** 2 + mapy ** 2)
 
-    p_dsize = np.poly1d(np.polyfit(freqs.value, dsize.value, 15))
-    p_fdens = np.poly1d(
-        np.polyfit(freqs.value, fdens.value, 15)) / 2.  # divide by 2 because fdens is 2x solar flux density
-
     k_b = constants.k
     c_l = constants.c
     const = 2. * k_b / c_l ** 2
     pix_area = (cell.to(u.rad).value) ** 2
-    factor = const * nu ** 2  # SI unit
     jy_to_si = 1e-26
     factor2 = 1.
-    jy2tb = jy_to_si / pix_area / factor * factor2
-    factor_erfc = 2.0  ## erfc function ranges from 0 to 2
-    fdisk = erfc((rdisk - p_dsize(freqghz)) / bmsize.value) / factor_erfc
-    fdisk = fdisk / np.nansum(fdisk) * p_fdens(freqghz)
-    tbdisk = fdisk * jy2tb
+    faxis = keys[values.index('FREQ')][-1]
+
+    if edgeconvmode == 'frommergeddisk':
+
+        nul = header['CRVAL' + faxis] + header['CDELT' + faxis] * (1 - header['CRPIX' + faxis])
+        nuh = header['CRVAL' + faxis] + header['CDELT' + faxis] * (header['NAXIS' + faxis] - header['CRPIX' + faxis])
+        ## get the frequency range of the image
+        nu_bound = (np.array([nul, nuh]) + 0.5 * np.array([-1, 1]) * header['CDELT' + faxis]) * u.Unit(
+            header['cunit' + faxis])
+        nu_bound = nu_bound.to(u.GHz)
+        ## get the frequencies of the disk models
+        fidxs = np.logical_and(freqs > nu_bound[0], freqs < nu_bound[1])
+        ny, nx = rdisk.shape
+        freqs_ = freqs[fidxs]
+        fdens_ = fdens[fidxs] / 2.0  # divide by 2 because fdens is 2x solar flux density
+        dsize_ = dsize[fidxs]
+        fdisk_ = np.empty((len(freqs_), ny, nx))
+        fdisk_[:] = np.nan
+        for fidx, freq in enumerate(freqs_):
+            fdisk_[fidx, ...][rdisk <= dsize_[fidx].value] = 1.0
+            # nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * (1 - header['CRPIX' + faxis])
+            factor = const * freq.to(u.Hz).value ** 2  # SI unit
+            jy2tb = jy_to_si / pix_area / factor * factor2
+            fdisk_[fidx, ...] = fdisk_[fidx, ...] / np.nansum(fdisk_[fidx, ...]) * fdens_[fidx].value
+            fdisk_[fidx, ...] = fdisk_[fidx, ...] * jy2tb
+        # fdisk_[np.isnan(fdisk_)] = 0.0
+        tbdisk = np.nanmean(fdisk_, axis=0)
+        tbdisk[np.isnan(tbdisk)] = 0.0
+
+        sig2fwhm = 2.0 * np.sqrt(2 * np.log(2))
+        x0, y0 = 0, 0
+        sigx, sigy = bmaj.value / sig2fwhm, bmin.value / sig2fwhm
+        theta = -(90.0 - header['bpa']) * u.deg
+        x = (np.arange(31) - 15) * cell.value
+        y = (np.arange(31) - 15) * cell.value
+        x, y = np.meshgrid(x, y)
+        kernel = gaussian2d(x, y, 1.0, x0, y0, sigx, sigy, theta.to(u.radian).value)
+        kernel = kernel / np.nansum(kernel)
+        from scipy import signal
+        tbdisk = signal.fftconvolve(tbdisk, kernel, mode='same')
+    else:
+        nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * (1 - header['CRPIX' + faxis])
+        freqghz = nu / 1.0e9
+        factor = const * nu ** 2  # SI unit
+        jy2tb = jy_to_si / pix_area / factor * factor2
+        p_dsize = np.poly1d(np.polyfit(freqs.value, dsize.value, 15))
+        p_fdens = np.poly1d(
+            np.polyfit(freqs.value, fdens.value, 15)) / 2.  # divide by 2 because fdens is 2x solar flux density
+        if edgeconvmode == 'frombeam':
+            factor_erfc = 2.0  ## erfc function ranges from 0 to 2
+            fdisk = erfc((rdisk - p_dsize(freqghz)) / bmsize.value) / factor_erfc
+        else:
+            fdisk = np.zeros_like(rdisk)
+            fdisk[rdisk <= p_dsize(freqghz)] = 1.0
+        fdisk = fdisk / np.nansum(fdisk) * p_fdens(freqghz)
+        tbdisk = fdisk * jy2tb
+
     tb_disk = np.nanmax(tbdisk)
     datanew = data + tbdisk
     datanew[np.isnan(data)] = 0.0
@@ -111,7 +172,8 @@ def image_adddisk(eofile, diskxmlfile):
     nametmp = eofile.split('.')
     nametmp.insert(-1, 'disk')
     outfits = '.'.join(nametmp)
-    sio.write_file(outfits, datanew.astype(np.float32), header)
+    # datanew = datanew.astype(np.float16)
+    sio.write_file(outfits, datanew, header)
     return eomap_disk, tb_disk, outfits
 
 
@@ -728,7 +790,6 @@ def feature_slfcal(vis, niter=200, slfcaltbdir='./'):
     return vis2
 
 
-
 def plt_eovsa_image(eofiles, figoutdir='./'):
     import matplotlib.pyplot as plt
     import matplotlib.colors as colors
@@ -776,7 +837,6 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
     plt.close(fig)
     plt.ion()
     return figname
-
 
 
 def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None, figoutdir=None):
@@ -843,4 +903,3 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     plt_eovsa_image(eofiles_new, figoutdir)
 
     return ms_slfcaled, diskxmlfile
-
