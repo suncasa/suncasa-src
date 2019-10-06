@@ -749,7 +749,8 @@ def feature_slfcal(vis, niter=200, slfcaltbdir='./'):
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_d1.pha')
     for i, spw in enumerate(spws):
-        imname = 'images/briggs' + spw.replace('~', '-') + '.model'
+        spwstr = '-'.join(['{:02d}'.format(int(sp)) for sp in spw.split('~')])
+        imname = "images/briggs" + spwstr + '.model'
         if spw == '31~49':
             # The high-band image is only made to band 43, so adjust the name
             imname = 'images/briggs31-43.model'
@@ -770,7 +771,8 @@ def feature_slfcal(vis, niter=200, slfcaltbdir='./'):
     # Make new model images for another round of selfcal
     fd_images(vis1, cleanup=False, niter=niter)
     for i, spw in enumerate(spws):
-        imname = 'images/briggs' + spw.replace('~', '-') + '.model'
+        spwstr = '-'.join(['{:02d}'.format(int(sp)) for sp in spw.split('~')])
+        imname = "images/briggs" + spwstr + '.model'
         if spw == '31~49':
             # The high-band image is only made to band 43, so adjust the name
             imname = 'images/briggs31-43.model'
