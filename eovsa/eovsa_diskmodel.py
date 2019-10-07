@@ -800,6 +800,8 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
     # Move the existing images directory so that a new one will be created
+    if os.path.exists('old_images'):
+        os.system('rm -rf old_images')
     shutil.move('images', 'old_images')
     # Make new model images for another round of selfcal
     fd_images(vis1, cleanup=False, niter=niter, spws=spws, bright=bright)
