@@ -921,7 +921,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         data = fits.getdata(file)
         data.shape = data.shape[-2:]  # gets rid of any leading axes of size 1
         # if np.nanmax(np.nanmax(data)) > 300000: bright[idx] = True
-        if np.nanmax(data) > tb_disk: bright[idx] = True
+        if np.nanmax(data) > 2.0 * tb_disk: bright[idx] = True
 
     if any(bright):
         print('spw {} have bright features on disk.'.format(';'.join(np.array(spws)[np.where(bright)[0]])))
