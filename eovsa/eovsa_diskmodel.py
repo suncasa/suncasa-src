@@ -913,9 +913,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     # Check if any of the images has a bright source (T_b > 300,000 K), and if so, remake images
     # with fewer components and execute feature_slfcal
     files = outputfits
-    bright = np.zeros((len(files)), dtype=np.bool)
     diskinfo = readdiskxml(diskxmlfile)
-
+    bright = np.zeros((len(files)), dtype=np.bool)
     for idx, file in enumerate(files):
         tb_disk = image_adddisk(file, diskinfo, caltbonly=True)
         data = fits.getdata(file)
