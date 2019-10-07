@@ -791,6 +791,8 @@ def feature_slfcal(vis, niter=200, slfcaltbdir='./'):
 
 
 def plt_eovsa_image(eofiles, figoutdir='./'):
+    import matplotlib
+    matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     import matplotlib.colors as colors
     from suncasa.utils import plot_mapX as pmX
