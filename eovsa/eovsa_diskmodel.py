@@ -40,6 +40,8 @@ def writediskxml(dsize, fdens, freq, xmlfile='SOLDISK.xml'):
 
     # create a new XML file with the results
     mydata = ET.tostring(sdk)
+    if os.path.exists(xmlfile):
+        os.system('rm -rf {}'.format(xmlfile))
     with open(xmlfile, 'w') as sf:
         sf.write(mydata)
     return xmlfile
@@ -173,6 +175,8 @@ def image_adddisk(eofile, diskxmlfile, edgeconvmode='frommergeddisk'):
     nametmp.insert(-1, 'disk')
     outfits = '.'.join(nametmp)
     # datanew = datanew.astype(np.float16)
+    if os.path.exists(outfits):
+        os.system('rm -rf {}'.format(outfits))
     sio.write_file(outfits, datanew, header)
     return eomap_disk, tb_disk, outfits
 
@@ -463,7 +467,7 @@ def diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d
     return diskim
 
 
-def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite_img_model=True, xmlfile='SOLDISK.xml'):
+def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite=True, xmlfile='SOLDISK.xml'):
     if fdens is None:
         # Default flux density for solar minimum
         fdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
@@ -519,7 +523,7 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite_img_mo
         diskim.append(
             diskmodel(outname=diskimdir + 'disk{:02d}_'.format(sp), bdwidth=spwinfo[str(sp)], direction=direction,
                       reffreq=frq[sp],
-                      flux=fdens[sp], eqradius=dsize[sp], polradius=dsize[sp], overwrite=overwrite_img_model))
+                      flux=fdens[sp], eqradius=dsize[sp], polradius=dsize[sp], overwrite=overwrite))
 
     clearcal(msfile)
     delmod(msfile, otf=True, scr=True)
@@ -646,6 +650,8 @@ def disk_slfcal(vis, slfcaltbdir='./'):
 
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_1.pha')
+    if os.path.exists(caltb):
+        os.system('rm -rf {}'.format(caltb))
     # Phase selfcal on the disk using solution interval "infinite"
     gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12", solint="inf",
             combine="scan",
@@ -654,9 +660,13 @@ def disk_slfcal(vis, slfcaltbdir='./'):
              applymode="calonly")
     # Split corrected data and model to a new ms for round 2 of phase selfcal
     vis1 = 'slf_' + msfile
+    if os.path.exists(vis1):
+        os.system('rm -rf {}'.format(vis1))
     mstl.splitX(msfile, outputvis=vis1, datacolumn="corrected", datacolumn2="model_data")
 
     caltb = os.path.join(slfcaltbdir, tdate + '_2.pha')
+    if os.path.exists(caltb):
+        os.system('rm -rf {}'.format(caltb))
     # Second round of phase selfcal on the disk using solution interval "1min"
     gaincal(vis=vis1, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12", solint="1min",
             combine="scan",
@@ -665,9 +675,13 @@ def disk_slfcal(vis, slfcaltbdir='./'):
              applymode="calonly")
     # Split corrected data and model to a new ms
     vis2 = 'slf2_' + msfile
+    if os.path.exists(vis2):
+        os.system('rm -rf {}'.format(vis2))
     mstl.splitX(vis, outputvis=vis2, datacolumn="corrected", datacolumn2="model_data")
 
     caltb = os.path.join(slfcaltbdir, tdate + '_3.amp')
+    if os.path.exists(caltb):
+        os.system('rm -rf {}'.format(caltb))
     # Final round of amplitude selfcal with 1-h solution interval (restrict to 16-24 UT)
     gaincal(vis=vis2, caltable=caltb, selectdata=True, uvrange=">0.1Klambda", antenna="0~12&0~12",
             timerange=trange,
@@ -677,11 +691,15 @@ def disk_slfcal(vis, slfcaltbdir='./'):
              applymode="calonly")
     # Split out corrected data and model and do uvsub
     vis3 = 'slf3_' + msfile
+    if os.path.exists(vis3):
+        os.system('rm -rf {}'.format(vis3))
     mstl.splitX(vis, outputvis=vis3, datacolumn="corrected", datacolumn2="model_data")
     uvsub(vis=vis3, reverse=False)
 
     # Final split to
     final = 'final_' + msfile
+    if os.path.exists(final):
+        os.system('rm -rf {}'.format(final))
     split(vis3, outputvis=final, datacolumn='corrected')
 
     # Remove the interim ms files
@@ -694,7 +712,8 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     return final, diskxmlfile
 
 
-def fd_images(vis, cleanup=False, niter=None, imgoutdir='./'):
+def fd_images(vis, cleanup=False, niter=None, spws=['0~1', '2~5', '6~10', '11~20', '21~30', '31~43'], imgoutdir='./',
+              bright=None):
     ''' Create standard full-disk images in "images" subdirectory of the current directory.
         If cleanup is True, delete those images after completion, leaving only the fits images.
     '''
@@ -713,20 +732,22 @@ def fd_images(vis, cleanup=False, niter=None, imgoutdir='./'):
     tdate = trange.replace('/', '')[:8]
     if niter is None:
         niter = 5000
-    spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43']
+    if bright is None:
+        bright = [True] * len(spws)
     imagefile = []
     fitsfile = []
-    for spw in spws:
-        spwstr = '-'.join(['{:02d}'.format(int(sp)) for sp in spw.split('~')])
-        imname = "images/briggs" + spwstr
-        tclean(vis=vis, selectdata=True, spw=spw, timerange=trange,
-               antenna="0~12", datacolumn="corrected", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
-               stokes="XX", projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
-               scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
-               niter=niter, gain=0.05, usemask="user", mask="box[[0pix,0pix],[1024pix,1024pix]]", savemodel="none")
-        outfits = os.path.join(imgoutdir, 'eovsa_' + tdate + '.spw' + spwstr + '.tb.fits')
-        imagefile.append(imname + '.image')
-        fitsfile.append(outfits)
+    for s, sp in enumerate(spws):
+        if bright[s]:
+            spwstr = '-'.join(['{:02d}'.format(int(sp)) for sp in sp.split('~')])
+            imname = "images/briggs" + spwstr
+            tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
+                   antenna="0~12", datacolumn="corrected", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
+                   stokes="XX", projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
+                   scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
+                   niter=niter, gain=0.05, savemodel="none")
+            outfits = os.path.join(imgoutdir, 'eovsa_' + tdate + '.spw' + spwstr + '.tb.fits')
+            imagefile.append(imname + '.image')
+            fitsfile.append(outfits)
     hf.imreg(vis=vis, imagefile=imagefile, fitsfile=fitsfile, timerange=[trange] * len(fitsfile), toTb=True,
              usephacenter=False, overwrite=True)
     if rm_images:
@@ -736,62 +757,76 @@ def fd_images(vis, cleanup=False, niter=None, imgoutdir='./'):
     return fitsfile
 
 
-def feature_slfcal(vis, niter=200, slfcaltbdir='./'):
+def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30', '31~43'], slfcaltbdir='./',
+                   bright=None):
     ''' Uses images from disk-selfcaled data as model for further self-calibration of outer antennas.
         This is only a good idea if there are bright active regions that provide strong signal on the
         londer baselines.
     '''
     trange = ant_trange(vis)
-    spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~49']
-    appends = [False, True, True, True, True, True]
+
+    if bright is None:
+        bright = [True] * len(spws)
     # Insert model into ms and do "inf" gaincal, appending to table each subsequent time
 
+    fd_images(vis, niter=200, spws=spws, bright=bright)  # Does shallow clean for selfcal purposes
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_d1.pha')
-    for i, spw in enumerate(spws):
-        spwstr = '-'.join(['{:02d}'.format(int(sp)) for sp in spw.split('~')])
-        imname = "images/briggs" + spwstr + '.model'
-        if spw == '31~49':
-            # The high-band image is only made to band 43, so adjust the name
-            imname = 'images/briggs31-43.model'
-        ft(vis=vis, spw=spw, model=imname, usescratch=True)
-        gaincal(vis=vis, spw=spw, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1Klambda',
-                combine="scan",
-                antenna='0~12&0~12', refant='10', solint='inf', gaintype='G', minsnr=1.0, calmode='p',
-                append=appends[i])
+    if os.path.exists(caltb):
+        os.system('rm -rf {}'.format(caltb))
+    appends = np.ones_like(spws, dtype=np.bool)
+    appends[0] = False
+    for s, sp in enumerate(spws):
+        if bright[s]:
+            spwstr = '-'.join(['{:02d}'.format(int(sp)) for sp in sp.split('~')])
+            imname = "images/briggs" + spwstr + '.model'
+            if sp == '31~49':
+                # The high-band image is only made to band 43, so adjust the name
+                imname = 'images/briggs31-43.model'
+            ft(vis=vis, spw=sp, model=imname, usescratch=True)
+            gaincal(vis=vis, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1Klambda',
+                    combine="scan",
+                    antenna='0~12&0~12', refant='10', solint='inf', gaintype='G', minsnr=1.0, calmode='p',
+                    append=appends[s])
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
     vis1 = 'dslf1_' + vis
+    if os.path.exists(vis1):
+        os.system('rm -rf {}'.format(vis1))
     split(vis, outputvis=vis1, datacolumn="corrected")
 
     caltb = os.path.join(slfcaltbdir, tdate + '_d2.pha')
+    if os.path.exists(caltb):
+        os.system('rm -rf {}'.format(caltb))
     # Move the existing images directory so that a new one will be created
     shutil.move('images', 'old_images')
     # Make new model images for another round of selfcal
-    fd_images(vis1, cleanup=False, niter=niter)
-    for i, spw in enumerate(spws):
-        spwstr = '-'.join(['{:02d}'.format(int(sp)) for sp in spw.split('~')])
-        imname = "images/briggs" + spwstr + '.model'
-        if spw == '31~49':
-            # The high-band image is only made to band 43, so adjust the name
-            imname = 'images/briggs31-43.model'
-        ft(vis=vis1, spw=spw, model=imname, usescratch=True)
-        gaincal(vis=vis1, spw=spw, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1Klambda',
-                combine="scan",
-                antenna='0~12&0~12', refant='10', solint='1min', gaintype='G', minsnr=1.0, calmode='p',
-                append=appends[i])
+    fd_images(vis1, cleanup=False, niter=niter, spws=spws, bright=bright)
+    for s, sp in enumerate(spws):
+        if bright[s]:
+            spwstr = '-'.join(['{:02d}'.format(int(sp)) for sp in sp.split('~')])
+            imname = "images/briggs" + spwstr + '.model'
+            if sp == '31~49':
+                # The high-band image is only made to band 43, so adjust the name
+                imname = 'images/briggs31-43.model'
+            ft(vis=vis1, spw=sp, model=imname, usescratch=True)
+            gaincal(vis=vis1, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1Klambda',
+                    combine="scan",
+                    antenna='0~12&0~12', refant='10', solint='1min', gaintype='G', minsnr=1.0, calmode='p',
+                    append=appends[s])
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
     vis2 = 'dslf2' + vis
+    if os.path.exists(vis2):
+        os.system('rm -rf {}'.format(vis2))
     split(vis1, outputvis=vis2, datacolumn="corrected")
     shutil.rmtree('images')  # Remove all images and the folder named images
     return vis2
 
 
 def plt_eovsa_image(eofiles, figoutdir='./'):
-
     import matplotlib.pyplot as plt
     import matplotlib.colors as colors
     from suncasa.utils import plot_mapX as pmX
@@ -845,13 +880,15 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     from glob import glob
     from astropy.io import fits
 
+    spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43']
+
     if workdir is None:
         workdir = '/data1/workdir'
     os.chdir(workdir)
     if slfcaltbdir is None:
         slfcaltbdir = workdir + '/'
     if imgoutdir is None:
-        imgoutbdir = workdir + '/'
+        imgoutdir = workdir + '/'
     if figoutdir is None:
         figoutdir = workdir + '/'
     if outputvis[-1] == '/':
@@ -866,29 +903,28 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     # Make initial images from self-calibrated visibility file, and check T_b max
     if os.path.exists('images'):
         shutil.rmtree('images')
-    outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir)
+    outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir, spws=spws)
     # Check if any of the images has a bright source (T_b > 300,000 K), and if so, remake images
     # with fewer components and execute feature_slfcal
     files = outputfits
-    bright = False
-    for file in files:
+    bright = np.zeros((len(files)), dtype=np.bool)
+    for idx, file in enumerate(files):
         data = fits.getdata(file)
         data.shape = data.shape[-2:]  # gets rid of any leading axes of size 1
-        if np.nanmax(np.nanmax(data)) > 300000:
-            bright = True
-            break
-    if bright:
+        if np.nanmax(np.nanmax(data)) > 300000: bright[idx] = True
+    if any(bright):
         # A bright source exists, so do feature self-calibration
-        # shutil.rmtree('images')
-        fd_images(ms_slfcaled, niter=200, imgoutdir=imgoutdir)  # Does shallow clean for selfcal purposes
-        ms_slfcaled2 = feature_slfcal(ms_slfcaled, slfcaltbdir=slfcaltbdir)  # Creates newly calibrated database
-        outputfits = fd_images(ms_slfcaled2, imgoutdir=imgoutdir,
+        ms_slfcaled2 = feature_slfcal(ms_slfcaled, slfcaltbdir=slfcaltbdir,
+                                      bright=bright)  # Creates newly calibrated database
+        outputfits = fd_images(ms_slfcaled2, imgoutdir=imgoutdir, spws=spws,
                                cleanup=True)  # Does deep clean for final image creation
         # Cleanup of interim ms's would be done here...
         shutil.rmtree(ms_slfcaled)
         ms_slfcaled = ms_slfcaled2
     #  Final move of fits images can also be done here...
     if outputvis:
+        if os.path.exists(outputvis):
+            os.system('rm -rf {}'.format(outputvis))
         os.system('mv {} {}'.format(ms_slfcaled, outputvis))
         ms_slfcaled = outputvis
 
