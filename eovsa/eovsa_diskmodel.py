@@ -67,7 +67,7 @@ def readdiskxml(xmlfile):
     return diskinfo
 
 
-def image_adddisk(eofile, diskxmlfile, edgeconvmode='frommergeddisk'):
+def image_adddisk(eofile, diskinfo, edgeconvmode='frommergeddisk', caltbonly=False):
     '''
 
     :param eofile:
@@ -75,15 +75,12 @@ def image_adddisk(eofile, diskxmlfile, edgeconvmode='frommergeddisk'):
     :param edgeconvmode: available mode: frommergeddisk,frombeam
     :return:
     '''
-    from scipy.special import erfc
+
     from sunpy import map as smap
     from suncasa.utils import plot_mapX as pmX
     from scipy import constants
     import astropy.units as u
     from sunpy import io as sio
-
-    diskinfo = readdiskxml(diskxmlfile)
-
     dsize = diskinfo['disk_size']
     fdens = diskinfo['flux_dens']
     freqs = diskinfo['freq']
@@ -110,6 +107,8 @@ def image_adddisk(eofile, diskxmlfile, edgeconvmode='frommergeddisk'):
     factor2 = 1.
     faxis = keys[values.index('FREQ')][-1]
 
+    if caltbonly:
+        edgeconvmode = ''
     if edgeconvmode == 'frommergeddisk':
 
         nul = header['CRVAL' + faxis] + header['CDELT' + faxis] * (1 - header['CRPIX' + faxis])
@@ -157,6 +156,7 @@ def image_adddisk(eofile, diskxmlfile, edgeconvmode='frommergeddisk'):
         p_fdens = np.poly1d(
             np.polyfit(freqs.value, fdens.value, 15)) / 2.  # divide by 2 because fdens is 2x solar flux density
         if edgeconvmode == 'frombeam':
+            from scipy.special import erfc
             factor_erfc = 2.0  ## erfc function ranges from 0 to 2
             fdisk = erfc((rdisk - p_dsize(freqghz)) / bmsize.value) / factor_erfc
         else:
@@ -166,19 +166,22 @@ def image_adddisk(eofile, diskxmlfile, edgeconvmode='frommergeddisk'):
         tbdisk = fdisk * jy2tb
 
     tb_disk = np.nanmax(tbdisk)
-    datanew = data + tbdisk
-    datanew[np.isnan(data)] = 0.0
-    header['disktb'] = tb_disk
-    header['disktbunit'] = 'K'
-    eomap_disk = smap.Map(datanew, header)
-    nametmp = eofile.split('.')
-    nametmp.insert(-1, 'disk')
-    outfits = '.'.join(nametmp)
-    # datanew = datanew.astype(np.float16)
-    if os.path.exists(outfits):
-        os.system('rm -rf {}'.format(outfits))
-    sio.write_file(outfits, datanew, header)
-    return eomap_disk, tb_disk, outfits
+    if caltbonly:
+        return tb_disk
+    else:
+        datanew = data + tbdisk
+        datanew[np.isnan(data)] = 0.0
+        header['disktb'] = tb_disk
+        header['disktbunit'] = 'K'
+        eomap_disk = smap.Map(datanew, header)
+        nametmp = eofile.split('.')
+        nametmp.insert(-1, 'disk')
+        outfits = '.'.join(nametmp)
+        # datanew = datanew.astype(np.float16)
+        if os.path.exists(outfits):
+            os.system('rm -rf {}'.format(outfits))
+        sio.write_file(outfits, datanew, header)
+        return eomap_disk, tb_disk, outfits
 
 
 def read_ms(vis):
@@ -802,7 +805,8 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     # Move the existing images directory so that a new one will be created
     if os.path.exists('old_images'):
         os.system('rm -rf old_images')
-    shutil.move('images', 'old_images')
+    # shutil.move('images', 'old_images')
+    os.system('rm -rf images old_images')
     # Make new model images for another round of selfcal
     fd_images(vis1, cleanup=False, niter=niter, spws=spws, bright=bright)
     for s, sp in enumerate(spws):
@@ -910,11 +914,17 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     # with fewer components and execute feature_slfcal
     files = outputfits
     bright = np.zeros((len(files)), dtype=np.bool)
+    diskinfo = readdiskxml(diskxmlfile)
+
     for idx, file in enumerate(files):
+        tb_disk = image_adddisk(file, diskinfo, caltbonly=True)
         data = fits.getdata(file)
         data.shape = data.shape[-2:]  # gets rid of any leading axes of size 1
-        if np.nanmax(np.nanmax(data)) > 300000: bright[idx] = True
+        # if np.nanmax(np.nanmax(data)) > 300000: bright[idx] = True
+        if np.nanmax(data) > tb_disk: bright[idx] = True
+
     if any(bright):
+        print('spw {} have bright features on disk.'.format(';'.join(np.array(spws)[np.where(bright)[0]])))
         # A bright source exists, so do feature self-calibration
         ms_slfcaled2 = feature_slfcal(ms_slfcaled, slfcaltbdir=slfcaltbdir,
                                       bright=bright)  # Creates newly calibrated database
@@ -936,8 +946,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     eofiles = glob(imgoutdir + '/eovsa_????????.spw??-??.tb.fits')
     eofiles = sorted(eofiles)
     eofiles_new = []
+    diskinfo = readdiskxml(diskxmlfile)
     for idx, eofile in enumerate(eofiles):
-        eomap_disk, tb_disk, eofile_new = image_adddisk(eofile, diskxmlfile)
+        eomap_disk, tb_disk, eofile_new = image_adddisk(eofile, diskinfo)
         eofiles_new.append(eofile_new)
 
     plt_eovsa_image(eofiles_new, figoutdir)
