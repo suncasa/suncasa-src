@@ -797,7 +797,8 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
     from sunpy import map as smap
     import astropy.units as u
     from mpl_toolkits.axes_grid1 import make_axes_locatable
-    import matplotlib as mpl
+    import matplotlib.colorbar as colorbar
+
     plt.ioff()
     fig = plt.figure(figsize=(15, 9))
 
@@ -817,7 +818,7 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
         divider = make_axes_locatable(ax)
         cax = divider.append_axes('right', size='2.0%', pad=0.08)
         cax.tick_params(direction='in')
-        clb = mpl.colorbar.ColorbarBase(cax, cmap=cmap, norm=colors.Normalize(vmin=0., vmax=tb_disk * 1.75 / 1e3))
+        clb = colorbar.ColorbarBase(cax, cmap=cmap, norm=colors.Normalize(vmin=0., vmax=tb_disk * 1.75 / 1e3))
         clb.set_label(r'T$_b$ [$\times$10$^3$K]')
         if idx != 3:
             ax.set_xlabel('')
