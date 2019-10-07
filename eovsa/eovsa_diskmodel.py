@@ -1,5 +1,3 @@
-import matplotlib
-matplotlib.use('Agg')
 from tqdm import tqdm
 from taskinit import ms, tb, qa
 from taskinit import iatool
