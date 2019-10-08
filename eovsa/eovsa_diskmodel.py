@@ -627,7 +627,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     vis = os.path.basename(vis)
 
     ## automaticaly flag impossibly high amplitudes
-    flagdata(vis=vis, mode="tfcrop", spw='', correlation='XX', action='apply', display='',
+    flagdata(vis=vis, mode="tfcrop", spw='', correlation='ABS_XX', action='apply', display='',
              timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=True)
 
     # Default disk size measured for 2019/09/03
