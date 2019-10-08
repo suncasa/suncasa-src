@@ -191,7 +191,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
                 'tedlist': sclist['tedlist']}
 
 
-def calib_pipeline(trange, doimport=False, overwrite=False):
+def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False):
     ''' 
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
@@ -199,6 +199,9 @@ def calib_pipeline(trange, doimport=False, overwrite=False):
                       4) None -- use current date Time.now()
     '''
 
+    if workdir is None:
+        workdir = '/data1/workdir'
+    os.chdir(workdir)
     if type(trange) == Time:
         mslist = trange2ms(trange=trange, doimport=False)
         invis = mslist['ms']
@@ -249,6 +252,7 @@ def calib_pipeline(trange, doimport=False, overwrite=False):
     if not os.path.exists(figoutdir):
         os.makedirs(figoutdir)
     vis, diskxmlfile = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms',
+                                       workdir=workdir,
                                        slfcaltbdir=os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/',
                                        imgoutdir=imgoutdir, figoutdir=figoutdir)
     return vis
