@@ -11,6 +11,7 @@ import sunpy.coordinates.ephemeris as eph
 import numpy as np
 from gaincal_cli import gaincal_cli as gaincal
 from applycal_cli import applycal_cli as applycal
+from flagdata_cli import flagdata_cli as flagdata
 from uvsub_cli import uvsub_cli as uvsub
 from split_cli import split_cli as split
 from tclean_cli import tclean_cli as tclean
@@ -625,6 +626,10 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     shutil.copytree(vis, os.path.basename(vis))
     vis = os.path.basename(vis)
 
+    ## automaticaly flag impossibly high amplitudes
+    flagdata(vis=vis, mode="tfcrop", spw='', correlation='XX', action='apply', display='',
+             timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=True)
+
     # Default disk size measured for 2019/09/03
     defaultsize = np.array([990.6, 989.4, 988.2, 987.1, 986.0, 984.9, 983.8, 982.7, 981.7, 980.7,
                             979.7, 978.8, 977.8, 976.9, 976.0, 975.2, 974.3, 973.5, 972.7, 972.0,
@@ -749,6 +754,7 @@ def fd_images(vis, cleanup=False, niter=None, spws=['0~1', '2~5', '6~10', '11~20
             #        stokes="XX", projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
             #        scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
             #        niter=niter, gain=0.05, savemodel="none")
+            os.system('rm -rf {}.*'.format(imname))
             tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
                    antenna="0~12", datacolumn="data", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
                    stokes="XX", projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
@@ -801,10 +807,9 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
                 appd = True
             else:
                 appd = False
-            gaincal(vis=vis, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1Klambda',
-                    combine="scan",
-                    antenna='0~12&0~12', refant='10', solint='inf', gaintype='G', minsnr=1.0, calmode='p',
-                    append=appd)
+            gaincal(vis=vis, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
+                    combine="scan", antenna='0~12&0~12', refant='10', solint='inf', gaintype='G', minsnr=1.0,
+                    calmode='p', append=appd)
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
@@ -835,10 +840,9 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
                 appd = True
             else:
                 appd = False
-            gaincal(vis=vis1, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1Klambda',
-                    combine="scan",
-                    antenna='0~12&0~12', refant='10', solint='1min', gaintype='G', minsnr=1.0, calmode='p',
-                    append=appd)
+            gaincal(vis=vis1, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
+                    combine="scan", antenna='0~12&0~12', refant='10', solint='1min', gaintype='G', minsnr=1.0,
+                    calmode='p', append=appd)
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
