@@ -750,7 +750,7 @@ def fd_images(vis, cleanup=False, niter=None, spws=['0~1', '2~5', '6~10', '11~20
             #        scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
             #        niter=niter, gain=0.05, savemodel="none")
             tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
-                   antenna="0~12", datacolumn="corrected", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
+                   antenna="0~12", datacolumn="data", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
                    stokes="XX", projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
                    scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
                    niter=niter, gain=0.05, savemodel="none", usemask='auto-multithresh', pbmask=0.0,
@@ -842,7 +842,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
-    vis2 = 'dslf2' + vis
+    vis2 = 'dslf2_' + vis
     if os.path.exists(vis2):
         os.system('rm -rf {}'.format(vis2))
     split(vis1, outputvis=vis2, datacolumn="corrected")
@@ -960,8 +960,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         os.system('mv {} {}'.format(diskxmlfile, os.path.dirname(outputvis)))
         diskxmlfile = os.path.join(os.path.dirname(outputvis), diskxmlfile)
 
+    eofiles = []
     datestr = mstl.get_trange(ms_slfcaled)[0].datetime.strftime('%Y%m%d')
-    eofiles = glob(imgoutdir + '/eovsa_{}.spw??-??.tb.fits'.format(datestr))
+    for s, sp in enumerate(spws):
+        spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
+        eofiles.append(imgoutdir + '/eovsa_{}.spw{}.tb.fits'.format(datestr, spwstr))
+    # eofiles = glob(imgoutdir + '/eovsa_{}.spw??-??.tb.fits'.format(datestr))
     eofiles = sorted(eofiles)
     eofiles_new = []
     diskinfo = readdiskxml(diskxmlfile)
