@@ -784,7 +784,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     if os.path.exists('old_images1'):
         os.system('rm -rf old_images1')
     os.system('mv images old_images1')
-    fd_images(vis, niter=niter, spws=spws, bright=bright)  # Does shallow clean for selfcal purposes
+    fd_images(vis, cleanup=False, niter=niter, spws=spws, bright=bright)  # Does shallow clean for selfcal purposes
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_d1.pha')
     if os.path.exists(caltb):
@@ -798,13 +798,13 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
                 imname = 'images/briggs31-43.model'
             ft(vis=vis, spw=sp, model=imname, usescratch=True)
             if os.path.exists(caltb):
-                append = False
+                appd = True
             else:
-                append = True
+                appd = False
             gaincal(vis=vis, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1Klambda',
                     combine="scan",
                     antenna='0~12&0~12', refant='10', solint='inf', gaintype='G', minsnr=1.0, calmode='p',
-                    append=append)
+                    append=appd)
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
@@ -832,13 +832,13 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
                 imname = 'images/briggs31-43.model'
             ft(vis=vis1, spw=sp, model=imname, usescratch=True)
             if os.path.exists(caltb):
-                append = False
+                appd = True
             else:
-                append = True
+                appd = False
             gaincal(vis=vis1, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1Klambda',
                     combine="scan",
                     antenna='0~12&0~12', refant='10', solint='1min', gaintype='G', minsnr=1.0, calmode='p',
-                    append=append)
+                    append=appd)
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
@@ -938,12 +938,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         data = fits.getdata(file)
         data.shape = data.shape[-2:]  # gets rid of any leading axes of size 1
         # if np.nanmax(np.nanmax(data)) > 300000: bright[idx] = True
-        if np.nanmax(data) > 3.5 * tb_disk: bright[idx] = True
+        if np.nanmax(data) > 5.0 * tb_disk: bright[idx] = True
 
     if any(bright):
         print('spw {} have bright features on disk.'.format(';'.join(np.array(spws)[np.where(bright)[0]])))
         # A bright source exists, so do feature self-calibration
-        ms_slfcaled2 = feature_slfcal(ms_slfcaled, slfcaltbdir=slfcaltbdir,
+        ms_slfcaled2 = feature_slfcal(ms_slfcaled, niter=200, slfcaltbdir=slfcaltbdir,
                                       bright=bright)  # Creates newly calibrated database
         outputfits = fd_images(ms_slfcaled2, imgoutdir=imgoutdir, spws=spws,
                                cleanup=True)  # Does deep clean for final image creation
