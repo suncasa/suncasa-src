@@ -621,6 +621,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     # Copy original ms to local directory
     if os.path.exists(os.path.basename(vis)):
         shutil.rmtree(os.path.basename(vis))
+    print('Copy {} to working directory {}.'.format(vis, os.getcwd()))
     shutil.copytree(vis, os.path.basename(vis))
     vis = os.path.basename(vis)
 
@@ -743,11 +744,19 @@ def fd_images(vis, cleanup=False, niter=None, spws=['0~1', '2~5', '6~10', '11~20
         if bright[s]:
             spwstr = '-'.join(['{:02d}'.format(int(sp)) for sp in sp.split('~')])
             imname = "images/briggs" + spwstr
+            # tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
+            #        antenna="0~12", datacolumn="corrected", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
+            #        stokes="XX", projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
+            #        scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
+            #        niter=niter, gain=0.05, savemodel="none")
             tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
                    antenna="0~12", datacolumn="corrected", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
                    stokes="XX", projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
                    scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
-                   niter=niter, gain=0.05, savemodel="none")
+                   niter=niter, gain=0.05, savemodel="none", usemask='auto-multithresh', pbmask=0.0,
+                   sidelobethreshold=1.0, noisethreshold=2.5, lownoisethreshold=1.5, negativethreshold=5.0,
+                   smoothfactor=1.0, minbeamfrac=0.3, cutthreshold=0.01, growiterations=75, dogrowprune=True,
+                   minpercentchange=-1.0)
             outfits = os.path.join(imgoutdir, 'eovsa_' + tdate + '.spw' + spwstr + '.tb.fits')
             imagefile.append(imname + '.image')
             fitsfile.append(outfits)
@@ -772,7 +781,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
         bright = [True] * len(spws)
     # Insert model into ms and do "inf" gaincal, appending to table each subsequent time
 
-    fd_images(vis, niter=200, spws=spws, bright=bright)  # Does shallow clean for selfcal purposes
+    fd_images(vis, niter=niter, spws=spws, bright=bright)  # Does shallow clean for selfcal purposes
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_d1.pha')
     if os.path.exists(caltb):
@@ -808,7 +817,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     if os.path.exists('old_images'):
         os.system('rm -rf old_images')
     # shutil.move('images', 'old_images')
-    os.system('rm -rf images old_images')
+    os.system('mv images old_images')
     # Make new model images for another round of selfcal
     fd_images(vis1, cleanup=False, niter=niter, spws=spws, bright=bright)
     for s, sp in enumerate(spws):
@@ -926,7 +935,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         data = fits.getdata(file)
         data.shape = data.shape[-2:]  # gets rid of any leading axes of size 1
         # if np.nanmax(np.nanmax(data)) > 300000: bright[idx] = True
-        if np.nanmax(data) > 2.0 * tb_disk: bright[idx] = True
+        if np.nanmax(data) > 3.5 * tb_disk: bright[idx] = True
 
     if any(bright):
         print('spw {} have bright features on disk.'.format(';'.join(np.array(spws)[np.where(bright)[0]])))
