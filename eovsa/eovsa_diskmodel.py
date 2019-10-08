@@ -777,8 +777,6 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     caltb = os.path.join(slfcaltbdir, tdate + '_d1.pha')
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
-    appends = np.ones_like(spws, dtype=np.bool)
-    appends[0] = False
     for s, sp in enumerate(spws):
         if bright[s]:
             spwstr = '-'.join(['{:02d}'.format(int(sp)) for sp in sp.split('~')])
@@ -787,10 +785,14 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
                 # The high-band image is only made to band 43, so adjust the name
                 imname = 'images/briggs31-43.model'
             ft(vis=vis, spw=sp, model=imname, usescratch=True)
+            if os.path.exists(caltb):
+                append = False
+            else:
+                append = True
             gaincal(vis=vis, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1Klambda',
                     combine="scan",
                     antenna='0~12&0~12', refant='10', solint='inf', gaintype='G', minsnr=1.0, calmode='p',
-                    append=appends[s])
+                    append=append)
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
@@ -817,10 +819,14 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
                 # The high-band image is only made to band 43, so adjust the name
                 imname = 'images/briggs31-43.model'
             ft(vis=vis1, spw=sp, model=imname, usescratch=True)
+            if os.path.exists(caltb):
+                append = False
+            else:
+                append = True
             gaincal(vis=vis1, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1Klambda',
                     combine="scan",
                     antenna='0~12&0~12', refant='10', solint='1min', gaintype='G', minsnr=1.0, calmode='p',
-                    append=appends[s])
+                    append=append)
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
@@ -852,7 +858,7 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
         # ax = axs[idx]
         eomap = smap.Map(eofile)
         tb_disk = eomap.meta['disktb']
-        norm = colors.Normalize(vmin=tb_disk * (-0.2), vmax=tb_disk * 1.75)
+        norm = colors.Normalize(vmin=tb_disk * (-0.2), vmax=tb_disk * 2.0)
         eomap_ = pmX.Sunmap(eomap)
         eomap_.imshow(axes=ax, cmap=cmap, norm=norm)
         eomap_.draw_limb(axes=ax, lw=0.75)
@@ -942,7 +948,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         os.system('mv {} {}'.format(diskxmlfile, os.path.dirname(outputvis)))
         diskxmlfile = os.path.join(os.path.dirname(outputvis), diskxmlfile)
 
-    eofiles = glob(imgoutdir + '/eovsa_????????.spw??-??.tb.fits')
+    datestr = mstl.get_trange(ms_slfcaled)[0].datetime.strftime('%Y%m%d')
+    eofiles = glob(imgoutdir + '/eovsa_{}.spw??-??.tb.fits'.format(datestr))
     eofiles = sorted(eofiles)
     eofiles_new = []
     diskinfo = readdiskxml(diskxmlfile)
