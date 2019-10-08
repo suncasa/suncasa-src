@@ -17,6 +17,25 @@ from tclean_cli import tclean_cli as tclean
 from ft_cli import ft_cli as ft
 
 
+def ant_trange(vis):
+    ''' Figure out nominal times for tracking of old EOVSA antennas, and return time
+        range in CASA format
+    '''
+    import eovsa_array as ea
+    from astropy.time import Time
+    # Get the Sun transit time, based on the date in the vis file name (must have UDByyyymmdd in the name)
+    aa = ea.eovsa_array()
+    date = vis.split('UDB')[-1][:8]
+    slashdate = date[:4] + '/' + date[4:6] + '/' + date[6:8]
+    aa.date = slashdate
+    sun = aa.cat['Sun']
+    mjd_transit = Time(aa.next_transit(sun).datetime(), format='datetime').mjd
+    # Construct timerange based on +/- 3h55m from transit time (when all dishes are nominally tracking)
+    trange = Time(mjd_transit - 0.1632, format='mjd').iso[:19] + '~' + Time(mjd_transit + 0.1632, format='mjd').iso[:19]
+    trange = trange.replace('-', '/').replace(' ', '/')
+    return trange
+
+
 def gaussian2d(x, y, amplitude, x0, y0, sigma_x, sigma_y, theta):
     x0 = float(x0)
     y0 = float(y0)
@@ -585,25 +604,6 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite=True, 
     return msfile
 
 
-def ant_trange(vis):
-    ''' Figure out nominal times for tracking of old EOVSA antennas, and return time
-        range in CASA format
-    '''
-    import eovsa_array as ea
-    from astropy.time import Time
-    # Get the Sun transit time, based on the date in the vis file name (must have UDByyyymmdd in the name)
-    aa = ea.eovsa_array()
-    date = vis.split('UDB')[-1][:8]
-    slashdate = date[:4] + '/' + date[4:6] + '/' + date[6:8]
-    aa.date = slashdate
-    sun = aa.cat['Sun']
-    mjd_transit = Time(aa.next_transit(sun).datetime(), format='datetime').mjd
-    # Construct timerange based on +/- 3h55m from transit time (when all dishes are nominally tracking)
-    trange = Time(mjd_transit - 0.1632, format='mjd').iso[:19] + '~' + Time(mjd_transit + 0.1632, format='mjd').iso[:19]
-    trange = trange.replace('-', '/').replace(' ', '/')
-    return trange
-
-
 def disk_slfcal(vis, slfcaltbdir='./'):
     ''' Starting with the name of a calibrated ms (vis, which must have 'UDByyyymmdd' in the name)
         add a model disk based on the solar disk size for that date and perform multiple selfcal
@@ -742,7 +742,7 @@ def fd_images(vis, cleanup=False, niter=None, spws=['0~1', '2~5', '6~10', '11~20
     fitsfile = []
     for s, sp in enumerate(spws):
         if bright[s]:
-            spwstr = '-'.join(['{:02d}'.format(int(sp)) for sp in sp.split('~')])
+            spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
             imname = "images/briggs" + spwstr
             # tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
             #        antenna="0~12", datacolumn="corrected", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
@@ -781,6 +781,9 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
         bright = [True] * len(spws)
     # Insert model into ms and do "inf" gaincal, appending to table each subsequent time
 
+    if os.path.exists('old_images1'):
+        os.system('rm -rf old_images1')
+    os.system('mv images old_images1')
     fd_images(vis, niter=niter, spws=spws, bright=bright)  # Does shallow clean for selfcal purposes
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_d1.pha')
@@ -788,7 +791,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
         os.system('rm -rf {}'.format(caltb))
     for s, sp in enumerate(spws):
         if bright[s]:
-            spwstr = '-'.join(['{:02d}'.format(int(sp)) for sp in sp.split('~')])
+            spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
             imname = "images/briggs" + spwstr + '.model'
             if sp == '31~49':
                 # The high-band image is only made to band 43, so adjust the name
@@ -814,15 +817,15 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
     # Move the existing images directory so that a new one will be created
-    if os.path.exists('old_images'):
-        os.system('rm -rf old_images')
-    # shutil.move('images', 'old_images')
-    os.system('mv images old_images')
+    if os.path.exists('old_images2'):
+        os.system('rm -rf old_images2')
+    # shutil.move('images', 'old_images2')
+    os.system('mv images old_images2')
     # Make new model images for another round of selfcal
     fd_images(vis1, cleanup=False, niter=niter, spws=spws, bright=bright)
     for s, sp in enumerate(spws):
         if bright[s]:
-            spwstr = '-'.join(['{:02d}'.format(int(sp)) for sp in sp.split('~')])
+            spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
             imname = "images/briggs" + spwstr + '.model'
             if sp == '31~49':
                 # The high-band image is only made to band 43, so adjust the name
