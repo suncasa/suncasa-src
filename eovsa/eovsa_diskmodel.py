@@ -760,7 +760,7 @@ def fd_images(vis, cleanup=False, niter=None, spws=['0~1', '2~5', '6~10', '11~20
     return fitsfile
 
 
-def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30', '31~43'], slfcaltbdir='./',
+def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30', '31~49'], slfcaltbdir='./',
                    bright=None):
     ''' Uses images from disk-selfcaled data as model for further self-calibration of outer antennas.
         This is only a good idea if there are bright active regions that provide strong signal on the
