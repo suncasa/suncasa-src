@@ -877,8 +877,8 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
         norm = colors.Normalize(vmin=tb_disk * (-0.2), vmax=tb_disk * 2.0)
         eomap_ = pmX.Sunmap(eomap)
         eomap_.imshow(axes=ax, cmap=cmap, norm=norm)
-        eomap_.draw_limb(axes=ax, lw=0.75)
-        eomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.75)
+        eomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
+        eomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
         divider = make_axes_locatable(ax)
         cax = divider.append_axes('right', size='2.0%', pad=0.08)
         cax.tick_params(direction='in')
@@ -895,7 +895,8 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
                 transform=ax.transAxes, color='w', ha='left', va='top', fontsize=8, fontweight='bold')
         ax.text(0.02, 0.02, 'Max Tb {:d} K'.format(np.int(np.max(eomap.data))),
                 transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=8, fontweight='bold')
-
+        ax.set_xlim(-1200, 1200)
+        ax.set_ylim(-1200, 1200)
     fig.tight_layout()
     figname = os.path.join(figoutdir, 'eovsa_qlimg_{}.png'.format(eomap.date.strftime('%Y%m%d')))
     fig.savefig(figname, dpi=150)
