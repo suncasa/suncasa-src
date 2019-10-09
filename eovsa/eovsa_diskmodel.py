@@ -548,7 +548,6 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite=True, 
                       reffreq=frq[sp],
                       flux=fdens[sp], eqradius=dsize[sp], polradius=dsize[sp], overwrite=overwrite))
 
-    clearcal(msfile)
     delmod(msfile, otf=True, scr=True)
 
     mstl.clearflagrow(msfile, mode='clear')
@@ -625,6 +624,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     print('Copy {} to working directory {}.'.format(vis, os.getcwd()))
     shutil.copytree(vis, os.path.basename(vis))
     vis = os.path.basename(vis)
+    clearcal(vis)
 
     ## automaticaly flag impossibly high amplitudes
     flagdata(vis=vis, mode="tfcrop", spw='', correlation='ABS_XX', action='apply', display='',
@@ -906,7 +906,6 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
 
 
 def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None, figoutdir=None):
-    from glob import glob
     from astropy.io import fits
 
     spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43']
