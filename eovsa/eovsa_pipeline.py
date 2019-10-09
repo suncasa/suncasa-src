@@ -154,8 +154,9 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
         msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
 
     msfile_synoptic = os.path.join(outpath, 'UDB' + tdatetime.strftime("%Y%m%d") + '.ms')
-    if overwrite:
-        os.system('rm -rf {}'.format(msfile_synoptic))
+    if overwrite and doimport:
+        if os.path.exists(msfile_synoptic):
+            os.system('rm -rf {}'.format(msfile_synoptic))
 
     sclist = ra.findfiles(trange, projid='NormalObserving', srcid='Sun')
     udbfilelist = sclist['scanlist']
