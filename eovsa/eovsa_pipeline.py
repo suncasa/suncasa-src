@@ -81,7 +81,7 @@ def getspwfreq(vis):
     return cfreqs
 
 
-def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
+def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overwrite=True):
     '''This finds all solar UDBms files within a timerange; If the UDBms file does not exist 
        in EOVSAUDBMSSCL, create one by calling importeovsa
        Required inputs:
@@ -154,6 +154,8 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
         msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
 
     msfile_synoptic = os.path.join(outpath, 'UDB' + tdatetime.strftime("%Y%m%d") + '.ms')
+    if overwrite:
+        os.system('rm -rf {}'.format(msfile_synoptic))
 
     sclist = ra.findfiles(trange, projid='NormalObserving', srcid='Sun')
     udbfilelist = sclist['scanlist']
@@ -218,11 +220,11 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False):
 
     if overwrite or (invis == []):
         if type(trange) == Time:
-            mslist = trange2ms(trange=trange, doimport=doimport)
+            mslist = trange2ms(trange=trange, doimport=doimport, overwrite=overwrite)
             invis = mslist['ms']
         if type(trange) == str:
             try:
-                mslist = trange2ms(trange=trange, doimport=doimport)
+                mslist = trange2ms(trange=trange, doimport=doimport, overwrite=overwrite)
                 invis = mslist['ms']
             except:
                 invis = [trange]
