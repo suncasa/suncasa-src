@@ -640,7 +640,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     # Get current solar distance and modify the default size accordingly
     fac = eph.get_sunearth_distance('2019/09/03') / eph.get_sunearth_distance(slashdate)
     newsize = defaultsize * fac.to_value()
-    dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize])
+    dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize],dtype='S12')
 
     defaultfdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
                              1613253, 1702751, 1800721, 1946756, 2096020, 2243951,
