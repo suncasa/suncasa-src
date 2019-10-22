@@ -115,8 +115,8 @@ def image_adddisk(eofile, diskinfo, edgeconvmode='frommergeddisk', caltbonly=Fal
     keys = header.keys()
     values = header.values()
     mapx, mapy = eomap_.map2wcsgrids(cell=True)
-    mapx = mapx[1:, 1:]
-    mapy = mapy[1:, 1:]
+    # mapx = mapx[1:, 1:]
+    # mapy = mapy[1:, 1:]
     rdisk = np.sqrt(mapx ** 2 + mapy ** 2)
 
     k_b = constants.k
