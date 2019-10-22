@@ -114,7 +114,7 @@ def image_adddisk(eofile, diskinfo, edgeconvmode='frommergeddisk', caltbonly=Fal
     data = eomap.data  # remember the data order is reversed due to the FITS convension
     keys = header.keys()
     values = header.values()
-    mapx, mapy = eomap_.map2wcsgrids(cell=False)
+    mapx, mapy = eomap_.map2wcsgrids(cell=True)
     mapx = mapx[1:, 1:]
     mapy = mapy[1:, 1:]
     rdisk = np.sqrt(mapx ** 2 + mapy ** 2)
