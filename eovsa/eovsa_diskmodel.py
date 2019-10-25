@@ -11,10 +11,40 @@ import sunpy.coordinates.ephemeris as eph
 import numpy as np
 from gaincal_cli import gaincal_cli as gaincal
 from applycal_cli import applycal_cli as applycal
+from flagdata_cli import flagdata_cli as flagdata
 from uvsub_cli import uvsub_cli as uvsub
 from split_cli import split_cli as split
 from tclean_cli import tclean_cli as tclean
 from ft_cli import ft_cli as ft
+
+
+def ant_trange(vis):
+    ''' Figure out nominal times for tracking of old EOVSA antennas, and return time
+        range in CASA format
+    '''
+    import eovsa_array as ea
+    from astropy.time import Time
+    # Get the Sun transit time, based on the date in the vis file name (must have UDByyyymmdd in the name)
+    aa = ea.eovsa_array()
+    date = vis.split('UDB')[-1][:8]
+    slashdate = date[:4] + '/' + date[4:6] + '/' + date[6:8]
+    aa.date = slashdate
+    sun = aa.cat['Sun']
+    mjd_transit = Time(aa.next_transit(sun).datetime(), format='datetime').mjd
+    # Construct timerange based on +/- 3h55m from transit time (when all dishes are nominally tracking)
+    trange = Time(mjd_transit - 0.1632, format='mjd').iso[:19] + '~' + Time(mjd_transit + 0.1632, format='mjd').iso[:19]
+    trange = trange.replace('-', '/').replace(' ', '/')
+    return trange
+
+
+def gaussian2d(x, y, amplitude, x0, y0, sigma_x, sigma_y, theta):
+    x0 = float(x0)
+    y0 = float(y0)
+    a = (np.cos(theta) ** 2) / (2 * sigma_x ** 2) + (np.sin(theta) ** 2) / (2 * sigma_y ** 2)
+    b = -(np.sin(2 * theta)) / (4 * sigma_x ** 2) + (np.sin(2 * theta)) / (4 * sigma_y ** 2)
+    c = (np.sin(theta) ** 2) / (2 * sigma_x ** 2) + (np.cos(theta) ** 2) / (2 * sigma_y ** 2)
+    g = amplitude * np.exp(- (a * ((x - x0) ** 2) + 2 * b * (x - x0) * (y - y0) + c * ((y - y0) ** 2)))
+    return g
 
 
 def writediskxml(dsize, fdens, freq, xmlfile='SOLDISK.xml'):
@@ -30,6 +60,8 @@ def writediskxml(dsize, fdens, freq, xmlfile='SOLDISK.xml'):
 
     # create a new XML file with the results
     mydata = ET.tostring(sdk)
+    if os.path.exists(xmlfile):
+        os.system('rm -rf {}'.format(xmlfile))
     with open(xmlfile, 'w') as sf:
         sf.write(mydata)
     return xmlfile
@@ -55,15 +87,20 @@ def readdiskxml(xmlfile):
     return diskinfo
 
 
-def image_adddisk(eofile, diskxmlfile):
-    from scipy.special import erfc
+def image_adddisk(eofile, diskinfo, edgeconvmode='frommergeddisk', caltbonly=False):
+    '''
+
+    :param eofile:
+    :param diskxmlfile:
+    :param edgeconvmode: available mode: frommergeddisk,frombeam
+    :return:
+    '''
+
     from sunpy import map as smap
     from suncasa.utils import plot_mapX as pmX
     from scipy import constants
     import astropy.units as u
-
-    diskinfo = readdiskxml(diskxmlfile)
-
+    from sunpy import io as sio
     dsize = diskinfo['disk_size']
     fdens = diskinfo['flux_dens']
     freqs = diskinfo['freq']
@@ -72,41 +109,99 @@ def image_adddisk(eofile, diskxmlfile):
     header = eomap.meta
     bmaj = header['bmaj'] * 3600 * u.arcsec
     bmin = header['bmin'] * 3600 * u.arcsec
-    cell = header['cdelt1'] * u.Unit(header['cunit1'])
+    cell = (header['cdelt1'] * u.Unit(header['cunit1']) + header['cdelt2'] * u.Unit(header['cunit2'])) / 2.0
     bmsize = (bmaj + bmin) / 2.0
     data = eomap.data  # remember the data order is reversed due to the FITS convension
     keys = header.keys()
     values = header.values()
-    faxis = keys[values.index('FREQ')][-1]
-    nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * (1 - header['CRPIX' + faxis])
-    freqghz = nu / 1.0e9
-    # mapx, mapy = eomap_.map2wcsgrids(cell=True)
     mapx, mapy = eomap_.map2wcsgrids(cell=False)
-    mapx = mapx[1:, 1:]
-    mapy = mapy[1:, 1:]
+    mapx = mapx[:-1, :-1]
+    mapy = mapy[:-1, :-1]
     rdisk = np.sqrt(mapx ** 2 + mapy ** 2)
-
-    p_dsize = np.poly1d(np.polyfit(freqs.value, dsize.value, 15))
-    p_fdens = np.poly1d(np.polyfit(freqs.value, fdens.value, 15))
 
     k_b = constants.k
     c_l = constants.c
     const = 2. * k_b / c_l ** 2
-    bmaj0 = cell.to(u.rad).value
-    bmin0 = cell.to(u.rad).value
-    beam_area = bmaj0 * bmin0 * np.pi / (4. * np.log(2.))
-    factor = const * nu ** 2  # SI unit
+    pix_area = (cell.to(u.rad).value) ** 2
     jy_to_si = 1e-26
     factor2 = 1.
-    jy2tb = jy_to_si / beam_area / factor * factor2
-    fdisk = erfc((rdisk - p_dsize(freqghz)) / bmsize.value) / 2.0
-    fdisk = fdisk / np.nansum(fdisk) * p_fdens(freqghz)
-    tbdisk = fdisk * jy2tb
+    faxis = keys[values.index('FREQ')][-1]
+
+    if caltbonly:
+        edgeconvmode = ''
+    if edgeconvmode == 'frommergeddisk':
+
+        nul = header['CRVAL' + faxis] + header['CDELT' + faxis] * (1 - header['CRPIX' + faxis])
+        nuh = header['CRVAL' + faxis] + header['CDELT' + faxis] * (header['NAXIS' + faxis] - header['CRPIX' + faxis])
+        ## get the frequency range of the image
+        nu_bound = (np.array([nul, nuh]) + 0.5 * np.array([-1, 1]) * header['CDELT' + faxis]) * u.Unit(
+            header['cunit' + faxis])
+        nu_bound = nu_bound.to(u.GHz)
+        ## get the frequencies of the disk models
+        fidxs = np.logical_and(freqs > nu_bound[0], freqs < nu_bound[1])
+        ny, nx = rdisk.shape
+        freqs_ = freqs[fidxs]
+        fdens_ = fdens[fidxs] / 2.0  # divide by 2 because fdens is 2x solar flux density
+        dsize_ = dsize[fidxs]
+        fdisk_ = np.empty((len(freqs_), ny, nx))
+        fdisk_[:] = np.nan
+        for fidx, freq in enumerate(freqs_):
+            fdisk_[fidx, ...][rdisk <= dsize_[fidx].value] = 1.0
+            # nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * (1 - header['CRPIX' + faxis])
+            factor = const * freq.to(u.Hz).value ** 2  # SI unit
+            jy2tb = jy_to_si / pix_area / factor * factor2
+            fdisk_[fidx, ...] = fdisk_[fidx, ...] / np.nansum(fdisk_[fidx, ...]) * fdens_[fidx].value
+            fdisk_[fidx, ...] = fdisk_[fidx, ...] * jy2tb
+        # fdisk_[np.isnan(fdisk_)] = 0.0
+        tbdisk = np.nanmean(fdisk_, axis=0)
+        tbdisk[np.isnan(tbdisk)] = 0.0
+
+        sig2fwhm = 2.0 * np.sqrt(2 * np.log(2))
+        x0, y0 = 0, 0
+        sigx, sigy = bmaj.value / sig2fwhm, bmin.value / sig2fwhm
+        theta = -(90.0 - header['bpa']) * u.deg
+        x = (np.arange(31) - 15) * cell.value
+        y = (np.arange(31) - 15) * cell.value
+        x, y = np.meshgrid(x, y)
+        kernel = gaussian2d(x, y, 1.0, x0, y0, sigx, sigy, theta.to(u.radian).value)
+        kernel = kernel / np.nansum(kernel)
+        from scipy import signal
+        tbdisk = signal.fftconvolve(tbdisk, kernel, mode='same')
+    else:
+        nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * (1 - header['CRPIX' + faxis])
+        freqghz = nu / 1.0e9
+        factor = const * nu ** 2  # SI unit
+        jy2tb = jy_to_si / pix_area / factor * factor2
+        p_dsize = np.poly1d(np.polyfit(freqs.value, dsize.value, 15))
+        p_fdens = np.poly1d(
+            np.polyfit(freqs.value, fdens.value, 15)) / 2.  # divide by 2 because fdens is 2x solar flux density
+        if edgeconvmode == 'frombeam':
+            from scipy.special import erfc
+            factor_erfc = 2.0  ## erfc function ranges from 0 to 2
+            fdisk = erfc((rdisk - p_dsize(freqghz)) / bmsize.value) / factor_erfc
+        else:
+            fdisk = np.zeros_like(rdisk)
+            fdisk[rdisk <= p_dsize(freqghz)] = 1.0
+        fdisk = fdisk / np.nansum(fdisk) * p_fdens(freqghz)
+        tbdisk = fdisk * jy2tb
+
     tb_disk = np.nanmax(tbdisk)
-    datanew = data + tbdisk
-    datanew[np.isnan(data)] = 0.0
-    eomap_disk = smap.Map(datanew, header)
-    return eomap_disk, tb_disk
+    if caltbonly:
+        return tb_disk
+    else:
+        datanew = data + tbdisk
+        datanew[np.isnan(data)] = 0.0
+        header['disktb'] = tb_disk
+        header['disktbunit'] = 'K'
+        eomap_disk = smap.Map(datanew, header)
+        nametmp = eofile.split('.')
+        nametmp.insert(-1, 'disk')
+        outfits = '.'.join(nametmp)
+        # datanew = datanew.astype(np.float16)
+        if os.path.exists(outfits):
+            os.system('rm -rf {}'.format(outfits))
+        sio.write_file(outfits, datanew, header)
+        return eomap_disk, tb_disk, outfits
 
 
 def read_ms(vis):
@@ -395,7 +490,7 @@ def diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d
     return diskim
 
 
-def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite_img_model=True, xmlfile='SOLDISK.xml'):
+def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite=True, xmlfile='SOLDISK.xml'):
     if fdens is None:
         # Default flux density for solar minimum
         fdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
@@ -451,9 +546,8 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite_img_mo
         diskim.append(
             diskmodel(outname=diskimdir + 'disk{:02d}_'.format(sp), bdwidth=spwinfo[str(sp)], direction=direction,
                       reffreq=frq[sp],
-                      flux=fdens[sp], eqradius=dsize[sp], polradius=dsize[sp], overwrite=overwrite_img_model))
+                      flux=fdens[sp], eqradius=dsize[sp], polradius=dsize[sp], overwrite=overwrite))
 
-    clearcal(msfile)
     delmod(msfile, otf=True, scr=True)
 
     mstl.clearflagrow(msfile, mode='clear')
@@ -510,25 +604,6 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite_img_mo
     return msfile
 
 
-def ant_trange(vis):
-    ''' Figure out nominal times for tracking of old EOVSA antennas, and return time
-        range in CASA format
-    '''
-    import eovsa_array as ea
-    from astropy.time import Time
-    # Get the Sun transit time, based on the date in the vis file name (must have UDByyyymmdd in the name)
-    aa = ea.eovsa_array()
-    date = vis.split('UDB')[-1][:8]
-    slashdate = date[:4] + '/' + date[4:6] + '/' + date[6:8]
-    aa.date = slashdate
-    sun = aa.cat['Sun']
-    mjd_transit = Time(aa.next_transit(sun).datetime(), format='datetime').mjd
-    # Construct timerange based on +/- 3h55m from transit time (when all dishes are nominally tracking)
-    trange = Time(mjd_transit - 0.1632, format='mjd').iso[:19] + '~' + Time(mjd_transit + 0.1632, format='mjd').iso[:19]
-    trange = trange.replace('-', '/').replace(' ', '/')
-    return trange
-
-
 def disk_slfcal(vis, slfcaltbdir='./'):
     ''' Starting with the name of a calibrated ms (vis, which must have 'UDByyyymmdd' in the name)
         add a model disk based on the solar disk size for that date and perform multiple selfcal
@@ -536,6 +611,20 @@ def disk_slfcal(vis, slfcaltbdir='./'):
         the disk subtracted.  Returns the name of the final database.
     '''
     trange = ant_trange(vis)
+
+    # Use vis name to determine date, and hence number of bands
+    spw2band = np.array([0, 1] + range(3, 51))
+    defaultfreq = 1.1 + 0.325 * (spw2band + 0.5)
+    # Calculate the center frequency of each spectral window
+    if mstl.get_trange(vis)[0].mjd > 58536:
+        # After 2019 Feb 22, the band numbers changed to 1-52, and spw from 0-49
+        nbands = 52
+        freq = defaultfreq
+    else:
+        # Before 2019 Feb 22, the band numbers were 1-34, and spw from 0-30
+        nbands = 34
+        freq = 2.5 + 0.5 * (np.arange(31)) + (0.5 - 0.081)
+
     slashdate = trange[:10]
     # Verify that the vis is not in the current working directory
     if os.getcwd() == os.path.dirname(vis):
@@ -546,8 +635,14 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     # Copy original ms to local directory
     if os.path.exists(os.path.basename(vis)):
         shutil.rmtree(os.path.basename(vis))
+    print('Copy {} to working directory {}.'.format(vis, os.getcwd()))
     shutil.copytree(vis, os.path.basename(vis))
     vis = os.path.basename(vis)
+    clearcal(vis)
+
+    ## automaticaly flag impossibly high amplitudes
+    flagdata(vis=vis, mode="tfcrop", spw='', correlation='ABS_XX', action='apply', display='',
+             timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=True)
 
     # Default disk size measured for 2019/09/03
     defaultsize = np.array([990.6, 989.4, 988.2, 987.1, 986.0, 984.9, 983.8, 982.7, 981.7, 980.7,
@@ -559,8 +654,12 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     # Get current solar distance and modify the default size accordingly
     fac = eph.get_sunearth_distance('2019/09/03') / eph.get_sunearth_distance(slashdate)
     newsize = defaultsize * fac.to_value()
-    dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize])
+    if nbands == 34:
+        # Interpolate size to 31 spectal windows
+        newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq)
+    dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize], dtype='S12')
 
+    # These are nominal flux densities * 2, determined on 2019/09/03
     defaultfdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
                              1613253, 1702751, 1800721, 1946756, 2096020, 2243951,
                              2367362, 2525968, 2699795, 2861604, 3054829, 3220450,
@@ -571,6 +670,9 @@ def disk_slfcal(vis, slfcaltbdir='./'):
                              8656720, 8908130, 9087766, 9410760, 9571365, 9827078,
                              10023598, 8896671])
     fdens = defaultfdens
+    if nbands == 34:
+        # Interpolate size to 31 spectal windows
+        fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq)
 
     diskxmlfile = vis + '.SOLDISK.xml'
     # Insert the disk model (msfile is the same as vis, and will be used as the "original" vis file name)
@@ -578,28 +680,38 @@ def disk_slfcal(vis, slfcaltbdir='./'):
 
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_1.pha')
+    if os.path.exists(caltb):
+        os.system('rm -rf {}'.format(caltb))
     # Phase selfcal on the disk using solution interval "infinite"
-    gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12", solint="inf",
+    gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="inf",
             combine="scan",
             refant="0", refantmode="flex", minsnr=1.0, gaintype="G", calmode="p", append=False)
     applycal(vis=msfile, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
     # Split corrected data and model to a new ms for round 2 of phase selfcal
     vis1 = 'slf_' + msfile
+    if os.path.exists(vis1):
+        os.system('rm -rf {}'.format(vis1))
     mstl.splitX(msfile, outputvis=vis1, datacolumn="corrected", datacolumn2="model_data")
 
     caltb = os.path.join(slfcaltbdir, tdate + '_2.pha')
+    if os.path.exists(caltb):
+        os.system('rm -rf {}'.format(caltb))
     # Second round of phase selfcal on the disk using solution interval "1min"
-    gaincal(vis=vis1, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12", solint="1min",
+    gaincal(vis=vis1, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="1min",
             combine="scan",
             refant="0", refantmode="flex", minsnr=1.0, gaintype="G", calmode="p", append=False)
     applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
     # Split corrected data and model to a new ms
     vis2 = 'slf2_' + msfile
+    if os.path.exists(vis2):
+        os.system('rm -rf {}'.format(vis2))
     mstl.splitX(vis, outputvis=vis2, datacolumn="corrected", datacolumn2="model_data")
 
     caltb = os.path.join(slfcaltbdir, tdate + '_3.amp')
+    if os.path.exists(caltb):
+        os.system('rm -rf {}'.format(caltb))
     # Final round of amplitude selfcal with 1-h solution interval (restrict to 16-24 UT)
     gaincal(vis=vis2, caltable=caltb, selectdata=True, uvrange=">0.1Klambda", antenna="0~12&0~12",
             timerange=trange,
@@ -609,11 +721,15 @@ def disk_slfcal(vis, slfcaltbdir='./'):
              applymode="calonly")
     # Split out corrected data and model and do uvsub
     vis3 = 'slf3_' + msfile
+    if os.path.exists(vis3):
+        os.system('rm -rf {}'.format(vis3))
     mstl.splitX(vis, outputvis=vis3, datacolumn="corrected", datacolumn2="model_data")
     uvsub(vis=vis3, reverse=False)
 
     # Final split to
     final = 'final_' + msfile
+    if os.path.exists(final):
+        os.system('rm -rf {}'.format(final))
     split(vis3, outputvis=final, datacolumn='corrected')
 
     # Remove the interim ms files
@@ -626,7 +742,8 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     return final, diskxmlfile
 
 
-def fd_images(vis, cleanup=False, niter=None, imgoutdir='./'):
+def fd_images(vis, cleanup=False, niter=None, spws=['0~1', '2~5', '6~10', '11~20', '21~30', '31~43'], imgoutdir='./',
+              bright=None):
     ''' Create standard full-disk images in "images" subdirectory of the current directory.
         If cleanup is True, delete those images after completion, leaving only the fits images.
     '''
@@ -645,20 +762,31 @@ def fd_images(vis, cleanup=False, niter=None, imgoutdir='./'):
     tdate = trange.replace('/', '')[:8]
     if niter is None:
         niter = 5000
-    spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43']
+    if bright is None:
+        bright = [True] * len(spws)
     imagefile = []
     fitsfile = []
-    for spw in spws:
-        spwstr = '-'.join(['{:02d}'.format(int(sp)) for sp in spw.split('~')])
-        imname = "images/briggs" + spwstr
-        tclean(vis=vis, selectdata=True, spw=spw, timerange=trange,
-               antenna="0~12", datacolumn="corrected", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
-               stokes="XX", projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
-               scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
-               niter=niter, gain=0.05, usemask="user", mask="box[[0pix,0pix],[1024pix,1024pix]]", savemodel="none")
-        outfits = os.path.join(imgoutdir, 'eovsa_' + tdate + '.spw' + spwstr + '.tb.fits')
-        imagefile.append(imname + '.image')
-        fitsfile.append(outfits)
+    for s, sp in enumerate(spws):
+        if bright[s]:
+            spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
+            imname = "images/briggs" + spwstr
+            # tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
+            #        antenna="0~12", datacolumn="corrected", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
+            #        stokes="XX", projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
+            #        scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
+            #        niter=niter, gain=0.05, savemodel="none")
+            os.system('rm -rf {}.*'.format(imname))
+            tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
+                   antenna="0~12", datacolumn="data", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
+                   stokes="XX", projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
+                   scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
+                   niter=niter, gain=0.05, savemodel="none", usemask='auto-multithresh', pbmask=0.0,
+                   sidelobethreshold=1.0, noisethreshold=2.5, lownoisethreshold=1.5, negativethreshold=5.0,
+                   smoothfactor=1.0, minbeamfrac=0.3, cutthreshold=0.01, growiterations=75, dogrowprune=True,
+                   minpercentchange=-1.0)
+            outfits = os.path.join(imgoutdir, 'eovsa_' + tdate + '.spw' + spwstr + '.tb.fits')
+            imagefile.append(imname + '.image')
+            fitsfile.append(outfits)
     hf.imreg(vis=vis, imagefile=imagefile, fitsfile=fitsfile, timerange=[trange] * len(fitsfile), toTb=True,
              usephacenter=False, overwrite=True)
     if rm_images:
@@ -668,68 +796,162 @@ def fd_images(vis, cleanup=False, niter=None, imgoutdir='./'):
     return fitsfile
 
 
-def feature_slfcal(vis, niter=200, slfcaltbdir='./'):
+def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30', '31~49'], slfcaltbdir='./',
+                   bright=None):
     ''' Uses images from disk-selfcaled data as model for further self-calibration of outer antennas.
         This is only a good idea if there are bright active regions that provide strong signal on the
         londer baselines.
     '''
     trange = ant_trange(vis)
-    spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~49']
-    appends = [False, True, True, True, True, True]
+
+    if bright is None:
+        bright = [True] * len(spws)
     # Insert model into ms and do "inf" gaincal, appending to table each subsequent time
 
+    if os.path.exists('old_images1'):
+        os.system('rm -rf old_images1')
+    os.system('mv images old_images1')
+    fd_images(vis, cleanup=False, niter=niter, spws=spws, bright=bright)  # Does shallow clean for selfcal purposes
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_d1.pha')
-    for i, spw in enumerate(spws):
-        imname = 'images/briggs' + spw.replace('~', '-') + '.model'
-        if spw == '31~49':
-            # The high-band image is only made to band 43, so adjust the name
-            imname = 'images/briggs31-43.model'
-        ft(vis=vis, spw=spw, model=imname, usescratch=True)
-        gaincal(vis=vis, spw=spw, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1Klambda',
-                combine="scan",
-                antenna='0~12&0~12', refant='10', solint='inf', gaintype='G', minsnr=1.0, calmode='p',
-                append=appends[i])
+    if os.path.exists(caltb):
+        os.system('rm -rf {}'.format(caltb))
+    for s, sp in enumerate(spws):
+        if bright[s]:
+            spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
+            imname = "images/briggs" + spwstr + '.model'
+            if sp == '31~49':
+                # The high-band image is only made to band 43, so adjust the name
+                imname = 'images/briggs31-43.model'
+            ft(vis=vis, spw=sp, model=imname, usescratch=True)
+            if os.path.exists(caltb):
+                appd = True
+            else:
+                appd = False
+            gaincal(vis=vis, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
+                    combine="scan", antenna='0~12&0~12', refant='10', solint='inf', gaintype='G', minsnr=1.0,
+                    calmode='p', append=appd)
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
     vis1 = 'dslf1_' + vis
+    if os.path.exists(vis1):
+        os.system('rm -rf {}'.format(vis1))
     split(vis, outputvis=vis1, datacolumn="corrected")
 
     caltb = os.path.join(slfcaltbdir, tdate + '_d2.pha')
+    if os.path.exists(caltb):
+        os.system('rm -rf {}'.format(caltb))
     # Move the existing images directory so that a new one will be created
-    shutil.move('images', 'old_images')
+    if os.path.exists('old_images2'):
+        os.system('rm -rf old_images2')
+    # shutil.move('images', 'old_images2')
+    os.system('mv images old_images2')
     # Make new model images for another round of selfcal
-    fd_images(vis1, cleanup=False, niter=niter)
-    for i, spw in enumerate(spws):
-        imname = 'images/briggs' + spw.replace('~', '-') + '.model'
-        if spw == '31~49':
-            # The high-band image is only made to band 43, so adjust the name
-            imname = 'images/briggs31-43.model'
-        ft(vis=vis1, spw=spw, model=imname, usescratch=True)
-        gaincal(vis=vis1, spw=spw, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1Klambda',
-                combine="scan",
-                antenna='0~12&0~12', refant='10', solint='1min', gaintype='G', minsnr=1.0, calmode='p',
-                append=appends[i])
+    fd_images(vis1, cleanup=False, niter=niter, spws=spws, bright=bright)
+    for s, sp in enumerate(spws):
+        if bright[s]:
+            spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
+            imname = "images/briggs" + spwstr + '.model'
+            if sp == '31~49':
+                # The high-band image is only made to band 43, so adjust the name
+                imname = 'images/briggs31-43.model'
+            ft(vis=vis1, spw=sp, model=imname, usescratch=True)
+            if os.path.exists(caltb):
+                appd = True
+            else:
+                appd = False
+            gaincal(vis=vis1, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
+                    combine="scan", antenna='0~12&0~12', refant='10', solint='1min', gaintype='G', minsnr=1.0,
+                    calmode='p', append=appd)
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
-    vis2 = 'dslf2' + vis
+    vis2 = 'dslf2_' + vis
+    if os.path.exists(vis2):
+        os.system('rm -rf {}'.format(vis2))
     split(vis1, outputvis=vis2, datacolumn="corrected")
     shutil.rmtree('images')  # Remove all images and the folder named images
     return vis2
 
 
-def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir='./'):
+def plt_eovsa_image(eofiles, figoutdir='./'):
     import matplotlib.pyplot as plt
     import matplotlib.colors as colors
     from suncasa.utils import plot_mapX as pmX
+    from sunpy import map as smap
     import astropy.units as u
     from mpl_toolkits.axes_grid1 import make_axes_locatable
-    import matplotlib as mpl
-    from glob import glob
+    import matplotlib.colorbar as colorbar
+
+    # It is expected that nfiles will be either 4 (for older 34-band data) or 6 (for newer 52-band data)
+    nfiles = len(eofiles)
+    plt.ioff()
+    fig = plt.figure(figsize=(5 * nfiles / 2, 9))
+
+    axs = []
+    cmap = 'gist_heat'
+    for idx, eofile in enumerate(eofiles):
+        ax = fig.add_subplot(2, nfiles / 2, idx + 1)
+        axs.append(ax)
+        # ax = axs[idx]
+        eomap = smap.Map(eofile)
+        tb_disk = eomap.meta['disktb']
+        norm = colors.Normalize(vmin=tb_disk * (-0.2), vmax=tb_disk * 2.0)
+        eomap_ = pmX.Sunmap(eomap)
+        eomap_.imshow(axes=ax, cmap=cmap, norm=norm)
+        eomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
+        eomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes('right', size='2.0%', pad=0.08)
+        cax.tick_params(direction='in')
+        clb = colorbar.ColorbarBase(cax, cmap=cmap, norm=colors.Normalize(vmin=0., vmax=tb_disk * 1.75 / 1e3))
+        clb.set_label(r'T$_b$ [$\times$10$^3$K]')
+        if idx != nfiles / 2:
+            ax.set_xlabel('')
+            ax.set_ylabel('')
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+        ax.tick_params(direction="out")
+        ax.text(0.02, 0.98, 'EOVAS {:.1f} GHz   {} UT'.format(eomap.meta['CRVAL3'] / 1e9,
+                                                              eomap.date.strftime('%d-%b-%Y %H:%M:%S.%f')[:-3]),
+                transform=ax.transAxes, color='w', ha='left', va='top', fontsize=8, fontweight='bold')
+        ax.text(0.02, 0.02, 'Max Tb {:.0f} K'.format(np.nanmax(eomap.data)),
+                transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=8, fontweight='bold')
+        ax.set_xlim(-1200, 1200)
+        ax.set_ylim(-1200, 1200)
+    fig.tight_layout()
+    figname = os.path.join(figoutdir, 'eovsa_qlimg_{}.png'.format(eomap.date.strftime('%Y%m%d')))
+    fig.savefig(figname, dpi=150)
+    plt.close(fig)
+    plt.ion()
+    return figname
+
+
+def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None, figoutdir=None):
     from astropy.io import fits
 
+    # Use vis name to determine date, and hence number of bands
+    if mstl.get_trange(vis)[0].mjd > 58536:
+        nbands = 52
+    else:
+        nbands = 34
+
+    spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43']
+    if nbands == 34:
+        # These spectral window ranges correspond to the frequency ranges 
+        # of the last 4 band-ranges of the 52-band case.
+        spws = ['1~3', '4~9', '10~16', '17~24']
+
+    if workdir is None:
+        workdir = '/data1/workdir'
+    os.chdir(workdir)
+    if slfcaltbdir is None:
+        slfcaltbdir = workdir + '/'
+    if imgoutdir is None:
+        imgoutdir = workdir + '/'
+    if figoutdir is None:
+        figoutdir = workdir + '/'
     if outputvis[-1] == '/':
         outputvis = outputvis[:-1]
     if vis[-1] == '/':
@@ -742,67 +964,52 @@ def pipeline_run(vis, outputvis='', slfcaltbdir='./', imgoutdir='./', figoutdir=
     # Make initial images from self-calibrated visibility file, and check T_b max
     if os.path.exists('images'):
         shutil.rmtree('images')
-    outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir, cleanup=True)
+    outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir, spws=spws)
     # Check if any of the images has a bright source (T_b > 300,000 K), and if so, remake images
     # with fewer components and execute feature_slfcal
-    files = glob('*.fits')
-    bright = False
-    for file in files:
+    files = outputfits
+    diskinfo = readdiskxml(diskxmlfile)
+    bright = np.zeros((len(files)), dtype=np.bool)
+    for idx, file in enumerate(files):
+        tb_disk = image_adddisk(file, diskinfo, caltbonly=True)
         data = fits.getdata(file)
         data.shape = data.shape[-2:]  # gets rid of any leading axes of size 1
-        if np.nanmax(np.nanmax(data)) > 300000:
-            bright = True
-            break
-    if bright:
+        # if np.nanmax(np.nanmax(data)) > 300000: bright[idx] = True
+        if np.nanmax(data) > 5.0 * tb_disk: bright[idx] = True
+
+    if any(bright):
+        print('spw {} have bright features on disk.'.format(';'.join(np.array(spws)[np.where(bright)[0]])))
         # A bright source exists, so do feature self-calibration
-        shutil.rmtree('images')
-        fd_images(ms_slfcaled, niter=200, imgoutdir=imgoutdir)  # Does shallow clean for selfcal purposes
-        ms_slfcaled2 = feature_slfcal(ms_slfcaled, slfcaltbdir=slfcaltbdir)  # Creates newly calibrated database
-        outputfits = fd_images(ms_slfcaled2, imgoutdir=imgoutdir,
+        ms_slfcaled2 = feature_slfcal(ms_slfcaled, niter=200, slfcaltbdir=slfcaltbdir, spws=spws,
+                                      bright=bright)  # Creates newly calibrated database
+        outputfits = fd_images(ms_slfcaled2, imgoutdir=imgoutdir, spws=spws,
                                cleanup=True)  # Does deep clean for final image creation
         # Cleanup of interim ms's would be done here...
         shutil.rmtree(ms_slfcaled)
         ms_slfcaled = ms_slfcaled2
     #  Final move of fits images can also be done here...
     if outputvis:
+        if os.path.exists(outputvis):
+            os.system('rm -rf {}'.format(outputvis))
         os.system('mv {} {}'.format(ms_slfcaled, outputvis))
         ms_slfcaled = outputvis
 
         os.system('mv {} {}'.format(diskxmlfile, os.path.dirname(outputvis)))
         diskxmlfile = os.path.join(os.path.dirname(outputvis), diskxmlfile)
 
-    plt.ioff()
-    eofiles = glob(imgoutdir + '/eovsa_????????.spw??-??.tb.fits')
+    eofiles = []
+    datestr = mstl.get_trange(ms_slfcaled)[0].datetime.strftime('%Y%m%d')
+    for s, sp in enumerate(spws):
+        spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
+        eofiles.append(imgoutdir + '/eovsa_{}.spw{}.tb.fits'.format(datestr, spwstr))
+    # eofiles = glob(imgoutdir + '/eovsa_{}.spw??-??.tb.fits'.format(datestr))
     eofiles = sorted(eofiles)
-    fig, axs = plt.subplots(2, 3, figsize=(15, 9))
-    axs = axs.ravel()
-
-    cmap = 'gist_heat'
+    eofiles_new = []
+    diskinfo = readdiskxml(diskxmlfile)
     for idx, eofile in enumerate(eofiles):
-        ax = axs[idx]
-        eomap_disk, tb_disk = image_adddisk(eofile, diskxmlfile)
-        norm = colors.Normalize(vmin=0., vmax=tb_disk * 1.75)
-        eomap_disk_ = pmX.Sunmap(eomap_disk)
-        eomap_disk_.imshow(axes=ax, cmap=cmap, norm=norm)
-        eomap_disk_.draw_limb(axes=ax, lw=0.75)
-        eomap_disk_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.75)
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes('right', size='2.0%', pad=0.08)
-        cax.tick_params(direction='in')
-        clb = mpl.colorbar.ColorbarBase(cax, cmap=cmap, norm=colors.Normalize(vmin=0., vmax=tb_disk * 1.75 / 1e3))
-        clb.set_label(r'T$_b$ [$\times$10$^3$K]')
-        if idx != 3:
-            ax.set_xlabel('')
-            ax.set_ylabel('')
-            ax.set_xticklabels([])
-            ax.set_yticklabels([])
-        ax.tick_params(direction="out")
-        ax.text(0.02, 0.98, 'EOVAS {:.1f} GHz   {} UT'.format(eomap_disk.meta['CRVAL3'] / 1e9,
-                                                              eomap_disk.date.strftime('%d-%b-%Y %H:%M:%S.%f')[:-3]),
-                transform=ax.transAxes, color='w', ha='left', va='top', fontsize=8, fontweight='bold')
+        eomap_disk, tb_disk, eofile_new = image_adddisk(eofile, diskinfo)
+        eofiles_new.append(eofile_new)
 
-    fig.tight_layout()
-    fig.savefig(os.path.join(figoutdir, 'eovsa_qlimg_{}.png'.format(eomap_disk.date.strftime('%Y%m%d'))), dpi=150)
-    plt.close(fig)
-    plt.ion()
+    plt_eovsa_image(eofiles_new, figoutdir)
+
     return ms_slfcaled, diskxmlfile

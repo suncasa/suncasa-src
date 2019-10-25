@@ -531,6 +531,8 @@ def getbeam(imagefile=None, beamfile=None):
         else:
             ia.open(img)
             sum = ia.summary()
+            ia.close()
+            ia.done()
             if sum.has_key('perplanebeams'):  # beam vary with frequency
                 nbeams = sum['perplanebeams']['nChannels']
                 beams = sum['perplanebeams']['beams']
@@ -577,8 +579,8 @@ def getbeam(imagefile=None, beamfile=None):
 
 
 def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, reftime=None, fitsfile=None, beamfile=None,
-          offsetfile=None, toTb=None,
-          scl100=None, verbose=False, p_ang=False, overwrite=True, usephacenter=True, deletehistory=False):
+          offsetfile=None, toTb=None, scl100=None, verbose=False, p_ang=False, overwrite=True, usephacenter=True,
+          deletehistory=False):
     ''' 
     main routine to register CASA images
            Required Inputs:

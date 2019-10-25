@@ -81,7 +81,7 @@ def getspwfreq(vis):
     return cfreqs
 
 
-def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
+def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overwrite=True):
     '''This finds all solar UDBms files within a timerange; If the UDBms file does not exist 
        in EOVSAUDBMSSCL, create one by calling importeovsa
        Required inputs:
@@ -154,6 +154,9 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
         msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
 
     msfile_synoptic = os.path.join(outpath, 'UDB' + tdatetime.strftime("%Y%m%d") + '.ms')
+    if overwrite and doimport:
+        if os.path.exists(msfile_synoptic):
+            os.system('rm -rf {}'.format(msfile_synoptic))
 
     sclist = ra.findfiles(trange, projid='NormalObserving', srcid='Sun')
     udbfilelist = sclist['scanlist']
@@ -191,7 +194,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False):
                 'tedlist': sclist['tedlist']}
 
 
-def calib_pipeline(trange, doimport=False, overwrite=False):
+def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False):
     ''' 
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
@@ -199,6 +202,9 @@ def calib_pipeline(trange, doimport=False, overwrite=False):
                       4) None -- use current date Time.now()
     '''
 
+    if workdir is None:
+        workdir = '/data1/workdir'
+    os.chdir(workdir)
     if type(trange) == Time:
         mslist = trange2ms(trange=trange, doimport=False)
         invis = mslist['ms']
@@ -215,11 +221,11 @@ def calib_pipeline(trange, doimport=False, overwrite=False):
 
     if overwrite or (invis == []):
         if type(trange) == Time:
-            mslist = trange2ms(trange=trange, doimport=doimport)
+            mslist = trange2ms(trange=trange, doimport=doimport, overwrite=overwrite)
             invis = mslist['ms']
         if type(trange) == str:
             try:
-                mslist = trange2ms(trange=trange, doimport=doimport)
+                mslist = trange2ms(trange=trange, doimport=doimport, overwrite=overwrite)
                 invis = mslist['ms']
             except:
                 invis = [trange]
@@ -249,6 +255,7 @@ def calib_pipeline(trange, doimport=False, overwrite=False):
     if not os.path.exists(figoutdir):
         os.makedirs(figoutdir)
     vis, diskxmlfile = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms',
+                                       workdir=workdir,
                                        slfcaltbdir=os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/',
                                        imgoutdir=imgoutdir, figoutdir=figoutdir)
     return vis
