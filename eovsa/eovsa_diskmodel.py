@@ -613,8 +613,8 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     trange = ant_trange(vis)
 
     # Use vis name to determine date, and hence number of bands
-    spw2band = np.array([0,1] + range(3,51))
-    defaultfreq = 1.1 + 0.325*(spw2band+0.5)
+    spw2band = np.array([0, 1] + range(3, 51))
+    defaultfreq = 1.1 + 0.325 * (spw2band + 0.5)
     # Calculate the center frequency of each spectral window
     if mstl.get_trange(vis)[0].mjd > 58536:
         # After 2019 Feb 22, the band numbers changed to 1-52, and spw from 0-49
@@ -623,7 +623,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     else:
         # Before 2019 Feb 22, the band numbers were 1-34, and spw from 0-30
         nbands = 34
-        freq = 2.5 + 0.5*(np.arange(31)) + (0.5-0.081)
+        freq = 2.5 + 0.5 * (np.arange(31)) + (0.5 - 0.081)
 
     slashdate = trange[:10]
     # Verify that the vis is not in the current working directory
@@ -657,7 +657,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     if nbands == 34:
         # Interpolate size to 31 spectal windows
         newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq)
-    dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize],dtype='S12')
+    dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize], dtype='S12')
 
     # These are nominal flux densities * 2, determined on 2019/09/03
     defaultfdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
@@ -887,12 +887,12 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
     # It is expected that nfiles will be either 4 (for older 34-band data) or 6 (for newer 52-band data)
     nfiles = len(eofiles)
     plt.ioff()
-    fig = plt.figure(figsize=(5*nfiles/2, 9))
+    fig = plt.figure(figsize=(5 * nfiles / 2, 9))
 
     axs = []
     cmap = 'gist_heat'
     for idx, eofile in enumerate(eofiles):
-        ax = fig.add_subplot(2, nfiles/2, idx + 1)
+        ax = fig.add_subplot(2, nfiles / 2, idx + 1)
         axs.append(ax)
         # ax = axs[idx]
         eomap = smap.Map(eofile)
@@ -907,7 +907,7 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
         cax.tick_params(direction='in')
         clb = colorbar.ColorbarBase(cax, cmap=cmap, norm=colors.Normalize(vmin=0., vmax=tb_disk * 1.75 / 1e3))
         clb.set_label(r'T$_b$ [$\times$10$^3$K]')
-        if idx != nfiles/2:
+        if idx != nfiles / 2:
             ax.set_xlabel('')
             ax.set_ylabel('')
             ax.set_xticklabels([])
@@ -936,7 +936,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         nbands = 52
     else:
         nbands = 34
-        
+
     spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43']
     if nbands == 34:
         # These spectral window ranges correspond to the frequency ranges 
