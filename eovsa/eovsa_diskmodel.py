@@ -611,6 +611,20 @@ def disk_slfcal(vis, slfcaltbdir='./'):
         the disk subtracted.  Returns the name of the final database.
     '''
     trange = ant_trange(vis)
+
+    # Use vis name to determine date, and hence number of bands
+    spw2band = np.array([0,1] + range(3,51))
+    defaultfreq = 1.1 + 0.325*(spw2band+0.5)
+    # Calculate the center frequency of each spectral window
+    if mstl.get_trange(vis)[0].mjd > 58536:
+        # After 2019 Feb 22, the band numbers changed to 1-52, and spw from 0-49
+        nbands = 52
+        freq = defaultfreq
+    else:
+        # Before 2019 Feb 22, the band numbers were 1-34, and spw from 0-30
+        nbands = 34
+        freq = 2.5 + 0.5*(np.arange(31)) + (0.5-0.081)
+
     slashdate = trange[:10]
     # Verify that the vis is not in the current working directory
     if os.getcwd() == os.path.dirname(vis):
@@ -640,8 +654,12 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     # Get current solar distance and modify the default size accordingly
     fac = eph.get_sunearth_distance('2019/09/03') / eph.get_sunearth_distance(slashdate)
     newsize = defaultsize * fac.to_value()
+    if nbands == 34:
+        # Interpolate size to 31 spectal windows
+        newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq)
     dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize],dtype='S12')
 
+    # These are nominal flux densities * 2, determined on 2019/09/03
     defaultfdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
                              1613253, 1702751, 1800721, 1946756, 2096020, 2243951,
                              2367362, 2525968, 2699795, 2861604, 3054829, 3220450,
@@ -652,6 +670,9 @@ def disk_slfcal(vis, slfcaltbdir='./'):
                              8656720, 8908130, 9087766, 9410760, 9571365, 9827078,
                              10023598, 8896671])
     fdens = defaultfdens
+    if nbands == 34:
+        # Interpolate size to 31 spectal windows
+        fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq)
 
     diskxmlfile = vis + '.SOLDISK.xml'
     # Insert the disk model (msfile is the same as vis, and will be used as the "original" vis file name)
@@ -662,7 +683,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
     # Phase selfcal on the disk using solution interval "infinite"
-    gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12", solint="inf",
+    gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="inf",
             combine="scan",
             refant="0", refantmode="flex", minsnr=1.0, gaintype="G", calmode="p", append=False)
     applycal(vis=msfile, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
@@ -677,7 +698,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
     # Second round of phase selfcal on the disk using solution interval "1min"
-    gaincal(vis=vis1, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12", solint="1min",
+    gaincal(vis=vis1, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="1min",
             combine="scan",
             refant="0", refantmode="flex", minsnr=1.0, gaintype="G", calmode="p", append=False)
     applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
@@ -863,13 +884,15 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
     from mpl_toolkits.axes_grid1 import make_axes_locatable
     import matplotlib.colorbar as colorbar
 
+    # It is expected that nfiles will be either 4 (for older 34-band data) or 6 (for newer 52-band data)
+    nfiles = len(eofiles)
     plt.ioff()
-    fig = plt.figure(figsize=(15, 9))
+    fig = plt.figure(figsize=(5*nfiles/2, 9))
 
     axs = []
     cmap = 'gist_heat'
     for idx, eofile in enumerate(eofiles):
-        ax = fig.add_subplot(2, 3, idx + 1)
+        ax = fig.add_subplot(2, nfiles/2, idx + 1)
         axs.append(ax)
         # ax = axs[idx]
         eomap = smap.Map(eofile)
@@ -884,7 +907,7 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
         cax.tick_params(direction='in')
         clb = colorbar.ColorbarBase(cax, cmap=cmap, norm=colors.Normalize(vmin=0., vmax=tb_disk * 1.75 / 1e3))
         clb.set_label(r'T$_b$ [$\times$10$^3$K]')
-        if idx != 3:
+        if idx != nfiles/2:
             ax.set_xlabel('')
             ax.set_ylabel('')
             ax.set_xticklabels([])
@@ -908,7 +931,17 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
 def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None, figoutdir=None):
     from astropy.io import fits
 
+    # Use vis name to determine date, and hence number of bands
+    if mstl.get_trange(vis)[0].mjd > 58536:
+        nbands = 52
+    else:
+        nbands = 34
+        
     spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43']
+    if nbands == 34:
+        # These spectral window ranges correspond to the frequency ranges 
+        # of the last 4 band-ranges of the 52-band case.
+        spws = ['1~3', '4~9', '10~16', '17~24']
 
     if workdir is None:
         workdir = '/data1/workdir'
@@ -947,7 +980,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     if any(bright):
         print('spw {} have bright features on disk.'.format(';'.join(np.array(spws)[np.where(bright)[0]])))
         # A bright source exists, so do feature self-calibration
-        ms_slfcaled2 = feature_slfcal(ms_slfcaled, niter=200, slfcaltbdir=slfcaltbdir,
+        ms_slfcaled2 = feature_slfcal(ms_slfcaled, niter=200, slfcaltbdir=slfcaltbdir, spws=spws,
                                       bright=bright)  # Creates newly calibrated database
         outputfits = fd_images(ms_slfcaled2, imgoutdir=imgoutdir, spws=spws,
                                cleanup=True)  # Does deep clean for final image creation
