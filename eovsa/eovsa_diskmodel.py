@@ -938,6 +938,13 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         nbands = 34
 
     spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43']
+    #--- uncomment for testing
+    #spws = ['0~1', '2~2', '3~3', '4~4', '5~5','6~6','7~7']
+    #outputvis='delete_me.ms'
+    #imgoutdir = None
+    #figoutdir = None
+    #sflcaltbdir = None
+    #---
     if nbands == 34:
         # These spectral window ranges correspond to the frequency ranges 
         # of the last 4 band-ranges of the 52-band case.
