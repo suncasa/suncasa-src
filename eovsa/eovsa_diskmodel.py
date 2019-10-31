@@ -191,8 +191,8 @@ def image_adddisk(eofile, diskinfo, edgeconvmode='frommergeddisk', caltbonly=Fal
     else:
         datanew = data + tbdisk
         datanew[np.isnan(data)] = 0.0
-        header['disktb'] = tb_disk
-        header['disktbunit'] = 'K'
+        header['TBDISK'] = tb_disk
+        header['TBUNIT'] = 'K'
         eomap_disk = smap.Map(datanew, header)
         nametmp = eofile.split('.')
         nametmp.insert(-1, 'disk')
@@ -613,7 +613,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     trange = ant_trange(vis)
 
     # Use vis name to determine date, and hence number of bands
-    spw2band = np.array([0, 1] + range(3, 51))
+    spw2band = np.array([0, 1] + range(4, 52))
     defaultfreq = 1.1 + 0.325 * (spw2band + 0.5)
     # Calculate the center frequency of each spectral window
     if mstl.get_trange(vis)[0].mjd > 58536:
@@ -896,7 +896,7 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
         axs.append(ax)
         # ax = axs[idx]
         eomap = smap.Map(eofile)
-        tb_disk = eomap.meta['disktb']
+        tb_disk = eomap.meta['TBDISK']
         norm = colors.Normalize(vmin=tb_disk * (-0.2), vmax=tb_disk * 2.0)
         eomap_ = pmX.Sunmap(eomap)
         eomap_.imshow(axes=ax, cmap=cmap, norm=norm)
@@ -913,8 +913,7 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
             ax.set_xticklabels([])
             ax.set_yticklabels([])
         ax.tick_params(direction="out")
-        ax.text(0.02, 0.98, 'EOVAS {:.1f} GHz   {} UT'.format(eomap.meta['CRVAL3'] / 1e9,
-                                                              eomap.date.strftime('%d-%b-%Y %H:%M:%S.%f')[:-3]),
+        ax.text(0.02, 0.98, 'EOVAS {:.1f} GHz   {}'.format(eomap.meta['CRVAL3'] / 1e9, eomap.date.strftime('%d-%b-%Y')),
                 transform=ax.transAxes, color='w', ha='left', va='top', fontsize=8, fontweight='bold')
         ax.text(0.02, 0.02, 'Max Tb {:.0f} K'.format(np.nanmax(eomap.data)),
                 transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=8, fontweight='bold')
