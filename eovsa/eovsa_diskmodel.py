@@ -887,12 +887,12 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
     # It is expected that nfiles will be either 4 (for older 34-band data) or 6 (for newer 52-band data)
     nfiles = len(eofiles)
     plt.ioff()
-    fig = plt.figure(figsize=(5 * nfiles / 2, 9))
+    fig = plt.figure(figsize=(5 * nfiles // 2, 9))
 
     axs = []
     cmap = 'gist_heat'
     for idx, eofile in enumerate(eofiles):
-        ax = fig.add_subplot(2, nfiles / 2, idx + 1)
+        ax = fig.add_subplot(2, nfiles // 2, idx + 1)
         axs.append(ax)
         # ax = axs[idx]
         eomap = smap.Map(eofile)
@@ -913,7 +913,8 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
             ax.set_xticklabels([])
             ax.set_yticklabels([])
         ax.tick_params(direction="out")
-        ax.text(0.02, 0.98, 'EOVAS {:.1f} GHz   {}'.format(eomap.meta['CRVAL3'] / 1e9, eomap.date.strftime('%d-%b-%Y 20:00 UT')),
+        ax.text(0.02, 0.98,
+                'EOVAS {:.1f} GHz   {}'.format(eomap.meta['CRVAL3'] / 1e9, eomap.date.strftime('%d-%b-%Y 20:00 UT')),
                 transform=ax.transAxes, color='w', ha='left', va='top', fontsize=8, fontweight='bold')
         ax.text(0.02, 0.02, 'Max Tb {:.0f} K'.format(np.nanmax(eomap.data)),
                 transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=8, fontweight='bold')
@@ -936,7 +937,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     else:
         nbands = 34
 
-    spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43']
+    spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43', '44~51']
     #--- uncomment for testing
     #spws = ['0~1', '2~2', '3~3', '4~4', '5~5','6~6','7~7']
     #outputvis='delete_me.ms'
@@ -947,7 +948,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     if nbands == 34:
         # These spectral window ranges correspond to the frequency ranges 
         # of the last 4 band-ranges of the 52-band case.
-        spws = ['1~3', '4~9', '10~16', '17~24']
+        spws = ['1~3', '4~9', '10~16', '17~24', '25~30']
 
     if workdir is None:
         workdir = '/data1/workdir'
@@ -982,14 +983,15 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         data.shape = data.shape[-2:]  # gets rid of any leading axes of size 1
         # if np.nanmax(np.nanmax(data)) > 300000: bright[idx] = True
         if np.nanmax(data) > 5.0 * tb_disk: bright[idx] = True
+    bright[-1] = False  # skip the image of the highest bands for feature slfcal
 
     if any(bright):
         print('spw {} have bright features on disk.'.format(';'.join(np.array(spws)[np.where(bright)[0]])))
         # A bright source exists, so do feature self-calibration
-        ms_slfcaled2 = feature_slfcal(ms_slfcaled, niter=200, slfcaltbdir=slfcaltbdir, spws=spws,
-                                      bright=bright)  # Creates newly calibrated database
-        outputfits = fd_images(ms_slfcaled2, imgoutdir=imgoutdir, spws=spws,
-                               cleanup=True)  # Does deep clean for final image creation
+        # Creates newly calibrated database
+        ms_slfcaled2 = feature_slfcal(ms_slfcaled, niter=200, slfcaltbdir=slfcaltbdir, spws=spws, bright=bright)
+        # Does deep clean for final image creation
+        outputfits = fd_images(ms_slfcaled2, imgoutdir=imgoutdir, spws=spws, cleanup=True)
         # Cleanup of interim ms's would be done here...
         shutil.rmtree(ms_slfcaled)
         ms_slfcaled = ms_slfcaled2
@@ -1016,6 +1018,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         eomap_disk, tb_disk, eofile_new = image_adddisk(eofile, diskinfo)
         eofiles_new.append(eofile_new)
 
-    plt_eovsa_image(eofiles_new, figoutdir)
+    plt_eovsa_image(eofiles_new[:-1], figoutdir)  # skip plotting the image of the highest bands
 
     return ms_slfcaled, diskxmlfile
