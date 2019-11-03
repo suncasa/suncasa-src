@@ -937,7 +937,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     else:
         nbands = 34
 
-    spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43', '44~51']
+    spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43', '44~49']
     #--- uncomment for testing
     #spws = ['0~1', '2~2', '3~3', '4~4', '5~5','6~6','7~7']
     #outputvis='delete_me.ms'
