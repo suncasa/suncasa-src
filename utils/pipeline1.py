@@ -19,7 +19,8 @@ def pipeline1(year=None, month=None, day=None, clearcache=True):
     workdir = t.datetime.strftime('%Y%m%d/')
     if not os.path.exists(workdir):
         os.makedirs(workdir)
-    vis_corrected = ep.calib_pipeline(date, overwrite=True, doimport=True, workdir=workdir)
+    vis_corrected = ep.calib_pipeline(date, overwrite=True, doimport=True,
+                                      workdir=os.path.join('/data1/workdir/', workdir))
     if clearcache:
         os.system('rm -rf ' + workdir)
 
