@@ -5,7 +5,8 @@ def pipeline1(year=None, month=None, day=None, clearcache=True):
     import os
     from astropy.time import Time
 
-    os.chdir('/data1/workdir/')
+    workdir = '/data1/workdir/'
+    os.chdir(workdir)
     # Set to run 5 days earlier than the current date
     if year is None:
         mjdnow = Time.now().mjd
@@ -16,13 +17,13 @@ def pipeline1(year=None, month=None, day=None, clearcache=True):
     print(t.iso)
     date = t.iso[:10]
 
-    workdir = t.datetime.strftime('%Y%m%d/')
-    if not os.path.exists(workdir):
-        os.makedirs(workdir)
+    subdir = t.datetime.strftime('%Y%m%d/')
+    if not os.path.exists(subdir):
+        os.makedirs(subdir)
     vis_corrected = ep.calib_pipeline(date, overwrite=True, doimport=True,
-                                      workdir=os.path.join('/data1/workdir/', workdir))
+                                      workdir=os.path.join(workdir, subdir))
     if clearcache:
-        os.system('rm -rf ' + workdir)
+        os.system('rm -rf ' + subdir)
 
 
 if __name__ == '__main__':
