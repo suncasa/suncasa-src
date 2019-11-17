@@ -623,7 +623,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     else:
         # Before 2019 Feb 22, the band numbers were 1-34, and spw from 0-30
         nbands = 34
-        freq = np.hstack([[1.419],2.0 + 0.5 * (np.arange(32)) + (0.5 - 0.081)])
+        freq = np.hstack([[1.419], 2.0 + 0.5 * (np.arange(32)) + (0.5 - 0.081)])
 
     slashdate = trange[:10]
     # Verify that the vis is not in the current working directory
@@ -938,13 +938,13 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         nbands = 34
 
     spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43', '44~49']
-    #--- uncomment for testing
-    #spws = ['0~1', '2~2', '3~3', '4~4', '5~5','6~6','7~7']
-    #outputvis='delete_me.ms'
-    #imgoutdir = None
-    #figoutdir = None
-    #sflcaltbdir = None
-    #---
+    # --- uncomment for testing
+    # spws = ['0~1', '2~2', '3~3', '4~4', '5~5','6~6','7~7']
+    # outputvis='delete_me.ms'
+    # imgoutdir = None
+    # figoutdir = None
+    # sflcaltbdir = None
+    # ---
     if nbands == 34:
         # These spectral window ranges correspond to the frequency ranges 
         # of the last 4 band-ranges of the 52-band case.
