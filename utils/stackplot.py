@@ -232,10 +232,13 @@ def getimprofile(data, cutslit, xrange=None, yrange=None, get_peak=False):
             ys1 = cutslit['ys1']
         for ll in range(num):
             inten = DButil.improfile(data, [xs0[ll], xs1[ll]], [ys0[ll], ys1[ll]], interp='nearest')
-            if get_peak:
-                intens[ll] = np.nanmax(inten)
-            else:
-                intens[ll] = np.nanmean(inten)
+            try:
+                if get_peak:
+                    intens[ll] = np.nanmax(inten)
+                else:
+                    intens[ll] = np.nanmean(inten)
+            except:
+                intens[ll] = np.nan
         intensdist = {'x': cutslit['dist'], 'y': intens}
         return intensdist
 
@@ -1746,7 +1749,6 @@ class Stackplot:
                 norm = colors.LogNorm(vmin=np.min(self.stackplt), vmax=np.max(self.stackplt))
             else:
                 norm = colors.Normalize(vmin=np.min(self.stackplt), vmax=np.max(self.stackplt))
-
 
         cutslitplt = self.cutslitbd.cutslitplt
         if not cmap:

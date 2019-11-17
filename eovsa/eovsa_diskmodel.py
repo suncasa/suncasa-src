@@ -623,7 +623,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     else:
         # Before 2019 Feb 22, the band numbers were 1-34, and spw from 0-30
         nbands = 34
-        freq = 2.5 + 0.5 * (np.arange(31)) + (0.5 - 0.081)
+        freq = np.hstack([[1.419],2.0 + 0.5 * (np.arange(32)) + (0.5 - 0.081)])
 
     slashdate = trange[:10]
     # Verify that the vis is not in the current working directory
