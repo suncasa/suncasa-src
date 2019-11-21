@@ -1174,8 +1174,7 @@ class Stackplot:
         with open(outfile, 'wb') as sf:
             print('Saving mapcube to {}'.format(outfile))
             pickle.dump({'mp': mapcube, 'trange': mp_info['trange'], 'fov': mp_info['fov'], 'binpix': mp_info['binpix'],
-                         'dt_data': self.dt_data,
-                         'fitsfile': self.fitsfile, 'exptime_orig': self.exptime_orig}, sf)
+                         'dt_data': self.dt_data, 'fitsfile': self.fitsfile, 'exptime_orig': self.exptime_orig}, sf)
         print('It took {} to save the mapcube.'.format(time.time() - t0))
 
     def mapcube_drot(self):

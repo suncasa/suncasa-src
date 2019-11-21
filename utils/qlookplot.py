@@ -821,7 +821,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
             bl: baseline to generate dynamic spectrum
             uvrange: uvrange to select baselines for generating dynamic spectrum
             stokes: polarization of the clean image, can be 'RR,LL' or 'I,V'
-            dmin,dmax: color bar parameter
+            dmin,dmax: color bar parameter for dynamic spectrum
             goestime: goes plot time, example ['2016/02/18 18:00:00','2016/02/18 23:00:00']
             rhessisav: rhessi savefile
             reftime: reftime for the image
@@ -894,12 +894,14 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
         dspec_external(vis, workdir=workdir, specfile=specfile)
         specdata = np.load(specfile)
 
-    # tb.open(vis)
-    # starttim = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
-    # endtim = Time(tb.getcell('TIME', tb.nrows() - 1) / 24. / 3600., format='mjd')
-    tb.open(vis + '/POINTING')
-    starttim = Time(tb.getcell('TIME_ORIGIN', 0) / 24. / 3600., format='mjd')
-    endtim = Time(tb.getcell('TIME_ORIGIN', tb.nrows() - 1) / 24. / 3600., format='mjd')
+    try:
+        tb.open(vis + '/POINTING')
+        starttim = Time(tb.getcell('TIME_ORIGIN', 0) / 24. / 3600., format='mjd')
+        endtim = Time(tb.getcell('TIME_ORIGIN', tb.nrows() - 1) / 24. / 3600., format='mjd')
+    except:
+        tb.open(vis)
+        starttim = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
+        endtim = Time(tb.getcell('TIME', tb.nrows() - 1) / 24. / 3600., format='mjd')
     tb.close()
     datstr = starttim.iso[:10]
 
