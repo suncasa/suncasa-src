@@ -450,7 +450,7 @@ def smooth(x, window_len=11, window='hanning'):
     numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
     scipy.signal.lfilter
 
-    TODO: the window parameter could be the window itself if an array instead of a string
+
     NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
     """
 
@@ -1190,6 +1190,22 @@ def polyfit(x, y, length, deg, keepxorder=False):
     else:
         grads = get_curve_grad(xs, ys)
         return {'xs': xs, 'ys': ys, 'grads': grads['grad'], 'posangs': grads['posang']}
+
+
+def htfit_warren2011(x, y, cutlength):
+    from scipy.optimize import curve_fit
+
+    def fit_func(t, h0, vt, a0, tau):
+        return h0 + vt * t + a0 * tau ** 2 * (np.exp(-t / tau) - 1)
+
+    x0=x[0]
+    params = curve_fit(fit_func, x-x0, y)
+
+    [h0, vt, a0, tau] = params[0]
+    xs = np.linspace(np.nanmin(x), np.nanmax(x), cutlength)
+    ys = fit_func(xs-x0, h0, vt, a0, tau)
+    grads = get_curve_grad(xs, ys)
+    return {'xs': xs, 'ys': ys, 'grads': grads['grad'], 'posangs': grads['posang']}
 
 
 def spline(x, y, length, s=0):

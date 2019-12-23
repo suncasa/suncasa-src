@@ -531,7 +531,6 @@ def concat_dspec(specfiles, outfile=None, savespec=False):
         print('Please provide a list of specfiles')
         return -1
 
-    # todo add duplicate checking in time and frequency axis
     specdata = {}
 
     specdata_ = np.load(specfiles[0])

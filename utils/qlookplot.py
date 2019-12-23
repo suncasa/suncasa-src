@@ -678,11 +678,13 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                         if n == 0:
                             aiamap_ = pmX.Sunmap(aiamap)
                             aiamap_.imshow(axes=ax, cmap='gray',
-                                           norm=colors.LogNorm(vmin=1.0, vmax=np.nanmax(aiamap.data)))
+                                           norm=colors.LogNorm(vmin=1.0, vmax=np.nanmax(aiamap.data)),
+                                           interpolation='nearest')
                     else:
                         aiamap_ = pmX.Sunmap(aiamap)
                         aiamap_.imshow(axes=ax, vmin=1.0, cmap='gray',
-                                       norm=colors.LogNorm(vmin=1.0, vmax=np.nanmax(aiamap.data)))
+                                       norm=colors.LogNorm(vmin=1.0, vmax=np.nanmax(aiamap.data)),
+                                       interpolation='nearest')
                     try:
                         clevels1 = np.linspace(imin, imax, 3)
                     except:
@@ -698,7 +700,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     else:
                         rmap_.contour(axes=ax, levels=clevels1, cmap=cm.get_cmap(cmap))
                 else:
-                    rmap_.imshow(axes=ax, vmax=imax, vmin=imin)
+                    rmap_.imshow(axes=ax, vmax=imax, vmin=imin, interpolation='nearest')
                     rmap_.draw_limb(axes=ax)
                     rmap_.draw_grid(axes=ax)
                 if custom_mapcubes:
@@ -1245,7 +1247,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                         cfreqs = reffreqs + bdwds / 2.
                         tb.close()
                         try:
-                            sbeam=np.float(restoringbeam[0].replace('arcsec',''))
+                            sbeam = np.float(restoringbeam[0].replace('arcsec', ''))
                         except:
                             sbeam = 35.
                     for sp in spw:
@@ -1468,7 +1470,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
             axs = [ax4, ax6]
             aiamap_.draw_limb(axes=axs)
             aiamap_.draw_grid(axes=axs)
-            aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=colors.LogNorm(vmin=1.0))
+            aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=colors.LogNorm(vmin=1.0), interpolation='nearest')
             for axidx, ax in enumerate(axs):
                 ax.set_title(title0, fontsize=9)
                 rect = mpl.patches.Rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value, edgecolor='w',
@@ -1478,7 +1480,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
             axs = [ax5, ax7]
             aiamap_.draw_limb(axes=axs)
             aiamap_.draw_grid(axes=axs)
-            aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=colors.LogNorm(vmin=1.0))
+            aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=colors.LogNorm(vmin=1.0), interpolation='nearest')
 
             axs = [[ax4, ax5], [ax6, ax7]]
             for s, sp in enumerate(spw):
@@ -1519,14 +1521,14 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                 for pidx, pol in enumerate(pols):
                     rmap_plt = smap.Map(datas[pol][0, :, :], hdu.header)
                     rmap_plt_ = pmX.Sunmap(rmap_plt)
-                    rmap_plt_.imshow(axes=[axs[pidx][0], axs[pidx][1]], cmap=cmaps[pol])
+                    rmap_plt_.imshow(axes=[axs[pidx][0], axs[pidx][1]], cmap=cmaps[pol], interpolation='nearest')
                     axs[pidx][0].set_title(title + ' ' + pols[pidx], fontsize=9)
                     rmap_plt_.draw_limb(axes=[axs[pidx][0], axs[pidx][1]])
                     rmap_plt_.draw_grid(axes=[axs[pidx][0], axs[pidx][1]])
                     rect = mpl.patches.Rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value, edgecolor='w',
                                                  facecolor='none')
                     axs[pidx][0].add_patch(rect)
-                    # rmap_plt_.imshow(axes=axs[pidx][1], cmap=cmaps[pol])
+                    # rmap_plt_.imshow(axes=axs[pidx][1], cmap=cmaps[pol],interpolation = 'nearest')
                     # rmap_plt_.draw_limb(axes=axs[pidx][1])
                     # rmap_plt_.draw_grid(axes=axs[pidx][1])
             else:

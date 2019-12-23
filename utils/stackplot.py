@@ -52,23 +52,11 @@ def resettable(f):
     return __init_and_copy__
 
 
-def butter_bandpass(lowcut, highcut, fs, order=5):
-    nyq = 0.5 * fs
-    low = lowcut / nyq
-    high = highcut / nyq
-    b, a = signal.butter(order, [low, high], btype='bandpass')
-    return b, a
-
-
-def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
-    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
-    y = signal.filtfilt(b, a, data)
-    return y
-
-
 def b_filter(data, lowcut, highcut, fs, ix):
+    from suncasa.utils import signal_utils as su
     x = data[ix]
-    y = butter_bandpass_filter(x, lowcut * fs, highcut * fs, fs, order=5)
+    # y = butter_bandpass_filter(x, lowcut * fs, highcut * fs, fs, order=5)
+    y = su.bandpass_filter(None, data, fs=fs, cutoff=[lowcut, highcut]) + 1.0
     return {'idx': ix, 'y': y}
 
 
@@ -271,7 +259,6 @@ def smooth(x, window_len=11, window='hanning'):
     numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
     scipy.signal.lfilter
 
-    TODO: the window parameter could be the window itself if an array instead of a string
     NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
     """
 
@@ -1224,8 +1211,8 @@ class Stackplot:
         self.mapcube_diff = mapcube_diff
         return mapcube_diff
 
-    def mapcube_mkdiff(self, mode='rdiff', dt=36., medfilt=None, gaussfilt=None, bfilter=False, lowcut=0.1,
-                       highcut=0.5, window=[None, None], outfile=None, tosave=False):
+    def mapcube_mkdiff(self, mode='rdiff', dt=36., medfilt=None, gaussfilt=None, bfilter=False, lowcut=1 / 10 / 60.,
+                       highcut=1 / 1 / 60., window=[None, None], outfile=None, tosave=False):
         '''
 
         :param mode: accept modes: rdiff, rratio, bdiff, bratio, dtrend
@@ -1233,8 +1220,8 @@ class Stackplot:
         :param medfilt:
         :param gaussfilt:
         :param bfilter: do butter bandpass filter
-        :param lowcut: low cutoff frequency in terms of total sample numbers
-        :param highcut: high cutoff frequency in terms of total sample numbers
+        :param lowcut: low cutoff frequency in Hz
+        :param highcut: high cutoff frequency in Hz
         :param outfile:
         :param tosave:
         :return:
@@ -1304,7 +1291,8 @@ class Stackplot:
             datacube = mapcube_diff.as_array()
             datacube_ft = np.zeros_like(datacube)
             ny, nx, nt = datacube_ft.shape
-            fs = len(mapcube_diff) * 100.
+            # fs = len(mapcube_diff) * 100.
+            fs = 1. / (np.mean(np.diff(self.tplt.mjd)) * 24 * 3600)
             ncpu = mp.cpu_count() - 1
             print('filtering the mapcube in time domain.....')
             for ly in tqdm(range(ny)):

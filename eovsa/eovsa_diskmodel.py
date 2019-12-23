@@ -914,7 +914,7 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
             ax.set_yticklabels([])
         ax.tick_params(direction="out")
         ax.text(0.02, 0.98,
-                'EOVAS {:.1f} GHz   {}'.format(eomap.meta['CRVAL3'] / 1e9, eomap.date.strftime('%d-%b-%Y 20:00 UT')),
+                'EOVSA {:.1f} GHz   {}'.format(eomap.meta['CRVAL3'] / 1e9, eomap.date.strftime('%d-%b-%Y 20:00 UT')),
                 transform=ax.transAxes, color='w', ha='left', va='top', fontsize=8, fontweight='bold')
         ax.text(0.02, 0.02, 'Max Tb {:.0f} K'.format(np.nanmax(eomap.data)),
                 transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=8, fontweight='bold')
