@@ -2,6 +2,7 @@
 
 def pipeline1(year=None, month=None, day=None, clearcache=True):
     from suncasa.eovsa import eovsa_pipeline as ep
+    from suncasa.eovsa import eovsa_pltQlookImage as eplt
     import os
     from astropy.time import Time
 
@@ -24,6 +25,8 @@ def pipeline1(year=None, month=None, day=None, clearcache=True):
                                       workdir=os.path.join(workdir, subdir))
     if clearcache:
         os.system('rm -rf ' + subdir)
+
+    eplt()
 
 
 if __name__ == '__main__':

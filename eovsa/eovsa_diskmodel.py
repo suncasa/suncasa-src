@@ -645,6 +645,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
              timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=True)
 
     # Default disk size measured for 2019/09/03
+    # todo add monthly fitting procedure for the disk size and flux density
     defaultsize = np.array([990.6, 989.4, 988.2, 987.1, 986.0, 984.9, 983.8, 982.7, 981.7, 980.7,
                             979.7, 978.8, 977.8, 976.9, 976.0, 975.2, 974.3, 973.5, 972.7, 972.0,
                             971.2, 970.5, 969.8, 969.1, 968.5, 967.8, 967.2, 966.7, 966.1, 965.6,
