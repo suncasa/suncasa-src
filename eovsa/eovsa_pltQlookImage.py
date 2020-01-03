@@ -14,6 +14,8 @@ from glob import glob
 import numpy as np
 from astropy.time import Time
 
+imgfitsdir = '/data1/eovsa/fits/qlook_10m/'
+pltfigdir = '/common/webplots/SynopticImg/eovsamedia/eovsa-browser/'
 
 def clearImage():
     for (dirpath, dirnames, filenames) in os.walk(pltfigdir):
@@ -184,6 +186,4 @@ def main():
         pltQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig, ax, overwrite=False, verbose=True)
 
 if __name__ == '__main__':
-    imgfitsdir = '/data1/eovsa/fits/qlook_10m/'
-    pltfigdir = '/common/webplots/SynopticImg/eovsamedia/eovsa-browser/'
     main()
