@@ -26,7 +26,8 @@ def pipeline1(year=None, month=None, day=None, clearcache=True):
     if clearcache:
         os.system('rm -rf ' + subdir)
 
-    eplt()
+    ## generate EOVSA QlookImage products
+    eplt.main()
 
 
 if __name__ == '__main__':
