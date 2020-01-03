@@ -152,11 +152,7 @@ def pltQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None, ove
         plt.close(fig)
     return
 
-
-if __name__ == '__main__':
-    imgfitsdir = '/data1/eovsa/fits/qlook_10m/'
-    pltfigdir = '/common/webplots/SynopticImg/eovsamedia/eovsa-browser/'
-
+def main():
     # tst = datetime.strptime("2017-04-01", "%Y-%m-%d")
     # ted = datetime.strptime("2019-12-31", "%Y-%m-%d")
     ted = datetime.now()
@@ -186,3 +182,8 @@ if __name__ == '__main__':
 
         datestr = dateobs.strftime("%Y-%m-%d")
         pltQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig, ax, overwrite=False, verbose=True)
+
+if __name__ == '__main__':
+    imgfitsdir = '/data1/eovsa/fits/qlook_10m/'
+    pltfigdir = '/common/webplots/SynopticImg/eovsamedia/eovsa-browser/'
+    main()
