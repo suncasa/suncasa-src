@@ -17,6 +17,7 @@ from astropy.time import Time
 imgfitsdir = '/data1/eovsa/fits/qlook_10m/'
 pltfigdir = '/common/webplots/SynopticImg/eovsamedia/eovsa-browser/'
 
+
 def clearImage():
     for (dirpath, dirnames, filenames) in os.walk(pltfigdir):
         for filename in filenames:
@@ -154,10 +155,14 @@ def pltQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None, ove
         plt.close(fig)
     return
 
-def main():
+
+def main(year=None, month=None, day=None):
     # tst = datetime.strptime("2017-04-01", "%Y-%m-%d")
     # ted = datetime.strptime("2019-12-31", "%Y-%m-%d")
-    ted = datetime.now()
+    if year:
+        ted = datetime(year, month, day)
+    else:
+        ted = datetime.now()
     tst = Time(np.fix(Time(ted).mjd) - 30, format='mjd').datetime
     tsep = datetime.strptime('2019-02-22', "%Y-%m-%d")
 
@@ -185,5 +190,20 @@ def main():
         datestr = dateobs.strftime("%Y-%m-%d")
         pltQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig, ax, overwrite=False, verbose=True)
 
+
 if __name__ == '__main__':
-    main()
+    import sys
+    import numpy as np
+
+    print(sys.argv)
+    try:
+        argv = sys.argv[3:]
+        year = np.int(argv[0])
+        month = np.int(argv[1])
+        day = np.int(argv[2])
+    except:
+        print('Error interpreting command line argument')
+        year = None
+        month = None
+        day = None
+    main(year, month, day)
