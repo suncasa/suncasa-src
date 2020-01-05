@@ -196,17 +196,20 @@ if __name__ == '__main__':
     import numpy as np
     import subprocess
 
-    shell = subprocess.check_output('echo $SHELL', shell=True).decode().replace('\n', '')
+    ## it is annoying that
+    shell = subprocess.check_output('echo $0', shell=True).decode().replace('\n', '').split('/')[-1]
     print("shell " + shell + " is using")
+
     print(sys.argv)
     try:
         # ## note the different of bash with csh
-        if 'csh' in shell:
+        if shell in ['csh', 'tcsh']:
             argv = sys.argv[3:]
             year = np.int(argv[0])
             month = np.int(argv[1])
             day = np.int(argv[2])
-        elif 'bash' in shell:
+        # elif shell in ['sh', 'bash']:
+        else:
             argv = sys.argv[1:]
             year = np.int(argv[0])
             month = np.int(argv[1])
