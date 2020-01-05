@@ -207,7 +207,7 @@ if __name__ == '__main__':
             year = np.int(argv[0])
             month = np.int(argv[1])
             day = np.int(argv[2])
-        else:
+        elif shell.endswidth('bash'):
             argv = sys.argv[1:]
             year = np.int(argv[0])
             month = np.int(argv[1])
