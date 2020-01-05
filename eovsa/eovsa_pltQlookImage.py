@@ -200,18 +200,17 @@ if __name__ == '__main__':
     print("shell "+shell+" is using")
     print(sys.argv)
     try:
-        ## note the different of bash with csh
-
-        if shell.endswidth('csh'):
-            argv = sys.argv[3:]
-            year = np.int(argv[0])
-            month = np.int(argv[1])
-            day = np.int(argv[2])
-        elif shell.endswidth('bash'):
-            argv = sys.argv[1:]
-            year = np.int(argv[0])
-            month = np.int(argv[1])
-            day = np.int(argv[2])
+        # ## note the different of bash with csh
+        # if shell.endswidth('csh'):
+        #     argv = sys.argv[3:]
+        #     year = np.int(argv[0])
+        #     month = np.int(argv[1])
+        #     day = np.int(argv[2])
+        # elif shell.endswidth('bash'):
+        argv = sys.argv[1:]
+        year = np.int(argv[0])
+        month = np.int(argv[1])
+        day = np.int(argv[2])
     except:
         print('Error interpreting command line argument')
         year = None
