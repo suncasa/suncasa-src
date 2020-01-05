@@ -197,10 +197,10 @@ if __name__ == '__main__':
 
     print(sys.argv)
     try:
-        argv = sys.argv[3:]
-        year = np.int(argv[0])
-        month = np.int(argv[1])
-        day = np.int(argv[2])
+        argv = sys.argv[4:]
+        year = np.int(argv[1])
+        month = np.int(argv[2])
+        day = np.int(argv[3])
     except:
         print('Error interpreting command line argument')
         year = None
