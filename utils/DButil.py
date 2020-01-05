@@ -450,7 +450,7 @@ def smooth(x, window_len=11, window='hanning'):
     numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
     scipy.signal.lfilter
 
-    TODO: the window parameter could be the window itself if an array instead of a string
+
     NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
     """
 
@@ -555,9 +555,10 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
                 ow, os.path.join(os.path.dirname(imgprefix), outname))
             subprocess.check_output(['bash', '-c', cmd])
         except:
-            cmd = 'ffmpeg -r {3} -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2"'.format(tmpdir, img_ext,
-                                                                                                        outdstr,
-                                                                                                        fps) + '{0} {1}.mp4'.format(
+            cmd = 'ffmpeg -r {3} -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2"'.format(
+                tmpdir, img_ext,
+                outdstr,
+                fps) + '{0} {1}.mp4'.format(
                 ow, os.path.join(os.path.dirname(imgprefix), outname))
             subprocess.check_output(['bash', '-c', cmd])
         print(cmd)
@@ -837,7 +838,7 @@ def sdo_aia_scale_hdr(amap, sigma=None):
         elif wavelnth == '1':
             pass
         else:
-            sigma=5.0
+            sigma = 5.0
             mapdata = amap.data * np.exp(rfilter * sigma)
     return smap.Map(mapdata, amap.meta)
 
@@ -1176,11 +1177,33 @@ def paramspline(x, y, length, s=0):
     return {'xs': xs, 'ys': ys, 'grads': grads['grad'], 'posangs': grads['posang']}
 
 
-def polyfit(x, y, length, deg):
-    xs = np.linspace(np.nanmin(x), np.nanmax(x), length)
+def polyfit(x, y, length, deg, keepxorder=False):
+    if keepxorder:
+        xs = np.linspace(x[0], x[-1], length)
+    else:
+        xs = np.linspace(np.nanmin(x), np.nanmax(x), length)
     z = np.polyfit(x=x, y=y, deg=deg)
     p = np.poly1d(z)
     ys = p(xs)
+    if keepxorder:
+        return {'xs': xs, 'ys': ys}
+    else:
+        grads = get_curve_grad(xs, ys)
+        return {'xs': xs, 'ys': ys, 'grads': grads['grad'], 'posangs': grads['posang']}
+
+
+def htfit_warren2011(x, y, cutlength):
+    from scipy.optimize import curve_fit
+
+    def fit_func(t, h0, vt, a0, tau):
+        return h0 + vt * t + a0 * tau ** 2 * (np.exp(-t / tau) - 1)
+
+    x0=x[0]
+    params = curve_fit(fit_func, x-x0, y)
+
+    [h0, vt, a0, tau] = params[0]
+    xs = np.linspace(np.nanmin(x), np.nanmax(x), cutlength)
+    ys = fit_func(xs-x0, h0, vt, a0, tau)
     grads = get_curve_grad(xs, ys)
     return {'xs': xs, 'ys': ys, 'grads': grads['grad'], 'posangs': grads['posang']}
 

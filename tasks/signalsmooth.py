@@ -35,8 +35,7 @@ def smooth(x, window_len=10, window='hanning'):
     
     numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
     scipy.signal.lfilter
- 
-    TODO: the window parameter could be the window itself if an array instead of a string   
+
     
     NOTE from B. Chen: slightly modified the reflected copies: window_len-1 points are added to both ends. 
     Previous one is not exactly the reflection, the indices are off by one pixel
