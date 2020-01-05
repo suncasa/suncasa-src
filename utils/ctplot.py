@@ -83,7 +83,7 @@ def maxfit(smap, width=[5, 5], mapxy=None):
         ymax = -z[1] / z[0] / 2.0
         return [xmax, ymax]
     except:
-        print '2D polynomial fitting failed.'
+        print('2D polynomial fitting failed.')
         return None
 
 

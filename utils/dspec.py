@@ -125,12 +125,14 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
         spwinfo = ms.getspectralwindowinfo()
         specamp = []
         freq = []
+        time = []
         for descid in range(len(spwinfo.keys())):
             ms.selectinit(datadescid=0, reset=True)
             ms.selectinit(datadescid=descid)
             data = ms.getdata(['amplitude', 'time', 'axis_info'], ifraxis=True)
             specamp_ = data['amplitude']
             freq_ = data['axis_info']['freq_axis']['chan_freq']
+            time_ = data['time']
             if fillnan is not None:
                 flag_ = ms.getdata(['flag', 'time', 'axis_info'], ifraxis=True)['flag']
                 if type(fillnan) in [int, float, long]:
@@ -139,6 +141,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
                     specamp_[flag_] = 0.0
             specamp.append(specamp_)
             freq.append(freq_)
+            time.append(time_)
         specamp = np.concatenate(specamp, axis=1)
         freq = np.concatenate(freq, axis=0)
         ms.selectinit(datadescid=0, reset=True)
@@ -181,7 +184,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
 def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
               timerange=None, freqrange=None, timestr=True,
               movie=False, framedur=60., dtframe=10.,
-              goessav=None, goes_trange=None,
+              goessav=None, goes_trange=None,cmap='jet',
               savepng=True, savepdf=False):
     """
     timerange: format: ['2012/03/10/18:00:00','2012/03/10/19:00:00']
@@ -297,7 +300,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                     tim1 = tim_[tidx1]
                     freq1 = freq[fidx] / 1e9
                     spec_plt1 = spec_plt[fidx, :][:, tidx1]
-                    ax1.pcolormesh(tim1.plot_date, freq1, spec_plt1, cmap='jet', vmin=dmin, vmax=dmax)
+                    ax1.pcolormesh(tim1.plot_date, freq1, spec_plt1, cmap=cmap, vmin=dmin, vmax=dmax)
                     ax1.set_xlim(tim1[0].plot_date, tim1[-1].plot_date)
                     ax1.set_ylim(freq1[0], freq1[-1])
                     ax1.set_ylabel('Frequency (GHz)')
@@ -339,7 +342,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 fig = plt.figure(figsize=(8, 4), dpi=100)
                 ax = fig.add_subplot(111)
                 freqghz = freq / 1e9
-                im = ax.pcolormesh(tim_plt, freqghz, spec_plt, cmap='jet', vmin=dmin, vmax=dmax)
+                im = ax.pcolormesh(tim_plt, freqghz, spec_plt, cmap=cmap, vmin=dmin, vmax=dmax)
                 divider = make_axes_locatable(ax)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax, cax=cax_spec)
@@ -408,7 +411,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
 
             ax1 = fig.add_subplot(211)
             freqghz = freq / 1e9
-            im = ax1.pcolormesh(tim_plt, freqghz, spec_plt_1, cmap='jet', vmin=dmin, vmax=dmax)
+            im = ax1.pcolormesh(tim_plt, freqghz, spec_plt_1, cmap=cmap, vmin=dmin, vmax=dmax)
             divider = make_axes_locatable(ax1)
             cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
             clb_spec = plt.colorbar(im, ax=ax1, cax=cax_spec)
@@ -439,7 +442,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
             ax1.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[0])
             ax1.set_autoscale_on(False)
             ax2 = fig.add_subplot(212)
-            im = ax2.pcolormesh(tim_plt, freqghz, spec_plt_2, cmap='jet', vmin=dmin, vmax=dmax)
+            im = ax2.pcolormesh(tim_plt, freqghz, spec_plt_2, cmap=cmap, vmin=dmin, vmax=dmax)
             divider = make_axes_locatable(ax2)
             cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
             clb_spec = plt.colorbar(im, ax=ax2, cax=cax_spec)
@@ -528,7 +531,6 @@ def concat_dspec(specfiles, outfile=None, savespec=False):
         print('Please provide a list of specfiles')
         return -1
 
-    # todo add duplicate checking in time and frequency axis
     specdata = {}
 
     specdata_ = np.load(specfiles[0])

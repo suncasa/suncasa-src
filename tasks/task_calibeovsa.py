@@ -203,7 +203,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                 phaflag_ = refcal['flag'][:, :, np.array(bd)]
                 phaflag_new = np.full((nant, 2, nspw), True, dtype=np.bool)
                 phaflag_new[:-1, ...] = phaflag_
-                phaflag_new = np.moveaxis(phaflag_new, 0, 2).reshape(2, 1, 800)
+                phaflag_new = np.moveaxis(phaflag_new, 0, 2).reshape(2, 1, nant*nspw)
                 tb.putcol('FLAG', phaflag_new)
                 tb.close()
 
@@ -212,8 +212,8 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                 # phaparam_ = np.degrees(refcal['pha'][:,:,np.array(bd)])
                 # phaparam2 = np.zeros((nant, 2, nspw))
                 # phaparam2[:-1,...] = phaparam_
-                # # phaparam2 = phaparam2.swapaxes(0,1).reshape(2,1,800)
-                # phaparam2 = np.moveaxis(phaparam2,0,2).reshape(2,1,800)
+                # # phaparam2 = phaparam2.swapaxes(0,1).reshape(2,1,nant*nspw)
+                # phaparam2 = np.moveaxis(phaparam2,0,2).reshape(2,1,nant*nspw)
                 # tb.close()
 
             gaintables.append(caltb_pha)
@@ -227,7 +227,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                 ampflag_ = refcal['flag'][:, :, np.array(bd)]
                 ampflag_new = np.full((nant, 2, nspw), True, dtype=np.bool)
                 ampflag_new[:-1, ...] = ampflag_
-                ampflag_new = np.moveaxis(ampflag_new, 0, 2).reshape(2, 1, 800)
+                ampflag_new = np.moveaxis(ampflag_new, 0, 2).reshape(2, 1, nant*nspw)
                 tb.putcol('FLAG', ampflag_new)
                 tb.close()
             gaintables.append(caltb_amp)
@@ -431,6 +431,6 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
             split(vis=vis[0], outputvis=concatvis, datacolumn='corrected')
         if len(vis) > 1:
             ce.concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=keep_orig_ms, cols2rm="model,corrected")
-        return [concatvis]
+        return concatvis
     else:
         return outputvis

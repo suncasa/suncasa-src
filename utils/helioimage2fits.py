@@ -5,7 +5,7 @@ from math import *
 # import jdutil
 import bisect
 import pdb
-from taskinit import ms, tb, qa, iatool
+from taskinit import ms, tb, qa, iatool, rgtool
 from astropy.time import Time
 from sunpy import sun
 import astropy.units as u
@@ -531,6 +531,8 @@ def getbeam(imagefile=None, beamfile=None):
         else:
             ia.open(img)
             sum = ia.summary()
+            ia.close()
+            ia.done()
             if sum.has_key('perplanebeams'):  # beam vary with frequency
                 nbeams = sum['perplanebeams']['nChannels']
                 beams = sum['perplanebeams']['beams']
@@ -577,8 +579,8 @@ def getbeam(imagefile=None, beamfile=None):
 
 
 def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, reftime=None, fitsfile=None, beamfile=None,
-          offsetfile=None, toTb=None,
-          scl100=None, verbose=False, p_ang=False, overwrite=True, usephacenter=True, deletehistory=False):
+          offsetfile=None, toTb=None, scl100=None, verbose=False, p_ang=False, overwrite=True, usephacenter=True,
+          deletehistory=False, subregion=[]):
     ''' 
     main routine to register CASA images
            Required Inputs:
@@ -599,9 +601,10 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris.
                                      Otherwise assume the phasecenter is correctly pointed to the solar disk center
                                      (EOVSA case)
+               subregion: Region selection. See 'help par.region' for details.
     Usage:
     >>> from suncasa.utils import helioimage2fits as hf
-    >>> hf.imreg(vis='mydata.ms', imagefile='myimage.image', fitsfile='myimage.fits', 
+    >>> hf.imreg(vis='mydata.ms', imagefile='myimage.image', fitsfile='myimage.fits',
                  timerange='2017/08/21/20:21:10~2017/08/21/20:21:18')
     The output fits file is 'myimage.fits'
 
@@ -682,6 +685,8 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 tb.close()
                 ia.open(img)
                 imr = ia.rotate(pa=str(-p0) + 'deg')
+                if subregion is not []:
+                    imr = imr.subimage(region=subregion)
                 imr.tofits(fitsf, history=False, overwrite=overwrite)
                 imr.close()
                 imsum = ia.summary()
@@ -821,7 +826,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                             bmintmp = bmin[0]
                         if beamunit == 'arcsec':
                             bmaj0 = np.radians(bmajtmp / 3600.)
-                            bmin0 = np.radians(bmajtmp / 3600.)
+                            bmin0 = np.radians(bmintmp / 3600.)
                         if beamunit == 'arcmin':
                             bmaj0 = np.radians(bmajtmp / 60.)
                             bmin0 = np.radians(bmintmp / 60.)

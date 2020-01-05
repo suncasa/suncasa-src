@@ -19,10 +19,10 @@ if not idbdir:
 
 def udb_corr_external(filelist, udbcorr_path):
     import pickle
-    udbcorr_script = os.path.join('udbcorr_ext.py')
+    udbcorr_script = os.path.join(udbcorr_path, 'udbcorr_ext.py')
     if os.path.exists(udbcorr_script):
         os.system('rm -rf {}'.format(udbcorr_script))
-    udbcorr_file = os.path.join('udbcorr_tmp.pickle')
+    udbcorr_file = os.path.join(udbcorr_path, 'udbcorr_tmp.pickle')
     if os.path.exists(udbcorr_file):
         os.system('rm -rf {}'.format(udbcorr_file))
     with open(udbcorr_file, 'wb') as sf:
@@ -54,6 +54,8 @@ def udb_corr_external(filelist, udbcorr_path):
     with open(udbcorr_file, 'rb') as sf:
         filelist = pickle.load(sf)
 
+    if filelist==[]:
+        raise ValueError('udb_corr failed to return any results. Please check your calibration.')
     return filelist
 
 
@@ -498,5 +500,3 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
     else:
         msfiles = list(np.array(results['msfile'])[np.where(np.array(results['succeeded']) == True)])
         return [str(m) for m in msfiles]
-
-

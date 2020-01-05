@@ -25,8 +25,7 @@ def get_av_vec(u1, u2):
 
 class LineTicks:
     def __init__(self, line, idx, tick_length, tick_shift=3.0, direction=1, label=None, label_color='k',
-                 fontsize='xx-small',
-                 **kwargs):
+                 fontsize='xx-small', **kwargs):
         self.line = line
         self.idx = idx
         self.tick_length = tick_length

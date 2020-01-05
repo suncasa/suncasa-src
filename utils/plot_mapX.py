@@ -281,7 +281,7 @@ class Sunmap():
             im = axes.plot(x, y, **kwargs)
             return im
 
-    def draw_grid(self, axes=None, grid_spacing=None, **kwargs):
+    def draw_grid(self, axes=None, rot=0, grid_spacing=None, **kwargs):
         sunpymap = self.sunmap
         if grid_spacing is None:
             grid_spacing = 15 * u.deg
@@ -316,11 +316,15 @@ class Sunmap():
         for lat in hg_latitude_deg:
             c = hgs2hcc(rsun, hg_longitude_deg, lat * np.ones(91), b0, l0)
             coords = hcc2hpc(c[0], c[1], c[2], dsun)
+            if rot in [90, 270]:
+                coords_ = [coords[1], coords[0]]
+            else:
+                coords_ = coords
             if isinstance(axes, list):
                 for ax in axes:
-                    im += ax.plot(coords[0].to(u.arcsec), coords[1].to(u.arcsec), **kwargs)
+                    im += ax.plot(coords_[0].to(u.arcsec), coords_[1].to(u.arcsec), **kwargs)
             else:
-                im += axes.plot(coords[0].to(u.arcsec), coords[1].to(u.arcsec), **kwargs)
+                im += axes.plot(coords_[0].to(u.arcsec), coords_[1].to(u.arcsec), **kwargs)
 
         hg_longitude_deg = np.arange(0, 90, grid_spacing.to(u.deg).value)
         hg_longitude_deg = np.hstack([-hg_longitude_deg[1:][::-1], hg_longitude_deg]) * u.deg
@@ -329,12 +333,15 @@ class Sunmap():
         for lon in hg_longitude_deg:
             c = hgs2hcc(rsun, lon * np.ones(91), hg_latitude_deg, b0, l0)
             coords = hcc2hpc(c[0], c[1], c[2], dsun)
-
+            if rot in [90, 270]:
+                coords_ = [coords[1], coords[0]]
+            else:
+                coords_ = coords
             if isinstance(axes, list):
                 for ax in axes:
-                    im += ax.plot(coords[0].to(u.arcsec), coords[1].to(u.arcsec), **kwargs)
+                    im += ax.plot(coords_[0].to(u.arcsec), coords_[1].to(u.arcsec), **kwargs)
             else:
-                im += axes.plot(coords[0].to(u.arcsec), coords[1].to(u.arcsec), **kwargs)
+                im += axes.plot(coords_[0].to(u.arcsec), coords_[1].to(u.arcsec), **kwargs)
         return im
 
     def draw_rectangle(self, bottom_left, width, height, axes=None, **kwargs):

@@ -19,7 +19,7 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
                niter, gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive,
                usemask, mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold,
                smoothfactor, minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart,
-               savemodel, calcres, calcpsf, parallel, tmpdir, btidx):
+               savemodel, calcres, calcpsf, parallel, subregion, tmpdir, btidx):
     from tclean_cli import tclean_cli as tclean
     from split_cli import split_cli as split
     bt = btidx  # 0
@@ -108,7 +108,7 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
                 msinfo = hf.read_msinfo(vis)
             hf.imreg(vis=vis, ephem=ephem, msinfo=msinfo, timerange=timerange, reftime=reftime,
                      imagefile=imname + '.image', fitsfile=imname + '.fits',
-                     toTb=toTb, scl100=False, usephacenter=usephacenter)
+                     toTb=toTb, scl100=False, usephacenter=usephacenter, subregion=subregion)
             if os.path.exists(imname + '.fits'):
                 shutil.rmtree(imname + '.image')
                 return [True, btstr, etstr, imname + '.fits']
@@ -133,7 +133,7 @@ def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
              gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive, usemask,
              mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold, smoothfactor,
              minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart, savemodel,
-             calcres, calcpsf, parallel):
+             calcres, calcpsf, parallel, subregion):
     if not (type(ncpu) is int):
         casalog.post('ncpu should be an integer')
         ncpu = 8
@@ -223,7 +223,8 @@ def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
                       npixels, uvtaper, niter, gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction,
                       maxpsffraction, interactive, usemask, mask, pbmask, sidelobethreshold, noisethreshold,
                       lownoisethreshold, negativethreshold, smoothfactor, minbeamfrac, cutthreshold, growiterations,
-                      dogrowprune, minpercentchange, verbose, restart, savemodel, calcres, calcpsf, parallel, tmpdir)
+                      dogrowprune, minpercentchange, verbose, restart, savemodel, calcres, calcpsf, parallel, subregion,
+                      tmpdir)
     timelapse = 0
     t0 = time()
     # parallelization
