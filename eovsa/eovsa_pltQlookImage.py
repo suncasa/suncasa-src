@@ -307,5 +307,5 @@ if __name__ == '__main__':
         day = None
         dayspan = 30
         clearcache = True
-    print("Running pipeline_plt for date {}-{}-{}. clearcache {}".format(year, month, day, dayspan, clearcache))
-    main(year, month, day, clearcache)
+    print("Running pipeline_plt for date {}-{}-{}. clearcache {}".format(year, month, day, clearcache))
+    main(year, month, day, dayspan, clearcache)
