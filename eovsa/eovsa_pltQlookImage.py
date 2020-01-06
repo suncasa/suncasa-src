@@ -2,7 +2,7 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from sunpy import map as smap
-import sunpy.cm.cm as cm
+import sunpy.cm.cm as cm_smap
 from suncasa.utils import plot_mapX as pmX
 import astropy.units as u
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -64,7 +64,7 @@ def pltEmptyImage(datestr, spws, vmaxs, vmins, dpis_dict={'t': 32.0}):
     imgindir = imgfitsdir + datastrdir
     imgoutdir = './nodata/'
 
-    cmap = cm.get_cmap('sdoaia304')
+    cmap = cm_smap.get_cmap('sdoaia304')
 
     fig, ax = plt.subplots(figsize=(8, 8))
     fig.subplots_adjust(bottom=0.0, top=1.0, left=0.0, right=1.0)
@@ -106,7 +106,7 @@ def pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None
     imgindir = imgfitsdir + datastrdir
     imgoutdir = pltfigdir + datastrdir
 
-    cmap = cm.get_cmap('sdoaia304')
+    cmap = cm_smap.get_cmap('sdoaia304')
 
     if fig is None or ax is None:
         mkfig = True
@@ -210,9 +210,9 @@ def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ver
             norm = colors.Normalize()
             sdomap_ = pmX.Sunmap(sdomap)
             if "HMI" in key:
-                cmap = cm.get_cmap('gray')
+                cmap = plt.get_cmap('gray')
             else:
-                cmap = cm.get_cmap('sdoaia' + key.lstrip('0'))
+                cmap = cm_smap.get_cmap('sdoaia' + key.lstrip('0'))
             sdomap_.imshow(axes=ax, cmap=cmap, norm=norm)
             sdomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
             sdomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
