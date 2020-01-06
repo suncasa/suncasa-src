@@ -208,7 +208,7 @@ def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ver
             sdomap = smap.Map(sdofile)
             norm = colors.Normalize()
             sdomap_ = pmX.Sunmap(sdomap)
-            if key.startswith('HMI'):
+            if "HMI" in key:
                 cmap = cm.get_cmap('gray')
             else:
                 cmap = cm.get_cmap('sdoaia' + key.lstrip('0'))
