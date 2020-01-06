@@ -200,7 +200,8 @@ def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ver
             sdourl = 'https://api.helioviewer.org/v2/getJP2Image/?date={}T20:00:00Z&sourceId={}'.format(datestr,
                                                                                                         sourceid)
             sdofile = os.path.join(imgindir, key + '.jp2')
-            urllib.request.urlretrieve(sdourl, sdofile)
+            if not os.path.exists(sdofile):
+                urllib.request.urlretrieve(sdourl, sdofile)
             ax.cla()
 
             if not os.path.exists(sdofile): continue
@@ -272,7 +273,7 @@ def main(year=None, month=None, day=None, clearcache=False):
 
         datestr = dateobs.strftime("%Y-%m-%d")
         pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig, ax, overwrite=False, verbose=True)
-        pltSdoQlookImage(datestr, dpis_dict, fig, ax, overwrite=False, verbose=True, clearcache=False)
+        pltSdoQlookImage(datestr, dpis_dict, fig, ax, overwrite=False, verbose=True, clearcache=clearcache)
 
 
 if __name__ == '__main__':
