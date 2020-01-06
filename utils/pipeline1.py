@@ -47,5 +47,5 @@ if __name__ == '__main__':
         month = None
         day = None
         clearcache = True
-    print("Processing date {}-{}-{}. clearcache {}".format(year, month, day, clearcache))
+    print("Running pipeline1 for date {}-{}-{}. clearcache {}".format(year, month, day, clearcache))
     pipeline1(year, month, day, clearcache=clearcache)
