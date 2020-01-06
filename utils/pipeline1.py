@@ -2,7 +2,6 @@
 
 def pipeline1(year=None, month=None, day=None, clearcache=True):
     from suncasa.eovsa import eovsa_pipeline as ep
-    # from suncasa.eovsa import eovsa_pltQlookImage as eplt
     import os
     from astropy.time import Time
 
@@ -26,8 +25,6 @@ def pipeline1(year=None, month=None, day=None, clearcache=True):
     if clearcache:
         os.system('rm -rf ' + subdir)
 
-    # ## generate EOVSA QlookImage products
-    # eplt.main()
 
 
 if __name__ == '__main__':
@@ -37,13 +34,14 @@ if __name__ == '__main__':
     print(sys.argv)
     try:
         argv = sys.argv[3:]
+        if '--clearcache' in argv:
+            clearcache = True
+            argv.remove('--clearcache')   # Allows --clearcache to be either before or after date items
+        else:
+            clearcache = False
         year = np.int(argv[0])
         month = np.int(argv[1])
         day = np.int(argv[2])
-        if '--clearcache' in argv:
-            clearcache = True
-        else:
-            clearcache = False
     except:
         print('Error interpreting command line argument')
         year = None
