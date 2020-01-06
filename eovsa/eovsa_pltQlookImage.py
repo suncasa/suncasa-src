@@ -15,8 +15,8 @@ import numpy as np
 from astropy.time import Time
 
 imgfitsdir = '/data1/eovsa/fits/qlook_10m/'
+imgfitstmpdir = '/data1/eovsa/fits/qlook_10m/'
 pltfigdir = '/common/webplots/SynopticImg/eovsamedia/eovsa-browser/'
-
 
 def clearImage():
     for (dirpath, dirnames, filenames) in os.walk(pltfigdir):
@@ -97,7 +97,7 @@ def pltEmptyImage(datestr, spws, vmaxs, vmins, dpis_dict={'t': 32.0}):
     return
 
 
-def pltQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None, overwrite=False, verbose=False):
+def pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None, overwrite=False, verbose=False):
     plt.ioff()
     dateobj = datetime.strptime(datestr, "%Y-%m-%d")
     datastrdir = dateobj.strftime("%Y/%m/%d/")
@@ -156,6 +156,64 @@ def pltQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None, ove
     return
 
 
+def pltSdoQlookImage(datestr, spws, dpis_dict, fig=None, ax=None, overwrite=False, verbose=False):
+    plt.ioff()
+    dateobj = datetime.strptime(datestr, "%Y-%m-%d")
+    datastrdir = dateobj.strftime("%Y/%m/%d/")
+    imgindir = imgfitsdir + datastrdir
+    imgoutdir = pltfigdir + datastrdir
+
+    cmap = cm.get_cmap('sdoaia304')
+
+    if fig is None or ax is None:
+        mkfig = True
+    else:
+        mkfig = False
+
+    if mkfig:
+        fig, ax = plt.subplots(figsize=(8, 8))
+        fig.subplots_adjust(bottom=0.0, top=1.0, left=0.0, right=1.0)
+
+    if verbose: print('Processing date {}'.format(dateobj.strftime('%Y-%m-%d')))
+    for s, sp in enumerate(spws):
+        fexists = []
+        for l, dpi in dpis_dict.items():
+            figname = os.path.join(imgoutdir, '{}_eovsa_bd{:02d}.jpg'.format(l, s + 1))
+            fexists.append(os.path.exists(figname))
+
+        if overwrite or (False in fexists):
+            ax.cla()
+            spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
+            eofile = imgindir + 'eovsa_{}.spw{}.tb.disk.fits'.format(dateobj.strftime('%Y%m%d'), spwstr)
+            if not os.path.exists(eofile): continue
+            if not os.path.exists(imgoutdir): os.makedirs(imgoutdir)
+            eomap = smap.Map(eofile)
+            norm = colors.Normalize(vmin=vmins[s], vmax=vmaxs[s])
+            eomap_ = pmX.Sunmap(eomap)
+            eomap_.imshow(axes=ax, cmap=cmap, norm=norm)
+            eomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
+            eomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
+            ax.set_xlabel('')
+            ax.set_ylabel('')
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+            ax.text(0.02, 0.02,
+                    'EOVSA {:.1f} GHz  {}'.format(eomap.meta['CRVAL3'] / 1e9, eomap.date.strftime('%d-%b-%Y 20:00 UT')),
+                    transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=9)
+            ax.text(0.98, 0.02, 'Max Tb {:.0f} K'.format(np.nanmax(eomap.data)),
+                    transform=ax.transAxes, color='w', ha='right', va='bottom', fontsize=9)
+            ax.set_xlim(-1227, 1227)
+            ax.set_ylim(-1227, 1227)
+
+            for l, dpi in dpis_dict.items():
+                figname = os.path.join(imgoutdir, '{}_eovsa_bd{:02d}.jpg'.format(l, s + 1))
+                fig.savefig(figname, dpi=np.int(dpi), quality=85)
+    if mkfig:
+        pass
+    else:
+        plt.close(fig)
+    return
+
 def main(year=None, month=None, day=None):
     # tst = datetime.strptime("2017-04-01", "%Y-%m-%d")
     # ted = datetime.strptime("2019-12-31", "%Y-%m-%d")
@@ -188,7 +246,7 @@ def main(year=None, month=None, day=None):
             spws = ['1~3', '4~9', '10~16', '17~24', '25~30']
 
         datestr = dateobs.strftime("%Y-%m-%d")
-        pltQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig, ax, overwrite=False, verbose=True)
+        pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig, ax, overwrite=False, verbose=True)
 
 
 if __name__ == '__main__':
@@ -202,18 +260,10 @@ if __name__ == '__main__':
 
     print(sys.argv)
     try:
-        # ## note the different of bash with csh
-        if shell in ['csh', 'tcsh']:
-            argv = sys.argv[3:]
-            year = np.int(argv[0])
-            month = np.int(argv[1])
-            day = np.int(argv[2])
-        # elif shell in ['sh', 'bash']:
-        else:
-            argv = sys.argv[1:]
-            year = np.int(argv[0])
-            month = np.int(argv[1])
-            day = np.int(argv[2])
+        argv = sys.argv[1:]
+        year = np.int(argv[0])
+        month = np.int(argv[1])
+        day = np.int(argv[2])
     except:
         print('Error interpreting command line argument')
         year = None

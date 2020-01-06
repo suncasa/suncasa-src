@@ -26,7 +26,6 @@ def pipeline1(year=None, month=None, day=None, clearcache=True):
         os.system('rm -rf ' + subdir)
 
 
-
 if __name__ == '__main__':
     import sys
     import numpy as np
@@ -36,7 +35,7 @@ if __name__ == '__main__':
         argv = sys.argv[3:]
         if '--clearcache' in argv:
             clearcache = True
-            argv.remove('--clearcache')   # Allows --clearcache to be either before or after date items
+            argv.remove('--clearcache')  # Allows --clearcache to be either before or after date items
         else:
             clearcache = False
         year = np.int(argv[0])
@@ -48,4 +47,5 @@ if __name__ == '__main__':
         month = None
         day = None
         clearcache = True
+    print("Processing date {}-{}-{}. clearcache {}".format(year, month, day, clearcache))
     pipeline1(year, month, day, clearcache=clearcache)
