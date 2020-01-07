@@ -178,7 +178,7 @@ def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ver
                      "0131": 9,
                      "1700": 16,
                      "0211": 12,
-                     "1600": 15,
+                     # "1600": 15,
                      "_HMIcont": 18,
                      "_HMImag": 19}
 
