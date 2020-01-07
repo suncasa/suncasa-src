@@ -233,7 +233,7 @@ def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ver
                 figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
                 fig.savefig(figname, dpi=np.int(dpi), quality=85)
     if clearcache:
-        os.system('rm -rf' + imgindir)
+        os.system('rm -rf ' + imgindir)
 
     if mkfig:
         pass
@@ -345,7 +345,7 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
                     figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
                     fig.savefig(figname, dpi=np.int(dpi), quality=85)
     if clearcache:
-        os.system('rm -rf' + imgindir)
+        os.system('rm -rf ' + imgindir)
 
     if mkfig:
         pass
