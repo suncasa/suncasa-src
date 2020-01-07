@@ -298,47 +298,48 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
         if overwrite or (False in fexists):
             bbsosite = os.path.join(bbsodir,datestrdir)
             filelist = extract(bbsosite,sourceid[0],sourceid[1])
-            tfilelist = Time([datetime.strptime(tf.replace(sourceid[0],'').replace(sourceid[1],''),"%Y%m%d_%H%M%S") for tf in filelist])
-            bbsourl = os.path.join(bbsosite,filelist[np.nanargmin(np.abs(np.array(tfilelist.mjd-(Time(dateobj).mjd+20./24.))))])
+            if filelist:
+                tfilelist = Time([datetime.strptime(tf.replace(sourceid[0],'').replace(sourceid[1],''),"%Y%m%d_%H%M%S") for tf in filelist])
+                bbsourl = os.path.join(bbsosite,filelist[np.nanargmin(np.abs(np.array(tfilelist.mjd-(Time(dateobj).mjd+20./24.))))])
 
-            bbsofile = os.path.join(imgindir, key + '.fits')
-            if not os.path.exists(bbsofile):
-                urllib.request.urlretrieve(bbsourl, bbsofile)
-            ax.cla()
-            if not os.path.exists(bbsofile): continue
-            if not os.path.exists(imgoutdir): os.makedirs(imgoutdir)
-            hdu = fits.open(bbsofile)[0]
-            header=hdu.header
-            header['WAVELNTH'] = 6562.8
-            header['WAVEUNIT'] = 'angstrom'
-            header['WAVE_STR'] = 'Halph'
-            header['CTYPE1'] = 'HPLN-TAN'
-            header['CUNIT1'] = 'arcsec'
-            header['CTYPE2'] = 'HPLT-TAN'
-            header['CUNIT2'] = 'arcsec'
-            header['DATE-OBS'] = header['DATE_OBS']
-            bbsomap = smap.Map(hdu.data,header)
-            med = np.nanmean(bbsomap.data)
-            norm = colors.Normalize(vmin=med-1500,vmax=med+1500)
-            bbsomap_ = pmX.Sunmap(bbsomap)
-            cmap = plt.get_cmap('gray')
-            bbsomap_.imshow(axes=ax, cmap=cmap, norm=norm)
-            bbsomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
-            bbsomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
-            ax.set_xlabel('')
-            ax.set_ylabel('')
-            ax.set_xticklabels([])
-            ax.set_yticklabels([])
-            ax.text(0.02, 0.02,
-                    '{}  {}'.format(bbsomap.instrument, bbsomap.date.strftime('%d-%b-%Y %H:%M UT')),
-                    transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=9)
-            ax.set_xlim(-1227, 1227)
-            ax.set_ylim(-1227, 1227)
-            ax.set_facecolor('k')
+                bbsofile = os.path.join(imgindir, key + '.fits')
+                if not os.path.exists(bbsofile):
+                    urllib.request.urlretrieve(bbsourl, bbsofile)
+                ax.cla()
+                if not os.path.exists(bbsofile): continue
+                if not os.path.exists(imgoutdir): os.makedirs(imgoutdir)
+                hdu = fits.open(bbsofile)[0]
+                header=hdu.header
+                header['WAVELNTH'] = 6562.8
+                header['WAVEUNIT'] = 'angstrom'
+                header['WAVE_STR'] = 'Halph'
+                header['CTYPE1'] = 'HPLN-TAN'
+                header['CUNIT1'] = 'arcsec'
+                header['CTYPE2'] = 'HPLT-TAN'
+                header['CUNIT2'] = 'arcsec'
+                header['DATE-OBS'] = header['DATE_OBS']
+                bbsomap = smap.Map(hdu.data,header)
+                med = np.nanmean(bbsomap.data)
+                norm = colors.Normalize(vmin=med-1500,vmax=med+1500)
+                bbsomap_ = pmX.Sunmap(bbsomap)
+                cmap = plt.get_cmap('gray')
+                bbsomap_.imshow(axes=ax, cmap=cmap, norm=norm)
+                bbsomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
+                bbsomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
+                ax.set_xlabel('')
+                ax.set_ylabel('')
+                ax.set_xticklabels([])
+                ax.set_yticklabels([])
+                ax.text(0.02, 0.02,
+                        '{}  {}'.format(bbsomap.instrument, bbsomap.date.strftime('%d-%b-%Y %H:%M UT')),
+                        transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=9)
+                ax.set_xlim(-1227, 1227)
+                ax.set_ylim(-1227, 1227)
+                ax.set_facecolor('k')
 
-            for l, dpi in dpis_dict.items():
-                figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
-                fig.savefig(figname, dpi=np.int(dpi), quality=85)
+                for l, dpi in dpis_dict.items():
+                    figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
+                    fig.savefig(figname, dpi=np.int(dpi), quality=85)
     if clearcache:
         os.rmdir(imgindir)
 
