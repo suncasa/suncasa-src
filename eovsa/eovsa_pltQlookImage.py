@@ -322,7 +322,7 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
                 med = np.nanmean(bbsomap.data)
                 norm = colors.Normalize(vmin=med-1500,vmax=med+1500)
                 bbsomap_ = pmX.Sunmap(bbsomap)
-                cmap = plt.get_cmap('gray')
+                cmap = cm_smap.get_cmap('sdoaia304')
                 bbsomap_.imshow(axes=ax, cmap=cmap, norm=norm)
                 bbsomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
                 bbsomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
