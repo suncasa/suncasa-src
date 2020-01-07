@@ -23,6 +23,7 @@ pltfigdir = '/common/webplots/SynopticImg/eovsamedia/eovsa-browser/'
 def clearImage():
     for (dirpath, dirnames, filenames) in os.walk(pltfigdir):
         for filename in filenames:
+            # for k in ['0094', '0193', '0335', '4500', '0171', '0304', '0131', '1700', '0211', '1600', '_HMIcont', '_HMImag']:
             for k in ['0094', '0193', '0335', '4500', '0171', '0304', '0131', '1700', '0211', '1600', '_HMIcont', '_HMImag']:
                 if k in filename:
                     print(os.path.join(dirpath, filename))
@@ -245,7 +246,7 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
     from astropy.io import fits
     from html.parser import HTMLParser
     class MyHTMLParser(HTMLParser):
-        def __init__(self, prefix='bbso_halph_fr', suffix='fts'):
+        def __init__(self, prefix='bbso_halph_fr_', suffix='.fts'):
             HTMLParser.__init__(self)
             self.prefix = prefix
             self.suffix = suffix
@@ -258,7 +259,7 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
                     if value.startswith(self.prefix) and value.endswith(self.suffix):
                         self.links.append(value)
 
-    def extract(url, prefix='bbso_halph_fr', suffix='fts'):
+    def extract(url, prefix='bbso_halph_fr_', suffix='.fts'):
         import urllib.request
         with urllib.request.urlopen(url) as response:
             f = response.read()
