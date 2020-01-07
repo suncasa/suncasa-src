@@ -24,10 +24,10 @@ def clearImage():
     for (dirpath, dirnames, filenames) in os.walk(pltfigdir):
         for filename in filenames:
             # for k in ['0094', '0193', '0335', '4500', '0171', '0304', '0131', '1700', '0211', '1600', '_HMIcont', '_HMImag']:
-            for k in ['0094', '0193', '0335', '4500', '0171', '0304', '0131', '1700', '0211', '1600', '_HMIcont', '_HMImag']:
+            for k in ['_Halph_fr']:
                 if k in filename:
                     print(os.path.join(dirpath, filename))
-                    os.system('rm -rf '+os.path.join(dirpath,filename))
+                    os.system('rm -rf ' + os.path.join(dirpath, filename))
 
 
 def pltEmptyImage2(dpis_dict={'t': 32.0}):
@@ -233,7 +233,7 @@ def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ver
                 figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
                 fig.savefig(figname, dpi=np.int(dpi), quality=85)
     if clearcache:
-        os.rmdir(imgindir)
+        os.system('rm -rf' + imgindir)
 
     if mkfig:
         pass
@@ -278,7 +278,7 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
     if not os.path.exists(imgindir):
         os.makedirs(imgindir)
 
-    bbsoDataSource = {"_Halph_fr": ["bbso_halph_fr_",".fts"]}
+    bbsoDataSource = {"_Halph_fr": ["bbso_halph_fr_", ".fts"]}
 
     if fig is None or ax is None:
         mkfig = True
@@ -297,11 +297,14 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
             fexists.append(os.path.exists(figname))
 
         if overwrite or (False in fexists):
-            bbsosite = os.path.join(bbsodir,datestrdir)
-            filelist = extract(bbsosite,sourceid[0],sourceid[1])
+            bbsosite = os.path.join(bbsodir, datestrdir)
+            filelist = extract(bbsosite, sourceid[0], sourceid[1])
             if filelist:
-                tfilelist = Time([datetime.strptime(tf.replace(sourceid[0],'').replace(sourceid[1],''),"%Y%m%d_%H%M%S") for tf in filelist])
-                bbsourl = os.path.join(bbsosite,filelist[np.nanargmin(np.abs(np.array(tfilelist.mjd-(Time(dateobj).mjd+20./24.))))])
+                tfilelist = Time(
+                    [datetime.strptime(tf.replace(sourceid[0], '').replace(sourceid[1], ''), "%Y%m%d_%H%M%S") for tf in
+                     filelist])
+                bbsourl = os.path.join(bbsosite, filelist[
+                    np.nanargmin(np.abs(np.array(tfilelist.mjd - (Time(dateobj).mjd + 20. / 24.))))])
 
                 bbsofile = os.path.join(imgindir, key + '.fits')
                 if not os.path.exists(bbsofile):
@@ -310,7 +313,7 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
                 if not os.path.exists(bbsofile): continue
                 if not os.path.exists(imgoutdir): os.makedirs(imgoutdir)
                 hdu = fits.open(bbsofile)[0]
-                header=hdu.header
+                header = hdu.header
                 header['WAVELNTH'] = 6562.8
                 header['WAVEUNIT'] = 'angstrom'
                 header['WAVE_STR'] = 'Halph'
@@ -319,9 +322,9 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
                 header['CTYPE2'] = 'HPLT-TAN'
                 header['CUNIT2'] = 'arcsec'
                 header['DATE-OBS'] = header['DATE_OBS']
-                bbsomap = smap.Map(hdu.data,header)
+                bbsomap = smap.Map(hdu.data, header)
                 med = np.nanmean(bbsomap.data)
-                norm = colors.Normalize(vmin=med-1500,vmax=med+1500)
+                norm = colors.Normalize(vmin=med - 1500, vmax=med + 1500)
                 bbsomap_ = pmX.Sunmap(bbsomap)
                 cmap = cm_smap.get_cmap('sdoaia304')
                 bbsomap_.imshow(axes=ax, cmap=cmap, norm=norm)
@@ -342,7 +345,7 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
                     figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
                     fig.savefig(figname, dpi=np.int(dpi), quality=85)
     if clearcache:
-        os.rmdir(imgindir)
+        os.system('rm -rf' + imgindir)
 
     if mkfig:
         pass
@@ -390,6 +393,7 @@ def main(year=None, month=None, day=None, dayspan=30, clearcache=False):
         pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict_eo, fig, ax, overwrite=False, verbose=True)
         pltSdoQlookImage(datestr, dpis_dict_sdo, fig, ax, overwrite=False, verbose=True, clearcache=clearcache)
         pltBbsoQlookImage(datestr, dpis_dict_bbso, fig, ax, overwrite=False, verbose=True, clearcache=clearcache)
+
 
 if __name__ == '__main__':
     import sys
