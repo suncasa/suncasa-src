@@ -23,9 +23,10 @@ pltfigdir = '/common/webplots/SynopticImg/eovsamedia/eovsa-browser/'
 def clearImage():
     for (dirpath, dirnames, filenames) in os.walk(pltfigdir):
         for filename in filenames:
-            if '_eovsa_bd01' in filename:
-                print(os.path.join(dirpath, filename))
-                # os.system('rm -rf '+os.path.join(dirpath,filename))
+            for k in ['0094', '0193', '0335', '4500', '0171', '0304', '0131', '1700', '0211', '1600', '_HMIcont', '_HMImag']:
+                if k in filename:
+                    print(os.path.join(dirpath, filename))
+                    os.system('rm -rf '+os.path.join(dirpath,filename))
 
 
 def pltEmptyImage2(dpis_dict={'t': 32.0}):
@@ -60,8 +61,8 @@ def pltEmptyImage2(dpis_dict={'t': 32.0}):
 def pltEmptyImage(datestr, spws, vmaxs, vmins, dpis_dict={'t': 32.0}):
     plt.ioff()
     dateobj = datetime.strptime(datestr, "%Y-%m-%d")
-    datastrdir = dateobj.strftime("%Y/%m/%d/")
-    imgindir = imgfitsdir + datastrdir
+    datestrdir = dateobj.strftime("%Y/%m/%d/")
+    imgindir = imgfitsdir + datestrdir
     imgoutdir = './nodata/'
 
     cmap = cm_smap.get_cmap('sdoaia304')
@@ -102,9 +103,9 @@ def pltEmptyImage(datestr, spws, vmaxs, vmins, dpis_dict={'t': 32.0}):
 def pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None, overwrite=False, verbose=False):
     plt.ioff()
     dateobj = datetime.strptime(datestr, "%Y-%m-%d")
-    datastrdir = dateobj.strftime("%Y/%m/%d/")
-    imgindir = imgfitsdir + datastrdir
-    imgoutdir = pltfigdir + datastrdir
+    datestrdir = dateobj.strftime("%Y/%m/%d/")
+    imgindir = imgfitsdir + datestrdir
+    imgoutdir = pltfigdir + datestrdir
 
     cmap = cm_smap.get_cmap('sdoaia304')
 
@@ -161,9 +162,9 @@ def pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None
 def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, verbose=False, clearcache=False):
     plt.ioff()
     dateobj = datetime.strptime(datestr, "%Y-%m-%d")
-    datastrdir = dateobj.strftime("%Y/%m/%d/")
+    datestrdir = dateobj.strftime("%Y/%m/%d/")
     imgindir = os.path.join(imgfitstmpdir, datestr)
-    imgoutdir = pltfigdir + datastrdir
+    imgoutdir = pltfigdir + datestrdir
     if not os.path.exists(imgindir):
         os.makedirs(imgindir)
 
@@ -240,6 +241,114 @@ def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ver
     return
 
 
+def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, verbose=False, clearcache=False):
+    from astropy.io import fits
+    from html.parser import HTMLParser
+    class MyHTMLParser(HTMLParser):
+        def __init__(self, prefix='bbso_halph_fr', suffix='fts'):
+            HTMLParser.__init__(self)
+            self.prefix = prefix
+            self.suffix = suffix
+
+        def handle_starttag(self, tag, attrs):
+            if tag != 'a':
+                return
+            for name, value in attrs:
+                if name == "href":
+                    if value.startswith(self.prefix) and value.endswith(self.suffix):
+                        self.links.append(value)
+
+    def extract(url, prefix='bbso_halph_fr', suffix='fts'):
+        import urllib.request
+        with urllib.request.urlopen(url) as response:
+            f = response.read()
+
+        parser = MyHTMLParser(prefix, suffix)
+        parser.links = []
+        parser.feed(str(f))
+        return parser.links
+
+    bbsodir = 'http://www.bbso.njit.edu/pub/archive/'
+    plt.ioff()
+    dateobj = datetime.strptime(datestr, "%Y-%m-%d")
+    datestrdir = dateobj.strftime("%Y/%m/%d/")
+    imgindir = os.path.join(imgfitstmpdir, datestr)
+    imgoutdir = pltfigdir + datestrdir
+    if not os.path.exists(imgindir):
+        os.makedirs(imgindir)
+
+    bbsoDataSource = {"_Halph_fr": ["bbso_halph_fr_",".fts"]}
+
+    if fig is None or ax is None:
+        mkfig = True
+    else:
+        mkfig = False
+
+    if mkfig:
+        fig, ax = plt.subplots(figsize=(8, 8))
+        fig.subplots_adjust(bottom=0.0, top=1.0, left=0.0, right=1.0)
+
+    if verbose: print('Processing BBSO images for date {}'.format(dateobj.strftime('%Y-%m-%d')))
+    for key, sourceid in bbsoDataSource.items():
+        fexists = []
+        for l, dpi in dpis_dict.items():
+            figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
+            fexists.append(os.path.exists(figname))
+
+        if overwrite or (False in fexists):
+            bbsosite = os.path.join(bbsodir,datestrdir)
+            filelist = extract(bbsosite,sourceid[0],sourceid[1])
+            tfilelist = Time([datetime.strptime(tf.replace(sourceid[0],'').replace(sourceid[1],''),"%Y%m%d_%H%M%S") for tf in filelist])
+            bbsourl = os.path.join(bbsosite,filelist[np.nanargmin(np.abs(np.array(tfilelist.mjd-(Time(dateobj).mjd+20./24.))))])
+
+            bbsofile = os.path.join(imgindir, key + '.fits')
+            if not os.path.exists(bbsofile):
+                urllib.request.urlretrieve(bbsourl, bbsofile)
+            ax.cla()
+            if not os.path.exists(bbsofile): continue
+            if not os.path.exists(imgoutdir): os.makedirs(imgoutdir)
+            hdu = fits.open(bbsofile)[0]
+            header=hdu.header
+            header['WAVELNTH'] = 6562.8
+            header['WAVEUNIT'] = 'angstrom'
+            header['WAVE_STR'] = 'Halph'
+            header['CTYPE1'] = 'HPLN-TAN'
+            header['CUNIT1'] = 'arcsec'
+            header['CTYPE2'] = 'HPLT-TAN'
+            header['CUNIT2'] = 'arcsec'
+            header['DATE-OBS'] = header['DATE_OBS']
+            bbsomap = smap.Map(hdu.data,header)
+            med = np.nanmean(bbsomap.data)
+            norm = colors.Normalize(vmin=med-1500,vmax=med+1500)
+            bbsomap_ = pmX.Sunmap(bbsomap)
+            cmap = plt.get_cmap('gray')
+            bbsomap_.imshow(axes=ax, cmap=cmap, norm=norm)
+            bbsomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
+            bbsomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
+            ax.set_xlabel('')
+            ax.set_ylabel('')
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+            ax.text(0.02, 0.02,
+                    '{}  {}'.format(bbsomap.instrument, bbsomap.date.strftime('%d-%b-%Y %H:%M UT')),
+                    transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=9)
+            ax.set_xlim(-1227, 1227)
+            ax.set_ylim(-1227, 1227)
+            ax.set_facecolor('k')
+
+            for l, dpi in dpis_dict.items():
+                figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
+                fig.savefig(figname, dpi=np.int(dpi), quality=85)
+    if clearcache:
+        os.rmdir(imgindir)
+
+    if mkfig:
+        pass
+    else:
+        plt.close(fig)
+    return
+
+
 def main(year=None, month=None, day=None, dayspan=30, clearcache=False):
     # tst = datetime.strptime("2017-04-01", "%Y-%m-%d")
     # ted = datetime.strptime("2019-12-31", "%Y-%m-%d")
@@ -254,7 +363,11 @@ def main(year=None, month=None, day=None, dayspan=30, clearcache=False):
     vmins = [-9.0e3, -5.5e3, -3.4e3, -2.5e3, -2.5e3, -2.5e3, -2.5e3]
 
     dpis = np.array([256, 512, 1024]) / 8
-    dpis_dict = {'t': dpis[0], 'l': dpis[1], 'f': dpis[2]}
+    dpis_dict_eo = {'t': dpis[0], 'l': dpis[1], 'f': dpis[2]}
+    dpis = np.array([256, 512, 2048]) / 8
+    dpis_dict_sdo = {'t': dpis[0], 'l': dpis[1], 'f': dpis[2]}
+    dpis = np.array([256, 512, 2048]) / 8
+    dpis_dict_bbso = {'t': dpis[0], 'l': dpis[1], 'f': dpis[2]}
 
     plt.ioff()
     fig, ax = plt.subplots(figsize=(8, 8))
@@ -272,9 +385,9 @@ def main(year=None, month=None, day=None, dayspan=30, clearcache=False):
             spws = ['1~3', '4~9', '10~16', '17~24', '25~30']
 
         datestr = dateobs.strftime("%Y-%m-%d")
-        pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig, ax, overwrite=False, verbose=True)
-        pltSdoQlookImage(datestr, dpis_dict, fig, ax, overwrite=False, verbose=True, clearcache=clearcache)
-
+        pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict_eo, fig, ax, overwrite=False, verbose=True)
+        pltSdoQlookImage(datestr, dpis_dict_sdo, fig, ax, overwrite=False, verbose=True, clearcache=clearcache)
+        pltBbsoQlookImage(datestr, dpis_dict_bbso, fig, ax, overwrite=False, verbose=True, clearcache=clearcache)
 
 if __name__ == '__main__':
     import sys
