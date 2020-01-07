@@ -172,7 +172,7 @@ def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ver
     aiaDataSource = {"0094": 8,
                      "0193": 11,
                      "0335": 14,
-                     "4500": 17,
+                     # "4500": 17,
                      "0171": 10,
                      "0304": 13,
                      "0131": 9,
