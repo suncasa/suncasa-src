@@ -23,8 +23,9 @@ pltfigdir = '/common/webplots/SynopticImg/eovsamedia/eovsa-browser/'
 def clearImage():
     for (dirpath, dirnames, filenames) in os.walk(pltfigdir):
         for filename in filenames:
-            # for k in ['0094', '0193', '0335', '4500', '0171', '0304', '0131', '1700', '0211', '1600', '_HMIcont', '_HMImag']:
-            for k in ['_Halph_fr']:
+            for k in ['0094', '0193', '0335', '4500', '0171', '0304', '0131', '1700', '0211', '1600', '_HMIcont',
+                      '_HMImag']:
+                # for k in ['_Halph_fr']:
                 if k in filename:
                     print(os.path.join(dirpath, filename))
                     os.system('rm -rf ' + os.path.join(dirpath, filename))
@@ -360,7 +361,7 @@ def main(year=None, month=None, day=None, dayspan=30, clearcache=False):
     if year:
         ted = datetime(year, month, day)
     else:
-        ted = datetime.now()
+        ted = datetime.now() - timedelta(days=2)
     tst = Time(np.fix(Time(ted).mjd) - dayspan, format='mjd').datetime
     tsep = datetime.strptime('2019-02-22', "%Y-%m-%d")
 
