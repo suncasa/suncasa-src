@@ -615,6 +615,7 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
 
     imres = mk_qlook_image(date, twidth=twidth, ncpu=ncpu, doimport=doimport, docalib=docalib, imagedir=imagedir,
                            spws=spws, verbose=True, overwrite=overwrite)
+
     figdir = qlookfigdir
     plt_qlook_image(imres, figdir=figdir, verbose=True)
     # if imres['Synoptic']['Succeeded']:
