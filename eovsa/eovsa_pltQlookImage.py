@@ -323,6 +323,12 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
                 header['CTYPE2'] = 'HPLT-TAN'
                 header['CUNIT2'] = 'arcsec'
                 header['DATE-OBS'] = header['DATE_OBS']
+                for k in ['CONTRAST','WAVE ERR']:
+                   try:
+                       header.remove(k)
+                   except:
+                       pass
+
                 bbsomap = smap.Map(hdu.data, header)
                 med = np.nanmean(bbsomap.data)
                 norm = colors.Normalize(vmin=med - 1500, vmax=med + 1500)
