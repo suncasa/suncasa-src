@@ -1057,6 +1057,8 @@ class Stackplot:
         for idx, ll in enumerate(tqdm(fitsfile[::dt_data])):
             if mapinterp:
                 maptmp = sunpy.map.Map(ll)
+                if type(maptmp) is list:
+                    maptmp = maptmp[0]
                 if idx == 0:
                     mapx, mapy = DButil.map2wcsgrids(maptmp, cell=True, antialiased=False)
                     meta0 = deepcopy(maptmp.meta)
@@ -1071,6 +1073,8 @@ class Stackplot:
 
             else:
                 maptmp = sunpy.map.Map(ll)
+                if type(maptmp) is list:
+                    maptmp = maptmp[0]
             self.exptime_orig.append(maptmp.exposure_time.value)
             if aia_prep:
                 maptmp = aiaprep(maptmp)
