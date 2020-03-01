@@ -82,7 +82,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
     if domedian:
         if not uvrange:
             uvrange = '0.2~0.8km'
-        bl = ''
+        # bl = ''
     else:
         uvrange = ''
     # Open the ms and plot dynamic spectrum
