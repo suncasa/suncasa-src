@@ -44,7 +44,7 @@ if not udbdir:
 # check if the calibration table directory is defined
 
 if not qlookfitsdir:
-    qlookfitsdir = '/data1/eovsa/fits/qlook_10m/'
+    qlookfitsdir = '/data1/eovsa/fits/synoptic/'
     if not os.path.exists(qlookfitsdir): os.makedirs(qlookfitsdir)
 if not qlookfigdir:
     qlookfigdir = '/common/webplots/qlookimg_10m/'
