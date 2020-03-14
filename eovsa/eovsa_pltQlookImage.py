@@ -15,7 +15,7 @@ import numpy as np
 from astropy.time import Time
 import urllib.request
 
-imgfitsdir = '/data1/eovsa/fits/qlook_10m/'
+imgfitsdir = '/data1/eovsa/fits/synoptic/'
 imgfitstmpdir = '/data1/workdir/fitstmp/'
 pltfigdir = '/common/webplots/SynopticImg/eovsamedia/eovsa-browser/'
 
