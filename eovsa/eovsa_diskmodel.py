@@ -709,6 +709,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     if os.path.exists(vis2):
         os.system('rm -rf {}'.format(vis2))
     mstl.splitX(vis, outputvis=vis2, datacolumn="corrected", datacolumn2="model_data")
+    ## todo check why use vis as input in line 711 and 728
 
     caltb = os.path.join(slfcaltbdir, tdate + '_3.amp')
     if os.path.exists(caltb):
@@ -986,6 +987,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         if np.nanmax(data) > 5.0 * tb_disk: bright[idx] = True
     bright[-1] = False  # skip the image of the highest bands for feature slfcal
 
+    ## todo consider to move feature slfcal to before the disk_slfcal
     if any(bright):
         print('spw {} have bright features on disk.'.format(';'.join(np.array(spws)[np.where(bright)[0]])))
         # A bright source exists, so do feature self-calibration
