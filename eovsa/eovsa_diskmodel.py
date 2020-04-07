@@ -685,8 +685,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
         os.system('rm -rf {}'.format(caltb))
     # Phase selfcal on the disk using solution interval "infinite"
     gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="inf",
-            combine="scan",
-            refant="0", refantmode="flex", minsnr=1.0, gaintype="G", calmode="p", append=False)
+            combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
     applycal(vis=msfile, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
     # Split corrected data and model to a new ms for round 2 of phase selfcal
@@ -700,8 +699,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
         os.system('rm -rf {}'.format(caltb))
     # Second round of phase selfcal on the disk using solution interval "1min"
     gaincal(vis=vis1, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="1min",
-            combine="scan",
-            refant="0", refantmode="flex", minsnr=1.0, gaintype="G", calmode="p", append=False)
+            combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
     applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
     # Split corrected data and model to a new ms
@@ -717,7 +715,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     # Final round of amplitude selfcal with 1-h solution interval (restrict to 16-24 UT)
     gaincal(vis=vis2, caltable=caltb, selectdata=True, uvrange=">0.1Klambda", antenna="0~12&0~12",
             timerange=trange,
-            solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G", calmode="a",
+            solint="60min", combine="scan", refant="10", refantmode="strict", minsnr=1.0, gaintype="G", calmode="a",
             append=False)
     applycal(vis=vis2, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
