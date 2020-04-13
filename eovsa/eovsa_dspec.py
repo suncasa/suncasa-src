@@ -18,8 +18,9 @@ def get_dspec(filename, doplot=False, vmax=None, vmin=None, norm=None, cmap=None
     >>> from suncasa.eovsa import eovsa_dspec as ds
     >>> from astropy.time import Time
     >>> from matplotlib.colors import LogNorm
-    >>> filename='EOVSA_TPall_20170713.fts'
-    >>> s=get_dspec(filename,doplot=True,cmap='gist_heat',norm=LogNorm(vmax=2.1e3,vmin=40))
+    ## Read EOVSA Dynamic Spectrum FITS file <filename>
+    >>> filename = 'EOVSA_TPall_20170713.fts'
+    >>> s = ds.get_dspec(filename, doplot=True, cmap='gist_heat', norm=LogNorm(vmax=2.1e3, vmin=40))
     ## To access the data in the spectrogram object, use
     >>> spec = s['spectrogram']                    ## (Array of amplitudes in SFU, of size nfreq,ntimes)
     >>> fghz = s['spectrum_axis']                  ## (Array of frequencies in GHz, of size nfreq)
