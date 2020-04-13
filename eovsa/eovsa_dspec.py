@@ -17,11 +17,10 @@ def get_dspec(filename, doplot=False, vmax=None, vmin=None, norm=None, cmap=None
     --------
     >>> from suncasa.eovsa import eovsa_dspec as ds
     >>> from astropy.time import Time
+    >>> from matplotlib.colors import LogNorm
     >>> filename='EOVSA_TPall_20170713.fts'
-    >>> s = ds.dspec(filename,doplot=True,vmax=200)
+    >>> s=get_dspec(filename,doplot=True,cmap='gist_heat',norm=LogNorm(vmax=2.1e3,vmin=40))
     ## To access the data in the spectrogram object, use
-    >>> filename='EOVSA_TPall_20170713.fts'
-    >>> s = ds.dspec(filename,doplot=True,vmax=200)
     >>> spec = s['spectrogram']                    ## (Array of amplitudes in SFU, of size nfreq,ntimes)
     >>> fghz = s['spectrum_axis']                  ## (Array of frequencies in GHz, of size nfreq)
     >>> tim = Time(s['time_axis'], format='mjd')   ## (Array of UT times in astropy.time object, of size ntimes)
@@ -38,7 +37,7 @@ def get_dspec(filename, doplot=False, vmax=None, vmin=None, norm=None, cmap=None
     the colormap covers the complete value range of the supplied data.
     vmin, vmax are ignored if the norm parameter is used.
 
-    norm : `matplotib.colors.Normalize` or str, optional
+    norm : `matplotib.colors Normalization object` or str, optional
     The Normalize instance used to scale scalar data to the [0, 1]
     range before mapping to colors using cmap. By default, a linear
     scaling mapping the lowest value to 0 and the highest to 1 is used.
@@ -56,19 +55,20 @@ def get_dspec(filename, doplot=False, vmax=None, vmin=None, norm=None, cmap=None
     spec = hdulist[0].data
     fghz = np.array(astropy.table.Table(hdulist[1].data)['sfreq'])
     tim = astropy.table.Table(hdulist[2].data)
-    tim = Time(np.array(tim['mjd']) + np.array(tim['time']) / 24. / 3600 / 1000, format='mjd')
+    tmjd= np.array(tim['mjd']) + np.array(tim['time']) / 24. / 3600 / 1000
+    tim = Time(tmjd, format='mjd')
     timplt = tim.plot_date
     ntim = len(timplt)
     nfreq = len(fghz)
     if doplot:
-        fig, ax = plt.subplots(figsize=(9, 4))
+        fig, ax = plt.subplots(figsize=(7, 4))
         # if vmax is None:
         #     vmax = np.nanmax(spec)
         # if vmin is None:
         #     vmin = 0.1
         # if norm is None:
         #     norm = colors.Normalize(vmax=vmax, vmin=vmin)
-        pcm = ax.pcolormesh(timplt, fghz, spec, norm=norm, vmax=vmax, vmin=vmin, cmap=cmap)
+        pcm = ax.pcolormesh(timplt, fghz, spec, norm=norm, vmax=vmax, vmin=vmin, cmap=cmap,rasterized='True')
         ax.xaxis_date()
         ax.xaxis.set_major_formatter(DateFormatter("%H:%M"))
         ax.set_ylim(fghz[0], fghz[-1])
@@ -79,6 +79,17 @@ def get_dspec(filename, doplot=False, vmax=None, vmin=None, norm=None, cmap=None
         divider = make_axes_locatable(ax)
         cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
         clb_spec = plt.colorbar(pcm, ax=ax, cax=cax_spec, label='Flux density [sfu]')
+        cmap = pcm.get_cmap()
+        bkg_facecolor=cmap(0.0)
+        ax.set_facecolor(bkg_facecolor)
+        dtim = np.diff(tmjd)
+        idxs_tgap = np.where(dtim*24*60 >= 0.5)[0]
+        if len(idxs_tgap)>0:
+            for idx in idxs_tgap:
+                if idx+1 < len(tmjd):
+                    ax.axvspan(tim[idx].plot_date,tim[idx+1].plot_date,facecolor=bkg_facecolor,edgecolor='none')
+
+
 
         def format_coord(x, y):
             col = np.argmin(np.absolute(timplt - x))
@@ -93,4 +104,4 @@ def get_dspec(filename, doplot=False, vmax=None, vmin=None, norm=None, cmap=None
         ax.format_coord = format_coord
         fig.tight_layout()
         plt.show()
-    return {'spectrogram': spec, 'spectrum_axis': fghz, 'time_axis': tim.mjd}
+    return {'spectrogram': spec, 'spectrum_axis': fghz, 'time_axis': tmjd}
