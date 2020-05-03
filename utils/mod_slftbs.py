@@ -4,7 +4,7 @@ import pdb
 from taskinit import tb
 def cpxx2yy(tb_in=[]):
     if not tb_in:
-        print 'tb_in not provided. Abort...'
+        print('tb_in not provided. Abort...')
     if type(tb_in) is str:
         tb_in=[tb_in]
     tb.open(tb_in[0]+'/SPECTRAL_WINDOW',nomodify=False)
@@ -23,7 +23,7 @@ def cpxx2yy(tb_in=[]):
 
 def concat(tb_in=[],tb_out=None):
     if not tb_in:
-        print 'tb_in not provided. Abort...'
+        print('tb_in not provided. Abort...')
     if os.path.exists(tb_out):
         os.system('rm -r '+tb_out)
     #os.system('cp -r '+tb_in[0]+' '+tb_out)
@@ -67,7 +67,7 @@ def concat(tb_in=[],tb_out=None):
         tb.close()
 
     if len(tim) == 0:
-        print 'tables have no data. Return'
+        print('tables have no data. Return')
         return -1
     else:
         tim=np.concatenate(tim)
