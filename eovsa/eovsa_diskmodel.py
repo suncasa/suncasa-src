@@ -643,6 +643,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     ## automaticaly flag impossibly high amplitudes
     flagdata(vis=vis, mode="tfcrop", spw='', correlation='ABS_XX', action='apply', display='',
              timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=True)
+    # todo add quack in flagdata to flag 1-3 min? at the beginning of each scan
 
     # Default disk size measured for 2019/09/03
     # todo add monthly fitting procedure for the disk size and flux density
@@ -685,8 +686,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
         os.system('rm -rf {}'.format(caltb))
     # Phase selfcal on the disk using solution interval "infinite"
     gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="inf",
-            combine="scan",
-            refant="0", refantmode="flex", minsnr=1.0, gaintype="G", calmode="p", append=False)
+            combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
     applycal(vis=msfile, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
     # Split corrected data and model to a new ms for round 2 of phase selfcal
@@ -700,8 +700,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
         os.system('rm -rf {}'.format(caltb))
     # Second round of phase selfcal on the disk using solution interval "1min"
     gaincal(vis=vis1, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="1min",
-            combine="scan",
-            refant="0", refantmode="flex", minsnr=1.0, gaintype="G", calmode="p", append=False)
+            combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
     applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
     # Split corrected data and model to a new ms
@@ -717,7 +716,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     # Final round of amplitude selfcal with 1-h solution interval (restrict to 16-24 UT)
     gaincal(vis=vis2, caltable=caltb, selectdata=True, uvrange=">0.1Klambda", antenna="0~12&0~12",
             timerange=trange,
-            solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G", calmode="a",
+            solint="60min", combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="a",
             append=False)
     applycal(vis=vis2, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
