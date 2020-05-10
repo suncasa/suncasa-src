@@ -125,6 +125,7 @@ def subvs2(vis=None, outputvis=None, timerange='', spw='',
     spwinfok.sort(key=int)
     spwinfol = [spwinfod[k] for k in spwinfok]
     for s, spi in enumerate(spwinfol):
+        print('processing spectral window {}'.format(spi['SpectralWindowId']))
         datams.selectinit(reset=True)
         staql = {'time': '', 'spw': ''}
         if not splitsel:
@@ -136,11 +137,11 @@ def subvs2(vis=None, outputvis=None, timerange='', spw='',
             if not spw and not timerange:
                 # data selection is not made
                 print('selecting all spws and times')
-                staql['spw'] = spi['SpectralWindowId']
+                staql['spw'] = str(spi['SpectralWindowId'])
         else:
             # outputvis is splitted, selections have already applied, select all the data
             print('split the selected spws and times')
-            staql['spw'] = spi['SpectralWindowId']
+            staql['spw'] = str(spi['SpectralWindowId'])
         datams.msselect(staql)
         orec = datams.getdata(['data', 'time', 'axis_info'], ifraxis=True)
         npol, nchan, nbl, ntim = orec['data'].shape
@@ -179,9 +180,11 @@ def subvs2(vis=None, outputvis=None, timerange='', spw='',
                 ms.open(vis, nomodify=True)
                 # Select the spw id
                 ms.msselect({'time': subtime1})
-                staql0 = {'time':timerange,'spw':''}
+                staql0 = {'time': timerange, 'spw': ''}
                 if spw and (type(spw) == str):
                     staql0['spw'] = spwlist[s]
+                else:
+                    staql0['spw'] = staql['spw']
                 ms.msselect(staql0)
                 rec1 = ms.getdata(['data', 'time', 'axis_info'], ifraxis=True)
                 # print('shape of the frequency matrix ',rec1['axis_info']['freq_axis']['chan_freq'].shape)
@@ -199,6 +202,8 @@ def subvs2(vis=None, outputvis=None, timerange='', spw='',
                     staql0 = {'time': timerange, 'spw': ''}
                     if spw and (type(spw) == str):
                         staql0['spw'] = spwlist[s]
+                    else:
+                        staql0['spw'] = staql['spw']
                     ms.msselect(staql0)
                     rec2 = ms.getdata(['data', 'time', 'axis_info'], ifraxis=True)
                     sz2 = rec2['data'].shape

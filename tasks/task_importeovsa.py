@@ -8,13 +8,14 @@ from taskinit import tb, casalog
 from split_cli import split_cli as split
 from suncasa.eovsa import impteovsa as ipe
 from astropy.time import Time
+from eovsapy import util
 
-idbdir = os.getenv('EOVSAIDB')
-
-if not idbdir:
-    print('Environmental variable for EOVSA idb path not defined')
-    print('Use default path on pipeline')
-    idbdir = '/data1/eovsa/fits/IDB/'
+# idbdir = os.getenv('EOVSAIDB')
+#
+# if not idbdir:
+#     print('Environmental variable for EOVSA idb path not defined')
+#     print('Use default path on pipeline')
+#     idbdir = '/data1/eovsa/fits/IDB/'
 
 
 def udb_corr_external(filelist, udbcorr_path):
@@ -118,6 +119,7 @@ def trange2filelist(trange=[], verbose=False):
         print(
             '{} file found in the time range from {} to {}: '.format(len(filelist), t1.strftime('%Y-%m-%d %H:%M:%S UT'),
                                                                      t2.strftime('%Y-%m-%d %H:%M:%S UT')))
+    idbdir = util.get_idbdir(t1.strftime('%Y-%m-%d'))
     inpath = '{}/{}/'.format(idbdir, trange[0].datetime.strftime("%Y%m%d"))
     filelist = [inpath + ll for ll in filelist]
     return filelist
