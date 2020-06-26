@@ -830,7 +830,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
             else:
                 appd = False
             gaincal(vis=vis, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
-                    combine="scan", antenna='0~12&0~12', refant='10', solint='inf', gaintype='G', minsnr=1.0,
+                    combine="scan", antenna='0~12&0~12', refant='0', solint='inf', gaintype='G', minsnr=1.0,
                     calmode='p', append=appd)
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
