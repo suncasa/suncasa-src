@@ -89,7 +89,6 @@ def readdiskxml(xmlfile):
 
 def image_adddisk(eofile, diskinfo, edgeconvmode='frommergeddisk', caltbonly=False):
     '''
-
     :param eofile:
     :param diskxmlfile:
     :param edgeconvmode: available mode: frommergeddisk,frombeam
@@ -207,7 +206,6 @@ def image_adddisk(eofile, diskinfo, edgeconvmode='frommergeddisk', caltbonly=Fal
 def read_ms(vis):
     ''' Read a CASA ms file and return a dictionary of amplitude, phase, uvdistance,
         uvangle, frequency (GHz) and time (MJD).  Currently only returns the XX IF channel.
-
         vis     Name of the visibility (ms) folder
     '''
     ms.open(vis)
@@ -246,7 +244,6 @@ def fit_diskmodel(out, bidx, rstn_flux, uvfitrange=[1, 150], angle_tolerance=np.
            import rstn
            frq, flux = rstn.rd_rstnflux(t=Time('2019-09-01'))
            rstn_flux = rstn.rstn2ant(frq, flux, out['fghz']*1000, t=Time('2019-09-01'))
-
     '''
     from util import bl2ord, lobe
     import matplotlib.pylab as plt
@@ -408,7 +405,6 @@ def diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d
               reffreq='2.8GHz', flux=660000.0, eqradius='16.166arcmin', polradius='16.166arcmin',
               pangle='21.1deg', index=None, cell='2.0arcsec', overwrite=True):
     ''' Create a blank solar disk model image (or optionally a data cube)
-
         outname       String to use for part of the image and fits file names (default 'disk')
         direction     String specifying the position of the Sun in RA and Dec.  Default
                         means use the standard string "J2000 10h00m00.0s 20d00m00.0s"
@@ -830,7 +826,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
             else:
                 appd = False
             gaincal(vis=vis, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
-                    combine="scan", antenna='0~12&0~12', refant='0', solint='inf', gaintype='G', minsnr=1.0,
+                    combine="scan", antenna='0~12&0~12', refant='10', solint='inf', gaintype='G', minsnr=1.0,
                     calmode='p', append=appd)
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
@@ -947,7 +943,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     # sflcaltbdir = None
     # ---
     if nbands == 34:
-        # These spectral window ranges correspond to the frequency ranges 
+        # These spectral window ranges correspond to the frequency ranges
         # of the last 4 band-ranges of the 52-band case.
         spws = ['1~3', '4~9', '10~16', '17~24', '25~30']
 
