@@ -623,7 +623,8 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     else:
         # Before 2019 Feb 22, the band numbers were 1-34, and spw from 0-30
         nbands = 34
-        freq = np.hstack([[1.419], 2.0 + 0.5 * (np.arange(32)) + (0.5 - 0.081)])
+        #freq = np.hstack([[1.419], 2.0 + 0.5 * (np.arange(32)) + (0.5 - 0.081)])
+        freq = 1.419 + np.arange(nbands)/2.
 
     slashdate = trange[:10]
     # Verify that the vis is not in the current working directory
@@ -657,8 +658,8 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     fac = eph.get_sunearth_distance('2019/09/03') / eph.get_sunearth_distance(slashdate)
     newsize = defaultsize * fac.to_value()
     if nbands == 34:
-        # Interpolate size to 31 spectal windows
-        newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq)
+        # Interpolate size to 31 spectal windows (bands 4-34 -> spw 0-30)
+        newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq[3:])
     dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize], dtype='S12')
 
     # These are nominal flux densities * 2, determined on 2019/09/03
@@ -673,8 +674,8 @@ def disk_slfcal(vis, slfcaltbdir='./'):
                              10023598, 8896671])
     fdens = defaultfdens
     if nbands == 34:
-        # Interpolate size to 31 spectal windows
-        fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq)
+        # Interpolate size to 31 spectal windows (bands 4-34 -> spw 0-30)
+        fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq[3:])
 
     diskxmlfile = vis + '.SOLDISK.xml'
     # Insert the disk model (msfile is the same as vis, and will be used as the "original" vis file name)
