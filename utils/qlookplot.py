@@ -1304,10 +1304,10 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, bl=None,
                              fitsfile=fitsfiles,
                              verbose=verbose, overwrite=True, scl100=True, toTb=True)
                     print('fits file ' + ','.join(fitsfiles) + ' selected')
-                    from suncasa.utils import fits_wrap as fw
+                    from suncasa.utils import fitsutils as fu
                     if not outfits:
                         outfits = visname + '.outim.image.fits'
-                    fw.fits_wrap_spwX(fitsfiles, outfitsfile=outfits)
+                    fu.fits_wrap_spwX(fitsfiles, outfitsfile=outfits)
                     warnings.warn(
                         "If the provided spw is not equally spaced, the frequency information of the fits file {} that combining {} could be a wrong. Use it with caution!".format(
                             outfits, ','.join(fitsfiles)))

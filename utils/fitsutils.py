@@ -1,7 +1,36 @@
 import os
 import numpy as np
-import astropy.units as u
 from astropy.io import fits
+
+def write_compress_image_fits(fname, data, header, mask=None, **kwargs):
+    """
+    Take a data header pair and write a compressed FITS file.
+
+    Parameters
+    ----------
+    fname : `str`
+        File name, with extension.
+    data : `numpy.ndarray`
+        n-dimensional data array.
+    header : `dict`
+        A header dictionary.
+    compression_type: `str`, optional
+        Compression algorithm: one of 'RICE_1', 'RICE_ONE', 'PLIO_1', 'GZIP_1', 'GZIP_2', 'HCOMPRESS_1'
+    hcomp_scale: `float`, optional
+        HCOMPRESS scale parameter
+    """
+    if kwargs is {}:
+        kwargs.update({'compression_type': 'RICE_1', 'quantize_level': 4.0})
+    if isinstance(fname, str):
+        fname = os.path.expanduser(fname)
+
+    hdunew = fits.CompImageHDU(data=data, header=header, **kwargs)
+    if mask is None:
+        hdulnew = fits.HDUList([fits.PrimaryHDU(), hdunew])
+    else:
+        hdumask = fits.CompImageHDU(data=mask.astype(np.uint8), **kwargs)
+        hdulnew = fits.HDUList([fits.PrimaryHDU(), hdunew, hdumask])
+    hdulnew.writeto(fname, output_verify='fix')
 
 
 def fits_wrap_spwX(fitsfiles, outfitsfile='output.fits'):

@@ -151,9 +151,9 @@ def image_adddisk(eofile, diskinfo, edgeconvmode='frommergeddisk', caltbonly=Fal
             jy2tb = jy_to_si / pix_area / factor * factor2
             fdisk_[fidx, ...] = fdisk_[fidx, ...] / np.nansum(fdisk_[fidx, ...]) * fdens_[fidx].value
             fdisk_[fidx, ...] = fdisk_[fidx, ...] * jy2tb
-        # fdisk_[np.isnan(fdisk_)] = 0.0
+#         # fdisk_[np.isnan(fdisk_)] = 0.0
         tbdisk = np.nanmean(fdisk_, axis=0)
-        tbdisk[np.isnan(tbdisk)] = 0.0
+        # tbdisk[np.isnan(tbdisk)] = 0.0
 
         sig2fwhm = 2.0 * np.sqrt(2 * np.log(2))
         x0, y0 = 0, 0
@@ -189,14 +189,14 @@ def image_adddisk(eofile, diskinfo, edgeconvmode='frommergeddisk', caltbonly=Fal
         return tb_disk
     else:
         datanew = data + tbdisk
-        datanew[np.isnan(data)] = 0.0
+        # datanew[np.isnan(data)] = 0.0
         header['TBDISK'] = tb_disk
         header['TBUNIT'] = 'K'
         eomap_disk = smap.Map(datanew, header)
         nametmp = eofile.split('.')
         nametmp.insert(-1, 'disk')
         outfits = '.'.join(nametmp)
-        # datanew = datanew.astype(np.float16)
+        datanew = datanew.astype(np.float32)
         if os.path.exists(outfits):
             os.system('rm -rf {}'.format(outfits))
         sio.write_file(outfits, datanew, header)
@@ -682,6 +682,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
     # Phase selfcal on the disk using solution interval "infinite"
+    ## todo shorten uvrange -> 2.0klambda?
     gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="inf",
             combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
     applycal(vis=msfile, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
@@ -695,8 +696,8 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     caltb = os.path.join(slfcaltbdir, tdate + '_2.pha')
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
-    # Second round of phase selfcal on the disk using solution interval "1min"
-    gaincal(vis=vis1, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="1min",
+    # Second round of phase selfcal on the disk using solution interval "10min"
+    gaincal(vis=vis1, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="10min",
             combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
     applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
@@ -707,6 +708,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     mstl.splitX(vis, outputvis=vis2, datacolumn="corrected", datacolumn2="model_data")
     ## todo check why use vis as input in line 711 and 728
 
+    ## todo shorten amp gaincal uvrange -> <2.0klambda?
     caltb = os.path.join(slfcaltbdir, tdate + '_3.amp')
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
