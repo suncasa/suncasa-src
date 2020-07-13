@@ -80,14 +80,14 @@ def main(year=None, month=None, day=None, ndays=1):
         ted = datetime(year, month, day)
     else:
         ted = datetime.now() - timedelta(days=ndays)
-    tst = Time(np.fix(Time(ted).mjd) - ndays, format='mjd').datetime
-    print("Running pipeline_fitsutils  {} before date {}".format(tst.strftime("%Y-%m-%d"),
+    tst = Time(np.fix(Time(ted).mjd) - ndays+1, format='mjd').datetime
+    print("Running pipeline_fitsutils for date from {} to {}".format(tst.strftime("%Y-%m-%d"),
                                                                  ted.strftime("%Y-%m-%d")))
     dateobs = tst
     while dateobs < ted:
-        dateobs = dateobs + timedelta(days=1)
         datestr = dateobs.strftime("%Y-%m-%d")
         rewriteImageFits(datestr, verbose=True, writejp2=True)
+        dateobs = dateobs + timedelta(days=1)
 
 
 if __name__ == '__main__':
