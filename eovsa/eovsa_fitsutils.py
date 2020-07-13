@@ -73,15 +73,16 @@ def rewriteImageFits(datestr, verbose=False, writejp2=False):
     return
 
 
-def main(year=None, month=None, day=None, dayspan=1):
+def main(year=None, month=None, day=None, ndays=1):
     # tst = datetime.strptime("2017-04-01", "%Y-%m-%d")
     # ted = datetime.strptime("2019-12-31", "%Y-%m-%d")
     if year:
         ted = datetime(year, month, day)
     else:
-        ted = datetime.now() - timedelta(days=2)
-    tst = Time(np.fix(Time(ted).mjd) - dayspan, format='mjd').datetime
-
+        ted = datetime.now() - timedelta(days=ndays)
+    tst = Time(np.fix(Time(ted).mjd) - ndays, format='mjd').datetime
+    print("Running pipeline_fitsutils  {} before date {}".format(tst.strftime("%Y-%m-%d"),
+                                                                 ted.strftime("%Y-%m-%d")))
     dateobs = tst
     while dateobs < ted:
         dateobs = dateobs + timedelta(days=1)
@@ -90,6 +91,9 @@ def main(year=None, month=None, day=None, dayspan=1):
 
 
 if __name__ == '__main__':
+    '''
+    usage: eovsa_fitsutils -n 2 2020 06 10
+    '''
     import sys
     import numpy as np
     import getopt
@@ -132,8 +136,5 @@ if __name__ == '__main__':
         clearcache = True
         opts = []
 
-    dateed = datetime(year, month, day)
-    datest = dateed - timedelta(days=ndays - 1)
-    print("Running pipeline_fitsutils  {} before date {}".format(datest.strftime("%Y-%m-%d"),
-                                                                 dateed.strftime("%Y-%m-%d")))
+
     main(year, month, day, ndays)
