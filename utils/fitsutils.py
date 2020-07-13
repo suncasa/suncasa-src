@@ -2,15 +2,16 @@ import os
 import numpy as np
 from astropy.io import fits
 
+
 def header_to_xml(header):
     import xml.etree.ElementTree as ET
     # create the file structure
     tree = ET.ElementTree()
     root = ET.Element('meta')
     elem = ET.Element('fits')
-    for k,v in header.items():
+    for k, v in header.items():
         child = ET.Element(k)
-        if isinstance(v,bool):
+        if isinstance(v, bool):
             v = int(v)
         child.text = str(v)
         elem.append(child)
@@ -30,7 +31,8 @@ def header_to_xml(header):
 
 def write_j2000_image(fname, data, header):
     import glymur
-    jp2 = glymur.Jp2k(fname+'.tmp.jp2', ((data - np.min(data)) * 256 / (np.max(data) - np.min(data))).astype(np.uint8), cratios=[20, 10])
+    jp2 = glymur.Jp2k(fname + '.tmp.jp2',
+                      ((data - np.min(data)) * 256 / (np.max(data) - np.min(data))).astype(np.uint8), cratios=[20, 10])
     boxes = jp2.box
     header['wavelnth'] = header['crval3']
     header['waveunit'] = header['cunit3']
@@ -42,7 +44,8 @@ def write_j2000_image(fname, data, header):
     xmlbox = glymur.jp2box.XMLBox(filename='image.xml')
     boxes.insert(3, xmlbox)
     jp2_xml = jp2.wrap(fname, boxes=boxes)
-    os.system('rm -rf '+ fname+'.tmp.jp2')
+    os.system('rm -rf ' + fname + '.tmp.jp2')
+    os.system('rm -rf {}'.format(xmlfile))
     return True
 
 
@@ -101,7 +104,7 @@ def fits_wrap_spwX(fitsfiles, outfitsfile='output.fits'):
                 data[pidx, idx_fits_exist[sidx], :, :] = hdu[0].data
             else:
                 data[pidx, idx_fits_exist[sidx], :, :] = hdu[0].data[pidx, 0, :, :]
-    df = np.nanmean(np.diff(cfreqs)/np.diff(idx_fits_exist)) ## in case some of the band is missing
+    df = np.nanmean(np.diff(cfreqs) / np.diff(idx_fits_exist))  ## in case some of the band is missing
     header['cdelt3'] = df
     header['NAXIS3'] = nband
     header['NAXIS'] = 4

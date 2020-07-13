@@ -92,33 +92,48 @@ def main(year=None, month=None, day=None, dayspan=1):
 if __name__ == '__main__':
     import sys
     import numpy as np
+    import getopt
+    from datetime import datetime, timedelta
 
     # import subprocess
     # shell = subprocess.check_output('echo $0', shell=True).decode().replace('\n', '').split('/')[-1]
     # print("shell " + shell + " is using")
 
     print(sys.argv)
+
     try:
         argv = sys.argv[1:]
-        if '--clearcache' in argv:
-            clearcache = True
-            argv.remove('--clearcache')  # Allows --clearcache to be either before or after date items
-        else:
-            clearcache = False
-
-        year = np.int(argv[0])
-        month = np.int(argv[1])
-        day = np.int(argv[2])
-        if len(argv) == 3:
-            dayspan = 30
-        else:
-            dayspan = np.int(argv[3])
-    except:
+        opts, args = getopt.getopt(argv, "c:n:", ['clearcache=', 'ndays='])
+        clearcache = False
+        ndays = 1
+        print(opts, args)
+        for opt, arg in opts:
+            if opt in ['-c', '--clearcache']:
+                if arg is 'True':
+                    clearcache = True
+                elif arg is 'False':
+                    clearcache = False
+                else:
+                    clearcache = np.bool(arg)
+            elif opt in ('-n', '--ndays'):
+                ndays = np.int(arg)
+        nargs = len(args)
+        if nargs == 3:
+            year = np.int(args[0])
+            month = np.int(args[1])
+            day = np.int(args[2])
+    except getopt.GetoptError as err:
+        print(err)
         print('Error interpreting command line argument')
         year = None
         month = None
         day = None
-        dayspan = 1
+        ndays = 1
         clearcache = True
-    print("Running pipeline_fitsutils  {} days before date {}-{}-{}".format(dayspan, year, month, day))
-    main(year, month, day, dayspan)
+        opts = []
+
+    dateed = datetime(year, month, day)
+    datest = dateed - timedelta(days=ndays - 1)
+    print("Running pipeline_fitsutils  {} before date {}".format(datest.strftime("%Y-%m-%d"),
+                                                                 dateed.strftime("%Y-%m-%d")))
+    main(year, month, day, ndays)
