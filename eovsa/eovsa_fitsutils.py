@@ -66,7 +66,7 @@ def rewriteImageFits(datestr, verbose=False, writejp2=False):
         data[np.isnan(data)] = 0.0
         fu.write_compress_image_fits(fl, data, hdu.header, compression_type='RICE_1', quantize_level=4.0)
         if writejp2:
-            fj2name = fl.replace('.fits','.jp2')
+            fj2name = fl.replace('.fits', '.jp2')
             fu.write_j2000_image(fj2name, data, hdu.header)
     return
 
@@ -84,7 +84,7 @@ def main(year=None, month=None, day=None, dayspan=1):
     while dateobs < ted:
         dateobs = dateobs + timedelta(days=1)
         datestr = dateobs.strftime("%Y-%m-%d")
-        rewriteImageFits(datestr, verbose=True)
+        rewriteImageFits(datestr, verbose=True, writejp2=True)
 
 
 if __name__ == '__main__':
