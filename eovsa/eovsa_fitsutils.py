@@ -84,7 +84,7 @@ def main(year=None, month=None, day=None, ndays=1):
     print("Running pipeline_fitsutils for date from {} to {}".format(tst.strftime("%Y-%m-%d"),
                                                                  ted.strftime("%Y-%m-%d")))
     dateobs = tst
-    while dateobs < ted:
+    while dateobs <= ted:
         datestr = dateobs.strftime("%Y-%m-%d")
         rewriteImageFits(datestr, verbose=True, writejp2=True)
         dateobs = dateobs + timedelta(days=1)
