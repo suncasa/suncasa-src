@@ -63,11 +63,8 @@ def rewriteImageFits(datestr, verbose=False, writejp2=False):
         hdul = fits.open(filein)
         hdu = hdul[0]
         data = np.squeeze(hdu.data).copy()
-        try:
-            data[np.isnan(data)] = 0.0
-        except:
-            pass
         if not os.path.exists(fl):
+            data[np.isnan(data)] = 0.0
             fu.write_compress_image_fits(fl, data, hdu.header, compression_type='RICE_1', quantize_level=4.0)
         fj2name = fl.replace('.fits', '.jp2')
         if writejp2:
