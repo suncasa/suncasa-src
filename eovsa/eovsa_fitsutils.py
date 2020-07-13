@@ -8,9 +8,9 @@ from astropy.time import Time
 from suncasa.utils import fitsutils as fu
 
 imgfitsdir = '/data1/eovsa/fits/synoptic/'
-imgfitsbkdir = '/data1/workdir/synoptic_bk/'
+# imgfitsbkdir = '/data1/workdir/synoptic_bk/'
 
-imgfitsdir = '/data1/workdir/synoptic_bk/'
+# imgfitsdir = '/data1/workdir/synoptic_bk/'
 imgfitsbkdir = '/data1/workdir/synoptic_newbk/'
 
 
@@ -45,8 +45,7 @@ imgfitsbkdir = '/data1/workdir/synoptic_newbk/'
 #         hdulnew = fits.HDUList([fits.PrimaryHDU(), hdunew, hdumask])
 #     hdulnew.writeto(fname, output_verify='fix')
 
-
-def rewriteImageFits(datestr, verbose=False):
+def rewriteImageFits(datestr, verbose=False, writejp2=False):
     dateobj = datetime.strptime(datestr, "%Y-%m-%d")
     datestrdir = dateobj.strftime("%Y/%m/%d/")
     imgindir = imgfitsdir + datestrdir
@@ -59,12 +58,16 @@ def rewriteImageFits(datestr, verbose=False):
     for fl in files:
         if not os.path.exists(fl): continue
         filein = os.path.join(imgbkdir, os.path.basename(fl))
-        os.system('mv {} {}'.format(fl, filein))
+        if not os.path.exists(filein):
+            os.system('mv {} {}'.format(fl, filein))
         hdul = fits.open(filein)
         hdu = hdul[0]
         data = np.squeeze(hdu.data).copy()
         data[np.isnan(data)] = 0.0
         fu.write_compress_image_fits(fl, data, hdu.header, compression_type='RICE_1', quantize_level=4.0)
+        if writejp2:
+            fj2name = fl.replace('.fits','.jp2')
+            fu.write_j2000_image(fj2name, data, hdu.header)
     return
 
 

@@ -2,6 +2,50 @@ import os
 import numpy as np
 from astropy.io import fits
 
+def header_to_xml(header):
+    import xml.etree.ElementTree as ET
+    # create the file structure
+    tree = ET.ElementTree()
+    root = ET.Element('meta')
+    elem = ET.Element('fits')
+    for k,v in header.items():
+        child = ET.Element(k)
+        if isinstance(v,bool):
+            v = int(v)
+        child.text = str(v)
+        elem.append(child)
+    root.append(elem)
+    tree._setroot(root)
+    return tree
+    # from lxml import etree
+    # tree = etree.Element("meta")
+    # elem = etree.SubElement(tree,"fits")
+    # for k,v in header.items():
+    #     child = etree.SubElement(elem, k)
+    #     if isinstance(v,bool):
+    #         v = int(v)
+    #     child.text = str(v)
+    # return tree
+
+
+def write_j2000_image(fname, data, header):
+    import glymur
+    jp2 = glymur.Jp2k(fname+'.tmp.jp2', ((data - np.min(data)) * 256 / (np.max(data) - np.min(data))).astype(np.uint8), cratios=[20, 10])
+    boxes = jp2.box
+    header['wavelnth'] = header['crval3']
+    header['waveunit'] = header['cunit3']
+    xmlobj = header_to_xml(header)
+    xmlfile = 'image.xml'
+    if os.path.exists(xmlfile):
+        os.system('rm -rf {}'.format(xmlfile))
+    xmlobj.write(xmlfile)
+    xmlbox = glymur.jp2box.XMLBox(filename='image.xml')
+    boxes.insert(3, xmlbox)
+    jp2_xml = jp2.wrap(fname, boxes=boxes)
+    os.system('rm -rf '+ fname+'.tmp.jp2')
+    return True
+
+
 def write_compress_image_fits(fname, data, header, mask=None, **kwargs):
     """
     Take a data header pair and write a compressed FITS file.
