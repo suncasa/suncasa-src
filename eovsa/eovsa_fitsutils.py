@@ -6,7 +6,6 @@ from glob import glob
 import numpy as np
 from astropy.time import Time
 from suncasa.utils import fitsutils as fu
-from sunpy import map as smap
 
 imgfitsdir = '/data1/eovsa/fits/synoptic/'
 # imgfitsbkdir = '/data1/workdir/synoptic_bk/'
@@ -61,19 +60,21 @@ def rewriteImageFits(datestr, verbose=False, writejp2=False):
         filein = os.path.join(imgbkdir, os.path.basename(fl))
         if not os.path.exists(filein):
             os.system('mv {} {}'.format(fl, filein))
-        # hdul = fits.open(filein)
-        # hdu = hdul[0]
-        fmap = smap.Map(filein)
-        data = np.squeeze(fmap.data).copy()
-        header = fmap.meta
-        if verbose: print('Processing {}'.format(fl))
+        hdul = fits.open(filein)
+        for hdu in hdul:
+            if hdu.header['NAXIS'] ==0:
+                continue
+            else:
+                break
+        data = np.squeeze(hdu.data).copy()
+        # if verbose: print('Processing {}'.format(fl))
         if not os.path.exists(fl):
             data[np.isnan(data)] = 0.0
-            fu.write_compress_image_fits(fl, data, header, compression_type='RICE_1', quantize_level=4.0)
+            fu.write_compress_image_fits(fl, data, hdu.header, compression_type='RICE_1', quantize_level=4.0)
         fj2name = fl.replace('.fits', '.jp2')
         if writejp2:
             if not os.path.exists(fj2name):
-                fu.write_j2000_image(fj2name, data, header)
+                fu.write_j2000_image(fj2name, data, hdu.header)
     return
 
 
