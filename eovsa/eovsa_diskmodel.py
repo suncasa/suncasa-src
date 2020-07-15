@@ -153,7 +153,7 @@ def image_adddisk(eofile, diskinfo, edgeconvmode='frommergeddisk', caltbonly=Fal
             fdisk_[fidx, ...] = fdisk_[fidx, ...] * jy2tb
 #         # fdisk_[np.isnan(fdisk_)] = 0.0
         tbdisk = np.nanmean(fdisk_, axis=0)
-        # tbdisk[np.isnan(tbdisk)] = 0.0
+        tbdisk[np.isnan(tbdisk)] = 0.0
 
         sig2fwhm = 2.0 * np.sqrt(2 * np.log(2))
         x0, y0 = 0, 0
@@ -705,7 +705,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     vis2 = 'slf2_' + msfile
     if os.path.exists(vis2):
         os.system('rm -rf {}'.format(vis2))
-    mstl.splitX(vis, outputvis=vis2, datacolumn="corrected", datacolumn2="model_data")
+    mstl.splitX(vis1, outputvis=vis2, datacolumn="corrected", datacolumn2="model_data")
     ## todo check why use vis as input in line 711 and 728
 
     ## todo shorten amp gaincal uvrange -> <2.0klambda?
@@ -715,7 +715,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     # Final round of amplitude selfcal with 1-h solution interval (restrict to 16-24 UT)
     gaincal(vis=vis2, caltable=caltb, selectdata=True, uvrange=">0.1Klambda", antenna="0~12&0~12",
             timerange=trange,
-            solint="60min", combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="a",
+            solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G", calmode="a",
             append=False)
     applycal(vis=vis2, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
@@ -723,7 +723,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     vis3 = 'slf3_' + msfile
     if os.path.exists(vis3):
         os.system('rm -rf {}'.format(vis3))
-    mstl.splitX(vis, outputvis=vis3, datacolumn="corrected", datacolumn2="model_data")
+    mstl.splitX(vis2, outputvis=vis3, datacolumn="corrected", datacolumn2="model_data")
     uvsub(vis=vis3, reverse=False)
 
     # Final split to
@@ -1019,6 +1019,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         eomap_disk, tb_disk, eofile_new = image_adddisk(eofile, diskinfo)
         eofiles_new.append(eofile_new)
 
+    # todo this is obsolete, consider to remove it.
     plt_eovsa_image(eofiles_new[:-1], figoutdir)  # skip plotting the image of the highest bands
 
     return ms_slfcaled, diskxmlfile
