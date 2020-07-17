@@ -580,7 +580,7 @@ def getbeam(imagefile=None, beamfile=None):
 
 def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, reftime=None, fitsfile=None, beamfile=None,
           offsetfile=None, toTb=None, scl100=None, verbose=False, p_ang=False, overwrite=True, usephacenter=True,
-          deletehistory=False, subregion=[]):
+          deletehistory=False, subregion=[], docompress=False):
     ''' 
     main routine to register CASA images
            Required Inputs:
@@ -727,7 +727,13 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             (crval1, crval2) = (xoff + dx, yoff + dy)
             # update the fits header to heliocentric coordinates
 
-            hdu = pyfits.open(fitsf, mode='update')
+            if docompress:
+                fitsftmp = fitsf + ".tmp.fits"
+                os.system("mv {} {}".format(fitsf, fitsftmp))
+                hdu = pyfits.open(fitsftmp, mode='update')
+            else:
+                hdu = pyfits.open(fitsf, mode='update')
+            # hdu = pyfits.open(fitsf, mode='update')
             hdu[0].verify('fix')
             header = hdu[0].header
             (cdelt1, cdelt2) = (
@@ -849,9 +855,15 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                             data[i, :, :, :] *= jy_to_si / beam_area / factor * factor2
 
             header = headerfix(header)
-
-            hdu.flush()
-            hdu.close()
+            if docompress:
+                from suncasa.utils import fitsutils as fu
+                data = np.squeeze(data)
+                data[np.isnan(data)] = 0.0
+                fu.write_compress_image_fits(fitsf, data, header, compression_type='RICE_1', quantize_level=4.0)
+                os.system("rm -rf {}".format(fitsftmp))
+            else:
+                hdu.flush()
+                hdu.close()
 
 
 def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=True):

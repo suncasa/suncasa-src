@@ -179,8 +179,8 @@ def subvs2(vis=None, outputvis=None, timerange='', spw='',
                 # Select the background indicated by subtime1
                 ms.open(vis, nomodify=True)
                 # Select the spw id
-                ms.msselect({'time': subtime1})
-                staql0 = {'time': timerange, 'spw': ''}
+                # ms.msselect({'time': subtime1})
+                staql0 = {'time': subtime1, 'spw': ''}
                 if spw and (type(spw) == str):
                     staql0['spw'] = spwlist[s]
                 else:
@@ -199,7 +199,7 @@ def subvs2(vis=None, outputvis=None, timerange='', spw='',
                 if subtime2 and (type(subtime2) == str):
                     ms.open(vis, nomodify=True)
                     # Select the spw id
-                    staql0 = {'time': timerange, 'spw': ''}
+                    staql0 = {'time': subtime2, 'spw': ''}
                     if spw and (type(spw) == str):
                         staql0['spw'] = spwlist[s]
                     else:

@@ -89,7 +89,6 @@ def readdiskxml(xmlfile):
 
 def image_adddisk(eofile, diskinfo, edgeconvmode='frommergeddisk', caltbonly=False):
     '''
-
     :param eofile:
     :param diskxmlfile:
     :param edgeconvmode: available mode: frommergeddisk,frombeam
@@ -152,7 +151,7 @@ def image_adddisk(eofile, diskinfo, edgeconvmode='frommergeddisk', caltbonly=Fal
             jy2tb = jy_to_si / pix_area / factor * factor2
             fdisk_[fidx, ...] = fdisk_[fidx, ...] / np.nansum(fdisk_[fidx, ...]) * fdens_[fidx].value
             fdisk_[fidx, ...] = fdisk_[fidx, ...] * jy2tb
-        # fdisk_[np.isnan(fdisk_)] = 0.0
+#         # fdisk_[np.isnan(fdisk_)] = 0.0
         tbdisk = np.nanmean(fdisk_, axis=0)
         tbdisk[np.isnan(tbdisk)] = 0.0
 
@@ -190,14 +189,14 @@ def image_adddisk(eofile, diskinfo, edgeconvmode='frommergeddisk', caltbonly=Fal
         return tb_disk
     else:
         datanew = data + tbdisk
-        datanew[np.isnan(data)] = 0.0
+        # datanew[np.isnan(data)] = 0.0
         header['TBDISK'] = tb_disk
         header['TBUNIT'] = 'K'
         eomap_disk = smap.Map(datanew, header)
         nametmp = eofile.split('.')
         nametmp.insert(-1, 'disk')
         outfits = '.'.join(nametmp)
-        # datanew = datanew.astype(np.float16)
+        datanew = datanew.astype(np.float32)
         if os.path.exists(outfits):
             os.system('rm -rf {}'.format(outfits))
         sio.write_file(outfits, datanew, header)
@@ -207,7 +206,6 @@ def image_adddisk(eofile, diskinfo, edgeconvmode='frommergeddisk', caltbonly=Fal
 def read_ms(vis):
     ''' Read a CASA ms file and return a dictionary of amplitude, phase, uvdistance,
         uvangle, frequency (GHz) and time (MJD).  Currently only returns the XX IF channel.
-
         vis     Name of the visibility (ms) folder
     '''
     ms.open(vis)
@@ -246,7 +244,6 @@ def fit_diskmodel(out, bidx, rstn_flux, uvfitrange=[1, 150], angle_tolerance=np.
            import rstn
            frq, flux = rstn.rd_rstnflux(t=Time('2019-09-01'))
            rstn_flux = rstn.rstn2ant(frq, flux, out['fghz']*1000, t=Time('2019-09-01'))
-
     '''
     from util import bl2ord, lobe
     import matplotlib.pylab as plt
@@ -408,7 +405,6 @@ def diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d
               reffreq='2.8GHz', flux=660000.0, eqradius='16.166arcmin', polradius='16.166arcmin',
               pangle='21.1deg', index=None, cell='2.0arcsec', overwrite=True):
     ''' Create a blank solar disk model image (or optionally a data cube)
-
         outname       String to use for part of the image and fits file names (default 'disk')
         direction     String specifying the position of the Sun in RA and Dec.  Default
                         means use the standard string "J2000 10h00m00.0s 20d00m00.0s"
@@ -623,7 +619,8 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     else:
         # Before 2019 Feb 22, the band numbers were 1-34, and spw from 0-30
         nbands = 34
-        freq = np.hstack([[1.419], 2.0 + 0.5 * (np.arange(32)) + (0.5 - 0.081)])
+        #freq = np.hstack([[1.419], 2.0 + 0.5 * (np.arange(32)) + (0.5 - 0.081)])
+        freq = 1.419 + np.arange(nbands)/2.
 
     slashdate = trange[:10]
     # Verify that the vis is not in the current working directory
@@ -657,8 +654,8 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     fac = eph.get_sunearth_distance('2019/09/03') / eph.get_sunearth_distance(slashdate)
     newsize = defaultsize * fac.to_value()
     if nbands == 34:
-        # Interpolate size to 31 spectal windows
-        newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq)
+        # Interpolate size to 31 spectal windows (bands 4-34 -> spw 0-30)
+        newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq[3:])
     dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize], dtype='S12')
 
     # These are nominal flux densities * 2, determined on 2019/09/03
@@ -673,8 +670,8 @@ def disk_slfcal(vis, slfcaltbdir='./'):
                              10023598, 8896671])
     fdens = defaultfdens
     if nbands == 34:
-        # Interpolate size to 31 spectal windows
-        fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq)
+        # Interpolate size to 31 spectal windows (bands 4-34 -> spw 0-30)
+        fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq[3:])
 
     diskxmlfile = vis + '.SOLDISK.xml'
     # Insert the disk model (msfile is the same as vis, and will be used as the "original" vis file name)
@@ -685,6 +682,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
     # Phase selfcal on the disk using solution interval "infinite"
+    ## todo shorten uvrange -> 2.0klambda?
     gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="inf",
             combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
     applycal(vis=msfile, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
@@ -698,8 +696,8 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     caltb = os.path.join(slfcaltbdir, tdate + '_2.pha')
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
-    # Second round of phase selfcal on the disk using solution interval "1min"
-    gaincal(vis=vis1, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="1min",
+    # Second round of phase selfcal on the disk using solution interval "10min"
+    gaincal(vis=vis1, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="10min",
             combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
     applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
@@ -707,16 +705,17 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     vis2 = 'slf2_' + msfile
     if os.path.exists(vis2):
         os.system('rm -rf {}'.format(vis2))
-    mstl.splitX(vis, outputvis=vis2, datacolumn="corrected", datacolumn2="model_data")
+    mstl.splitX(vis1, outputvis=vis2, datacolumn="corrected", datacolumn2="model_data")
     ## todo check why use vis as input in line 711 and 728
 
+    ## todo shorten amp gaincal uvrange -> <2.0klambda?
     caltb = os.path.join(slfcaltbdir, tdate + '_3.amp')
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
     # Final round of amplitude selfcal with 1-h solution interval (restrict to 16-24 UT)
     gaincal(vis=vis2, caltable=caltb, selectdata=True, uvrange=">0.1Klambda", antenna="0~12&0~12",
             timerange=trange,
-            solint="60min", combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="a",
+            solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G", calmode="a",
             append=False)
     applycal(vis=vis2, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
@@ -724,7 +723,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     vis3 = 'slf3_' + msfile
     if os.path.exists(vis3):
         os.system('rm -rf {}'.format(vis3))
-    mstl.splitX(vis, outputvis=vis3, datacolumn="corrected", datacolumn2="model_data")
+    mstl.splitX(vis2, outputvis=vis3, datacolumn="corrected", datacolumn2="model_data")
     uvsub(vis=vis3, reverse=False)
 
     # Final split to
@@ -947,7 +946,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     # sflcaltbdir = None
     # ---
     if nbands == 34:
-        # These spectral window ranges correspond to the frequency ranges 
+        # These spectral window ranges correspond to the frequency ranges
         # of the last 4 band-ranges of the 52-band case.
         spws = ['1~3', '4~9', '10~16', '17~24', '25~30']
 
@@ -1020,6 +1019,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         eomap_disk, tb_disk, eofile_new = image_adddisk(eofile, diskinfo)
         eofiles_new.append(eofile_new)
 
+    # todo this is obsolete, consider to remove it.
     plt_eovsa_image(eofiles_new[:-1], figoutdir)  # skip plotting the image of the highest bands
 
     return ms_slfcaled, diskxmlfile
