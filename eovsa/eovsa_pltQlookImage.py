@@ -110,6 +110,7 @@ def pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None
     imgoutdir = pltfigdir + datestrdir
 
     cmap = cm_smap.get_cmap('sdoaia304')
+    cmap.set_bad(color='k')
 
     if fig is None or ax is None:
         mkfig = True
