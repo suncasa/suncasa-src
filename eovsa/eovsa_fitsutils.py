@@ -55,6 +55,7 @@ def rewriteImageFits(datestr, verbose=False, writejp2=False):
 
     if verbose: print('Processing EOVSA image fits files for date {}'.format(dateobj.strftime('%Y-%m-%d')))
     files = glob(os.path.join(imgindir, '*.tb.*fits'))
+    files = sorted(files)
     for fl in files:
         if not os.path.exists(fl): continue
         filein = os.path.join(imgbkdir, os.path.basename(fl))
@@ -77,6 +78,7 @@ def rewriteImageFits(datestr, verbose=False, writejp2=False):
                 data = np.squeeze(hdu.data).copy()
                 data[np.isnan(data)] = 0.0
                 fu.write_j2000_image(fj2name, data[::-1,:], hdu.header)
+
     return
 
 
