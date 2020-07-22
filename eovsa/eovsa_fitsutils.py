@@ -84,7 +84,7 @@ def main(year=None, month=None, day=None, ndays=1):
     if year:
         ted = datetime(year, month, day)
     else:
-        ted = datetime.now() - timedelta(days=ndays)
+        ted = datetime.now() - timedelta(days=2)
     tst = Time(np.fix(Time(ted).mjd) - ndays+1, format='mjd').datetime
     print("Running pipeline_fitsutils for date from {} to {}".format(tst.strftime("%Y-%m-%d"),
                                                                  ted.strftime("%Y-%m-%d")))
