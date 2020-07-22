@@ -410,7 +410,11 @@ if __name__ == '__main__':
     # import subprocess
     # shell = subprocess.check_output('echo $0', shell=True).decode().replace('\n', '').split('/')[-1]
     # print("shell " + shell + " is using")
-
+    year = None
+    month = None
+    day = None
+    dayspan = 30
+    clearcache = True
     print(sys.argv)
     try:
         argv = sys.argv[1:]
@@ -434,5 +438,6 @@ if __name__ == '__main__':
         day = None
         dayspan = 30
         clearcache = True
+
     print("Running pipeline_plt for date {}-{}-{}. clearcache {}".format(year, month, day, clearcache))
     main(year, month, day, dayspan, clearcache)

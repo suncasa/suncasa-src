@@ -109,12 +109,15 @@ if __name__ == '__main__':
     # print("shell " + shell + " is using")
 
     print(sys.argv)
-
+    year = None
+    month = None
+    day = None
+    ndays = 1
+    clearcache = True
+    opts = []
     try:
         argv = sys.argv[1:]
         opts, args = getopt.getopt(argv, "c:n:", ['clearcache=', 'ndays='])
-        clearcache = False
-        ndays = 1
         print(opts, args)
         for opt, arg in opts:
             if opt in ['-c', '--clearcache']:
@@ -140,6 +143,7 @@ if __name__ == '__main__':
         ndays = 1
         clearcache = True
         opts = []
+
 
 
     main(year, month, day, ndays)
