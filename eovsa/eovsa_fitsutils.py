@@ -134,6 +134,10 @@ if __name__ == '__main__':
             year = np.int(args[0])
             month = np.int(args[1])
             day = np.int(args[2])
+        else:
+            year = None
+            month = None
+            day = None
     except getopt.GetoptError as err:
         print(err)
         print('Error interpreting command line argument')
