@@ -45,7 +45,7 @@ imgfitsbkdir = '/data1/workdir/synoptic_newbk/'
 #         hdulnew = fits.HDUList([fits.PrimaryHDU(), hdunew, hdumask])
 #     hdulnew.writeto(fname, output_verify='fix')
 
-def rewriteImageFits(datestr, verbose=False, writejp2=False):
+def rewriteImageFits(datestr, verbose=False, writejp2=False, overwritejp2=False, overwritefits=False):
     dateobj = datetime.strptime(datestr, "%Y-%m-%d")
     datestrdir = dateobj.strftime("%Y/%m/%d/")
     imgindir = imgfitsdir + datestrdir
@@ -63,39 +63,45 @@ def rewriteImageFits(datestr, verbose=False, writejp2=False):
             os.system('mv {} {}'.format(fl, filein))
         hdul = fits.open(filein)
         for hdu in hdul:
-            if hdu.header['NAXIS'] ==0:
+            if hdu.header['NAXIS'] == 0:
                 continue
             else:
                 break
         data = np.squeeze(hdu.data).copy()
         # if verbose: print('Processing {}'.format(fl))
+        if overwritefits:
+            if os.path.exists(fl):
+                os.system('rm -f {}'.format(fl))
         if not os.path.exists(fl):
             data[np.isnan(data)] = 0.0
             fu.write_compress_image_fits(fl, data, hdu.header, compression_type='RICE_1', quantize_level=4.0)
+
         fj2name = fl.replace('.fits', '.jp2')
         if writejp2:
+            if overwritejp2:
+                if os.path.exists(fj2name):
+                    os.system('rm -f {}'.format(fj2name))
             if not os.path.exists(fj2name):
                 data = np.squeeze(hdu.data).copy()
                 data[np.isnan(data)] = 0.0
-                fu.write_j2000_image(fj2name, data[::-1,:], hdu.header)
-
+                fu.write_j2000_image(fj2name, data[::-1, :], hdu.header)
     return
 
 
-def main(year=None, month=None, day=None, ndays=1):
+def main(year=None, month=None, day=None, ndays=1, overwritejp2=False, overwritefits=False):
     # tst = datetime.strptime("2017-04-01", "%Y-%m-%d")
     # ted = datetime.strptime("2019-12-31", "%Y-%m-%d")
     if year:
         ted = datetime(year, month, day)
     else:
         ted = datetime.now() - timedelta(days=2)
-    tst = Time(np.fix(Time(ted).mjd) - ndays+1, format='mjd').datetime
+    tst = Time(np.fix(Time(ted).mjd) - ndays + 1, format='mjd').datetime
     print("Running pipeline_fitsutils for date from {} to {}".format(tst.strftime("%Y-%m-%d"),
-                                                                 ted.strftime("%Y-%m-%d")))
+                                                                     ted.strftime("%Y-%m-%d")))
     dateobs = tst
     while dateobs <= ted:
         datestr = dateobs.strftime("%Y-%m-%d")
-        rewriteImageFits(datestr, verbose=True, writejp2=True)
+        rewriteImageFits(datestr, verbose=True, writejp2=True, overwritejp2=overwritejp2, overwritefits=overwritefits)
         dateobs = dateobs + timedelta(days=1)
 
 
@@ -119,9 +125,11 @@ if __name__ == '__main__':
     ndays = 1
     clearcache = True
     opts = []
+    overwritejp2 = False
+    overwritefits = False
     try:
         argv = sys.argv[1:]
-        opts, args = getopt.getopt(argv, "c:n:", ['clearcache=', 'ndays='])
+        opts, args = getopt.getopt(argv, "c:n:o:O:", ['clearcache=', 'ndays=', 'overwritejp2=', 'overwritefits='])
         print(opts, args)
         for opt, arg in opts:
             if opt in ['-c', '--clearcache']:
@@ -133,6 +141,20 @@ if __name__ == '__main__':
                     clearcache = np.bool(arg)
             elif opt in ('-n', '--ndays'):
                 ndays = np.int(arg)
+            elif opt in ('-o', '--overwritejp2'):
+                if arg is 'True':
+                    overwritejp2 = True
+                elif arg is 'False':
+                    overwritejp2 = False
+                else:
+                    overwritejp2 = np.bool(arg)
+            elif opt in ('-O', '--overwritefits'):
+                if arg is 'True':
+                    overwritefits = True
+                elif arg is 'False':
+                    overwritefits = False
+                else:
+                    overwritefits = np.bool(arg)
         nargs = len(args)
         if nargs == 3:
             year = np.int(args[0])
@@ -151,7 +173,7 @@ if __name__ == '__main__':
         ndays = 1
         clearcache = True
         opts = []
+        overwritejp2 = False
+        overwritefits = False
 
-
-
-    main(year, month, day, ndays)
+    main(year, month, day, ndays, overwritejp2=overwritejp2, overwritefits=overwritefits)
