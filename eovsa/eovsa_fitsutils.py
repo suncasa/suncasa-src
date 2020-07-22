@@ -74,6 +74,7 @@ def rewriteImageFits(datestr, verbose=False, writejp2=False):
         fj2name = fl.replace('.fits', '.jp2')
         if writejp2:
             if not os.path.exists(fj2name):
+                data = np.squeeze(hdu.data).copy()
                 fu.write_j2000_image(fj2name, data[::-1,:], hdu.header)
     return
 
