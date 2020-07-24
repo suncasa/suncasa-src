@@ -5,14 +5,19 @@ import datetime
 import struct
 from scipy.io.idl import readsav
 from datetime import datetime
+
 try:
     ## CASA version < 6
     from taskinit import ms, tb, qa
 except:
     ## CASA version >= 6
-    from casatools import table as tb
-    from casatools import ms
-    from casatools import quanta as qa
+    from casatools import table as tbtool
+    from casatools import ms as mstool
+    from casatools import quanta as qatool
+
+    tb = tbtool()
+    ms = mstool()
+    qa = qatool()
 
 import matplotlib.dates as mdates
 from matplotlib.dates import date2num, AutoDateFormatter, AutoDateLocator
@@ -103,7 +108,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
     # split(vis=msfile, outputvis=vis_spl, timerange=timeran, antenna=bl, field=field, scan=scan, spw=spw,
     #       uvrange=uvrange, timebin=timebin, datacolumn=datacolumn)
 
-    ms.open(msfile, nomodify=False)
+    ms.open(msfile, nomodify=True)
     ms.split(outputms=vis_spl, whichcol=datacolumn, time=timeran, spw=spw, baseline=bl, field=field, scan=scan,
              uvrange=uvrange, timebin=timebin)
     ms.close()
@@ -192,7 +197,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
 def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
               timerange=None, freqrange=None, timestr=True,
               movie=False, framedur=60., dtframe=10.,
-              goessav=None, goes_trange=None,cmap='jet',
+              goessav=None, goes_trange=None, cmap='jet',
               savepng=True, savepdf=False):
     """
     timerange: format: ['2012/03/10/18:00:00','2012/03/10/19:00:00']
