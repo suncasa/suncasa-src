@@ -5,7 +5,15 @@ import datetime
 import struct
 from scipy.io.idl import readsav
 from datetime import datetime
-from taskinit import ms, tb, qa
+try:
+    ## CASA version < 6
+    from taskinit import ms, tb, qa
+except:
+    ## CASA version >= 6
+    from casatools import table as tb
+    from casatools import ms
+    from casatools import quanta as qa
+
 import matplotlib.dates as mdates
 from matplotlib.dates import date2num, AutoDateFormatter, AutoDateLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
