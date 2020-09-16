@@ -23,6 +23,7 @@ def pipeline1(year=None, month=None, day=None, clearcache=True):
     vis_corrected = ep.calib_pipeline(date, overwrite=True, doimport=True,
                                       workdir=os.path.join(workdir, subdir))
     if clearcache:
+        os.chdir(workdir)
         os.system('rm -rf ' + subdir)
 
 
@@ -38,9 +39,15 @@ if __name__ == '__main__':
             argv.remove('--clearcache')  # Allows --clearcache to be either before or after date items
         else:
             clearcache = False
-        year = np.int(argv[0])
-        month = np.int(argv[1])
-        day = np.int(argv[2])
+        try:
+            year = np.int(argv[0])
+            month = np.int(argv[1])
+            day = np.int(argv[2])
+        except:
+            print('Error parsing date string in the command line argument')
+            year = None
+            month = None
+            day = None
     except:
         print('Error interpreting command line argument')
         year = None

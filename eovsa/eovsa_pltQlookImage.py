@@ -15,7 +15,7 @@ import numpy as np
 from astropy.time import Time
 import urllib.request
 import socket
-socket.setdefaulttimeout(time = 180)
+socket.setdefaulttimeout(180)
 
 imgfitsdir = '/data1/eovsa/fits/synoptic/'
 imgfitstmpdir = '/data1/workdir/fitstmp/'

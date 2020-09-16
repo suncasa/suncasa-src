@@ -1020,7 +1020,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         eomap_disk, tb_disk, eofile_new = image_adddisk(eofile, diskinfo)
         eofiles_new.append(eofile_new)
 
-    # todo this is obsolete, consider to remove it.
-    plt_eovsa_image(eofiles_new[:-1], figoutdir)  # skip plotting the image of the highest bands
+    # plt_eovsa_image(eofiles_new[:-1], figoutdir)  # skip plotting the image of the highest bands
 
     return ms_slfcaled, diskxmlfile
