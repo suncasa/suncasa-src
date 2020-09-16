@@ -99,3 +99,24 @@ def splitX(vis, datacolumn2='MODEL_DATA', overwrite=True, **kwargs):
 
     os.system('rm -rf tmpms.ms')
     return outmsfile
+
+def flagcaltboutliers(caltable,limit=[]):
+    if not os.path.exists(caltable): return 0
+    if isinstance(limit,list):
+        if len(limit) == 2:
+            tb.open(caltable, nomodify=False)
+            data = tb.getcol('CPARAM')
+            flag = tb.getcol('FLAG')
+            datamag = np.abs(data)
+            dataidx1 = datamag<limit[0]
+            dataidx2 = datamag>limit[1]
+            flag[dataidx1] = True
+            flag[dataidx2] = True
+            tb.putcol('FLAG',flag)
+            return 1
+        else:
+            print('limit must have two elements. Aborted!')
+            return 0
+    else:
+        print('limit must be a list. Aborted!')
+

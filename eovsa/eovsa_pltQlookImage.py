@@ -14,6 +14,8 @@ from glob import glob
 import numpy as np
 from astropy.time import Time
 import urllib.request
+import socket
+socket.setdefaulttimeout(time = 180)
 
 imgfitsdir = '/data1/eovsa/fits/synoptic/'
 imgfitstmpdir = '/data1/workdir/fitstmp/'
@@ -205,7 +207,10 @@ def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ver
                                                                                                         sourceid)
             sdofile = os.path.join(imgindir, key + '.jp2')
             if not os.path.exists(sdofile):
-                urllib.request.urlretrieve(sdourl, sdofile)
+                try:
+                    urllib.request.urlretrieve(sdourl, sdofile)
+                except:
+                    print('The connection with {} has timed out. Skipped!'.format(sdourl))
             ax.cla()
 
             if not os.path.exists(sdofile): continue
@@ -310,7 +315,10 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
 
                 bbsofile = os.path.join(imgindir, key + '.fits')
                 if not os.path.exists(bbsofile):
-                    urllib.request.urlretrieve(bbsourl, bbsofile)
+                    try:
+                        urllib.request.urlretrieve(bbsourl, bbsofile)
+                    except:
+                        print('The connection with {} has timed out. Skipped!'.format(bbsourl))
                 ax.cla()
                 if not os.path.exists(bbsofile): continue
                 if not os.path.exists(imgoutdir): os.makedirs(imgoutdir)

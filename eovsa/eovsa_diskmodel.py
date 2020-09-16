@@ -717,6 +717,7 @@ def disk_slfcal(vis, slfcaltbdir='./'):
             timerange=trange,
             solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G", calmode="a",
             append=False)
+    mstl.flagcaltboutliers(caltb,limit=[0.1,10.0])
     applycal(vis=vis2, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
     # Split out corrected data and model and do uvsub
