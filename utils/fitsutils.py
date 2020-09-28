@@ -1,6 +1,68 @@
 import os
 import numpy as np
 from astropy.io import fits
+from sunpy import map as smap
+import warnings
+
+
+def headerfix(header, PC_coor=True):
+    '''
+    this code fix the header problem of fits out from CASA 5.4+ which leads to a streched solar image
+    set PC_coor equal to True will reset the rotation matrix.
+    '''
+
+    keys2remove = []
+    for k in header:
+        if k.upper().startswith('PC'):
+            if not k.upper().startswith('PC0'):
+                pcidxs = k.upper().replace('PC', '')
+                hd_ = 'PC0' + pcidxs
+                keys2remove.append(k)
+                if PC_coor:
+                    pcidx0, pcidx1 = pcidxs.split('_')
+                    if pcidx0 == pcidx1:
+                        header[hd_] = 1.0
+                    else:
+                        header[hd_] = 0.0
+                else:
+                    header[hd_] = header[k]
+    for k in keys2remove:
+        header.remove(k)
+    return header
+
+
+def headersqueeze(header, data):
+    '''
+        Only 1D, 2D, or 3D images are currently supported by
+        the astropy fits compression.
+        This code remove single-dimensional entries from the n-dimensional
+        image data array and update fits header
+    '''
+    dshape = data.shape
+    ndim = data.ndim
+    ## nonsdim: non-single-dimensional entries
+    nonsdim = ndim - np.count_nonzero(np.array(dshape) == 1)
+    if nonsdim > 3:
+        return None, None
+    else:
+        keys2chng = ['NAXIS', 'CTYPE', 'CRVAL', 'CDELT', 'CRPIX', 'CUNIT', 'PC01_', 'PC02_', 'PC03_', 'PC04_']
+        idx_nonsdim = 0
+        for idx, dim in enumerate(dshape[::-1]):
+            # if dim>1: continue
+            if dim > 1:
+                idx_nonsdim = idx_nonsdim + 1
+            for k in keys2chng:
+                k_ = '{}{}'.format(k, idx + 1)
+                v = header[k_]
+                header.remove(k_)
+                if dim > 1:
+                    k_new = '{}{}'.format(k, idx_nonsdim)
+                    header[k_new] = v
+                # else:
+
+        header['NAXIS'] = nonsdim
+        data = np.squeeze(data)
+        return header, data
 
 
 def header_to_xml(header):
@@ -49,9 +111,59 @@ def write_j2000_image(fname, data, header):
     return True
 
 
-def write_compress_image_fits(fname, data, header, mask=None, **kwargs):
+def read_compressed_image_fits(fname):
+    hdulist = fits.open(fname)
+    for i, hdu in enumerate(hdulist):
+        try:
+            ndim = hdu.data.ndim
+            dshape = hdu.data.shape
+            header = hdu.header
+            slc = [slice(None)] * ndim
+            nx = header['NAXIS1']
+            ny = header['NAXIS2']
+            freqaxis = None
+            stokaxis = None
+            npol_fits = 1
+            nfreq_fits = 1
+            for idx in range(ndim):
+                v = header['CTYPE{}'.format(idx + 1)]
+                if v.startswith('FREQ'):
+                    freqaxis = ndim - (idx + 1)
+                    nfreq_fits = header['NAXIS{}'.format(idx + 1)]
+                if v.startswith('STOKES'):
+                    stokaxis = ndim - (idx + 1)
+                    npol_fits = header['NAXIS{}'.format(idx + 1)]
+            if freqaxis is not None:
+                slc[freqaxis] = slice(0, 1)
+                rfreqs = (hdu.header['CRVAL{}'.format(ndim - freqaxis)] + hdu.header[
+                    'CDELT{}'.format(ndim - freqaxis)] * np.arange(
+                    hdu.header['NAXIS{}'.format(ndim - freqaxis)])) / 1e9
+            else:
+                rfreqs = np.array([hdu.header['RESTFRQ'] / 1e9])
+            if stokaxis is not None:
+                slc[stokaxis] = slice(0, 1)
+            hdu.data[np.isnan(hdu.data)] = 0.0
+            rmap = smap.Map(np.squeeze(hdu.data[slc]), hdu.header)
+            rdata = hdu.data.copy()
+            rheader = hdu.header.copy()
+            break
+        except Exception as e:
+            if hasattr(e, 'message'):
+                print(e.message)
+            else:
+                print(e)
+            print('skipped HDU {}'.format(i))
+            rmap, ndim, npol_fits, stokaxis, rfreqs, rdata, rheader = None, None, None, None, None, None, None
+    hdulist.close()
+    return rmap, ndim, npol_fits, stokaxis, rfreqs, rdata, rheader
+
+
+def write_compressed_image_fits(fname, data, header, mask=None, fix_invalid=True, filled_value=0.0, **kwargs):
     """
     Take a data header pair and write a compressed FITS file.
+    Caveat: only 1D, 2D, or 3D images are currently supported by Astropy fits compression.
+    To be compressed, the image data array (n-dimensional) must have
+    at least n-3 single-dimensional entries.
 
     Parameters
     ----------
@@ -66,18 +178,29 @@ def write_compress_image_fits(fname, data, header, mask=None, **kwargs):
     hcomp_scale: `float`, optional
         HCOMPRESS scale parameter
     """
-    if kwargs is {}:
-        kwargs.update({'compression_type': 'RICE_1', 'quantize_level': 4.0})
-    if isinstance(fname, str):
-        fname = os.path.expanduser(fname)
 
-    hdunew = fits.CompImageHDU(data=data, header=header, **kwargs)
-    if mask is None:
-        hdulnew = fits.HDUList([fits.PrimaryHDU(), hdunew])
+    dshape = data.shape
+    dim = data.ndim
+    if dim - np.count_nonzero(np.array(dshape) == 1) > 3:
+        return 0
     else:
-        hdumask = fits.CompImageHDU(data=mask.astype(np.uint8), **kwargs)
-        hdulnew = fits.HDUList([fits.PrimaryHDU(), hdunew, hdumask])
-    hdulnew.writeto(fname, output_verify='fix')
+        if fix_invalid:
+            data[np.isnan(data)] = filled_value
+        if kwargs is {}:
+            kwargs.update({'compression_type': 'RICE_1', 'quantize_level': 4.0})
+        if isinstance(fname, str):
+            fname = os.path.expanduser(fname)
+
+        header, data = headersqueeze(header, data)
+        # todo: need to figure out how to keep information of the trimmed axis in the fits
+        hdunew = fits.CompImageHDU(data=data, header=header, **kwargs)
+        if mask is None:
+            hdulnew = fits.HDUList([fits.PrimaryHDU(), hdunew])
+        else:
+            hdumask = fits.CompImageHDU(data=mask.astype(np.uint8), **kwargs)
+            hdulnew = fits.HDUList([fits.PrimaryHDU(), hdunew, hdumask])
+        hdulnew.writeto(fname, output_verify='fix')
+        return 1
 
 
 def fits_wrap_spwX(fitsfiles, outfitsfile='output.fits'):

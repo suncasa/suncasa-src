@@ -9,7 +9,7 @@ import glob
 
 
 def clean_iter(tim, vis, imageprefix, imagesuffix,
-               twidth, doreg, usephacenter, reftime, ephem, msinfo, toTb, overwrite,
+               twidth, doreg, docompress, usephacenter, reftime, ephem, msinfo, toTb, sclfactor, overwrite,
                selectdata, field, spw,
                uvrange, antenna, scan, observation, intent, datacolumn, imsize, cell, phasecenter, stokes,
                projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
@@ -107,14 +107,19 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
                 print("ms info not provided, generating one on the fly")
                 msinfo = hf.read_msinfo(vis)
             hf.imreg(vis=vis, ephem=ephem, msinfo=msinfo, timerange=timerange, reftime=reftime,
-                     imagefile=imname + '.image', fitsfile=imname + '.fits',
-                     toTb=toTb, scl100=False, usephacenter=usephacenter, subregion=subregion)
+                     imagefile=imname + '.image', fitsfile=imname + '.fits', overwrite=True,
+                     toTb=toTb, sclfactor=sclfactor, usephacenter=usephacenter, subregion=subregion,
+                     docompress=docompress)
             if os.path.exists(imname + '.fits'):
                 shutil.rmtree(imname + '.image')
                 return [True, btstr, etstr, imname + '.fits']
             else:
                 return [False, btstr, etstr, '']
-        except:
+        except Exception as e:
+            if hasattr(e, 'message'):
+                print(e.message)
+            else:
+                print(e)
             print('error in registering image: ' + btstr)
             return [False, btstr, etstr, imname + '.image']
     else:
@@ -124,8 +129,10 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
             return [False, btstr, etstr, '']
 
 
-def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, overwrite, selectdata,
-             field, spw, timerange, uvrange, antenna, scan, observation, intent, datacolumn, imsize, cell, phasecenter,
+def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, sclfactor, subregion,
+             docompress,
+             overwrite, selectdata, field, spw, timerange, uvrange, antenna, scan, observation, intent, datacolumn,
+             imsize, cell, phasecenter,
              stokes, projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
              interpolation, gridder, facets, chanchunks, wprojplanes, vptable, usepointing, mosweight, aterm, psterm,
              wbawp, conjbeams, cfcache, computepastep, rotatepastep, pblimit, normtype, deconvolver, scales, nterms,
@@ -133,7 +140,7 @@ def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
              gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive, usemask,
              mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold, smoothfactor,
              minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart, savemodel,
-             calcres, calcpsf, parallel, subregion):
+             calcres, calcpsf, parallel):
     if not (type(ncpu) is int):
         casalog.post('ncpu should be an integer')
         ncpu = 8
@@ -214,7 +221,9 @@ def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
     res = []
     # partition
     clnpart = partial(clean_iter, tim, vis, imageprefix, imagesuffix,
-                      twidth, doreg, usephacenter, reftime, ephem, msinfo, toTb, overwrite, selectdata, field, spw,
+                      twidth, doreg, docompress, usephacenter, reftime, ephem, msinfo, toTb, sclfactor, overwrite,
+                      selectdata,
+                      field, spw,
                       uvrange, antenna, scan, observation, intent, datacolumn, imsize, cell, phasecenter, stokes,
                       projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
                       interpolation, gridder, facets, chanchunks, wprojplanes, vptable, usepointing, mosweight, aterm,

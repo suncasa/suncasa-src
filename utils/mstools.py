@@ -3,12 +3,14 @@ import numpy as np
 from tqdm import tqdm
 import os
 
+
 def get_trange(msfile):
     from astropy.time import Time
     tb.open(msfile)
-    tr = np.array([tb.getcell('TIME', 0),tb.getcell('TIME', tb.nrows() - 1)]) / 24. / 3600.
+    tr = np.array([tb.getcell('TIME', 0), tb.getcell('TIME', tb.nrows() - 1)]) / 24. / 3600.
     tb.close()
-    return Time(tr,format='mjd')
+    return Time(tr, format='mjd')
+
 
 def msclearhistory(msfile):
     '''Clears history in the a measurement sets file
@@ -100,11 +102,35 @@ def splitX(vis, datacolumn2='MODEL_DATA', overwrite=True, **kwargs):
     os.system('rm -rf tmpms.ms')
     return outmsfile
 
-def flagcaltboutliers(caltable,limit=[]):
+
+def flagcaltboutliers(caltable, limit=[]):
+    import numpy as np
+    import numpy.ma as ma
+    # def removeOutliers(x, outlierConstant):
+    #     a = np.array(x)
+    #     idx, = np.where(np.diff(np.sort(datamag[0, 0, :]))>)
+    #     upper_quartile = np.percentile(a, 80)
+    #     lower_quartile = np.percentile(a, 20)
+    #     IQR = (upper_quartile - lower_quartile) * outlierConstant
+    #     quartileSet = (lower_quartile - IQR, upper_quartile + IQR)
+    #     return ma.masked_outside(x, quartileSet[1], quartileSet[0])
+
     if not os.path.exists(caltable): return 0
-    if isinstance(limit,list):
+    if isinstance(limit, list):
         if len(limit) == 2:
             tb.open(caltable, nomodify=False)
+            # subt = tb.query("ANTENNA1==1 && SPECTRAL_WINDOW_ID=10")
+            # data = subt.getcol('CPARAM')
+            # flag = subt.getcol('FLAG')
+            # spw = subt.getcol('SPECTRAL_WINDOW_ID')
+            # datamag = np.abs(data)
+            # mdatamag = ma.masked_outside(datamag, limit[0], limit[1])
+            # mask = np.logical_or(mdatamag.mask, flag)
+            # dataidx1 = datamag<limit[0]
+            # dataidx2 = datamag>limit[1]
+            # mdatamag = ma.masked_array(mdatamag, mask)
+            # mdatamag[0, 0, :] = removeOutliers(mdatamag[0, 0, :], 5)
+            # mdatamag[1, 0, :] = removeOutliers(mdatamag[1, 0, :], 5)
             data = tb.getcol('CPARAM')
             flag = tb.getcol('FLAG')
             datamag = np.abs(data)
@@ -112,11 +138,10 @@ def flagcaltboutliers(caltable,limit=[]):
             dataidx2 = datamag>limit[1]
             flag[dataidx1] = True
             flag[dataidx2] = True
-            tb.putcol('FLAG',flag)
+            tb.putcol('FLAG', flag)
             return 1
         else:
             print('limit must have two elements. Aborted!')
             return 0
     else:
         print('limit must be a list. Aborted!')
-

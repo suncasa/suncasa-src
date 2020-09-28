@@ -12,10 +12,14 @@ import numpy as np
 from gaincal_cli import gaincal_cli as gaincal
 from applycal_cli import applycal_cli as applycal
 from flagdata_cli import flagdata_cli as flagdata
+from flagmanager_cli import flagmanager_cli as flagmanager
 from uvsub_cli import uvsub_cli as uvsub
 from split_cli import split_cli as split
 from tclean_cli import tclean_cli as tclean
 from ft_cli import ft_cli as ft
+from astropy.visualization.stretch import AsinhStretch, LinearStretch, SqrtStretch
+from astropy.visualization import ImageNormalize
+from suncasa.utils import mstools as mstl
 
 
 def ant_trange(vis):
@@ -151,7 +155,7 @@ def image_adddisk(eofile, diskinfo, edgeconvmode='frommergeddisk', caltbonly=Fal
             jy2tb = jy_to_si / pix_area / factor * factor2
             fdisk_[fidx, ...] = fdisk_[fidx, ...] / np.nansum(fdisk_[fidx, ...]) * fdens_[fidx].value
             fdisk_[fidx, ...] = fdisk_[fidx, ...] * jy2tb
-#         # fdisk_[np.isnan(fdisk_)] = 0.0
+        #         # fdisk_[np.isnan(fdisk_)] = 0.0
         tbdisk = np.nanmean(fdisk_, axis=0)
         tbdisk[np.isnan(tbdisk)] = 0.0
 
@@ -401,9 +405,43 @@ def fit_vs_freq(out):
     return result
 
 
-def diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d00m00.0s',
-              reffreq='2.8GHz', flux=660000.0, eqradius='16.166arcmin', polradius='16.166arcmin',
-              pangle='21.1deg', index=None, cell='2.0arcsec', overwrite=True):
+def calc_diskmodel(slashdate, nbands, freq, defaultfreq):
+    # Default disk size measured for 2019/09/03
+    # todo add monthly fitting procedure for the disk size and flux density
+    defaultsize = np.array([990.6, 989.4, 988.2, 987.1, 986.0, 984.9, 983.8, 982.7, 981.7, 980.7,
+                            979.7, 978.8, 977.8, 976.9, 976.0, 975.2, 974.3, 973.5, 972.7, 972.0,
+                            971.2, 970.5, 969.8, 969.1, 968.5, 967.8, 967.2, 966.7, 966.1, 965.6,
+                            965.1, 964.6, 964.1, 963.7, 963.3, 962.9, 962.5, 962.1, 961.8, 961.5,
+                            961.3, 961.0, 960.8, 960.6, 960.4, 960.2, 960.1, 960.0, 959.9, 959.8])
+
+    # Get current solar distance and modify the default size accordingly
+    fac = eph.get_sunearth_distance('2019/09/03') / eph.get_sunearth_distance(slashdate)
+    newsize = defaultsize * fac.to_value()
+    if nbands == 34:
+        # Interpolate size to 31 spectal windows (bands 4-34 -> spw 0-30)
+        newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq[3:])
+    dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize], dtype='S12')
+
+    # These are nominal flux densities * 2, determined on 2019/09/03
+    defaultfdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
+                             1613253, 1702751, 1800721, 1946756, 2096020, 2243951,
+                             2367362, 2525968, 2699795, 2861604, 3054829, 3220450,
+                             3404182, 3602625, 3794312, 3962926, 4164667, 4360683,
+                             4575677, 4767210, 4972824, 5211717, 5444632, 5648266,
+                             5926634, 6144249, 6339863, 6598018, 6802707, 7016012,
+                             7258929, 7454951, 7742816, 7948976, 8203206, 8411834,
+                             8656720, 8908130, 9087766, 9410760, 9571365, 9827078,
+                             10023598, 8896671])
+    fdens = defaultfdens
+    if nbands == 34:
+        # Interpolate size to 31 spectal windows (bands 4-34 -> spw 0-30)
+        fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq[3:])
+    return dsize, fdens
+
+
+def mk_diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d00m00.0s',
+                 reffreq='2.8GHz', flux=660000.0, eqradius='16.166arcmin', polradius='16.166arcmin',
+                 pangle='21.1deg', index=None, cell='2.0arcsec', overwrite=True):
     ''' Create a blank solar disk model image (or optionally a data cube)
         outname       String to use for part of the image and fits file names (default 'disk')
         direction     String specifying the position of the Sun in RA and Dec.  Default
@@ -486,37 +524,37 @@ def diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d
     return diskim
 
 
-def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite=True, xmlfile='SOLDISK.xml'):
-    if fdens is None:
-        # Default flux density for solar minimum
-        fdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
-                          1613253, 1702751, 1800721, 1946756, 2096020, 2243951,
-                          2367362, 2525968, 2699795, 2861604, 3054829, 3220450,
-                          3404182, 3602625, 3794312, 3962926, 4164667, 4360683,
-                          4575677, 4767210, 4972824, 5211717, 5444632, 5648266,
-                          5926634, 6144249, 6339863, 6598018, 6802707, 7016012,
-                          7258929, 7454951, 7742816, 7948976, 8203206, 8411834,
-                          8656720, 8908130, 9087766, 9410760, 9571365, 9827078,
-                          10023598, 8896671])
-    if dsize is None:
-        # Default solar disk radius for solar minimum
-        dsize = np.array(['1228.0arcsec', '1194.0arcsec', '1165.0arcsec', '1139.0arcsec', '1117.0arcsec',
-                          '1097.0arcsec', '1080.0arcsec', '1065.0arcsec', '1053.0arcsec', '1042.0arcsec',
-                          '1033.0arcsec', '1025.0arcsec', '1018.0arcsec', '1012.0arcsec', '1008.0arcsec',
-                          '1003.0arcsec', '1000.0arcsec', '997.0arcsec', '994.0arcsec', '992.0arcsec',
-                          '990.0arcsec', '988.0arcsec', '986.0arcsec', '985.0arcsec', '983.0arcsec', '982.0arcsec',
-                          '980.0arcsec', '979.0arcsec', '978.0arcsec', '976.0arcsec', '975.0arcsec', '974.0arcsec',
-                          '972.0arcsec', '971.0arcsec', '970.0arcsec', '969.0arcsec', '968.0arcsec', '967.0arcsec',
-                          '966.0arcsec', '965.0arcsec', '964.0arcsec', '964.0arcsec', '963.0arcsec', '962.0arcsec',
-                          '962.0arcsec', '961.0arcsec', '960.0arcsec', '959.0arcsec', '957.0arcsec', '956.0arcsec'])
+# def writediskinfo(vis, sizescale=1.0, fdens=None, dsize=None, xmlfile='SOLDISK.xml'):
+#     for i in range(len(dsize)):
+#         num, unit = dsize[i].split('arc')
+#         dsize[i] = str(float(num) * sizescale)[:6] + 'arc' + unit
+#
+#     msfile = vis
+#     ms.open(msfile)
+#     spwinfo = ms.getspectralwindowinfo()
+#     nspw = len(spwinfo.keys())
+#     ms.close()
+#     diskimdir = 'diskim/'
+#     if not os.path.exists(diskimdir):
+#         os.makedirs(diskimdir)
+#     frq = []
+#     for sp in range(nspw):
+#         spw = spwinfo[str(sp)]
+#         frq.append('{:.4f}GHz'.format((spw['RefFreq'] + spw['TotalWidth'] / 2.0) / 1e9))
+#     frq = np.array(frq)
+#
+#     writediskxml(dsize, fdens, frq, xmlfile=xmlfile)
 
+
+def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, xmlfile='SOLDISK.xml', writediskinfoonly=False,
+                    active=False, overwrite=True):
     # Apply size scale adjustment (default is no adjustment)
     for i in range(len(dsize)):
         num, unit = dsize[i].split('arc')
         dsize[i] = str(float(num) * sizescale)[:6] + 'arc' + unit
 
     msfile = vis
-    diskim = []
+
     ms.open(msfile)
     spwinfo = ms.getspectralwindowinfo()
     nspw = len(spwinfo.keys())
@@ -529,78 +567,35 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, overwrite=True, 
         spw = spwinfo[str(sp)]
         frq.append('{:.4f}GHz'.format((spw['RefFreq'] + spw['TotalWidth'] / 2.0) / 1e9))
     frq = np.array(frq)
-
     writediskxml(dsize, fdens, frq, xmlfile=xmlfile)
-    tb.open(msfile + '/FIELD')
-    phadir = tb.getcol('PHASE_DIR').flatten()
-    tb.close()
-    ra = phadir[0]
-    dec = phadir[1]
-    direction = 'J2000 ' + str(ra) + 'rad ' + str(dec) + 'rad'
 
-    for sp in tqdm(range(nspw), desc='Generating {} disk models'.format(nspw), ascii=True):
-        diskim.append(
-            diskmodel(outname=diskimdir + 'disk{:02d}_'.format(sp), bdwidth=spwinfo[str(sp)], direction=direction,
-                      reffreq=frq[sp],
-                      flux=fdens[sp], eqradius=dsize[sp], polradius=dsize[sp], overwrite=overwrite))
+    if not writediskinfoonly:
+        tb.open(msfile + '/FIELD')
+        phadir = tb.getcol('PHASE_DIR').flatten()
+        tb.close()
+        ra = phadir[0]
+        dec = phadir[1]
+        direction = 'J2000 ' + str(ra) + 'rad ' + str(dec) + 'rad'
 
-    delmod(msfile, otf=True, scr=True)
+        diskim = []
+        for sp in tqdm(range(nspw), desc='Generating {} disk models'.format(nspw), ascii=True):
+            diskim.append(
+                mk_diskmodel(outname=diskimdir + 'disk{:02d}_'.format(sp), bdwidth=spwinfo[str(sp)],
+                             direction=direction,
+                             reffreq=frq[sp],
+                             flux=fdens[sp], eqradius=dsize[sp], polradius=dsize[sp], overwrite=overwrite))
 
-    mstl.clearflagrow(msfile, mode='clear')
-    for sp in tqdm(range(nspw), desc='Inserting disk model', ascii=True):
-        ft(vis=msfile, spw=str(sp), field='', model=str(diskim[sp]), nterms=1,
-           reffreq="", complist="", incremental=False, usescratch=True)
+        if not active:
+            delmod(msfile, otf=True, scr=True)
 
-    uvsub(vis=msfile)
+        for sp in tqdm(range(nspw), desc='Inserting disk model', ascii=True):
+            ft(vis=msfile, spw=str(sp), field='', model=str(diskim[sp]), nterms=1,
+               reffreq="", complist="", incremental=True, usescratch=True)
 
-    # tb.open(os.path.join(msfile, 'DATA_DESCRIPTION'), nomodify=False)
-    #
-    # tabdesc = {'DISK_SIZE': {'comment': 'Size of solar disk',
-    #                          'dataManagerGroup': 'StandardStMan',
-    #                          'dataManagerType': 'StandardStMan',
-    #                          'keywords': {},
-    #                          'maxlen': 0,
-    #                          'option': 0,
-    #                          'valueType': 'double'},
-    #            'DISK_FLUX': {'comment': 'Flux [Jy] of solar disk',
-    #                          'dataManagerGroup': 'StandardStMan',
-    #                          'dataManagerType': 'StandardStMan',
-    #                          'keywords': {},
-    #                          'maxlen': 0,
-    #                          'option': 0,
-    #                          'valueType': 'double'},
-    #            '_define_hypercolumn_': {},
-    #            '_keywords_': {},
-    #            '_private_keywords_': {}}
-    #
-    # tb.addcols(tabdesc)
-    # tb.close()
-
-    # tabdesc = {'DISK_SIZE': {'comment': 'Size of solar disk',
-    #                          'dataManagerGroup': 'StandardStMan',
-    #                          'dataManagerType': 'StandardStMan',
-    #                          'keywords': {},
-    #                          'maxlen': 0,
-    #                          'option': 0,
-    #                          'valueType': 'double'},
-    #            'DISK_FLUX': {'comment': 'Flux [Jy] of solar disk',
-    #                          'dataManagerGroup': 'StandardStMan',
-    #                          'dataManagerType': 'StandardStMan',
-    #                          'keywords': {},
-    #                          'maxlen': 0,
-    #                          'option': 0,
-    #                          'valueType': 'double'},
-    #            '_define_hypercolumn_': {},
-    #            '_keywords_': {},
-    #            '_private_keywords_': {}}
-    # tb.create(os.path.join(msfile, 'SOLDISK'),tabdesc)
-    # tb.addrows(50)  # Add the rows _before_ filling the columns.
-    # tb.close()
-
-    return msfile
+        return msfile, diskim
 
 
-def disk_slfcal(vis, slfcaltbdir='./'):
+def disk_slfcal(vis, slfcaltbdir='./', active=False):
     ''' Starting with the name of a calibrated ms (vis, which must have 'UDByyyymmdd' in the name)
         add a model disk based on the solar disk size for that date and perform multiple selfcal
         adjustments (two phase and one amplitude), and write out a final selfcaled database with
@@ -619,11 +614,12 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     else:
         # Before 2019 Feb 22, the band numbers were 1-34, and spw from 0-30
         nbands = 34
-        #freq = np.hstack([[1.419], 2.0 + 0.5 * (np.arange(32)) + (0.5 - 0.081)])
-        freq = 1.419 + np.arange(nbands)/2.
+        # freq = np.hstack([[1.419], 2.0 + 0.5 * (np.arange(32)) + (0.5 - 0.081)])
+        freq = 1.419 + np.arange(nbands) / 2.
 
     slashdate = trange[:10]
     # Verify that the vis is not in the current working directory
+    '''
     if os.getcwd() == os.path.dirname(vis):
         print('Cannot copy vis file onto itself.')
         print('Please change to a different working directory')
@@ -635,56 +631,33 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     print('Copy {} to working directory {}.'.format(vis, os.getcwd()))
     shutil.copytree(vis, os.path.basename(vis))
     vis = os.path.basename(vis)
-    clearcal(vis)
+    '''
 
-    ## automaticaly flag impossibly high amplitudes
+    if not active:
+        clearcal(vis)
+
+    flagmanager(vis, mode='save', versionname='before_autoflag')
+    ## automaticaly flag any high amplitudes from flares or RFI
     flagdata(vis=vis, mode="tfcrop", spw='', correlation='ABS_XX', action='apply', display='',
              timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=True)
-    # todo add quack in flagdata to flag 1-3 min? at the beginning of each scan
 
-    # Default disk size measured for 2019/09/03
-    # todo add monthly fitting procedure for the disk size and flux density
-    defaultsize = np.array([990.6, 989.4, 988.2, 987.1, 986.0, 984.9, 983.8, 982.7, 981.7, 980.7,
-                            979.7, 978.8, 977.8, 976.9, 976.0, 975.2, 974.3, 973.5, 972.7, 972.0,
-                            971.2, 970.5, 969.8, 969.1, 968.5, 967.8, 967.2, 966.7, 966.1, 965.6,
-                            965.1, 964.6, 964.1, 963.7, 963.3, 962.9, 962.5, 962.1, 961.8, 961.5,
-                            961.3, 961.0, 960.8, 960.6, 960.4, 960.2, 960.1, 960.0, 959.9, 959.8])
-
-    # Get current solar distance and modify the default size accordingly
-    fac = eph.get_sunearth_distance('2019/09/03') / eph.get_sunearth_distance(slashdate)
-    newsize = defaultsize * fac.to_value()
-    if nbands == 34:
-        # Interpolate size to 31 spectal windows (bands 4-34 -> spw 0-30)
-        newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq[3:])
-    dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize], dtype='S12')
-
-    # These are nominal flux densities * 2, determined on 2019/09/03
-    defaultfdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
-                             1613253, 1702751, 1800721, 1946756, 2096020, 2243951,
-                             2367362, 2525968, 2699795, 2861604, 3054829, 3220450,
-                             3404182, 3602625, 3794312, 3962926, 4164667, 4360683,
-                             4575677, 4767210, 4972824, 5211717, 5444632, 5648266,
-                             5926634, 6144249, 6339863, 6598018, 6802707, 7016012,
-                             7258929, 7454951, 7742816, 7948976, 8203206, 8411834,
-                             8656720, 8908130, 9087766, 9410760, 9571365, 9827078,
-                             10023598, 8896671])
-    fdens = defaultfdens
-    if nbands == 34:
-        # Interpolate size to 31 spectal windows (bands 4-34 -> spw 0-30)
-        fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq[3:])
-
+    dsize, fdens = calc_diskmodel(slashdate, nbands, freq, defaultfreq)
     diskxmlfile = vis + '.SOLDISK.xml'
     # Insert the disk model (msfile is the same as vis, and will be used as the "original" vis file name)
-    msfile = insertdiskmodel(vis, dsize=dsize, fdens=fdens, xmlfile=diskxmlfile)
+    msfile, diskim = insertdiskmodel(vis, dsize=dsize, fdens=fdens, xmlfile=diskxmlfile, active=active)
 
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_1.pha')
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
     # Phase selfcal on the disk using solution interval "infinite"
-    ## todo shorten uvrange -> 2.0klambda?
-    gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="inf",
+    # gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="inf",
+    # combine="scan",
+    # refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
+
+    gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="", antenna="0~12&0~12", solint="inf",
             combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
+
     applycal(vis=msfile, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
     # Split corrected data and model to a new ms for round 2 of phase selfcal
@@ -696,9 +669,13 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     caltb = os.path.join(slfcaltbdir, tdate + '_2.pha')
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
-    # Second round of phase selfcal on the disk using solution interval "10min"
-    gaincal(vis=vis1, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="10min",
-            combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
+    # Second round of phase selfcal on the disk using solution interval "1min"
+    gaincal(vis=vis1, caltable=caltb, selectdata=True, uvrange="", antenna="0~12&0~12", solint="10min",
+            combine="scan",
+            refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
+    # gaincal(vis=vis1, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="10min",
+    # combine="scan",
+    # refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
     applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
     # Split corrected data and model to a new ms
@@ -706,31 +683,34 @@ def disk_slfcal(vis, slfcaltbdir='./'):
     if os.path.exists(vis2):
         os.system('rm -rf {}'.format(vis2))
     mstl.splitX(vis1, outputvis=vis2, datacolumn="corrected", datacolumn2="model_data")
-    ## todo check why use vis as input in line 711 and 728
 
-    ## todo shorten amp gaincal uvrange -> <2.0klambda?
     caltb = os.path.join(slfcaltbdir, tdate + '_3.amp')
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
     # Final round of amplitude selfcal with 1-h solution interval (restrict to 16-24 UT)
-    gaincal(vis=vis2, caltable=caltb, selectdata=True, uvrange=">0.1Klambda", antenna="0~12&0~12",
+    gaincal(vis=vis2, caltable=caltb, selectdata=True, uvrange="", antenna="0~12&0~12",
             timerange=trange,
             solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G", calmode="a",
             append=False)
-    mstl.flagcaltboutliers(caltb,limit=[0.1,10.0])
+    mstl.flagcaltboutliers(caltb, limit=[0.125, 8.0])
     applycal(vis=vis2, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
     # Split out corrected data and model and do uvsub
     vis3 = 'slf3_' + msfile
     if os.path.exists(vis3):
         os.system('rm -rf {}'.format(vis3))
-    mstl.splitX(vis2, outputvis=vis3, datacolumn="corrected", datacolumn2="model_data")
+
+    split(vis2, outputvis=vis3, datacolumn="corrected")
+    for sp in tqdm(nbands, desc='Inserting disk model', ascii=True):
+        ft(vis=vis3, spw=str(sp), field='', model=str(diskim[sp]), nterms=1,
+           reffreq="", complist="", incremental=False, usescratch=True)
     uvsub(vis=vis3, reverse=False)
 
     # Final split to
     final = 'final_' + msfile
     if os.path.exists(final):
         os.system('rm -rf {}'.format(final))
+    flagmanager(vis3, mode='restore', versionname='before_autoflag')
     split(vis3, outputvis=final, datacolumn='corrected')
 
     # Remove the interim ms files
@@ -777,6 +757,7 @@ def fd_images(vis, cleanup=False, niter=None, spws=['0~1', '2~5', '6~10', '11~20
             #        scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
             #        niter=niter, gain=0.05, savemodel="none")
             os.system('rm -rf {}.*'.format(imname))
+
             tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
                    antenna="0~12", datacolumn="data", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
                    stokes="XX", projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
@@ -786,6 +767,10 @@ def fd_images(vis, cleanup=False, niter=None, spws=['0~1', '2~5', '6~10', '11~20
                    smoothfactor=1.0, minbeamfrac=0.3, cutthreshold=0.01, growiterations=75, dogrowprune=True,
                    minpercentchange=-1.0)
             outfits = os.path.join(imgoutdir, 'eovsa_' + tdate + '.spw' + spwstr + '.tb.fits')
+
+            if os.path.exists(outfits):
+                os.system('rm -rf {}'.format(outfits))
+
             imagefile.append(imname + '.image')
             fitsfile.append(outfits)
     hf.imreg(vis=vis, imagefile=imagefile, fitsfile=fitsfile, timerange=[trange] * len(fitsfile), toTb=True,
@@ -809,9 +794,10 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
         bright = [True] * len(spws)
     # Insert model into ms and do "inf" gaincal, appending to table each subsequent time
 
-    if os.path.exists('old_images1'):
-        os.system('rm -rf old_images1')
-    os.system('mv images old_images1')
+    if os.path.exists('raw_images'):
+        os.system('rm -rf raw_images')
+    os.system('mv images raw_images')
+    clearcal(vis)
     fd_images(vis, cleanup=False, niter=niter, spws=spws, bright=bright)  # Does shallow clean for selfcal purposes
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_d1.pha')
@@ -830,7 +816,8 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
             else:
                 appd = False
             gaincal(vis=vis, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
-                    combine="scan", antenna='0~12&0~12', refant='10', solint='inf', gaintype='G', minsnr=1.0,
+                    combine="scan", antenna='0~12&0~12', refant='0', refantmode="strict", solint='inf', gaintype='G',
+                    minsnr=1.0,
                     calmode='p', append=appd)
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
@@ -844,10 +831,10 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
     # Move the existing images directory so that a new one will be created
-    if os.path.exists('old_images2'):
-        os.system('rm -rf old_images2')
+    if os.path.exists('fcal_round1'):
+        os.system('rm -rf fcal_round1')
     # shutil.move('images', 'old_images2')
-    os.system('mv images old_images2')
+    os.system('mv images fcal_round1')
     # Make new model images for another round of selfcal
     fd_images(vis1, cleanup=False, niter=niter, spws=spws, bright=bright)
     for s, sp in enumerate(spws):
@@ -863,7 +850,8 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
             else:
                 appd = False
             gaincal(vis=vis1, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
-                    combine="scan", antenna='0~12&0~12', refant='10', solint='1min', gaintype='G', minsnr=1.0,
+                    combine="scan", antenna='0~12&0~12', refant='0', solint='10min', refantmode="strict", gaintype='G',
+                    minsnr=1.0,
                     calmode='p', append=appd)
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
@@ -871,7 +859,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     vis2 = 'dslf2_' + vis
     if os.path.exists(vis2):
         os.system('rm -rf {}'.format(vis2))
-    split(vis1, outputvis=vis2, datacolumn="corrected")
+    mstl.splitX(vis1, outputvis=vis2, datacolumn="corrected", datacolumn2="model_data")
     shutil.rmtree('images')  # Remove all images and the folder named images
     return vis2
 
@@ -898,7 +886,13 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
         # ax = axs[idx]
         eomap = smap.Map(eofile)
         tb_disk = eomap.meta['TBDISK']
-        norm = colors.Normalize(vmin=tb_disk * (-0.2), vmax=tb_disk * 2.0)
+        vmaxs = [70.0e4, 30e4, 18e4, 13e4, 8e4, 6e4]
+        vmins = [-18.0e3, -8e3, -4.8e3, -3.4e3, -2.1e3, -1.6e3]
+        # norm = colors.Normalize(vmin=vmins[idx], vmax=vmaxs[idx])
+        stretch = AsinhStretch(a=0.15)
+        norm = ImageNormalize(vmin=vmins[idx], vmax=vmaxs[idx], stretch=stretch)
+
+        # norm = colors.Normalize(vmin=tb_disk * (-0.2), vmax=0.5*np.nanmax(eomap.data))
         eomap_ = pmX.Sunmap(eomap)
         eomap_.imshow(axes=ax, cmap=cmap, norm=norm)
         eomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
@@ -906,7 +900,7 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
         divider = make_axes_locatable(ax)
         cax = divider.append_axes('right', size='2.0%', pad=0.08)
         cax.tick_params(direction='in')
-        clb = colorbar.ColorbarBase(cax, cmap=cmap, norm=colors.Normalize(vmin=0., vmax=tb_disk * 1.75 / 1e3))
+        clb = colorbar.ColorbarBase(cax, cmap=cmap, norm=norm)
         clb.set_label(r'T$_b$ [$\times$10$^3$K]')
         if idx != nfiles / 2:
             ax.set_xlabel('')
@@ -932,13 +926,22 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
 def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None, figoutdir=None):
     from astropy.io import fits
 
+    spw2band = np.array([0, 1] + range(4, 52))
+    defaultfreq = 1.1 + 0.325 * (spw2band + 0.5)
     # Use vis name to determine date, and hence number of bands
     if mstl.get_trange(vis)[0].mjd > 58536:
+        # After 2019 Feb 22, the band numbers changed to 1-52, and spw from 0-49
         nbands = 52
+        freq = defaultfreq
     else:
+        # Before 2019 Feb 22, the band numbers were 1-34, and spw from 0-30
         nbands = 34
+        freq = 1.419 + np.arange(nbands) / 2.
+
+    slashdate = ant_trange(vis)[:10]
 
     spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43', '44~49']
+    active = False
     # --- uncomment for testing
     # spws = ['0~1', '2~2', '3~3', '4~4', '5~5','6~6','7~7']
     # outputvis='delete_me.ms'
@@ -967,14 +970,31 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
     if not os.path.exists(slfcaltbdir):
         os.makedirs(slfcaltbdir)
+    # Verify that the vis is not in the current working directory
+    if os.getcwd() == os.path.dirname(vis):
+        print('Cannot copy vis file onto itself.')
+        print('Please change to a different working directory')
+        return None
+
+    # Copy original ms to local directory
+    if os.path.exists(os.path.basename(vis)):
+        shutil.rmtree(os.path.basename(vis))
+    print('Copy {} to working directory {}.'.format(vis, os.getcwd()))
+    shutil.copytree(vis, os.path.basename(vis))
+    vis = os.path.basename(vis)
     # Generate calibrated visibility by self calibrating on the solar disk
-    ms_slfcaled, diskxmlfile = disk_slfcal(vis, slfcaltbdir=slfcaltbdir)
+    ##ms_slfcaled, diskxmlfile = disk_slfcal(vis, slfcaltbdir=slfcaltbdir)
     # Make initial images from self-calibrated visibility file, and check T_b max
     if os.path.exists('images'):
         shutil.rmtree('images')
-    outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir, spws=spws)
+    outputfits = fd_images(vis, imgoutdir=imgoutdir, spws=spws)
+    # outputfits = fd_images(vis, imgoutdir=imgoutdir, spws=spws, cleanup=True) change cleanup here?
+    ####### outputfits is with model
     # Check if any of the images has a bright source (T_b > 300,000 K), and if so, remake images
     # with fewer components and execute feature_slfcal
+    diskxmlfile = vis + '.SOLDISK.xml'
+    dsize, fdens = calc_diskmodel(slashdate, nbands, freq, defaultfreq)
+    insertdiskmodel(vis, dsize=dsize, fdens=fdens, xmlfile=diskxmlfile, writediskinfoonly=True)
     files = outputfits
     diskinfo = readdiskxml(diskxmlfile)
     bright = np.zeros((len(files)), dtype=np.bool)
@@ -982,21 +1002,28 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         tb_disk = image_adddisk(file, diskinfo, caltbonly=True)
         data = fits.getdata(file)
         data.shape = data.shape[-2:]  # gets rid of any leading axes of size 1
+
         # if np.nanmax(np.nanmax(data)) > 300000: bright[idx] = True
-        if np.nanmax(data) > 5.0 * tb_disk: bright[idx] = True
+        if np.nanmax(data) > 6.0 * tb_disk: bright[idx] = True
     bright[-1] = False  # skip the image of the highest bands for feature slfcal
 
-    ## todo consider to move feature slfcal to before the disk_slfcal
     if any(bright):
         print('spw {} have bright features on disk.'.format(';'.join(np.array(spws)[np.where(bright)[0]])))
+        active = True
         # A bright source exists, so do feature self-calibration
         # Creates newly calibrated database
-        ms_slfcaled2 = feature_slfcal(ms_slfcaled, niter=200, slfcaltbdir=slfcaltbdir, spws=spws, bright=bright)
+        ms_slfcaled2 = feature_slfcal(vis, niter=200, slfcaltbdir=slfcaltbdir, spws=spws, bright=bright)
         # Does deep clean for final image creation
-        outputfits = fd_images(ms_slfcaled2, imgoutdir=imgoutdir, spws=spws, cleanup=True)
+        # outputfits = fd_images(ms_slfcaled2, imgoutdir=imgoutdir, spws=spws, cleanup=True)
         # Cleanup of interim ms's would be done here...
-        shutil.rmtree(ms_slfcaled)
-        ms_slfcaled = ms_slfcaled2
+        # shutil.rmtree(subfile)
+        # map_disk, tb_disk1, ms_slfcaled2_new = image_adddisk(ms_slfcaled2, diskinfo)
+        vis = ms_slfcaled2
+
+    ms_slfcaled, diskxmlfile = disk_slfcal(vis, slfcaltbdir=slfcaltbdir, active=active)  # control delete previous model
+
+    outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir, spws=spws)
+
     #  Final move of fits images can also be done here...
     if outputvis:
         if os.path.exists(outputvis):
@@ -1022,4 +1049,4 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
     # plt_eovsa_image(eofiles_new[:-1], figoutdir)  # skip plotting the image of the highest bands
 
-    return ms_slfcaled, diskxmlfile
+    return ms_slfcaled

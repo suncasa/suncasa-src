@@ -10,6 +10,7 @@ from astropy.time import Time
 from sunpy import sun
 import astropy.units as u
 import warnings
+from suncasa.utils import fitsutils as fu
 
 try:
     from astropy.io import fits as pyfits
@@ -20,41 +21,20 @@ except:
         raise ImportError('Neither astropy nor pyfits exists in this CASA installation')
 
 
-def headerfix(header, PC_coor=True):
-    '''
-    this code fix the header problem of fits out from CASA 5.4+ which leads to a streched solar image
-    set PC_coor equal to True will reset the rotation matrix.
-    '''
-
-    keys2remove = []
-    for k in header:
-        if k.upper().startswith('PC'):
-            if not k.upper().startswith('PC0'):
-                pcidxs = k.upper().replace('PC', '')
-                hd_ = 'PC0' + pcidxs
-                keys2remove.append(k)
-                if PC_coor:
-                    pcidx0, pcidx1 = pcidxs.split('_')
-                    if pcidx0 == pcidx1:
-                        header[hd_] = 1.0
-                    else:
-                        header[hd_] = 0.0
-                else:
-                    header[hd_] = header[k]
-    for k in keys2remove:
-        header.remove(k)
-    return header
-
-
-# from astropy.constants import R_sun, au
-
-def msclearhistory(msfile):
+def ms_clearhistory(msfile):
     from taskinit import tb
-    tb.open(msfile + '/HISTORY', nomodify=False)
+    tb_history = msfile + '/HISTORY'
+    os.system('cp -r {0} {0}_bk'.format(tb_history))
+    tb.open(tb_history, nomodify=False)
     nrows = tb.nrows()
     if nrows > 0:
         tb.removerows(range(nrows))
     tb.close()
+
+
+def ms_restorehistory(msfile):
+    tb_history = msfile + '/HISTORY'
+    os.system('mv {0}_bk {0}'.format(tb_history))
 
 
 def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
@@ -579,7 +559,7 @@ def getbeam(imagefile=None, beamfile=None):
 
 
 def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, reftime=None, fitsfile=None, beamfile=None,
-          offsetfile=None, toTb=None, scl100=None, verbose=False, p_ang=False, overwrite=True, usephacenter=True,
+          offsetfile=None, toTb=None, sclfactor=1.0, verbose=False, p_ang=False, overwrite=True, usephacenter=True,
           deletehistory=False, subregion=[], docompress=False):
     ''' 
     main routine to register CASA images
@@ -596,7 +576,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                reftime: STRING or LIST. Each element should be in CASA standard time format, e.g., '2012/03/03/12:00:00'
                offsetfile: optionally provide an offset with a series of solar x and y offsets with timestamps 
                toTb: Bool. Convert the default Jy/beam to brightness temperature?
-               scl100: Bool. If True, scale the image values up by 100 (to compensate VLA 20 dB attenuator)
+               sclfactor: scale the image values up by its value (to compensate VLA 20 dB attenuator)
                verbose: Bool. Show more diagnostic info if True.
                usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris.
                                      Otherwise assume the phasecenter is correctly pointed to the solar disk center
@@ -619,7 +599,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
     ia = iatool()
 
     if deletehistory:
-        msclearhistory(vis)
+        ms_clearhistory(vis)
 
     if not imagefile:
         raise ValueError('Please specify input image')
@@ -727,15 +707,11 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             (crval1, crval2) = (xoff + dx, yoff + dy)
             # update the fits header to heliocentric coordinates
 
-            if docompress:
-                fitsftmp = fitsf + ".tmp.fits"
-                os.system("mv {} {}".format(fitsf, fitsftmp))
-                hdu = pyfits.open(fitsftmp, mode='update')
-            else:
-                hdu = pyfits.open(fitsf, mode='update')
-            # hdu = pyfits.open(fitsf, mode='update')
+            hdu = pyfits.open(fitsf, mode='update')
             hdu[0].verify('fix')
             header = hdu[0].header
+            dshape = hdu[0].data.shape
+            ndim = hdu[0].data.ndim
             (cdelt1, cdelt2) = (
                 -header['cdelt1'] * 3600., header['cdelt2'] * 3600.)  # Original CDELT1, 2 are for RA and DEC in degrees
             header['cdelt1'] = cdelt1
@@ -794,20 +770,18 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 print('STOKES Information does not seem to exist! Assuming Stokes I')
                 stokenum = 1
 
-            # update intensity units, i.e. to brightness temperature?
+            # intensity units to brightness temperature
             if toTb:
                 # get restoring beam info
                 bmaj = bmajs[n]
                 bmin = bmins[n]
                 beamunit = beamunits[n]
                 data = hdu[0].data  # remember the data order is reversed due to the FITS convension
-                dim = data.ndim
-                sz = data.shape
                 keys = header.keys()
                 values = header.values()
                 # which axis is frequency?
                 faxis = keys[values.index('FREQ')][-1]
-                faxis_ind = dim - int(faxis)
+                faxis_ind = ndim - int(faxis)
                 # find out the polarization of this image
                 k_b = qa.constants('k')['value']
                 c_l = qa.constants('c')['value']
@@ -816,7 +790,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 if header['BUNIT'].lower() == 'jy/beam':
                     header['BUNIT'] = 'K'
                     header['BTYPE'] = 'Brightness Temperature'
-                    for i in range(sz[faxis_ind]):
+                    for i in range(dshape[faxis_ind]):
                         nu = header['CRVAL' + faxis] + header['CDELT' + faxis] * (i + 1 - header['CRPIX' + faxis])
                         if header['CUNIT' + faxis] == 'KHz':
                             nu *= 1e3
@@ -846,24 +820,41 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                         factor = const * nu ** 2  # SI unit
                         jy_to_si = 1e-26
                         # print(nu/1e9, beam_area, factor)
-                        factor2 = 1.
-                        if scl100:
-                            factor2 = 100.
+                        factor2 = sclfactor
+                        # if sclfactor:
+                        #     factor2 = 100.
                         if faxis == '3':
                             data[:, i, :, :] *= jy_to_si / beam_area / factor * factor2
                         if faxis == '4':
                             data[i, :, :, :] *= jy_to_si / beam_area / factor * factor2
 
-            header = headerfix(header)
+            header = fu.headerfix(header)
+            hdu.flush()
+            hdu.close()
+
+            if ndim - np.count_nonzero(np.array(dshape) == 1) > 3:
+                docompress = False
+                '''
+                    Caveat: only 1D, 2D, or 3D images are currently supported by
+                    the astropy fits compression. If a n-dimensional image data array
+                    does not have at least n-3 single-dimensional entries,
+                    force docompress to be False
+                '''
+
+                print('warning: The fits data contains more than 3 non squeezable dimensions. Skipping fits compression..')
             if docompress:
-                from suncasa.utils import fitsutils as fu
-                data = np.squeeze(data)
-                data[np.isnan(data)] = 0.0
-                fu.write_compress_image_fits(fitsf, data, header, compression_type='RICE_1', quantize_level=4.0)
+                fitsftmp = fitsf + ".tmp.fits"
+                os.system("mv {} {}".format(fitsf, fitsftmp))
+                hdu = pyfits.open(fitsftmp)
+                hdu[0].verify('fix')
+                header = hdu[0].header
+                data = hdu[0].data
+                fu.write_compressed_image_fits(fitsf, data, header, compression_type='RICE_1',
+                                             quantize_level=4.0)
                 os.system("rm -rf {}".format(fitsftmp))
-            else:
-                hdu.flush()
-                hdu.close()
+    if deletehistory:
+        ms_restorehistory(vis)
+    return fitsfile
 
 
 def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=True):
