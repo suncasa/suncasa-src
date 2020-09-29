@@ -618,6 +618,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
         # freq = np.hstack([[1.419], 2.0 + 0.5 * (np.arange(32)) + (0.5 - 0.081)])
         freq = 1.419 + np.arange(nbands) / 2.
 
+    caltbs = []
     slashdate = trange[:10]
     # Verify that the vis is not in the current working directory
     '''
@@ -647,6 +648,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
     # Insert the disk model (msfile is the same as vis, and will be used as the "original" vis file name)
     msfile, diskim = insertdiskmodel(vis, dsize=dsize, fdens=fdens, xmlfile=diskxmlfile, active=active)
 
+
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_1.pha')
     if os.path.exists(caltb):
@@ -661,6 +663,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
 
     applycal(vis=msfile, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
+    caltbs.append(caltb)
     # Split corrected data and model to a new ms for round 2 of phase selfcal
     vis1 = 'slf_' + msfile
     if os.path.exists(vis1):
@@ -679,6 +682,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
     # refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
     applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
+    caltbs.append(caltb)
     # Split corrected data and model to a new ms
     vis2 = 'slf2_' + msfile
     if os.path.exists(vis2):
@@ -696,12 +700,17 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
     mstl.flagcaltboutliers(caltb, limit=[0.125, 8.0])
     applycal(vis=vis2, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
              applymode="calonly")
+    caltbs.append(caltb)
     # Split out corrected data and model and do uvsub
     vis3 = 'slf3_' + msfile
     if os.path.exists(vis3):
         os.system('rm -rf {}'.format(vis3))
 
-    split(vis2, outputvis=vis3, datacolumn="corrected")
+    flagmanager(vis, mode='restore', versionname='before_autoflag')
+    clearcal(vis)
+    applycal(vis=vis, selectdata=True, antenna="0~12", gaintable=caltbs, interp="nearest", calwt=False,
+             applymode="calonly")
+    split(vis, outputvis=vis3, datacolumn="corrected")
     for sp, dkim in tqdm(enumerate(diskim), desc='Inserting disk model', ascii=True):
         ft(vis=vis3, spw=str(sp), field='', model=str(dkim), nterms=1,
            reffreq="", complist="", incremental=False, usescratch=True)
@@ -711,7 +720,6 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
     final = 'final_' + msfile
     if os.path.exists(final):
         os.system('rm -rf {}'.format(final))
-    flagmanager(vis3, mode='restore', versionname='before_autoflag')
     split(vis3, outputvis=final, datacolumn='corrected')
 
     # Remove the interim ms files
