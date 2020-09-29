@@ -75,7 +75,6 @@ def splitX(vis, datacolumn2='MODEL_DATA', **kwargs):
         os.system('rm -rf {}'.format(outmsfile))
     if os.path.exists('{}.flagversions'.format(outmsfile)):
         os.system('rm -rf {}.flagversions'.format(outmsfile))
-
     split(vis, **kwargs)
 
     for k in ['datacolumn', 'outputvis']:
