@@ -701,7 +701,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
         os.system('rm -rf {}'.format(vis3))
 
     split(vis2, outputvis=vis3, datacolumn="corrected")
-    for sp in tqdm(nbands, desc='Inserting disk model', ascii=True):
+    for sp in tqdm(range(nbands), desc='Inserting disk model', ascii=True):
         ft(vis=vis3, spw=str(sp), field='', model=str(diskim[sp]), nterms=1,
            reffreq="", complist="", incremental=False, usescratch=True)
     uvsub(vis=vis3, reverse=False)
