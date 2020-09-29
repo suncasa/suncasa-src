@@ -563,7 +563,8 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, xmlfile='SOLDISK
     if not os.path.exists(diskimdir):
         os.makedirs(diskimdir)
     frq = []
-    for sp in range(nspw):
+    spws = range(nspw)
+    for sp in spws:
         spw = spwinfo[str(sp)]
         frq.append('{:.4f}GHz'.format((spw['RefFreq'] + spw['TotalWidth'] / 2.0) / 1e9))
     frq = np.array(frq)
@@ -578,7 +579,7 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, xmlfile='SOLDISK
         direction = 'J2000 ' + str(ra) + 'rad ' + str(dec) + 'rad'
 
         diskim = []
-        for sp in tqdm(range(nspw), desc='Generating {} disk models'.format(nspw), ascii=True):
+        for sp in tqdm(spws, desc='Generating {} disk models'.format(nspw), ascii=True):
             diskim.append(
                 mk_diskmodel(outname=diskimdir + 'disk{:02d}_'.format(sp), bdwidth=spwinfo[str(sp)],
                              direction=direction,
@@ -588,7 +589,7 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, xmlfile='SOLDISK
         if not active:
             delmod(msfile, otf=True, scr=True)
 
-        for sp in tqdm(range(nspw), desc='Inserting disk model', ascii=True):
+        for sp in tqdm(spws, desc='Inserting disk model', ascii=True):
             ft(vis=msfile, spw=str(sp), field='', model=str(diskim[sp]), nterms=1,
                reffreq="", complist="", incremental=True, usescratch=True)
 
@@ -701,8 +702,8 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
         os.system('rm -rf {}'.format(vis3))
 
     split(vis2, outputvis=vis3, datacolumn="corrected")
-    for sp in tqdm(range(nbands), desc='Inserting disk model', ascii=True):
-        ft(vis=vis3, spw=str(sp), field='', model=str(diskim[sp]), nterms=1,
+    for sp, dkim in tqdm(enumerate(diskim), desc='Inserting disk model', ascii=True):
+        ft(vis=vis3, spw=str(sp), field='', model=str(dkim), nterms=1,
            reffreq="", complist="", incremental=False, usescratch=True)
     uvsub(vis=vis3, reverse=False)
 
