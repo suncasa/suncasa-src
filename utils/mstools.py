@@ -54,7 +54,7 @@ def clearflagrow(msfile, mode='clear'):
     tb.close()
 
 
-def splitX(vis, datacolumn2='MODEL_DATA', overwrite=True, **kwargs):
+def splitX(vis, datacolumn2='MODEL_DATA', **kwargs):
     import os
     from clearcal_cli import clearcal_cli as clearcal
     from split_cli import split_cli as split
@@ -72,13 +72,11 @@ def splitX(vis, datacolumn2='MODEL_DATA', overwrite=True, **kwargs):
     if outmsfile.endswith('/'):
         outmsfile = outmsfile[:-1]
     if os.path.exists(outmsfile):
-        if overwrite:
-            os.system('rm -rf {}'.format(outmsfile))
-            if os.path.exists('{}.flagversions'.format(outmsfile)):
-                os.system('rm -rf {}.flagversions'.format(outmsfile))
-            split(vis, **kwargs)
-    else:
-        split(vis, **kwargs)
+        os.system('rm -rf {}'.format(outmsfile))
+    if os.path.exists('{}.flagversions'.format(outmsfile)):
+        os.system('rm -rf {}.flagversions'.format(outmsfile))
+
+    split(vis, **kwargs)
 
     for k in ['datacolumn', 'outputvis']:
         if k in kwargs2:
