@@ -668,6 +668,8 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
     vis1 = 'slf_' + msfile
     if os.path.exists(vis1):
         os.system('rm -rf {}'.format(vis1))
+    if os.path.exists(vis1+'.flagversions'):
+        os.system('rm -rf {}'.format(vis1+'.flagversions'))
     mstl.splitX(msfile, outputvis=vis1, datacolumn="corrected", datacolumn2="model_data")
 
     caltb = os.path.join(slfcaltbdir, tdate + '_2.pha')
@@ -687,6 +689,8 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
     vis2 = 'slf2_' + msfile
     if os.path.exists(vis2):
         os.system('rm -rf {}'.format(vis2))
+    if os.path.exists(vis2+'.flagversions'):
+        os.system('rm -rf {}'.format(vis2+'.flagversions'))
     mstl.splitX(vis1, outputvis=vis2, datacolumn="corrected", datacolumn2="model_data")
 
     caltb = os.path.join(slfcaltbdir, tdate + '_3.amp')
@@ -698,13 +702,15 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
             solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G", calmode="a",
             append=False)
     mstl.flagcaltboutliers(caltb, limit=[0.125, 8.0])
-    applycal(vis=vis2, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
-             applymode="calonly")
+    # applycal(vis=vis2, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
+    #          applymode="calonly")
     caltbs.append(caltb)
     # Split out corrected data and model and do uvsub
     vis3 = 'slf3_' + msfile
     if os.path.exists(vis3):
         os.system('rm -rf {}'.format(vis3))
+    if os.path.exists(vis3+'.flagversions'):
+        os.system('rm -rf {}'.format(vis3+'.flagversions'))
 
     flagmanager(vis, mode='restore', versionname='before_autoflag')
     clearcal(vis)
@@ -720,6 +726,8 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
     final = 'final_' + msfile
     if os.path.exists(final):
         os.system('rm -rf {}'.format(final))
+    if os.path.exists(final+'.flagversions'):
+        os.system('rm -rf {}'.format(final+'.flagversions'))
     split(vis3, outputvis=final, datacolumn='corrected')
 
     # Remove the interim ms files
