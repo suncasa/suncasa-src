@@ -69,9 +69,13 @@ def splitX(vis, datacolumn2='MODEL_DATA', overwrite=True, **kwargs):
     datacolumn2 = datacolumn2.upper()
 
     outmsfile = kwargs['outputvis']
+    if outmsfile.endswith('/'):
+        outmsfile = outmsfile[:-1]
     if os.path.exists(outmsfile):
         if overwrite:
             os.system('rm -rf {}'.format(outmsfile))
+            if os.path.exists('{}.flagversions'.format(outmsfile)):
+                os.system('rm -rf {}.flagversions'.format(outmsfile))
             split(vis, **kwargs)
     else:
         split(vis, **kwargs)
