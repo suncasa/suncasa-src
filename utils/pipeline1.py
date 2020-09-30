@@ -15,12 +15,12 @@ def pipeline1(year=None, month=None, day=None, clearcache=True):
         # Uncomment below and set date to run for a given date
         t = Time('{}-{:02d}-{:02d} 20:00'.format(year, month, day))
     print(t.iso)
-    date = t.iso[:10]
+    datestr = t.iso[:10]
 
     subdir = t.datetime.strftime('%Y%m%d/')
     if not os.path.exists(subdir):
         os.makedirs(subdir)
-    vis_corrected = ep.calib_pipeline(date, overwrite=True, doimport=True,
+    vis_corrected = ep.calib_pipeline(datestr, overwrite=True, doimport=True,
                                       workdir=os.path.join(workdir, subdir))
     if clearcache:
         os.chdir(workdir)
