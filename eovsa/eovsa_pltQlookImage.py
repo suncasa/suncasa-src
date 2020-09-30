@@ -444,32 +444,32 @@ if __name__ == '__main__':
         print(opts, args)
         for opt, arg in opts:
             if opt in ['-c', '--clearcache']:
-                if arg is 'True':
+                if arg in ['True', 'T', '1']:
                     clearcache = True
-                elif arg is 'False':
+                elif arg in ['False', 'F', '0']:
                     clearcache = False
                 else:
                     clearcache = np.bool(arg)
             elif opt in ('-n', '--ndays'):
                 ndays = np.int(arg)
             elif opt in ('-e', '--ovwrite_eovsa'):
-                if arg is 'True':
+                if arg in ['True', 'T', '1']:
                     ovwrite_eovsa = True
-                elif arg is 'False':
+                elif arg in ['False', 'F', '0']:
                     ovwrite_eovsa = False
                 else:
                     ovwrite_eovsa = np.bool(arg)
             elif opt in ('-s', '--ovwrite_sdo'):
-                if arg is 'True':
+                if arg in ['True', 'T', '1']:
                     ovwrite_sdo = True
-                elif arg is 'False':
+                elif arg in ['False', 'F', '0']:
                     ovwrite_sdo = False
                 else:
                     ovwrite_sdo = np.bool(arg)
             elif opt in ('-s', '--ovwrite_bbso'):
-                if arg is 'True':
+                if arg in ['True', 'T', '1']:
                     ovwrite_bbso = True
-                elif arg is 'False':
+                elif arg in ['False', 'F', '0']:
                     ovwrite_bbso = False
                 else:
                     ovwrite_bbso = np.bool(arg)

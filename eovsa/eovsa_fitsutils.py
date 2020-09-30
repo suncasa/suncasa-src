@@ -133,25 +133,25 @@ if __name__ == '__main__':
         print(opts, args)
         for opt, arg in opts:
             if opt in ['-c', '--clearcache']:
-                if arg is 'True':
+                if arg in ['True', 'T', '1']:
                     clearcache = True
-                elif arg is 'False':
+                elif arg in ['False', 'F', '0']:
                     clearcache = False
                 else:
                     clearcache = np.bool(arg)
             elif opt in ('-n', '--ndays'):
                 ndays = np.int(arg)
             elif opt in ('-o', '--overwritejp2'):
-                if arg is 'True':
+                if arg in ['True', 'T', '1']:
                     overwritejp2 = True
-                elif arg is 'False':
+                elif arg in ['False', 'F', '0']:
                     overwritejp2 = False
                 else:
                     overwritejp2 = np.bool(arg)
             elif opt in ('-O', '--overwritefits'):
-                if arg is 'True':
+                if arg in ['True', 'T', '1']:
                     overwritefits = True
-                elif arg is 'False':
+                elif arg in ['False', 'F', '0']:
                     overwritefits = False
                 else:
                     overwritefits = np.bool(arg)
@@ -181,7 +181,7 @@ if __name__ == '__main__':
              'clearcache': clearcache,
              'overwritejp2': overwritejp2,
              'overwritefits': overwritefits}
-    for k,v in kargs.items():
-        print(k,v)
+    for k, v in kargs.items():
+        print(k, v)
 
     main(year, month, day, ndays, overwritejp2=overwritejp2, overwritefits=overwritefits)

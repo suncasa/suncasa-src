@@ -690,26 +690,27 @@ if __name__ == '__main__':
         opts, args = getopt.getopt(argv, "c:n:o:i:", ['clearcache=', 'ndays=', 'overwrite=', 'doimport='])
         print(opts, args)
         for opt, arg in opts:
+            print(opt, arg, type(arg))
             if opt in ['-c', '--clearcache']:
-                if arg is 'True':
+                if arg in ['True', 'T', '1']:
                     clearcache = True
-                elif arg is 'False':
+                elif arg in ['False', 'F', '0']:
                     clearcache = False
                 else:
                     clearcache = np.bool(arg)
             elif opt in ('-n', '--ndays'):
                 ndays = np.int(arg)
             elif opt in ('-o', '--overwrite'):
-                if arg is 'True':
+                if arg in ['True', 'T', '1']:
                     overwrite = True
-                elif arg is 'False':
+                elif arg in ['False', 'F', '0']:
                     overwrite = False
                 else:
                     overwrite = np.bool(arg)
             elif opt in ('-i', '--doimport'):
-                if arg is 'True':
+                if arg in ['True', 'T', '1']:
                     doimport = True
-                elif arg is 'False':
+                elif arg in ['False', 'F', '0']:
                     doimport = False
                 else:
                     doimport = np.bool(arg)
@@ -730,8 +731,8 @@ if __name__ == '__main__':
         day = None
         ndays = 1
         clearcache = True
-        overwrite = False
-        doimport = False
+        overwrite = True
+        doimport = True
 
     print("Running pipeline_plt for date {}-{}-{}.".format(year, month, day))
     kargs = {'ndays': ndays,
