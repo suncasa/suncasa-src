@@ -17,8 +17,6 @@ from uvsub_cli import uvsub_cli as uvsub
 from split_cli import split_cli as split
 from tclean_cli import tclean_cli as tclean
 from ft_cli import ft_cli as ft
-from astropy.visualization.stretch import AsinhStretch, LinearStretch, SqrtStretch
-from astropy.visualization import ImageNormalize
 from suncasa.utils import mstools as mstl
 
 
@@ -807,9 +805,9 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
         bright = [True] * len(spws)
     # Insert model into ms and do "inf" gaincal, appending to table each subsequent time
 
-    if os.path.exists('raw_images'):
-        os.system('rm -rf raw_images')
-    os.system('mv images raw_images')
+    if os.path.exists('images_init'):
+        os.system('rm -rf images_init')
+    os.system('mv images images_init')
     clearcal(vis)
     fd_images(vis, cleanup=False, niter=niter, spws=spws, bright=bright)  # Does shallow clean for selfcal purposes
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
@@ -844,10 +842,10 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
     # Move the existing images directory so that a new one will be created
-    if os.path.exists('fcal_round1'):
-        os.system('rm -rf fcal_round1')
+    if os.path.exists('images_ftcal_rnd1'):
+        os.system('rm -rf images_ftcal_rnd1')
     # shutil.move('images', 'old_images2')
-    os.system('mv images fcal_round1')
+    os.system('mv images images_ftcal_rnd1')
     # Make new model images for another round of selfcal
     fd_images(vis1, cleanup=False, niter=niter, spws=spws, bright=bright)
     for s, sp in enumerate(spws):
@@ -873,13 +871,19 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     if os.path.exists(vis2):
         os.system('rm -rf {}'.format(vis2))
     mstl.splitX(vis1, outputvis=vis2, datacolumn="corrected", datacolumn2="model_data")
-    shutil.rmtree('images')  # Remove all images and the folder named images
+    # shutil.rmtree('images')  # Remove all images and the folder named images
+    if os.path.exists('images_ftcal_rnd2'):
+        os.system('rm -rf images_ftcal_rnd2')
+    # shutil.move('images', 'old_images2')
+    os.system('mv images images_ftcal_rnd2')
     return vis2
 
 
 def plt_eovsa_image(eofiles, figoutdir='./'):
     import matplotlib.pyplot as plt
     import matplotlib.colors as colors
+    from astropy.visualization.stretch import AsinhStretch, LinearStretch, SqrtStretch
+    from astropy.visualization import ImageNormalize
     from suncasa.utils import plot_mapX as pmX
     from sunpy import map as smap
     import astropy.units as u
@@ -1032,11 +1036,14 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         # shutil.rmtree(subfile)
         # map_disk, tb_disk1, ms_slfcaled2_new = image_adddisk(ms_slfcaled2, diskinfo)
         vis = ms_slfcaled2
+    else:
+        if os.path.exists('images_init'):
+            os.system('rm -rf images_init')
+        os.system('mv images images_init')
 
-    ms_slfcaled, diskxmlfile = disk_slfcal(vis, slfcaltbdir=slfcaltbdir, active=active)  # control delete previous model
+    ms_slfcaled, diskxmlfile = disk_slfcal(vis, slfcaltbdir=slfcaltbdir, active=active)
 
     outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir, spws=spws)
-
 
     if outputvis:
         if os.path.exists(outputvis):

@@ -255,9 +255,9 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False):
     if not os.path.exists(figoutdir):
         os.makedirs(figoutdir)
     vis = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms',
-                                       workdir=workdir,
-                                       slfcaltbdir=os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/',
-                                       imgoutdir=imgoutdir, figoutdir=figoutdir)
+                          workdir=workdir,
+                          slfcaltbdir=os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/',
+                          imgoutdir=imgoutdir, figoutdir=figoutdir)
     return vis
 
 

@@ -15,6 +15,7 @@ import numpy as np
 from astropy.time import Time
 import urllib.request
 import socket
+
 socket.setdefaulttimeout(180)
 
 imgfitsdir = '/data1/eovsa/fits/synoptic/'
@@ -105,6 +106,8 @@ def pltEmptyImage(datestr, spws, vmaxs, vmins, dpis_dict={'t': 32.0}):
 
 
 def pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None, overwrite=False, verbose=False):
+    from astropy.visualization.stretch import AsinhStretch, LinearStretch, SqrtStretch
+    from astropy.visualization import ImageNormalize
     plt.ioff()
     dateobj = datetime.strptime(datestr, "%Y-%m-%d")
     datestrdir = dateobj.strftime("%Y/%m/%d/")
@@ -137,7 +140,9 @@ def pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None
             if not os.path.exists(eofile): continue
             if not os.path.exists(imgoutdir): os.makedirs(imgoutdir)
             eomap = smap.Map(eofile)
-            norm = colors.Normalize(vmin=vmins[s], vmax=vmaxs[s])
+            stretch = AsinhStretch(a=0.15)
+            norm = ImageNormalize(vmin=vmins[s], vmax=vmaxs[s], stretch=stretch)
+            # norm = colors.Normalize(vmin=vmins[s], vmax=vmaxs[s])
             eomap_ = pmX.Sunmap(eomap)
             eomap_.imshow(axes=ax, cmap=cmap, norm=norm)
             eomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
@@ -332,11 +337,11 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
                 header['CTYPE2'] = 'HPLT-TAN'
                 header['CUNIT2'] = 'arcsec'
                 header['DATE-OBS'] = header['DATE_OBS']
-                for k in ['CONTRAST','WAVE ERR']:
-                   try:
-                       header.remove(k)
-                   except:
-                       pass
+                for k in ['CONTRAST', 'WAVE ERR']:
+                    try:
+                        header.remove(k)
+                    except:
+                        pass
 
                 bbsomap = smap.Map(hdu.data, header)
                 med = np.nanmean(bbsomap.data)
@@ -370,7 +375,8 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
     return
 
 
-def main(year=None, month=None, day=None, dayspan=30, clearcache=False):
+def main(year=None, month=None, day=None, dayspan=30, clearcache=False, ovwrite_eovsa=False, ovwrite_sdo=False,
+         ovwrite_bbso=False):
     # tst = datetime.strptime("2017-04-01", "%Y-%m-%d")
     # ted = datetime.strptime("2019-12-31", "%Y-%m-%d")
     if year:
@@ -380,8 +386,10 @@ def main(year=None, month=None, day=None, dayspan=30, clearcache=False):
     tst = Time(np.fix(Time(ted).mjd) - dayspan, format='mjd').datetime
     tsep = datetime.strptime('2019-02-22', "%Y-%m-%d")
 
-    vmaxs = [22.0e4, 8.0e4, 5.4e4, 3.5e4, 2.3e4, 1.8e4, 1.5e4]
-    vmins = [-9.0e3, -5.5e3, -3.4e3, -2.5e3, -2.5e3, -2.5e3, -2.5e3]
+    # vmaxs = [22.0e4, 8.0e4, 5.4e4, 3.5e4, 2.3e4, 1.8e4, 1.5e4]
+    # vmins = [-9.0e3, -5.5e3, -3.4e3, -2.5e3, -2.5e3, -2.5e3, -2.5e3]
+    vmaxs = [70.0e4, 30e4, 18e4, 13e4, 8e4, 6e4, 6e4]
+    vmins = [-18.0e3, -8e3, -4.8e3, -3.4e3, -2.1e3, -1.6e3, -1.6e3]
 
     dpis = np.array([256, 512, 1024]) / 8
     dpis_dict_eo = {'t': dpis[0], 'l': dpis[1], 'f': dpis[2]}
@@ -406,46 +414,83 @@ def main(year=None, month=None, day=None, dayspan=30, clearcache=False):
             spws = ['1~3', '4~9', '10~16', '17~24', '25~30']
 
         datestr = dateobs.strftime("%Y-%m-%d")
-        pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict_eo, fig, ax, overwrite=False, verbose=True)
-        pltSdoQlookImage(datestr, dpis_dict_sdo, fig, ax, overwrite=False, verbose=True, clearcache=clearcache)
-        pltBbsoQlookImage(datestr, dpis_dict_bbso, fig, ax, overwrite=False, verbose=True, clearcache=clearcache)
+        pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict_eo, fig, ax, overwrite=ovwrite_eovsa, verbose=True)
+        pltSdoQlookImage(datestr, dpis_dict_sdo, fig, ax, overwrite=ovwrite_sdo, verbose=True, clearcache=clearcache)
+        pltBbsoQlookImage(datestr, dpis_dict_bbso, fig, ax, overwrite=ovwrite_bbso, verbose=True,
+                          clearcache=clearcache)
 
 
 if __name__ == '__main__':
     import sys
     import numpy as np
+    import getopt
 
-    # import subprocess
-    # shell = subprocess.check_output('echo $0', shell=True).decode().replace('\n', '').split('/')[-1]
-    # print("shell " + shell + " is using")
     year = None
     month = None
     day = None
     dayspan = 30
     clearcache = True
-    print(sys.argv)
+    ovwrite_eovsa = False
+    ovwrite_sdo = False
+    ovwrite_bbso = False
     try:
         argv = sys.argv[1:]
-        if '--clearcache' in argv:
-            clearcache = True
-            argv.remove('--clearcache')  # Allows --clearcache to be either before or after date items
+        opts, args = getopt.getopt(argv, "c:n:e:s:b:", ['clearcache=', 'ndays=', 'ovwrite_eovsa=', 'ovwrite_sdo=','ovwrite_bbso='])
+        print(opts, args)
+        for opt, arg in opts:
+            if opt in ['-c', '--clearcache']:
+                if arg is 'True':
+                    clearcache = True
+                elif arg is 'False':
+                    clearcache = False
+                else:
+                    clearcache = np.bool(arg)
+            elif opt in ('-n', '--ndays'):
+                ndays = np.int(arg)
+            elif opt in ('-e', '--ovwrite_eovsa'):
+                if arg is 'True':
+                    ovwrite_eovsa = True
+                elif arg is 'False':
+                    ovwrite_eovsa = False
+                else:
+                    ovwrite_eovsa = np.bool(arg)
+            elif opt in ('-s', '--ovwrite_sdo'):
+                if arg is 'True':
+                    ovwrite_sdo = True
+                elif arg is 'False':
+                    ovwrite_sdo = False
+                else:
+                    ovwrite_sdo = np.bool(arg)
+            elif opt in ('-s', '--ovwrite_bbso'):
+                if arg is 'True':
+                    ovwrite_bbso = True
+                elif arg is 'False':
+                    ovwrite_bbso = False
+                else:
+                    ovwrite_bbso = np.bool(arg)
+        nargs = len(args)
+        if nargs == 3:
+            year = np.int(args[0])
+            month = np.int(args[1])
+            day = np.int(args[2])
         else:
-            clearcache = False
-
-        year = np.int(argv[0])
-        month = np.int(argv[1])
-        day = np.int(argv[2])
-        if len(argv) == 3:
-            dayspan = 30
-        else:
-            dayspan = np.int(argv[3])
-    except:
+            year = None
+            month = None
+            day = None
+    except getopt.GetoptError as err:
+        print(err)
         print('Error interpreting command line argument')
         year = None
         month = None
         day = None
         dayspan = 30
         clearcache = True
+        ovwrite_eovsa = False
+        ovwrite_sdo = False
+        ovwrite_bbso = False
 
-    print("Running pipeline_plt for date {}-{}-{}. clearcache {}".format(year, month, day, clearcache))
-    main(year, month, day, dayspan, clearcache)
+    print("Running pipeline_plt for date {}-{}-{}.".format(year, month, day))
+    main(year=year, month=month, day=day, dayspan=dayspan, clearcache=clearcache,
+         ovwrite_eovsa=ovwrite_eovsa,
+         ovwrite_sdo=ovwrite_sdo,
+         ovwrite_bbso=ovwrite_bbso)
