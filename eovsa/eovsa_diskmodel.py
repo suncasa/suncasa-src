@@ -648,7 +648,6 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
     # Insert the disk model (msfile is the same as vis, and will be used as the "original" vis file name)
     msfile, diskim = insertdiskmodel(vis, dsize=dsize, fdens=fdens, xmlfile=diskxmlfile, active=active)
 
-
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_1.pha')
     if os.path.exists(caltb):
@@ -661,44 +660,41 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
     gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="", antenna="0~12&0~12", solint="inf",
             combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
 
-    applycal(vis=msfile, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
-             applymode="calonly")
+    # applycal(vis=msfile, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
+    #          applymode="calonly")
     caltbs.append(caltb)
     # Split corrected data and model to a new ms for round 2 of phase selfcal
-    vis1 = 'slf_' + msfile
-    if os.path.exists(vis1):
-        os.system('rm -rf {}'.format(vis1))
-    if os.path.exists(vis1+'.flagversions'):
-        os.system('rm -rf {}'.format(vis1+'.flagversions'))
-    mstl.splitX(msfile, outputvis=vis1, datacolumn="corrected", datacolumn2="model_data")
+    # vis1 = 'slf_' + msfile
+    # if os.path.exists(vis1):
+    #     os.system('rm -rf {}'.format(vis1))
+    # if os.path.exists(vis1+'.flagversions'):
+    #     os.system('rm -rf {}'.format(vis1+'.flagversions'))
+    # mstl.splitX(msfile, outputvis=vis1, datacolumn="corrected", datacolumn2="model_data")
 
     caltb = os.path.join(slfcaltbdir, tdate + '_2.pha')
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
     # Second round of phase selfcal on the disk using solution interval "1min"
-    gaincal(vis=vis1, caltable=caltb, selectdata=True, uvrange="", antenna="0~12&0~12", solint="10min",
-            combine="scan",
+    gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="", antenna="0~12&0~12", solint="10min",
+            combine="scan", gaintable=caltbs, interp='nearest',
             refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
-    # gaincal(vis=vis1, caltable=caltb, selectdata=True, uvrange="<3.0Klambda", antenna="0~12&0~12", solint="10min",
-    # combine="scan",
-    # refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
-    applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
-             applymode="calonly")
+    # applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
+    #          applymode="calonly")
     caltbs.append(caltb)
     # Split corrected data and model to a new ms
-    vis2 = 'slf2_' + msfile
-    if os.path.exists(vis2):
-        os.system('rm -rf {}'.format(vis2))
-    if os.path.exists(vis2+'.flagversions'):
-        os.system('rm -rf {}'.format(vis2+'.flagversions'))
-    mstl.splitX(vis1, outputvis=vis2, datacolumn="corrected", datacolumn2="model_data")
+    # vis2 = 'slf2_' + msfile
+    # if os.path.exists(vis2):
+    #     os.system('rm -rf {}'.format(vis2))
+    # if os.path.exists(vis2+'.flagversions'):
+    #     os.system('rm -rf {}'.format(vis2+'.flagversions'))
+    # mstl.splitX(vis1, outputvis=vis2, datacolumn="corrected", datacolumn2="model_data")
 
     caltb = os.path.join(slfcaltbdir, tdate + '_3.amp')
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
     # Final round of amplitude selfcal with 1-h solution interval (restrict to 16-24 UT)
-    gaincal(vis=vis2, caltable=caltb, selectdata=True, uvrange="", antenna="0~12&0~12",
-            timerange=trange,
+    gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="", antenna="0~12&0~12",
+            timerange=trange, gaintable=caltbs, interp='nearest',
             solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G", calmode="a",
             append=False)
     mstl.flagcaltboutliers(caltb, limit=[0.125, 8.0])
@@ -709,8 +705,8 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
     vis3 = 'slf3_' + msfile
     if os.path.exists(vis3):
         os.system('rm -rf {}'.format(vis3))
-    if os.path.exists(vis3+'.flagversions'):
-        os.system('rm -rf {}'.format(vis3+'.flagversions'))
+    if os.path.exists(vis3 + '.flagversions'):
+        os.system('rm -rf {}'.format(vis3 + '.flagversions'))
 
     flagmanager(vis, mode='restore', versionname='before_autoflag')
     clearcal(vis)
@@ -726,14 +722,14 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
     final = 'final_' + msfile
     if os.path.exists(final):
         os.system('rm -rf {}'.format(final))
-    if os.path.exists(final+'.flagversions'):
-        os.system('rm -rf {}'.format(final+'.flagversions'))
+    if os.path.exists(final + '.flagversions'):
+        os.system('rm -rf {}'.format(final + '.flagversions'))
     split(vis3, outputvis=final, datacolumn='corrected')
 
     # Remove the interim ms files
     shutil.rmtree(vis)
-    shutil.rmtree(vis1)
-    shutil.rmtree(vis2)
+    # shutil.rmtree(vis1)
+    # shutil.rmtree(vis2)
     shutil.rmtree(vis3)
 
     # Return the name of the selfcaled ms
@@ -770,14 +766,14 @@ def fd_images(vis, cleanup=False, niter=None, spws=['0~1', '2~5', '6~10', '11~20
             imname = "images/briggs" + spwstr
             # tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
             #        antenna="0~12", datacolumn="corrected", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
-            #        stokes="XX", projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
+            #        stokes="XX", projection="SIN", specmode="mfs", interpolation="nearest", deconvolver="multiscale",
             #        scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
             #        niter=niter, gain=0.05, savemodel="none")
             os.system('rm -rf {}.*'.format(imname))
 
             tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
                    antenna="0~12", datacolumn="data", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
-                   stokes="XX", projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
+                   stokes="XX", projection="SIN", specmode="mfs", interpolation="nearest", deconvolver="multiscale",
                    scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
                    niter=niter, gain=0.05, savemodel="none", usemask='auto-multithresh', pbmask=0.0,
                    sidelobethreshold=1.0, noisethreshold=2.5, lownoisethreshold=1.5, negativethreshold=5.0,
@@ -1022,7 +1018,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
         # if np.nanmax(np.nanmax(data)) > 300000: bright[idx] = True
         if np.nanmax(data) > 6.0 * tb_disk: bright[idx] = True
-    bright[-1] = False  # skip the image of the highest bands for feature slfcal
+    # bright[-1] = False  # skip the image of the highest bands for feature slfcal
 
     if any(bright):
         print('spw {} have bright features on disk.'.format(';'.join(np.array(spws)[np.where(bright)[0]])))
@@ -1041,7 +1037,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
     outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir, spws=spws)
 
-    #  Final move of fits images can also be done here...
+
     if outputvis:
         if os.path.exists(outputvis):
             os.system('rm -rf {}'.format(outputvis))
