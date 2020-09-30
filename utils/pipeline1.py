@@ -3,7 +3,7 @@
 def pipeline1(year=None, month=None, day=None, clearcache=True):
     from suncasa.eovsa import eovsa_pipeline as ep
     import os
-    from astropy.time import Time
+    from eovsapy.util import Time
 
     workdir = '/data1/workdir/'
     os.chdir(workdir)
