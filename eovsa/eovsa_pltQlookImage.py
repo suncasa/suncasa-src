@@ -375,7 +375,7 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
     return
 
 
-def main(year=None, month=None, day=None, dayspan=30, clearcache=False, ovwrite_eovsa=False, ovwrite_sdo=False,
+def main(year=None, month=None, day=None, ndays=30, clearcache=False, ovwrite_eovsa=False, ovwrite_sdo=False,
          ovwrite_bbso=False):
     # tst = datetime.strptime("2017-04-01", "%Y-%m-%d")
     # ted = datetime.strptime("2019-12-31", "%Y-%m-%d")
@@ -383,7 +383,7 @@ def main(year=None, month=None, day=None, dayspan=30, clearcache=False, ovwrite_
         ted = datetime(year, month, day)
     else:
         ted = datetime.now() - timedelta(days=2)
-    tst = Time(np.fix(Time(ted).mjd) - dayspan, format='mjd').datetime
+    tst = Time(np.fix(Time(ted).mjd) - ndays, format='mjd').datetime
     tsep = datetime.strptime('2019-02-22', "%Y-%m-%d")
 
     # vmaxs = [22.0e4, 8.0e4, 5.4e4, 3.5e4, 2.3e4, 1.8e4, 1.5e4]
@@ -428,7 +428,7 @@ if __name__ == '__main__':
     year = None
     month = None
     day = None
-    dayspan = 30
+    ndays = 30
     clearcache = True
     ovwrite_eovsa = False
     ovwrite_sdo = False
@@ -483,14 +483,14 @@ if __name__ == '__main__':
         year = None
         month = None
         day = None
-        dayspan = 30
+        ndays = 30
         clearcache = True
         ovwrite_eovsa = False
         ovwrite_sdo = False
         ovwrite_bbso = False
 
     print("Running pipeline_plt for date {}-{}-{}.".format(year, month, day))
-    main(year=year, month=month, day=day, dayspan=dayspan, clearcache=clearcache,
+    main(year=year, month=month, day=day, ndays=ndays, clearcache=clearcache,
          ovwrite_eovsa=ovwrite_eovsa,
          ovwrite_sdo=ovwrite_sdo,
          ovwrite_bbso=ovwrite_bbso)
