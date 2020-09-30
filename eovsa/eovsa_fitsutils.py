@@ -107,7 +107,7 @@ def main(year=None, month=None, day=None, ndays=1, overwritejp2=False, overwrite
 
 if __name__ == '__main__':
     '''
-    usage: eovsa_fitsutils -n 2 2020 06 10
+    usage: eovsa_fitsutils.py -c True -n 2 -o True -O True 2020 06 10
     '''
     import sys
     import numpy as np
@@ -175,5 +175,13 @@ if __name__ == '__main__':
         opts = []
         overwritejp2 = False
         overwritefits = False
+
+    print("Running eovsa_fitsutils for date {}-{}-{}.".format(year, month, day))
+    kargs = {'ndays': ndays,
+             'clearcache': clearcache,
+             'overwritejp2': overwritejp2,
+             'overwritefits': overwritefits}
+    for k,v in kargs.items():
+        print(k,v)
 
     main(year, month, day, ndays, overwritejp2=overwritejp2, overwritefits=overwritefits)

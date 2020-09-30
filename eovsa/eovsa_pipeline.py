@@ -610,7 +610,7 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
         if os.path.exists(vis_synoptic):
             date = vis_synoptic
         else:
-            print('Whole-day ms file {} not existed. About..... Use pipeline1.py to make one.'.format(vis_synoptic))
+            print('Whole-day ms file {} not existed. About..... Use pipeline to make one.'.format(vis_synoptic))
             return None
 
     imres = mk_qlook_image(date, twidth=twidth, ncpu=ncpu, doimport=doimport, docalib=docalib, imagedir=imagedir,
@@ -628,3 +628,116 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
     #
     #     plt_qlook_image(imres_bds, figdir=figdir, verbose=True, synoptic=True)
     #     # plt_qlook_image(imres_allbd, figdir=figdir + 'FullBD/', verbose=True, synoptic=True)
+
+
+def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrite=True, doimport=True):
+    workdir = '/data1/workdir/'
+    os.chdir(workdir)
+    # Set to run 5 days earlier than the current date
+    if year is None:
+        mjdnow = Time.now().mjd
+        t = Time(mjdnow - 2, format='mjd')
+    else:
+        # Uncomment below and set date to run for a given date
+        t = Time('{}-{:02d}-{:02d} 20:00'.format(year, month, day))
+    for d in range(ndays):
+        t1 = Time(t.mjd - d, format='mjd')
+        datestr = t1.iso[:10]
+        subdir = t1.datetime.strftime('%Y%m%d/')
+        if not os.path.exists(subdir):
+            os.makedirs(subdir)
+        vis_corrected = calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
+                                       workdir=os.path.join(workdir, subdir))
+        if clearcache:
+            os.chdir(workdir)
+            os.system('rm -rf ' + subdir)
+
+
+if __name__ == '__main__':
+    '''
+    Name: 
+    eovsa_pipeline --- main pipeline for importing and calibrating EOVSA visibility data.
+    
+    Synopsis:
+    eovsa_pipeline.py [options]... [DATE_IN_YY_MM_DD]
+    
+    Description:
+    Import and calibrate EOVSA visibility data of the date specified
+    by DATE_IN_YY_MM_DD (or from ndays before the DATE_IN_YY_MM_DD if option --ndays/-n is provided).
+    If DATE_IN_YY_MM_DD is omitted, it will be set to 2 days before now by default. 
+    The are no mandatory arguments in this command.
+    
+    -c, --clearcache
+            remove temporary files  
+    
+    Example: 
+    eovsa_pipeline.py -c True -n 1 -o True -i True 2020 06 10
+    '''
+    import sys
+    import numpy as np
+    import getopt
+
+    year = None
+    month = None
+    day = None
+    ndays = 1
+    clearcache = True
+    overwrite = True
+    doimport = True
+
+    try:
+        argv = sys.argv[1:]
+        opts, args = getopt.getopt(argv, "c:n:o:i:", ['clearcache=', 'ndays=', 'overwrite=', 'doimport='])
+        print(opts, args)
+        for opt, arg in opts:
+            if opt in ['-c', '--clearcache']:
+                if arg is 'True':
+                    clearcache = True
+                elif arg is 'False':
+                    clearcache = False
+                else:
+                    clearcache = np.bool(arg)
+            elif opt in ('-n', '--ndays'):
+                ndays = np.int(arg)
+            elif opt in ('-o', '--overwrite'):
+                if arg is 'True':
+                    overwrite = True
+                elif arg is 'False':
+                    overwrite = False
+                else:
+                    overwrite = np.bool(arg)
+            elif opt in ('-i', '--doimport'):
+                if arg is 'True':
+                    doimport = True
+                elif arg is 'False':
+                    doimport = False
+                else:
+                    doimport = np.bool(arg)
+        nargs = len(args)
+        if nargs == 3:
+            year = np.int(args[0])
+            month = np.int(args[1])
+            day = np.int(args[2])
+        else:
+            year = None
+            month = None
+            day = None
+    except getopt.GetoptError as err:
+        print(err)
+        print('Error interpreting command line argument')
+        year = None
+        month = None
+        day = None
+        ndays = 1
+        clearcache = True
+        overwrite = False
+        doimport = False
+
+    print("Running pipeline_plt for date {}-{}-{}.".format(year, month, day))
+    kargs = {'ndays': ndays,
+             'clearcache': clearcache,
+             'overwrite': overwrite,
+             'doimport': doimport}
+    for k, v in kargs.items():
+        print(k, v)
+    pipeline(year, month, day, ndays=ndays, clearcache=clearcache, overwrite=overwrite, doimport=doimport)

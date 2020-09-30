@@ -1,6 +1,6 @@
 #!/common/casa/casa-release-5.4.1-31.el6/bin/casa
 
-def pipeline1(year=None, month=None, day=None, clearcache=True):
+def pipeline1(year=None, month=None, day=None, clearcache=True,overwrite=True, doimport=True):
     from suncasa.eovsa import eovsa_pipeline as ep
     import os
     from eovsapy.util import Time
@@ -20,7 +20,7 @@ def pipeline1(year=None, month=None, day=None, clearcache=True):
     subdir = t.datetime.strftime('%Y%m%d/')
     if not os.path.exists(subdir):
         os.makedirs(subdir)
-    vis_corrected = ep.calib_pipeline(datestr, overwrite=True, doimport=True,
+    vis_corrected = ep.calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
                                       workdir=os.path.join(workdir, subdir))
     if clearcache:
         os.chdir(workdir)

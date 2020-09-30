@@ -421,6 +421,10 @@ def main(year=None, month=None, day=None, ndays=30, clearcache=False, ovwrite_eo
 
 
 if __name__ == '__main__':
+    if __name__ == '__main__':
+        '''
+        usage: eovsa_pltQlookImage.py -c True -n 20 -e True -s False -b False 2020 06 10
+        '''
     import sys
     import numpy as np
     import getopt
