@@ -254,7 +254,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False):
     figoutdir = os.path.join(synopticfigdir, tdate.datetime.strftime("%Y/"))
     if not os.path.exists(figoutdir):
         os.makedirs(figoutdir)
-    vis, diskxmlfile = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms',
+    vis = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms',
                                        workdir=workdir,
                                        slfcaltbdir=os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/',
                                        imgoutdir=imgoutdir, figoutdir=figoutdir)
