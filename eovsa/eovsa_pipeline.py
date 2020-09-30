@@ -668,7 +668,19 @@ if __name__ == '__main__':
     The are no mandatory arguments in this command.
     
     -c, --clearcache
-            remove temporary files  
+            Remove temporary files
+            
+    -n, --ndays
+            Processing the date spanning from DATE_IN_YY_MM_DD-ndays to DATE_IN_YY_MM_DD. Default is 30.
+            
+    -o, --overwrite
+            If True, overwrite imported and calibrated ms. Reprocess the date from scratch.
+            Syntax: True, False, T, F, 1, 0
+            
+    -i, --doimport
+            If False, skip the import step. overwrite the calibrated ms. Reprocess the date from the imported ms.
+            Syntax: True, False, T, F, 1, 0
+                      
     
     Example: 
     eovsa_pipeline.py -c True -n 1 -o True -i True 2020 06 10

@@ -423,8 +423,41 @@ def main(year=None, month=None, day=None, ndays=30, clearcache=False, ovwrite_eo
 if __name__ == '__main__':
     if __name__ == '__main__':
         '''
-        usage: eovsa_pltQlookImage.py -c True -n 20 -e True -s False -b False 2020 06 10
+        Name: 
+        eovsa_pltQlookImage --- pipeline for plotting EOVSA daily full-disk images at multi frequencies.
+
+        Synopsis:
+        eovsa_pltQlookImage.py [options]... [DATE_IN_YY_MM_DD]
+
+        Description:
+        Plot EOVSA daily full-disk images at multi frequencies of the date specified
+        by DATE_IN_YY_MM_DD (or from ndays before the DATE_IN_YY_MM_DD if option --ndays/-n is provided).
+        If DATE_IN_YY_MM_DD is omitted, it will be set to 2 days before now by default. 
+        The are no mandatory arguments in this command.
+
+        -c, --clearcache
+                Remove temporary files
+
+        -n, --ndays
+                Processing the date spanning from DATE_IN_YY_MM_DD-ndays to DATE_IN_YY_MM_DD. Default is 30
+
+        -e, --ovwrite_eovsa
+                If True, overwrite eovsa images.
+                Syntax: True, False, T, F, 1, 0
+
+        -s, --ovwrite_sdo
+                If True, overwrite sdo images.
+                Syntax: True, False, T, F, 1, 0
+                
+        -b, --ovwrite_bbso
+                If True, overwrite bbso images.
+                Syntax: True, False, T, F, 1, 0                                
+
+
+        Example: 
+        eovsa_pltQlookImage.py -c True -n 20 -e True -s False -b False 2020 06 10
         '''
+
     import sys
     import numpy as np
     import getopt

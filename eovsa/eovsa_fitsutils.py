@@ -107,7 +107,35 @@ def main(year=None, month=None, day=None, ndays=1, overwritejp2=False, overwrite
 
 if __name__ == '__main__':
     '''
-    usage: eovsa_fitsutils.py -c True -n 2 -o True -O True 2020 06 10
+    Name: 
+    eovsa_fitsutils --- pipeline for created the compressed fits and jp2 files of EOVSA daily full-disk images.
+
+    Synopsis:
+    eovsa_fitsutils.py [options]... [DATE_IN_YY_MM_DD]
+
+    Description:
+    Plot EOVSA daily full-disk images at multi frequencies of the date specified
+    by DATE_IN_YY_MM_DD (or from ndays before the DATE_IN_YY_MM_DD if option --ndays/-n is provided).
+    If DATE_IN_YY_MM_DD is omitted, it will be set to 2 days before now by default. 
+    The are no mandatory arguments in this command.
+
+    -c, --clearcache
+            Remove temporary files
+
+    -n, --ndays
+            Processing the date spanning from DATE_IN_YY_MM_DD-ndays to DATE_IN_YY_MM_DD. Default is 30
+
+    -o, --overwritejp2
+            If True, overwrite eovsa jp2 files.
+            Syntax: True, False, T, F, 1, 0
+
+    -O, --overwritefits
+            If True, overwrite eovsa fits files.
+            Syntax: True, False, T, F, 1, 0                          
+
+
+    Example: 
+    eovsa_fitsutils.py -c True -n 2 -o True -O True 2020 06 10
     '''
     import sys
     import numpy as np
