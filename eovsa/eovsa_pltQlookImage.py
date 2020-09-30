@@ -435,7 +435,8 @@ if __name__ == '__main__':
     ovwrite_bbso = False
     try:
         argv = sys.argv[1:]
-        opts, args = getopt.getopt(argv, "c:n:e:s:b:", ['clearcache=', 'ndays=', 'ovwrite_eovsa=', 'ovwrite_sdo=','ovwrite_bbso='])
+        opts, args = getopt.getopt(argv, "c:n:e:s:b:",
+                                   ['clearcache=', 'ndays=', 'ovwrite_eovsa=', 'ovwrite_sdo=', 'ovwrite_bbso='])
         print(opts, args)
         for opt, arg in opts:
             if opt in ['-c', '--clearcache']:
@@ -490,6 +491,14 @@ if __name__ == '__main__':
         ovwrite_bbso = False
 
     print("Running pipeline_plt for date {}-{}-{}.".format(year, month, day))
+    kargs = {'ndays': ndays,
+             'clearcache': clearcache,
+             'ovwrite_eovsa': ovwrite_eovsa,
+             'ovwrite_sdo': ovwrite_sdo,
+             'ovwrite_bbso': ovwrite_bbso}
+    for k,v in kargs.items():
+        print(k,v)
+
     main(year=year, month=month, day=day, ndays=ndays, clearcache=clearcache,
          ovwrite_eovsa=ovwrite_eovsa,
          ovwrite_sdo=ovwrite_sdo,
