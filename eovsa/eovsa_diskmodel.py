@@ -908,7 +908,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     slashdate = ant_trange(vis)[:10]
 
     spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43', '44~49']
-    bright_thresh = [6, 5, 4, 3, 2, 2, 2]
+    bright_thresh = [6, 6, 5, 5, 5, 5, 5]
+    # bright_thresh = [6, 5, 4, 3, 2, 2, 2]
     active = False
     if nbands == 34:
         # These spectral window ranges correspond to the frequency ranges
