@@ -725,10 +725,14 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
     split(vis3, outputvis=final, datacolumn='corrected')
 
     # Remove the interim ms files
-    shutil.rmtree(vis)
-    # shutil.rmtree(vis1)
-    # shutil.rmtree(vis2)
-    shutil.rmtree(vis3)
+    if os.path.exists(vis):
+        os.system('rm -rf {}*'.format(vis))
+    if os.path.exists(vis3):
+        os.system('rm -rf {}*'.format(vis3))
+    # shutil.rmtree(vis)
+    # # shutil.rmtree(vis1)
+    # # shutil.rmtree(vis2)
+    # shutil.rmtree(vis3)
 
     # Return the name of the selfcaled ms
     return final, diskxmlfile
@@ -958,6 +962,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     slashdate = ant_trange(vis)[:10]
 
     spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43', '44~49']
+    bright_thresh = [6, 5, 4, 3, 2, 2, 2]
     active = False
     # --- uncomment for testing
     # spws = ['0~1', '2~2', '3~3', '4~4', '5~5','6~6','7~7']
@@ -970,6 +975,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         # These spectral window ranges correspond to the frequency ranges
         # of the last 4 band-ranges of the 52-band case.
         spws = ['1~3', '4~9', '10~16', '17~24', '25~30']
+        bright_thresh = [6, 4.5, 3.5, 3, 2]
 
     if workdir is None:
         workdir = '/data1/workdir'
@@ -1021,7 +1027,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         data.shape = data.shape[-2:]  # gets rid of any leading axes of size 1
 
         # if np.nanmax(np.nanmax(data)) > 300000: bright[idx] = True
-        if np.nanmax(data) > 6.0 * tb_disk: bright[idx] = True
+        if np.nanmax(data) > bright_thresh[idx] * tb_disk: bright[idx] = True
     # bright[-1] = False  # skip the image of the highest bands for feature slfcal
 
     if any(bright):
