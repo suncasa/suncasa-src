@@ -643,14 +643,16 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
     for d in range(ndays):
         t1 = Time(t.mjd - d, format='mjd')
         datestr = t1.iso[:10]
-        subdir = t1.datetime.strftime('%Y%m%d/')
+        subdir = os.path.join(workdir, t1.datetime.strftime('%Y%m%d/'))
         if not os.path.exists(subdir):
             os.makedirs(subdir)
+        else:
+            os.system('rm -rf {}/*'.format(subdir))
         vis_corrected = calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
-                                       workdir=os.path.join(workdir, subdir))
+                                       workdir=subdir)
         if clearcache:
             os.chdir(workdir)
-            os.system('rm -rf ' + subdir)
+            os.system('rm -rf {}'.format(subdir))
 
 
 if __name__ == '__main__':
