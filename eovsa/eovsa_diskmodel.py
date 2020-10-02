@@ -623,7 +623,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
     # Insert the disk model (msfile is the same as vis, and will be used as the "original" vis file name)
     msfile, diskim = insertdiskmodel(vis, dsize=dsize, fdens=fdens, xmlfile=diskxmlfile, active=active)
 
-    tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
+    tdate = mstl.get_trange(msfile)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_1.pha')
     if os.path.exists(caltb):
         os.system('rm -rf {}'.format(caltb))
@@ -658,11 +658,11 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
     if os.path.exists(vis2 + '.flagversions'):
         os.system('rm -rf {}'.format(vis2 + '.flagversions'))
 
-    flagmanager(vis, mode='restore', versionname='before_autoflag')
-    clearcal(vis)
-    applycal(vis=vis, selectdata=True, antenna="0~12", gaintable=caltbs, interp="linear", calwt=False,
+    flagmanager(msfile, mode='restore', versionname='before_autoflag')
+    clearcal(msfile)
+    applycal(vis=msfile, selectdata=True, antenna="0~12", gaintable=caltbs, interp="linear", calwt=False,
              applymode="calonly")
-    split(vis, outputvis=vis2, datacolumn="corrected")
+    split(msfile, outputvis=vis2, datacolumn="corrected")
     for sp, dkim in tqdm(enumerate(diskim), desc='Inserting disk model', ascii=True):
         ft(vis=vis2, spw=str(sp), field='', model=str(dkim), nterms=1,
            reffreq="", complist="", incremental=False, usescratch=True)
@@ -677,8 +677,8 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
     split(vis2, outputvis=final, datacolumn='corrected')
 
     # Remove the interim ms files
-    if os.path.exists(vis):
-        os.system('rm -rf {}*'.format(vis))
+    if os.path.exists(msfile):
+        os.system('rm -rf {}*'.format(msfile))
     if os.path.exists(vis2):
         os.system('rm -rf {}*'.format(vis2))
 
@@ -988,8 +988,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         os.system('mv {} {}'.format(ms_slfcaled, outputvis))
         ms_slfcaled = outputvis
 
-        os.system('mv {} {}'.format(diskxmlfile, os.path.dirname(outputvis)))
-        diskxmlfile = os.path.join(os.path.dirname(outputvis), diskxmlfile)
+        newdiskxmlfile = '{}.SOLDISK.xml'.format(outputvis)
+        os.system('mv {} {}'.format(diskxmlfile, newdiskxmlfile))
+        diskxmlfile = newdiskxmlfile
 
     eofiles = []
     datestr = mstl.get_trange(ms_slfcaled)[0].datetime.strftime('%Y%m%d')
