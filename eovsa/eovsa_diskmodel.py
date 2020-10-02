@@ -637,7 +637,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
         os.system('rm -rf {}'.format(caltb))
     # Second round of phase selfcal on the disk using solution interval "1min"
     gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="", antenna="0~12&0~12", solint="10min",
-            combine="scan", gaintable=caltbs, interp='nearest',
+            combine="scan", gaintable=caltbs, interp="linear",
             refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
     caltbs.append(caltb)
 
@@ -646,7 +646,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
         os.system('rm -rf {}'.format(caltb))
     # Final round of amplitude selfcal with 1-h solution interval (restrict to 16-24 UT)
     gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="", antenna="0~12&0~12",
-            timerange=trange, gaintable=caltbs, interp='nearest',
+            timerange=trange, gaintable=caltbs, interp="linear",
             solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G", calmode="a",
             append=False)
     mstl.flagcaltboutliers(caltb, limit=[0.125, 8.0])
@@ -660,7 +660,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
 
     flagmanager(vis, mode='restore', versionname='before_autoflag')
     clearcal(vis)
-    applycal(vis=vis, selectdata=True, antenna="0~12", gaintable=caltbs, interp="nearest", calwt=False,
+    applycal(vis=vis, selectdata=True, antenna="0~12", gaintable=caltbs, interp="linear", calwt=False,
              applymode="calonly")
     split(vis, outputvis=vis2, datacolumn="corrected")
     for sp, dkim in tqdm(enumerate(diskim), desc='Inserting disk model', ascii=True):
@@ -716,14 +716,14 @@ def fd_images(vis, cleanup=False, niter=None, spws=['0~1', '2~5', '6~10', '11~20
             imname = "images/briggs" + spwstr
             # tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
             #        antenna="0~12", datacolumn="corrected", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
-            #        stokes="XX", projection="SIN", specmode="mfs", interpolation="nearest", deconvolver="multiscale",
+            #        stokes="XX", projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
             #        scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
             #        niter=niter, gain=0.05, savemodel="none")
             os.system('rm -rf {}.*'.format(imname))
 
             tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
                    antenna="0~12", datacolumn="data", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
-                   stokes="XX", projection="SIN", specmode="mfs", interpolation="nearest", deconvolver="multiscale",
+                   stokes="XX", projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
                    scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
                    niter=niter, gain=0.05, savemodel="none", usemask='auto-multithresh', pbmask=0.0,
                    sidelobethreshold=1.0, noisethreshold=2.5, lownoisethreshold=1.5, negativethreshold=5.0,
@@ -783,7 +783,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
                     minsnr=1.0,
                     calmode='p', append=appd)
     # Apply the corrections to the data and split to a new ms
-    applycal(vis=vis, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
+    applycal(vis=vis, selectdata=True, antenna="0~12", gaintable=caltb, interp="linear", calwt=False,
              applymode="calonly")
     vis1 = 'dslf1_' + vis
     if os.path.exists(vis1):
@@ -817,7 +817,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
                     minsnr=1.0,
                     calmode='p', append=appd)
     # Apply the corrections to the data and split to a new ms
-    applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="nearest", calwt=False,
+    applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="linear", calwt=False,
              applymode="calonly")
     vis2 = 'dslf2_' + vis
     if os.path.exists(vis2):
