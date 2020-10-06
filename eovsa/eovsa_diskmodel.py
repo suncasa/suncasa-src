@@ -678,9 +678,13 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
 
     # Remove the interim ms files
     if os.path.exists(msfile):
-        os.system('rm -rf {}*'.format(msfile))
+        os.system('rm -rf {}'.format(msfile))
+    if os.path.exists(msfile + '.flagversions'):
+        os.system('rm -rf {}'.format(msfile + '.flagversions'))
     if os.path.exists(vis2):
-        os.system('rm -rf {}*'.format(vis2))
+        os.system('rm -rf {}'.format(vis2))
+    if os.path.exists(vis2 + '.flagversions'):
+        os.system('rm -rf {}'.format(vis2 + '.flagversions'))
 
     # Return the name of the selfcaled ms
     return final, diskxmlfile
@@ -989,6 +993,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         ms_slfcaled = outputvis
 
         newdiskxmlfile = '{}.SOLDISK.xml'.format(outputvis)
+        if os.path.exists(newdiskxmlfile):
+            os.system('rm -rf {}'.format(newdiskxmlfile))
         os.system('mv {} {}'.format(diskxmlfile, newdiskxmlfile))
         diskxmlfile = newdiskxmlfile
 
