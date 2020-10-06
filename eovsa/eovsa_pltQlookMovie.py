@@ -40,6 +40,8 @@ def clearImage():
 
 def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=None, imgoutdir=None, overwrite=False,
                              verbose=False):
+    from astropy.visualization.stretch import AsinhStretch
+    from astropy.visualization import ImageNormalize
     plt.ioff()
     imgfiles = []
     dpi = 512. / 4
@@ -87,7 +89,8 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
             if not os.path.exists(eofile):
                 continue
 
-            norm = colors.Normalize(vmin=vmin[s], vmax=vmax[s])
+            stretch = AsinhStretch(a=0.15)
+            norm = ImageNormalize(vmin=vmin[s], vmax=vmax[s], stretch=stretch)
             eomap = smap.Map(eofile)
             eomap = eomap.resample(u.Quantity(eomap.dimensions) / 2)
             eomap_rot = diffrot_map(eomap, time=timobj)
@@ -116,14 +119,6 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
             eomap_plt.plot(axes=ax, cmap=cmap, norm=norm)
             eomap_rot_plt.plot(axes=ax, cmap=cmap, norm=norm)
 
-            # eomap_ = pmX.Sunmap(eomap)
-            # eomap_.imshow(axes=ax, cmap=cmap, norm=norm)
-            # eomap_.draw_limb(axes=ax, lw=0.25, alpha=0.5)
-            # eomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.25)
-
-            # eomap_rot_ = pmX.Sunmap(eomap_rot)
-            # eomap_rot_.imshow(axes=ax, cmap=cmap, norm=norm)
-            # eomap_rot.plot(axes=ax, cmap=cmap, norm=norm, alpha=alpha)
             ax.set_xlabel('')
             ax.set_ylabel('')
             ax.set_xticklabels([])
@@ -174,7 +169,7 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
     return imgfiles
 
 
-def main(year, month, day=None, dayspan=30):
+def main(year, month, day=None, ndays=30):
     '''
     By default, the subroutine create EOVSA monthly movie
     '''
@@ -189,11 +184,11 @@ def main(year, month, day=None, dayspan=30):
             ted = datetime(year, month, day)
         else:
             ted = datetime.now() - timedelta(days=2)
-        tst = Time(np.fix(Time(ted).mjd) - dayspan, format='mjd').datetime
+        tst = Time(np.fix(Time(ted).mjd) - ndays, format='mjd').datetime
     tsep = datetime.strptime('2019-02-22', "%Y-%m-%d")
 
-    vmaxs = [22.0e4, 8.0e4, 6.0e4, 3.5e4, 2.3e4, 1.8e4, 1.5e4]
-    vmins = [-9.0e3, -5.5e3, -3.4e3, -2.5e3, -2.5e3, -2.5e3, -2.5e3]
+    vmaxs = [70.0e4, 30e4, 18e4, 13e4, 8e4, 6e4, 6e4]
+    vmins = [-18.0e3, -8e3, -4.8e3, -3.4e3, -2.1e3, -1.6e3, -1.6e3]
     plt.ioff()
     fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(8, 4))
     fig.subplots_adjust(bottom=0.0, top=1.0, left=0.0, right=1.0, hspace=0.0, wspace=0.0)
@@ -264,3 +259,67 @@ def main(year, month, day=None, dayspan=30):
 #         clearcache = True
 #     print("Running pipeline_plt for date {}-{}-{}".format(year, month, day))
 #     main(year, month, None, dayspan)
+
+
+if __name__ == '__main__':
+    '''
+    Name: 
+    eovsa_pltQlookMovie --- pipeline for plotting EOVSA daily full-disk image movie at multi frequencies.
+
+    Synopsis:
+    eovsa_pltQlookMovie.py [options]... [DATE_IN_YY_MM_DD]
+
+    Description:
+    Make EOVSA daily full-disk image movie at multi frequencies of the date specified
+    by DATE_IN_YY_MM_DD (or from ndays before the DATE_IN_YY_MM_DD if option --ndays/-n is provided).
+    If DATE_IN_YY_MM_DD is omitted, it will be set to 2 days before now by default. 
+    The are no mandatory arguments in this command.
+
+
+    -n, --ndays
+            Processing the date spanning from DATE_IN_YY_MM_DD-ndays to DATE_IN_YY_MM_DD. Default is 30                                
+
+
+    Example: 
+    eovsa_pltQlookMovie.py -n 20 2020 06 10
+    '''
+
+    import sys
+    import numpy as np
+    import getopt
+
+    year = None
+    month = None
+    day = None
+    ndays = 30
+    try:
+        argv = sys.argv[1:]
+        opts, args = getopt.getopt(argv, "n:",
+                                   ['ndays='])
+        print(opts, args)
+        for opt, arg in opts:
+            if opt in ('-n', '--ndays'):
+                ndays = np.int(arg)
+        nargs = len(args)
+        if nargs == 3:
+            year = np.int(args[0])
+            month = np.int(args[1])
+            day = np.int(args[2])
+        else:
+            year = None
+            month = None
+            day = None
+    except getopt.GetoptError as err:
+        print(err)
+        print('Error interpreting command line argument')
+        year = None
+        month = None
+        day = None
+        ndays = 30
+
+    print("Running pipeline_plt for date {}-{}-{}.".format(year, month, day))
+    kargs = {'ndays': ndays}
+    for k, v in kargs.items():
+        print(k, v)
+
+    main(year=year, month=month, day=day, ndays=ndays)
