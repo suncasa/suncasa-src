@@ -376,9 +376,12 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
 
 
 def main(year=None, month=None, day=None, ndays=30, clearcache=False, ovwrite_eovsa=False, ovwrite_sdo=False,
-         ovwrite_bbso=False):
+         ovwrite_bbso=False, show_warning=False):
     # tst = datetime.strptime("2017-04-01", "%Y-%m-%d")
     # ted = datetime.strptime("2019-12-31", "%Y-%m-%d")
+    if not show_warning:
+        import warnings
+        warnings.filterwarnings("ignore")
     if year:
         ted = datetime(year, month, day)
     else:
@@ -469,10 +472,12 @@ if __name__ == '__main__':
     ovwrite_eovsa = False
     ovwrite_sdo = False
     ovwrite_bbso = False
+    show_warning = False
     try:
         argv = sys.argv[1:]
-        opts, args = getopt.getopt(argv, "c:n:e:s:b:",
-                                   ['clearcache=', 'ndays=', 'ovwrite_eovsa=', 'ovwrite_sdo=', 'ovwrite_bbso='])
+        opts, args = getopt.getopt(argv, "c:n:e:s:b:w:",
+                                   ['clearcache=', 'ndays=', 'ovwrite_eovsa=', 'ovwrite_sdo=', 'ovwrite_bbso=',
+                                    'show_warning='])
         print(opts, args)
         for opt, arg in opts:
             if opt in ['-c', '--clearcache']:
@@ -505,6 +510,13 @@ if __name__ == '__main__':
                     ovwrite_bbso = False
                 else:
                     ovwrite_bbso = np.bool(arg)
+            elif opt in ('-w', '--show_warning'):
+                if arg in ['True', 'T', '1']:
+                    show_warning = True
+                elif arg in ['False', 'F', '0']:
+                    show_warning = False
+                else:
+                    show_warning = np.bool(arg)
         nargs = len(args)
         if nargs == 3:
             year = np.int(args[0])
@@ -525,17 +537,21 @@ if __name__ == '__main__':
         ovwrite_eovsa = False
         ovwrite_sdo = False
         ovwrite_bbso = False
+        show_warning = False
 
     print("Running pipeline_plt for date {}-{}-{}.".format(year, month, day))
     kargs = {'ndays': ndays,
              'clearcache': clearcache,
              'ovwrite_eovsa': ovwrite_eovsa,
              'ovwrite_sdo': ovwrite_sdo,
-             'ovwrite_bbso': ovwrite_bbso}
-    for k,v in kargs.items():
-        print(k,v)
+             'ovwrite_bbso': ovwrite_bbso,
+             'show_warning': show_warning}
+    for k, v in kargs.items():
+        print(k, v)
 
-    main(year=year, month=month, day=day, ndays=ndays, clearcache=clearcache,
+    main(year=year, month=month, day=day, ndays=ndays,
+         clearcache=clearcache,
          ovwrite_eovsa=ovwrite_eovsa,
          ovwrite_sdo=ovwrite_sdo,
-         ovwrite_bbso=ovwrite_bbso)
+         ovwrite_bbso=ovwrite_bbso,
+         show_warning=show_warning)

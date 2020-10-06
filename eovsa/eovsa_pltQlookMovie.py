@@ -17,6 +17,7 @@ from suncasa.utils import plot_mapX as pmX
 import urllib.request
 from sunpy.physics.differential_rotation import diffrot_map
 from suncasa.utils import DButil
+from tqdm import tqdm
 
 # imgfitsdir = '/Users/fisher/myworkspace/'
 # imgfitstmpdir = '/Users/fisher/myworkspace/fitstmp/'
@@ -61,7 +62,7 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
     tmjd = timobjs.mjd
     tmjd_base = np.floor(tmjd)
     tmjd_hr = (tmjd - tmjd_base) * 24
-    for tidx, timobj in enumerate(timobjs):
+    for tidx, timobj in enumerate(tqdm(timobjs)):
         dateobj = timobj.to_datetime()
         timestr = dateobj.strftime("%Y-%m-%dT%H:%M:%SZ")
         tstrname = dateobj.strftime("%Y%m%dT%H%M%SZ")
@@ -93,8 +94,10 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
             norm = ImageNormalize(vmin=vmin[s], vmax=vmax[s], stretch=stretch)
             eomap = smap.Map(eofile)
             eomap = eomap.resample(u.Quantity(eomap.dimensions) / 2)
+            eomap.data[np.isnan(eomap.data)] = 0.0
             eomap_rot = diffrot_map(eomap, time=timobj)
-            eomap_rot.data[np.where(eomap_rot.data < 0)] = np.nan
+            eomap_rot.data[np.where(eomap_rot.data < 0)] = 0.0
+            eomap_rot.data[np.isnan(eomap_rot.data)] = 0.0
 
             t_hr = tmjd_hr[tidx]
             t_hr_st_blend = 0.0
@@ -106,17 +109,18 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
                     continue
                 eomap_prevd = smap.Map(eofile_prevday)
                 eomap_prevd = eomap_prevd.resample(u.Quantity(eomap_prevd.dimensions) / 2)
+                eomap_prevd.data[np.isnan(eomap_prevd.data)] = 0.0
                 eomap_rot_prevd = diffrot_map(eomap_prevd, time=timobj)
-                eomap_rot_prevd.data[np.where(eomap_rot_prevd.data < 0)] = np.nan
-                alpha = (t_hr - t_hr_st_blend) / (t_hr_ed_blend-t_hr_st_blend)
+                eomap_rot_prevd.data[np.where(eomap_rot_prevd.data < 0)] = 0.0
+                alpha = (t_hr - t_hr_st_blend) / (t_hr_ed_blend - t_hr_st_blend)
                 alpha_prevd = 1.0 - alpha
-                eomap_plt = smap.Map((eomap.data*alpha+eomap_prevd.data*alpha_prevd),eomap.meta)
-                eomap_rot_plt = smap.Map((eomap_rot.data*alpha+eomap_rot_prevd.data*alpha_prevd), eomap_rot.meta)
+                # eomap_plt = smap.Map((eomap.data * alpha + eomap_prevd.data * alpha_prevd), eomap.meta)
+                eomap_rot_plt = smap.Map((eomap_rot.data * alpha + eomap_rot_prevd.data * alpha_prevd), eomap_rot.meta)
             else:
-                eomap_plt = eomap
+                # eomap_plt = eomap
                 eomap_rot_plt = eomap_rot
 
-            eomap_plt.plot(axes=ax, cmap=cmap, norm=norm)
+            # eomap_plt.plot(axes=ax, cmap=cmap, norm=norm)
             eomap_rot_plt.plot(axes=ax, cmap=cmap, norm=norm)
 
             ax.set_xlabel('')
@@ -169,10 +173,13 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
     return imgfiles
 
 
-def main(year, month, day=None, ndays=30):
+def main(year, month, day=None, ndays=30, show_warning=False):
     '''
     By default, the subroutine create EOVSA monthly movie
     '''
+    if not show_warning:
+        import warnings
+        warnings.filterwarnings("ignore")
     # tst = datetime.strptime("2017-04-01", "%Y-%m-%d")
     # ted = datetime.strptime("2019-12-31", "%Y-%m-%d")
     if day is None:
@@ -292,14 +299,22 @@ if __name__ == '__main__':
     month = None
     day = None
     ndays = 30
+    show_warning = False
     try:
         argv = sys.argv[1:]
-        opts, args = getopt.getopt(argv, "n:",
-                                   ['ndays='])
+        opts, args = getopt.getopt(argv, "n:w:",
+                                   ['ndays=', 'show_warning='])
         print(opts, args)
         for opt, arg in opts:
             if opt in ('-n', '--ndays'):
                 ndays = np.int(arg)
+            elif opt in ('-w', '--show_warning'):
+                if arg in ['True', 'T', '1']:
+                    show_warning = True
+                elif arg in ['False', 'F', '0']:
+                    show_warning = False
+                else:
+                    show_warning = np.bool(arg)
         nargs = len(args)
         if nargs == 3:
             year = np.int(args[0])
@@ -316,10 +331,11 @@ if __name__ == '__main__':
         month = None
         day = None
         ndays = 30
+        show_warning = False
 
     print("Running pipeline_plt for date {}-{}-{}.".format(year, month, day))
     kargs = {'ndays': ndays}
     for k, v in kargs.items():
         print(k, v)
 
-    main(year=year, month=month, day=day, ndays=ndays)
+    main(year=year, month=month, day=day, ndays=ndays, show_warning=show_warning)
