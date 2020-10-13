@@ -4,6 +4,9 @@ from astropy.io import fits
 from sunpy import map as smap
 import warnings
 
+stokesval = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3': 'RL', '-4': 'LR', '-5': 'XX',
+             '-6': 'YY', '-7': 'XY', '-8': 'YX'}
+
 
 def headerfix(header, PC_coor=True):
     '''
@@ -45,7 +48,7 @@ def headersqueeze(header, data):
     if nonsdim > 3:
         return None, None
     else:
-        keys2chng = ['NAXIS', 'CTYPE', 'CRVAL', 'CDELT', 'CRPIX', 'CUNIT', 'PC01_', 'PC02_', 'PC03_', 'PC04_']
+        keys2chng = ['NAXIS', 'CTYPE', 'CRVAL', 'CDELT', 'CRPIX', 'CUNIT']  # ,'PC01_', 'PC02_', 'PC03_', 'PC04_']
         idx_nonsdim = 0
         for idx, dim in enumerate(dshape[::-1]):
             # if dim>1: continue
@@ -58,7 +61,25 @@ def headersqueeze(header, data):
                 if dim > 1:
                     k_new = '{}{}'.format(k, idx_nonsdim)
                     header[k_new] = v
-                # else:
+                else:
+                    if k is 'CTYPE' and v.startswith('STOKES'):
+                        header['STOKES'] = header['CRVAL{}'.format(idx + 1)]
+
+        idx_nonsdim1 = 0
+
+        for idx1, dim1 in enumerate(dshape[::-1]):
+            if dim1 > 1:
+                idx_nonsdim1 = idx_nonsdim1 + 1
+            idx_nonsdim2 = 0
+            for idx2, dim2 in enumerate(dshape[::-1]):
+                if dim2 > 1:
+                    idx_nonsdim2 = idx_nonsdim2 + 1
+                k_ = 'PC{:02d}_{:d}'.format(idx1 + 1, idx2 + 1)
+                v = header[k_]
+                header.remove(k_)
+                if dim1 > 1 and dim2 > 1:
+                    k_new = 'PC{:02d}_{:d}'.format(idx_nonsdim1, idx_nonsdim2)
+                    header[k_new] = v
 
         header['NAXIS'] = nonsdim
         data = np.squeeze(data)
@@ -111,7 +132,7 @@ def write_j2000_image(fname, data, header):
     return True
 
 
-def read_compressed_image_fits(fname):
+def read_compressed_image_fits(fname, verbose=False):
     hdulist = fits.open(fname)
     for i, hdu in enumerate(hdulist):
         try:
@@ -148,11 +169,12 @@ def read_compressed_image_fits(fname):
             rheader = hdu.header.copy()
             break
         except Exception as e:
-            if hasattr(e, 'message'):
-                print(e.message)
-            else:
-                print(e)
-            print('skipped HDU {}'.format(i))
+            if verbose:
+                if hasattr(e, 'message'):
+                    print(e.message)
+                else:
+                    print(e)
+                print('skipped HDU {}'.format(i))
             rmap, ndim, npol_fits, stokaxis, rfreqs, rdata, rheader = None, None, None, None, None, None, None
     hdulist.close()
     return rmap, ndim, npol_fits, stokaxis, rfreqs, rdata, rheader

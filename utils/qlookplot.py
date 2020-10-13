@@ -260,9 +260,13 @@ def get_rdata_dict(rdata, ndim, stokaxis, npol_fits, icmap=None, stokes='I,V', s
                 cmaps[pols[0]] = cmap_I
                 cmaps[pols[1]] = cmap_I
         else:
-            slc1[stokaxis] = slice(0, 1)
-            datas[pols[0]] = rdata[slc1]
-            cmaps[pols[0]] = cmap_I
+            if stokaxis is None:
+                datas[pols[0]] = rdata
+                cmaps[pols[0]] = cmap_I
+            else:
+                slc1[stokaxis] = slice(0, 1)
+                datas[pols[0]] = rdata[slc1]
+                cmaps[pols[0]] = cmap_I
     else:
         if npol_fits > 1:
             if pols[0] in ['I', 'V']:
@@ -279,9 +283,13 @@ def get_rdata_dict(rdata, ndim, stokaxis, npol_fits, icmap=None, stokes='I,V', s
                 datas[pols[0]] = rdata[slc1]
                 cmaps[pols[0]] = cmap_I
         else:
-            slc1[stokaxis] = slice(0, 1)
-            datas[pols[0]] = rdata[slc1]
-            cmaps[pols[0]] = cmap_I
+            if stokaxis is None:
+                datas[pols[0]] = rdata
+                cmaps[pols[0]] = cmap_I
+            else:
+                slc1[stokaxis] = slice(0, 1)
+                datas[pols[0]] = rdata[slc1]
+                cmaps[pols[0]] = cmap_I
     return cmaps, datas
 
 
@@ -474,8 +482,10 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
     return imres
 
 
-def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None, imax=None,
-                    imin=None, icmap=None, inorm=None, dmax=None, dmin=None, dcmap=None, dnorm=None, sclfactor=1.0,
+def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None,
+                    imax=None, imin=None, icmap=None, inorm=None,
+                    amax=None, amin=None, acmap=None, anorm=None,
+                    nclevels=3, dmax=None, dmin=None, dcmap=None, dnorm=None, sclfactor=1.0,
                     clevels=None, spwcmap='jet', aiafits=None, aiadir=None, aiawave=171, plotaia=True, moviename='',
                     alpha_cont=1.0, custom_mapcubes=[]):
     '''
@@ -486,8 +496,39 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     Optional inputs:
             aiadir: directory to search aia fits files
     Example:
-
+    :param imres:
+    :param timerange:
+    :param figdir:
+    :param specdata:
+    :param verbose:
+    :param stokes:
+    :param fov:
+    :param imax: ## radio image plot setting
+    :param imin:
+    :param icmap:
+    :param inorm:
+    :param amax:  ## aia plot setting
+    :param amin:
+    :param acmap:
+    :param anorm:
+    :param nclevels:
+    :param dmax:  ## dynamic spectra plot setting
+    :param dmin:
+    :param dcmap:
+    :param dnorm:
+    :param sclfactor:
+    :param clevels:
+    :param spwcmap:
+    :param aiafits:
+    :param aiadir:
+    :param aiawave:
+    :param plotaia:
+    :param moviename:
+    :param alpha_cont:
+    :param custom_mapcubes:
+    :return:
     '''
+
     from matplotlib import pyplot as plt
     from sunpy import map as smap
     from sunpy import sun
@@ -499,11 +540,11 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     t_ran = Time([qa.quantity(tstart, 'd')['value'], qa.quantity(tend, 'd')['value']], format='mjd')
     btimes = Time(imres['BeginTime'])
     etimes = Time(imres['EndTime'])
-    tpltidx, = np.where(np.logical_and(btimes.jd >= t_ran[0].jd, etimes.jd <= t_ran[1].jd))
+    tpltidxs, = np.where(np.logical_and(btimes.jd >= t_ran[0].jd, etimes.jd <= t_ran[1].jd))
     # imres = imres['imres']
-    if type(imres) is not dict:
-        for k, v in imres.iteritems():
-            imres[k] = list(np.array(v)[tpltidx])
+    # if type(imres) is not dict:
+    for k, v in imres.iteritems():
+        imres[k] = list(np.array(v)[tpltidxs])
     if 'Obs' in imres.keys():
         observatory = imres['Obs'][0]
     else:
@@ -525,6 +566,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         for cmpc in custom_mapcubes['mapcube']:
             cmpc_plttimes_mjd.append(get_mapcube_time(cmpc).mjd)
     plttimes = list(set(imres['BeginTime']))
+    plttimes = sorted(plttimes)
     ntime = len(plttimes)
     # sort the imres according to time
     images = np.array(imres['ImageName'])
@@ -538,7 +580,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     suc_sort = suc[inds].reshape(ntime, nspw)
     spws_sort = spws[inds].reshape(ntime, nspw)
     if verbose:
-        print('{0:d} figures to plot'.format(len(tpltidx)))
+        print('{0:d} figures to plot'.format(len(tpltidxs)))
     plt.ioff()
     import matplotlib.gridspec as gridspec
     spec = specdata['spec'] * sclfactor / 1e4
@@ -650,24 +692,31 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     # pdb.set_trace()
     if plotaia:
         '''check if aiafits files exist'''
-        if aiadir:
-            aiafiles = []
-            for i in range(ntime):
-                plttime = btimes_sort[i, 0]
-                aiafile = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime, isexists=True,
-                                             timtol=12. / 3600. / 24)
-                if not aiafile:
-                    aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True,
-                                                  timtol=12. / 3600. / 24)
-                if not aiafile:
-                    aiafile = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=plttime, isexists=True,
-                                                  timtol=12. / 3600. / 24)
-                aiafiles.append(aiafile)
-            if np.count_nonzero(aiafiles) < ntime / 2.0:
-                downloadAIAdata(trange=t_ran, wavelength=aiawave)
-                aiadir = './'
+        if aiafits is None:
+            if aiadir:
+                aiafiles = []
+                for i in range(ntime):
+                    plttime = btimes_sort[i, 0]
+                    aiafile = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime,
+                                                 isexists=True,
+                                                 timtol=12. / 3600. / 24)
+                    if not aiafile:
+                        aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True,
+                                                      timtol=12. / 3600. / 24)
+                    if not aiafile:
+                        aiafile = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=plttime, isexists=True,
+                                                      timtol=12. / 3600. / 24)
+                    aiafiles.append(aiafile)
+                if np.count_nonzero(aiafiles) < ntime / 2.0:
+                    downloadAIAdata(trange=t_ran, wavelength=aiawave)
+                    aiadir = './'
+        else:
+            # from suncasa.utils import stackplotX as stp
+            # st = stp.Stackplot(aiafits)
+            # tjd_aia = st.tplt.jd
+            pass
 
-    for i in tpltidx:
+    for i, plttime in enumerate(plttimes):
         plt.ioff()
         # plt.clf()
         for ax in axs:
@@ -683,7 +732,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         if verbose:
             print('Plotting image at: ', plttime.iso)
 
-        if i == tpltidx[0]:
+        if plttime == plttimes[0]:
             dspecvspans = []
             for pol in range(npols):
                 ax = axs_dspec[pol]
@@ -743,22 +792,27 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
 
         if plotaia:
             # pdb.set_trace()
-            try:
-                if aiadir:
-                    aiafits = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True,
-                                                  timtol=12. / 3600. / 24)
-                    if not aiafits:
-                        aiafits = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime,
-                                                     isexists=True,
-                                                     timtol=12. / 3600. / 24)
-                aiamap = smap.Map(aiafits)
-                aiamap = DButil.normalize_aiamap(aiamap)
-                data = aiamap.data
-                data[data < 1.0] = 1.0
-                aiamap = smap.Map(data, aiamap.meta)
-            except:
+            if aiafits is None:
+                try:
+                    if aiadir:
+                        aiafits = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True,
+                                                      timtol=12. / 3600. / 24)
+                        if not aiafits:
+                            aiafits = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime,
+                                                         isexists=True,
+                                                         timtol=12. / 3600. / 24)
+                    aiamap = smap.Map(aiafits)
+                    aiamap = DButil.normalize_aiamap(aiamap)
+                    data = aiamap.data
+                    data[data < 1.0] = 1.0
+                    aiamap = smap.Map(data, aiamap.meta)
+                except:
+                    aiamap = None
+                    print('error in reading aiafits. Proceed without AIA')
+            else:
                 aiamap = None
-                print('error in reading aiafits. Proceed without AIA')
+                pass
+                # aiamap = st.mapcube[np.nanargmin(np.abs(tjd_aia - plttime.jd))]
         else:
             aiamap = None
 
@@ -785,7 +839,10 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     #
                     # data[np.isnan(data)] = 0.0
                     # # data = data / 1e4
-                    rmap = smap.Map(np.squeeze(datas[pol][n, :, :]), rheader)
+                    if stokaxis is None:
+                        rmap = smap.Map(np.squeeze(datas[pol][:, :]), rheader)
+                    else:
+                        rmap = smap.Map(np.squeeze(datas[pol][n, :, :]), rheader)
                     # data = np.squeeze(data)
                     # rmap = smap.Map(data, rmap.meta)
                 else:
@@ -818,23 +875,34 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 else:
                     dim = u.Quantity([256, 256], u.pixel)
                     rmap = rmap.resample(dim)
-
-                ax = axs[pidx + n * 2]
+                if npols > 1:
+                    ax = axs[pidx + n * 2]
+                else:
+                    ax = axs[n]
                 rmap_ = pmX.Sunmap(rmap)
                 if aiamap:
+                    if anorm is None:
+                        if amax is None:
+                            amax = np.nanmax(aiamap.data)
+                        if amin is None:
+                            amin = 1.0
+                        anorm = colors.LogNorm(vmin=amin, vmax=amax)
+                    if acmap is None:
+                        acmap = 'gray'
+
                     if nspw > 1:
                         if n == 0:
                             aiamap_ = pmX.Sunmap(aiamap)
-                            aiamap_.imshow(axes=ax, cmap='gray',
-                                           norm=colors.LogNorm(vmin=1.0, vmax=np.nanmax(aiamap.data)),
+                            aiamap_.imshow(axes=ax, cmap=acmap,
+                                           norm=anorm,
                                            interpolation='nearest')
                     else:
                         aiamap_ = pmX.Sunmap(aiamap)
-                        aiamap_.imshow(axes=ax, vmin=1.0, cmap='gray',
-                                       norm=colors.LogNorm(vmin=1.0, vmax=np.nanmax(aiamap.data)),
+                        aiamap_.imshow(axes=ax, cmap=acmap,
+                                       norm=anorm,
                                        interpolation='nearest')
                     try:
-                        clevels1 = np.linspace(imin, imax, 3)
+                        clevels1 = np.linspace(imin, imax, nclevels)
                     except:
                         try:
                             clevels1 = np.array(clevels) * np.nanmax(rmap.data)
@@ -953,7 +1021,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
               weighting='briggs', niter=500, sclfactor=1.0,
               imsize=[512], cell=['5.0arcsec'], mask='', gain=0.1,
               interactive=False, usemsphacenter=True, imagefile=None, outfits='',
-              imax=None, imin=None, icmap=None, inorm=None,
+              imax=None, imin=None, icmap=None, inorm=None, nclevels=3,
               goestime=None,
               plotaia=True, aiawave=171, aiafits=None, aiadir=None, datacolumn='data', docompress=False,
               mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=False,
@@ -1205,6 +1273,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             plt_qlook_image(imres, timerange=timerange, figdir=qlookfigdir, specdata=specdata, verbose=True,
                             stokes=stokes, fov=xyrange,
                             imax=imax, imin=imin, icmap=icmap, inorm=inorm,
+                            nclevels=nclevels,
                             dmax=dmax, dmin=dmin, dcmap=dcmap, dnorm=dnorm,
                             sclfactor=sclfactor,
                             aiafits=aiafits, aiawave=aiawave, aiadir=aiadir, plotaia=plotaia, alpha_cont=calpha)

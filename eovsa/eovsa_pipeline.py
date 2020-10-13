@@ -194,7 +194,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
                 'tedlist': sclist['tedlist']}
 
 
-def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False,verbose=False):
+def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False,clearcache=False,verbose=False):
     ''' 
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
@@ -265,7 +265,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False,verbose
     vis = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms',
                           workdir=workdir,
                           slfcaltbdir=os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/',
-                          imgoutdir=imgoutdir, figoutdir=figoutdir)
+                          imgoutdir=imgoutdir, figoutdir=figoutdir,clearcache=clearcache)
     return vis
 
 
@@ -657,7 +657,7 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
         else:
             os.system('rm -rf {}/*'.format(subdir))
         vis_corrected = calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
-                                       workdir=subdir)
+                                       workdir=subdir,clearcache=False)
         if clearcache:
             os.chdir(workdir)
             os.system('rm -rf {}'.format(subdir))

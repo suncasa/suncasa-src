@@ -572,7 +572,7 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, xmlfile='SOLDISK
         return msfile, diskim
 
 
-def disk_slfcal(vis, slfcaltbdir='./', active=False):
+def disk_slfcal(vis, slfcaltbdir='./', active=False,clearcache=False):
     ''' Starting with the name of a calibrated ms (vis, which must have 'UDByyyymmdd' in the name)
         add a model disk based on the solar disk size for that date and perform multiple selfcal
         adjustments (two phase and one amplitude), and write out a final selfcaled database with
@@ -677,14 +677,15 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False):
     split(vis2, outputvis=final, datacolumn='corrected')
 
     # Remove the interim ms files
-    if os.path.exists(msfile):
-        os.system('rm -rf {}'.format(msfile))
-    if os.path.exists(msfile + '.flagversions'):
-        os.system('rm -rf {}'.format(msfile + '.flagversions'))
-    if os.path.exists(vis2):
-        os.system('rm -rf {}'.format(vis2))
-    if os.path.exists(vis2 + '.flagversions'):
-        os.system('rm -rf {}'.format(vis2 + '.flagversions'))
+    if clearcache:
+        if os.path.exists(msfile):
+            os.system('rm -rf {}'.format(msfile))
+        if os.path.exists(msfile + '.flagversions'):
+            os.system('rm -rf {}'.format(msfile + '.flagversions'))
+        if os.path.exists(vis2):
+            os.system('rm -rf {}'.format(vis2))
+        if os.path.exists(vis2 + '.flagversions'):
+            os.system('rm -rf {}'.format(vis2 + '.flagversions'))
 
     # Return the name of the selfcaled ms
     return final, diskxmlfile
@@ -894,7 +895,7 @@ def plt_eovsa_image(eofiles, figoutdir='./'):
     return figname
 
 
-def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None, figoutdir=None):
+def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None, figoutdir=None, clearcache=False):
     from astropy.io import fits
 
     spw2band = np.array([0, 1] + range(4, 52))
@@ -982,7 +983,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             os.system('rm -rf images_init')
         os.system('mv images images_init')
 
-    ms_slfcaled, diskxmlfile = disk_slfcal(vis, slfcaltbdir=slfcaltbdir, active=active)
+    ms_slfcaled, diskxmlfile = disk_slfcal(vis, slfcaltbdir=slfcaltbdir, active=active,clearcache=clearcache)
 
     outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir, spws=spws)
 
