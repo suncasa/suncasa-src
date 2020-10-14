@@ -572,7 +572,7 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, xmlfile='SOLDISK
         return msfile, diskim
 
 
-def disk_slfcal(vis, slfcaltbdir='./', active=False,clearcache=False):
+def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False):
     ''' Starting with the name of a calibrated ms (vis, which must have 'UDByyyymmdd' in the name)
         add a model disk based on the solar disk size for that date and perform multiple selfcal
         adjustments (two phase and one amplitude), and write out a final selfcaled database with
@@ -613,10 +613,11 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False,clearcache=False):
     if not active:
         clearcal(vis)
 
-    flagmanager(vis, mode='save', versionname='before_autoflag')
+    flagmanager(vis, mode='save', versionname='with-RFI-or-BURSTS')
     ## automaticaly flag any high amplitudes from flares or RFI
     flagdata(vis=vis, mode="tfcrop", spw='', correlation='ABS_XX', action='apply', display='',
-             timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=True)
+             timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=False)
+    flagmanager(vis, mode='save', versionname='without-RFI-or-BURSTS')
 
     dsize, fdens = calc_diskmodel(slashdate, nbands, freq, defaultfreq)
     diskxmlfile = vis + '.SOLDISK.xml'
@@ -658,7 +659,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False,clearcache=False):
     if os.path.exists(vis2 + '.flagversions'):
         os.system('rm -rf {}'.format(vis2 + '.flagversions'))
 
-    flagmanager(msfile, mode='restore', versionname='before_autoflag')
+    # flagmanager(msfile, mode='restore', versionname='with-RFI-or-BURSTS')
     clearcal(msfile)
     applycal(vis=msfile, selectdata=True, antenna="0~12", gaintable=caltbs, interp="linear", calwt=False,
              applymode="calonly")
@@ -675,7 +676,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False,clearcache=False):
     if os.path.exists(final + '.flagversions'):
         os.system('rm -rf {}'.format(final + '.flagversions'))
     split(vis2, outputvis=final, datacolumn='corrected')
-
+    os.system('mv {} {}'.format(msfile + '.flagversions', final + '.flagversions'))
     # Remove the interim ms files
     if clearcache:
         if os.path.exists(msfile):
@@ -983,7 +984,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             os.system('rm -rf images_init')
         os.system('mv images images_init')
 
-    ms_slfcaled, diskxmlfile = disk_slfcal(vis, slfcaltbdir=slfcaltbdir, active=active,clearcache=clearcache)
+    ms_slfcaled, diskxmlfile = disk_slfcal(vis, slfcaltbdir=slfcaltbdir, active=active, clearcache=clearcache)
 
     outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir, spws=spws)
 
@@ -991,6 +992,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         if os.path.exists(outputvis):
             os.system('rm -rf {}'.format(outputvis))
         os.system('mv {} {}'.format(ms_slfcaled, outputvis))
+        os.system('mv {}.flagversions {}.flagversions'.format(ms_slfcaled, outputvis))
         ms_slfcaled = outputvis
 
         newdiskxmlfile = '{}.SOLDISK.xml'.format(outputvis)

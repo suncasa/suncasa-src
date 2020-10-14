@@ -827,24 +827,10 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                         cmaps, datas = get_rdata_dict(rdata, ndim, stokaxis, npol_fits, icmap=icmap, stokes=stokes)
                     except:
                         continue
-                    # sz = rmap.data.shape
-                    # if len(sz) == 4:
-                    #     data = rmap.data[min(polmap[pol], rmap.meta['naxis4'] - 1), 0, :, :].reshape(
-                    #         (sz[2], sz[3]))
-                    # elif len(sz) == 3:
-                    #     data = rmap.data[min(polmap[pol], rmap.meta['naxis4'] - 1), :, :].reshape(
-                    #         (sz[2], sz[3]))
-                    # else:
-                    #     data = rmap.data
-                    #
-                    # data[np.isnan(data)] = 0.0
-                    # # data = data / 1e4
                     if stokaxis is None:
                         rmap = smap.Map(np.squeeze(datas[pol][:, :]), rheader)
                     else:
                         rmap = smap.Map(np.squeeze(datas[pol][n, :, :]), rheader)
-                    # data = np.squeeze(data)
-                    # rmap = smap.Map(data, rmap.meta)
                 else:
                     # make an empty map
                     data = np.zeros((512, 512))
