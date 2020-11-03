@@ -35,6 +35,7 @@ import time
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from suncasa.utils import plot_mapX as pmX
 from suncasa.utils import fitsutils as fu
+from tqdm import tqdm
 
 polmap = {'RR': 0, 'LL': 1, 'I': 0, 'V': 1, 'XX': 0, 'YY': 1}
 
@@ -486,7 +487,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     imax=None, imin=None, icmap=None, inorm=None,
                     amax=None, amin=None, acmap=None, anorm=None,
                     nclevels=3, dmax=None, dmin=None, dcmap=None, dnorm=None, sclfactor=1.0,
-                    clevels=None, spwcmap='jet', aiafits=None, aiadir=None, aiawave=171, plotaia=True, moviename='',
+                    clevels=None, spwcmap='jet', aiafits='', aiadir=None, aiawave=171, plotaia=True, moviename='',
                     alpha_cont=1.0, custom_mapcubes=[]):
     '''
     Required inputs:
@@ -616,7 +617,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         ncols = hnspw
         nrows = 2 + 2  # 1 image: 1x1, 1 dspec:2x4
         fig = plt.figure(figsize=(8, 8))
-        gs = gridspec.GridSpec(nrows, ncols)
+        gs = gridspec.GridSpec(nrows, ncols, height_ratios=[3, 3, 1, 1])
         if nspw <= 1:
             axs = [plt.subplot(gs[:2, :hnspw])]
         else:
@@ -674,7 +675,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         ncols = hnspw + 2  # 1 image: 1x1, 1 dspec:2x2
         nrows = 2 + 2
         fig = plt.figure(figsize=(12, 8))
-        gs = gridspec.GridSpec(nrows, ncols)
+        gs = gridspec.GridSpec(nrows, ncols, height_ratios=[3, 3, 1, 1])
         if nspw <= 1:
             axs = [plt.subplot(gs[:2, 2:]), plt.subplot(gs[2:, 2:])]
         else:
@@ -688,25 +689,31 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         axs_dspec = [plt.subplot(gs[:2, :2])]
         axs_dspec.append(plt.subplot(gs[2:, :2]))
 
+    for ax in axs + axs_dspec:
+        ax.tick_params(direction='out', axis='both')
+
     # fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
     # pdb.set_trace()
     if plotaia:
         '''check if aiafits files exist'''
-        if aiafits is None:
+        if aiafits is '' or aiafits is None:
             if aiadir:
                 aiafiles = []
-                for i in range(ntime):
+                for i in tqdm(range(ntime)):
                     plttime = btimes_sort[i, 0]
                     aiafile = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime,
                                                  isexists=True,
-                                                 timtol=12. / 3600. / 24)
+                                                 timtol=120. / 3600. / 24)
                     if not aiafile:
                         aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True,
-                                                      timtol=12. / 3600. / 24)
+                                                      timtol=120. / 3600. / 24)
                     if not aiafile:
                         aiafile = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=plttime, isexists=True,
-                                                      timtol=12. / 3600. / 24)
-                    aiafiles.append(aiafile)
+                                                      timtol=120. / 3600. / 24)
+                    if aiafile is []:
+                        aiafiles.append(None)
+                    else:
+                        aiafiles.append(aiafile)
                 if np.count_nonzero(aiafiles) < ntime / 2.0:
                     downloadAIAdata(trange=t_ran, wavelength=aiawave)
                     aiadir = './'
@@ -716,7 +723,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             # tjd_aia = st.tplt.jd
             pass
 
-    for i, plttime in enumerate(plttimes):
+    for i, plttime in enumerate(tqdm(plttimes)):
         plt.ioff()
         # plt.clf()
         for ax in axs:
@@ -780,7 +787,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     ax.xaxis.set_visible(False)
                 divider = make_axes_locatable(ax)
                 cax_spec = divider.append_axes('right', size='3.0%', pad=0.05)
-                cax_spec.tick_params(direction='in')
+                cax_spec.tick_params(direction='out')
                 clb_spec = plt.colorbar(im_spec, ax=ax, cax=cax_spec)
                 clb_spec.set_label('Flux [sfu]')
         else:
@@ -792,15 +799,16 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
 
         if plotaia:
             # pdb.set_trace()
-            if aiafits is None:
+            if np.count_nonzero(aiafiles) > 0:
                 try:
-                    if aiadir:
-                        aiafits = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True,
-                                                      timtol=12. / 3600. / 24)
-                        if not aiafits:
-                            aiafits = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime,
-                                                         isexists=True,
-                                                         timtol=12. / 3600. / 24)
+                    # if aiadir:
+                    #     aiafits = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True,
+                    #                                   timtol=12. / 3600. / 24)
+                    #     if not aiafits:
+                    #         aiafits = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime,
+                    #                                      isexists=True,
+                    #                                      timtol=12. / 3600. / 24)
+                    aiafits = aiafiles[i]
                     aiamap = smap.Map(aiafits)
                     aiamap = DButil.normalize_aiamap(aiamap)
                     data = aiamap.data
@@ -930,7 +938,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                             ax.text(0.97, (len(custom_mapcubes['mapcube']) - cmpcidx - 1) * 0.06 + 0.03, label,
                                     horizontalalignment='right',
                                     verticalalignment='bottom', transform=ax.transAxes, color=color)
-                ax.set_autoscale_on(True)
+                # ax.set_autoscale_on(True)
                 if fov:
                     ax.set_xlim(fov[0])
                     ax.set_ylim(fov[1])
@@ -962,14 +970,14 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                                        transform=ax.transAxes)
                 timetext.set_text(plttime.iso[:19])
                 ax.set_title(' ')
-                ax.xaxis.set_visible(False)
-                ax.yaxis.set_visible(False)
+                # ax.xaxis.set_visible(False)
+                # ax.yaxis.set_visible(False)
         if nspw > 10:
             for pidx in range(npols):
                 ax = axs[pidx]
                 divider = make_axes_locatable(ax)
                 cax_freq = divider.append_axes('right', size='3.0%', pad=0.05)
-                cax_freq.tick_params(direction='in')
+                # cax_freq.tick_params(direction='out')
                 Freqs = [np.mean(fq) for fq in Freq]
                 mpl.colorbar.ColorbarBase(cax_freq, cmap=spwcmap, norm=colors.Normalize(vmax=Freqs[-1], vmin=Freqs[0]))
                 cax_freq.set_ylabel('Frequency [GHz]')
@@ -981,7 +989,9 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             os.makedirs(figdir_)
         if verbose:
             print('Saving plot to: ' + os.path.join(figdir_, figname))
-        plt.savefig(os.path.join(figdir_, figname))
+        if i == 0:
+            gs.tight_layout(fig, rect=[0.08, 0, 0.98, 1.0])
+        fig.savefig(os.path.join(figdir_, figname))
     plt.close(fig)
     if not moviename:
         moviename = 'movie'
@@ -1003,6 +1013,7 @@ def dspec_external(vis, workdir='./', specfile=None):
 
 def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange='', stokes='RR,LL',
               dmin=None, dmax=None, dcmap=None, dnorm=None,
+              amax=None, amin=None, acmap=None, anorm=None,
               reftime='', xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0,
               weighting='briggs', niter=500, sclfactor=1.0,
               imsize=[512], cell=['5.0arcsec'], mask='', gain=0.1,
@@ -1256,8 +1267,9 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                                            show_warnings=show_warnings)
             if not os.path.exists(qlookfigdir):
                 os.makedirs(qlookfigdir)
-            plt_qlook_image(imres, timerange=timerange, figdir=qlookfigdir, specdata=specdata, verbose=True,
+            plt_qlook_image(imres, timerange=timerange, figdir=qlookfigdir, specdata=specdata, verbose=verbose,
                             stokes=stokes, fov=xyrange,
+                            amax=amax, amin=amin, acmap=acmap, anorm=anorm,
                             imax=imax, imin=imin, icmap=icmap, inorm=inorm,
                             nclevels=nclevels,
                             dmax=dmax, dmin=dmin, dcmap=dcmap, dnorm=dnorm,
@@ -1798,7 +1810,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                 ax.text(0.5, 1.01, '[GHz]', ha='center', va='bottom', transform=cax.transAxes, color='k',
                         fontweight='normal')
                 cax.xaxis.set_visible(False)
-                cax.tick_params(axis="y", direction="in", pad=-20., length=0, colors='k', labelsize=8)
+                cax.tick_params(axis="y", pad=-20., length=0, colors='k', labelsize=8)
             except:
                 pass
 

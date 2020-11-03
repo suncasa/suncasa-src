@@ -651,6 +651,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False):
             solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G", calmode="a",
             append=False)
     mstl.flagcaltboutliers(caltb, limit=[0.125, 8.0])
+    # mstl.flagcaltboutliers(caltb, limit=[0.5, 2.0])
     caltbs.append(caltb)
     # Split out corrected data and model and do uvsub
     vis2 = 'slf3_' + msfile
