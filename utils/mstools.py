@@ -12,6 +12,41 @@ def get_trange(msfile):
     return Time(tr, format='mjd')
 
 
+def time2filename(msfile, timerange='', spw=''):
+    from astropy.time import Time
+    tb.open(msfile)
+    starttim = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
+    endtim = Time(tb.getcell('TIME', tb.nrows() - 1) / 24. / 3600., format='mjd')
+    tb.close()
+    datstr = starttim.iso[:10]
+    ms.open(msfile)
+    metadata = ms.metadata()
+    observatory = metadata.observatorynames()[0]
+    ms.close()
+    if timerange is None or timerange == '':
+        starttim1 = starttim
+        endtim1 = endtim
+    else:
+        (tstart, tend) = timerange.split('~')
+        if tstart[2] == ':':
+            starttim1 = Time(datstr + 'T' + tstart)
+            endtim1 = Time(datstr + 'T' + tend)
+        else:
+            starttim1 = Time(qa.quantity(tstart, 'd')['value'], format='mjd')
+            endtim1 = Time(qa.quantity(tend, 'd')['value'], format='mjd')
+    midtime = Time((starttim1.mjd + endtim1.mjd) / 2., format='mjd')
+
+    tstr = midtime.to_datetime().strftime('{}_%Y%m%dT%H%M%S'.format(observatory))
+
+    if spw:
+        spstr = 'spw{}'.format(spw.replace('~', '-'))
+        filename = '.'.join([tstr, spstr])
+    else:
+        filename = tstr
+
+    return filename
+
+
 def msclearhistory(msfile):
     '''Clears history in the a measurement sets file
 
@@ -135,8 +170,8 @@ def flagcaltboutliers(caltable, limit=[]):
             data = tb.getcol('CPARAM')
             flag = tb.getcol('FLAG')
             datamag = np.abs(data)
-            dataidx1 = datamag<limit[0]
-            dataidx2 = datamag>limit[1]
+            dataidx1 = datamag < limit[0]
+            dataidx2 = datamag > limit[1]
             flag[dataidx1] = True
             flag[dataidx2] = True
             tb.putcol('FLAG', flag)
@@ -146,3 +181,19 @@ def flagcaltboutliers(caltable, limit=[]):
             return 0
     else:
         print('limit must be a list. Aborted!')
+
+
+def modeltransfer(msfile, spw='', reference='XX', transfer='YY'):
+    from taskinit import mstool
+    pol_dict = {'XX': 0, 'YY': 1, 'XY': 2, 'YX': 3}
+    refidx = pol_dict[reference]
+    trfidx = pol_dict[transfer]
+    datams = mstool()
+    datams.open(msfile, nomodify=False)
+    datams.selectinit(reset=True)
+    staql = {'spw': spw}
+    datams.msselect(staql)
+    modeldata = datams.getdata(['model_data'])
+    modeldata['model_data'][trfidx, ...] = modeldata['model_data'][refidx, ...]
+    datams.putdata(modeldata)
+    datams.close()

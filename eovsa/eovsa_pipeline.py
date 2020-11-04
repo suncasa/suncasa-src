@@ -194,7 +194,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
                 'tedlist': sclist['tedlist']}
 
 
-def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False,clearcache=False,verbose=False):
+def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearcache=False, verbose=False, pols='XX'):
     ''' 
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
@@ -265,7 +265,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False,clearca
     vis = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms',
                           workdir=workdir,
                           slfcaltbdir=os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/',
-                          imgoutdir=imgoutdir, figoutdir=figoutdir,clearcache=clearcache)
+                          imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols)
     return vis
 
 
@@ -638,7 +638,7 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
     #     # plt_qlook_image(imres_allbd, figdir=figdir + 'FullBD/', verbose=True, synoptic=True)
 
 
-def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrite=True, doimport=True):
+def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrite=True, doimport=True, pols='XX'):
     workdir = '/data1/workdir/'
     os.chdir(workdir)
     # Set to run 5 days earlier than the current date
@@ -657,7 +657,7 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
         else:
             os.system('rm -rf {}/*'.format(subdir))
         vis_corrected = calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
-                                       workdir=subdir,clearcache=False)
+                                       workdir=subdir, clearcache=False, pols=pols)
         if clearcache:
             os.chdir(workdir)
             os.system('rm -rf {}'.format(subdir))
@@ -706,10 +706,11 @@ if __name__ == '__main__':
     clearcache = True
     overwrite = True
     doimport = True
+    pols = 'XX'
 
     try:
         argv = sys.argv[1:]
-        opts, args = getopt.getopt(argv, "c:n:o:i:", ['clearcache=', 'ndays=', 'overwrite=', 'doimport='])
+        opts, args = getopt.getopt(argv, "c:n:o:i:p:", ['clearcache=', 'ndays=', 'overwrite=', 'doimport=', 'pols='])
         print(opts, args)
         for opt, arg in opts:
             print(opt, arg, type(arg))
@@ -736,6 +737,9 @@ if __name__ == '__main__':
                     doimport = False
                 else:
                     doimport = np.bool(arg)
+            elif opt in ('-p', '--pols'):
+                if arg in ['XX', 'XXYY']:
+                    pols = arg
         nargs = len(args)
         if nargs == 3:
             year = np.int(args[0])
@@ -755,12 +759,14 @@ if __name__ == '__main__':
         clearcache = True
         overwrite = True
         doimport = True
+        pols = 'XX'
 
     print("Running pipeline_plt for date {}-{}-{}.".format(year, month, day))
     kargs = {'ndays': ndays,
              'clearcache': clearcache,
              'overwrite': overwrite,
-             'doimport': doimport}
+             'doimport': doimport,
+             'pols': pols}
     for k, v in kargs.items():
         print(k, v)
-    pipeline(year, month, day, ndays=ndays, clearcache=clearcache, overwrite=overwrite, doimport=doimport)
+    pipeline(year, month, day, ndays=ndays, clearcache=clearcache, overwrite=overwrite, doimport=doimport, pols=pols)

@@ -584,7 +584,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         print('{0:d} figures to plot'.format(len(tpltidxs)))
     plt.ioff()
     import matplotlib.gridspec as gridspec
-    spec = specdata['spec'] * sclfactor / 1e4
+    spec = specdata['spec'] / 1.0e4 * sclfactor
     spec = checkspecnan(spec)
     (npol, nbl, nfreq, ntim) = spec.shape
     # tidx = range(ntim)
@@ -1278,7 +1278,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
 
     else:
         cfreqs = []
-        spec = specdata['spec'] * sclfactor
+        spec = specdata['spec'] / 1.e4 * sclfactor
         spec = checkspecnan(spec)
         (npol_fits, nbl, nfreq, ntim) = spec.shape
         fidx = range(nfreq)
@@ -1547,6 +1547,9 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                         ofits = imagefile + '.fits'
                         imagefiles.append(imagefile)
                         fitsfiles.append(ofits)
+                    hf.imreg(vis=vis, imagefile=imagefiles, timerange=[timerange] * len(imagefiles),
+                             fitsfile=fitsfiles, verbose=verbose, overwrite=True, sclfactor=sclfactor, toTb=True,
+                             docompress=False)
                     print('fits file ' + ','.join(fitsfiles) + ' selected')
                     if not outfits:
                         outfits = visname + '.outim.image.fits'
@@ -1554,6 +1557,16 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                     warnings.warn(
                         "If the provided spw is not equally spaced, the frequency information of the fits file {} that combining {} could be a wrong. Use it with caution!".format(
                             outfits, ','.join(fitsfiles)))
+                    if docompress:
+                        fitsftmp = outfits + ".tmp.fits"
+                        os.system("mv {} {}".format(outfits, fitsftmp))
+                        hdu = fits.open(fitsftmp)
+                        hdu[0].verify('fix')
+                        header = hdu[0].header
+                        data = hdu[0].data
+                        fu.write_compressed_image_fits(outfits, data, header, compression_type='RICE_1',
+                                                       quantize_level=4.0)
+                        os.system("rm -rf {}".format(fitsftmp))
 
                 else:
                     imagename = os.path.join(workdir, visname + '.outim')
