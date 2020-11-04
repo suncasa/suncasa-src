@@ -190,10 +190,23 @@ def modeltransfer(msfile, spw='', reference='XX', transfer='YY'):
     trfidx = pol_dict[transfer]
     datams = mstool()
     datams.open(msfile, nomodify=False)
-    datams.selectinit(reset=True)
-    staql = {'spw': spw}
-    datams.msselect(staql)
-    modeldata = datams.getdata(['model_data'])
-    modeldata['model_data'][trfidx, ...] = modeldata['model_data'][refidx, ...]
-    datams.putdata(modeldata)
-    datams.close()
+
+    if '~' in spw:
+        sp0,sp1 = spw.split('~')
+        for sp in range(int(sp0),int(sp1)+1):
+            staql = {'spw': str(sp)}
+            datams.selectinit(reset=True)
+            datams.msselect(staql)
+            modeldata = datams.getdata(['model_data'])
+            modeldata['model_data'][trfidx, ...] = modeldata['model_data'][refidx, ...]
+            datams.putdata(modeldata)
+            print(sp)
+        datams.close()
+    else:
+        datams.selectinit(reset=True)
+        staql = {'spw': spw}
+        datams.msselect(staql)
+        modeldata = datams.getdata(['model_data'])
+        modeldata['model_data'][trfidx, ...] = modeldata['model_data'][refidx, ...]
+        datams.putdata(modeldata)
+        datams.close()
