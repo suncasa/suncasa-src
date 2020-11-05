@@ -192,15 +192,14 @@ def modeltransfer(msfile, spw='', reference='XX', transfer='YY'):
     datams.open(msfile, nomodify=False)
 
     if '~' in spw:
-        sp0,sp1 = spw.split('~')
-        for sp in range(int(sp0),int(sp1)+1):
+        sp0, sp1 = spw.split('~')
+        for sp in range(int(sp0), int(sp1) + 1):
             staql = {'spw': str(sp)}
             datams.selectinit(reset=True)
             datams.msselect(staql)
             modeldata = datams.getdata(['model_data'])
             modeldata['model_data'][trfidx, ...] = modeldata['model_data'][refidx, ...]
             datams.putdata(modeldata)
-            print(sp)
         datams.close()
     else:
         datams.selectinit(reset=True)
@@ -210,3 +209,74 @@ def modeltransfer(msfile, spw='', reference='XX', transfer='YY'):
         modeldata['model_data'][trfidx, ...] = modeldata['model_data'][refidx, ...]
         datams.putdata(modeldata)
         datams.close()
+
+
+def concat_slftb(tb_in=[], tb_out=None):
+    if not tb_in:
+        print('tb_in not provided. Abort...')
+    if os.path.exists(tb_out):
+        os.system('rm -r {}'.format(tb_out))
+    os.system('cp -r {} {}'.format(tb_in[0], tb_out))
+    tbdata = {}
+    tb.open(tb_out)
+    cols = tb.colnames()
+    tb.close()
+    cols.remove('WEIGHT')
+    for col in cols:
+        tbdata[col] = []
+    for tbidx, ctb in enumerate(tb_in):
+        tb.open(ctb, nomodify=True)
+        tim0 = tb.getcol(cols[0])
+        if len(tim0) == 0:
+            continue
+        else:
+            for col in cols:
+                if tbidx == 1 and col in ['CPARAM', 'PARAMERR', 'FLAG', 'SNR']:
+                    tbdata[col].append(tb.getcol(col)[::-1,...])
+                else:
+                    tbdata[col].append(tb.getcol(col))
+        tb.close()
+
+    if len(tbdata[cols[0]]) == 0:
+        print('tables have no data. Return')
+        return -1
+    else:
+        for col in cols:
+            if col in ['CPARAM', 'PARAMERR', 'FLAG', 'SNR']:
+                tbdata[col] = np.concatenate(tbdata[col], axis=2)
+            else:
+                tbdata[col] = np.concatenate(tbdata[col])
+        tb.open(tb_out, nomodify=False)
+        nrows = tb.nrows()
+        nrows_new = len(tbdata[cols[0]])
+        tb.addrows(nrows_new - nrows)
+        for col in cols:
+            tb.putcol(col, tbdata[col])
+        tb.close()
+        return tb_out
+
+
+def gaincalXY(vis=None, caltable=None, pols='XXYY', msfileXY=None, gaintableXY=None,  **kwargs):
+    from gaincal_cli import gaincal_cli as gaincal
+    if pols == 'XXYY':
+        pols = 'XX,YY'
+    pols_ = pols.split(',')
+    if msfileXY is None:
+        msfileXY = {}
+        for pol in pols_:
+            msfileXY[pol] = '.'.join([vis, pol])
+            if os.path.exists(msfileXY[pol]):
+                os.system('rm -rf {}'.format(msfileXY[pol]))
+            splitX(vis=vis, outputvis=msfileXY[pol], correlation=pol, datacolumn='data', datacolumn2='MODEL_DATA')
+    if gaintableXY is not None:
+        if 'gaintable' in kwargs.keys():
+            kwargs.pop('gaintable')
+    caltbXY = []
+    for pol in pols_:
+        caltb_ = '.'.join([caltable, pol])
+        if gaintableXY is not None:
+            kwargs['gaintable'] = gaintableXY[pol]
+        gaincal(vis=msfileXY[pol], caltable=caltb_, **kwargs)
+        caltbXY.append(caltb_)
+    concat_slftb(caltbXY, caltable)
+    return

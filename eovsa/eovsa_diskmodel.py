@@ -580,6 +580,8 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
     '''
     trange = ant_trange(vis)
 
+    if vis.endswith('/'):
+        vis = vis[:-1]
     # Use vis name to determine date, and hence number of bands
     spw2band = np.array([0, 1] + range(4, 52))
     defaultfreq = 1.1 + 0.325 * (spw2band + 0.5)
@@ -623,39 +625,73 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
     diskxmlfile = vis + '.SOLDISK.xml'
     # Insert the disk model (msfile is the same as vis, and will be used as the "original" vis file name)
     msfile, diskim = insertdiskmodel(vis, dsize=dsize, fdens=fdens, xmlfile=diskxmlfile, active=active)
-    if pols == 'XX':
-        pass
-    elif pols == 'XXYY':
-        for sp in range(nbands):
-            mstl.modeltransfer(msfile, spw='{}'.format(sp))
-    else:
-        pass
+
+    if pols == 'XXYY':
+        caltbs_ = {'XX': [], 'YY': []}
+        pols_ = ['XX', 'YY']
+        msfileXY = {}
+        for pol in pols_:
+            msfileXY[pol] = '.'.join([msfile, pol])
+            if os.path.exists(msfileXY[pol]):
+                os.system('rm -rf {}'.format(msfileXY[pol]))
+            mstl.splitX(vis=msfile, outputvis=msfileXY[pol], correlation=pol, datacolumn='data',
+                        datacolumn2='MODEL_DATA')
 
     tdate = mstl.get_trange(msfile)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_1.pha')
     if os.path.exists(caltb):
-        os.system('rm -rf {}'.format(caltb))
-    gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="", antenna="0~12&0~12", solint="inf",
-            combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
+        os.system('rm -rf {}*'.format(caltb))
+    if pols == 'XXYY':
+        mstl.gaincalX(vis=msfile, caltable=caltb, pols=pols, msfileXY=msfileXY, selectdata=True, uvrange="",
+                      antenna="0~12&0~12", solint="inf",
+                      combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p",
+                      append=False)
+        for pol in pols_:
+            caltb_ = '.'.join([caltb, pol])
+            caltbs_[pol].append(caltb_)
+    else:
+        gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="", antenna="0~12&0~12", solint="inf",
+                combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
     caltbs.append(caltb)
 
     caltb = os.path.join(slfcaltbdir, tdate + '_2.pha')
     if os.path.exists(caltb):
-        os.system('rm -rf {}'.format(caltb))
+        os.system('rm -rf {}*'.format(caltb))
     # Second round of phase selfcal on the disk using solution interval "1min"
-    gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="", antenna="0~12&0~12", solint="10min",
-            combine="scan", gaintable=caltbs, interp="linear",
-            refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
+    if pols == 'XXYY':
+        mstl.gaincalX(vis=msfile, caltable=caltb, pols=pols, msfileXY=msfileXY, gaintableXY=caltbs_,
+                      selectdata=True, uvrange="", antenna="0~12&0~12",
+                      solint="10min",
+                      combine="scan", interp="linear",
+                      refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
+        for pol in pols_:
+            caltb_ = '.'.join([caltb, pol])
+            caltbs_[pol].append(caltb_)
+    else:
+        gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="", antenna="0~12&0~12", solint="10min",
+                combine="scan", gaintable=caltbs, interp="linear",
+                refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
     caltbs.append(caltb)
 
     caltb = os.path.join(slfcaltbdir, tdate + '_3.amp')
     if os.path.exists(caltb):
-        os.system('rm -rf {}'.format(caltb))
+        os.system('rm -rf {}*'.format(caltb))
     # Final round of amplitude selfcal with 1-h solution interval (restrict to 16-24 UT)
-    gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="", antenna="0~12&0~12",
-            timerange=trange, gaintable=caltbs, interp="linear",
-            solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G", calmode="a",
-            append=False)
+    if pols == 'XXYY':
+        mstl.gaincalX(vis=msfile, caltable=caltb, pols=pols, msfileXY=msfileXY, gaintableXY=caltbs_,
+                      electdata=True, uvrange="", antenna="0~12&0~12",
+                      timerange=trange, interp="linear",
+                      solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G",
+                      calmode="a",
+                      append=False)
+        for pol in pols_:
+            caltb_ = '.'.join([caltb, pol])
+            caltbs_[pol].append(caltb_)
+    else:
+        gaincal(vis=msfile, caltable=caltb, selectdata=True, uvrange="", antenna="0~12&0~12",
+                timerange=trange, gaintable=caltbs, interp="linear",
+                solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G", calmode="a",
+                append=False)
     mstl.flagcaltboutliers(caltb, limit=[0.125, 8.0])
     # mstl.flagcaltboutliers(caltb, limit=[0.5, 2.0])
     caltbs.append(caltb)
@@ -674,7 +710,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
     for sp, dkim in tqdm(enumerate(diskim), desc='Inserting disk model', ascii=True):
         ft(vis=vis2, spw=str(sp), field='', model=str(dkim), nterms=1,
            reffreq="", complist="", incremental=False, usescratch=True)
-        mstl.modeltransfer(msfile, spw='{}'.format(sp))
+        # mstl.modeltransfer(msfile, spw='{}'.format(sp))
     uvsub(vis=vis2, reverse=False)
 
     # Final split to
@@ -774,12 +810,12 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     if os.path.exists('images_init'):
         os.system('rm -rf images_init')
     os.system('mv images images_init')
-    clearcal(vis)
+    clearcal(vis, addmodel=True)
     fd_images(vis, cleanup=False, niter=niter, spws=spws, bright=bright)  # Does shallow clean for selfcal purposes
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_d1.pha')
     if os.path.exists(caltb):
-        os.system('rm -rf {}'.format(caltb))
+        os.system('rm -rf {}*'.format(caltb))
     for s, sp in enumerate(spws):
         if bright[s]:
             spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
@@ -787,21 +823,17 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
             if sp == '31~49':
                 # The high-band image is only made to band 43, so adjust the name
                 imname = 'images/briggs31-43.model'
-            ft(vis=vis, spw=sp, model=imname, usescratch=True)
-            if pols == 'XX':
-                pass
-            elif pols == 'XXYY':
+            ft(vis=vis, spw=sp, model=imname, usescratch=True, incremental=True)
+            if pols == 'XXYY':
                 mstl.modeltransfer(vis, spw=sp)
-            else:
-                pass
-            if os.path.exists(caltb):
-                appd = True
-            else:
-                appd = False
-            gaincal(vis=vis, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
-                    combine="scan", antenna='0~12&0~12', refant='0', refantmode="strict", solint='inf', gaintype='G',
-                    minsnr=1.0,
-                    calmode='p', append=appd)
+    if pols == 'XXYY':
+        mstl.gaincalXY(vis=vis, caltable=caltb, pols=pols, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
+                       combine="scan", antenna='0~12&0~12', refant='0', refantmode="strict", solint='inf', gaintype='G',
+                       minsnr=1.0, calmode='p', append=False)
+    else:
+        gaincal(vis=vis, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
+                combine="scan", antenna='0~12&0~12', refant='0', refantmode="strict", solint='inf', gaintype='G',
+                minsnr=1.0, calmode='p', append=False)
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis, selectdata=True, antenna="0~12", gaintable=caltb, interp="linear", calwt=False,
              applymode="calonly")
@@ -812,7 +844,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
 
     caltb = os.path.join(slfcaltbdir, tdate + '_d2.pha')
     if os.path.exists(caltb):
-        os.system('rm -rf {}'.format(caltb))
+        os.system('rm -rf {}*'.format(caltb))
     # Move the existing images directory so that a new one will be created
     if os.path.exists('images_ftcal_rnd1'):
         os.system('rm -rf images_ftcal_rnd1')
@@ -828,20 +860,16 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
                 # The high-band image is only made to band 43, so adjust the name
                 imname = 'images/briggs31-43.model'
             ft(vis=vis1, spw=sp, model=imname, usescratch=True)
-            if pols == 'XX':
-                pass
-            elif pols == 'XXYY':
+            if pols == 'XXYY':
                 mstl.modeltransfer(vis1, spw=sp)
-            else:
-                pass
-            if os.path.exists(caltb):
-                appd = True
-            else:
-                appd = False
-            gaincal(vis=vis1, spw=sp, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
-                    combine="scan", antenna='0~12&0~12', refant='0', solint='10min', refantmode="strict", gaintype='G',
-                    minsnr=1.0,
-                    calmode='p', append=appd)
+    if pols == 'XXYY':
+        mstl.gaincalXY(vis=vis1, caltable=caltb, pols=pols, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
+                       combine="scan", antenna='0~12&0~12', refant='0', solint='10min', refantmode="strict",
+                       gaintype='G', minsnr=1.0, calmode='p', append=False)
+    else:
+        gaincal(vis=vis1, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
+                combine="scan", antenna='0~12&0~12', refant='0', solint='10min', refantmode="strict", gaintype='G',
+                minsnr=1.0, calmode='p', append=False)
     # Apply the corrections to the data and split to a new ms
     applycal(vis=vis1, selectdata=True, antenna="0~12", gaintable=caltb, interp="linear", calwt=False,
              applymode="calonly")
