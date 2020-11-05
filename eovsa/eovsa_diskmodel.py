@@ -642,7 +642,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
     if os.path.exists(caltb):
         os.system('rm -rf {}*'.format(caltb))
     if pols == 'XXYY':
-        mstl.gaincalX(vis=msfile, caltable=caltb, pols=pols, msfileXY=msfileXY, selectdata=True, uvrange="",
+        mstl.gaincalXY(vis=msfile, caltable=caltb, pols=pols, msfileXY=msfileXY, selectdata=True, uvrange="",
                       antenna="0~12&0~12", solint="inf",
                       combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p",
                       append=False)
@@ -659,7 +659,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
         os.system('rm -rf {}*'.format(caltb))
     # Second round of phase selfcal on the disk using solution interval "1min"
     if pols == 'XXYY':
-        mstl.gaincalX(vis=msfile, caltable=caltb, pols=pols, msfileXY=msfileXY, gaintableXY=caltbs_,
+        mstl.gaincalXY(vis=msfile, caltable=caltb, pols=pols, msfileXY=msfileXY, gaintableXY=caltbs_,
                       selectdata=True, uvrange="", antenna="0~12&0~12",
                       solint="10min",
                       combine="scan", interp="linear",
@@ -678,7 +678,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
         os.system('rm -rf {}*'.format(caltb))
     # Final round of amplitude selfcal with 1-h solution interval (restrict to 16-24 UT)
     if pols == 'XXYY':
-        mstl.gaincalX(vis=msfile, caltable=caltb, pols=pols, msfileXY=msfileXY, gaintableXY=caltbs_,
+        mstl.gaincalXY(vis=msfile, caltable=caltb, pols=pols, msfileXY=msfileXY, gaintableXY=caltbs_,
                       electdata=True, uvrange="", antenna="0~12&0~12",
                       timerange=trange, interp="linear",
                       solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G",
