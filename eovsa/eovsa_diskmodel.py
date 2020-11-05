@@ -679,7 +679,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
     # Final round of amplitude selfcal with 1-h solution interval (restrict to 16-24 UT)
     if pols == 'XXYY':
         mstl.gaincalXY(vis=msfile, caltable=caltb, pols=pols, msfileXY=msfileXY, gaintableXY=caltbs_,
-                      electdata=True, uvrange="", antenna="0~12&0~12",
+                      selectdata=True, uvrange="", antenna="0~12&0~12",
                       timerange=trange, interp="linear",
                       solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G",
                       calmode="a",

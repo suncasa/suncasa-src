@@ -261,7 +261,9 @@ def gaincalXY(vis=None, caltable=None, pols='XXYY', msfileXY=None, gaintableXY=N
     if pols == 'XXYY':
         pols = 'XX,YY'
     pols_ = pols.split(',')
+    rm_msfileXY = False
     if msfileXY is None:
+        rm_msfileXY = True
         msfileXY = {}
         for pol in pols_:
             msfileXY[pol] = '.'.join([vis, pol])
@@ -279,4 +281,7 @@ def gaincalXY(vis=None, caltable=None, pols='XXYY', msfileXY=None, gaintableXY=N
         gaincal(vis=msfileXY[pol], caltable=caltb_, **kwargs)
         caltbXY.append(caltb_)
     concat_slftb(caltbXY, caltable)
+    if rm_msfileXY:
+        for k, v in msfileXY.iteritems():
+            os.system('rm -rf {}'.format(v))
     return
