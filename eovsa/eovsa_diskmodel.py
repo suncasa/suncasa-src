@@ -51,7 +51,8 @@ def ant_trange(vis):
     ms.open(vis)
     # metadata = ms.metadata()
     scans = ms.getscansummary()
-    vistrange = np.array([scans[scans.keys()[0]]['0']['BeginTime'], scans[scans.keys()[-1]]['0']['EndTime']])
+    sk = np.sort(scans.keys())
+    vistrange = np.array([scans[sk[0]]['0']['BeginTime'],scans[sk[-1]]['0']['EndTime']])
 
     # Get the Sun transit time, based on the date in the vis file name (must have UDByyyymmdd in the name)
     aa = ea.eovsa_array()
