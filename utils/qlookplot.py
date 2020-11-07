@@ -291,6 +291,9 @@ def get_rdata_dict(rdata, ndim, stokaxis, npol_fits, icmap=None, stokes='I,V', s
                 slc1[stokaxis] = slice(0, 1)
                 datas[pols[0]] = rdata[slc1]
                 cmaps[pols[0]] = cmap_I
+    if stokaxis is not None:
+        for k, v in datas.iteritems():
+            datas[k] = np.squeeze(v, axis=stokaxis)
     return cmaps, datas
 
 
@@ -1500,8 +1503,12 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                     for sp in spw:
                         if not restoringbeam == ['']:
                             try:
-                                cfreq = cfreqs[int(sp)]
-                                restoringbm = [str(max(sbeam * cfreqs[1] / cfreq, 10.)) + 'arcsec']
+                                if '~' in sp:
+                                    cfreq = np.nanmean([cfreqs[int(s)] for s in sp.split('~')])
+                                else:
+                                    cfreq = cfreqs[int(sp)]
+
+                                restoringbm = [str(max(sbeam * cfreqs[1] / cfreq, 4.)) + 'arcsec']
                             except:
                                 restoringbm = restoringbeam
                         spwran = [s.zfill(2) for s in sp.split('~')]
@@ -1702,9 +1709,11 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             axs = [[ax4, ax5], [ax6, ax7]]
             for s, sp in enumerate(spw):
                 for pidx, pol in enumerate(pols):
-                    # rcmap = [cmaps[pol](float(s) / len(spw))] * len(clvls[pol])
                     rcmap = [plt.cm.RdYlBu(float(s) / len(spw))] * len(clvls[pol])
-                    rmap_plt = smap.Map(np.squeeze(datas[pol][s, :, :]), rheader)
+                    if ndim>2:
+                        rmap_plt = smap.Map(np.squeeze(datas[pol][s, :, :]), rheader)
+                    else:
+                        rmap_plt = smap.Map(np.squeeze(datas[pol]), rheader)
                     rmap_plt_ = pmX.Sunmap(rmap_plt)
                     if nspws > 1:
                         rmap_plt_.contourf(axes=[axs[pidx][0], axs[pidx][1]], colors=rcmap,
@@ -1736,7 +1745,10 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             if nspws < 2:
                 title = '{0} {1:6.3f} GHz'.format(observatory, (bfreqghz + efreqghz) / 2.0)
                 for pidx, pol in enumerate(pols):
-                    rmap_plt = smap.Map(datas[pol][0, :, :], rheader)
+                    if ndim>2:
+                        rmap_plt = smap.Map(datas[pol][0, :, :], rheader)
+                    else:
+                        rmap_plt = smap.Map(datas[pol], rheader)
                     rmap_plt_ = pmX.Sunmap(rmap_plt)
                     rmap_plt_.imshow(axes=[axs[pidx][0], axs[pidx][1]], cmap=cmaps[pol], interpolation='nearest')
                     axs[pidx][0].set_title(title + ' ' + pols[pidx], fontsize=9)

@@ -20,12 +20,39 @@ from ft_cli import ft_cli as ft
 from suncasa.utils import mstools as mstl
 
 
+# def ant_trange(vis):
+#     ''' Figure out nominal times for tracking of old EOVSA antennas, and return time
+#         range in CASA format
+#     '''
+#     import eovsa_array as ea
+#     from astropy.time import Time
+#     # Get the Sun transit time, based on the date in the vis file name (must have UDByyyymmdd in the name)
+#     aa = ea.eovsa_array()
+#     date = vis.split('UDB')[-1][:8]
+#     slashdate = date[:4] + '/' + date[4:6] + '/' + date[6:8]
+#     aa.date = slashdate
+#     sun = aa.cat['Sun']
+#     mjd_transit = Time(aa.next_transit(sun).datetime(), format='datetime').mjd
+#     # Construct timerange based on +/- 3h55m from transit time (when all dishes are nominally tracking)
+#     trange = Time(mjd_transit - 0.1632, format='mjd').iso[:19] + '~' + Time(mjd_transit + 0.1632, format='mjd').iso[:19]
+#     trange = trange.replace('-', '/').replace(' ', '/')
+#     return trange
+
 def ant_trange(vis):
     ''' Figure out nominal times for tracking of old EOVSA antennas, and return time
         range in CASA format
     '''
     import eovsa_array as ea
     from astropy.time import Time
+    from taskinit import ms
+
+    # Get timerange from the visibility file
+    # msinfo = dict.fromkeys(['vis', 'scans', 'fieldids', 'btimes', 'btimestr', 'inttimes', 'ras', 'decs', 'observatory'])
+    ms.open(vis)
+    # metadata = ms.metadata()
+    scans = ms.getscansummary()
+    vistrange = np.array([scans[scans.keys()[0]]['0']['BeginTime'], scans[scans.keys()[-1]]['0']['EndTime']])
+
     # Get the Sun transit time, based on the date in the vis file name (must have UDByyyymmdd in the name)
     aa = ea.eovsa_array()
     date = vis.split('UDB')[-1][:8]
@@ -33,8 +60,10 @@ def ant_trange(vis):
     aa.date = slashdate
     sun = aa.cat['Sun']
     mjd_transit = Time(aa.next_transit(sun).datetime(), format='datetime').mjd
-    # Construct timerange based on +/- 3h55m from transit time (when all dishes are nominally tracking)
-    trange = Time(mjd_transit - 0.1632, format='mjd').iso[:19] + '~' + Time(mjd_transit + 0.1632, format='mjd').iso[:19]
+    # Construct timerange limits based on +/- 3h55m from transit time (when all dishes are nominally tracking)
+    # and clip the visibility range not to exceed those limits
+    mjdrange = np.clip(vistrange, mjd_transit - 0.1632, mjd_transit + 0.1632)
+    trange = Time(mjdrange[0], format='mjd').iso[:19] + '~' + Time(mjdrange[1], format='mjd').iso[:19]
     trange = trange.replace('-', '/').replace(' ', '/')
     return trange
 
@@ -643,9 +672,9 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
         os.system('rm -rf {}*'.format(caltb))
     if pols == 'XXYY':
         mstl.gaincalXY(vis=msfile, caltable=caltb, pols=pols, msfileXY=msfileXY, selectdata=True, uvrange="",
-                      antenna="0~12&0~12", solint="inf",
-                      combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p",
-                      append=False)
+                       antenna="0~12&0~12", solint="inf",
+                       combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p",
+                       append=False)
         for pol in pols_:
             caltb_ = '.'.join([caltb, pol])
             caltbs_[pol].append(caltb_)
@@ -660,10 +689,10 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
     # Second round of phase selfcal on the disk using solution interval "1min"
     if pols == 'XXYY':
         mstl.gaincalXY(vis=msfile, caltable=caltb, pols=pols, msfileXY=msfileXY, gaintableXY=caltbs_,
-                      selectdata=True, uvrange="", antenna="0~12&0~12",
-                      solint="10min",
-                      combine="scan", interp="linear",
-                      refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
+                       selectdata=True, uvrange="", antenna="0~12&0~12",
+                       solint="10min",
+                       combine="scan", interp="linear",
+                       refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p", append=False)
         for pol in pols_:
             caltb_ = '.'.join([caltb, pol])
             caltbs_[pol].append(caltb_)
@@ -679,11 +708,11 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
     # Final round of amplitude selfcal with 1-h solution interval (restrict to 16-24 UT)
     if pols == 'XXYY':
         mstl.gaincalXY(vis=msfile, caltable=caltb, pols=pols, msfileXY=msfileXY, gaintableXY=caltbs_,
-                      selectdata=True, uvrange="", antenna="0~12&0~12",
-                      timerange=trange, interp="linear",
-                      solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G",
-                      calmode="a",
-                      append=False)
+                       selectdata=True, uvrange="", antenna="0~12&0~12",
+                       timerange=trange, interp="linear",
+                       solint="60min", combine="scan", refant="10", refantmode="flex", minsnr=1.0, gaintype="G",
+                       calmode="a",
+                       append=False)
         for pol in pols_:
             caltb_ = '.'.join([caltb, pol])
             caltbs_[pol].append(caltb_)
@@ -737,7 +766,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
 
 
 def fd_images(vis, cleanup=False, niter=None, spws=['0~1', '2~5', '6~10', '11~20', '21~30', '31~43'], imgoutdir='./',
-              bright=None):
+              bright=None, stokes="XX"):
     ''' Create standard full-disk images in "images" subdirectory of the current directory.
         If cleanup is True, delete those images after completion, leaving only the fits images.
     '''
@@ -773,7 +802,7 @@ def fd_images(vis, cleanup=False, niter=None, spws=['0~1', '2~5', '6~10', '11~20
 
             tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
                    antenna="0~12", datacolumn="data", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
-                   stokes="XX", projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
+                   stokes=stokes, projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
                    scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
                    niter=niter, gain=0.05, savemodel="none", usemask='auto-multithresh', pbmask=0.0,
                    sidelobethreshold=1.0, noisethreshold=2.5, lownoisethreshold=1.5, negativethreshold=5.0,
