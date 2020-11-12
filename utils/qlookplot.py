@@ -838,7 +838,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                         cmaps, datas = get_rdata_dict(rdata, ndim, stokaxis, npol_fits, icmap=icmap, stokes=stokes)
                     except:
                         continue
-                    if stokaxis is None:
+                    if stokaxis is None or nspw<=1:
                         rmap = smap.Map(np.squeeze(datas[pol][:, :]), rheader)
                     else:
                         rmap = smap.Map(np.squeeze(datas[pol][n, :, :]), rheader)
@@ -1557,7 +1557,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                     hf.imreg(vis=vis, imagefile=imagefiles, timerange=[timerange] * len(imagefiles),
                              fitsfile=fitsfiles, verbose=verbose, overwrite=True, sclfactor=sclfactor, toTb=True,
                              docompress=False)
-                    print('fits file ' + ','.join(fitsfiles) + ' selected')
+                    # print('fits file ' + ','.join(fitsfiles) + ' selected')
                     if not outfits:
                         outfits = visname + '.outim.image.fits'
                     fu.fits_wrap_spwX(fitsfiles, outfitsfile=outfits)
