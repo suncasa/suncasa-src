@@ -489,7 +489,7 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
 def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None,
                     imax=None, imin=None, icmap=None, inorm=None,
                     amax=None, amin=None, acmap=None, anorm=None,
-                    nclevels=3, dmax=None, dmin=None, dcmap=None, dnorm=None, sclfactor=1.0,
+                    nclevels=None, dmax=None, dmin=None, dcmap=None, dnorm=None, sclfactor=1.0,
                     clevels=None, spwcmap='jet', aiafits='', aiadir=None, aiawave=171, plotaia=True, moviename='',
                     alpha_cont=1.0, custom_mapcubes=[]):
     '''
@@ -539,6 +539,12 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     import astropy.units as u
     if not figdir:
         figdir = './'
+
+    if nclevels is None:
+        if plotaia:
+            nclevels = 2
+        else:
+            nclevels = 3
 
     tstart, tend = timerange.split('~')
     t_ran = Time([qa.quantity(tstart, 'd')['value'], qa.quantity(tend, 'd')['value']], format='mjd')
@@ -621,7 +627,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         nrows = 2 + 2  # 1 image: 1x1, 1 dspec:2x4
         fig = plt.figure(figsize=(8, 8))
         gs = gridspec.GridSpec(nrows, ncols, height_ratios=[3, 3, 1, 1])
-        if nspw <= 1:
+        if nspw <= 1 or plotaia:
             axs = [plt.subplot(gs[:2, :hnspw])]
         else:
             axs = [plt.subplot(gs[0, 0])]
@@ -679,7 +685,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         nrows = 2 + 2
         fig = plt.figure(figsize=(12, 8))
         gs = gridspec.GridSpec(nrows, ncols, height_ratios=[3, 3, 1, 1])
-        if nspw <= 1:
+        if nspw <= 1 or plotaia:
             axs = [plt.subplot(gs[:2, 2:]), plt.subplot(gs[2:, 2:])]
         else:
             # pdb.set_trace()
@@ -872,10 +878,16 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 else:
                     dim = u.Quantity([256, 256], u.pixel)
                     rmap = rmap.resample(dim)
-                if npols > 1:
-                    ax = axs[pidx + n * 2]
+                if plotaia:
+                    if npols > 1:
+                        ax = axs[pidx]
+                    else:
+                        ax = axs[0]
                 else:
-                    ax = axs[n]
+                    if npols > 1:
+                        ax = axs[pidx + n * 2]
+                    else:
+                        ax = axs[n]
                 rmap_ = pmX.Sunmap(rmap)
                 if aiamap:
                     if anorm is None:
@@ -899,7 +911,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                                        norm=anorm,
                                        interpolation='nearest')
                     try:
-                        clevels1 = np.linspace(imin, imax, nclevels)
+                        clevels1 = np.linspace(iranges[pidx][0], iranges[pidx][1], nclevels)
                     except:
                         try:
                             clevels1 = np.array(clevels) * np.nanmax(rmap.data)
