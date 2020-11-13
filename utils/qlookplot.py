@@ -838,10 +838,10 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                         cmaps, datas = get_rdata_dict(rdata, ndim, stokaxis, npol_fits, icmap=icmap, stokes=stokes)
                     except:
                         continue
-                    if stokaxis is None or nspw<=1:
-                        rmap = smap.Map(np.squeeze(datas[pol][:, :]), rheader)
-                    else:
-                        rmap = smap.Map(np.squeeze(datas[pol][n, :, :]), rheader)
+                    # if stokaxis is None or nspw <= 1:
+                    rmap = smap.Map(np.squeeze(datas[pol][:, :]), rheader)
+                    # else:
+                    #     rmap = smap.Map(np.squeeze(datas[pol][n, :, :]), rheader)
                 else:
                     # make an empty map
                     data = np.zeros((512, 512))
@@ -1710,7 +1710,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             for s, sp in enumerate(spw):
                 for pidx, pol in enumerate(pols):
                     rcmap = [plt.cm.RdYlBu(float(s) / len(spw))] * len(clvls[pol])
-                    if ndim>2:
+                    if ndim > 2:
                         rmap_plt = smap.Map(np.squeeze(datas[pol][s, :, :]), rheader)
                     else:
                         rmap_plt = smap.Map(np.squeeze(datas[pol]), rheader)
@@ -1745,7 +1745,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             if nspws < 2:
                 title = '{0} {1:6.3f} GHz'.format(observatory, (bfreqghz + efreqghz) / 2.0)
                 for pidx, pol in enumerate(pols):
-                    if ndim>2:
+                    if ndim > 2:
                         rmap_plt = smap.Map(datas[pol][0, :, :], rheader)
                     else:
                         rmap_plt = smap.Map(datas[pol], rheader)

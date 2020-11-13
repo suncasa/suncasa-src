@@ -283,7 +283,7 @@ def get_xcorr_info(xcorr, cwidth_guess=2.5 / 24 / 60, showplt=False, verbose=Fal
 
 
 def plot_wavelet(t, dat, dt, pl, pr, period_pltlim=None, ax=None, ax2=None, stscale=2, siglev=0.95, cmap='viridis',
-                 title='',
+                 title='',levels=None,
                  label='', units='', tunits='',
                  sav_img=False):
     import pycwt as wavelet
@@ -361,7 +361,8 @@ def plot_wavelet(t, dat, dt, pl, pr, period_pltlim=None, ax=None, ax2=None, stsc
                                                  wavelet=mother)
 
     # levels = [0.25, 0.5, 1, 2, 4, 8, 16,32]
-    levels = np.linspace(0.0, 128., 256)
+    if levels is None:
+        levels = np.linspace(0.0, 128., 256)
     # ax.contourf(t, np.log2(period), np.log2(power), np.log2(levels), extend='both', cmap=plt.cm.viridis)
     im = ax.contourf(t_, np.array(period) * 24 * 60, power, levels, extend='both', cmap=cmap, zorder=-20)
     # for pathcoll in im.collections:
