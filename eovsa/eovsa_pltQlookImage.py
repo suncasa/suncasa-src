@@ -375,7 +375,7 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
     return
 
 
-def main(year=None, month=None, day=None, ndays=30, clearcache=False, ovwrite_eovsa=False, ovwrite_sdo=False,
+def main(year=None, month=None, day=None, ndays=1, clearcache=False, ovwrite_eovsa=False, ovwrite_sdo=False,
          ovwrite_bbso=False, show_warning=False):
     # tst = datetime.strptime("2017-04-01", "%Y-%m-%d")
     # ted = datetime.strptime("2019-12-31", "%Y-%m-%d")
@@ -467,7 +467,7 @@ if __name__ == '__main__':
     year = None
     month = None
     day = None
-    ndays = 30
+    ndays = 1
     clearcache = True
     ovwrite_eovsa = False
     ovwrite_sdo = False
@@ -532,7 +532,7 @@ if __name__ == '__main__':
         year = None
         month = None
         day = None
-        ndays = 30
+        ndays = 1
         clearcache = True
         ovwrite_eovsa = False
         ovwrite_sdo = False

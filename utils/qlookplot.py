@@ -299,8 +299,9 @@ def get_rdata_dict(rdata, ndim, stokaxis, npol_fits, icmap=None, stokes='I,V', s
 
 def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna='', imagedir=None, spws=[], toTb=True,
                    sclfactor=1.0, overwrite=True, doslfcal=False, datacolumn='data',
-                   phasecenter='', robust=0.0, niter=500, gain=0.1, imsize=[512], cell=['5.0arcsec'], reftime='',
-                   mask='', pbcor=True, docompress=False,
+                   phasecenter='', robust=0.0, niter=500, gain=0.1, imsize=[512], cell=['5.0arcsec'], pbcor=True,
+                   reftime='',
+                   mask='', docompress=False,
                    uvrange='', c_external=True, show_warnings=False):
     vis = [vis]
     subdir = ['/']
@@ -1031,7 +1032,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
               amax=None, amin=None, acmap=None, anorm=None,
               reftime='', xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0,
               weighting='briggs', niter=500, sclfactor=1.0,
-              imsize=[512], cell=['5.0arcsec'], mask='', gain=0.1,
+              imsize=[512], cell=['5.0arcsec'], mask='', gain=0.1, pbcor=True,
+              antenna='',
               interactive=False, usemsphacenter=True, imagefile=None, outfits='',
               imax=None, imin=None, icmap=None, inorm=None, nclevels=3,
               goestime=None,
@@ -1266,6 +1268,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                 imres = mk_qlook_image(vis, timerange=timerange, spws=spw, twidth=twidth, ncpu=ncpu,
                                        imagedir=qlookfitsdir, phasecenter=phasecenter, stokes=stokes, mask=mask,
                                        uvrange=uvrange, robust=robust, niter=niter, gain=gain, imsize=imsize, cell=cell,
+                                       pbcor=pbcor,
                                        reftime=reftime, sclfactor=sclfactor, docompress=docompress, c_external=True,
                                        show_warnings=show_warnings)
             else:
@@ -1277,7 +1280,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                     imres = mk_qlook_image(vis, timerange=timerange, spws=spw, twidth=twidth, ncpu=ncpu,
                                            imagedir=qlookfitsdir, phasecenter=phasecenter, stokes=stokes, mask=mask,
                                            uvrange=uvrange, robust=robust, niter=niter, gain=gain, imsize=imsize,
-                                           cell=cell,
+                                           cell=cell, pbcor=pbcor,
                                            reftime=reftime, sclfactor=sclfactor, docompress=docompress, c_external=True,
                                            show_warnings=show_warnings)
             if not os.path.exists(qlookfigdir):
@@ -1529,7 +1532,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                         else:
                             spstr = spwran[0]
                         imagename = os.path.join(workdir, visname + '_s' + spstr + '.outim')
-                        junks = ['.image', '.image.pbcor', '.flux']
+                        junks = ['.flux', '.model', '.psf', '.residual', '.mask', '.pb', '.sumwt', '.image',
+                                 '.image.pbcor']
                         for junk in junks:
                             if os.path.exists(imagename + junk):
                                 os.system('rm -rf ' + imagename + junk + '*')
@@ -1546,6 +1550,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                                timerange=timerange,
                                stokes=sto,
                                niter=niter, gain=gain,
+                               antenna=antenna,
                                interactive=interactive,
                                mask=mask,
                                uvrange=uvrange,
@@ -1558,11 +1563,16 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                                robust=robust,
                                phasecenter=phasecenter)
 
-                        junks = ['.flux', '.model', '.psf', '.residual', '.mask', '.image', '.pb', '.sumwt']
+                        if pbcor:
+                            junks = ['.flux', '.model', '.psf', '.residual', '.mask', '.image', '.pb', '.sumwt']
+                            imagefile = imagename + '.image.pbcor'
+                        else:
+                            junks = ['.flux', '.model', '.psf', '.residual', '.mask', '.image.pbcor', '.pb', '.sumwt']
+                            imagefile = imagename + '.image'
                         for junk in junks:
                             if os.path.exists(imagename + junk):
                                 os.system('rm -rf ' + imagename + junk)
-                        imagefile = imagename + '.image.pbcor'
+
                         ofits = imagefile + '.fits'
                         imagefiles.append(imagefile)
                         fitsfiles.append(ofits)
@@ -1589,7 +1599,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
 
                 else:
                     imagename = os.path.join(workdir, visname + '.outim')
-                    junks = ['.image', '.image.pbcor', '.flux']
+                    junks = ['.flux', '.model', '.psf', '.residual', '.mask', '.pb', '.sumwt', '.image', '.image.pbcor']
                     for junk in junks:
                         if os.path.exists(imagename + junk):
                             os.system('rm -rf ' + imagename + junk + '*')
@@ -1604,6 +1614,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                            spw=';'.join(spw),
                            timerange=timerange,
                            stokes=sto,
+                           antenna=antenna,
                            niter=niter, gain=gain,
                            interactive=interactive,
                            mask=mask,
@@ -1617,11 +1628,15 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                            robust=robust,
                            phasecenter=phasecenter)
 
-                    junks = ['.flux', '.model', '.psf', '.residual', '.mask', '.image', '.pb', '.sumwt']
+                    if pbcor:
+                        junks = ['.flux', '.model', '.psf', '.residual', '.mask', '.image', '.pb', '.sumwt']
+                        imagefile = imagename + '.image.pbcor'
+                    else:
+                        junks = ['.flux', '.model', '.psf', '.residual', '.mask', '.image.pbcor', '.pb', '.sumwt']
+                        imagefile = imagename + '.image'
                     for junk in junks:
                         if os.path.exists(imagename + junk):
                             os.system('rm -rf ' + imagename + junk)
-                    imagefile = imagename + '.image.pbcor'
                     if not outfits:
                         outfits = imagefile + '.fits'
                     hf.imreg(vis=vis, imagefile=imagefile, timerange=timerange, reftime=reftime,
