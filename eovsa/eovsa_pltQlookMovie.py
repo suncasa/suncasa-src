@@ -18,6 +18,7 @@ import urllib.request
 from sunpy.physics.differential_rotation import diffrot_map
 from suncasa.utils import DButil
 from tqdm import tqdm
+from suncasa.eovsa import eovsa_readfits as er
 
 # imgfitsdir = '/Users/fisher/myworkspace/'
 # imgfitstmpdir = '/Users/fisher/myworkspace/fitstmp/'
@@ -92,16 +93,19 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
 
             stretch = AsinhStretch(a=0.15)
             norm = ImageNormalize(vmin=vmin[s], vmax=vmax[s], stretch=stretch)
-            eomap = smap.Map(eofile)
+            eomap = er.readfits(eofile)
             eomap = eomap.resample(u.Quantity(eomap.dimensions) / 2)
             eomap.data[np.isnan(eomap.data)] = 0.0
             eomap_rot = diffrot_map(eomap, time=timobj)
             eomap_rot.data[np.where(eomap_rot.data < 0)] = 0.0
-            eomap_rot.data[np.isnan(eomap_rot.data)] = 0.0
+            hpc_coords = er.get_all_coordinate_from_map(eomap)
+            r = np.sqrt(hpc_coords.Tx ** 2 + hpc_coords.Ty ** 2) / eomap.rsun_obs
+            offlimbidx = r > 1
+            eomap_rot.data[offlimbidx] = eomap.data[offlimbidx]
 
             t_hr = tmjd_hr[tidx]
-            t_hr_st_blend = 0.0
-            t_hr_ed_blend = 12.0
+            t_hr_st_blend = 16.0
+            t_hr_ed_blend = 20.0
             if t_hr_st_blend <= t_hr < t_hr_ed_blend:
                 eofile_prevday = imgindir_prevday + 'eovsa_{}.spw{}.tb.disk.fits'.format(
                     dateobj_prevday.strftime('%Y%m%d'), spwstr)
@@ -112,6 +116,7 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
                 eomap_prevd.data[np.isnan(eomap_prevd.data)] = 0.0
                 eomap_rot_prevd = diffrot_map(eomap_prevd, time=timobj)
                 eomap_rot_prevd.data[np.where(eomap_rot_prevd.data < 0)] = 0.0
+                eomap_rot_prevd.data[offlimbidx] = eomap_prevd.data[offlimbidx]
                 alpha = (t_hr - t_hr_st_blend) / (t_hr_ed_blend - t_hr_st_blend)
                 alpha_prevd = 1.0 - alpha
                 # eomap_plt = smap.Map((eomap.data * alpha + eomap_prevd.data * alpha_prevd), eomap.meta)
