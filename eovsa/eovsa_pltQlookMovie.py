@@ -104,9 +104,9 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
             eomap_rot.data[offlimbidx] = eomap.data[offlimbidx]
 
             t_hr = tmjd_hr[tidx]
-            teomap_hr = (Time(eomap.date).mjd - tmjd_base[tidx]) * 24
-            t_hr_st_blend = teomap_hr - 8.0
-            t_hr_ed_blend = teomap_hr - 4.0
+            # teomap_hr = (Time(eomap.date).mjd - tmjd_base[tidx]) * 24
+            t_hr_st_blend = 0.0
+            t_hr_ed_blend = 4.0
             if t_hr_st_blend <= t_hr < t_hr_ed_blend:
                 eofile_prevday = imgindir_prevday + 'eovsa_{}.spw{}.tb.disk.fits'.format(
                     dateobj_prevday.strftime('%Y%m%d'), spwstr)
