@@ -117,7 +117,6 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
                 eomap_rot_prevd = diffrot_map(eomap_prevd, time=timobj)
                 eomap_rot_prevd.data[np.where(eomap_rot_prevd.data < 0)] = 0.0
                 offlimbidx = np.where(eomap_rot.data == eomap_rot.data[0, 0])
-                eomap_rot.data[offlimbidx] = eomap.data[offlimbidx]
                 eomap_rot_prevd.data[offlimbidx] = eomap_prevd.data[offlimbidx]
                 alpha = (t_hr - t_hr_st_blend) / (t_hr_ed_blend - t_hr_st_blend)
                 alpha_prevd = 1.0 - alpha
