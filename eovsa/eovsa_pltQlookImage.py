@@ -215,13 +215,13 @@ def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ver
             sdourl = 'https://api.helioviewer.org/v2/getJP2Image/?date={}T20:00:00Z&sourceId={}'.format(datestr,
                                                                                                         sourceid)
             sdofile = os.path.join(imgindir, key + '.jp2')
-            if os.path.exists(sdofile):
+            if overwrite and os.path.exists(sdofile):
                 os.system('rm -rf {}'.format(sdofile))
-            # if not os.path.exists(sdofile):
-            try:
-                urllib.request.urlretrieve(sdourl, sdofile)
-            except:
-                print('The connection with {} has timed out. Skipped!'.format(sdourl))
+            if not os.path.exists(sdofile):
+                try:
+                    urllib.request.urlretrieve(sdourl, sdofile)
+                except:
+                    print('The connection with {} has timed out. Skipped!'.format(sdourl))
             ax.cla()
 
             if not os.path.exists(sdofile): continue
