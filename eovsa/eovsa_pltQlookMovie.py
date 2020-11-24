@@ -87,7 +87,12 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
             ax = axs[0]
             ax.cla()
             spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
-            eofile = imgindir + 'eovsa_{}.spw{}.tb.disk.fits'.format(dateobj.strftime('%Y%m%d'), spwstr)
+            t_hr = tmjd_hr[tidx]
+            if t_hr >= 8.:
+                eofile = imgindir + 'eovsa_{}.spw{}.tb.disk.fits'.format(dateobj.strftime('%Y%m%d'), spwstr)
+            else:
+                eofile = imgindir_prevday + 'eovsa_{}.spw{}.tb.disk.fits'.format(dateobj_prevday.strftime('%Y%m%d'),
+                                                                                 spwstr)
             if not os.path.exists(eofile):
                 continue
 
@@ -97,32 +102,26 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
             eomap = eomap.resample(u.Quantity(eomap.dimensions) / 2)
             eomap.data[np.isnan(eomap.data)] = 0.0
             eomap_rot = diffrot_map(eomap, time=timobj)
-            # eomap_rot.data[np.where(eomap_rot.data < 0)] = 0.0
-            # hpc_coords = er.get_all_coordinate_from_map(eomap)
-            # r = np.sqrt(hpc_coords.Tx ** 2 + hpc_coords.Ty ** 2) / eomap.rsun_obs
             offlimbidx = np.where(eomap_rot.data == eomap_rot.data[0, 0])
             eomap_rot.data[offlimbidx] = eomap.data[offlimbidx]
 
             t_hr = tmjd_hr[tidx]
-            # teomap_hr = (Time(eomap.date).mjd - tmjd_base[tidx]) * 24
-            t_hr_st_blend = 0.0
-            t_hr_ed_blend = 4.0
+            t_hr_st_blend = 2.0
+            t_hr_ed_blend = 8.0
             if t_hr_st_blend <= t_hr < t_hr_ed_blend:
-                eofile_prevday = imgindir_prevday + 'eovsa_{}.spw{}.tb.disk.fits'.format(
-                    dateobj_prevday.strftime('%Y%m%d'), spwstr)
-                if not os.path.exists(eofile_prevday):
+                eofile_nextday = imgindir + 'eovsa_{}.spw{}.tb.disk.fits'.format(
+                    dateobj.strftime('%Y%m%d'), spwstr)
+                if not os.path.exists(eofile_nextday):
                     continue
-                eomap_prevd = smap.Map(eofile_prevday)
-                eomap_prevd = eomap_prevd.resample(u.Quantity(eomap_prevd.dimensions) / 2)
-                eomap_prevd.data[np.isnan(eomap_prevd.data)] = 0.0
-                eomap_rot_prevd = diffrot_map(eomap_prevd, time=timobj)
-                # eomap_rot_prevd.data[np.where(eomap_rot_prevd.data < 0)] = 0.0
-                offlimbidx = np.where(eomap_rot_prevd.data == eomap_rot_prevd.data[0, 0])
-                eomap_rot_prevd.data[offlimbidx] = eomap_prevd.data[offlimbidx]
-                alpha = (t_hr - t_hr_st_blend) / (t_hr_ed_blend - t_hr_st_blend)
-                alpha_prevd = 1.0 - alpha
-                # eomap_plt = smap.Map((eomap.data * alpha + eomap_prevd.data * alpha_prevd), eomap.meta)
-                eomap_rot_plt = smap.Map((eomap_rot.data * alpha + eomap_rot_prevd.data * alpha_prevd), eomap_rot.meta)
+                eomap_nextd = smap.Map(eofile_nextday)
+                eomap_nextd = eomap_nextd.resample(u.Quantity(eomap_nextd.dimensions) / 2)
+                eomap_nextd.data[np.isnan(eomap_nextd.data)] = 0.0
+                eomap_rot_nextd = diffrot_map(eomap_nextd, time=timobj)
+                offlimbidx = np.where(eomap_rot_nextd.data == eomap_rot_nextd.data[0, 0])
+                eomap_rot_nextd.data[offlimbidx] = eomap_nextd.data[offlimbidx]
+                alpha = 1.0 - (t_hr - t_hr_st_blend) / (t_hr_ed_blend - t_hr_st_blend)
+                alpha_nextd = 1.0 - alpha
+                eomap_rot_plt = smap.Map((eomap_rot.data * alpha + eomap_rot_nextd.data * alpha_nextd), eomap_rot.meta)
             else:
                 # eomap_plt = eomap
                 eomap_rot_plt = eomap_rot
