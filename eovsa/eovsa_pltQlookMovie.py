@@ -97,7 +97,7 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
             eomap = eomap.resample(u.Quantity(eomap.dimensions) / 2)
             eomap.data[np.isnan(eomap.data)] = 0.0
             eomap_rot = diffrot_map(eomap, time=timobj)
-            eomap_rot.data[np.where(eomap_rot.data < 0)] = 0.0
+            # eomap_rot.data[np.where(eomap_rot.data < 0)] = 0.0
             # hpc_coords = er.get_all_coordinate_from_map(eomap)
             # r = np.sqrt(hpc_coords.Tx ** 2 + hpc_coords.Ty ** 2) / eomap.rsun_obs
             offlimbidx = np.where(eomap_rot.data ==eomap_rot.data[0,0])
@@ -105,7 +105,7 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
 
             t_hr = tmjd_hr[tidx]
             t_hr_st_blend = 0.0
-            t_hr_ed_blend = 12.0
+            t_hr_ed_blend = 16.0
             if t_hr_st_blend <= t_hr < t_hr_ed_blend:
                 eofile_prevday = imgindir_prevday + 'eovsa_{}.spw{}.tb.disk.fits'.format(
                     dateobj_prevday.strftime('%Y%m%d'), spwstr)
@@ -115,8 +115,8 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
                 eomap_prevd = eomap_prevd.resample(u.Quantity(eomap_prevd.dimensions) / 2)
                 eomap_prevd.data[np.isnan(eomap_prevd.data)] = 0.0
                 eomap_rot_prevd = diffrot_map(eomap_prevd, time=timobj)
-                eomap_rot_prevd.data[np.where(eomap_rot_prevd.data < 0)] = 0.0
-                offlimbidx = np.where(eomap_rot.data == eomap_rot.data[0, 0])
+                # eomap_rot_prevd.data[np.where(eomap_rot_prevd.data < 0)] = 0.0
+                offlimbidx = np.where(eomap_rot_prevd.data == eomap_rot_prevd.data[0, 0])
                 eomap_rot_prevd.data[offlimbidx] = eomap_prevd.data[offlimbidx]
                 alpha = (t_hr - t_hr_st_blend) / (t_hr_ed_blend - t_hr_st_blend)
                 alpha_prevd = 1.0 - alpha
