@@ -89,7 +89,7 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
             spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
             t_hr = tmjd_hr[tidx]
             t_hr_st_blend = 0.0
-            t_hr_ed_blend = 6.0
+            t_hr_ed_blend = 7.0
             if t_hr < 8.0:
                 eofile = imgindir_prevday + 'eovsa_{}.spw{}.tb.disk.fits'.format(dateobj_prevday.strftime('%Y%m%d'),                                                                                 spwstr)
             else:
@@ -108,7 +108,7 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
 
             t_hr = tmjd_hr[tidx]
 
-            if t_hr_st_blend <= t_hr < t_hr_ed_blend:
+            if t_hr_st_blend <= t_hr <= t_hr_ed_blend:
                 eofile_nextday = imgindir + 'eovsa_{}.spw{}.tb.disk.fits'.format(
                     dateobj.strftime('%Y%m%d'), spwstr)
                 if not os.path.exists(eofile_nextday):
