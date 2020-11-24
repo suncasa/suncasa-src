@@ -139,29 +139,33 @@ def pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None
             eofile = imgindir + 'eovsa_{}.spw{}.tb.disk.fits'.format(dateobj.strftime('%Y%m%d'), spwstr)
             if not os.path.exists(eofile): continue
             if not os.path.exists(imgoutdir): os.makedirs(imgoutdir)
-            eomap = smap.Map(eofile)
-            stretch = AsinhStretch(a=0.15)
-            norm = ImageNormalize(vmin=vmins[s], vmax=vmaxs[s], stretch=stretch)
-            # norm = colors.Normalize(vmin=vmins[s], vmax=vmaxs[s])
-            eomap_ = pmX.Sunmap(eomap)
-            eomap_.imshow(axes=ax, cmap=cmap, norm=norm)
-            eomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
-            eomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
-            ax.set_xlabel('')
-            ax.set_ylabel('')
-            ax.set_xticklabels([])
-            ax.set_yticklabels([])
-            ax.text(0.02, 0.02,
-                    'EOVSA {:.1f} GHz  {}'.format(eomap.meta['CRVAL3'] / 1e9, eomap.date.strftime('%d-%b-%Y 20:00 UT')),
-                    transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=9)
-            ax.text(0.98, 0.02, 'Max Tb {:.0f} K'.format(np.nanmax(eomap.data)),
-                    transform=ax.transAxes, color='w', ha='right', va='bottom', fontsize=9)
-            ax.set_xlim(-1227, 1227)
-            ax.set_ylim(-1227, 1227)
+            try:
+                eomap = smap.Map(eofile)
+                stretch = AsinhStretch(a=0.15)
+                norm = ImageNormalize(vmin=vmins[s], vmax=vmaxs[s], stretch=stretch)
+                # norm = colors.Normalize(vmin=vmins[s], vmax=vmaxs[s])
+                eomap_ = pmX.Sunmap(eomap)
+                eomap_.imshow(axes=ax, cmap=cmap, norm=norm)
+                eomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
+                eomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
+                ax.set_xlabel('')
+                ax.set_ylabel('')
+                ax.set_xticklabels([])
+                ax.set_yticklabels([])
+                ax.text(0.02, 0.02,
+                        'EOVSA {:.1f} GHz  {}'.format(eomap.meta['CRVAL3'] / 1e9, eomap.date.strftime('%d-%b-%Y 20:00 UT')),
+                        transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=9)
+                ax.text(0.98, 0.02, 'Max Tb {:.0f} K'.format(np.nanmax(eomap.data)),
+                        transform=ax.transAxes, color='w', ha='right', va='bottom', fontsize=9)
+                ax.set_xlim(-1227, 1227)
+                ax.set_ylim(-1227, 1227)
 
-            for l, dpi in dpis_dict.items():
-                figname = os.path.join(imgoutdir, '{}_eovsa_bd{:02d}.jpg'.format(l, s + 1))
-                fig.savefig(figname, dpi=np.int(dpi), quality=85)
+                for l, dpi in dpis_dict.items():
+                    figname = os.path.join(imgoutdir, '{}_eovsa_bd{:02d}.jpg'.format(l, s + 1))
+                    fig.savefig(figname, dpi=np.int(dpi), quality=85)
+            except Exception as err:
+                print('Fail to plot {}'.format(eofile))
+                print(err)
     if mkfig:
         pass
     else:
@@ -211,39 +215,45 @@ def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ver
             sdourl = 'https://api.helioviewer.org/v2/getJP2Image/?date={}T20:00:00Z&sourceId={}'.format(datestr,
                                                                                                         sourceid)
             sdofile = os.path.join(imgindir, key + '.jp2')
-            if not os.path.exists(sdofile):
-                try:
-                    urllib.request.urlretrieve(sdourl, sdofile)
-                except:
-                    print('The connection with {} has timed out. Skipped!'.format(sdourl))
+            if os.path.exists(sdofile):
+                os.system('rm -rf {}'.format(sdofile))
+            # if not os.path.exists(sdofile):
+            try:
+                urllib.request.urlretrieve(sdourl, sdofile)
+            except:
+                print('The connection with {} has timed out. Skipped!'.format(sdourl))
             ax.cla()
 
             if not os.path.exists(sdofile): continue
             if not os.path.exists(imgoutdir): os.makedirs(imgoutdir)
-            sdomap = smap.Map(sdofile)
-            norm = colors.Normalize()
-            sdomap_ = pmX.Sunmap(sdomap)
-            if "HMI" in key:
-                cmap = plt.get_cmap('gray')
-            else:
-                cmap = cm_smap.get_cmap('sdoaia' + key.lstrip('0'))
-            sdomap_.imshow(axes=ax, cmap=cmap, norm=norm)
-            sdomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
-            sdomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
-            ax.set_xlabel('')
-            ax.set_ylabel('')
-            ax.set_xticklabels([])
-            ax.set_yticklabels([])
-            ax.text(0.02, 0.02,
-                    '{}/{} {}  {}'.format(sdomap.observatory, sdomap.instrument.split(' ')[0], sdomap.measurement,
-                                          sdomap.date.strftime('%d-%b-%Y %H:%M UT')),
-                    transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=9)
-            ax.set_xlim(-1227, 1227)
-            ax.set_ylim(-1227, 1227)
+            try:
+                sdomap = smap.Map(sdofile)
+                norm = colors.Normalize()
+                sdomap_ = pmX.Sunmap(sdomap)
+                if "HMI" in key:
+                    cmap = plt.get_cmap('gray')
+                else:
+                    cmap = cm_smap.get_cmap('sdoaia' + key.lstrip('0'))
+                sdomap_.imshow(axes=ax, cmap=cmap, norm=norm)
+                sdomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
+                sdomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
+                ax.set_xlabel('')
+                ax.set_ylabel('')
+                ax.set_xticklabels([])
+                ax.set_yticklabels([])
+                ax.text(0.02, 0.02,
+                        '{}/{} {}  {}'.format(sdomap.observatory, sdomap.instrument.split(' ')[0], sdomap.measurement,
+                                              sdomap.date.strftime('%d-%b-%Y %H:%M UT')),
+                        transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=9)
+                ax.set_xlim(-1227, 1227)
+                ax.set_ylim(-1227, 1227)
 
-            for l, dpi in dpis_dict.items():
-                figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
-                fig.savefig(figname, dpi=np.int(dpi), quality=85)
+                for l, dpi in dpis_dict.items():
+                    figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
+                    fig.savefig(figname, dpi=np.int(dpi), quality=85)
+            except Exception as err:
+                print('Fail to plot {}'.format(sdofile))
+                print(err)
     if clearcache:
         os.system('rm -rf ' + imgindir)
 
@@ -327,44 +337,48 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
                 ax.cla()
                 if not os.path.exists(bbsofile): continue
                 if not os.path.exists(imgoutdir): os.makedirs(imgoutdir)
-                hdu = fits.open(bbsofile)[0]
-                header = hdu.header
-                header['WAVELNTH'] = 6562.8
-                header['WAVEUNIT'] = 'angstrom'
-                header['WAVE_STR'] = 'Halph'
-                header['CTYPE1'] = 'HPLN-TAN'
-                header['CUNIT1'] = 'arcsec'
-                header['CTYPE2'] = 'HPLT-TAN'
-                header['CUNIT2'] = 'arcsec'
-                header['DATE-OBS'] = header['DATE_OBS']
-                for k in ['CONTRAST', 'WAVE ERR']:
-                    try:
-                        header.remove(k)
-                    except:
-                        pass
+                try:
+                    hdu = fits.open(bbsofile)[0]
+                    header = hdu.header
+                    header['WAVELNTH'] = 6562.8
+                    header['WAVEUNIT'] = 'angstrom'
+                    header['WAVE_STR'] = 'Halph'
+                    header['CTYPE1'] = 'HPLN-TAN'
+                    header['CUNIT1'] = 'arcsec'
+                    header['CTYPE2'] = 'HPLT-TAN'
+                    header['CUNIT2'] = 'arcsec'
+                    header['DATE-OBS'] = header['DATE_OBS']
+                    for k in ['CONTRAST', 'WAVE ERR']:
+                        try:
+                            header.remove(k)
+                        except:
+                            pass
 
-                bbsomap = smap.Map(hdu.data, header)
-                med = np.nanmean(bbsomap.data)
-                norm = colors.Normalize(vmin=med - 1500, vmax=med + 1500)
-                bbsomap_ = pmX.Sunmap(bbsomap)
-                cmap = cm_smap.get_cmap('sdoaia304')
-                bbsomap_.imshow(axes=ax, cmap=cmap, norm=norm)
-                bbsomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
-                bbsomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
-                ax.set_xlabel('')
-                ax.set_ylabel('')
-                ax.set_xticklabels([])
-                ax.set_yticklabels([])
-                ax.text(0.02, 0.02,
-                        '{}  {}'.format(bbsomap.instrument, bbsomap.date.strftime('%d-%b-%Y %H:%M UT')),
-                        transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=9)
-                ax.set_xlim(-1227, 1227)
-                ax.set_ylim(-1227, 1227)
-                ax.set_facecolor('k')
+                    bbsomap = smap.Map(hdu.data, header)
+                    med = np.nanmean(bbsomap.data)
+                    norm = colors.Normalize(vmin=med - 1500, vmax=med + 1500)
+                    bbsomap_ = pmX.Sunmap(bbsomap)
+                    cmap = cm_smap.get_cmap('sdoaia304')
+                    bbsomap_.imshow(axes=ax, cmap=cmap, norm=norm)
+                    bbsomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
+                    bbsomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
+                    ax.set_xlabel('')
+                    ax.set_ylabel('')
+                    ax.set_xticklabels([])
+                    ax.set_yticklabels([])
+                    ax.text(0.02, 0.02,
+                            '{}  {}'.format(bbsomap.instrument, bbsomap.date.strftime('%d-%b-%Y %H:%M UT')),
+                            transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=9)
+                    ax.set_xlim(-1227, 1227)
+                    ax.set_ylim(-1227, 1227)
+                    ax.set_facecolor('k')
 
-                for l, dpi in dpis_dict.items():
-                    figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
-                    fig.savefig(figname, dpi=np.int(dpi), quality=85)
+                    for l, dpi in dpis_dict.items():
+                        figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
+                        fig.savefig(figname, dpi=np.int(dpi), quality=85)
+                except Exception as err:
+                    print('Fail to plot {}'.format(bbsofile))
+                    print(err)
     if clearcache:
         os.system('rm -rf ' + imgindir)
 
