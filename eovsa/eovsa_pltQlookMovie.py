@@ -40,7 +40,7 @@ def clearImage():
                     os.system('rm -rf ' + os.path.join(dirpath, filename))
 
 
-def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=None, imgoutdir=None, overwrite=False,
+def pltEovsaQlookImageSeries(timobjs, spws, vmaxs, vmins, aiawave, bd, fig=None, axs=None, imgoutdir=None, overwrite=False,
                              verbose=False):
     from astropy.visualization.stretch import AsinhStretch
     from astropy.visualization import ImageNormalize
@@ -79,7 +79,7 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
 
         if verbose: print('Processing EOVSA images for date {}'.format(dateobj.strftime('%Y-%m-%d')))
         key, sourceid = aiawave, aiaDataSource[aiawave]
-        s, sp = 0, spw[0]
+        s, sp = bd, spws[bd]
 
         figoutname = os.path.join(imgoutdir, 'eovsa_bd{:02d}_aia{}_{}.jpg'.format(s + 1, key, tstrname))
 
@@ -91,14 +91,15 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
             t_hr_st_blend = 2.0
             t_hr_ed_blend = 14.0
             if t_hr <= 8.0:
-                eofile = imgindir_prevday + 'eovsa_{}.spw{}.tb.disk.fits'.format(dateobj_prevday.strftime('%Y%m%d'),                                                                                 spwstr)
+                eofile = imgindir_prevday + 'eovsa_{}.spw{}.tb.disk.fits'.format(dateobj_prevday.strftime('%Y%m%d'),
+                                                                                 spwstr)
             else:
                 eofile = imgindir + 'eovsa_{}.spw{}.tb.disk.fits'.format(dateobj.strftime('%Y%m%d'), spwstr)
             if not os.path.exists(eofile):
                 continue
 
             stretch = AsinhStretch(a=0.15)
-            norm = ImageNormalize(vmin=vmin[s], vmax=vmax[s], stretch=stretch)
+            norm = ImageNormalize(vmin=vmins[s], vmax=vmaxs[s], stretch=stretch)
             eomap = er.readfits(eofile)
             eomap = eomap.resample(u.Quantity(eomap.dimensions) / 2)
             eomap.data[np.isnan(eomap.data)] = 0.0
@@ -109,7 +110,7 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
             t_hr = tmjd_hr[tidx]
 
             if t_hr_st_blend <= t_hr <= t_hr_ed_blend:
-                if t_hr<=8.0:
+                if t_hr <= 8.0:
                     eofile_blend = imgindir + 'eovsa_{}.spw{}.tb.disk.fits'.format(
                         dateobj.strftime('%Y%m%d'), spwstr)
                     alpha = 1.0 - (t_hr - t_hr_st_blend) / (t_hr_ed_blend - t_hr_st_blend)
@@ -183,7 +184,7 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
     return imgfiles
 
 
-def main(year, month, day=None, ndays=30, show_warning=False):
+def main(year, month, day=None, ndays=10, bd=3, show_warning=False):
     '''
     By default, the subroutine create EOVSA monthly movie
     '''
@@ -226,17 +227,17 @@ def main(year, month, day=None, ndays=30, show_warning=False):
             spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43', '44~49']
         else:
             spws = ['1~3', '4~9', '10~16', '17~24', '25~30']
-        spw = spws[3:4]
-        vmax = vmaxs[3:4]
-        vmin = vmins[3:4]
+        # spw = spws[bd:bd + 1]
+        # vmax = vmaxs[bd:bd + 1]
+        # vmin = vmins[bd:bd + 1]
         aiawave = '0304'
 
         tdateobs = Time(Time(dateobs).mjd + np.arange(0, 24, 1) / 24, format='mjd')
-        imgfiles = pltEovsaQlookImageSeries(tdateobs, spw, vmax, vmin, aiawave, fig=fig, axs=axs, overwrite=False,
+        imgfiles = pltEovsaQlookImageSeries(tdateobs, spws, vmaxs, vmins, aiawave, bd, fig=fig, axs=axs, overwrite=False,
                                             imgoutdir=imgoutdir)
         imgfileslist = imgfileslist + imgfiles
         dateobs = dateobs + timedelta(days=1)
-    moviename = 'eovsa_bd01_aia304_{}'.format(dateobs.strftime("%Y%m"))
+    moviename = 'eovsa_bd{:02d}_aia304_{}'.format(bd + 1, dateobs.strftime("%Y%m"))
     DButil.img2movie(imgprefix=imgfileslist, outname=moviename, img_ext='jpg')
     os.system('mv {} {}'.format(os.path.join(imgoutdir + '../', moviename + '.mp4'),
                                 os.path.join(movieoutdir, moviename + '.mp4')))
