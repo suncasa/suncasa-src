@@ -204,7 +204,7 @@ def main(year, month, day=None, ndays=30, show_warning=False):
         tst = Time(np.fix(Time(ted).mjd) - ndays, format='mjd').datetime
     tsep = datetime.strptime('2019-02-22', "%Y-%m-%d")
 
-    vmaxs = [70.0e4, 30e4, 18e4, 13e4, 8e4, 6e4, 6e4]
+    vmaxs = [70.0e4, 35e4, 22e4, 16e4, 10e4, 8e4, 8e4]
     vmins = [-18.0e3, -8e3, -4.8e3, -3.4e3, -2.1e3, -1.6e3, -1.6e3]
     plt.ioff()
     fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(8, 4))
@@ -231,7 +231,7 @@ def main(year, month, day=None, ndays=30, show_warning=False):
         vmin = vmins[3:4]
         aiawave = '0304'
 
-        tdateobs = Time(Time(dateobs).mjd + np.arange(0, 24, 2) / 24, format='mjd')
+        tdateobs = Time(Time(dateobs).mjd + np.arange(0, 24, 1) / 24, format='mjd')
         imgfiles = pltEovsaQlookImageSeries(tdateobs, spw, vmax, vmin, aiawave, fig=fig, axs=axs, overwrite=False,
                                             imgoutdir=imgoutdir)
         imgfileslist = imgfileslist + imgfiles
