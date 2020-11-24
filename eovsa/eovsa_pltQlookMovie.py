@@ -147,6 +147,7 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
 
             if not os.path.exists(imgoutdir): os.makedirs(imgoutdir)
             sdourl = 'https://api.helioviewer.org/v2/getJP2Image/?date={}&sourceId={}'.format(timestr, sourceid)
+            print(sdourl)
             sdofile = os.path.join(imgoutdir, 'AIA' + key + '.{}.jp2'.format(tstrname))
             if not os.path.exists(sdofile):
                 urllib.request.urlretrieve(sdourl, sdofile)
@@ -222,9 +223,9 @@ def main(year, month, day=None, ndays=30, show_warning=False):
             spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43', '44~49']
         else:
             spws = ['1~3', '4~9', '10~16', '17~24', '25~30']
-        spw = spws[2:3]
-        vmax = vmaxs[2:3]
-        vmin = vmins[2:3]
+        spw = spws[3:4]
+        vmax = vmaxs[3:4]
+        vmin = vmins[3:4]
         aiawave = '0304'
 
         tdateobs = Time(Time(dateobs).mjd + np.arange(0, 24, 1) / 24, format='mjd')
