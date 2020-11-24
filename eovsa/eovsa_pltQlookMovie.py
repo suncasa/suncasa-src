@@ -89,7 +89,7 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
             spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
             t_hr = tmjd_hr[tidx]
             t_hr_st_blend = 0.0
-            t_hr_ed_blend = 8.0
+            t_hr_ed_blend = 6.0
             if t_hr < t_hr_ed_blend:
                 eofile = imgindir_prevday + 'eovsa_{}.spw{}.tb.disk.fits'.format(dateobj_prevday.strftime('%Y%m%d'),
                                                                                  spwstr)
