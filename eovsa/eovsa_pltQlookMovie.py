@@ -88,8 +88,8 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
             ax.cla()
             spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
             t_hr = tmjd_hr[tidx]
-            t_hr_st_blend = 0.0
-            t_hr_ed_blend = 8.0
+            t_hr_st_blend = 2.0
+            t_hr_ed_blend = 14.0
             if t_hr <= 8.0:
                 eofile = imgindir_prevday + 'eovsa_{}.spw{}.tb.disk.fits'.format(dateobj_prevday.strftime('%Y%m%d'),                                                                                 spwstr)
             else:
@@ -109,21 +109,24 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
             t_hr = tmjd_hr[tidx]
 
             if t_hr_st_blend <= t_hr <= t_hr_ed_blend:
-                eofile_nextday = imgindir + 'eovsa_{}.spw{}.tb.disk.fits'.format(
-                    dateobj.strftime('%Y%m%d'), spwstr)
-                if not os.path.exists(eofile_nextday):
-                    continue
-                eomap_nextd = er.readfits(eofile_nextday)
-                eomap_nextd = eomap_nextd.resample(u.Quantity(eomap_nextd.dimensions) / 2)
-                eomap_nextd.data[np.isnan(eomap_nextd.data)] = 0.0
-                eomap_rot_nextd = diffrot_map(eomap_nextd, time=timobj)
-                offlimbidx = np.where(eomap_rot_nextd.data == eomap_rot_nextd.data[0, 0])
-                eomap_rot_nextd.data[offlimbidx] = eomap_nextd.data[offlimbidx]
-                alpha = 1.0 - (t_hr - t_hr_st_blend) / (t_hr_ed_blend - t_hr_st_blend)
-                alpha_nextd = 1.0 - alpha
-                eomap_rot_plt = smap.Map((eomap_rot.data * alpha + eomap_rot_nextd.data * alpha_nextd), eomap_rot.meta)
+                if t_hr<=8.0:
+                    eofile_blend = imgindir + 'eovsa_{}.spw{}.tb.disk.fits'.format(
+                        dateobj.strftime('%Y%m%d'), spwstr)
+                    alpha = 1.0 - (t_hr - t_hr_st_blend) / (t_hr_ed_blend - t_hr_st_blend)
+
+                else:
+                    eofile_blend = imgindir_prevday + 'eovsa_{}.spw{}.tb.disk.fits'.format(
+                        dateobj_prevday.strftime('%Y%m%d'), spwstr)
+                    alpha = (t_hr - t_hr_st_blend) / (t_hr_ed_blend - t_hr_st_blend)
+                alpha_blend = 1.0 - alpha
+                eomap_blend = er.readfits(eofile_blend)
+                eomap_blend = eomap_blend.resample(u.Quantity(eomap_blend.dimensions) / 2)
+                eomap_blend.data[np.isnan(eomap_blend.data)] = 0.0
+                eomap_rot_blend = diffrot_map(eomap_blend, time=timobj)
+                offlimbidx = np.where(eomap_rot_blend.data == eomap_rot_blend.data[0, 0])
+                eomap_rot_blend.data[offlimbidx] = eomap_blend.data[offlimbidx]
+                eomap_rot_plt = smap.Map((eomap_rot.data * alpha + eomap_rot_blend.data * alpha_blend), eomap_rot.meta)
             else:
-                # eomap_plt = eomap
                 eomap_rot_plt = eomap_rot
 
             # eomap_plt.plot(axes=ax, cmap=cmap, norm=norm)
