@@ -228,7 +228,7 @@ def main(year, month, day=None, ndays=30, show_warning=False):
         vmin = vmins[3:4]
         aiawave = '0304'
 
-        tdateobs = Time(Time(dateobs).mjd + np.arange(0, 24, 1) / 24, format='mjd')
+        tdateobs = Time(Time(dateobs).mjd + np.arange(0, 24, 2) / 24, format='mjd')
         imgfiles = pltEovsaQlookImageSeries(tdateobs, spw, vmax, vmin, aiawave, fig=fig, axs=axs, overwrite=False,
                                             imgoutdir=imgoutdir)
         imgfileslist = imgfileslist + imgfiles
