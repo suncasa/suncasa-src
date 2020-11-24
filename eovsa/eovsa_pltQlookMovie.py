@@ -98,9 +98,9 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
             eomap.data[np.isnan(eomap.data)] = 0.0
             eomap_rot = diffrot_map(eomap, time=timobj)
             eomap_rot.data[np.where(eomap_rot.data < 0)] = 0.0
-            hpc_coords = er.get_all_coordinate_from_map(eomap)
-            r = np.sqrt(hpc_coords.Tx ** 2 + hpc_coords.Ty ** 2) / eomap.rsun_obs
-            offlimbidx = r > 1
+            # hpc_coords = er.get_all_coordinate_from_map(eomap)
+            # r = np.sqrt(hpc_coords.Tx ** 2 + hpc_coords.Ty ** 2) / eomap.rsun_obs
+            offlimbidx = np.where(eomap_rot.data ==eomap_rot.data[0,0])
             eomap_rot.data[offlimbidx] = eomap.data[offlimbidx]
 
             t_hr = tmjd_hr[tidx]
