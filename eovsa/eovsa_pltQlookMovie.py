@@ -147,7 +147,7 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
 
             if not os.path.exists(imgoutdir): os.makedirs(imgoutdir)
             sdourl = 'https://api.helioviewer.org/v2/getJP2Image/?date={}&sourceId={}'.format(timestr, sourceid)
-            print(sdourl)
+            # print(sdourl)
             sdofile = os.path.join(imgoutdir, 'AIA' + key + '.{}.jp2'.format(tstrname))
             if not os.path.exists(sdofile):
                 urllib.request.urlretrieve(sdourl, sdofile)
