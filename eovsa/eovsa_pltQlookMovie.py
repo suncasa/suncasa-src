@@ -113,7 +113,7 @@ def pltEovsaQlookImageSeries(timobjs, spw, vmax, vmin, aiawave, fig=None, axs=No
                     dateobj.strftime('%Y%m%d'), spwstr)
                 if not os.path.exists(eofile_nextday):
                     continue
-                eomap_nextd = smap.Map(eofile_nextday)
+                eomap_nextd = er.readfits(eofile_nextday)
                 eomap_nextd = eomap_nextd.resample(u.Quantity(eomap_nextd.dimensions) / 2)
                 eomap_nextd.data[np.isnan(eomap_nextd.data)] = 0.0
                 eomap_rot_nextd = diffrot_map(eomap_nextd, time=timobj)
