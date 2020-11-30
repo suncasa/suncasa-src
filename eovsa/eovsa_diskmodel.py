@@ -1047,10 +1047,11 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     diskinfo = readdiskxml(diskxmlfile)
     bright = np.zeros((len(files)), dtype=np.bool)
     for idx, file in enumerate(files):
-        tb_disk = image_adddisk(file, diskinfo, caltbonly=True)
-        data = fits.getdata(file)
-        data.shape = data.shape[-2:]  # gets rid of any leading axes of size 1
-        if np.nanmax(data) > bright_thresh[idx] * tb_disk: bright[idx] = True
+        if os.path.exists(file):
+            tb_disk = image_adddisk(file, diskinfo, caltbonly=True)
+            data = fits.getdata(file)
+            data.shape = data.shape[-2:]  # gets rid of any leading axes of size 1
+            if np.nanmax(data) > bright_thresh[idx] * tb_disk: bright[idx] = True
 
     if any(bright):
         print('spw {} have bright features on disk.'.format(';'.join(np.array(spws)[np.where(bright)[0]])))
