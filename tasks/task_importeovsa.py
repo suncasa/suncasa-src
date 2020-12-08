@@ -55,6 +55,9 @@ def udb_corr_external(filelist, udbcorr_path):
         os.system('rm -rf {}'.format(udbcorr_shellscript))
     fi = open(udbcorr_shellscript, 'wb')
     fi.write('#! /bin/tcsh -f \n')
+    fi.write(' \n')
+    # fi.write('setenv PYTHONPATH "/home/user/test_svn/python:/common/python/current:/common/python" \n')
+    fi.write('source /home/user/.cshrc \n')
     fi.write('/common/anaconda2/bin/python {} \n'.format(udbcorr_script))
     fi.close()
 
