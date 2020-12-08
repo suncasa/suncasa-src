@@ -108,10 +108,16 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
     # split(vis=msfile, outputvis=vis_spl, timerange=timeran, antenna=bl, field=field, scan=scan, spw=spw,
     #       uvrange=uvrange, timebin=timebin, datacolumn=datacolumn)
 
-    ms.open(msfile, nomodify=True)
-    ms.split(outputms=vis_spl, whichcol=datacolumn, time=timeran, spw=spw, baseline=bl, field=field, scan=scan,
-             uvrange=uvrange, timebin=timebin)
-    ms.close()
+    try:
+        from split_cli import split_cli as split
+        split(vis=msfile, outputvis=vis_spl, datacolumn=datacolumn, timerange=timeran, spw=spw, antenna=bl, field=field,
+              scan=scan, uvrange=uvrange, timebin=timebin)
+    except:
+        ms.open(msfile, nomodify=True)
+        ms.split(outputms=vis_spl, whichcol=datacolumn, time=timeran, spw=spw, baseline=bl, field=field, scan=scan,
+                 uvrange=uvrange, timebin=timebin)
+        ms.close()
+
     if verbose:
         print('Regridding into a single spectral window...')
         # print('Reading data spw by spw')
@@ -359,7 +365,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 divider = make_axes_locatable(ax)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax, cax=cax_spec)
-                clb_spec.set_label('Flux [sfu/Beam]')
+                clb_spec.set_label('Flux [sfu]')
                 ax.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 try:

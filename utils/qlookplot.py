@@ -1033,7 +1033,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
               reftime='', xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0,
               weighting='briggs', niter=500, sclfactor=1.0,
               imsize=[512], cell=['5.0arcsec'], mask='', gain=0.1, pbcor=True,
-              antenna='',
+              antenna='',toTb=True,
               interactive=False, usemsphacenter=True, imagefile=None, outfits='',
               imax=None, imin=None, icmap=None, inorm=None, nclevels=3,
               goestime=None,
@@ -1381,16 +1381,19 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
 
         # ax3 = plt.subplot(gs1[2])
 
-        from sunpy.timeseries import TimeSeries
-        from sunpy.time import TimeRange, parse_time
-        from sunpy.net import Fido, attrs as a
-        # btgoes = btgoes.replace('/', '-')
-        # etgoes = etgoes.replace('/', '-')
-        results = Fido.search(a.Time(TimeRange(btgoes, etgoes)), a.Instrument('XRS'))
-        files = Fido.fetch(results)
-        goest = TimeSeries(files)
+
 
         try:
+            import socket
+            socket.setdefaulttimeout(60)
+            from sunpy.timeseries import TimeSeries
+            from sunpy.time import TimeRange, parse_time
+            from sunpy.net import Fido, attrs as a
+            # btgoes = btgoes.replace('/', '-')
+            # etgoes = etgoes.replace('/', '-')
+            results = Fido.search(a.Time(TimeRange(btgoes, etgoes)), a.Instrument('XRS'))
+            files = Fido.fetch(results)
+            goest = TimeSeries(files)
             if isinstance(goest, list):
                 import pandas as pd
                 gdata = [g.data for g in goest]
@@ -1577,7 +1580,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                         imagefiles.append(imagefile)
                         fitsfiles.append(ofits)
                     hf.imreg(vis=vis, imagefile=imagefiles, timerange=[timerange] * len(imagefiles),
-                             fitsfile=fitsfiles, verbose=verbose, overwrite=True, sclfactor=sclfactor, toTb=True,
+                             fitsfile=fitsfiles, verbose=verbose, overwrite=True, sclfactor=sclfactor, toTb=toTb,
                              docompress=False)
                     # print('fits file ' + ','.join(fitsfiles) + ' selected')
                     if not outfits:
@@ -1640,18 +1643,18 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                     if not outfits:
                         outfits = imagefile + '.fits'
                     hf.imreg(vis=vis, imagefile=imagefile, timerange=timerange, reftime=reftime,
-                             fitsfile=outfits, verbose=verbose, overwrite=True, sclfactor=sclfactor, toTb=True,
+                             fitsfile=outfits, verbose=verbose, overwrite=True, sclfactor=sclfactor, toTb=toTb,
                              docompress=docompress)
                     print('fits file ' + outfits + ' selected')
             else:
                 if not outfits:
                     outfits = imagefile + '.fits'
                 hf.imreg(vis=vis, imagefile=imagefile, timerange=timerange, reftime=reftime,
-                         fitsfile=outfits, verbose=verbose, overwrite=True, sclfactor=sclfactor, toTb=True,
+                         fitsfile=outfits, verbose=verbose, overwrite=True, sclfactor=sclfactor, toTb=toTb,
                          docompress=docompress)
                 print('fits file ' + outfits + ' selected')
         print('vis', vis, 'imagefile', imagefile, 'timerange', timerange, 'reftime', reftime, 'fitsfile', outfits,
-              'verbose', verbose, 'overwrite', True, 'sclfactor', sclfactor, 'toTb', True, 'docompress', docompress)
+              'verbose', verbose, 'overwrite', True, 'sclfactor', sclfactor, 'toTb', toTb, 'docompress', docompress)
         ax4.cla()
         ax5.cla()
         ax6.cla()

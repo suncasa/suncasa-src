@@ -50,7 +50,15 @@ def udb_corr_external(filelist, udbcorr_path):
     fi.write('    pickle.dump(filelist,sf) \n')
     fi.close()
 
-    os.system('/common/anaconda2/bin/python {}'.format(udbcorr_script))
+    udbcorr_shellscript = os.path.join(udbcorr_path, 'udbcorr_ext.csh')
+    if os.path.exists(udbcorr_shellscript):
+        os.system('rm -rf {}'.format(udbcorr_shellscript))
+    fi = open(udbcorr_shellscript, 'wb')
+    fi.write('#! /bin/tcsh -f \n')
+    fi.write('/common/anaconda2/bin/python {} \n'.format(udbcorr_script))
+    fi.close()
+
+    os.system('/bin/tcsh {}'.format(udbcorr_shellscript))
 
     with open(udbcorr_file, 'rb') as sf:
         filelist = pickle.load(sf)
