@@ -61,7 +61,6 @@ def get_goes_data(t=None, sat_num=None):
         satellites are downloaded, with some sanity check used to decide the best.
         If the Time() object t is None, data for the day before the current date
         are read (since there is a delay of 1 day in availability of the data).
-
         Returns:
            goes_t    GOES time array in plot_date format
            goes_data GOES 1-8 A lightcurve
@@ -492,12 +491,10 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     amax=None, amin=None, acmap=None, anorm=None,
                     nclevels=None, dmax=None, dmin=None, dcmap=None, dnorm=None, sclfactor=1.0,
                     clevels=None, spwcmap='jet', aiafits='', aiadir=None, aiawave=171, plotaia=True, moviename='',
-                    alpha_cont=1.0, custom_mapcubes=[]):
+                    alpha_cont=1.0, custom_mapcubes=[],opencontour=False):
     '''
     Required inputs:
-
     Important optional inputs:
-
     Optional inputs:
             aiadir: directory to search aia fits files
     Example:
@@ -919,9 +916,15 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                         except:
                             clevels1 = np.linspace(0.5, 1.0, 2) * np.nanmax(rmap.data)
                     if nspw > 1:
-                        rmap_.contourf(axes=ax, levels=clevels1,
-                                       colors=[colors_spws[n]] * len(clevels1),
-                                       alpha=alpha_cont)
+                        if opencontour:
+                            rmap_.contour(axes=ax, levels=clevels1,
+                                           colors=[colors_spws[n]] * len(clevels1),
+                                           alpha=alpha_cont)
+
+                        else:
+                            rmap_.contourf(axes=ax, levels=clevels1,
+                                           colors=[colors_spws[n]] * len(clevels1),
+                                           alpha=alpha_cont)
                     else:
                         rmap_.contour(axes=ax, levels=clevels1, cmap=cm.get_cmap(spwcmap))
                 else:
@@ -1039,7 +1042,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
               goestime=None,
               plotaia=True, aiawave=171, aiafits=None, aiadir=None, datacolumn='data', docompress=False,
               mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=False,
-              clearmshistory=False, clevels=None, calpha=0.5, show_warnings=False):
+              clearmshistory=False, clevels=None, calpha=0.5, show_warnings=False,opencontour=False):
     '''
     Required inputs:
             vis: calibrated CASA measurement set
@@ -1071,7 +1074,6 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             imax,imin: range of color scale for radio image
             clevels: clevels for the contours
     Example:
-
     '''
 
     if not show_warnings:
@@ -1292,7 +1294,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                             nclevels=nclevels,
                             dmax=dmax, dmin=dmin, dcmap=dcmap, dnorm=dnorm,
                             sclfactor=sclfactor,
-                            aiafits=aiafits, aiawave=aiawave, aiadir=aiadir, plotaia=plotaia, alpha_cont=calpha)
+                            aiafits=aiafits, aiawave=aiawave, aiadir=aiadir, plotaia=plotaia, alpha_cont=calpha,opencontour=opencontour)
 
     else:
         cfreqs = []
