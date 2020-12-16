@@ -200,7 +200,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
             'pol': pols}
 
 
-def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
+def plt_dspec(specdata, pol='I', dmin=None, dmax=None, norm=None,
               timerange=None, freqrange=None, timestr=True,
               movie=False, framedur=60., dtframe=10.,
               goessav=None, goes_trange=None, cmap='jet',
@@ -216,7 +216,8 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
     timestr: display time as strings on X-axis -- currently the times do not update themselves when zooming in
     """
 
-    # Set up variables 
+    # Set up variables
+    import matplotlib.colors as colors
     import matplotlib.pyplot as plt
     import numpy
     from numpy import log10
@@ -272,6 +273,8 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
     # if not dmax:
     #    dmax = spec_med * 5.
     # do the plot
+    if norm is None:
+        norm = colors.Normalize(vmax=dmax,vmin=dmin)
     for b in range(nbl):
         if pol not in ['RRLL', 'IV', 'XXYY']:
             if pol in ['RR', 'XX']:
@@ -319,7 +322,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                     tim1 = tim_[tidx1]
                     freq1 = freq[fidx] / 1e9
                     spec_plt1 = spec_plt[fidx, :][:, tidx1]
-                    ax1.pcolormesh(tim1.plot_date, freq1, spec_plt1, cmap=cmap, vmin=dmin, vmax=dmax)
+                    ax1.pcolormesh(tim1.plot_date, freq1, spec_plt1, cmap=cmap, norm=norm)
                     ax1.set_xlim(tim1[0].plot_date, tim1[-1].plot_date)
                     ax1.set_ylim(freq1[0], freq1[-1])
                     ax1.set_ylabel('Frequency (GHz)')
@@ -361,7 +364,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 fig = plt.figure(figsize=(8, 4), dpi=100)
                 ax = fig.add_subplot(111)
                 freqghz = freq / 1e9
-                im = ax.pcolormesh(tim_plt, freqghz, spec_plt, cmap=cmap, vmin=dmin, vmax=dmax)
+                im = ax.pcolormesh(tim_plt, freqghz, spec_plt, cmap=cmap, norm=norm)
                 divider = make_axes_locatable(ax)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax, cax=cax_spec)
@@ -430,7 +433,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
 
             ax1 = fig.add_subplot(211)
             freqghz = freq / 1e9
-            im = ax1.pcolormesh(tim_plt, freqghz, spec_plt_1, cmap=cmap, vmin=dmin, vmax=dmax)
+            im = ax1.pcolormesh(tim_plt, freqghz, spec_plt_1, cmap=cmap, norm=norm)
             divider = make_axes_locatable(ax1)
             cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
             clb_spec = plt.colorbar(im, ax=ax1, cax=cax_spec)
@@ -461,7 +464,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
             ax1.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[0])
             ax1.set_autoscale_on(False)
             ax2 = fig.add_subplot(212)
-            im = ax2.pcolormesh(tim_plt, freqghz, spec_plt_2, cmap=cmap, vmin=dmin, vmax=dmax)
+            im = ax2.pcolormesh(tim_plt, freqghz, spec_plt_2, cmap=cmap, norm=norm)
             divider = make_axes_locatable(ax2)
             cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
             clb_spec = plt.colorbar(im, ax=ax2, cax=cax_spec)

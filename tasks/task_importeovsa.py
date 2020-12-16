@@ -10,6 +10,7 @@ from suncasa.eovsa import impteovsa as ipe
 from astropy.time import Time
 from eovsapy import util
 
+
 # idbdir = os.getenv('EOVSAIDB')
 #
 # if not idbdir:
@@ -66,7 +67,7 @@ def udb_corr_external(filelist, udbcorr_path):
     with open(udbcorr_file, 'rb') as sf:
         filelist = pickle.load(sf)
 
-    if filelist==[]:
+    if filelist == []:
         raise ValueError('udb_corr failed to return any results. Please check your calibration.')
     return filelist
 
@@ -196,9 +197,10 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         # Assumes uv['pol'] is one of -5, -6, -7, -8
         k = -5 - uv['pol']
         l += 1
+        mask0 = data.mask
         data = ma.masked_array(ma.masked_invalid(data), fill_value=0.0)
         out[k, :, l / (npairs * npol), bl2ord[i0, j0]] = data.data
-        flag[k, :, l / (npairs * npol), bl2ord[i0, j0]] = data.mask
+        flag[k, :, l / (npairs * npol), bl2ord[i0, j0]] = np.logical_or(data.mask, mask0)
         # if i != j:
         if k == 3:
             uvwarray[:, l / (npairs * npol), bl2ord[i0, j0]] = -uvw * constants.speed_of_light / 1e9

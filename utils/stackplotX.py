@@ -1049,7 +1049,7 @@ class Stackplot:
                 return ax  # ax.autoscale(True, 'both', True)  # ax.autoscale_view(True, True, True)  # ax.relim(visible_only=True)
 
     def make_mapcube(self, trange, outfile=None, fov=None, wavelength='171', binpix=1, dt_data=1, derotate=False,
-                     tosave=True, superpixel=False, aia_prep=False, mapinterp=False, overwrite=False):
+                     tosave=True, superpixel=False, aia_prep=False, mapinterp=False, overwrite=False, dtype=None):
         if not overwrite:
             if outfile is not None:
                 if os.path.exists(outfile):
@@ -1099,6 +1099,8 @@ class Stackplot:
                 if type(maptmp) is list:
                     maptmp = maptmp[0]
             self.exptime_orig.append(maptmp.exposure_time.value)
+            if dtype is not None:
+                maptmp = sunpy.map.Map(maptmp.data.astype(dtype), maptmp.meta)
             if aia_prep:
                 maptmp = aiaprep(maptmp)
             if fov:
@@ -1250,7 +1252,7 @@ class Stackplot:
         return mapcube_diff
 
     def mapcube_mkdiff(self, mode='rdiff', dt=36., medfilt=None, gaussfilt=None, bfilter=False, lowcut=1 / 10 / 60.,
-                       highcut=1 / 1 / 60., window=[None, None], outfile=None, tosave=False):
+                       highcut=1 / 1 / 60., window=[None, None], outfile=None, tosave=False, dtype=None):
         '''
 
         :param mode: accept modes: rdiff, rratio, bdiff, bratio, dtrend, dtrend_diff, dtrend_ratio
@@ -1264,6 +1266,8 @@ class Stackplot:
         :param tosave:
         :return:
         '''
+        if dtype is None:
+            dtype = np.float32
         self.mapcube_diff = None
         # modes = {0: 'rdiff', 1: 'rratio', 2: 'bdiff', 3: 'bratio'}
         maplist = []
@@ -1298,7 +1302,7 @@ class Stackplot:
                     mapdata = datacube[:, :, idx] - datacube[:, :, 0]
                 elif mode == 'bratio':
                     mapdata = datacube[:, :, idx].astype(np.float) / datacube[:, :, 0].astype(np.float)
-                maplist[idx] = sunpy.map.Map(mapdata, maplist[idx].meta)
+                maplist[idx] = sunpy.map.Map(mapdata.astype(dtype), maplist[idx].meta)
         elif mode.startswith('dtrend'):
             datacube_ft = np.zeros_like(datacube)
             ny, nx, nt = datacube_ft.shape
@@ -1319,7 +1323,7 @@ class Stackplot:
 
             maplist = []
             for idx, ll in enumerate(tqdm(self.mapcube)):
-                maplist.append(sunpy.map.Map(datacube_ft[:, :, idx], self.mapcube[idx].meta))
+                maplist.append(sunpy.map.Map(datacube_ft[:, :, idx].astype(dtype), self.mapcube[idx].meta))
         else:
             print('diff mode not recognized. Accept modes: rdiff, rratio, bdiff, bratio, dtrend')
             return None
@@ -1344,7 +1348,7 @@ class Stackplot:
 
             maplist = []
             for idx, ll in enumerate(tqdm(mapcube_diff)):
-                maplist.append(sunpy.map.Map(datacube_ft[:, :, idx], mapcube_diff[idx].meta))
+                maplist.append(sunpy.map.Map(datacube_ft[:, :, idx].astype(dtype), mapcube_diff[idx].meta))
             mapcube_diff = sunpy.map.Map(maplist, sequence=True)
 
         if tosave:
@@ -1700,16 +1704,19 @@ class Stackplot:
         with open('{}'.format(outfile), 'wb') as sf:
             pickle.dump(dspec, sf)
 
-    def stackplt_fromfile(self, infile, **kwargs):
+    def stackplt_fromfile(self, infile, doplot=False, **kwargs):
         with open('{}'.format(infile), 'rb') as sf:
             stackplt = pickle.load(sf, encoding='latin1')
         self.cutslit_fromfile(stackplt['cutslit'])
         self.stackplt = stackplt['dspec']
-        if 'refresh' in kwargs.keys():
-            kwargs.pop('refresh')
-        self.plot_stackplot(refresh=False, **kwargs)
+        if doplot:
+            if 'refresh' in kwargs.keys():
+                kwargs.pop('refresh')
+            if 'doplot' in kwargs.keys():
+                kwargs.pop('doplot')
+            self.plot_stackplot(refresh=False, **kwargs)
 
-    def plot_stackplot(self, mapcube=None, hdr=False, norm=None, vmax=None, vmin=None, cmap=None, layout_vert=False,
+    def plot_stackplot(self, mapcube=None,fov=None, hdr=False, norm=None, vmax=None, vmin=None, cmap=None, layout_vert=False,
                        diff=False, uni_cm=True, sav_img=False, out_dir=None, dpi=100, anim=False, frm_range=[],
                        cutslitplt=None, silent=False, refresh=True, threshold=None, gamma=1.0, get_peak=False,
                        trackslit=False):
@@ -1827,7 +1834,11 @@ class Stackplot:
 
                 ani = animation.FuncAnimation(fig_mapcube, update_frame2, nframe, interval=50, blit=False)
 
-            if not silent:
+            if silent:
+                if fov:
+                    ax.set_xlim(fov[:2])
+                    ax.set_ylim(fov[2:])
+            else:
                 prompt = ''
                 while not (prompt.lower() in ['y', 'n']):
                     # try:
