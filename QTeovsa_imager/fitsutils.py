@@ -10,27 +10,30 @@ stokesval = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3
 
 def headerfix(header, PC_coor=True):
     '''
-    this code fix the header problem of fits out from CASA 5.4+ which leads to a streched solar image
-    set PC_coor equal to True will reset the rotation matrix.
+    this code fixes the header problem of fits out from CASA 5.4+ which leads to a streched solar image
+    Setting PC_coor equal to True will reset the rotation matrix.
     '''
 
     keys2remove = []
     for k in header:
         if k.upper().startswith('PC'):
-            if not k.upper().startswith('PC0'):
-                pcidxs = k.upper().replace('PC', '')
-                hd_ = 'PC0' + pcidxs
-                keys2remove.append(k)
-                if PC_coor:
-                    pcidx0, pcidx1 = pcidxs.split('_')
-                    if pcidx0 == pcidx1:
-                        header[hd_] = 1.0
-                    else:
-                        header[hd_] = 0.0
+#            if not k.upper().startswith('PC0'):
+#                pcidxs = k.upper().replace('PC', '')
+            pcidxs = k[2:]
+#                hd_ = 'PC0' + pcidxs
+#                keys2remove.append(k)
+            if PC_coor:
+                pcidx0, pcidx1 = pcidxs.split('_')
+                if pcidx0 == pcidx1:
+#                    header[hd_] = 1.0
+                    header[k] = 1.0
                 else:
-                    header[hd_] = header[k]
-    for k in keys2remove:
-        header.remove(k)
+#                    header[hd_] = 0.0
+                    header[k] = 0.0
+#            else:
+#                header[hd_] = header[k]
+#    for k in keys2remove:
+#        header.remove(k)
     return header
 
 

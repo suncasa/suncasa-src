@@ -194,7 +194,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
                 'tedlist': sclist['tedlist']}
 
 
-def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False):
+def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearcache=False, verbose=False, pols='XX'):
     ''' 
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
@@ -254,10 +254,18 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False):
     figoutdir = os.path.join(synopticfigdir, tdate.datetime.strftime("%Y/"))
     if not os.path.exists(figoutdir):
         os.makedirs(figoutdir)
-    vis, diskxmlfile = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms',
-                                       workdir=workdir,
-                                       slfcaltbdir=os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/',
-                                       imgoutdir=imgoutdir, figoutdir=figoutdir)
+    if verbose:
+        print('input of pipeline_run:')
+        print({'vis': vis,
+               'outputvis': outpath + os.path.basename(invis[0])[:11] + '.ms',
+               'workdir': workdir,
+               'slfcaltbdir': os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/',
+               'imgoutdir': imgoutdir,
+               'figoutdir': figoutdir})
+    vis = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms',
+                          workdir=workdir,
+                          slfcaltbdir=os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/',
+                          imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols)
     return vis
 
 
@@ -610,7 +618,7 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
         if os.path.exists(vis_synoptic):
             date = vis_synoptic
         else:
-            print('Whole-day ms file {} not existed. About..... Use pipeline1.py to make one.'.format(vis_synoptic))
+            print('Whole-day ms file {} not existed. About..... Use pipeline to make one.'.format(vis_synoptic))
             return None
 
     imres = mk_qlook_image(date, twidth=twidth, ncpu=ncpu, doimport=doimport, docalib=docalib, imagedir=imagedir,
@@ -628,3 +636,137 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
     #
     #     plt_qlook_image(imres_bds, figdir=figdir, verbose=True, synoptic=True)
     #     # plt_qlook_image(imres_allbd, figdir=figdir + 'FullBD/', verbose=True, synoptic=True)
+
+
+def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrite=True, doimport=True, pols='XX'):
+    workdir = '/data1/workdir/'
+    os.chdir(workdir)
+    # Set to run 5 days earlier than the current date
+    if year is None:
+        mjdnow = Time.now().mjd
+        t = Time(mjdnow - 2, format='mjd')
+    else:
+        # Uncomment below and set date to run for a given date
+        t = Time('{}-{:02d}-{:02d} 20:00'.format(year, month, day))
+    for d in range(ndays):
+        t1 = Time(t.mjd - d, format='mjd')
+        datestr = t1.iso[:10]
+        subdir = os.path.join(workdir, t1.datetime.strftime('%Y%m%d/'))
+        if not os.path.exists(subdir):
+            os.makedirs(subdir)
+        else:
+            os.system('rm -rf {}/*'.format(subdir))
+        vis_corrected = calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
+                                       workdir=subdir, clearcache=False, pols=pols)
+        if clearcache:
+            os.chdir(workdir)
+            os.system('rm -rf {}'.format(subdir))
+
+
+if __name__ == '__main__':
+    '''
+    Name: 
+    eovsa_pipeline --- main pipeline for importing and calibrating EOVSA visibility data.
+    
+    Synopsis:
+    eovsa_pipeline.py [options]... [DATE_IN_YY_MM_DD]
+    
+    Description:
+    Import and calibrate EOVSA visibility data of the date specified
+    by DATE_IN_YY_MM_DD (or from ndays before the DATE_IN_YY_MM_DD if option --ndays/-n is provided).
+    If DATE_IN_YY_MM_DD is omitted, it will be set to 2 days before now by default. 
+    The are no mandatory arguments in this command.
+    
+    -c, --clearcache
+            Remove temporary files
+            
+    -n, --ndays
+            Processing the date spanning from DATE_IN_YY_MM_DD-ndays to DATE_IN_YY_MM_DD. Default is 30.
+            
+    -o, --overwrite
+            If True, overwrite imported and calibrated ms. Reprocess the date from scratch.
+            Syntax: True, False, T, F, 1, 0
+            
+    -i, --doimport
+            If False, skip the import step. overwrite the calibrated ms. Reprocess the date from the imported ms.
+            Syntax: True, False, T, F, 1, 0
+                      
+    
+    Example: 
+    eovsa_pipeline.py -c True -n 1 -o True -i True 2020 06 10
+    '''
+    import sys
+    import numpy as np
+    import getopt
+
+    year = None
+    month = None
+    day = None
+    ndays = 1
+    clearcache = True
+    overwrite = True
+    doimport = True
+    pols = 'XX'
+
+    try:
+        argv = sys.argv[1:]
+        opts, args = getopt.getopt(argv, "c:n:o:i:p:", ['clearcache=', 'ndays=', 'overwrite=', 'doimport=', 'pols='])
+        print(opts, args)
+        for opt, arg in opts:
+            print(opt, arg, type(arg))
+            if opt in ['-c', '--clearcache']:
+                if arg in ['True', 'T', '1']:
+                    clearcache = True
+                elif arg in ['False', 'F', '0']:
+                    clearcache = False
+                else:
+                    clearcache = np.bool(arg)
+            elif opt in ('-n', '--ndays'):
+                ndays = np.int(arg)
+            elif opt in ('-o', '--overwrite'):
+                if arg in ['True', 'T', '1']:
+                    overwrite = True
+                elif arg in ['False', 'F', '0']:
+                    overwrite = False
+                else:
+                    overwrite = np.bool(arg)
+            elif opt in ('-i', '--doimport'):
+                if arg in ['True', 'T', '1']:
+                    doimport = True
+                elif arg in ['False', 'F', '0']:
+                    doimport = False
+                else:
+                    doimport = np.bool(arg)
+            elif opt in ('-p', '--pols'):
+                if arg in ['XX', 'XXYY']:
+                    pols = arg
+        nargs = len(args)
+        if nargs == 3:
+            year = np.int(args[0])
+            month = np.int(args[1])
+            day = np.int(args[2])
+        else:
+            year = None
+            month = None
+            day = None
+    except getopt.GetoptError as err:
+        print(err)
+        print('Error interpreting command line argument')
+        year = None
+        month = None
+        day = None
+        ndays = 1
+        clearcache = True
+        overwrite = True
+        doimport = True
+        pols = 'XX'
+
+    print("Running pipeline_plt for date {}-{}-{}.".format(year, month, day))
+    kargs = {'ndays': ndays,
+             'clearcache': clearcache,
+             'overwrite': overwrite,
+             'doimport': doimport,
+             'pols': pols}
+    for k, v in kargs.items():
+        print(k, v)
+    pipeline(year, month, day, ndays=ndays, clearcache=clearcache, overwrite=overwrite, doimport=doimport, pols=pols)

@@ -28,7 +28,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
         uvrange = ''
     # Open the ms and plot dynamic spectrum
     if verbose:
-        print 'Splitting selected data...'
+        print('Splitting selected data...')
     vis_spl = './tmpms.splitted'
     if os.path.exists(vis_spl):
         os.system('rm -rf ' + vis_spl)
@@ -37,8 +37,8 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
           uvrange=uvrange, timebin=timebin, datacolumn=datacolumn)
     ms.open(vis_spl, nomodify=False)
     if verbose:
-        print 'Regridding into a single spectral window...'
-        # print 'Reading data spw by spw'
+        print('Regridding into a single spectral window...')
+        # print('Reading data spw by spw')
     ms.cvel(outframe='LSRK', mode='frequency', interp='nearest')
     ms.selectinit(datadescid=0, reset=True)
     data = ms.getdata(['amplitude', 'time', 'axis_info'], ifraxis=True)
@@ -47,7 +47,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
     specamp = data['amplitude']
     (npol, nfreq, nbl, ntim) = specamp.shape
     if verbose:
-        print 'npol, nfreq, nbl, ntime:', data['amplitude'].shape
+        print('npol, nfreq, nbl, ntime:', data['amplitude'].shape)
     spec = np.swapaxes(specamp, 2, 1)
     freq = data['axis_info']['freq_axis']['chan_freq'].reshape(nfreq)
     tim = data['time']
@@ -71,7 +71,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
         np.savez(specfile, spec=ospec, tim=tim, freq=freq,
                  timeran=timeran, spw=spw, bl=bl, uvrange=uvrange)
         if verbose:
-            print 'Median dynamic spectrum saved as: ' + specfile
+            print('Median dynamic spectrum saved as: ' + specfile)
 
     return {'spec': ospec, 'tim': tim, 'freq': freq, 'timeran': timeran, 'spw': spw, 'bl': bl, 'uvrange': uvrange}
 
@@ -97,7 +97,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
     from numpy import log10
     from astropy.time import Time
     if pol != 'RR' and pol != 'LL' and pol != 'RRLL' and pol != 'I' and pol != 'V' and pol != 'IV':
-        print "Please enter 'RR', 'LL', 'RRLL', 'I', 'V', 'IV' for pol"
+        print("Please enter 'RR', 'LL', 'RRLL', 'I', 'V', 'IV' for pol")
         return 0
 
     if type(specdata) is str:
@@ -128,7 +128,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
         fidx = range(nfreq)
 
     # setup plot parameters
-    print 'ploting dynamic spectrum...'
+    print('ploting dynamic spectrum...')
     spec_med = np.median(np.absolute(spec))
     # if not dmin:
     #    dmin = spec_med / 20.
@@ -167,10 +167,10 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None,
                 tstartstr = qa.time(qa.quantity(tstart, 's'))[0]
                 tendstr = qa.time(qa.quantity(tend, 's'))[0]
                 nfrm = int((tend - tstart) / dtframe) + 1
-                print 'Movie mode set. ' + str(nfrm) + ' frames to plot from ' + tstartstr + ' to ' + tendstr
+                print('Movie mode set. ' + str(nfrm) + ' frames to plot from ' + tstartstr + ' to ' + tendstr)
                 for i in range(nfrm):
                     if (i != 0) and (i % 10 == 0):
-                        print str(i) + ' frames done'
+                        print(str(i) + ' frames done')
                     timeran = [tstart + i * dtframe, tstart + i * dtframe + framedur]
                     tidx1 = np.where((tim >= timeran[0]) & (tim <= timeran[1]))[0]
                     tim1 = tim_[tidx1]
@@ -340,15 +340,15 @@ def wrt_dspec(specfile=None, specdat=None):
     try:
         specfile
     except NameError:
-        print 'No input centfile specified for reading. Aborting...'
+        print('No input centfile specified for reading. Aborting...')
     if not specdat:
-        print 'Output file name is not specified, use the default convention'
+        print('Output file name is not specified, use the default convention')
         specdat = specfile.replace('npz', 'dat')
     specdata = np.load(specfile)
     spec = np.copy(specdata['spec'][:, :, :, :])
     npl, nbl, nf, nt = spec.shape
-    print 'Dimension of the data cube -- # of pol, # of baseline, # of frequency, # of time:'
-    print npl, nbl, nf, nt
+    print('Dimension of the data cube -- # of pol, # of baseline, # of frequency, # of time:')
+    print(npl, nbl, nf, nt)
     nele = npl * nbl * nf * nt
     # need to transpose to nf, nt, npl, nbl
     spec = np.transpose(spec, (2, 3, 0, 1))

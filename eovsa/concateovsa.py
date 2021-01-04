@@ -14,7 +14,7 @@ def concateovsa(msname, msfiles, visprefix='./', doclearcal=True, keep_orig_ms=F
         if str(ll).endswith('/'):
             msfiles[idx] = str(ll)[:-1]
     if doclearcal:
-        print 'Warning: Corrected column in the input ms file will be cleared!!!'
+        print('Warning: Corrected column in the input ms file will be cleared!!!')
         for ll in msfiles:
             clearcal(vis=str(ll), addmodel=True)
     else:
@@ -28,7 +28,7 @@ def concateovsa(msname, msfiles, visprefix='./', doclearcal=True, keep_orig_ms=F
                 split(vis=str(ll), outputvis=msfile_, datacolumn='corrected')
                 clearcal(vis=msfile_, addmodel=True)
         except:
-            print 'Warning: Corrected column not found in the input ms file.'
+            print('Warning: Corrected column not found in the input ms file.')
             msfiles_ = msfiles
     if msfiles_:
         concat(vis=msfiles_, concatvis=concatvis, timesort=True)

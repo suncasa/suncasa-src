@@ -5,12 +5,19 @@ from math import *
 # import jdutil
 import bisect
 import pdb
-from taskinit import ms, tb, qa, iatool, rgtool
+from casatools import ms as mstool
+from casatools import table, quanta, image
 from astropy.time import Time
-from sunpy import sun
+from sunpy import sun, coordinates
 import astropy.units as u
 import warnings
-from suncasa.utils import fitsutils as fu
+#from suncasa.utils 
+import fitsutils as fu
+
+ms = mstool()
+tb = table()
+qa = quanta()
+ia = image()
 
 try:
     from astropy.io import fits as pyfits
@@ -61,7 +68,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     BC (2019-07-16): Added docstring documentation
 
     '''
-    import urllib2
+    import urllib.request as urllib2
     import ssl
     if not t0 and not vis:
         t0 = Time.now()
@@ -157,7 +164,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     nline = len(lines)
     istart = 0
     for i in range(nline):
-        line = lines[i]
+        line = lines[i].decode('utf-8')
         if line[0:5] == '$$SOE':  # start recording
             istart = i + 1
         if line[0:5] == '$$EOE':  # end recording
@@ -171,7 +178,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     p0 = []
     delta = []
     for line in newlines:
-        items = line.split(',')
+        items = line.decode('utf-8').split(',')
         t.append(Time(float(items[1]), format='jd').mjd)
         ra.append(np.radians(float(items[4])))
         dec.append(np.radians(float(items[5])))
@@ -558,7 +565,7 @@ def getbeam(imagefile=None, beamfile=None):
     return bmaj, bmin, bpa, beamunit, bpaunit
 
 
-def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, reftime=None, fitsfile=None, beamfile=None,
+def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, reftime=None, fitsfile=None, fitsdir='',beamfile=None,
           offsetfile=None, toTb=None, sclfactor=1.0, verbose=False, p_ang=False, overwrite=True, usephacenter=True,
           deletehistory=False, subregion=[], docompress=False):
     ''' 
@@ -596,7 +603,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                      (in Jy/beam) and brightness temperature (in K).
 
     '''
-    ia = iatool()
+    #ia = iatool()
 
     if deletehistory:
         ms_clearhistory(vis)
@@ -610,9 +617,9 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
     if type(timerange) == str:
         timerange = [timerange]
     if not fitsfile:
-        fitsfile = [img + '.fits' for img in imagefile]
+        fitsfile = [os.path.join(fitsdir,os.path.basename(img)) + '.fits' for img in imagefile]
     if type(fitsfile) == str:
-        fitsfile = [fitsfile]
+        fitsfile = [os.path.join(fitsdir,fitsfile)]
     nimg = len(imagefile)
     if len(timerange) != nimg:
         raise ValueError('Number of input images does not equal to number of timeranges!')
@@ -732,11 +739,11 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 else:
                     header.set('exptime', 1.)
                 header.set('p_angle', hel['p0'])
-                header.set('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value)
-                header.set('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value)
+                header.set('dsun_obs', coordinates.sun.earth_distance(Time(dateobs)).to(u.meter).value)
+                header.set('rsun_obs', coordinates.sun.angular_radius(Time(dateobs)).value)
                 header.set('rsun_ref', sun.constants.radius.value)
                 header.set('hgln_obs', 0.)
-                header.set('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value)
+                header.set('hglt_obs', coordinates.sun.B0(Time(dateobs)).value)
             except:
                 # this works for astropy.io.fits
                 if tdur_s:
@@ -744,16 +751,16 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 else:
                     header.append(('exptime', 1.))
                 header.append(('p_angle', hel['p0']))
-                header.append(('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value))
-                header.append(('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value))
+                header.append(('dsun_obs', coordinates.sun.earth_distance(Time(dateobs)).to(u.meter).value))
+                header.append(('rsun_obs', coordinates.sun.angular_radius(Time(dateobs)).value))
                 header.append(('rsun_ref', sun.constants.radius.value))
                 header.append(('hgln_obs', 0.))
-                header.append(('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value))
+                header.append(('hglt_obs', coordinates.sun.B0(Time(dateobs))[1].value))
 
             # check if stokes parameter exist
             exist_stokes = False
-            stokes_mapper = {'I': 1, 'Q': 2, 'U': 3, 'V': 4, 'RR': -1, 'LL': -2,
-                             'RL': -3, 'LR': -4, 'XX': -5, 'YY': -6, 'XY': -7, 'YX': -8}
+            stokes_mapper = {1:'I', 2:'Q', 3:'U', 4:'V', -1:'RR', -2:'LL',
+                             -3:'RL', -4:'LR', -5:'XX', -6:'YY', -7:'XY', -8:'YX'}
             if 'CRVAL3' in header.keys():
                 if header['CTYPE3'] == 'STOKES':
                     stokenum = header['CRVAL3']
@@ -763,7 +770,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                     stokenum = header['CRVAL4']
                     exist_stokes = True
             if exist_stokes:
-                stokesstr = stokes_mapper.keys()[stokes_mapper.values().index(stokenum)]
+                stokesstr = stokes_mapper[stokenum]
                 if verbose:
                     print('This image is in Stokes ' + stokesstr)
             else:

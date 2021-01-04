@@ -521,11 +521,11 @@ def convert_radec(radec_col):
     if len(angstrlist[0].split()) > 1:
         # Prep angstrlist for qa.toangle()
         if radec_col['comment'][:len("declination")].lower() == 'declination':
-            for i in xrange(nrows):
+            for i in range(nrows):
                 dms = angstrlist[i].replace(' ', 'd', 1)
                 angstrlist[i] = dms.replace(' ', 'm') + 's'
         else:                                                  # R.A.
-            for i in xrange(nrows):
+            for i in range(nrows):
                 angstrlist[i] = angstrlist[i].replace(' ', ':')
 
         # Do first conversion to get unit.
@@ -601,7 +601,7 @@ def mean_radius(a, b, c):
         Rterm = 1.0               # 0th order
         onemR = 1.0 - R
         onemRtothei = 1.0
-        for i in xrange(1, 5):    # Start series at 1st order.
+        for i in range(1, 5):    # Start series at 1st order.
             onemRtothei *= onemR
             Rterm -= onemRtothei / (0.5 + 2.0 * i**2)
     avalfabeta = 0.5 * a * b * (1.0 + Rterm)
@@ -625,7 +625,7 @@ def mean_radius_with_known_theta(retdict):
         values[c] = retdict['data'][c]['data']['value']
     av = 0.0
     nrows = len(retdict['data']['RA']['data']['value'])
-    for i in xrange(nrows):
+    for i in range(nrows):
         radec = me.direction('app', {'unit': units['RA'], 'value': values['RA'][i]},
                              {'unit': units['DEC'], 'value': values['DEC'][i]})
         np = me.direction('j2000', {'unit': units['NP_RA'], 'value': values['NP_RA'][i]},
@@ -977,7 +977,8 @@ def make_ephem_tb(vis, ephemfile=None, output_casa_table_name=None):
             output_dictionary['data']['RA']['data']['value'] = fra(tmjd)
             fdec = interpolate.interp1d(tpmjd, dec, kind='cubic')
             output_dictionary['data']['DEC']['data']['value'] = fdec(tmjd)
-        jplreader.ephem_dict_to_table(output_dictionary, output_casa_table_name)
+        # jplreader.ephem_dict_to_table(output_dictionary, output_casa_table_name)
+        ephem_dict_to_table(output_dictionary, output_casa_table_name)
         print('Ephemeris table written to {}'.format(output_casa_table_name))
     else:
         print("sun-ephem-geo.txt not found!")

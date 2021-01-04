@@ -45,7 +45,7 @@ imgfitsbkdir = '/data1/workdir/synoptic_newbk/'
 #         hdulnew = fits.HDUList([fits.PrimaryHDU(), hdunew, hdumask])
 #     hdulnew.writeto(fname, output_verify='fix')
 
-def rewriteImageFits(datestr, verbose=False, writejp2=False):
+def rewriteImageFits(datestr, verbose=False, writejp2=False, overwritejp2=False, overwritefits=False):
     dateobj = datetime.strptime(datestr, "%Y-%m-%d")
     datestrdir = dateobj.strftime("%Y/%m/%d/")
     imgindir = imgfitsdir + datestrdir
@@ -55,49 +55,87 @@ def rewriteImageFits(datestr, verbose=False, writejp2=False):
 
     if verbose: print('Processing EOVSA image fits files for date {}'.format(dateobj.strftime('%Y-%m-%d')))
     files = glob(os.path.join(imgindir, '*.tb.*fits'))
+    files = sorted(files)
     for fl in files:
         if not os.path.exists(fl): continue
         filein = os.path.join(imgbkdir, os.path.basename(fl))
-        if not os.path.exists(filein):
-            os.system('mv {} {}'.format(fl, filein))
+        # if not os.path.exists(filein):
+        os.system('mv {} {}'.format(fl, filein))
         hdul = fits.open(filein)
         for hdu in hdul:
-            if hdu.header['NAXIS'] ==0:
+            if hdu.header['NAXIS'] == 0:
                 continue
             else:
                 break
         data = np.squeeze(hdu.data).copy()
         # if verbose: print('Processing {}'.format(fl))
+        if overwritefits:
+            if os.path.exists(fl):
+                os.system('rm -f {}'.format(fl))
         if not os.path.exists(fl):
             data[np.isnan(data)] = 0.0
-            fu.write_compress_image_fits(fl, data, hdu.header, compression_type='RICE_1', quantize_level=4.0)
+            fu.write_compressed_image_fits(fl, data, hdu.header, compression_type='RICE_1', quantize_level=4.0)
+
         fj2name = fl.replace('.fits', '.jp2')
         if writejp2:
+            if overwritejp2:
+                if os.path.exists(fj2name):
+                    os.system('rm -f {}'.format(fj2name))
             if not os.path.exists(fj2name):
-                fu.write_j2000_image(fj2name, data, hdu.header)
+                data = np.squeeze(hdu.data).copy()
+                data[np.isnan(data)] = 0.0
+                fu.write_j2000_image(fj2name, data[::-1, :], hdu.header)
     return
 
 
-def main(year=None, month=None, day=None, ndays=1):
+def main(year=None, month=None, day=None, ndays=1, overwritejp2=False, overwritefits=False):
     # tst = datetime.strptime("2017-04-01", "%Y-%m-%d")
     # ted = datetime.strptime("2019-12-31", "%Y-%m-%d")
     if year:
         ted = datetime(year, month, day)
     else:
-        ted = datetime.now() - timedelta(days=ndays)
-    tst = Time(np.fix(Time(ted).mjd) - ndays+1, format='mjd').datetime
+        ted = datetime.now() - timedelta(days=2)
+    tst = Time(np.fix(Time(ted).mjd) - ndays + 1, format='mjd').datetime
     print("Running pipeline_fitsutils for date from {} to {}".format(tst.strftime("%Y-%m-%d"),
-                                                                 ted.strftime("%Y-%m-%d")))
+                                                                     ted.strftime("%Y-%m-%d")))
     dateobs = tst
     while dateobs <= ted:
         datestr = dateobs.strftime("%Y-%m-%d")
-        rewriteImageFits(datestr, verbose=True, writejp2=True)
+        rewriteImageFits(datestr, verbose=True, writejp2=True, overwritejp2=overwritejp2, overwritefits=overwritefits)
         dateobs = dateobs + timedelta(days=1)
 
 
 if __name__ == '__main__':
     '''
-    usage: eovsa_fitsutils -n 2 2020 06 10
+    Name: 
+    eovsa_fitsutils --- pipeline for created the compressed fits and jp2 files of EOVSA daily full-disk images.
+
+    Synopsis:
+    eovsa_fitsutils.py [options]... [DATE_IN_YY_MM_DD]
+
+    Description:
+    Plot EOVSA daily full-disk images at multi frequencies of the date specified
+    by DATE_IN_YY_MM_DD (or from ndays before the DATE_IN_YY_MM_DD if option --ndays/-n is provided).
+    If DATE_IN_YY_MM_DD is omitted, it will be set to 2 days before now by default. 
+    The are no mandatory arguments in this command.
+
+    -c, --clearcache
+            Remove temporary files
+
+    -n, --ndays
+            Processing the date spanning from DATE_IN_YY_MM_DD-ndays to DATE_IN_YY_MM_DD. Default is 30
+
+    -o, --overwritejp2
+            If True, overwrite eovsa jp2 files.
+            Syntax: True, False, T, F, 1, 0
+
+    -O, --overwritefits
+            If True, overwrite eovsa fits files.
+            Syntax: True, False, T, F, 1, 0                          
+
+
+    Example: 
+    eovsa_fitsutils.py -c True -n 2 -o True -O True 2020 06 10
     '''
     import sys
     import numpy as np
@@ -109,28 +147,51 @@ if __name__ == '__main__':
     # print("shell " + shell + " is using")
 
     print(sys.argv)
-
+    year = None
+    month = None
+    day = None
+    ndays = 1
+    clearcache = True
+    opts = []
+    overwritejp2 = False
+    overwritefits = False
     try:
         argv = sys.argv[1:]
-        opts, args = getopt.getopt(argv, "c:n:", ['clearcache=', 'ndays='])
-        clearcache = False
-        ndays = 1
+        opts, args = getopt.getopt(argv, "c:n:o:O:", ['clearcache=', 'ndays=', 'overwritejp2=', 'overwritefits='])
         print(opts, args)
         for opt, arg in opts:
             if opt in ['-c', '--clearcache']:
-                if arg is 'True':
+                if arg in ['True', 'T', '1']:
                     clearcache = True
-                elif arg is 'False':
+                elif arg in ['False', 'F', '0']:
                     clearcache = False
                 else:
                     clearcache = np.bool(arg)
             elif opt in ('-n', '--ndays'):
                 ndays = np.int(arg)
+            elif opt in ('-o', '--overwritejp2'):
+                if arg in ['True', 'T', '1']:
+                    overwritejp2 = True
+                elif arg in ['False', 'F', '0']:
+                    overwritejp2 = False
+                else:
+                    overwritejp2 = np.bool(arg)
+            elif opt in ('-O', '--overwritefits'):
+                if arg in ['True', 'T', '1']:
+                    overwritefits = True
+                elif arg in ['False', 'F', '0']:
+                    overwritefits = False
+                else:
+                    overwritefits = np.bool(arg)
         nargs = len(args)
         if nargs == 3:
             year = np.int(args[0])
             month = np.int(args[1])
             day = np.int(args[2])
+        else:
+            year = None
+            month = None
+            day = None
     except getopt.GetoptError as err:
         print(err)
         print('Error interpreting command line argument')
@@ -140,6 +201,15 @@ if __name__ == '__main__':
         ndays = 1
         clearcache = True
         opts = []
+        overwritejp2 = False
+        overwritefits = False
 
+    print("Running eovsa_fitsutils for date {}-{}-{}.".format(year, month, day))
+    kargs = {'ndays': ndays,
+             'clearcache': clearcache,
+             'overwritejp2': overwritejp2,
+             'overwritefits': overwritefits}
+    for k, v in kargs.items():
+        print(k, v)
 
-    main(year, month, day, ndays)
+    main(year, month, day, ndays, overwritejp2=overwritejp2, overwritefits=overwritefits)
