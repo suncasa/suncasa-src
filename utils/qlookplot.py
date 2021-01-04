@@ -4,7 +4,12 @@ import os, sys
 # from config import get_and_create_download_dir
 import shutil
 from astropy.io import fits
-import urllib2
+try:
+    # For Python 3.0 and later
+    from urllib.request import urlopen
+except ImportError:
+    # Fall back to Python 2's urllib2
+    from urllib2 import urlopen
 from split_cli import split_cli as split
 from ptclean3_cli import ptclean3_cli as ptclean3
 from suncasa.utils import helioimage2fits as hf
@@ -68,7 +73,6 @@ def get_goes_data(t=None, sat_num=None):
     from sunpy.util.config import get_and_create_download_dir
     import shutil
     from astropy.io import fits
-    import urllib2
     import ssl
     if t is None:
         t = Time(Time.now().mjd - 1, format='mjd')
@@ -76,7 +80,7 @@ def get_goes_data(t=None, sat_num=None):
     datstr = t.iso[:10].replace('-', '')
     context = ssl._create_unverified_context()
     if sat_num is None:
-        f = urllib2.urlopen('https://umbra.nascom.nasa.gov/goes/fits/' + yr, context=context)
+        f = urlopen.urlopen('https://umbra.nascom.nasa.gov/goes/fits/' + yr, context=context)
         lines = f.readlines()
         sat_num = []
         for line in lines:
@@ -89,7 +93,7 @@ def get_goes_data(t=None, sat_num=None):
     for sat in sat_num:
         filename = 'go' + sat + datstr + '.fits'
         url = 'https://umbra.nascom.nasa.gov/goes/fits/' + yr + '/' + filename
-        f = urllib2.urlopen(url, context=context)
+        f = urlopen.urlopen(url, context=context)
         with open(get_and_create_download_dir() + '/' + filename, 'wb') as g:
             shutil.copyfileobj(f, g)
         filenames.append(get_and_create_download_dir() + '/' + filename)

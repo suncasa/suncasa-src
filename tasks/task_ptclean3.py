@@ -95,38 +95,41 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
     else:
         print(imname + ' exists. Clean task aborted.')
 
-    if doreg and not os.path.isfile(imname + '.fits'):
+    if doreg:
         # ephem.keys()
         # msinfo.keys()
-        try:
-            # check if ephemfile and msinfofile exist
-            if not ephem:
-                print("ephemeris info does not exist, querying from JPL Horizons on the fly")
-                ephem = hf.read_horizons(vis=vis)
-            if not msinfo:
-                print("ms info not provided, generating one on the fly")
-                msinfo = hf.read_msinfo(vis)
-            hf.imreg(vis=vis, ephem=ephem, msinfo=msinfo, timerange=timerange, reftime=reftime,
-                     imagefile=imname + '.image', fitsfile=imname + '.fits', overwrite=True,
-                     toTb=toTb, sclfactor=sclfactor, usephacenter=usephacenter, subregion=subregion,
-                     docompress=docompress)
-            if os.path.exists(imname + '.fits'):
-                shutil.rmtree(imname + '.image')
-                return [True, btstr, etstr, imname + '.fits']
-            else:
-                return [False, btstr, etstr, '']
-        except Exception as e:
-            if hasattr(e, 'message'):
-                print(e.message)
-            else:
-                print(e)
-            print('error in registering image: ' + btstr)
-            return [False, btstr, etstr, imname + '.image']
+        if os.path.isfile(imname + '.fits'):
+            return [True, btstr, etstr, imname + '.fits']
+        else:
+            try:
+                # check if ephemfile and msinfofile exist
+                if not ephem:
+                    print("ephemeris info does not exist, querying from JPL Horizons on the fly")
+                    ephem = hf.read_horizons(vis=vis)
+                if not msinfo:
+                    print("ms info not provided, generating one on the fly")
+                    msinfo = hf.read_msinfo(vis)
+                hf.imreg(vis=vis, ephem=ephem, msinfo=msinfo, timerange=timerange, reftime=reftime,
+                         imagefile=imname + '.image', fitsfile=imname + '.fits', overwrite=True,
+                         toTb=toTb, sclfactor=sclfactor, usephacenter=usephacenter, subregion=subregion,
+                         docompress=docompress)
+                if os.path.exists(imname + '.fits'):
+                    shutil.rmtree(imname + '.image')
+                    return [True, btstr, etstr, imname + '.fits']
+                else:
+                    return [False, btstr, etstr, imname + '.fits']
+            except Exception as e:
+                if hasattr(e, 'message'):
+                    print(e.message)
+                else:
+                    print(e)
+                print('error in registering image: ' + btstr)
+                return [False, btstr, etstr, imname + '.image']
     else:
         if os.path.exists(imname + '.image'):
             return [True, btstr, etstr, imname + '.image']
         else:
-            return [False, btstr, etstr, '']
+            return [False, btstr, etstr, imname + '.image']
 
 
 def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, sclfactor, subregion,

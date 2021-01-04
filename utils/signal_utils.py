@@ -3,6 +3,41 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+def normalize(y, ymax=None, ymin=None, center=None, symgamma=None):
+    '''
+    :param y:
+    :param ymax:
+    :param ymin:
+    :param center: option ---- None, zero, 0, mean
+    :param symgamma:
+    :return:
+    '''
+    if ymax is None:
+        ymax = np.nanmax(y)
+    if ymin is None:
+        ymin = np.nanmin(y)
+    if center is None:
+        return (y - ymin) / (ymax - ymin)
+    else:
+        if center == 'mean':
+            ycenter = np.nanmedian(y)
+        elif center in ['zero', '0',0]:
+            ycenter = 0.0
+        if symgamma is not None:
+            # ynew = (y - ycenter) / (ymax - ycenter)
+            idx_pos = np.where(y > ycenter)
+            idx_neg = np.where(y < ycenter)
+            ynew = np.empty_like(y)
+            ynew[:] = ycenter
+            ynew[idx_pos] = (y[idx_pos])**symgamma + ycenter
+            ynew[idx_neg] = -np.abs(y[idx_neg])**symgamma + ycenter
+            ymax = np.nanmax(ynew)
+            ymin = np.nanmin(ynew)
+            return (ynew - ycenter) / (ymax - ycenter) * 0.5 + 0.5
+        else:
+            return (y - ycenter) / (ymax - ymin) * 0.5 + 0.5
+
+
 def smooth(x, window_len=11, window='hanning', mode='same'):
     """smooth the data using a window with requested size.
 
@@ -59,6 +94,7 @@ def smooth(x, window_len=11, window='hanning', mode='same'):
         return y[np.int(window_len) - 1:-np.int(window_len) + 1]
     else:
         return y[np.int(window_len / 2 - 1):-np.int(window_len / 2)]
+
 
 def butter_lowpass(cutoff, fs, order=5):
     nyq = 0.5 * fs
@@ -147,11 +183,11 @@ def bandpass_filter(t, data, fs=1. / 4, cutoff=1. / 60, order=6, showplot=False)
     if showplot:
         plt.figure()
         plt.subplot(2, 1, 1)
-        plt.plot(1./(0.5 * fs * w / np.pi), np.abs(h), 'b')
-        plt.plot(1.0/cutoff[0], 0.5 * np.sqrt(2), 'ko')
-        plt.plot(1.0/cutoff[1], 0.5 * np.sqrt(2), 'ko')
-        plt.axvline(1.0/cutoff[0], color='k')
-        plt.axvline(1.0/cutoff[1], color='k')
+        plt.plot(1. / (0.5 * fs * w / np.pi), np.abs(h), 'b')
+        plt.plot(1.0 / cutoff[0], 0.5 * np.sqrt(2), 'ko')
+        plt.plot(1.0 / cutoff[1], 0.5 * np.sqrt(2), 'ko')
+        plt.axvline(1.0 / cutoff[0], color='k')
+        plt.axvline(1.0 / cutoff[1], color='k')
         plt.xlim(1. / (0.5 * fs), 100. / (0.5 * fs))
         plt.title("Bandpass Filter Frequency Response")
         plt.xlabel('Time [sec]')
@@ -241,7 +277,6 @@ def c_correlateX(a, v, returnx=False, returnav=False, s=0, xran=None):
         return np.correlate(a_, v_, mode='same')
 
 
-
 def get_xcorr_info(xcorr, cwidth_guess=2.5 / 24 / 60, showplt=False, verbose=False):
     '''
     calculate the error in time lag using equation (3) in Gaskell & Peterson 1987
@@ -283,7 +318,7 @@ def get_xcorr_info(xcorr, cwidth_guess=2.5 / 24 / 60, showplt=False, verbose=Fal
 
 
 def plot_wavelet(t, dat, dt, pl, pr, period_pltlim=None, ax=None, ax2=None, stscale=2, siglev=0.95, cmap='viridis',
-                 title='',levels=None,
+                 title='', levels=None,
                  label='', units='', tunits='',
                  sav_img=False):
     import pycwt as wavelet
