@@ -43,7 +43,7 @@ def udb_corr_external(filelist, udbcorr_path):
     fi.write('filelist_tmp = [] \n')
     fi.write('for ll in filelist: \n')
     fi.write("    try: \n")
-    fi.write("        filelist_tmp.append(pc.udb_corr(ll, outpath='{}/', calibrate=True)) \n".format(udbcorr_path))
+    fi.write("        filelist_tmp.append(pc.udb_corr(ll, outpath='{}/', calibrate=True, desat=True)) \n".format(udbcorr_path))
     fi.write("    except: \n")
     fi.write("        pass \n")
     fi.write('filelist = filelist_tmp \n')
