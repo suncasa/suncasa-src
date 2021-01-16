@@ -37,6 +37,15 @@ class Sunmap():
         else:
             self.sunmap = sunmap
 
+        try:
+            top_right_coord = self.sunmap.top_right_coord
+            bottom_left_coord = self.sunmap.bottom_left_coord
+            self.xrange = np.array([bottom_left_coord.Tx.to(u.arcsec).value, top_right_coord.Tx.to(u.arcsec).value])*u.arcsec
+            self.yrange = np.array([bottom_left_coord.Ty.to(u.arcsec).value, top_right_coord.Ty.to(u.arcsec).value])*u.arcsec
+        except:
+            self.xrange = self.sunmap.xrange
+            self.yrange = self.sunmap.yrange
+
     def map2wcsgrids(self, sunpymap=None, cell=False):
         '''
 
@@ -49,8 +58,8 @@ class Sunmap():
         if sunpymap is None:
             sunpymap = self.sunmap
         ny, nx = sunpymap.data.shape
-        x0, x1 = sunpymap.xrange.to(u.arcsec).value
-        y0, y1 = sunpymap.yrange.to(u.arcsec).value
+        x0, x1 = self.xrange.to(u.arcsec).value
+        y0, y1 = self.yrange.to(u.arcsec).value
         dx = sunpymap.scale.axis1.to(u.arcsec / u.pix).value
         dy = sunpymap.scale.axis2.to(u.arcsec / u.pix).value
 
@@ -72,18 +81,18 @@ class Sunmap():
         rot = rot % 360
         if rot == 90:
             extent = np.array(
-                sunpymap.yrange.to(u.arcsec).value[::-1].tolist() + sunpymap.xrange.to(u.arcsec).value.tolist())
+                self.yrange.to(u.arcsec).value[::-1].tolist() + self.xrange.to(u.arcsec).value.tolist())
             extent = extent - np.array([sunpymap.scale.axis2.value] * 2 + [sunpymap.scale.axis1.value] * 2) / 2.0
         elif rot == 180:
             extent = np.array(
-                sunpymap.xrange.to(u.arcsec).value[::-1].tolist() + sunpymap.yrange.to(u.arcsec).value[::-1].tolist())
+                self.xrange.to(u.arcsec).value[::-1].tolist() + self.yrange.to(u.arcsec).value[::-1].tolist())
             extent = extent - np.array([sunpymap.scale.axis1.value] * 2 + [sunpymap.scale.axis2.value] * 2) / 2.0
         elif rot == 270:
             extent = np.array(
-                sunpymap.yrange.to(u.arcsec).value.tolist() + sunpymap.xrange.to(u.arcsec).value[::-1].tolist())
+                self.yrange.to(u.arcsec).value.tolist() + self.xrange.to(u.arcsec).value[::-1].tolist())
             extent = extent - np.array([sunpymap.scale.axis1.value] * 2 + [sunpymap.scale.axis2.value] * 2) / 2.0
         else:
-            extent = np.array(sunpymap.xrange.to(u.arcsec).value.tolist() + sunpymap.yrange.to(u.arcsec).value.tolist())
+            extent = np.array(self.xrange.to(u.arcsec).value.tolist() + self.yrange.to(u.arcsec).value.tolist())
             extent = extent - np.array([sunpymap.scale.axis1.value] * 2 + [sunpymap.scale.axis2.value] * 2) / 2.0
         if rangereverse:
             x0, x1, y0, y1 = extent
