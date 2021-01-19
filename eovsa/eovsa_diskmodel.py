@@ -732,7 +732,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
     if os.path.exists(vis2 + '.flagversions'):
         os.system('rm -rf {}'.format(vis2 + '.flagversions'))
 
-    # flagmanager(msfile, mode='restore', versionname='with-RFI-or-BURSTS')
+    flagmanager(msfile, mode='restore', versionname='with-RFI-or-BURSTS')
     clearcal(msfile)
     applycal(vis=msfile, selectdata=True, antenna="0~12", gaintable=caltbs, interp="linear", calwt=False,
              applymode="calonly")
