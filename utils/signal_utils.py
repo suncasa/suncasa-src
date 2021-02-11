@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def normalize(y, ymax=None, ymin=None, center=None, symgamma=None):
+def normalize(y, ymax=None, ymin=None, center=None, yerr=None, symgamma=None):
     '''
     :param y:
     :param ymax:
@@ -17,11 +17,14 @@ def normalize(y, ymax=None, ymin=None, center=None, symgamma=None):
     if ymin is None:
         ymin = np.nanmin(y)
     if center is None:
-        return (y - ymin) / (ymax - ymin)
+        if yerr is None:
+            return (y - ymin) / (ymax - ymin)
+        else:
+            return [(y - ymin) / (ymax - ymin), yerr / (ymax - ymin)]
     else:
         if center == 'mean':
             ycenter = np.nanmedian(y)
-        elif center in ['zero', '0',0]:
+        elif center in ['zero', '0', 0]:
             ycenter = 0.0
         if symgamma is not None:
             # ynew = (y - ycenter) / (ymax - ycenter)
@@ -29,13 +32,21 @@ def normalize(y, ymax=None, ymin=None, center=None, symgamma=None):
             idx_neg = np.where(y < ycenter)
             ynew = np.empty_like(y)
             ynew[:] = ycenter
-            ynew[idx_pos] = (y[idx_pos])**symgamma + ycenter
-            ynew[idx_neg] = -np.abs(y[idx_neg])**symgamma + ycenter
+            ynew[idx_pos] = (y[idx_pos]) ** symgamma + ycenter
+            ynew[idx_neg] = -np.abs(y[idx_neg]) ** symgamma + ycenter
             ymax = np.nanmax(ynew)
-            ymin = np.nanmin(ynew)
-            return (ynew - ycenter) / (ymax - ycenter) * 0.5 + 0.5
+            # ymin = np.nanmin(ynew)
+            yout = (ynew - ycenter) / (ymax - ycenter) * 0.5 + 0.5
+            if yerr is None:
+                return yout
+            else:
+                return [yout, yerr ** symgamma / (ymax - ycenter) * 0.5]
         else:
-            return (y - ycenter) / (ymax - ymin) * 0.5 + 0.5
+            yout = (y - ycenter) / (ymax - ycenter) * 0.5 + 0.5
+            if yerr is None:
+                return yout
+            else:
+                return [yout, yerr / (ymax - ycenter) * 0.5]
 
 
 def smooth(x, window_len=11, window='hanning', mode='same'):
@@ -208,7 +219,7 @@ def bandpass_filter(t, data, fs=1. / 4, cutoff=1. / 60, order=6, showplot=False)
     return y
 
 
-def c_correlateX(a, v, returnx=False, returnav=False, s=0, xran=None):
+def c_correlateX(a, v, returnx=False, returnav=False, s=0, xran=None, coarse=False, interp='spl'):
     '''
 
     :param a:
@@ -247,32 +258,50 @@ def c_correlateX(a, v, returnx=False, returnav=False, s=0, xran=None):
 
         dx_a = np.abs(np.nanmean(np.diff(a_x)))
         dx_v = np.abs(np.nanmean(np.diff(v_x)))
-        if dx_a >= dx_v:
+
+        if coarse:
+            if dx_a < dx_v:
+                icase = 0
+            elif dx_a >= dx_v:
+                icase = 1
+        else:
+            if dx_a >= dx_v:
+                icase = 0
+            elif dx_a < dx_v:
+                icase = 1
+
+        if icase == 0:
             v_ = v_y.compressed()
             x_ = v_x.compressed()
-            tck = splrep(a_x.compressed(), a_y.compressed(), s=s)
-            ys = splev(x_, tck)
+            if interp == 'spl':
+                tck = splrep(a_x.compressed(), a_y.compressed(), s=s)
+                ys = splev(x_, tck)
+            else:
+                ys = np.interp(x_, a_x.compressed(), a_y.compressed())
             a_ = ys
-
-        elif dx_a < dx_v:
+        else:
             a_ = a_y.compressed()
             x_ = a_x.compressed()
-            tck = splrep(v_x.compressed(), v_y.compressed(), s=s)
-            ys = splev(x_, tck)
+            if interp == 'spl':
+                tck = splrep(v_x.compressed(), v_y.compressed(), s=s)
+                ys = splev(x_, tck)
+            else:
+                ys = np.interp(x_, v_x.compressed(), v_y.compressed())
             v_ = ys
-
     else:
         a_ = a.copy()
         v_ = v.copy()
         x_ = None
     a_ = (a_ - np.nanmean(a_)) / (np.nanstd(a_) * len(a_))
     v_ = (v_ - np.nanmean(v_)) / np.nanstd(v_)
+    print(a_.shape,v_.shape,x_.shape)
     if returnx:
         if x_ is None:
-            return np.arange(len(a_)) - np.floor(len(a_) / 2.0), np.correlate(a_, v_, mode='same')
+            return [np.arange(len(a_)) - np.floor(len(a_) / 2.0), np.correlate(a_, v_, mode='same')]
         else:
-            return (np.arange(len(a_)) - np.floor(len(a_) / 2.0)) * np.nanmean(np.diff(x_)), np.correlate(a_, v_,
-                                                                                                          mode='same'), x_, a_, v_
+            return [(np.arange(len(a_)) - np.floor(len(a_) / 2.0)) * np.nanmean(np.diff(x_)), np.correlate(a_, v_,
+                                                                                                           mode='same'),
+                    x_, a_, v_]
     else:
         return np.correlate(a_, v_, mode='same')
 
