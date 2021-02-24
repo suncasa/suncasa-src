@@ -52,7 +52,7 @@ def ant_trange(vis):
     # metadata = ms.metadata()
     scans = ms.getscansummary()
     sk = np.sort(scans.keys())
-    vistrange = np.array([scans[sk[0]]['0']['BeginTime'],scans[sk[-1]]['0']['EndTime']])
+    vistrange = np.array([scans[sk[0]]['0']['BeginTime'], scans[sk[-1]]['0']['EndTime']])
 
     # Get the Sun transit time, based on the date in the vis file name (must have UDByyyymmdd in the name)
     aa = ea.eovsa_array()
@@ -467,9 +467,9 @@ def calc_diskmodel(slashdate, nbands, freq, defaultfreq):
     return dsize, fdens
 
 
-def mk_diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d00m00.0s',
+def mk_diskmodel(outname='disk', direction='J2000 10h00m00.0s 20d00m00.0s',
                  reffreq='2.8GHz', flux=660000.0, eqradius='16.166arcmin', polradius='16.166arcmin',
-                 pangle='21.1deg', index=None, cell='2.0arcsec', overwrite=True):
+                 pangle='21.1deg', overwrite=True):
     ''' Create a blank solar disk model image (or optionally a data cube)
         outname       String to use for part of the image and fits file names (default 'disk')
         direction     String specifying the position of the Sun in RA and Dec.  Default
@@ -493,17 +493,14 @@ def mk_diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 
           (not the width of individual science channels)
     '''
 
-    diskim = outname + reffreq + '.im'
-    if os.path.exists(diskim):
+    diskcl = outname + reffreq + '.cl'
+    if os.path.exists(diskcl):
         if overwrite:
-            os.system('rm -rf {}'.format(diskim))
+            os.system('rm -rf {}'.format(diskcl))
         else:
-            return diskim
+            return diskcl
 
-    ia = iatool()
     cl = cltool()
-    cl.done()
-    ia.done()
 
     try:
         aspect = 1.01  # Enlarge the equatorial disk by 1%
@@ -511,45 +508,20 @@ def mk_diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 
         diamajor = qa.quantity(2 * aspect * eqradius['value'], eqradius['unit'])
         polradius = qa.quantity(polradius)
         diaminor = qa.quantity(2 * polradius['value'], polradius['unit'])
-        solrad = qa.convert(polradius, 'arcsec')
     except:
         print('Radius', eqradius, polradius,
               'does not have the expected format, number + unit where unit is arcmin or arcsec')
         return
-    try:
-        cell = qa.convert(qa.quantity(cell), 'arcsec')
-        cellsize = float(cell['value'])
-        diskpix = solrad['value'] * 2 / cellsize
-        cell_rad = qa.convert(cell, 'rad')
-    except:
-        print('Cell size', cell, 'does not have the expected format, number + unit where unit is arcmin or arcsec')
-        return
 
     # Add 90 degrees to pangle, due to angle definition in addcomponent() -- it puts the majoraxis vertical
     pangle = qa.add(qa.quantity(pangle), qa.quantity('90deg'))
-    mapsize = ((int(diskpix) / 512) + 1) * 512
     # Flux density is doubled because it is split between XX and YY
     cl.addcomponent(dir=direction, flux=flux * 2, fluxunit='Jy', freq=reffreq, shape='disk',
                     majoraxis=diamajor, minoraxis=diaminor, positionangle=pangle)
     cl.setrefdirframe(0, 'J2000')
-
-    ia.fromshape(diskim, [mapsize, mapsize, 1, 1], overwrite=True)
-    cs = ia.coordsys()
-    cs.setunits(['rad', 'rad', '', 'Hz'])
-    cell_rad_val = cell_rad['value']
-    cs.setincrement([-cell_rad_val, cell_rad_val], 'direction')
-    epoch, ra, dec = direction.split()
-    cs.setreferencevalue([qa.convert(ra, 'rad')['value'], qa.convert(dec, 'rad')['value']], type="direction")
-    cs.setreferencevalue(reffreq, 'spectral')
-    cs.setincrement(bdwidth, 'spectral')
-    ia.setcoordsys(cs.torecord())
-    ia.setbrightnessunit("Jy/pixel")
-    ia.modify(cl.torecord(), subtract=False)
-    ia.close()
-    ia.done()
-    # cl.close()
+    cl.rename(diskcl)
     cl.done()
-    return diskim
+    return diskcl
 
 
 def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, xmlfile='SOLDISK.xml', writediskinfoonly=False,
@@ -565,9 +537,9 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, xmlfile='SOLDISK
     spwinfo = ms.getspectralwindowinfo()
     nspw = len(spwinfo.keys())
     ms.close()
-    diskimdir = 'diskim/'
-    if not os.path.exists(diskimdir):
-        os.makedirs(diskimdir)
+    diskcldir = 'diskcl/'
+    if not os.path.exists(diskcldir):
+        os.makedirs(diskcldir)
     frq = []
     spws = range(nspw)
     for sp in spws:
@@ -584,22 +556,21 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, xmlfile='SOLDISK
         dec = phadir[1]
         direction = 'J2000 ' + str(ra) + 'rad ' + str(dec) + 'rad'
 
-        diskim = []
+        diskcl = []
         for sp in tqdm(spws, desc='Generating {} disk models'.format(nspw), ascii=True):
-            diskim.append(
-                mk_diskmodel(outname=diskimdir + 'disk{:02d}_'.format(sp), bdwidth=spwinfo[str(sp)],
-                             direction=direction,
-                             reffreq=frq[sp],
+            diskcl.append(
+                mk_diskmodel(outname=diskcldir + 'disk{:02d}_'.format(sp),
+                             direction=direction, reffreq=frq[sp],
                              flux=fdens[sp], eqradius=dsize[sp], polradius=dsize[sp], overwrite=overwrite))
 
         if not active:
             delmod(msfile, otf=True, scr=True)
 
         for sp in tqdm(spws, desc='Inserting disk model', ascii=True):
-            ft(vis=msfile, spw=str(sp), field='', model=str(diskim[sp]), nterms=1,
-               reffreq="", complist="", incremental=True, usescratch=True)
+            ft(vis=msfile, spw=str(sp), field='', model="", nterms=1,
+               reffreq="", complist=str(diskcl[sp]), incremental=False, usescratch=True)
 
-        return msfile, diskim
+        return msfile, diskcl
 
 
 def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'):
@@ -654,7 +625,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
     dsize, fdens = calc_diskmodel(slashdate, nbands, freq, defaultfreq)
     diskxmlfile = vis + '.SOLDISK.xml'
     # Insert the disk model (msfile is the same as vis, and will be used as the "original" vis file name)
-    msfile, diskim = insertdiskmodel(vis, dsize=dsize, fdens=fdens, xmlfile=diskxmlfile, active=active)
+    msfile, diskcl = insertdiskmodel(vis, dsize=dsize, fdens=fdens, xmlfile=diskxmlfile, active=active)
 
     if pols == 'XXYY':
         caltbs_ = {'XX': [], 'YY': []}
@@ -737,10 +708,10 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
     applycal(vis=msfile, selectdata=True, antenna="0~12", gaintable=caltbs, interp="linear", calwt=False,
              applymode="calonly")
     split(msfile, outputvis=vis2, datacolumn="corrected")
-    for sp, dkim in tqdm(enumerate(diskim), desc='Inserting disk model', ascii=True):
-        ft(vis=vis2, spw=str(sp), field='', model=str(dkim), nterms=1,
-           reffreq="", complist="", incremental=False, usescratch=True)
-        # mstl.modeltransfer(msfile, spw='{}'.format(sp))
+    for sp, dkcl in tqdm(enumerate(diskcl), desc='Inserting disk model', ascii=True):
+        ft(vis=vis2, spw=str(sp), field='', model="", nterms=1,
+           reffreq="", complist=str(dkcl), incremental=False, usescratch=True)
+    #     # mstl.modeltransfer(msfile, spw='{}'.format(sp))
     uvsub(vis=vis2, reverse=False)
 
     # Final split to
@@ -833,6 +804,8 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     '''
     trange = ant_trange(vis)
 
+    ia = iatool()
+
     if bright is None:
         bright = [True] * len(spws)
     # Insert model into ms and do "inf" gaincal, appending to table each subsequent time
@@ -853,7 +826,21 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
             if sp == '31~49':
                 # The high-band image is only made to band 43, so adjust the name
                 imname = 'images/briggs31-43.model'
-            ft(vis=vis, spw=sp, model=imname, usescratch=True, incremental=True)
+            imcl = imname.replace('.model', '.cl')
+            ia.open(imname)
+            cl = cltool()
+            cl.fromrecord(ia.findsources())
+            rfreq = ia.summary()['refval'][-1] / 1e9
+            for l in range(cl.length()):
+                cl.setfreq(l, rfreq, 'GHz')
+            cl.rename(imcl)
+            cl.done()
+            ia.close()
+            ## Note: ft does not work with complist if incremental is True.
+            ## Likely, set incremental to False is ok if we make visibility model for spw by spw.
+            ## Make model for specified spws will not affect other spws.
+            ft(vis=vis, spw=sp, model="", complist=imcl, usescratch=True, incremental=False)
+
             if pols == 'XXYY':
                 mstl.modeltransfer(vis, spw=sp)
     if pols == 'XXYY':
@@ -889,7 +876,17 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
             if sp == '31~49':
                 # The high-band image is only made to band 43, so adjust the name
                 imname = 'images/briggs31-43.model'
-            ft(vis=vis1, spw=sp, model=imname, usescratch=True)
+            imcl = imname.replace('.model', '.cl')
+            ia.open(imname)
+            cl = cltool()
+            cl.fromrecord(ia.findsources())
+            rfreq = ia.summary()['refval'][-1] / 1e9
+            for l in range(cl.length()):
+                cl.setfreq(l, rfreq, 'GHz')
+            cl.rename(imcl)
+            cl.done()
+            ia.close()
+            ft(vis=vis1, spw=sp, model="", complist=imcl, usescratch=True, incremental=False)
             if pols == 'XXYY':
                 mstl.modeltransfer(vis1, spw=sp)
     if pols == 'XXYY':
