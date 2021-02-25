@@ -2,7 +2,6 @@ import os
 import numpy as np
 from taskinit import tb
 
-
 def cpxx2yy(tb_in=[]):
     if not tb_in:
         print('tb_in not provided. Abort...')

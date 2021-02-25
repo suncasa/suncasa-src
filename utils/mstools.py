@@ -285,3 +285,22 @@ def gaincalXY(vis=None, caltable=None, pols='XXYY', msfileXY=None, gaintableXY=N
         for k, v in msfileXY.iteritems():
             os.system('rm -rf {}'.format(v))
     return
+
+
+def getmodel(vis, spw=None):
+    tb.open(vis, nomodify=True)
+    subt = tb.query("DATA_DESC_ID==" + str(spw))
+    model_d = subt.getcol('MODEL_DATA')
+    subt.done()
+    tb.done()
+    return model_d
+
+def putmodel(vis, spw=None, model=None):
+    tb.open(vis, nomodify=False)
+    subt = tb.query("DATA_DESC_ID==" + str(spw))
+    model_d = subt.putcol('MODEL_DATA',model)
+    subt.done()
+    tb.done()
+    return model_d
+
+
