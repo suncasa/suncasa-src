@@ -515,8 +515,8 @@ def mk_diskmodel(outname='disk', direction='J2000 10h00m00.0s 20d00m00.0s',
 
     # Add 90 degrees to pangle, due to angle definition in addcomponent() -- it puts the majoraxis vertical
     pangle = qa.add(qa.quantity(pangle), qa.quantity('90deg'))
-    # Flux density is doubled because it is split between XX and YY
-    cl.addcomponent(dir=direction, flux=flux * 2, fluxunit='Jy', freq=reffreq, shape='disk',
+    # Flux density is split between XX and YY
+    cl.addcomponent(dir=direction, flux=flux / 2.0, fluxunit='Jy', freq=reffreq, shape='disk',
                     majoraxis=diamajor, minoraxis=diaminor, positionangle=pangle)
     cl.setrefdirframe(0, 'J2000')
     cl.rename(diskcl)
