@@ -835,10 +835,10 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
             imcl = imname.replace('.model', '.cl')
             ia.open(imname)
             cl = cltool()
-            cl.fromrecord(ia.findsources())
-            rfreq = ia.summary()['refval'][-1] / 1e9
-            for l in range(cl.length()):
-                cl.setfreq(l, rfreq, 'GHz')
+            cl.fromrecord(ia.findsources(point=False))
+            # rfreq = ia.summary()['refval'][-1] / 1e9
+            # for l in range(cl.length()):
+            #     cl.setfreq(l, rfreq, 'GHz')
             cl.rename(imcl)
             cl.done()
             ia.close()
@@ -848,8 +848,8 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
             ft(vis=vis, spw=sp, model="", complist=imcl, usescratch=True, incremental=False)
 
             ## Note: modeltransfer is commented because ft generates model for both XX and YY
-            if pols == 'XXYY':
-                mstl.modeltransfer(vis, spw=sp)
+            # if pols == 'XXYY':
+            #     mstl.modeltransfer(vis, spw=sp)
     if pols == 'XXYY':
         mstl.gaincalXY(vis=vis, caltable=caltb, pols=pols, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
                        combine="scan", antenna='0~12&0~12', refant='0', refantmode="strict", solint='inf', gaintype='G',
@@ -886,16 +886,17 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
             imcl = imname.replace('.model', '.cl')
             ia.open(imname)
             cl = cltool()
-            cl.fromrecord(ia.findsources())
-            rfreq = ia.summary()['refval'][-1] / 1e9
-            for l in range(cl.length()):
-                cl.setfreq(l, rfreq, 'GHz')
+            cl.fromrecord(ia.findsources(point=False))
+            # rfreq = ia.summary()['refval'][-1] / 1e9
+            # for l in range(cl.length()):
+            #     cl.setfreq(l, rfreq, 'GHz')
             cl.rename(imcl)
             cl.done()
             ia.close()
             ft(vis=vis1, spw=sp, model="", complist=imcl, usescratch=True, incremental=False)
-            if pols == 'XXYY':
-                mstl.modeltransfer(vis1, spw=sp)
+            ## Note: modeltransfer is commented because ft generates model for both XX and YY
+            # if pols == 'XXYY':
+            #     mstl.modeltransfer(vis1, spw=sp)
     if pols == 'XXYY':
         mstl.gaincalXY(vis=vis1, caltable=caltb, pols=pols, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
                        combine="scan", antenna='0~12&0~12', refant='0', solint='10min', refantmode="strict",
