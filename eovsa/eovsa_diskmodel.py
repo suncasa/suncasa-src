@@ -835,7 +835,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
             imcl = imname.replace('.model', '.cl')
             ia.open(imname)
             cl = cltool()
-            cl.fromrecord(ia.findsources(point=False))
+            cl.fromrecord(ia.findsources(point=False, cutoff=0.15, width=9))
             # rfreq = ia.summary()['refval'][-1] / 1e9
             # for l in range(cl.length()):
             #     cl.setfreq(l, rfreq, 'GHz')
@@ -886,7 +886,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
             imcl = imname.replace('.model', '.cl')
             ia.open(imname)
             cl = cltool()
-            cl.fromrecord(ia.findsources(point=False))
+            cl.fromrecord(ia.findsources(point=False, cutoff=0.15, width=9))
             # rfreq = ia.summary()['refval'][-1] / 1e9
             # for l in range(cl.length()):
             #     cl.setfreq(l, rfreq, 'GHz')
