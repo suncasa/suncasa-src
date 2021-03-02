@@ -69,6 +69,7 @@ def ant_trange(vis):
     return trange
 
 
+
 def gaussian2d(x, y, amplitude, x0, y0, sigma_x, sigma_y, theta):
     x0 = float(x0)
     y0 = float(y0)
@@ -266,6 +267,21 @@ def read_ms(vis):
     ms.close()
     return {'amp': xxamp, 'phase': xxpha, 'fghz': fghz, 'band': band, 'mjd': mjd, 'uvdist': uvdist, 'uvangle': uvang}
 
+def im2cl(imname,clname):
+    if os.path.exists(clname):
+        os.system('rm -rf {}'.format(clname))
+    ia = iatool()
+    ia.open(imname)
+    cl = cltool()
+    srcs = ia.findsources(point=False, cutoff=0.15, width=9)
+    for k, v in srcs.iteritems():
+        if k.startswith('comp'):
+            ## note: Stokes I to XX
+            srcs[k]['flux']['value'] = srcs[k]['flux']['value'] / 2.0
+    cl.fromrecord(srcs)
+    cl.rename(clname)
+    cl.done()
+    ia.close()
 
 def fit_diskmodel(out, bidx, rstn_flux, uvfitrange=[1, 150], angle_tolerance=np.pi / 2, doplot=True):
     ''' Given the result returned by read_ms(), plots the amplitude vs. uvdistance
@@ -810,7 +826,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     '''
     trange = ant_trange(vis)
 
-    ia = iatool()
+
 
     if bright is None:
         bright = [True] * len(spws)
@@ -833,15 +849,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
                 # The high-band image is only made to band 43, so adjust the name
                 imname = 'images/briggs31-43.model'
             imcl = imname.replace('.model', '.cl')
-            ia.open(imname)
-            cl = cltool()
-            cl.fromrecord(ia.findsources(point=False, cutoff=0.15, width=9))
-            # rfreq = ia.summary()['refval'][-1] / 1e9
-            # for l in range(cl.length()):
-            #     cl.setfreq(l, rfreq, 'GHz')
-            cl.rename(imcl)
-            cl.done()
-            ia.close()
+            im2cl(imname, imcl)
             ## Note: ft does not work with complist if incremental is True.
             ## Likely, set incremental to False is ok if we make visibility model for spw by spw.
             ## Make model for specified spws will not affect other spws.
@@ -884,15 +892,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
                 # The high-band image is only made to band 43, so adjust the name
                 imname = 'images/briggs31-43.model'
             imcl = imname.replace('.model', '.cl')
-            ia.open(imname)
-            cl = cltool()
-            cl.fromrecord(ia.findsources(point=False, cutoff=0.15, width=9))
-            # rfreq = ia.summary()['refval'][-1] / 1e9
-            # for l in range(cl.length()):
-            #     cl.setfreq(l, rfreq, 'GHz')
-            cl.rename(imcl)
-            cl.done()
-            ia.close()
+            im2cl(imname, imcl)
             ft(vis=vis1, spw=sp, model="", complist=imcl, usescratch=True, incremental=False)
             ## Note: modeltransfer is commented because ft generates model for both XX and YY
             # if pols == 'XXYY':
