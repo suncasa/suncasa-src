@@ -274,10 +274,10 @@ def im2cl(imname,clname):
     ia.open(imname)
     cl = cltool()
     srcs = ia.findsources(point=False, cutoff=0.15, width=9)
-    for k, v in srcs.iteritems():
-        if k.startswith('comp'):
-            ## note: Stokes I to XX
-            srcs[k]['flux']['value'] = srcs[k]['flux']['value'] / 2.0
+    # for k, v in srcs.iteritems():
+    #     if k.startswith('comp'):
+    #         ## note: Stokes I to XX
+    #         srcs[k]['flux']['value'] = srcs[k]['flux']['value'] / 2.0
     cl.fromrecord(srcs)
     cl.rename(clname)
     cl.done()
