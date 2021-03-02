@@ -273,7 +273,7 @@ def im2cl(imname,clname):
     ia = iatool()
     ia.open(imname)
     cl = cltool()
-    srcs = ia.findsources(point=False, cutoff=0.15, width=9)
+    srcs = ia.findsources(point=False, cutoff=0.12, width=9)
     # for k, v in srcs.iteritems():
     #     if k.startswith('comp'):
     #         ## note: Stokes I to XX
