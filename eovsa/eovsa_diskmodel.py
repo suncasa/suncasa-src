@@ -1077,7 +1077,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         print('spw {} have bright features on disk.'.format(';'.join(np.array(spws)[np.where(bright)[0]])))
         active = True
         # A bright source exists, so do feature self-calibration
-        ms_slfcaled2 = feature_slfcal(vis, niter=100, slfcaltbdir=slfcaltbdir, spws=spws, bright=bright, pols=pols)
+        ms_slfcaled2 = feature_slfcal(vis, niter=200, slfcaltbdir=slfcaltbdir, spws=spws, bright=bright, pols=pols)
         vis = ms_slfcaled2
     else:
         if os.path.exists('images_init'):
