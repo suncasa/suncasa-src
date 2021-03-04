@@ -267,13 +267,24 @@ def read_ms(vis):
     return {'amp': xxamp, 'phase': xxpha, 'fghz': fghz, 'band': band, 'mjd': mjd, 'uvdist': uvdist, 'uvangle': uvang}
 
 
-def im2cl(imname, clname, width=9, verbose=False):
+def im2cl(imname, clname, convol=True, verbose=False):
     if os.path.exists(clname):
         os.system('rm -rf {}'.format(clname))
     ia = iatool()
     ia.open(imname)
+    ia2 = iatool()
+    ia2.open(imname.replace('.model', '.image'))
+    bm = ia2.restoringbeam()
+    bmsize = (qa.convert(qa.quantity(bm['major']), 'arcsec')['value'] +
+              qa.convert(qa.quantity(bm['minor']), 'arcsec')['value']) / 2.0
+    if convol:
+        im2 = ia.sepconvolve(types=['gaussian', 'gaussian'], widths="{0:}arcsec {0:}arcsec".format(2.5*bmsize),
+                             overwrite=True)
+        ia2.done()
+    else:
+        im2 = ia
     cl = cltool()
-    srcs = ia.findsources(point=False, cutoff=0.3, width=width)
+    srcs = im2.findsources(point=False, cutoff=0.3, width=int(np.ceil(bmsize/2.5)))
     # srcs = ia.findsources(point=False, cutoff=0.1, width=5)
     if verbose:
         for k, v in srcs.iteritems():
@@ -284,7 +295,8 @@ def im2cl(imname, clname, width=9, verbose=False):
     cl.fromrecord(srcs)
     cl.rename(clname)
     cl.done()
-    ia.close()
+    ia.done()
+    im2.done()
 
 
 def fit_diskmodel(out, bidx, rstn_flux, uvfitrange=[1, 150], angle_tolerance=np.pi / 2, doplot=True):
@@ -801,7 +813,8 @@ def fd_images(vis, cleanup=False, niter=None, spws=['0~1', '2~5', '6~10', '11~20
             tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
                    antenna="0~12", datacolumn="data", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
                    stokes=stokes, projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
-                   scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0.5,
+                   scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs",
+                   robust=0.0,
                    niter=niter, gain=0.05, savemodel="none", usemask='auto-multithresh', pbmask=0.0,
                    sidelobethreshold=1.0, noisethreshold=2.5, lownoisethreshold=1.5, negativethreshold=5.0,
                    smoothfactor=1.0, minbeamfrac=0.3, cutthreshold=0.01, growiterations=75, dogrowprune=True,
@@ -843,7 +856,6 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     caltb = os.path.join(slfcaltbdir, tdate + '_d1.pha')
     if os.path.exists(caltb):
         os.system('rm -rf {}*'.format(caltb))
-    widths = [9, 9, 9, 7, 7, 5, 5, 5]
     for s, sp in enumerate(spws):
         if bright[s]:
             spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
@@ -852,7 +864,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
                 # The high-band image is only made to band 43, so adjust the name
                 imname = 'images/briggs31-43.model'
             imcl = imname.replace('.model', '.cl')
-            im2cl(imname, imcl, width=widths[s])
+            im2cl(imname, imcl)
             ## Note: ft does not work with complist if incremental is True.
             ## Likely, set incremental to False is ok if we make visibility model for spw by spw.
             ## Make model for specified spws will not affect other spws.
@@ -895,7 +907,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
                 # The high-band image is only made to band 43, so adjust the name
                 imname = 'images/briggs31-43.model'
             imcl = imname.replace('.model', '.cl')
-            im2cl(imname, imcl, width=widths[s])
+            im2cl(imname, imcl)
             ft(vis=vis1, spw=sp, model="", complist=imcl, usescratch=True, incremental=False)
             ## Note: modeltransfer is commented because ft generates model for both XX and YY
             # if pols == 'XXYY':
@@ -1065,7 +1077,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         print('spw {} have bright features on disk.'.format(';'.join(np.array(spws)[np.where(bright)[0]])))
         active = True
         # A bright source exists, so do feature self-calibration
-        ms_slfcaled2 = feature_slfcal(vis, niter=200, slfcaltbdir=slfcaltbdir, spws=spws, bright=bright, pols=pols)
+        ms_slfcaled2 = feature_slfcal(vis, niter=100, slfcaltbdir=slfcaltbdir, spws=spws, bright=bright, pols=pols)
         vis = ms_slfcaled2
     else:
         if os.path.exists('images_init'):
