@@ -654,11 +654,11 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
     if not active:
         clearcal(vis)
 
-    flagmanager(vis, mode='save', versionname='with-RFI-or-BURSTS')
+    flagmanager(vis, mode='save', versionname='diskslfcal_init')
     ## automaticaly flag any high amplitudes from flares or RFI
     flagdata(vis=vis, mode="tfcrop", spw='', action='apply', display='',
              timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=False)
-    flagmanager(vis, mode='save', versionname='without-RFI-or-BURSTS')
+    flagmanager(vis, mode='save', versionname='diskslfcal_remove_RFI-and-BURSTS')
 
     dsize, fdens = calc_diskmodel(slashdate, nbands, freq, defaultfreq)
     diskxmlfile = vis + '.SOLDISK.xml'
@@ -741,7 +741,7 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
     if os.path.exists(vis2 + '.flagversions'):
         os.system('rm -rf {}'.format(vis2 + '.flagversions'))
 
-    flagmanager(msfile, mode='restore', versionname='with-RFI-or-BURSTS')
+    flagmanager(msfile, mode='restore', versionname='diskslfcal_init')
     clearcal(msfile)
     applycal(vis=msfile, selectdata=True, antenna="0~12", gaintable=caltbs, interp="linear", calwt=False,
              applymode="calonly")
@@ -851,6 +851,13 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
         os.system('rm -rf images_init')
     os.system('mv images images_init')
     clearcal(vis, addmodel=True)
+
+    flagmanager(vis, mode='save', versionname='featureslfcal_init')
+    ## automaticaly flag any high amplitudes from flares or RFI
+    flagdata(vis=vis, mode="tfcrop", spw='', action='apply', display='',
+             timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=False)
+    flagmanager(vis, mode='save', versionname='featureslfcal_remove_RFI-and-BURSTS')
+
     fd_images(vis, cleanup=False, niter=niter, spws=spws, bright=bright)  # Does shallow clean for selfcal purposes
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_d1.pha')
@@ -927,6 +934,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     if os.path.exists(vis2):
         os.system('rm -rf {}'.format(vis2))
     mstl.splitX(vis1, outputvis=vis2, datacolumn="corrected", datacolumn2="model_data")
+    flagmanager(vis2, mode='restore', versionname='featureslfcal_init')
     if os.path.exists('images_ftcal_rnd2'):
         os.system('rm -rf images_ftcal_rnd2')
     os.system('mv images images_ftcal_rnd2')
@@ -1052,10 +1060,17 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     vis = os.path.basename(vis)
     # Generate calibrated visibility by self calibrating on the solar disk
     ##ms_slfcaled, diskxmlfile = disk_slfcal(vis, slfcaltbdir=slfcaltbdir)
+    flagmanager(vis, mode='save', versionname='pipeline_init')
+    ## automaticaly flag any high amplitudes from flares or RFI
+    flagdata(vis=vis, mode="tfcrop", spw='', action='apply', display='',
+             timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=False)
+    flagmanager(vis, mode='save', versionname='pipeline_remove_RFI-and-bursts')
+
     # Make initial images from self-calibrated visibility file, and check T_b max
     if os.path.exists('images'):
         shutil.rmtree('images')
     outputfits = fd_images(vis, imgoutdir=imgoutdir, spws=spws)
+    flagmanager(vis, mode='restore', versionname='pipeline_init')
     # outputfits = fd_images(vis, imgoutdir=imgoutdir, spws=spws, cleanup=True) change cleanup here?
     ####### outputfits is with model
     # Check if any of the images has a bright source (T_b > 300,000 K), and if so, remake images
