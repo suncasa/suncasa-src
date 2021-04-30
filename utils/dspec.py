@@ -180,6 +180,8 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
             print('doing median of all the baselines')
         # mask zero values before median
         spec_masked = np.ma.masked_where(spec < 1e-9, spec)
+        spec_masked2 = np.ma.masked_invalid(spec)
+        spec_masked = np.ma.masked_array(spec,mask=np.logical_or(spec_masked.mask, spec_masked2.mask))
         spec_med = np.ma.filled(np.ma.median(spec_masked, axis=1), fill_value=0.)
         nbl = 1
         ospec = spec_med.reshape((npol, nbl, nfreq, ntim))
@@ -274,7 +276,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None, norm=None,
     #    dmax = spec_med * 5.
     # do the plot
     if norm is None:
-        norm = colors.Normalize(vmax=dmax,vmin=dmin)
+        norm = colors.Normalize(vmax=dmax, vmin=dmin)
     for b in range(nbl):
         if pol not in ['RRLL', 'IV', 'XXYY']:
             if pol in ['RR', 'XX']:
