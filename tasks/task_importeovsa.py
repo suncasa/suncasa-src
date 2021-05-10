@@ -144,13 +144,17 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     # try:
     msname0 = list(filename.split('/')[-1])
     msname = visprefix + ''.join(msname0) + '.ms'
-    uv.select('antennae', 0, 1, include=True)
-    uv.select('polarization', -5, -5, include=True)
+    # try:
+    # uv.select('antennae', 0, 1, include=True)
+    # uv.select('polarization', -5, -5, include=True)
     times = []
     uv.rewind()
     for preamble, data in uv.all():
         uvw, t, (i, j) = preamble
         times.append(t)
+    times = np.unique(times)
+    # except:
+    #     pass
 
     uv.select('clear', -1, -1, include=True)
     times = ipe.jd2mjds(np.asarray(times))
