@@ -87,12 +87,14 @@ def creatms(idbfile, outpath, timebin=None, width=None):
     # else:
     #     uv_str = uv
 
-    uv.select('antennae', 0, 1, include=True)
-    uv.select('polarization', -5, -5, include=True)
+    # uv.select('antennae', 0, 1, include=True)
+    # uv.select('polarization', -5, -5, include=True)
     times = []
+    uv.rewind()
     for preamble, data in uv.all():
         uvw, t, (i, j) = preamble
         times.append(t)
+    times = np.unique(times)
 
     uv.select('clear', -1, -1, include=True)
     times = jd2mjds(np.asarray(times))
