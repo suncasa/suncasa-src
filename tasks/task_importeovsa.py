@@ -43,7 +43,8 @@ def udb_corr_external(filelist, udbcorr_path):
     fi.write('filelist_tmp = [] \n')
     fi.write('for ll in filelist: \n')
     fi.write("    try: \n")
-    fi.write("        filelist_tmp.append(pc.udb_corr(ll, outpath='{}/', calibrate=True, desat=True)) \n".format(udbcorr_path))
+    fi.write("        filelist_tmp.append(pc.udb_corr(ll, outpath='{}/', calibrate=True, desat=True)) \n".format(
+        udbcorr_path))
     fi.write("    except: \n")
     fi.write("        pass \n")
     fi.write('filelist = filelist_tmp \n')
@@ -147,22 +148,6 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     # try:
     # uv.select('antennae', 0, 1, include=True)
     # uv.select('polarization', -5, -5, include=True)
-    times = []
-    uv.rewind()
-    for preamble, data in uv.all():
-        uvw, t, (i, j) = preamble
-        times.append(t)
-    times = np.unique(times)
-    # except:
-    #     pass
-
-    uv.select('clear', -1, -1, include=True)
-    times = ipe.jd2mjds(np.asarray(times))
-    inttime = np.median((times - np.roll(times, 1))[1:]) / 60
-
-    time_steps = len(times)
-    durtim = int((times[-1] - times[0]) / 60 + inttime)
-    time0 = time.time()
 
     if 'antlist' in uv.vartable:
         ants = uv['antlist'].replace('\x00', '')
@@ -182,6 +167,33 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     nbl = nants * (nants - 1) / 2
     bl2ord = ipe.bl_list2(nants)
     npairs = nbl + nants
+
+    timesall = []
+    uv.rewind()
+    for preamble, data in uv.all():
+        uvw, t, (i, j) = preamble
+        timesall.append(t)
+    timesjd = np.unique(timesall)
+    # except:
+    #     pass
+
+    uv.select('clear', -1, -1, include=True)
+    times = ipe.jd2mjds(np.asarray(timesjd))
+    inttime = np.median((times - np.roll(times, 1))[1:]) / 60  ## time in minutes
+
+    # time_steps = len(times)
+    time_steps = len(timesall) / (npairs * npol)
+    if len(times) != time_steps:
+        ### This is to solve the timestamp glitch in idb files.
+        ### The timestamps are supposed to be evenly spaced
+        ### However, some idb files may miss a few timestamps in the evenly-spaced time grid.
+        ### The step will map the the data to the evenly-spaced time grid.
+        timesnew = np.linspace(times[0], times[-1], time_steps)
+        timesnew[np.hstack([[0], np.cumsum(np.round(np.diff(times) / 60 / inttime))]).astype(np.int)] = times
+        times = timesnew
+    durtim = int(np.round((times[-1] - times[0]) / 60 + inttime))  ## time in minutes
+    time0 = time.time()
+
     flag = np.ones((npol, nf, time_steps, npairs), dtype=bool)
     out = np.zeros((npol, nf, time_steps, npairs), dtype=np.complex64)  # Cross-correlations
     uvwarray = np.zeros((3, time_steps, npairs), dtype=np.float)
@@ -203,11 +215,15 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         l += 1
         mask0 = data.mask
         data = ma.masked_array(ma.masked_invalid(data), fill_value=0.0)
-        out[k, :, l / (npairs * npol), bl2ord[i0, j0]] = data.data
-        flag[k, :, l / (npairs * npol), bl2ord[i0, j0]] = np.logical_or(data.mask, mask0)
+        try:
+            tidx = np.where(np.abs(timesjd - t) < inttime / (24 * 60))[0][0]
+        except:
+            tidx = l / (npairs * npol)
+        out[k, :, tidx, bl2ord[i0, j0]] = data.data
+        flag[k, :, tidx, bl2ord[i0, j0]] = np.logical_or(data.mask, mask0)
         # if i != j:
         if k == 3:
-            uvwarray[:, l / (npairs * npol), bl2ord[i0, j0]] = -uvw * constants.speed_of_light / 1e9
+            uvwarray[:, tidx, bl2ord[i0, j0]] = -uvw * constants.speed_of_light / 1e9
 
     nrows = time_steps * npairs
     if doscaling:
