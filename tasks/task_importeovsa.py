@@ -180,9 +180,10 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     uv.select('clear', -1, -1, include=True)
     times = ipe.jd2mjds(np.asarray(timesjd))
     inttime = np.median((times - np.roll(times, 1))[1:]) / 60  ## time in minutes
+    inttimed = inttime / (24 * 60)  ## time in days
 
-    # time_steps = len(times)
-    time_steps = len(timesall) / (npairs * npol)
+    time_steps = np.round((times[-1] - times[0]) / inttime / 60).astype(np.int) + 1
+    # time_steps = len(timesall) / (npairs * npol)
     if len(times) != time_steps:
         ### This is to solve the timestamp glitch in idb files.
         ### The timestamps are supposed to be evenly spaced
@@ -216,7 +217,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         mask0 = data.mask
         data = ma.masked_array(ma.masked_invalid(data), fill_value=0.0)
         try:
-            tidx = np.where(np.abs(timesjd - t) < inttime / (24 * 60))[0][0]
+            tidx = np.where(np.abs(timesjd - t) < inttimed)[0][0]
         except:
             tidx = l / (npairs * npol)
         out[k, :, tidx, bl2ord[i0, j0]] = data.data
@@ -254,13 +255,13 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         casalog.post('----------------------------------------')
         casalog.post('copying standard MS to {0}'.format(msname, (time.time() - time0)))
         casalog.post('----------------------------------------')
-        os.system("rm -fr %s" % msname)
-        os.system("cp -r " + " %s" % modelms + " %s" % msname)
+        os.system("rm -fr {}".format(msname))
+        os.system("cp -r {} {}".format(modelms, msname))
         casalog.post('Standard MS is copied to {0} in --- {1:10.2f} seconds ---'.format(msname, (time.time() - time0)))
 
     tb.open(msname, nomodify=False)
     casalog.post('----------------------------------------')
-    casalog.post("Updating the main table of" '%s' % msname)
+    casalog.post("Updating the main table of {}".format(msname))
     casalog.post('----------------------------------------')
     for l, cband in enumerate(chan_band):
         time1 = time.time()
@@ -290,7 +291,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     tb.close()
 
     casalog.post('----------------------------------------')
-    casalog.post("Updating the OBSERVATION table of" '%s' % msname)
+    casalog.post("Updating the OBSERVATION table of {}".format(msname))
     casalog.post('----------------------------------------')
     tb.open(msname + '/OBSERVATION', nomodify=False)
     tb.putcol('TIME_RANGE', np.asarray([times[0] - 0.5 * inttime, times[-1] + 0.5 * inttime]).reshape(2, 1))
@@ -298,7 +299,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     tb.close()
 
     casalog.post('----------------------------------------')
-    casalog.post("Updating the POINTING table of" '%s' % msname)
+    casalog.post("Updating the POINTING table of {}".format(msname))
     casalog.post('----------------------------------------')
     tb.open(msname + '/POINTING', nomodify=False)
     timearr = times.reshape(1, time_steps, 1)
@@ -317,7 +318,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     tb.close()
 
     casalog.post('----------------------------------------')
-    casalog.post("Updating the SOURCE table of" '%s' % msname)
+    casalog.post("Updating the SOURCE table of {}".format(msname))
     casalog.post('----------------------------------------')
     tb.open(msname + '/SOURCE', nomodify=False)
     radec = tb.getcol('DIRECTION')
@@ -328,7 +329,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     tb.close()
 
     casalog.post('----------------------------------------')
-    casalog.post("Updating the DATA_DESCRIPTION table of" '%s' % msname)
+    casalog.post("Updating the DATA_DESCRIPTION table of {}".format(msname))
     casalog.post('----------------------------------------')
     tb.open(msname + '/DATA_DESCRIPTION/', nomodify=False)
     pol_id = tb.getcol('POLARIZATION_ID')
@@ -340,14 +341,14 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     tb.close()
 
     # casalog.post('----------------------------------------')
-    # casalog.post("Updating the POLARIZATION table of" '%s' % msname)
+    # casalog.post("Updating the POLARIZATION table of {}".format(msname))
     # casalog.post('----------------------------------------')
     # tb.open(msname + '/POLARIZATION/', nomodify=False)
     # tb.removerows(rownrs=np.arange(1, nband, dtype=int))
     # tb.close()
 
     casalog.post('----------------------------------------')
-    casalog.post("Updating the FIELD table of" '%s' % msname)
+    casalog.post("Updating the FIELD table of {}".format(msname))
     casalog.post('----------------------------------------')
     tb.open(msname + '/FIELD/', nomodify=False)
     delay_dir = tb.getcol('DELAY_DIR')
@@ -375,7 +376,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
             msname_scl = msname
         tb.open(msname_scl, nomodify=False)
         casalog.post('----------------------------------------')
-        casalog.post("Updating the main table of" '%s' % msname_scl)
+        casalog.post("Updating the main table of {}".format(msname_scl))
         casalog.post('----------------------------------------')
         for l, cband in enumerate(chan_band):
             time1 = time.time()
@@ -399,7 +400,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         msfile = msname
         if doscaling:
             msfile_scl = msname_scl
-    casalog.post("finished in --- %s seconds ---" % (time.time() - time0))
+    casalog.post("finished in --- {:.1f} seconds ---".format(time.time() - time0))
     if doscaling:
         return [True, msfile, msfile_scl, durtim]
     else:
