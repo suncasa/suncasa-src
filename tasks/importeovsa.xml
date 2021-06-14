@@ -129,6 +129,11 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
             <value>True</value>
         </param>
 
+        <param type="bool" name="use_exist_udbcorr" subparam="false">
+            <description>If use the existed udb_corr results. </description>
+            <value>False</value>
+        </param>
+
         <param type="bool" name="nocreatms">
             <description>If setting nocreatms True, will simulate a model measurement set for the first idb file and copy the model for the rest of idl files in list. If False, will simulate a new measurement set for every idbfile in list.</description>
             <value>False</value>
@@ -164,7 +169,14 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
                         <value type="bool">False</value>
                     </default>
                 </equals>
+            </when>
+            <when param="udb_corr">
                 <equals type="bool" value="False"/>
+                <equals type="bool" value="True">
+                    <default param="use_exist_udbcorr">
+                        <value type="bool">False</value>
+                    </default>
+                </equals>
             </when>
         </constraints>
 
