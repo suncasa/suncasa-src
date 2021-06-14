@@ -19,54 +19,58 @@ from eovsapy import util
 #     idbdir = '/data1/eovsa/fits/IDB/'
 
 
-def udb_corr_external(filelist, udbcorr_path):
+def udb_corr_external(filelist, udbcorr_path,udb_corr_overwrite=True):
     import pickle
     udbcorr_script = os.path.join(udbcorr_path, 'udbcorr_ext.py')
     if os.path.exists(udbcorr_script):
         os.system('rm -rf {}'.format(udbcorr_script))
     udbcorr_file = os.path.join(udbcorr_path, 'udbcorr_tmp.pickle')
-    if os.path.exists(udbcorr_file):
-        os.system('rm -rf {}'.format(udbcorr_file))
-    with open(udbcorr_file, 'wb') as sf:
-        pickle.dump(filelist, sf)
 
-    fi = open(udbcorr_script, 'wb')
-    fi.write('import pickle \n')
-    fi.write('import pipeline_cal as pc \n')
-    fi.write('import sys \n')
-    fi.write('syspath = sys.path \n')
-    fi.write("sys.path = [l for l in syspath if 'casa' not in l] \n")
+    if (not udb_corr_overwrite) and os.path.exists(udbcorr_file):
+        with open(udbcorr_file, 'rb') as sf:
+            filelist = pickle.load(sf)
+    else:
+        if os.path.exists(udbcorr_file):
+            os.system('rm -rf {}'.format(udbcorr_file))
+        with open(udbcorr_file, 'wb') as sf:
+            pickle.dump(filelist, sf)
+        fi = open(udbcorr_script, 'wb')
+        fi.write('import pickle \n')
+        fi.write('import pipeline_cal as pc \n')
+        fi.write('import sys \n')
+        fi.write('syspath = sys.path \n')
+        fi.write("sys.path = [l for l in syspath if 'casa' not in l] \n")
 
-    fi.write("with open('{}', 'rb') as sf: \n".format(udbcorr_file))
-    fi.write('    filelist = pickle.load(sf) \n')
+        fi.write("with open('{}', 'rb') as sf: \n".format(udbcorr_file))
+        fi.write('    filelist = pickle.load(sf) \n')
 
-    fi.write('filelist_tmp = [] \n')
-    fi.write('for ll in filelist: \n')
-    fi.write("    try: \n")
-    fi.write("        filelist_tmp.append(pc.udb_corr(ll, outpath='{}/', calibrate=True, desat=True)) \n".format(
-        udbcorr_path))
-    fi.write("    except: \n")
-    fi.write("        pass \n")
-    fi.write('filelist = filelist_tmp \n')
-    fi.write("with open('{}', 'wb') as sf: \n".format(udbcorr_file))
-    fi.write('    pickle.dump(filelist,sf) \n')
-    fi.close()
+        fi.write('filelist_tmp = [] \n')
+        fi.write('for ll in filelist: \n')
+        fi.write("    try: \n")
+        fi.write("        filelist_tmp.append(pc.udb_corr(ll, outpath='{}/', calibrate=True, desat=True)) \n".format(
+            udbcorr_path))
+        fi.write("    except: \n")
+        fi.write("        pass \n")
+        fi.write('filelist = filelist_tmp \n')
+        fi.write("with open('{}', 'wb') as sf: \n".format(udbcorr_file))
+        fi.write('    pickle.dump(filelist,sf) \n')
+        fi.close()
 
-    udbcorr_shellscript = os.path.join(udbcorr_path, 'udbcorr_ext.csh')
-    if os.path.exists(udbcorr_shellscript):
-        os.system('rm -rf {}'.format(udbcorr_shellscript))
-    fi = open(udbcorr_shellscript, 'wb')
-    fi.write('#! /bin/tcsh -f \n')
-    fi.write(' \n')
-    # fi.write('setenv PYTHONPATH "/home/user/test_svn/python:/common/python/current:/common/python" \n')
-    fi.write('source /home/user/.cshrc \n')
-    fi.write('/common/anaconda2/bin/python {} \n'.format(udbcorr_script))
-    fi.close()
+        udbcorr_shellscript = os.path.join(udbcorr_path, 'udbcorr_ext.csh')
+        if os.path.exists(udbcorr_shellscript):
+            os.system('rm -rf {}'.format(udbcorr_shellscript))
+        fi = open(udbcorr_shellscript, 'wb')
+        fi.write('#! /bin/tcsh -f \n')
+        fi.write(' \n')
+        # fi.write('setenv PYTHONPATH "/home/user/test_svn/python:/common/python/current:/common/python" \n')
+        fi.write('source /home/user/.cshrc \n')
+        fi.write('/common/anaconda2/bin/python {} \n'.format(udbcorr_script))
+        fi.close()
 
-    os.system('/bin/tcsh {}'.format(udbcorr_shellscript))
+        os.system('/bin/tcsh {}'.format(udbcorr_shellscript))
 
-    with open(udbcorr_file, 'rb') as sf:
-        filelist = pickle.load(sf)
+        with open(udbcorr_file, 'rb') as sf:
+            filelist = pickle.load(sf)
 
     if filelist == []:
         raise ValueError('udb_corr failed to return any results. Please check your calibration.')
