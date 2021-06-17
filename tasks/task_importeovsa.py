@@ -8,13 +8,15 @@ from taskinit import tb, casalog
 from split_cli import split_cli as split
 from suncasa.eovsa import impteovsa as ipe
 from astropy.time import Time
+from eovsapy import util
 
-idbdir = os.getenv('EOVSAIDB')
 
-if not idbdir:
-    print('Environmental variable for EOVSA idb path not defined')
-    print('Use default path on pipeline')
-    idbdir = '/data1/eovsa/fits/IDB/'
+# idbdir = os.getenv('EOVSAIDB')
+#
+# if not idbdir:
+#     print('Environmental variable for EOVSA idb path not defined')
+#     print('Use default path on pipeline')
+#     idbdir = '/data1/eovsa/fits/IDB/'
 
 
 def udb_corr_external(filelist, udbcorr_path):
@@ -41,7 +43,7 @@ def udb_corr_external(filelist, udbcorr_path):
     fi.write('filelist_tmp = [] \n')
     fi.write('for ll in filelist: \n')
     fi.write("    try: \n")
-    fi.write("        filelist_tmp.append(pc.udb_corr(ll, outpath='{}/', calibrate=True)) \n".format(udbcorr_path))
+    fi.write("        filelist_tmp.append(pc.udb_corr(ll, outpath='{}/', calibrate=True, desat=True)) \n".format(udbcorr_path))
     fi.write("    except: \n")
     fi.write("        pass \n")
     fi.write('filelist = filelist_tmp \n')
@@ -49,12 +51,23 @@ def udb_corr_external(filelist, udbcorr_path):
     fi.write('    pickle.dump(filelist,sf) \n')
     fi.close()
 
-    os.system('/common/anaconda2/bin/python {}'.format(udbcorr_script))
+    udbcorr_shellscript = os.path.join(udbcorr_path, 'udbcorr_ext.csh')
+    if os.path.exists(udbcorr_shellscript):
+        os.system('rm -rf {}'.format(udbcorr_shellscript))
+    fi = open(udbcorr_shellscript, 'wb')
+    fi.write('#! /bin/tcsh -f \n')
+    fi.write(' \n')
+    # fi.write('setenv PYTHONPATH "/home/user/test_svn/python:/common/python/current:/common/python" \n')
+    fi.write('source /home/user/.cshrc \n')
+    fi.write('/common/anaconda2/bin/python {} \n'.format(udbcorr_script))
+    fi.close()
+
+    os.system('/bin/tcsh {}'.format(udbcorr_shellscript))
 
     with open(udbcorr_file, 'rb') as sf:
         filelist = pickle.load(sf)
 
-    if filelist==[]:
+    if filelist == []:
         raise ValueError('udb_corr failed to return any results. Please check your calibration.')
     return filelist
 
@@ -118,6 +131,7 @@ def trange2filelist(trange=[], verbose=False):
         print(
             '{} file found in the time range from {} to {}: '.format(len(filelist), t1.strftime('%Y-%m-%d %H:%M:%S UT'),
                                                                      t2.strftime('%Y-%m-%d %H:%M:%S UT')))
+    idbdir = util.get_idbdir(t1.strftime('%Y-%m-%d'))
     inpath = '{}/{}/'.format(idbdir, trange[0].datetime.strftime("%Y%m%d"))
     filelist = [inpath + ll for ll in filelist]
     return filelist
@@ -183,9 +197,10 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         # Assumes uv['pol'] is one of -5, -6, -7, -8
         k = -5 - uv['pol']
         l += 1
+        mask0 = data.mask
         data = ma.masked_array(ma.masked_invalid(data), fill_value=0.0)
         out[k, :, l / (npairs * npol), bl2ord[i0, j0]] = data.data
-        flag[k, :, l / (npairs * npol), bl2ord[i0, j0]] = data.mask
+        flag[k, :, l / (npairs * npol), bl2ord[i0, j0]] = np.logical_or(data.mask, mask0)
         # if i != j:
         if k == 3:
             uvwarray[:, l / (npairs * npol), bl2ord[i0, j0]] = -uvw * constants.speed_of_light / 1e9

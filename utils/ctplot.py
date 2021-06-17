@@ -46,6 +46,7 @@ def add_scalebar(length, x, y, ax, align='right', label='', label_position='belo
     xtext, ytext = ax.transAxes.inverted().transform(ax.transData.transform([(x0 + x1) / 2.0, y0]))
     if label_position == 'above':
         verticalalign = 'bottom'
+        ytext = ytext + yoff
     if label_position == 'below':
         verticalalign = 'top'
         ytext = ytext + yoff

@@ -58,7 +58,7 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 
     <param type="bool" name="usephacenter" subparam="true">
 	    <description>True if use the phacenter information from the measurement set (e.g., VLA); False to assume the phase center is at the solar disk center (EOVSA) </description>
-	    <value>False</value>
+	    <value>True</value>
     </param>
 
     <param type="string" name="reftime" subparam="true">
@@ -68,6 +68,40 @@ file:///opt/casa/code/xmlcasa/xml/casa.xsd">
 
     <param type="bool" name="toTb" subparam="true">
 	    <description>True if convert to brightness temperature</description>
+	    <value>False</value>
+    </param>
+
+    <param type="double" name="sclfactor" subparam="true">
+	    <description>scale the brightness temperature up by its value</description>
+	    <value>1.0</value>
+    </param>
+
+    <param type="any" name="subregion" subparam="true">
+           <shortdescription>The name of a CASA region string</shortdescription>
+    <description>The name of a CASA region string
+
+        <!--<param type="string" name="mask" subparam="true">
+           <shortdescription>Mask string (image name or region file or region string)</shortdescription>
+    <description>Mask string (image name or region file or region string)
+    -->
+                           The name of a CASA image or region file or region string. Only locations within the region will
+                           output to the fits file.
+                           If regions specified fall completely outside of the image, ptclean3 will throw an error.
+
+                           Manual mask options/examples :
+
+                           subregion='box[[224pix,224pix],[288pix,288pix]]'  : A CASA region string.
+    </description>
+
+    <!---
+            <value type="string"></value>
+        </param>-->
+            <any type="variant" limittypes="string stringArray"/>
+            <value type="string"></value>
+    </param>
+
+    <param type="bool" name="docompress" subparam="true">
+	    <description>True if compress the output fits files</description>
 	    <value>False</value>
     </param>
 
@@ -2347,30 +2381,6 @@ HPX HEALPix grid.  -->
 	    <value type="bool">False</value>
     </param>
 
-<param type="any" name="subregion" subparam="true">
-	   <shortdescription>The name of a CASA region string</shortdescription>
-<description>The name of a CASA region string
-
-    <!--<param type="string" name="mask" subparam="true">
-	   <shortdescription>Mask string (image name or region file or region string)</shortdescription>
-<description>Mask string (image name or region file or region string)
--->
-                       The name of a CASA image or region file or region string. Only locations within the region will
-                       output to the fits file.
-                       If regions specified fall completely outside of the image, ptclean3 will throw an error.
-
-                       Manual mask options/examples :
-
-                       subregion='box[[224pix,224pix],[288pix,288pix]]'  : A CASA region string.
-</description>
-
-<!---
-	    <value type="string"></value>
-    </param>-->
-	    <any type="variant" limittypes="string stringArray"/>
-	    <value type="string"></value>
-</param>
-
 <!--    <param type="string" name="clusterdef" subparam="true">
            <shortdescription>xxx</shortdescription>
 <description>Name of a file that contains the cluster definition</description>
@@ -2406,12 +2416,15 @@ HPX HEALPix grid.  -->
       </when>
 -->
     <when param="doreg">
-    <equals type="bool" value="False"/>
+    <equals type="bool" value="False">
+    </equals>
     <equals type="bool" value="True">
           <default param="usephacenter"><value>True</value></default>
           <default param="reftime"><value type="string"></value></default>
           <default param="toTb"><value>False</value></default>
+          <default param="sclfactor"><value>1.0</value></default>
           <default param="subregion"><value>""</value></default>
+          <default param="docompress"><value>False</value></default>
         </equals>
         </when>
 

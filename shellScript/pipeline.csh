@@ -6,7 +6,7 @@ source /home/user/.cshrc
 # Now run the first pipeline casa task (importeovsa)
 #/common/casa/casa-release-5.0.0-218.el6/bin/casa --nologfile -c /common/python/suncasa/utils/pipeline1.py
 # /common/casa/casa-release-5.4.1-31.el6/bin/casa --nologfile --agg --nogui -c /common/python/suncasa/utils/pipeline1.py
-/common/casa/casa-release-5.4.1-31.el6/bin/casa --nologfile --agg --nogui -c /common/python/suncasa/utils/pipeline1.py $argv
+/common/casa/casa-release-5.4.1-31.el6/bin/casa --nologfile --agg --nogui -c /common/python/suncasa/eovsa/eovsa_pipeline.py $argv
 #if($#argv >= 3) then
 #    /common/casa/casa-release-5.4.1-31.el6/bin/casa --nologfile --agg --nogui -c /common/python/suncasa/utils/pipeline1.py $argv
 #else

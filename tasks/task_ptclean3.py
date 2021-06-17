@@ -9,7 +9,7 @@ import glob
 
 
 def clean_iter(tim, vis, imageprefix, imagesuffix,
-               twidth, doreg, usephacenter, reftime, ephem, msinfo, toTb, overwrite,
+               twidth, doreg, docompress, usephacenter, reftime, ephem, msinfo, toTb, sclfactor, overwrite,
                selectdata, field, spw,
                uvrange, antenna, scan, observation, intent, datacolumn, imsize, cell, phasecenter, stokes,
                projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
@@ -95,37 +95,47 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
     else:
         print(imname + ' exists. Clean task aborted.')
 
-    if doreg and not os.path.isfile(imname + '.fits'):
+    if doreg:
         # ephem.keys()
         # msinfo.keys()
-        try:
-            # check if ephemfile and msinfofile exist
-            if not ephem:
-                print("ephemeris info does not exist, querying from JPL Horizons on the fly")
-                ephem = hf.read_horizons(vis=vis)
-            if not msinfo:
-                print("ms info not provided, generating one on the fly")
-                msinfo = hf.read_msinfo(vis)
-            hf.imreg(vis=vis, ephem=ephem, msinfo=msinfo, timerange=timerange, reftime=reftime,
-                     imagefile=imname + '.image', fitsfile=imname + '.fits',
-                     toTb=toTb, scl100=False, usephacenter=usephacenter, subregion=subregion)
-            if os.path.exists(imname + '.fits'):
-                shutil.rmtree(imname + '.image')
-                return [True, btstr, etstr, imname + '.fits']
-            else:
-                return [False, btstr, etstr, '']
-        except:
-            print('error in registering image: ' + btstr)
-            return [False, btstr, etstr, imname + '.image']
+        if os.path.isfile(imname + '.fits'):
+            return [True, btstr, etstr, imname + '.fits']
+        else:
+            try:
+                # check if ephemfile and msinfofile exist
+                if not ephem:
+                    print("ephemeris info does not exist, querying from JPL Horizons on the fly")
+                    ephem = hf.read_horizons(vis=vis)
+                if not msinfo:
+                    print("ms info not provided, generating one on the fly")
+                    msinfo = hf.read_msinfo(vis)
+                hf.imreg(vis=vis, ephem=ephem, msinfo=msinfo, timerange=timerange, reftime=reftime,
+                         imagefile=imname + '.image', fitsfile=imname + '.fits', overwrite=True,
+                         toTb=toTb, sclfactor=sclfactor, usephacenter=usephacenter, subregion=subregion,
+                         docompress=docompress)
+                if os.path.exists(imname + '.fits'):
+                    shutil.rmtree(imname + '.image')
+                    return [True, btstr, etstr, imname + '.fits']
+                else:
+                    return [False, btstr, etstr, imname + '.fits']
+            except Exception as e:
+                if hasattr(e, 'message'):
+                    print(e.message)
+                else:
+                    print(e)
+                print('error in registering image: ' + btstr)
+                return [False, btstr, etstr, imname + '.image']
     else:
         if os.path.exists(imname + '.image'):
             return [True, btstr, etstr, imname + '.image']
         else:
-            return [False, btstr, etstr, '']
+            return [False, btstr, etstr, imname + '.image']
 
 
-def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, overwrite, selectdata,
-             field, spw, timerange, uvrange, antenna, scan, observation, intent, datacolumn, imsize, cell, phasecenter,
+def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, sclfactor, subregion,
+             docompress,
+             overwrite, selectdata, field, spw, timerange, uvrange, antenna, scan, observation, intent, datacolumn,
+             imsize, cell, phasecenter,
              stokes, projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
              interpolation, gridder, facets, chanchunks, wprojplanes, vptable, usepointing, mosweight, aterm, psterm,
              wbawp, conjbeams, cfcache, computepastep, rotatepastep, pblimit, normtype, deconvolver, scales, nterms,
@@ -133,7 +143,7 @@ def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
              gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive, usemask,
              mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold, smoothfactor,
              minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart, savemodel,
-             calcres, calcpsf, parallel, subregion):
+             calcres, calcpsf, parallel):
     if not (type(ncpu) is int):
         casalog.post('ncpu should be an integer')
         ncpu = 8
@@ -214,7 +224,9 @@ def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
     res = []
     # partition
     clnpart = partial(clean_iter, tim, vis, imageprefix, imagesuffix,
-                      twidth, doreg, usephacenter, reftime, ephem, msinfo, toTb, overwrite, selectdata, field, spw,
+                      twidth, doreg, docompress, usephacenter, reftime, ephem, msinfo, toTb, sclfactor, overwrite,
+                      selectdata,
+                      field, spw,
                       uvrange, antenna, scan, observation, intent, datacolumn, imsize, cell, phasecenter, stokes,
                       projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
                       interpolation, gridder, facets, chanchunks, wprojplanes, vptable, usepointing, mosweight, aterm,
