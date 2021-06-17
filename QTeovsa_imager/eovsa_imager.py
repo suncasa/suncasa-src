@@ -6,7 +6,9 @@ from PyQt5.QtGui import QIcon, QFont, QColor
 from PyQt5.QtCore import pyqtSlot, Qt, QAbstractTableModel, pyqtSignal, QRunnable, QObject, QThreadPool
 from pr_summary import pr_summary
 from casatools import ms as mstool
+
 from astropy.time import Time
+from casatools import table
 from astropy.io import fits
 from copy import deepcopy
 from functools import partial
@@ -821,7 +823,7 @@ class App(QMainWindow):
             # The selected polarizatin is just one of the native polarizations (XX, YY, XY, or YX)
             spec = np.abs(self.msdata['data'][ipol,:,self.plotbl])
         elif ipol == 4:
-            # The selected polarization is RR (not implemented because we only have amplitudes...)
+            # The selected polarization is RR
             xx = self.msdata['data'][0,:,self.plotbl]
             yy = self.msdata['data'][1,:,self.plotbl]
             xy = self.msdata['data'][2,:,self.plotbl]
@@ -829,7 +831,7 @@ class App(QMainWindow):
             rr = (xx + yy + 1j*(xy - yx))/2
             spec = np.abs(rr)  
         elif ipol == 5:
-            # The selected polarization is LL (not implemented because we only have amplitudes...)
+            # The selected polarization is LL
             xx = self.msdata['data'][0,:,self.plotbl]
             yy = self.msdata['data'][1,:,self.plotbl]
             xy = self.msdata['data'][2,:,self.plotbl]
@@ -876,12 +878,20 @@ class App(QMainWindow):
             nf, nt = spec.shape
 
         pd = Time(times/86400.,format='mjd').plot_date
+        x0, x1, y0, y1 = self.dspec_ax.axis()   # Save current plot extent
+        self.dspec_ax.clear()
         im = self.dspec_ax.pcolormesh(pd,fghz,np.clip(spec, minval, maxval))
         self.dspec_ax.xaxis_date()
         self.dspec_ax.xaxis.set_major_formatter(DateFormatter("%H:%M"))
         self.dspec_ax.set_ylabel('Frequency [GHz]')
         self.dspec_ax.set_xlabel('Time [UT]')
-
+        if x0 == 0. and x1 == 1.:
+            # Plot extent is 0,1 => cleared plot, so do not update plot extent
+            pass
+        else:
+            # Restore saved plot extent
+            self.dspec_ax.set_xlim(x0,x1)
+            self.dspec_ax.set_ylim(y0,y1)
 #        self.dspec_ax.imshow(np.clip(spec, minval, maxval), interpolation='nearest', aspect='auto', origin='lower')
         self.dspec_ax.set_title(self.ptitle)
         self.speccanvas.draw()
@@ -937,6 +947,8 @@ class App(QMainWindow):
         ''' Read amplitudes for ALL data in the measurement set, returning
             a dictionary of the data, list of times, and list of frequencies.
             Fill flagged data with fillnan value if not None.
+            
+            Several changes to make this a LOT faster.  But nbl is hard-coded...
         '''
         ms = self.ms
         #if type(ms) != casatools.ms.ms:
@@ -948,39 +960,123 @@ class App(QMainWindow):
         self.progressBar.setValue(0)
         self.progressBar.show()
         
-        ms.selectinit(datadescid=0, reset=True)
+#        ms.selectinit(datadescid=0, reset=True)
         spwinfo = ms.getspectralwindowinfo()
         nspw = len(spwinfo.keys())
-        spec = []
-        freq = []
-        #time = []
+#        spec = []
+#        freq = []
         spwlist = []
-        for descid in range(len(spwinfo.keys())):
-            ms.selectinit(datadescid=0, reset=True)
-            ms.selectinit(datadescid=descid)
-            data = ms.getdata(['data', 'time', 'axis_info'], ifraxis=True)
-            spec_ = data['data']
-            freq_ = data['axis_info']['freq_axis']['chan_freq']
-            #time_ = data['time']
-            spwlist += [descid]*len(freq_)
-            if fillnan is not None:
-                flag_ = ms.getdata(['flag', 'time', 'axis_info'], ifraxis=True)['flag']
-                if type(fillnan) in [int, float]:
-                    spec_[flag_] = float(fillnan)
-                else:
-                    spec_[flag_] = 0.0
-            spec.append(spec_)
-            freq.append(freq_)
-            #time.append(time_)
-            self.progressBar.setValue(100*(descid+1)/nspw)
-        spec = np.concatenate(spec, axis=1)
-        freq = np.concatenate(freq, axis=0)
-        nf = freq.shape[0]
-        freq.shape = (nf,)
-        times = data['time']
-        ms.selectinit(datadescid=0, reset=True)
+#        for descid in range(len(spwinfo.keys())):
+#            ms.selectinit(datadescid=0, reset=True)
+#            ms.selectinit(datadescid=descid)
+#            data = ms.getdata(['data', 'time', 'axis_info'], ifraxis=True)
+#            spec_ = data['data']
+#            freq_ = data['axis_info']['freq_axis']['chan_freq']
+#            spwlist += [descid]*len(freq_)
+#            if fillnan is not None:
+#                flag_ = ms.getdata(['flag', 'time', 'axis_info'], ifraxis=True)['flag']
+#                if type(fillnan) in [int, float]:
+#                    spec_[flag_] = float(fillnan)
+#                else:
+#                    spec_[flag_] = 0.0
+#            spec.append(spec_)
+#            freq.append(freq_)
+#            self.progressBar.setValue(100*(descid+1)/nspw)
+
+        tb = table()
+        tb.open(self.fname)
+        spwtb = table()
+        spwtb.open(self.fname+'/SPECTRAL_WINDOW')
+        ptb = table()
+        ptb.open(self.fname+'/POLARIZATION')
+        
+        mdata = ms.metadata()
+        nspw = mdata.nspw()
+        nbl = mdata.nbaselines() + mdata.nantennas()
+        nscans = mdata.nscans()
+        spw_nfrq = []     # List of number of frequencies in each spw
+        for i in range(nspw):
+            spw_nfrq.append(mdata.nchan(i))
+        spw_nfrq = np.array(spw_nfrq)
+        nf = np.sum(spw_nfrq)
+        smry = mdata.summary()
+        scan_ntimes = []  # List of number of times in each scan
+        for iscan in range(nscans):
+            scan_ntimes.append(len(smry['observationID=0']['arrayID=0']['scan='+str(iscan)]['fieldID=0'].keys()) - 6)
+        scan_ntimes = np.array(scan_ntimes)
+        nt = np.sum(scan_ntimes)
+        times = tb.getcol('TIME')
+        if times[nbl] - times[0] != 0:
+            # This is frequency/scan sort order
+            order = 'f'
+        elif times[nbl*nspw] - times[0] !=0:
+            # This is time sort order
+            order = 't'
+        npol = ptb.getcol('NUM_CORR',0,1)[0]
+        ptb.close()
+        freq = np.zeros(nf, float)
+        times = np.zeros(nt, float)
+        if order == 't':
+            spec = np.zeros((npol, nf, nbl, nt), np.complex)
+            for j in range(nt):
+                fptr = 0
+                # Loop over spw
+                for i in range(nspw):
+                    cfrq = spwtb.getcol('CHAN_FREQ',i,1)[:,0]     # Get channel frequencies for this spw (annoyingly comes out as shape (nf, 1)
+                    if j == 0:
+                        # Only need this the first time through
+                        spwlist += [i]*len(cfrq)
+                    if i == 0:
+                        times[j] = tb.getcol('TIME',nbl*(i+nspw*j),1)  # Get the time
+                    spec_ = tb.getcol('DATA',nbl*(i+nspw*j),nbl)  # Get complex data for this spw
+                    flag = tb.getcol('FLAG',nbl*(i+nspw*j),nbl)   # Get flags for this spw
+                    nfrq = len(cfrq)
+                    # Apply flags
+                    if type(fillnan) in [int, float]:
+                        spec_[flag] = float(fillnan)
+                    else:
+                        spec_[flag] = 0.0
+                    # Insert data for this spw into larger array
+                    spec[:, fptr:fptr+nfrq, :, j] = spec_
+                    freq[fptr:fptr+nfrq] = cfrq
+                    fptr += nfrq
+                self.progressBar.setValue(100*j/nt)
+        else:
+            specf = np.zeros((npol, nf, nt, nbl), np.complex)  # Array indexes are swapped
+            iptr = 0
+            for j in range(nscans):
+                # Loop over scans
+                for i in range(nspw):
+                    #Loop over spectral windows
+                    s = scan_ntimes[j]
+                    f = spw_nfrq[i]
+                    s1 = np.sum(scan_ntimes[:j])     # Start time index
+                    s2 = np.sum(scan_ntimes[:j+1])   # End time index
+                    f1 = np.sum(spw_nfrq[:i])         # Start freq index
+                    f2 = np.sum(spw_nfrq[:i+1])       # End freq index
+                    spec_ = tb.getcol('DATA',iptr,nbl*s)
+                    flag  = tb.getcol('FLAG',iptr,nbl*s)
+                    if j == 0:
+                        cfrq = spwtb.getcol('CHAN_FREQ',i,1)[:,0]
+                        freq[f1:f2] = cfrq
+                        spwlist += [i]*len(cfrq)
+                    times[s1:s2] = tb.getcol('TIME', iptr, nbl*s).reshape(s, nbl)[:,0]  # Get the times
+                    iptr += nbl*s
+                    # Apply flags
+                    if type(fillnan) in [int, float]:
+                        spec_[flag] = float(fillnan)
+                    else:
+                        spec_[flag] = 0.0
+                    # Insert data for this spw into larger array
+                    specf[:, f1:f2, s1:s2] = spec_.reshape(npol,f,s,nbl)
+                    # Swap the array indexes back to the desired order
+                    spec = np.swapaxes(specf,2,3)
+                self.progressBar.setValue(100*j/nscans)
+        tb.close()
+        spwtb.close()
+
         self.statusBar.removeWidget(self.progressBar)
-        self.dspec_ax.cla()  # Clear plot axis in preparation for a new dynamic spectrum
+        self.dspec_ax.clear()  # Clear plot axis in preparation for a new dynamic spectrum
         self.msdata = {'data':spec, 'freq':freq, 'time':times, 'name':ms.name, 'spwlist':np.array(spwlist)}
                         
 def get_bl2ord(nant=16):
