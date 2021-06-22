@@ -1,13 +1,31 @@
-import os
+import os,sys
 import numpy as np
 from datetime import datetime
 from math import *
 # import jdutil
 import bisect
-import pdb
-from taskinit import ms, tb, qa, iatool, rgtool
+try:
+    ## CASA version < 6
+    from taskinit import ms, tb, qa, iatool, rgtool
+except:
+    ## CASA version >=6
+    from casatools import table as tbtool
+    from casatools import ms as mstool
+    from casatools import quanta as qatool
+    from casatools import regionmanager as rgtool
+    from casatools import image as iatool
+    tb = tbtool()
+    ms = mstool()
+    qa = qatool()
+    ia = iatool()
 from astropy.time import Time
-from sunpy import sun
+import sunpy
+# check sunpy version
+sunpyver = int(sunpy.__version__.split('.')[0])
+if sunpyver <= 1:
+    from sunpy import sun
+else:
+    from sunpy.coordinates import sun
 import astropy.units as u
 import warnings
 from suncasa.utils import fitsutils as fu
@@ -20,6 +38,7 @@ except:
     except ImportError:
         raise ImportError('Neither astropy nor pyfits exists in this CASA installation')
 
+py3 = sys.version_info >= (3, 0)
 
 def ms_clearhistory(msfile):
     from taskinit import tb
@@ -61,7 +80,12 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     BC (2019-07-16): Added docstring documentation
 
     '''
-    import urllib2
+    try:
+        # For Python 3.0 and later
+        from urllib.request import urlopen
+    except ImportError:
+        # Fall back to Python 2's urllib2
+        from urllib2 import urlopen
     import ssl
     if not t0 and not vis:
         t0 = Time.now()
@@ -124,9 +148,9 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         cmdstr = cmdstr.replace("'", "%27")
         try:
             context = ssl._create_unverified_context()
-            f = urllib2.urlopen(cmdstr, context=context)
+            f = urlopen(cmdstr, context=context)
         except:
-            f = urllib2.urlopen(cmdstr)
+            f = urlopen(cmdstr)
         lines = f.readlines()
         f.close()
     except:
@@ -153,14 +177,17 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         params['APPAENT'] = "'REFRACTED'"
         results = requests.get("https://ssd.jpl.nasa.gov/horizons_batch.cgi", params=params)
         lines = [ll for ll in results.iter_lines()]
+    
+    # add a check for python 3
+    if py3:
+        lines = [l.decode('utf-8', 'backslashreplace') for l in lines]
 
     nline = len(lines)
     istart = 0
     for i in range(nline):
-        line = lines[i]
-        if line[0:5] == '$$SOE':  # start recording
+        if lines[i][0:5] == '$$SOE':  # start recording
             istart = i + 1
-        if line[0:5] == '$$EOE':  # end recording
+        if lines[i][0:5] == '$$EOE':  # end recording
             iend = i
     newlines = lines[istart:iend]
     nrec = len(newlines)
@@ -488,7 +515,6 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
 
 
 def getbeam(imagefile=None, beamfile=None):
-    ia = iatool()
     if not imagefile:
         raise ValueError('Please specify input images')
     bmaj = []
@@ -513,7 +539,7 @@ def getbeam(imagefile=None, beamfile=None):
             sum = ia.summary()
             ia.close()
             ia.done()
-            if sum.has_key('perplanebeams'):  # beam vary with frequency
+            if 'perplanebeams' in sum.keys():  # beam vary with frequency
                 nbeams = sum['perplanebeams']['nChannels']
                 beams = sum['perplanebeams']['beams']
                 chans_ = [key[1:] for key in beams.keys()]
@@ -527,7 +553,7 @@ def getbeam(imagefile=None, beamfile=None):
                     bpa_.append(bpa0)
                 beamunit_ = beams['*' + chans_[0]]['*0']['major']['unit']
                 bpaunit_ = beams['*' + chans_[0]]['*0']['positionangle']['unit']
-            if sum.has_key('restoringbeam'):  # only one beam
+            if 'restoringbeam' in sum.keys():  # only one beam
                 bmaj_.append(sum['restoringbeam']['major']['value'])
                 bmin_.append(sum['restoringbeam']['minor']['value'])
                 bpa_.append(sum['restoringbeam']['positionangle']['value'])
@@ -596,7 +622,6 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                      (in Jy/beam) and brightness temperature (in K).
 
     '''
-    ia = iatool()
 
     if deletehistory:
         ms_clearhistory(vis)
@@ -732,11 +757,16 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 else:
                     header.set('exptime', 1.)
                 header.set('p_angle', hel['p0'])
-                header.set('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value)
-                header.set('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value)
-                header.set('rsun_ref', sun.constants.radius.value)
                 header.set('hgln_obs', 0.)
-                header.set('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value)
+                header.set('rsun_ref', sun.constants.radius.value)
+                if sunpyver <= 1:
+                    header.set('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value)
+                    header.set('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value)
+                    header.set('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value)
+                else:
+                    header.set('dsun_obs', sun.earth_distance(Time(dateobs)).to(u.meter).value)
+                    header.set('rsun_obs', sun.angular_radius(Time(dateobs)).value)
+                    header.set('hglt_obs', sun.L0(Time(dateobs)).value)
             except:
                 # this works for astropy.io.fits
                 if tdur_s:
@@ -744,11 +774,16 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 else:
                     header.append(('exptime', 1.))
                 header.append(('p_angle', hel['p0']))
-                header.append(('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value))
-                header.append(('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value))
-                header.append(('rsun_ref', sun.constants.radius.value))
                 header.append(('hgln_obs', 0.))
-                header.append(('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value))
+                header.append(('rsun_ref', sun.constants.radius.value))
+                if sunpyver <= 1:
+                    header.append(('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value))
+                    header.append(('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value))
+                    header.append(('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value))
+                else:
+                    header.append(('dsun_obs', sun.earth_distance(Time(dateobs)).to(u.meter).value))
+                    header.append(('rsun_obs', sun.angular_radius(Time(dateobs)).value))
+                    header.append(('hglt_obs', sun.L0(Time(dateobs)).value))
 
             # check if stokes parameter exist
             exist_stokes = False
@@ -763,7 +798,10 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                     stokenum = header['CRVAL4']
                     exist_stokes = True
             if exist_stokes:
-                stokesstr = stokes_mapper.keys()[stokes_mapper.values().index(stokenum)]
+                if stokenum in stokes_mapper.values():
+                    stokesstr = list(stokes_mapper.keys())[list(stokes_mapper.values()).index(stokenum)]
+                else:
+                    print('Stokes parameter {0:d} not recognized'.format(stokenum))
                 if verbose:
                     print('This image is in Stokes ' + stokesstr)
             else:
@@ -777,8 +815,8 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 bmin = bmins[n]
                 beamunit = beamunits[n]
                 data = hdu[0].data  # remember the data order is reversed due to the FITS convension
-                keys = header.keys()
-                values = header.values()
+                keys = list(header.keys())
+                values = list(header.values())
                 # which axis is frequency?
                 faxis = keys[values.index('FREQ')][-1]
                 faxis_ind = ndim - int(faxis)
