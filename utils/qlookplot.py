@@ -4,22 +4,39 @@ import os, sys
 # from config import get_and_create_download_dir
 import shutil
 from astropy.io import fits
+
 try:
     # For Python 3.0 and later
     from urllib.request import urlopen
 except ImportError:
     # Fall back to Python 2's urllib2
     from urllib2 import urlopen
-from split_cli import split_cli as split
-from ptclean3_cli import ptclean3_cli as ptclean3
+
 from suncasa.utils import helioimage2fits as hf
 import sunpy
 import sunpy.map as smap
 from astropy import units as u
 from astropy.time import Time
 from astropy.io import fits
-from taskinit import ms, tb, qa, iatool
-from tclean_cli import tclean_cli as tclean
+try:
+    ## CASA version < 6
+    from split_cli import split_cli as split
+    from ptclean3_cli import ptclean3_cli as ptclean3
+    from taskinit import ms, tb, qa, iatool
+    from tclean_cli import tclean_cli as tclean
+except:
+    ## CASA version >=6
+    from casatools import table as tbtool
+    from casatools import ms as mstool
+    from casatools import quanta as qatool
+    from casatools import image as iatool
+    tb = tbtool()
+    ms = mstool()
+    qa = qatool()
+    ia = iatool()
+    from casatasks import tclean
+    from casatasks import split
+
 from matplotlib.dates import DateFormatter
 from astropy.io import fits
 from astropy.coordinates import SkyCoord
@@ -41,6 +58,9 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from suncasa.utils import plot_mapX as pmX
 from suncasa.utils import fitsutils as fu
 from tqdm import tqdm
+
+py3 = sys.version_info >= (3, 0)
+sunpyver = int(sunpy.__version__.split('.')[0])
 
 polmap = {'RR': 0, 'LL': 1, 'I': 0, 'V': 1, 'XX': 0, 'YY': 1}
 
@@ -295,7 +315,11 @@ def get_rdata_dict(rdata, ndim, stokaxis, npol_fits, icmap=None, stokes='I,V', s
                 datas[pols[0]] = rdata[slc1]
                 cmaps[pols[0]] = cmap_I
     if stokaxis is not None:
-        for k, v in datas.iteritems():
+        if not py3:
+            iterop_ = datas.iteritems()
+        else:
+            iterop_ = datas.items()
+        for k, v in iterop_:
             datas[k] = np.squeeze(v, axis=stokaxis)
     return cmaps, datas
 
@@ -429,7 +453,11 @@ def mk_qlook_image(vis, ncpu=10, timerange='', twidth=12, stokes='I,V', antenna=
                 fi.write('import warnings \n')
                 fi.write('warnings.filterwarnings("ignore") \n')
             ostrs = []
-            for k, v in inpdict.iteritems():
+            if not py3:
+                iterop_ = inpdict.iteritems()
+            else:
+                iterop_ = inpdict.items()
+            for k, v in iterop_:
                 ostrs.append('{}={}'.format(k, v))
             ostr = ','.join(ostrs)
             fi.write('res = ptclean3({}) \n'.format(ostr))
@@ -495,7 +523,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     amax=None, amin=None, acmap=None, anorm=None,
                     nclevels=None, dmax=None, dmin=None, dcmap=None, dnorm=None, sclfactor=1.0,
                     clevels=None, spwcmap='jet', aiafits='', aiadir=None, aiawave=171, plotaia=True, moviename='',
-                    alpha_cont=1.0, custom_mapcubes=[],opencontour=False):
+                    alpha_cont=1.0, custom_mapcubes=[], opencontour=False):
     '''
     Required inputs:
     Important optional inputs:
@@ -537,7 +565,10 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
 
     from matplotlib import pyplot as plt
     from sunpy import map as smap
-    from sunpy import sun
+    if sunpyver <= 1:
+        from sunpy import sun
+    else:
+        from sunpy.coordinates import sun
     import astropy.units as u
     if not figdir:
         figdir = './'
@@ -555,7 +586,11 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     tpltidxs, = np.where(np.logical_and(btimes.jd >= t_ran[0].jd, etimes.jd <= t_ran[1].jd))
     # imres = imres['imres']
     # if type(imres) is not dict:
-    for k, v in imres.iteritems():
+    if not py3:
+        iterop_ = imres.iteritems()
+    else:
+        iterop_ = imres.items()
+    for k, v in iterop_:
         imres[k] = list(np.array(v)[tpltidxs])
     if 'Obs' in imres.keys():
         observatory = imres['Obs'][0]
@@ -836,10 +871,10 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             aiamap = None
 
         colors_spws = cm.get_cmap(spwcmap)(np.linspace(0, 1, nspw))
-        for n in range(nspw):
-            image = images_sort[i, n]
+        for s, sp in enumerate(range(nspw)):
+            image = images_sort[i, s]
             for pidx, pol in enumerate(pols):
-                if suci[n]:
+                if suci[s]:
                     try:
                         # rmap = smap.Map(image)
                         rmap, ndim, npol_fits, stokaxis, rcfreqs, rdata, rheader = fu.read_compressed_image_fits(image)
@@ -887,9 +922,9 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                         ax = axs[0]
                 else:
                     if npols > 1:
-                        ax = axs[pidx + n * 2]
+                        ax = axs[pidx + s * 2]
                     else:
-                        ax = axs[n]
+                        ax = axs[s]
                 rmap_ = pmX.Sunmap(rmap)
                 if aiamap:
                     if anorm is None:
@@ -902,7 +937,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                         acmap = 'gray'
 
                     if nspw > 1:
-                        if n == 0:
+                        if s == 0:
                             aiamap_ = pmX.Sunmap(aiamap)
                             aiamap_.imshow(axes=ax, cmap=acmap,
                                            norm=anorm,
@@ -922,12 +957,12 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     if nspw > 1:
                         if opencontour:
                             rmap_.contour(axes=ax, levels=clevels1,
-                                           colors=[colors_spws[n]] * len(clevels1),
-                                           alpha=alpha_cont)
+                                          colors=[colors_spws[s]] * len(clevels1),
+                                          alpha=alpha_cont)
 
                         else:
                             rmap_.contourf(axes=ax, levels=clevels1,
-                                           colors=[colors_spws[n]] * len(clevels1),
+                                           colors=[colors_spws[s]] * len(clevels1),
                                            alpha=alpha_cont)
                     else:
                         rmap_.contour(axes=ax, levels=clevels1, cmap=cm.get_cmap(spwcmap))
@@ -968,30 +1003,31 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 else:
                     ax.set_xlim([-1220, 1220])
                     ax.set_ylim([-1220, 1220])
-                if nspw > 1:
-                    if nspw <= 10:
-                        try:
-                            ax.text(0.98, 0.01 + 0.05 * n,
-                                    '{1} @ {0:.3f} GHz'.format(rmap.meta['RESTFRQ'] / 1e9, pol),
-                                    color=cm.get_cmap(spwcmap)(float(n) / (nspw - 1)), transform=ax.transAxes,
-                                    fontweight='bold', ha='right')
-                        except:
-                            ax.text(0.98, 0.01 + 0.05 * n, '{1} @ {0:.3f} GHz'.format(0., pol),
-                                    color=cm.get_cmap(spwcmap)(float(n) / (nspw - 1)), transform=ax.transAxes,
-                                    fontweight='bold', ha='right')
-                else:
-                    try:
-                        ax.text(0.98, 0.01, '{1} @ {0:.3f} GHz'.format(rmap.meta['RESTFRQ'] / 1e9, pol),
-                                color='w',
-                                transform=ax.transAxes, fontweight='bold', ha='right')
-                    except:
-                        ax.text(0.98, 0.01, '{1} @ {0:.3f} GHz'.format(0., pol), color='w',
-                                transform=ax.transAxes, fontweight='bold',
-                                ha='right')
-                if pidx == 0 and n == 0:
+                if s==0 and pidx==0:
                     timetext = ax.text(0.99, 0.98, '', color='w', fontweight='bold', fontsize=9, ha='right', va='top',
                                        transform=ax.transAxes)
                 timetext.set_text(plttime.iso[:19])
+                if nspw > 1:
+                    if nspw <= 10:
+                        try:
+                            ax.text(0.98, 0.01 + 0.05 * s,
+                                    '{1} @ {0:.1f} GHz'.format(rmap.meta['RESTFRQ'] / 1e9, pol),
+                                    color=cm.get_cmap(spwcmap)(float(s) / (nspw - 1)), transform=ax.transAxes,
+                                    fontweight='bold', ha='right')
+                        except:
+                            ax.text(0.98, 0.01 + 0.05 * s, '{1} @ {0:.1f} GHz'.format(0., pol),
+                                    color=cm.get_cmap(spwcmap)(float(s) / (nspw - 1)), transform=ax.transAxes,
+                                    fontweight='bold', ha='right')
+                else:
+                    try:
+                        ax.text(0.98, 0.01, '{1} @ {0:.1f} GHz'.format(rmap.meta['RESTFRQ'] / 1e9, pol),
+                                color='w',
+                                transform=ax.transAxes, fontweight='bold', ha='right')
+                    except:
+                        ax.text(0.98, 0.01, '{1} @ {0:.1f} GHz'.format(0., pol), color='w',
+                                transform=ax.transAxes, fontweight='bold',
+                                ha='right')
+
                 ax.set_title(' ')
                 # ax.xaxis.set_visible(False)
                 # ax.yaxis.set_visible(False)
@@ -1040,13 +1076,13 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
               reftime='', xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0,
               weighting='briggs', niter=500, sclfactor=1.0,
               imsize=[512], cell=['5.0arcsec'], mask='', gain=0.1, pbcor=True,
-              antenna='',toTb=True,
+              antenna='', toTb=True,
               interactive=False, usemsphacenter=True, imagefile=None, outfits='',
               imax=None, imin=None, icmap=None, inorm=None, nclevels=3,
               goestime=None,
               plotaia=True, aiawave=171, aiafits=None, aiadir=None, datacolumn='data', docompress=False,
               mkmovie=False, overwrite=True, ncpu=10, twidth=1, verbose=False,
-              clearmshistory=False, clevels=None, calpha=0.5, show_warnings=False,opencontour=False):
+              clearmshistory=False, clevels=None, calpha=0.5, show_warnings=False, opencontour=False):
     '''
     Required inputs:
             vis: calibrated CASA measurement set
@@ -1298,7 +1334,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                             nclevels=nclevels,
                             dmax=dmax, dmin=dmin, dcmap=dcmap, dnorm=dnorm,
                             sclfactor=sclfactor,
-                            aiafits=aiafits, aiawave=aiawave, aiadir=aiadir, plotaia=plotaia, alpha_cont=calpha,opencontour=opencontour)
+                            aiafits=aiafits, aiawave=aiawave, aiadir=aiadir, plotaia=plotaia, alpha_cont=calpha,
+                            opencontour=opencontour)
 
     else:
         cfreqs = []
@@ -1386,8 +1423,6 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             print('Acquire GOES soft X-ray data in from ' + btgoes + ' to ' + etgoes)
 
         # ax3 = plt.subplot(gs1[2])
-
-
 
         try:
             import socket
@@ -1688,8 +1723,12 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                 row, col = rmap.data.shape
                 positon = np.nanargmax(rmap.data)
                 m, n = divmod(positon, col)
-                x0 = rmap.xrange[0] + rmap.scale[1] * (n + 0.5) * u.pix
-                y0 = rmap.yrange[0] + rmap.scale[0] * (m + 0.5) * u.pix
+                if sunpyver < 1:
+                    x0 = rmap.xrange[0] + rmap.scale[1] * (n + 0.5) * u.pix
+                    y0 = rmap.yrange[0] + rmap.scale[0] * (m + 0.5) * u.pix
+                else:
+                    x0 = rmap.bottom_left_coord.Tx + rmap.scale[1] * (n + 0.5) * u.pix
+                    y0 = rmap.bottom_left_coord.Ty + rmap.scale[0] * (m + 0.5) * u.pix
             if len(fov) == 1:
                 fov = [fov] * 2
             sz_x = fov[0] * u.arcsec
