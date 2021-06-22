@@ -5,11 +5,13 @@ import datetime
 import struct
 from scipy.io.idl import readsav
 from datetime import datetime
+import sys
 
-try:
+pversion = sys.version_info.major
+if pversion<3:
     ## CASA version < 6
     from taskinit import ms, tb, qa
-except:
+else:
     ## CASA version >= 6
     from casatools import table as tbtool
     from casatools import ms as mstool

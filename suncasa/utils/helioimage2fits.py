@@ -1,16 +1,33 @@
 import os
 import numpy as np
-from datetime import datetime
+import sys
 from math import *
-# import jdutil
 import bisect
-import pdb
-from taskinit import ms, tb, qa, iatool, rgtool
 from astropy.time import Time
-from sunpy import sun
 import astropy.units as u
 import warnings
 from suncasa.utils import fitsutils as fu
+import ssl
+
+pversion = sys.version_info.major
+if pversion < 3:
+    ## CASA version < 6
+    import urllib2
+    from sunpy import sun
+    from taskinit import ms, tb, qa, iatool
+
+    ia = iatool()
+else:
+    ## CASA version >= 6
+    import urllib.request as urllib2
+    from sunpy.coordinates import sun
+    from casatools import ms as mstool
+    from casatools import table, quanta, image
+
+    ms = mstool()
+    tb = table()
+    qa = quanta()
+    ia = image()
 
 try:
     from astropy.io import fits as pyfits
@@ -61,8 +78,8 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     BC (2019-07-16): Added docstring documentation
 
     '''
-    import urllib2
-    import ssl
+
+
     if not t0 and not vis:
         t0 = Time.now()
     if not dur:
@@ -152,7 +169,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         params['EXTRA_PREC'] = "'YES'"
         params['APPAENT'] = "'REFRACTED'"
         results = requests.get("https://ssd.jpl.nasa.gov/horizons_batch.cgi", params=params)
-        lines = [ll for ll in results.iter_lines()]
+        lines = [ll.decode('utf-8') for ll in results.iter_lines()]
 
     nline = len(lines)
     istart = 0
@@ -488,7 +505,6 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
 
 
 def getbeam(imagefile=None, beamfile=None):
-    ia = iatool()
     if not imagefile:
         raise ValueError('Please specify input images')
     bmaj = []
@@ -596,7 +612,6 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                      (in Jy/beam) and brightness temperature (in K).
 
     '''
-    ia = iatool()
 
     if deletehistory:
         ms_clearhistory(vis)
@@ -725,35 +740,46 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             header['date-obs'] = dateobs  # begin time of the image
             if not p_ang:
                 hel['p0'] = 0
+            if tdur_s:
+                exptime = tdur_s
+            else:
+                exptime = 1.
+            p_angle = hel['p0']
+            hgln_obs = 0.
+            if pversion < 3:
+                dsun_obs = sun.sunearth_distance(Time(dateobs)).to(u.meter).value
+                rsun_obs = sun.solar_semidiameter_angular_size(Time(dateobs)).value
+                rsun_ref = sun.constants.radius.value
+                hglt_obs = sun.heliographic_solar_center(Time(dateobs))[1].value
+            else:
+                dsun_obs=sun.earth_distance(Time(dateobs)).to(u.meter).value
+                rsun_obs=sun.angular_radius(Time(dateobs)).value
+                rsun_ref=sun.constants.radius.value
+                hglt_obs=sun.B0(Time(dateobs)).value
+
             try:
                 # this works for pyfits version of CASA 4.7.0 but not CASA 4.6.0
-                if tdur_s:
-                    header.set('exptime', tdur_s)
-                else:
-                    header.set('exptime', 1.)
-                header.set('p_angle', hel['p0'])
-                header.set('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value)
-                header.set('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value)
-                header.set('rsun_ref', sun.constants.radius.value)
-                header.set('hgln_obs', 0.)
-                header.set('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value)
+                header.set('exptime', exptime)
+                header.set('p_angle', p_angle)
+                header.set('dsun_obs', dsun_obs)
+                header.set('rsun_obs', rsun_obs)
+                header.set('rsun_ref', rsun_ref)
+                header.set('hgln_obs', hgln_obs)
+                header.set('hglt_obs', hglt_obs)
             except:
                 # this works for astropy.io.fits
-                if tdur_s:
-                    header.append(('exptime', tdur_s))
-                else:
-                    header.append(('exptime', 1.))
-                header.append(('p_angle', hel['p0']))
-                header.append(('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value))
-                header.append(('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value))
-                header.append(('rsun_ref', sun.constants.radius.value))
-                header.append(('hgln_obs', 0.))
-                header.append(('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value))
+                header.append(('exptime', exptime))
+                header.append(('p_angle', p_angle))
+                header.append(('dsun_obs', dsun_obs))
+                header.append(('rsun_obs', rsun_obs))
+                header.append(('rsun_ref', rsun_ref))
+                header.append(('hgln_obs', hgln_obs))
+                header.append(('hglt_obs', hglt_obs))
 
             # check if stokes parameter exist
             exist_stokes = False
-            stokes_mapper = {'I': 1, 'Q': 2, 'U': 3, 'V': 4, 'RR': -1, 'LL': -2,
-                             'RL': -3, 'LR': -4, 'XX': -5, 'YY': -6, 'XY': -7, 'YX': -8}
+            stokes_mapper = {1: 'I', 2: 'Q', 3: 'U', 4: 'V', -1: 'RR', -2: 'LL',
+                             -3: 'RL', -4: 'LR', -5: 'XX', -6: 'YY', -7: 'XY', -8: 'YX'}
             if 'CRVAL3' in header.keys():
                 if header['CTYPE3'] == 'STOKES':
                     stokenum = header['CRVAL3']
@@ -763,7 +789,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                     stokenum = header['CRVAL4']
                     exist_stokes = True
             if exist_stokes:
-                stokesstr = stokes_mapper.keys()[stokes_mapper.values().index(stokenum)]
+                stokesstr = stokes_mapper[stokenum]
                 if verbose:
                     print('This image is in Stokes ' + stokesstr)
             else:
@@ -841,7 +867,8 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                     force docompress to be False
                 '''
 
-                print('warning: The fits data contains more than 3 non squeezable dimensions. Skipping fits compression..')
+                print(
+                    'warning: The fits data contains more than 3 non squeezable dimensions. Skipping fits compression..')
             if docompress:
                 fitsftmp = fitsf + ".tmp.fits"
                 os.system("mv {} {}".format(fitsf, fitsftmp))
@@ -850,7 +877,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 header = hdu[0].header
                 data = hdu[0].data
                 fu.write_compressed_image_fits(fitsf, data, header, compression_type='RICE_1',
-                                             quantize_level=4.0)
+                                               quantize_level=4.0)
                 os.system("rm -rf {}".format(fitsftmp))
     if deletehistory:
         ms_restorehistory(vis)
