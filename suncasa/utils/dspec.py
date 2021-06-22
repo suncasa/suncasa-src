@@ -7,12 +7,11 @@ from scipy.io.idl import readsav
 from datetime import datetime
 import sys
 
-pversion = sys.version_info.major
-if pversion<3:
-    ## CASA version < 6
+try:
+    ## Full Installation of CASA 4, 5 and 6
     from taskinit import ms, tb, qa
-else:
-    ## CASA version >= 6
+except:
+    ## Modular Installation of CASA 6
     from casatools import table as tbtool
     from casatools import ms as mstool
     from casatools import quanta as qatool

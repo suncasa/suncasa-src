@@ -1,4 +1,4 @@
-import os
+import os,sys
 import numpy as np
 import sys
 from math import *
@@ -9,25 +9,35 @@ import warnings
 from suncasa.utils import fitsutils as fu
 import ssl
 
-pversion = sys.version_info.major
-if pversion < 3:
-    ## CASA version < 6
-    import urllib2
-    from sunpy import sun
-    from taskinit import ms, tb, qa, iatool
-
-    ia = iatool()
-else:
+py3 = sys.version_info.major>=3
+if py3:
     ## CASA version >= 6
-    import urllib.request as urllib2
-    from sunpy.coordinates import sun
+    from urllib.request import urlopen
+else:
+    ## CASA version < 6
+    from urllib2 import urlopen
+
+try:
+    ## Full Installation of CASA 4, 5 and 6
+    from taskinit import ms, tb, qa, iatool
+    ia = iatool()
+except:
+    ## Modular Installation of CASA 6
     from casatools import ms as mstool
     from casatools import table, quanta, image
-
     ms = mstool()
     tb = table()
     qa = quanta()
     ia = image()
+
+
+import sunpy
+# check sunpy version
+sunpyver = sunpy.version.major
+if sunpyver <= 1:
+    from sunpy import sun
+else:
+    from sunpy.coordinates import sun
 
 try:
     from astropy.io import fits as pyfits
@@ -78,8 +88,6 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     BC (2019-07-16): Added docstring documentation
 
     '''
-
-
     if not t0 and not vis:
         t0 = Time.now()
     if not dur:
@@ -141,9 +149,9 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         cmdstr = cmdstr.replace("'", "%27")
         try:
             context = ssl._create_unverified_context()
-            f = urllib2.urlopen(cmdstr, context=context)
+            f = urlopen(cmdstr, context=context)
         except:
-            f = urllib2.urlopen(cmdstr)
+            f = urlopen(cmdstr)
         lines = f.readlines()
         f.close()
     except:
@@ -169,15 +177,18 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         params['EXTRA_PREC'] = "'YES'"
         params['APPAENT'] = "'REFRACTED'"
         results = requests.get("https://ssd.jpl.nasa.gov/horizons_batch.cgi", params=params)
-        lines = [ll.decode('utf-8') for ll in results.iter_lines()]
+        lines = [ll for ll in results.iter_lines()]
+    
+    # add a check for python 3
+    if py3:
+        lines = [l.decode('utf-8', 'backslashreplace') for l in lines]
 
     nline = len(lines)
     istart = 0
     for i in range(nline):
-        line = lines[i]
-        if line[0:5] == '$$SOE':  # start recording
+        if lines[i][0:5] == '$$SOE':  # start recording
             istart = i + 1
-        if line[0:5] == '$$EOE':  # end recording
+        if lines[i][0:5] == '$$EOE':  # end recording
             iend = i
     newlines = lines[istart:iend]
     nrec = len(newlines)
@@ -529,7 +540,7 @@ def getbeam(imagefile=None, beamfile=None):
             sum = ia.summary()
             ia.close()
             ia.done()
-            if sum.has_key('perplanebeams'):  # beam vary with frequency
+            if 'perplanebeams' in sum.keys():  # beam vary with frequency
                 nbeams = sum['perplanebeams']['nChannels']
                 beams = sum['perplanebeams']['beams']
                 chans_ = [key[1:] for key in beams.keys()]
@@ -543,7 +554,7 @@ def getbeam(imagefile=None, beamfile=None):
                     bpa_.append(bpa0)
                 beamunit_ = beams['*' + chans_[0]]['*0']['major']['unit']
                 bpaunit_ = beams['*' + chans_[0]]['*0']['positionangle']['unit']
-            if sum.has_key('restoringbeam'):  # only one beam
+            if 'restoringbeam' in sum.keys():  # only one beam
                 bmaj_.append(sum['restoringbeam']['major']['value'])
                 bmin_.append(sum['restoringbeam']['minor']['value'])
                 bpa_.append(sum['restoringbeam']['positionangle']['value'])
@@ -746,17 +757,15 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 exptime = 1.
             p_angle = hel['p0']
             hgln_obs = 0.
-            if pversion < 3:
+            rsun_ref = sun.constants.radius.value
+            if sunpyver <= 1:
                 dsun_obs = sun.sunearth_distance(Time(dateobs)).to(u.meter).value
                 rsun_obs = sun.solar_semidiameter_angular_size(Time(dateobs)).value
-                rsun_ref = sun.constants.radius.value
                 hglt_obs = sun.heliographic_solar_center(Time(dateobs))[1].value
             else:
                 dsun_obs=sun.earth_distance(Time(dateobs)).to(u.meter).value
                 rsun_obs=sun.angular_radius(Time(dateobs)).value
-                rsun_ref=sun.constants.radius.value
                 hglt_obs=sun.B0(Time(dateobs)).value
-
             try:
                 # this works for pyfits version of CASA 4.7.0 but not CASA 4.6.0
                 header.set('exptime', exptime)
@@ -789,7 +798,12 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                     stokenum = header['CRVAL4']
                     exist_stokes = True
             if exist_stokes:
-                stokesstr = stokes_mapper[stokenum]
+                if stokenum in stokes_mapper.keys():
+                    stokesstr = stokes_mapper[stokenum]
+                else:
+                    print('Stokes parameter {0:d} not recognized. Assuming Stokes I'.format(stokenum))
+                    stokenum = 1
+                    stokesstr='I'
                 if verbose:
                     print('This image is in Stokes ' + stokesstr)
             else:
@@ -803,8 +817,8 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 bmin = bmins[n]
                 beamunit = beamunits[n]
                 data = hdu[0].data  # remember the data order is reversed due to the FITS convension
-                keys = header.keys()
-                values = header.values()
+                keys = list(header.keys())
+                values = list(header.values())
                 # which axis is frequency?
                 faxis = keys[values.index('FREQ')][-1]
                 faxis_ind = ndim - int(faxis)
