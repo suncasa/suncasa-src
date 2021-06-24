@@ -11,6 +11,7 @@ from astropy import units as u
 from astropy.time import Time
 from astropy.io import fits
 
+sunpy1 = sunpy.version.major>=1
 py3 = sys.version_info.major>=3
 if py3:
     # For Python 3.0 and later
@@ -45,7 +46,7 @@ import pickle
 import datetime
 import matplotlib as mpl
 import matplotlib.cm as cm
-import sunpy.cm.cm as cm_sunpy
+
 import matplotlib.colors as colors
 import matplotlib.patches as patches
 from matplotlib import gridspec
@@ -59,8 +60,9 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from suncasa.utils import plot_mapX as pmX
 from suncasa.utils import fitsutils as fu
 from tqdm import tqdm
+if not sunpy1:
+    import sunpy.cm.cm as cm_sunpy
 
-sunpyver = sunpy.version.major
 
 polmap = {'RR': 0, 'LL': 1, 'I': 0, 'V': 1, 'XX': 0, 'YY': 1}
 
@@ -565,10 +567,10 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
 
     from matplotlib import pyplot as plt
     from sunpy import map as smap
-    if sunpyver <= 1:
-        from sunpy import sun
-    else:
+    if sunpy1:
         from sunpy.coordinates import sun
+    else:
+        from sunpy import sun
     import astropy.units as u
     if not figdir:
         figdir = './'
@@ -1492,7 +1494,10 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
         # third part
         # start to download the fits files
         if plotaia:
-            cmap_aia = cm_sunpy.get_cmap('sdoaia{}'.format(aiawave))
+            if sunpy1:
+                cmap_aia = plt.get_cmap('sdoaia{}'.format(aiawave))
+            else:
+                cmap_aia = cm_sunpy.get_cmap('sdoaia{}'.format(aiawave))
             if not aiafits:
                 try:
                     newlist = trange2aiafits(Time([starttim1, endtim1]), aiawave, aiadir)
@@ -1723,12 +1728,12 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                 row, col = rmap.data.shape
                 positon = np.nanargmax(rmap.data)
                 m, n = divmod(positon, col)
-                if sunpyver < 1:
-                    x0 = rmap.xrange[0] + rmap.scale[1] * (n + 0.5) * u.pix
-                    y0 = rmap.yrange[0] + rmap.scale[0] * (m + 0.5) * u.pix
-                else:
+                if sunpy1:
                     x0 = rmap.bottom_left_coord.Tx + rmap.scale[1] * (n + 0.5) * u.pix
                     y0 = rmap.bottom_left_coord.Ty + rmap.scale[0] * (m + 0.5) * u.pix
+                else:
+                    x0 = rmap.xrange[0] + rmap.scale[1] * (n + 0.5) * u.pix
+                    y0 = rmap.yrange[0] + rmap.scale[0] * (m + 0.5) * u.pix
             if len(fov) == 1:
                 fov = [fov] * 2
             sz_x = fov[0] * u.arcsec
