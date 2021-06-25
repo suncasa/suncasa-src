@@ -58,9 +58,15 @@ def rewriteImageFits(datestr, verbose=False, writejp2=False, overwritejp2=False,
     files = sorted(files)
     for fl in files:
         if not os.path.exists(fl): continue
+        hdul = fits.open(fl)
+        if len(hdul) > 1:
+            hdul.close()
+            continue
+        else:
+            hdul.close()
         filein = os.path.join(imgbkdir, os.path.basename(fl))
-        # if not os.path.exists(filein):
-        os.system('mv {} {}'.format(fl, filein))
+        if not os.path.exists(filein):
+            os.system('mv {} {}'.format(fl, filein))
         hdul = fits.open(filein)
         for hdu in hdul:
             if hdu.header['NAXIS'] == 0:

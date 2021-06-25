@@ -19,53 +19,58 @@ from eovsapy import util
 #     idbdir = '/data1/eovsa/fits/IDB/'
 
 
-def udb_corr_external(filelist, udbcorr_path):
+def udb_corr_external(filelist, udbcorr_path, use_exist_udbcorr=False):
     import pickle
     udbcorr_script = os.path.join(udbcorr_path, 'udbcorr_ext.py')
     if os.path.exists(udbcorr_script):
         os.system('rm -rf {}'.format(udbcorr_script))
     udbcorr_file = os.path.join(udbcorr_path, 'udbcorr_tmp.pickle')
-    if os.path.exists(udbcorr_file):
-        os.system('rm -rf {}'.format(udbcorr_file))
-    with open(udbcorr_file, 'wb') as sf:
-        pickle.dump(filelist, sf)
 
-    fi = open(udbcorr_script, 'wb')
-    fi.write('import pickle \n')
-    fi.write('import pipeline_cal as pc \n')
-    fi.write('import sys \n')
-    fi.write('syspath = sys.path \n')
-    fi.write("sys.path = [l for l in syspath if 'casa' not in l] \n")
+    if use_exist_udbcorr and os.path.exists(udbcorr_file):
+        with open(udbcorr_file, 'rb') as sf:
+            filelist = pickle.load(sf)
+    else:
+        if os.path.exists(udbcorr_file):
+            os.system('rm -rf {}'.format(udbcorr_file))
+        with open(udbcorr_file, 'wb') as sf:
+            pickle.dump(filelist, sf)
+        fi = open(udbcorr_script, 'wb')
+        fi.write('import pickle \n')
+        fi.write('import pipeline_cal as pc \n')
+        fi.write('import sys \n')
+        fi.write('syspath = sys.path \n')
+        fi.write("sys.path = [l for l in syspath if 'casa' not in l] \n")
 
-    fi.write("with open('{}', 'rb') as sf: \n".format(udbcorr_file))
-    fi.write('    filelist = pickle.load(sf) \n')
+        fi.write("with open('{}', 'rb') as sf: \n".format(udbcorr_file))
+        fi.write('    filelist = pickle.load(sf) \n')
 
-    fi.write('filelist_tmp = [] \n')
-    fi.write('for ll in filelist: \n')
-    fi.write("    try: \n")
-    fi.write("        filelist_tmp.append(pc.udb_corr(ll, outpath='{}/', calibrate=True, desat=True)) \n".format(udbcorr_path))
-    fi.write("    except: \n")
-    fi.write("        pass \n")
-    fi.write('filelist = filelist_tmp \n')
-    fi.write("with open('{}', 'wb') as sf: \n".format(udbcorr_file))
-    fi.write('    pickle.dump(filelist,sf) \n')
-    fi.close()
+        fi.write('filelist_tmp = [] \n')
+        fi.write('for ll in filelist: \n')
+        fi.write("    try: \n")
+        fi.write("        filelist_tmp.append(pc.udb_corr(ll, outpath='{}/', calibrate=True, desat=True)) \n".format(
+            udbcorr_path))
+        fi.write("    except: \n")
+        fi.write("        pass \n")
+        fi.write('filelist = filelist_tmp \n')
+        fi.write("with open('{}', 'wb') as sf: \n".format(udbcorr_file))
+        fi.write('    pickle.dump(filelist,sf) \n')
+        fi.close()
 
-    udbcorr_shellscript = os.path.join(udbcorr_path, 'udbcorr_ext.csh')
-    if os.path.exists(udbcorr_shellscript):
-        os.system('rm -rf {}'.format(udbcorr_shellscript))
-    fi = open(udbcorr_shellscript, 'wb')
-    fi.write('#! /bin/tcsh -f \n')
-    fi.write(' \n')
-    # fi.write('setenv PYTHONPATH "/home/user/test_svn/python:/common/python/current:/common/python" \n')
-    fi.write('source /home/user/.cshrc \n')
-    fi.write('/common/anaconda2/bin/python {} \n'.format(udbcorr_script))
-    fi.close()
+        udbcorr_shellscript = os.path.join(udbcorr_path, 'udbcorr_ext.csh')
+        if os.path.exists(udbcorr_shellscript):
+            os.system('rm -rf {}'.format(udbcorr_shellscript))
+        fi = open(udbcorr_shellscript, 'wb')
+        fi.write('#! /bin/tcsh -f \n')
+        fi.write(' \n')
+        # fi.write('setenv PYTHONPATH "/home/user/test_svn/python:/common/python/current:/common/python" \n')
+        fi.write('source /home/user/.cshrc \n')
+        fi.write('/common/anaconda2/bin/python {} \n'.format(udbcorr_script))
+        fi.close()
 
-    os.system('/bin/tcsh {}'.format(udbcorr_shellscript))
+        os.system('/bin/tcsh {}'.format(udbcorr_shellscript))
 
-    with open(udbcorr_file, 'rb') as sf:
-        filelist = pickle.load(sf)
+        with open(udbcorr_file, 'rb') as sf:
+            filelist = pickle.load(sf)
 
     if filelist == []:
         raise ValueError('udb_corr failed to return any results. Please check your calibration.')
@@ -144,21 +149,9 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     # try:
     msname0 = list(filename.split('/')[-1])
     msname = visprefix + ''.join(msname0) + '.ms'
-    uv.select('antennae', 0, 1, include=True)
-    uv.select('polarization', -5, -5, include=True)
-    times = []
-    uv.rewind()
-    for preamble, data in uv.all():
-        uvw, t, (i, j) = preamble
-        times.append(t)
-
-    uv.select('clear', -1, -1, include=True)
-    times = ipe.jd2mjds(np.asarray(times))
-    inttime = np.median((times - np.roll(times, 1))[1:]) / 60
-
-    time_steps = len(times)
-    durtim = int((times[-1] - times[0]) / 60 + inttime)
-    time0 = time.time()
+    # try:
+    # uv.select('antennae', 0, 1, include=True)
+    # uv.select('polarization', -5, -5, include=True)
 
     if 'antlist' in uv.vartable:
         ants = uv['antlist'].replace('\x00', '')
@@ -178,6 +171,34 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     nbl = nants * (nants - 1) / 2
     bl2ord = ipe.bl_list2(nants)
     npairs = nbl + nants
+
+    timesall = []
+    uv.rewind()
+    for preamble, data in uv.all():
+        uvw, t, (i, j) = preamble
+        timesall.append(t)
+    timesjd = np.unique(timesall)
+    # except:
+    #     pass
+
+    uv.select('clear', -1, -1, include=True)
+    times = ipe.jd2mjds(np.asarray(timesjd))
+    inttime = np.median((times - np.roll(times, 1))[1:]) / 60  ## time in minutes
+    inttimed = inttime / (24 * 60)  ## time in days
+
+    time_steps = np.round((times[-1] - times[0]) / inttime / 60).astype(np.int) + 1
+    # time_steps = len(timesall) / (npairs * npol)
+    if len(times) != time_steps:
+        ### This is to solve the timestamp glitch in idb files.
+        ### The timestamps are supposed to be evenly spaced
+        ### However, some idb files may miss a few timestamps in the evenly-spaced time grid.
+        ### The step will map the the data to the evenly-spaced time grid.
+        timesnew = np.linspace(times[0], times[-1], time_steps)
+        timesnew[np.hstack([[0], np.cumsum(np.round(np.diff(times) / 60 / inttime))]).astype(np.int)] = times
+        times = timesnew
+    durtim = int(np.round((times[-1] - times[0]) / 60 + inttime))  ## time in minutes
+    time0 = time.time()
+
     flag = np.ones((npol, nf, time_steps, npairs), dtype=bool)
     out = np.zeros((npol, nf, time_steps, npairs), dtype=np.complex64)  # Cross-correlations
     uvwarray = np.zeros((3, time_steps, npairs), dtype=np.float)
@@ -199,11 +220,15 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         l += 1
         mask0 = data.mask
         data = ma.masked_array(ma.masked_invalid(data), fill_value=0.0)
-        out[k, :, l / (npairs * npol), bl2ord[i0, j0]] = data.data
-        flag[k, :, l / (npairs * npol), bl2ord[i0, j0]] = np.logical_or(data.mask, mask0)
+        try:
+            tidx = np.where(np.abs(timesjd - t) < inttimed)[0][0]
+        except:
+            tidx = l / (npairs * npol)
+        out[k, :, tidx, bl2ord[i0, j0]] = data.data
+        flag[k, :, tidx, bl2ord[i0, j0]] = np.logical_or(data.mask, mask0)
         # if i != j:
         if k == 3:
-            uvwarray[:, l / (npairs * npol), bl2ord[i0, j0]] = -uvw * constants.speed_of_light / 1e9
+            uvwarray[:, tidx, bl2ord[i0, j0]] = -uvw * constants.speed_of_light / 1e9
 
     nrows = time_steps * npairs
     if doscaling:
@@ -234,13 +259,13 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         casalog.post('----------------------------------------')
         casalog.post('copying standard MS to {0}'.format(msname, (time.time() - time0)))
         casalog.post('----------------------------------------')
-        os.system("rm -fr %s" % msname)
-        os.system("cp -r " + " %s" % modelms + " %s" % msname)
+        os.system("rm -fr {}".format(msname))
+        os.system("cp -r {} {}".format(modelms, msname))
         casalog.post('Standard MS is copied to {0} in --- {1:10.2f} seconds ---'.format(msname, (time.time() - time0)))
 
     tb.open(msname, nomodify=False)
     casalog.post('----------------------------------------')
-    casalog.post("Updating the main table of" '%s' % msname)
+    casalog.post("Updating the main table of {}".format(msname))
     casalog.post('----------------------------------------')
     for l, cband in enumerate(chan_band):
         time1 = time.time()
@@ -270,7 +295,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     tb.close()
 
     casalog.post('----------------------------------------')
-    casalog.post("Updating the OBSERVATION table of" '%s' % msname)
+    casalog.post("Updating the OBSERVATION table of {}".format(msname))
     casalog.post('----------------------------------------')
     tb.open(msname + '/OBSERVATION', nomodify=False)
     tb.putcol('TIME_RANGE', np.asarray([times[0] - 0.5 * inttime, times[-1] + 0.5 * inttime]).reshape(2, 1))
@@ -278,7 +303,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     tb.close()
 
     casalog.post('----------------------------------------')
-    casalog.post("Updating the POINTING table of" '%s' % msname)
+    casalog.post("Updating the POINTING table of {}".format(msname))
     casalog.post('----------------------------------------')
     tb.open(msname + '/POINTING', nomodify=False)
     timearr = times.reshape(1, time_steps, 1)
@@ -297,7 +322,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     tb.close()
 
     casalog.post('----------------------------------------')
-    casalog.post("Updating the SOURCE table of" '%s' % msname)
+    casalog.post("Updating the SOURCE table of {}".format(msname))
     casalog.post('----------------------------------------')
     tb.open(msname + '/SOURCE', nomodify=False)
     radec = tb.getcol('DIRECTION')
@@ -308,7 +333,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     tb.close()
 
     casalog.post('----------------------------------------')
-    casalog.post("Updating the DATA_DESCRIPTION table of" '%s' % msname)
+    casalog.post("Updating the DATA_DESCRIPTION table of {}".format(msname))
     casalog.post('----------------------------------------')
     tb.open(msname + '/DATA_DESCRIPTION/', nomodify=False)
     pol_id = tb.getcol('POLARIZATION_ID')
@@ -320,14 +345,14 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     tb.close()
 
     # casalog.post('----------------------------------------')
-    # casalog.post("Updating the POLARIZATION table of" '%s' % msname)
+    # casalog.post("Updating the POLARIZATION table of {}".format(msname))
     # casalog.post('----------------------------------------')
     # tb.open(msname + '/POLARIZATION/', nomodify=False)
     # tb.removerows(rownrs=np.arange(1, nband, dtype=int))
     # tb.close()
 
     casalog.post('----------------------------------------')
-    casalog.post("Updating the FIELD table of" '%s' % msname)
+    casalog.post("Updating the FIELD table of {}".format(msname))
     casalog.post('----------------------------------------')
     tb.open(msname + '/FIELD/', nomodify=False)
     delay_dir = tb.getcol('DELAY_DIR')
@@ -355,7 +380,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
             msname_scl = msname
         tb.open(msname_scl, nomodify=False)
         casalog.post('----------------------------------------')
-        casalog.post("Updating the main table of" '%s' % msname_scl)
+        casalog.post("Updating the main table of {}".format(msname_scl))
         casalog.post('----------------------------------------')
         for l, cband in enumerate(chan_band):
             time1 = time.time()
@@ -379,7 +404,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         msfile = msname
         if doscaling:
             msfile_scl = msname_scl
-    casalog.post("finished in --- %s seconds ---" % (time.time() - time0))
+    casalog.post("finished in --- {:.1f} seconds ---".format(time.time() - time0))
     if doscaling:
         return [True, msfile, msfile_scl, durtim]
     else:
@@ -388,7 +413,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
 
 def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=None, udb_corr=True, nocreatms=None,
                 doconcat=None, modelms=None,
-                doscaling=False, keep_nsclms=False):
+                doscaling=False, keep_nsclms=False, use_exist_udbcorr=False):
     casalog.origin('importeovsa')
 
     if type(idbfiles) == Time:
@@ -433,7 +458,7 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
         udbcorr_path = visprefix + '/tmp_UDBcorr/'
         if not os.path.exists(udbcorr_path):
             os.makedirs(udbcorr_path)
-        filelist = udb_corr_external(filelist, udbcorr_path)
+        filelist = udb_corr_external(filelist, udbcorr_path, use_exist_udbcorr)
 
     if not modelms:
         if nocreatms:

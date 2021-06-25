@@ -1,10 +1,24 @@
 import os
 import shutil
-# import time
-# import stat
 import numpy as np
-import signalsmooth
-from taskinit import ms, qa, mstool, msmdtool, casalog
+from suncasa.utils import signal_utils as su
+import sys
+
+if sys.version_info.major > 2:
+    from casatools import ms, quanta, msmetadata
+    from casatasks import casalog
+
+    casalog.showconsole(True)
+    datams = ms()
+    ms_in = ms()
+    datamsmd = msmetadata()
+    qa = quanta()
+else:
+    from taskinit import ms, qa, mstool, msmdtool, casalog
+
+    datams = mstool()
+    ms_in = mstool()
+    datamsmd = msmdtool()
 
 
 # from taskinit import *
@@ -12,9 +26,9 @@ from taskinit import ms, qa, mstool, msmdtool, casalog
 # import pdb
 
 def subvs2(vis=None, outputvis=None, timerange='', spw='',
-           mode=None, subtime1=None, subtime2=None,
-           smoothaxis=None, smoothtype=None, smoothwidth=None,
-           splitsel=None, reverse=None, overwrite=None):
+           mode='linear', subtime1='', subtime2='',
+           smoothaxis='time', smoothtype='flat', smoothwidth='5',
+           splitsel=True, reverse=False, overwrite=False):
     """Perform vector subtraction for visibilities
     Keyword arguments:
     vis -- Name of input visibility file (MS)
@@ -80,24 +94,25 @@ def subvs2(vis=None, outputvis=None, timerange='', spw='',
     casalog.post('input parameters:')
     casalog.post('vis: ' + vis)
     casalog.post('outputvis: ' + outputvis)
-    casalog.post('smoothaxis: ' + smoothaxis)
-    casalog.post('smoothtype: ' + smoothtype)
-    casalog.post('smoothwidth: ' + str(smoothwidth))
+    if mode not in ['linear']:
+        casalog.post('smoothaxis: ' + smoothaxis)
+        casalog.post('smoothtype: ' + smoothtype)
+        casalog.post('smoothwidth: ' + str(smoothwidth))
     if not outputvis or outputvis.isspace():
-        raise (ValueError, 'Please specify outputvis')
+        raise ValueError('Please specify outputvis')
 
     if os.path.exists(outputvis):
         if overwrite:
             print("The already existing output measurement set will be updated.")
         else:
-            raise (ValueError, "Output MS %s already exists - will not overwrite." % outputvis)
+            raise ValueError("Output MS {} already exists - will not overwrite.".format(outputvis))
     else:
         if not splitsel:
             shutil.copytree(vis, outputvis)
         else:
-            ms.open(vis, nomodify=True)
-            ms.split(outputvis, spw=spw, time=timerange, whichcol='DATA')
-            ms.close()
+            ms_in.open(vis, nomodify=True)
+            ms_in.split(outputvis, spw=spw, time=timerange, whichcol='DATA')
+            ms_in.close()
 
     if timerange and (type(timerange) == str):
         [btimeo, etimeo] = timerange.split('~')
@@ -116,13 +131,13 @@ def subvs2(vis=None, outputvis=None, timerange='', spw='',
         casalog.post('spw not specified, use all frequency channels')
 
     # read the output data
-    datams = mstool()
+
     datams.open(outputvis, nomodify=False)
-    datamsmd = msmdtool()
+
     datamsmd.open(outputvis)
     spwinfod = datams.getspectralwindowinfo()
     spwinfok = spwinfod.keys()
-    spwinfok.sort(key=int)
+    spwinfok = sorted(spwinfok, key=int)
     spwinfol = [spwinfod[k] for k in spwinfok]
     for s, spi in enumerate(spwinfol):
         print('processing spectral window {}'.format(spi['SpectralWindowId']))
@@ -177,16 +192,16 @@ def subvs2(vis=None, outputvis=None, timerange='', spw='',
                     casalog.post('Timerange 2 not selected, using only timerange 1 as background')
 
                 # Select the background indicated by subtime1
-                ms.open(vis, nomodify=True)
+                ms_in.open(vis, nomodify=True)
                 # Select the spw id
-                # ms.msselect({'time': subtime1})
+                # ms_in.msselect({'time': subtime1})
                 staql0 = {'time': subtime1, 'spw': ''}
                 if spw and (type(spw) == str):
                     staql0['spw'] = spwlist[s]
                 else:
                     staql0['spw'] = staql['spw']
-                ms.msselect(staql0)
-                rec1 = ms.getdata(['data', 'time', 'axis_info'], ifraxis=True)
+                ms_in.msselect(staql0)
+                rec1 = ms_in.getdata(['data', 'time', 'axis_info'], ifraxis=True)
                 # print('shape of the frequency matrix ',rec1['axis_info']['freq_axis']['chan_freq'].shape)
                 sz1 = rec1['data'].shape
                 print('dimension of selected background 1', rec1['data'].shape)
@@ -195,23 +210,23 @@ def subvs2(vis=None, outputvis=None, timerange='', spw='',
                 # print('reshaped rec1 ', rec1['data'].shape)
                 rec1avg = np.average(rec1['data'], axis=3)
                 casalog.post('Averaging the visibilities in subtime1: ' + subtime1)
-                ms.close()
+                ms_in.close()
                 if subtime2 and (type(subtime2) == str):
-                    ms.open(vis, nomodify=True)
+                    ms_in.open(vis, nomodify=True)
                     # Select the spw id
                     staql0 = {'time': subtime2, 'spw': ''}
                     if spw and (type(spw) == str):
                         staql0['spw'] = spwlist[s]
                     else:
                         staql0['spw'] = staql['spw']
-                    ms.msselect(staql0)
-                    rec2 = ms.getdata(['data', 'time', 'axis_info'], ifraxis=True)
+                    ms_in.msselect(staql0)
+                    rec2 = ms_in.getdata(['data', 'time', 'axis_info'], ifraxis=True)
                     sz2 = rec2['data'].shape
                     print('dimension of selected background 2', rec2['data'].shape)
                     # rec2['data']=rec2['data'].reshape(sz2[0],sz2[1],sz2[2],nspw,sz2[3]/nspw,order='F')
                     # print('reshaped rec1 ', rec2['data'].shape)
                     rec2avg = np.average(rec2['data'], axis=3)
-                    ms.close()
+                    ms_in.close()
                     casalog.post('Averaged the visibilities in subtime2: ' + subtime2)
                 if subtime1 and (not subtime2):
                     casalog.post('Only "subtime1" is defined, subtracting background defined in subtime1: ' + subtime1)
@@ -248,9 +263,9 @@ def subvs2(vis=None, outputvis=None, timerange='', spw='',
                         for i in range(orec['data'].shape[0]):
                             for j in range(nchan):
                                 for k in range(nbl):
-                                    orec['data'][i, j, k, :] -= signalsmooth.smooth(orec['data'][i, j, k, :],
-                                                                                    smoothwidth,
-                                                                                    smoothtype)
+                                    orec['data'][i, j, k, :] -= su.smooth(orec['data'][i, j, k, :],
+                                                                          smoothwidth,
+                                                                          smoothtype)
                 if smoothaxis == 'freq':
                     if smoothwidth <= 0 or smoothwidth >= nchan:
                         raise Exception('Specified smooth width is <=0 or >= the total number of ' + smoothaxis)
@@ -258,9 +273,9 @@ def subvs2(vis=None, outputvis=None, timerange='', spw='',
                         for i in range(orec['data'].shape[0]):
                             for j in range(nbl):
                                 for k in range(ntim):
-                                    orec['data'][i, :, j, k] -= signalsmooth.smooth(orec['data'][i, :, j, k],
-                                                                                    smoothwidth,
-                                                                                    smoothtype)
+                                    orec['data'][i, :, j, k] -= su.smooth(orec['data'][i, :, j, k],
+                                                                          smoothwidth,
+                                                                          smoothtype)
             elif mode == 'lowpass':
                 if smoothtype != 'flat' and smoothtype != 'hanning' and smoothtype != 'hamming' and smoothtype != 'bartlett' and smoothtype != 'blackman':
                     raise Exception('Unknown smoothtype ' + str(smoothtype))
@@ -271,9 +286,9 @@ def subvs2(vis=None, outputvis=None, timerange='', spw='',
                         for i in range(orec['data'].shape[0]):
                             for j in range(nchan):
                                 for k in range(nbl):
-                                    orec['data'][i, j, k, :] = signalsmooth.smooth(orec['data'][i, j, k, :],
-                                                                                   smoothwidth,
-                                                                                   smoothtype)
+                                    orec['data'][i, j, k, :] = su.smooth(orec['data'][i, j, k, :],
+                                                                         smoothwidth,
+                                                                         smoothtype)
                 if smoothaxis == 'freq':
                     if smoothwidth <= 0 or smoothwidth >= nchan:
                         raise Exception('Specified smooth width is <=0 or >= the total number of ' + smoothaxis)
@@ -281,9 +296,9 @@ def subvs2(vis=None, outputvis=None, timerange='', spw='',
                         for i in range(orec['data'].shape[0]):
                             for j in range(nbl):
                                 for k in range(ntim):
-                                    orec['data'][i, :, j, k] = signalsmooth.smooth(orec['data'][i, :, j, k],
-                                                                                   smoothwidth,
-                                                                                   smoothtype)
+                                    orec['data'][i, :, j, k] = su.smooth(orec['data'][i, :, j, k],
+                                                                         smoothwidth,
+                                                                         smoothtype)
             else:
                 raise Exception('Unknown mode' + str(mode))
         except Exception as instance:
@@ -293,7 +308,7 @@ def subvs2(vis=None, outputvis=None, timerange='', spw='',
         # put the modified data back into the output visibility set
         del orec['time']
         del orec['axis_info']
-        # ms.open(outputvis,nomodify=False)
+        # ms_in.open(outputvis,nomodify=False)
         # if not splitsel:
         # outputvis is identical to input visibility, do the selection
         #    if timerange and (type(timerange==str)):

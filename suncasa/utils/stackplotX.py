@@ -1049,7 +1049,7 @@ class Stackplot:
                 return ax  # ax.autoscale(True, 'both', True)  # ax.autoscale_view(True, True, True)  # ax.relim(visible_only=True)
 
     def make_mapcube(self, trange, outfile=None, fov=None, wavelength='171', binpix=1, dt_data=1, derotate=False,
-                     tosave=True, superpixel=False, aia_prep=False, mapinterp=False, overwrite=False, dtype=None):
+                     tosave=True, superpixel=False, aia_prep=False, mapinterp=False, overwrite=False, dtype=None, normalize=True):
         if not overwrite:
             if outfile is not None:
                 if os.path.exists(outfile):
@@ -1124,10 +1124,11 @@ class Stackplot:
             if submaptmp.detector == 'HMI':
                 pass
             else:
-                try:
-                    submaptmp = DButil.normalize_aiamap(submaptmp)
-                except:
-                    pass
+                if normalize:
+                    try:
+                        submaptmp = DButil.normalize_aiamap(submaptmp)
+                    except:
+                        pass
             maplist.append(submaptmp)
         if derotate:
             mapcube = mapsequence_solar_derotate(sunpy.map.Map(maplist, sequence=True))

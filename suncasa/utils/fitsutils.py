@@ -10,8 +10,8 @@ stokesval = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3
 
 def headerfix(header, PC_coor=True):
     '''
-    this code fix the header problem of fits out from CASA 5.4+ which leads to a streched solar image
-    set PC_coor equal to True will reset the rotation matrix.
+	this code fixes the header problem of fits out from CASA 5.4+ which leads to a streched solar image.
+    Setting PC_coor equal to True will reset the rotation matrix.
     '''
 
     keys2remove = []

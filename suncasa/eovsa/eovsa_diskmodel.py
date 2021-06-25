@@ -52,7 +52,7 @@ def ant_trange(vis):
     # metadata = ms.metadata()
     scans = ms.getscansummary()
     sk = np.sort(scans.keys())
-    vistrange = np.array([scans[sk[0]]['0']['BeginTime'],scans[sk[-1]]['0']['EndTime']])
+    vistrange = np.array([scans[sk[0]]['0']['BeginTime'], scans[sk[-1]]['0']['EndTime']])
 
     # Get the Sun transit time, based on the date in the vis file name (must have UDByyyymmdd in the name)
     aa = ea.eovsa_array()
@@ -267,6 +267,38 @@ def read_ms(vis):
     return {'amp': xxamp, 'phase': xxpha, 'fghz': fghz, 'band': band, 'mjd': mjd, 'uvdist': uvdist, 'uvangle': uvang}
 
 
+def im2cl(imname, clname, convol=True, verbose=False):
+    if os.path.exists(clname):
+        os.system('rm -rf {}'.format(clname))
+    ia = iatool()
+    ia.open(imname)
+    ia2 = iatool()
+    ia2.open(imname.replace('.model', '.image'))
+    bm = ia2.restoringbeam()
+    bmsize = (qa.convert(qa.quantity(bm['major']), 'arcsec')['value'] +
+              qa.convert(qa.quantity(bm['minor']), 'arcsec')['value']) / 2.0
+    if convol:
+        im2 = ia.sepconvolve(types=['gaussian', 'gaussian'], widths="{0:}arcsec {0:}arcsec".format(2.5*bmsize),
+                             overwrite=True)
+        ia2.done()
+    else:
+        im2 = ia
+    cl = cltool()
+    srcs = im2.findsources(point=False, cutoff=0.3, width=int(np.ceil(bmsize/2.5)))
+    # srcs = ia.findsources(point=False, cutoff=0.1, width=5)
+    if verbose:
+        for k, v in srcs.iteritems():
+            if k.startswith('comp'):
+                ## note: Stokes I to XX
+                print(srcs[k]['flux']['value'])
+                # srcs[k]['flux']['value'] = srcs[k]['flux']['value'] / 2.0
+    cl.fromrecord(srcs)
+    cl.rename(clname)
+    cl.done()
+    ia.done()
+    im2.done()
+
+
 def fit_diskmodel(out, bidx, rstn_flux, uvfitrange=[1, 150], angle_tolerance=np.pi / 2, doplot=True):
     ''' Given the result returned by read_ms(), plots the amplitude vs. uvdistance
         separately for polar and equatorial directions rotated for P-angle, then overplots
@@ -467,9 +499,9 @@ def calc_diskmodel(slashdate, nbands, freq, defaultfreq):
     return dsize, fdens
 
 
-def mk_diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 20d00m00.0s',
+def mk_diskmodel(outname='disk', direction='J2000 10h00m00.0s 20d00m00.0s',
                  reffreq='2.8GHz', flux=660000.0, eqradius='16.166arcmin', polradius='16.166arcmin',
-                 pangle='21.1deg', index=None, cell='2.0arcsec', overwrite=True):
+                 pangle='21.1deg', overwrite=True):
     ''' Create a blank solar disk model image (or optionally a data cube)
         outname       String to use for part of the image and fits file names (default 'disk')
         direction     String specifying the position of the Sun in RA and Dec.  Default
@@ -493,17 +525,14 @@ def mk_diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 
           (not the width of individual science channels)
     '''
 
-    diskim = outname + reffreq + '.im'
-    if os.path.exists(diskim):
+    diskcl = outname + reffreq + '.cl'
+    if os.path.exists(diskcl):
         if overwrite:
-            os.system('rm -rf {}'.format(diskim))
+            os.system('rm -rf {}'.format(diskcl))
         else:
-            return diskim
+            return diskcl
 
-    ia = iatool()
     cl = cltool()
-    cl.done()
-    ia.done()
 
     try:
         aspect = 1.01  # Enlarge the equatorial disk by 1%
@@ -511,45 +540,20 @@ def mk_diskmodel(outname='disk', bdwidth='325MHz', direction='J2000 10h00m00.0s 
         diamajor = qa.quantity(2 * aspect * eqradius['value'], eqradius['unit'])
         polradius = qa.quantity(polradius)
         diaminor = qa.quantity(2 * polradius['value'], polradius['unit'])
-        solrad = qa.convert(polradius, 'arcsec')
     except:
         print('Radius', eqradius, polradius,
               'does not have the expected format, number + unit where unit is arcmin or arcsec')
         return
-    try:
-        cell = qa.convert(qa.quantity(cell), 'arcsec')
-        cellsize = float(cell['value'])
-        diskpix = solrad['value'] * 2 / cellsize
-        cell_rad = qa.convert(cell, 'rad')
-    except:
-        print('Cell size', cell, 'does not have the expected format, number + unit where unit is arcmin or arcsec')
-        return
 
     # Add 90 degrees to pangle, due to angle definition in addcomponent() -- it puts the majoraxis vertical
     pangle = qa.add(qa.quantity(pangle), qa.quantity('90deg'))
-    mapsize = ((int(diskpix) / 512) + 1) * 512
-    # Flux density is doubled because it is split between XX and YY
-    cl.addcomponent(dir=direction, flux=flux * 2, fluxunit='Jy', freq=reffreq, shape='disk',
+    # Flux density is split between XX and YY
+    cl.addcomponent(dir=direction, flux=flux / 2.0, fluxunit='Jy', freq=reffreq, shape='disk',
                     majoraxis=diamajor, minoraxis=diaminor, positionangle=pangle)
     cl.setrefdirframe(0, 'J2000')
-
-    ia.fromshape(diskim, [mapsize, mapsize, 1, 1], overwrite=True)
-    cs = ia.coordsys()
-    cs.setunits(['rad', 'rad', '', 'Hz'])
-    cell_rad_val = cell_rad['value']
-    cs.setincrement([-cell_rad_val, cell_rad_val], 'direction')
-    epoch, ra, dec = direction.split()
-    cs.setreferencevalue([qa.convert(ra, 'rad')['value'], qa.convert(dec, 'rad')['value']], type="direction")
-    cs.setreferencevalue(reffreq, 'spectral')
-    cs.setincrement(bdwidth, 'spectral')
-    ia.setcoordsys(cs.torecord())
-    ia.setbrightnessunit("Jy/pixel")
-    ia.modify(cl.torecord(), subtract=False)
-    ia.close()
-    ia.done()
-    # cl.close()
+    cl.rename(diskcl)
     cl.done()
-    return diskim
+    return diskcl
 
 
 def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, xmlfile='SOLDISK.xml', writediskinfoonly=False,
@@ -565,9 +569,9 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, xmlfile='SOLDISK
     spwinfo = ms.getspectralwindowinfo()
     nspw = len(spwinfo.keys())
     ms.close()
-    diskimdir = 'diskim/'
-    if not os.path.exists(diskimdir):
-        os.makedirs(diskimdir)
+    diskcldir = 'diskcl/'
+    if not os.path.exists(diskcldir):
+        os.makedirs(diskcldir)
     frq = []
     spws = range(nspw)
     for sp in spws:
@@ -584,22 +588,27 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, xmlfile='SOLDISK
         dec = phadir[1]
         direction = 'J2000 ' + str(ra) + 'rad ' + str(dec) + 'rad'
 
-        diskim = []
+        diskcl = []
         for sp in tqdm(spws, desc='Generating {} disk models'.format(nspw), ascii=True):
-            diskim.append(
-                mk_diskmodel(outname=diskimdir + 'disk{:02d}_'.format(sp), bdwidth=spwinfo[str(sp)],
-                             direction=direction,
-                             reffreq=frq[sp],
+            diskcl.append(
+                mk_diskmodel(outname=diskcldir + 'disk{:02d}_'.format(sp),
+                             direction=direction, reffreq=frq[sp],
                              flux=fdens[sp], eqradius=dsize[sp], polradius=dsize[sp], overwrite=overwrite))
 
         if not active:
             delmod(msfile, otf=True, scr=True)
+            for sp in tqdm(spws, desc='Inserting disk model', ascii=True):
+                ft(vis=msfile, spw=str(sp), field='', model="", nterms=1,
+                   reffreq="", complist=str(diskcl[sp]), incremental=False, usescratch=True)
+        else:
+            for sp in tqdm(spws, desc='Inserting disk model', ascii=True):
+                model_ft = mstl.getmodel(msfile, spw=str(sp))
+                ft(vis=msfile, spw=str(sp), field='', model="", nterms=1,
+                   reffreq="", complist=str(diskcl[sp]), incremental=False, usescratch=True)
+                model_disk = mstl.getmodel(msfile, spw=str(sp))
+                mstl.putmodel(msfile, spw=str(sp), model=model_ft + model_disk)
 
-        for sp in tqdm(spws, desc='Inserting disk model', ascii=True):
-            ft(vis=msfile, spw=str(sp), field='', model=str(diskim[sp]), nterms=1,
-               reffreq="", complist="", incremental=True, usescratch=True)
-
-        return msfile, diskim
+        return msfile, diskcl
 
 
 def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'):
@@ -645,16 +654,22 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
     if not active:
         clearcal(vis)
 
-    flagmanager(vis, mode='save', versionname='with-RFI-or-BURSTS')
-    ## automaticaly flag any high amplitudes from flares or RFI
-    flagdata(vis=vis, mode="tfcrop", spw='', action='apply', display='',
-             timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=False)
-    flagmanager(vis, mode='save', versionname='without-RFI-or-BURSTS')
 
     dsize, fdens = calc_diskmodel(slashdate, nbands, freq, defaultfreq)
     diskxmlfile = vis + '.SOLDISK.xml'
     # Insert the disk model (msfile is the same as vis, and will be used as the "original" vis file name)
-    msfile, diskim = insertdiskmodel(vis, dsize=dsize, fdens=fdens, xmlfile=diskxmlfile, active=active)
+    msfile, diskcl = insertdiskmodel(vis, dsize=dsize, fdens=fdens, xmlfile=diskxmlfile, active=active)
+
+    flagmanager(msfile, mode='save', versionname='diskslfcal_init')
+    ## automaticaly flag any high amplitudes from flares or RFI
+    flagdata(vis=msfile, mode="tfcrop", spw='', action='apply', display='',
+             timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=False)
+    flagmanager(msfile, mode='save', versionname='diskslfcal_remove_RFI-and-BURSTS')
+
+    tdate = mstl.get_trange(msfile)[0].datetime.strftime('%Y%m%d')
+    caltb = os.path.join(slfcaltbdir, tdate + '_1.pha')
+    if os.path.exists(caltb):
+        os.system('rm -rf {}*'.format(caltb))
 
     if pols == 'XXYY':
         caltbs_ = {'XX': [], 'YY': []}
@@ -666,12 +681,6 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
                 os.system('rm -rf {}'.format(msfileXY[pol]))
             mstl.splitX(vis=msfile, outputvis=msfileXY[pol], correlation=pol, datacolumn='data',
                         datacolumn2='MODEL_DATA')
-
-    tdate = mstl.get_trange(msfile)[0].datetime.strftime('%Y%m%d')
-    caltb = os.path.join(slfcaltbdir, tdate + '_1.pha')
-    if os.path.exists(caltb):
-        os.system('rm -rf {}*'.format(caltb))
-    if pols == 'XXYY':
         mstl.gaincalXY(vis=msfile, caltable=caltb, pols=pols, msfileXY=msfileXY, selectdata=True, uvrange="",
                        antenna="0~12&0~12", solint="inf",
                        combine="scan", refant="0", refantmode="strict", minsnr=1.0, gaintype="G", calmode="p",
@@ -732,15 +741,15 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
     if os.path.exists(vis2 + '.flagversions'):
         os.system('rm -rf {}'.format(vis2 + '.flagversions'))
 
-    flagmanager(msfile, mode='restore', versionname='with-RFI-or-BURSTS')
+    flagmanager(msfile, mode='restore', versionname='diskslfcal_init')
     clearcal(msfile)
     applycal(vis=msfile, selectdata=True, antenna="0~12", gaintable=caltbs, interp="linear", calwt=False,
              applymode="calonly")
     split(msfile, outputvis=vis2, datacolumn="corrected")
-    for sp, dkim in tqdm(enumerate(diskim), desc='Inserting disk model', ascii=True):
-        ft(vis=vis2, spw=str(sp), field='', model=str(dkim), nterms=1,
-           reffreq="", complist="", incremental=False, usescratch=True)
-        # mstl.modeltransfer(msfile, spw='{}'.format(sp))
+    for sp, dkcl in tqdm(enumerate(diskcl), desc='Inserting disk model', ascii=True):
+        ft(vis=vis2, spw=str(sp), field='', model="", nterms=1,
+           reffreq="", complist=str(dkcl), incremental=False, usescratch=True)
+    #     # mstl.modeltransfer(msfile, spw='{}'.format(sp))
     uvsub(vis=vis2, reverse=False)
 
     # Final split to
@@ -804,7 +813,8 @@ def fd_images(vis, cleanup=False, niter=None, spws=['0~1', '2~5', '6~10', '11~20
             tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
                    antenna="0~12", datacolumn="data", imagename=imname, imsize=[1024], cell=['2.5arcsec'],
                    stokes=stokes, projection="SIN", specmode="mfs", interpolation="linear", deconvolver="multiscale",
-                   scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs", robust=0,
+                   scales=[0, 5, 15, 30], nterms=2, smallscalebias=0.6, restoration=True, weighting="briggs",
+                   robust=0.0,
                    niter=niter, gain=0.05, savemodel="none", usemask='auto-multithresh', pbmask=0.0,
                    sidelobethreshold=1.0, noisethreshold=2.5, lownoisethreshold=1.5, negativethreshold=5.0,
                    smoothfactor=1.0, minbeamfrac=0.3, cutthreshold=0.01, growiterations=75, dogrowprune=True,
@@ -841,6 +851,13 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
         os.system('rm -rf images_init')
     os.system('mv images images_init')
     clearcal(vis, addmodel=True)
+
+    flagmanager(vis, mode='save', versionname='featureslfcal_init')
+    ## automaticaly flag any high amplitudes from flares or RFI
+    flagdata(vis=vis, mode="tfcrop", spw='', action='apply', display='',
+             timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=False)
+    flagmanager(vis, mode='save', versionname='featureslfcal_remove_RFI-and-BURSTS')
+
     fd_images(vis, cleanup=False, niter=niter, spws=spws, bright=bright)  # Does shallow clean for selfcal purposes
     tdate = mstl.get_trange(vis)[0].datetime.strftime('%Y%m%d')
     caltb = os.path.join(slfcaltbdir, tdate + '_d1.pha')
@@ -853,9 +870,16 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
             if sp == '31~49':
                 # The high-band image is only made to band 43, so adjust the name
                 imname = 'images/briggs31-43.model'
-            ft(vis=vis, spw=sp, model=imname, usescratch=True, incremental=True)
-            if pols == 'XXYY':
-                mstl.modeltransfer(vis, spw=sp)
+            imcl = imname.replace('.model', '.cl')
+            im2cl(imname, imcl)
+            ## Note: ft does not work with complist if incremental is True.
+            ## Likely, set incremental to False is ok if we make visibility model for spw by spw.
+            ## Make model for specified spws will not affect other spws.
+            ft(vis=vis, spw=sp, model="", complist=imcl, usescratch=True, incremental=False)
+
+            ## Note: modeltransfer is commented because ft generates model for both XX and YY
+            # if pols == 'XXYY':
+            #     mstl.modeltransfer(vis, spw=sp)
     if pols == 'XXYY':
         mstl.gaincalXY(vis=vis, caltable=caltb, pols=pols, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
                        combine="scan", antenna='0~12&0~12', refant='0', refantmode="strict", solint='inf', gaintype='G',
@@ -870,6 +894,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     vis1 = 'dslf1_' + vis
     if os.path.exists(vis1):
         os.system('rm -rf {}'.format(vis1))
+    flagmanager(vis, mode='restore', versionname='featureslfcal_init')
     split(vis, outputvis=vis1, datacolumn="corrected")
 
     caltb = os.path.join(slfcaltbdir, tdate + '_d2.pha')
@@ -881,6 +906,11 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     # shutil.move('images', 'old_images2')
     os.system('mv images images_ftcal_rnd1')
     # Make new model images for another round of selfcal
+    flagmanager(vis1, mode='save', versionname='featureslfcal_init')
+    ## automaticaly flag any high amplitudes from flares or RFI
+    flagdata(vis=vis1, mode="tfcrop", spw='', action='apply', display='',
+             timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=False)
+    flagmanager(vis1, mode='save', versionname='featureslfcal_remove_RFI-and-BURSTS')
     fd_images(vis1, cleanup=False, niter=niter, spws=spws, bright=bright)
     for s, sp in enumerate(spws):
         if bright[s]:
@@ -889,9 +919,12 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
             if sp == '31~49':
                 # The high-band image is only made to band 43, so adjust the name
                 imname = 'images/briggs31-43.model'
-            ft(vis=vis1, spw=sp, model=imname, usescratch=True)
-            if pols == 'XXYY':
-                mstl.modeltransfer(vis1, spw=sp)
+            imcl = imname.replace('.model', '.cl')
+            im2cl(imname, imcl)
+            ft(vis=vis1, spw=sp, model="", complist=imcl, usescratch=True, incremental=False)
+            ## Note: modeltransfer is commented because ft generates model for both XX and YY
+            # if pols == 'XXYY':
+            #     mstl.modeltransfer(vis1, spw=sp)
     if pols == 'XXYY':
         mstl.gaincalXY(vis=vis1, caltable=caltb, pols=pols, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
                        combine="scan", antenna='0~12&0~12', refant='0', solint='10min', refantmode="strict",
@@ -906,6 +939,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
     vis2 = 'dslf2_' + vis
     if os.path.exists(vis2):
         os.system('rm -rf {}'.format(vis2))
+    flagmanager(vis1, mode='restore', versionname='featureslfcal_init')
     mstl.splitX(vis1, outputvis=vis2, datacolumn="corrected", datacolumn2="model_data")
     if os.path.exists('images_ftcal_rnd2'):
         os.system('rm -rf images_ftcal_rnd2')
@@ -1032,10 +1066,18 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     vis = os.path.basename(vis)
     # Generate calibrated visibility by self calibrating on the solar disk
     ##ms_slfcaled, diskxmlfile = disk_slfcal(vis, slfcaltbdir=slfcaltbdir)
+    flagmanager(vis, mode='save', versionname='pipeline_init')
+    ## automaticaly flag any high amplitudes from flares or RFI
+    flagdata(vis=vis, mode="tfcrop", spw='', action='apply', display='',
+             timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=False)
+    flagmanager(vis, mode='save', versionname='pipeline_remove_RFI-and-bursts')
+
     # Make initial images from self-calibrated visibility file, and check T_b max
     if os.path.exists('images'):
         shutil.rmtree('images')
     outputfits = fd_images(vis, imgoutdir=imgoutdir, spws=spws)
+
+    flagmanager(vis, mode='restore', versionname='pipeline_init')
     # outputfits = fd_images(vis, imgoutdir=imgoutdir, spws=spws, cleanup=True) change cleanup here?
     ####### outputfits is with model
     # Check if any of the images has a bright source (T_b > 300,000 K), and if so, remake images
@@ -1067,7 +1109,15 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     ms_slfcaled, diskxmlfile = disk_slfcal(vis, slfcaltbdir=slfcaltbdir, active=active, clearcache=clearcache,
                                            pols=pols)
 
+    flagmanager(ms_slfcaled, mode='save', versionname='pipeline_final_init')
+    ## automaticaly flag any high amplitudes from flares or RFI
+    flagdata(vis=ms_slfcaled, mode="tfcrop", spw='', action='apply', display='',
+             timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=False)
+    flagmanager(ms_slfcaled, mode='save', versionname='pipeline_final_remove_RFI-and-BURSTS')
+
     outputfits = fd_images(ms_slfcaled, imgoutdir=imgoutdir, spws=spws)
+
+    flagmanager(ms_slfcaled, mode='restore', versionname='pipeline_final_init')
 
     if outputvis:
         if os.path.exists(outputvis):

@@ -1,34 +1,43 @@
 import os,sys
 import numpy as np
-from datetime import datetime
+import sys
 from math import *
-# import jdutil
 import bisect
-try:
-    ## CASA version < 6
-    from taskinit import ms, tb, qa, iatool, rgtool
-except:
-    ## CASA version >=6
-    from casatools import table as tbtool
-    from casatools import ms as mstool
-    from casatools import quanta as qatool
-    from casatools import regionmanager as rgtool
-    from casatools import image as iatool
-    tb = tbtool()
-    ms = mstool()
-    qa = qatool()
-    ia = iatool()
 from astropy.time import Time
+import astropy.units as u
+import warnings
+from suncasa.utils import fitsutils as fu
+import ssl
+
+py3 = sys.version_info.major>=3
+if py3:
+    ## CASA version >= 6
+    from urllib.request import urlopen
+else:
+    ## CASA version < 6
+    from urllib2 import urlopen
+
+try:
+    ## Full Installation of CASA 4, 5 and 6
+    from taskinit import ms, tb, qa, iatool
+    ia = iatool()
+except:
+    ## Modular Installation of CASA 6
+    from casatools import ms as mstool
+    from casatools import table, quanta, image
+    ms = mstool()
+    tb = table()
+    qa = quanta()
+    ia = image()
+
+
 import sunpy
 # check sunpy version
-sunpyver = int(sunpy.__version__.split('.')[0])
+sunpyver = sunpy.version.major
 if sunpyver <= 1:
     from sunpy import sun
 else:
     from sunpy.coordinates import sun
-import astropy.units as u
-import warnings
-from suncasa.utils import fitsutils as fu
 
 try:
     from astropy.io import fits as pyfits
@@ -38,7 +47,6 @@ except:
     except ImportError:
         raise ImportError('Neither astropy nor pyfits exists in this CASA installation')
 
-py3 = sys.version_info >= (3, 0)
 
 def ms_clearhistory(msfile):
     from taskinit import tb
@@ -80,13 +88,6 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     BC (2019-07-16): Added docstring documentation
 
     '''
-    try:
-        # For Python 3.0 and later
-        from urllib.request import urlopen
-    except ImportError:
-        # Fall back to Python 2's urllib2
-        from urllib2 import urlopen
-    import ssl
     if not t0 and not vis:
         t0 = Time.now()
     if not dur:
@@ -750,45 +751,44 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             header['date-obs'] = dateobs  # begin time of the image
             if not p_ang:
                 hel['p0'] = 0
+            if tdur_s:
+                exptime = tdur_s
+            else:
+                exptime = 1.
+            p_angle = hel['p0']
+            hgln_obs = 0.
+            rsun_ref = sun.constants.radius.value
+            if sunpyver <= 1:
+                dsun_obs = sun.sunearth_distance(Time(dateobs)).to(u.meter).value
+                rsun_obs = sun.solar_semidiameter_angular_size(Time(dateobs)).value
+                hglt_obs = sun.heliographic_solar_center(Time(dateobs))[1].value
+            else:
+                dsun_obs=sun.earth_distance(Time(dateobs)).to(u.meter).value
+                rsun_obs=sun.angular_radius(Time(dateobs)).value
+                hglt_obs=sun.B0(Time(dateobs)).value
             try:
                 # this works for pyfits version of CASA 4.7.0 but not CASA 4.6.0
-                if tdur_s:
-                    header.set('exptime', tdur_s)
-                else:
-                    header.set('exptime', 1.)
-                header.set('p_angle', hel['p0'])
-                header.set('hgln_obs', 0.)
-                header.set('rsun_ref', sun.constants.radius.value)
-                if sunpyver <= 1:
-                    header.set('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value)
-                    header.set('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value)
-                    header.set('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value)
-                else:
-                    header.set('dsun_obs', sun.earth_distance(Time(dateobs)).to(u.meter).value)
-                    header.set('rsun_obs', sun.angular_radius(Time(dateobs)).value)
-                    header.set('hglt_obs', sun.L0(Time(dateobs)).value)
+                header.set('exptime', exptime)
+                header.set('p_angle', p_angle)
+                header.set('dsun_obs', dsun_obs)
+                header.set('rsun_obs', rsun_obs)
+                header.set('rsun_ref', rsun_ref)
+                header.set('hgln_obs', hgln_obs)
+                header.set('hglt_obs', hglt_obs)
             except:
                 # this works for astropy.io.fits
-                if tdur_s:
-                    header.append(('exptime', tdur_s))
-                else:
-                    header.append(('exptime', 1.))
-                header.append(('p_angle', hel['p0']))
-                header.append(('hgln_obs', 0.))
-                header.append(('rsun_ref', sun.constants.radius.value))
-                if sunpyver <= 1:
-                    header.append(('dsun_obs', sun.sunearth_distance(Time(dateobs)).to(u.meter).value))
-                    header.append(('rsun_obs', sun.solar_semidiameter_angular_size(Time(dateobs)).value))
-                    header.append(('hglt_obs', sun.heliographic_solar_center(Time(dateobs))[1].value))
-                else:
-                    header.append(('dsun_obs', sun.earth_distance(Time(dateobs)).to(u.meter).value))
-                    header.append(('rsun_obs', sun.angular_radius(Time(dateobs)).value))
-                    header.append(('hglt_obs', sun.L0(Time(dateobs)).value))
+                header.append(('exptime', exptime))
+                header.append(('p_angle', p_angle))
+                header.append(('dsun_obs', dsun_obs))
+                header.append(('rsun_obs', rsun_obs))
+                header.append(('rsun_ref', rsun_ref))
+                header.append(('hgln_obs', hgln_obs))
+                header.append(('hglt_obs', hglt_obs))
 
             # check if stokes parameter exist
             exist_stokes = False
-            stokes_mapper = {'I': 1, 'Q': 2, 'U': 3, 'V': 4, 'RR': -1, 'LL': -2,
-                             'RL': -3, 'LR': -4, 'XX': -5, 'YY': -6, 'XY': -7, 'YX': -8}
+            stokes_mapper = {1: 'I', 2: 'Q', 3: 'U', 4: 'V', -1: 'RR', -2: 'LL',
+                             -3: 'RL', -4: 'LR', -5: 'XX', -6: 'YY', -7: 'XY', -8: 'YX'}
             if 'CRVAL3' in header.keys():
                 if header['CTYPE3'] == 'STOKES':
                     stokenum = header['CRVAL3']
@@ -798,10 +798,12 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                     stokenum = header['CRVAL4']
                     exist_stokes = True
             if exist_stokes:
-                if stokenum in stokes_mapper.values():
-                    stokesstr = list(stokes_mapper.keys())[list(stokes_mapper.values()).index(stokenum)]
+                if stokenum in stokes_mapper.keys():
+                    stokesstr = stokes_mapper[stokenum]
                 else:
-                    print('Stokes parameter {0:d} not recognized'.format(stokenum))
+                    print('Stokes parameter {0:d} not recognized. Assuming Stokes I'.format(stokenum))
+                    stokenum = 1
+                    stokesstr='I'
                 if verbose:
                     print('This image is in Stokes ' + stokesstr)
             else:
@@ -879,7 +881,8 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                     force docompress to be False
                 '''
 
-                print('warning: The fits data contains more than 3 non squeezable dimensions. Skipping fits compression..')
+                print(
+                    'warning: The fits data contains more than 3 non squeezable dimensions. Skipping fits compression..')
             if docompress:
                 fitsftmp = fitsf + ".tmp.fits"
                 os.system("mv {} {}".format(fitsf, fitsftmp))
@@ -888,7 +891,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 header = hdu[0].header
                 data = hdu[0].data
                 fu.write_compressed_image_fits(fitsf, data, header, compression_type='RICE_1',
-                                             quantize_level=4.0)
+                                               quantize_level=4.0)
                 os.system("rm -rf {}".format(fitsftmp))
     if deletehistory:
         ms_restorehistory(vis)
