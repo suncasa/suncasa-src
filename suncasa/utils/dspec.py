@@ -234,11 +234,11 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
                     # Insert data for this spw into larger array
                     specf[:, f1:f2, s1:s2] = spec_.reshape(npol, f, s, nbl)
                     # Swap the array indexes back to the desired order
-                    specamp = np.swapaxes(specf, 2, 3)
+            specamp = np.swapaxes(specf, 2, 3)
         tb.close()
         spwtb.close()
         ms.close()
-        if antmask is not []:
+        if len(antmask) > 0:
             specamp = specamp[:, :, np.where(antmask)[0], :]
         (npol, nfreq, nbl, ntim) = specamp.shape
         tim = times
@@ -328,6 +328,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
         # spec_masked2 = np.ma.masked_invalid(spec)
         # spec_masked = np.ma.masked_array(spec, mask=np.logical_or(spec_masked.mask, spec_masked2.mask))
         # spec_med = np.ma.filled(np.ma.median(spec_masked, axis=1), fill_value=0.)
+        spec = np.abs(spec)
         spec_med = np.nanmedian(spec, axis=1)
         nbl = 1
         ospec = spec_med.reshape((npol, nbl, nfreq, ntim))
@@ -566,7 +567,8 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None, norm=None,
                 spec_plt_1 = R_plot
                 spec_plt_2 = L_plot
                 polstr = [pol[:2], pol[2:]]
-            if pol == 'IV':
+            # elif pol in ['IV']:
+            else:
                 spec_plt_1 = I_plot
                 spec_plt_2 = V_plot
                 polstr = ['I', 'V']
