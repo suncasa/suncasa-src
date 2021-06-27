@@ -1,4 +1,20 @@
-from taskinit import tb, qa, ms
+try:
+    ## Full Installation of CASA 4, 5 and 6
+    from taskinit import ms, tb, qa
+    from clearcal_cli import clearcal_cli as clearcal
+    from split_cli import split_cli as split
+except:
+    ## Modular Installation of CASA 6
+    from casatools import table as tbtool
+    from casatools import ms as mstool
+    from casatools import quanta as qatool
+    from casatasks import split, clearcal
+
+    tb = tbtool()
+    ms = mstool()
+    qa = qatool()
+
+
 import numpy as np
 from tqdm import tqdm
 import os
@@ -36,7 +52,7 @@ def time2filename(msfile, timerange='', spw=''):
             endtim1 = Time(qa.quantity(tend, 'd')['value'], format='mjd')
     midtime = Time((starttim1.mjd + endtim1.mjd) / 2., format='mjd')
 
-    tstr = midtime.to_datetime().strftime('{}_%Y%m%dT%H%M%S'.format(observatory))
+    tstr = midtime.to_datetime().strftime('{}_%Y%m%dT%H%M%S.%f'.format(observatory))
 
     if spw:
         spstr = 'spw{}'.format(spw.replace('~', '-'))
@@ -91,8 +107,6 @@ def clearflagrow(msfile, mode='clear'):
 
 def splitX(vis, datacolumn2='MODEL_DATA', **kwargs):
     import os
-    from clearcal_cli import clearcal_cli as clearcal
-    from split_cli import split_cli as split
     '''
 
     :param msfile:

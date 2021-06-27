@@ -10,9 +10,10 @@ import sunpy.map as smap
 from astropy import units as u
 from astropy.time import Time
 from astropy.io import fits
+from suncasa.utils.mstools import time2filename
 
-sunpy1 = sunpy.version.major>=1
-py3 = sys.version_info.major>=3
+sunpy1 = sunpy.version.major >= 1
+py3 = sys.version_info.major >= 3
 if py3:
     # For Python 3.0 and later
     from urllib.request import urlopen
@@ -32,6 +33,7 @@ except:
     from casatools import ms as mstool
     from casatools import quanta as qatool
     from casatools import image as iatool
+
     tb = tbtool()
     ms = mstool()
     qa = qatool()
@@ -60,9 +62,9 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from suncasa.utils import plot_mapX as pmX
 from suncasa.utils import fitsutils as fu
 from tqdm import tqdm
+
 if not sunpy1:
     import sunpy.cm.cm as cm_sunpy
-
 
 polmap = {'RR': 0, 'LL': 1, 'I': 0, 'V': 1, 'XX': 0, 'YY': 1}
 
@@ -213,28 +215,51 @@ def downloadAIAdata(trange, wavelength=None, outdir='./'):
 
     nwave = len(wavelength)
     print('{} passbands to download'.format(nwave))
-    from sunpy.net import vso
-    client = vso.VSOClient()
-    for widx, wave in enumerate(wavelength):
-        wave1 = wave - 3.0
-        wave2 = wave + 3.0
-        print('{}/{} Downloading  AIA {:.0f} data ...'.format(widx + 1, nwave, wave))
-        qr = client.query(vso.attrs.Time(tst.iso, ted.iso), vso.attrs.Instrument('aia'),
-                          vso.attrs.Wave(wave1 * u.AA, wave2 * u.AA))
-        res = client.get(qr, path='{file}').wait()
+    try:
+        from sunpy.net import Fido
+        from sunpy.net import attrs as a
+        for widx, wave in enumerate(wavelength):
+            wave1 = wave - 3.0
+            wave2 = wave + 3.0
+            qr = Fido.search(a.Time(tst.iso, ted.iso),
+                             a.Instrument.aia,
+                             a.Wavelength(wave1 * u.AA, wave2 * u.AA))
+            res = Fido.fetch(qr)
+            for ll in res:
+                vsonamestrs = ll.split('_')
+                if vsonamestrs[2].startswith('1600') or vsonamestrs[2].startswith('1700'):
+                    product = 'aia.lev1_uv_24s'
+                else:
+                    product = 'aia.lev1_euv_12s'
+                jsocnamestr = product + '.' + '{}-{}-{}{}{}Z.'.format(vsonamestrs[3], vsonamestrs[4], vsonamestrs[5],
+                                                                      vsonamestrs[6],
+                                                                      vsonamestrs[7]).upper() + vsonamestrs[2][
+                                                                                                :-1] + '.image_lev1.fits'
+                print(ll, jsocnamestr)
+                os.system('mv {} {}/{}'.format(ll, outdir, jsocnamestr))
+    except:
+        from sunpy.net import vso
+        client = vso.VSOClient()
+        for widx, wave in enumerate(wavelength):
+            wave1 = wave - 3.0
+            wave2 = wave + 3.0
+            print('{}/{} Downloading  AIA {:.0f} data ...'.format(widx + 1, nwave, wave))
+            qr = client.query(vso.attrs.Time(tst.iso, ted.iso), vso.attrs.Instrument('aia'),
+                              vso.attrs.Wave(wave1 * u.AA, wave2 * u.AA))
+            res = client.get(qr, path='{file}').wait()
 
-        for ll in res:
-            vsonamestrs = ll.split('_')
-            if vsonamestrs[2].startswith('1600') or vsonamestrs[2].startswith('1700'):
-                product = 'aia.lev1_uv_24s'
-            else:
-                product = 'aia.lev1_euv_12s'
-            jsocnamestr = product + '.' + '{}-{}-{}{}{}Z.'.format(vsonamestrs[3], vsonamestrs[4], vsonamestrs[5],
-                                                                  vsonamestrs[6],
-                                                                  vsonamestrs[7]).upper() + vsonamestrs[2][
-                                                                                            :-1] + '.image_lev1.fits'
-            print(ll, jsocnamestr)
-            os.system('mv {} {}/{}'.format(ll, outdir, jsocnamestr))
+            for ll in res:
+                vsonamestrs = ll.split('_')
+                if vsonamestrs[2].startswith('1600') or vsonamestrs[2].startswith('1700'):
+                    product = 'aia.lev1_uv_24s'
+                else:
+                    product = 'aia.lev1_euv_12s'
+                jsocnamestr = product + '.' + '{}-{}-{}{}{}Z.'.format(vsonamestrs[3], vsonamestrs[4], vsonamestrs[5],
+                                                                      vsonamestrs[6],
+                                                                      vsonamestrs[7]).upper() + vsonamestrs[2][
+                                                                                                :-1] + '.image_lev1.fits'
+                print(ll, jsocnamestr)
+                os.system('mv {} {}/{}'.format(ll, outdir, jsocnamestr))
     if os.path.exists('/tmp/suds/'):
         os.system('rm -rf /tmp/suds/')
 
@@ -1005,7 +1030,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 else:
                     ax.set_xlim([-1220, 1220])
                     ax.set_ylim([-1220, 1220])
-                if s==0 and pidx==0:
+                if s == 0 and pidx == 0:
                     timetext = ax.text(0.99, 0.98, '', color='w', fontweight='bold', fontsize=9, ha='right', va='top',
                                        transform=ax.transAxes)
                 timetext.set_text(plttime.iso[:19])
@@ -1352,7 +1377,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
         spec_tim_plt = spec_tim.plot_date
         plt.ion()
         # fig = plt.figure(figsize=(11.65, 8.74), dpi=100)
-        fig = plt.figure(figsize=(11.80, 8.80), dpi=100)
+        fig = plt.figure(figsize=(11.80, 8.80), dpi=80)
         ax1 = plt.subplot2grid((6, 8), (0, 0), rowspan=2, colspan=2)
         ax2 = plt.subplot2grid((6, 8), (2, 0), rowspan=2, colspan=2, sharex=ax1, sharey=ax1)
         ax3 = plt.subplot2grid((6, 8), (4, 0), rowspan=2, colspan=2)
@@ -1432,8 +1457,6 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             from sunpy.timeseries import TimeSeries
             from sunpy.time import TimeRange, parse_time
             from sunpy.net import Fido, attrs as a
-            # btgoes = btgoes.replace('/', '-')
-            # etgoes = etgoes.replace('/', '-')
             results = Fido.search(a.Time(TimeRange(btgoes, etgoes)), a.Instrument('XRS'))
             files = Fido.fetch(results)
             goest = TimeSeries(files)
@@ -1443,7 +1466,10 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                 gdata = pd.concat(gdata, join="inner")
             else:
                 gdata = goest.data
-            goes_dates = mpl.dates.date2num(parse_time(gdata.index))
+            try:
+                goes_dates = mpl.dates.date2num(parse_time(gdata.index))
+            except:
+                goes_dates = Time(gdata.index).plot_date
             if np.abs(gdata['xrsb'].mean()) > 1e-9:
                 goesdata = gdata['xrsb']
                 goesdif = np.diff(gdata['xrsb'])
@@ -1490,6 +1516,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             ax3.fmt_xdata = mpl.dates.DateFormatter('%H:%M')
         except:
             print('Error in downloading GOES soft X-ray data. Proceeding with out soft X-ray plot.')
+            ax3.set_title('Goes Soft X-ray', fontsize=9)
 
         # third part
         # start to download the fits files
@@ -1500,7 +1527,12 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                 cmap_aia = cm_sunpy.get_cmap('sdoaia{}'.format(aiawave))
             if not aiafits:
                 try:
-                    newlist = trange2aiafits(Time([starttim1, endtim1]), aiawave, aiadir)
+                    if int(aiawave) in [171, 131, 94, 335, 304, 211, 193]:
+                        tdf = 6. / 24 / 3600
+                    else:
+                        tdf = 12. / 24 / 3600
+                    newlist = trange2aiafits(Time([midtime_mjd - tdf, midtime_mjd + tdf], format='mjd'), aiawave,
+                                             aiadir)
                 except:
                     newlist = [-1]
             else:
@@ -1630,7 +1662,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                              docompress=False)
                     # print('fits file ' + ','.join(fitsfiles) + ' selected')
                     if not outfits:
-                        outfits = visname + '.outim.image.fits'
+                        outfits = time2filename(vis, timerange=timerange) + '.outim.image.fits'
                     fu.fits_wrap_spwX(fitsfiles, outfitsfile=outfits)
                     warnings.warn(
                         "If the provided spw is not equally spaced, the frequency information of the fits file {} that combining {} could be a wrong. Use it with caution!".format(
@@ -1687,20 +1719,21 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                         if os.path.exists(imagename + junk):
                             os.system('rm -rf ' + imagename + junk)
                     if not outfits:
-                        outfits = imagefile + '.fits'
+                        outfits = time2filename(vis, timerange=timerange) + '.outim.image.fits'
                     hf.imreg(vis=vis, imagefile=imagefile, timerange=timerange, reftime=reftime,
                              fitsfile=outfits, verbose=verbose, overwrite=True, sclfactor=sclfactor, toTb=toTb,
                              docompress=docompress)
                     print('fits file ' + outfits + ' selected')
             else:
                 if not outfits:
-                    outfits = imagefile + '.fits'
+                    outfits = time2filename(vis, timerange=timerange) + '.outim.image.fits'
                 hf.imreg(vis=vis, imagefile=imagefile, timerange=timerange, reftime=reftime,
                          fitsfile=outfits, verbose=verbose, overwrite=True, sclfactor=sclfactor, toTb=toTb,
                          docompress=docompress)
                 print('fits file ' + outfits + ' selected')
-        print('vis', vis, 'imagefile', imagefile, 'timerange', timerange, 'reftime', reftime, 'fitsfile', outfits,
-              'verbose', verbose, 'overwrite', True, 'sclfactor', sclfactor, 'toTb', toTb, 'docompress', docompress)
+        if verbose:
+            print('vis', vis, 'imagefile', imagefile, 'timerange', timerange, 'reftime', reftime, 'fitsfile', outfits,
+                  'verbose', verbose, 'overwrite', True, 'sclfactor', sclfactor, 'toTb', toTb, 'docompress', docompress)
         ax4.cla()
         ax5.cla()
         ax6.cla()
@@ -1870,10 +1903,10 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
         # ax6.set_yticklabels([])
         ax5.set_ylabel('')
         # ax7.set_yticklabels([])
-        ax5.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f')[:-3], verticalalignment='bottom',
+        ax5.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f'), verticalalignment='bottom',
                  horizontalalignment='left',
                  transform=ax5.transAxes, color='k', fontsize=9)
-        ax7.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f')[:-3], verticalalignment='bottom',
+        ax7.text(0.02, 0.02, observatory + ' ' + rmap.date.strftime('%H:%M:%S.%f'), verticalalignment='bottom',
                  horizontalalignment='left',
                  transform=ax7.transAxes, color='k', fontsize=9)
 
