@@ -630,7 +630,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     # SXY = set(['XX', 'YY', 'XY', 'YX'])
     Spw = sorted(list(set(imres['Spw'])))
     nspw = len(Spw)
-    print(nspw)
+    # print(nspw)
     # Freq = set(imres['Freq']) ## list is an unhashable type
     imres['Freq'] = [list(ll) for ll in imres['Freq']]
     Freq = sorted(uniq(imres['Freq']))
@@ -1596,7 +1596,11 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                             sbeam = np.float(restoringbeam[0].replace('arcsec', ''))
                         except:
                             sbeam = 35.
-                    for sp in spw:
+                    sto = stokes.replace(',', '')
+                    print('Original phasecenter: ' + str(ra0) + str(dec0))
+                    print('use phasecenter: ' + phasecenter)
+                    print('do clean for ' + timerange + ' stokes ' + sto)
+                    for sp in tqdm(spw, desc="Processing spectral window"):
                         if not restoringbeam == ['']:
                             try:
                                 if '~' in sp:
@@ -1618,12 +1622,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                         for junk in junks:
                             if os.path.exists(imagename + junk):
                                 os.system('rm -rf ' + imagename + junk + '*')
-                        sto = stokes.replace(',', '')
-
-                        print('do clean for ' + timerange + ' in spw ' + sp + ' stokes ' + sto)
-                        print('Original phasecenter: ' + str(ra0) + str(dec0))
-                        print('use phasecenter: ' + phasecenter)
-                        print('use beamsize {}'.format(restoringbm))
+                        if verbose:
+                            print('use beamsize {}'.format(restoringbm))
                         tclean(vis=vis,
                                imagename=imagename,
                                selectdata=True,
@@ -1688,6 +1688,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                     print('do clean for ' + timerange + ' in spw ' + ';'.join(spw) + ' stokes ' + sto)
                     print('Original phasecenter: ' + str(ra0) + str(dec0))
                     print('use phasecenter: ' + phasecenter)
+                    # if verbose:
+                    #     print('use beamsize {}'.format(restoringbeam))
 
                     tclean(vis=vis,
                            imagename=imagename,

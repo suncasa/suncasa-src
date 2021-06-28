@@ -1,4 +1,4 @@
-import os,sys
+import os, sys
 import numpy as np
 import sys
 from math import *
@@ -9,7 +9,7 @@ import warnings
 from suncasa.utils import fitsutils as fu
 import ssl
 
-py3 = sys.version_info.major>=3
+py3 = sys.version_info.major >= 3
 if py3:
     ## CASA version >= 6
     from urllib.request import urlopen
@@ -20,18 +20,20 @@ else:
 try:
     ## Full Installation of CASA 4, 5 and 6
     from taskinit import ms, tb, qa, iatool
+
     ia = iatool()
 except:
     ## Modular Installation of CASA 6
     from casatools import ms as mstool
     from casatools import table, quanta, image
+
     ms = mstool()
     tb = table()
     qa = quanta()
     ia = image()
 
-
 import sunpy
+
 # check sunpy version
 sunpyver = sunpy.version.major
 if sunpyver <= 1:
@@ -178,7 +180,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         params['APPAENT'] = "'REFRACTED'"
         results = requests.get("https://ssd.jpl.nasa.gov/horizons_batch.cgi", params=params)
         lines = [ll for ll in results.iter_lines()]
-    
+
     # add a check for python 3
     if py3:
         lines = [l.decode('utf-8', 'backslashreplace') for l in lines]
@@ -763,9 +765,9 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 rsun_obs = sun.solar_semidiameter_angular_size(Time(dateobs)).value
                 hglt_obs = sun.heliographic_solar_center(Time(dateobs))[1].value
             else:
-                dsun_obs=sun.earth_distance(Time(dateobs)).to(u.meter).value
-                rsun_obs=sun.angular_radius(Time(dateobs)).value
-                hglt_obs=sun.B0(Time(dateobs)).value
+                dsun_obs = sun.earth_distance(Time(dateobs)).to(u.meter).value
+                rsun_obs = sun.angular_radius(Time(dateobs)).value
+                hglt_obs = sun.B0(Time(dateobs)).value
             try:
                 # this works for pyfits version of CASA 4.7.0 but not CASA 4.6.0
                 header.set('exptime', exptime)
@@ -803,7 +805,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 else:
                     print('Stokes parameter {0:d} not recognized. Assuming Stokes I'.format(stokenum))
                     stokenum = 1
-                    stokesstr='I'
+                    stokesstr = 'I'
                 if verbose:
                     print('This image is in Stokes ' + stokesstr)
             else:
@@ -816,6 +818,8 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 bmaj = bmajs[n]
                 bmin = bmins[n]
                 beamunit = beamunits[n]
+                bpa = bpas[n]
+                bpaunit = bpaunits[n]
                 data = hdu[0].data  # remember the data order is reversed due to the FITS convension
                 keys = list(header.keys())
                 values = list(header.values())
@@ -827,6 +831,8 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 c_l = qa.constants('c')['value']
                 # Always use 2*kb for all polarizations
                 const = 2. * k_b / c_l ** 2
+                bpatmp = qa.quantity(bpa, bpaunit)['value'] - qa.convert(qa.quantity(p0, 'deg'), bpaunit)['value']
+                header['BPA'] = bpatmp[0]
                 if header['BUNIT'].lower() == 'jy/beam':
                     header['BUNIT'] = 'K'
                     header['BTYPE'] = 'Brightness Temperature'
