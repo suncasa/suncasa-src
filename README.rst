@@ -1,6 +1,6 @@
-********
-`SunCASA`_
-********
+=======
+SunCASA
+=======
 |Latest Version|
 
 .. |Latest Version| image:: https://img.shields.io/pypi/v/suncasa.svg
