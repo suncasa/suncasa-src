@@ -8,20 +8,20 @@ import sys
 from suncasa.utils import helioimage2fits as hf
 
 pversion = sys.version_info.major
-if pversion < 3:
+if pversion<3:
     ## CASA version < 6
     from taskinit import ms, tb, qa
-    from tclean_cli import tclean_cli as tclean
 else:
     ## CASA version >= 6
     from casatools import table as tbtool
     from casatools import ms as mstool
     from casatools import quanta as qatool
-    from casatasks import casalog, tclean
 
     tb = tbtool()
     ms = mstool()
     qa = qatool()
+
+
 
 
 def clean_iter(tim, vis, imageprefix, imagesuffix,
@@ -36,6 +36,7 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
                usemask, mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold,
                smoothfactor, minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart,
                savemodel, calcres, calcpsf, parallel, subregion, tmpdir, btidx):
+    from tclean_cli import tclean_cli as tclean
     bt = btidx  # 0
     if bt + twidth < len(tim) - 1:
         et = btidx + twidth - 1

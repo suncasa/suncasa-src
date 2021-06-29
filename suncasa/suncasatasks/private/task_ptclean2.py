@@ -1,31 +1,15 @@
 import os
+from taskinit import casalog, ms, qa
 import numpy as np
+from suncasa.utils import helioimage2fits as hf
 import shutil
 from functools import partial
 from time import time
 import glob
-import sys
-from suncasa.utils import helioimage2fits as hf
-
-pversion = sys.version_info.major
-if pversion < 3:
-    ## CASA version < 6
-    from taskinit import ms, tb, qa
-    from tclean_cli import tclean_cli as tclean
-else:
-    ## CASA version >= 6
-    from casatools import table as tbtool
-    from casatools import ms as mstool
-    from casatools import quanta as qatool
-    from casatasks import casalog, tclean
-
-    tb = tbtool()
-    ms = mstool()
-    qa = qatool()
 
 
 def clean_iter(tim, vis, imageprefix, imagesuffix,
-               twidth, doreg, docompress, usephacenter, reftime, ephem, msinfo, toTb, sclfactor, overwrite,
+               twidth, doreg, usephacenter, reftime, ephem, msinfo, toTb, overwrite,
                selectdata, field, spw,
                uvrange, antenna, scan, observation, intent, datacolumn, imsize, cell, phasecenter, stokes,
                projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
@@ -35,7 +19,9 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
                niter, gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive,
                usemask, mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold,
                smoothfactor, minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart,
-               savemodel, calcres, calcpsf, parallel, subregion, tmpdir, btidx):
+               savemodel, calcres, calcpsf, parallel, tmpdir, btidx):
+    from tclean_cli import tclean_cli as tclean
+    from split_cli import split_cli as split
     bt = btidx  # 0
     if bt + twidth < len(tim) - 1:
         et = btidx + twidth - 1
@@ -55,26 +41,24 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
                 qa.time(qa.quantity(et_d, 's'), prec=9, form='ymd')[0]
     btstr = qa.time(qa.quantity(bt_d, 's'), prec=9, form='fits')[0]
     etstr = qa.time(qa.quantity(et_d, 's'), prec=9, form='fits')[0]
-    print('cleaning timerange: ' + timerange)
+    print 'cleaning timerange: ' + timerange
 
     image0 = btstr.replace(':', '').replace('-', '')
     imname = imageprefix + image0 + imagesuffix
-
-    # ms_tmp = tmpdir + image0 + '.ms'
-    # print('checkpoint 1')
-    # # split(vis=vis, outputvis=ms_tmp, field=field, scan=scan, antenna=antenna, timerange=timerange,
-    # #       datacolumn=datacolumn)
-    # ms.open(vis)
-    # print('checkpoint 1-1')
-    # ms.split(ms_tmp,field=field, scan=scan, baseline=antenna, time=timerange,whichcol=datacolumn)
-    # print('checkpoint 1-2')
-    # ms.close()
-    # print('checkpoint 2')
-
+    ms_tmp = tmpdir + image0 + '.ms'
+    print('checkpoint 1')
+    # split(vis=vis, outputvis=ms_tmp, field=field, scan=scan, antenna=antenna, timerange=timerange,
+    #       datacolumn=datacolumn)
+    ms.open(vis)
+    print('checkpoint 1-1')
+    ms.split(ms_tmp,field=field, scan=scan, baseline=antenna, time=timerange,whichcol=datacolumn)
+    print('checkpoint 1-2')
+    ms.close()
+    print('checkpoint 2')
     if overwrite or (len(glob.glob(imname + '*')) == 0):
         os.system('rm -rf {}*'.format(imname))
         try:
-            tclean(vis=vis, selectdata=selectdata, field=field, spw=spw, timerange=timerange, uvrange=uvrange,
+            tclean(vis=ms_tmp, selectdata=selectdata, field=field, spw=spw, timerange=timerange, uvrange=uvrange,
                    antenna=antenna, scan=scan, observation=observation, intent=intent, datacolumn=datacolumn,
                    imagename=imname, imsize=imsize, cell=cell, phasecenter=phasecenter, stokes=stokes,
                    projection=projection, startmodel=startmodel, specmode=specmode, reffreq=reffreq, nchan=nchan,
@@ -93,63 +77,48 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
                    minbeamfrac=minbeamfrac, cutthreshold=cutthreshold, growiterations=growiterations,
                    dogrowprune=dogrowprune, minpercentchange=minpercentchange, verbose=verbose, restart=restart,
                    savemodel=savemodel, calcres=calcres, calcpsf=calcpsf, parallel=parallel)
-            # print('checkpoint 3')
-            if pbcor:
-                clnjunks = ['.flux', '.mask', '.model', '.psf', '.residual', '.pb', '.sumwt', '.image']
-            else:
-                clnjunks = ['.flux', '.mask', '.model', '.psf', '.residual', '.pb', '.sumwt', '.image.pbcor']
+            print('checkpoint 3')
+            clnjunks = ['.flux', '.mask', '.model', '.psf', '.residual', '.pb', '.sumwt', '.image.pbcor']
             for clnjunk in clnjunks:
                 if os.path.exists(imname + clnjunk):
                     shutil.rmtree(imname + clnjunk)
-            if pbcor:
-                os.system('mv {} {}'.format(imname + '.image.pbcor', imname + '.image'))
         except:
             print('error in cleaning image: ' + btstr)
             return [False, btstr, etstr, '']
     else:
-        print(imname + ' exists. Clean task aborted.')
+        print imname + ' exists. Clean task aborted.'
 
-    if doreg:
+    if doreg and not os.path.isfile(imname + '.fits'):
         # ephem.keys()
         # msinfo.keys()
-        if os.path.isfile(imname + '.fits'):
-            return [True, btstr, etstr, imname + '.fits']
-        else:
-            try:
-                # check if ephemfile and msinfofile exist
-                if not ephem:
-                    print("ephemeris info does not exist, querying from JPL Horizons on the fly")
-                    ephem = hf.read_horizons(vis=vis)
-                if not msinfo:
-                    print("ms info not provided, generating one on the fly")
-                    msinfo = hf.read_msinfo(vis)
-                hf.imreg(vis=vis, ephem=ephem, msinfo=msinfo, timerange=timerange, reftime=reftime,
-                         imagefile=imname + '.image', fitsfile=imname + '.fits', overwrite=True,
-                         toTb=toTb, sclfactor=sclfactor, usephacenter=usephacenter, subregion=subregion,
-                         docompress=docompress)
-                if os.path.exists(imname + '.fits'):
-                    shutil.rmtree(imname + '.image')
-                    return [True, btstr, etstr, imname + '.fits']
-                else:
-                    return [False, btstr, etstr, imname + '.fits']
-            except Exception as e:
-                if hasattr(e, 'message'):
-                    print(e.message)
-                else:
-                    print(e)
-                print('error in registering image: ' + btstr)
-                return [False, btstr, etstr, imname + '.image']
+        try:
+            # check if ephemfile and msinfofile exist
+            if not ephem:
+                print("ephemeris info does not exist, querying from JPL Horizons on the fly")
+                ephem = hf.read_horizons(vis=vis)
+            if not msinfo:
+                print("ms info not provided, generating one on the fly")
+                msinfo = hf.read_msinfo(vis)
+            hf.imreg(vis=vis, ephem=ephem, msinfo=msinfo, timerange=timerange, reftime=reftime,
+                     imagefile=imname + '.image', fitsfile=imname + '.fits',
+                     toTb=toTb, scl100=False, usephacenter=usephacenter)
+            if os.path.exists(imname + '.fits'):
+                shutil.rmtree(imname + '.image')
+                return [True, btstr, etstr, imname + '.fits']
+            else:
+                return [False, btstr, etstr, '']
+        except:
+            print('error in registering image: ' + btstr)
+            return [False, btstr, etstr, imname + '.image']
     else:
         if os.path.exists(imname + '.image'):
             return [True, btstr, etstr, imname + '.image']
         else:
-            return [False, btstr, etstr, imname + '.image']
+            return [False, btstr, etstr, '']
 
 
-def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, sclfactor, subregion,
-             docompress,
-             overwrite, selectdata, field, spw, timerange, uvrange, antenna, scan, observation, intent, datacolumn,
-             imsize, cell, phasecenter,
+def ptclean2(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, overwrite, selectdata,
+             field, spw, timerange, uvrange, antenna, scan, observation, intent, datacolumn, imsize, cell, phasecenter,
              stokes, projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
              interpolation, gridder, facets, chanchunks, wprojplanes, vptable, usepointing, mosweight, aterm, psterm,
              wbawp, conjbeams, cfcache, computepastep, rotatepastep, pblimit, normtype, deconvolver, scales, nterms,
@@ -220,27 +189,25 @@ def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
             if tim[etidx] > et_s:
                 etidx -= 1
             if etidx <= btidx:
-                print("ending time must be greater than starting time")
-                print("reinitiating to the entire time range")
+                print "ending time must be greater than starting time"
+                print "reinitiating to the entire time range"
                 btidx = 0
                 etidx = len(tim) - 1
         except ValueError:
-            print("keyword 'timerange' has a wrong format")
+            print "keyword 'timerange' has a wrong format"
 
     btstr = qa.time(qa.quantity(tim[btidx], 's'), prec=9, form='fits')[0]
     etstr = qa.time(qa.quantity(tim[etidx], 's'), prec=9, form='fits')[0]
 
     iterable = range(btidx, etidx + 1, twidth)
-    print('First time pixel: ' + btstr)
-    print('Last time pixel: ' + etstr)
-    print(str(len(iterable)) + ' images to clean...')
+    print 'First time pixel: ' + btstr
+    print 'Last time pixel: ' + etstr
+    print str(len(iterable)) + ' images to clean...'
 
     res = []
     # partition
     clnpart = partial(clean_iter, tim, vis, imageprefix, imagesuffix,
-                      twidth, doreg, docompress, usephacenter, reftime, ephem, msinfo, toTb, sclfactor, overwrite,
-                      selectdata,
-                      field, spw,
+                      twidth, doreg, usephacenter, reftime, ephem, msinfo, toTb, overwrite, selectdata, field, spw,
                       uvrange, antenna, scan, observation, intent, datacolumn, imsize, cell, phasecenter, stokes,
                       projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
                       interpolation, gridder, facets, chanchunks, wprojplanes, vptable, usepointing, mosweight, aterm,
@@ -249,8 +216,7 @@ def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
                       npixels, uvtaper, niter, gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction,
                       maxpsffraction, interactive, usemask, mask, pbmask, sidelobethreshold, noisethreshold,
                       lownoisethreshold, negativethreshold, smoothfactor, minbeamfrac, cutthreshold, growiterations,
-                      dogrowprune, minpercentchange, verbose, restart, savemodel, calcres, calcpsf, parallel, subregion,
-                      tmpdir)
+                      dogrowprune, minpercentchange, verbose, restart, savemodel, calcres, calcpsf, parallel, tmpdir)
     timelapse = 0
     t0 = time()
     # parallelization
@@ -270,7 +236,7 @@ def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
 
     t1 = time()
     timelapse = t1 - t0
-    print('It took %f secs to complete' % timelapse)
+    print 'It took %f secs to complete' % timelapse
     # repackage this into a single dictionary
     results = {'Succeeded': [], 'BeginTime': [], 'EndTime': [], 'ImageName': []}
     for r in res:

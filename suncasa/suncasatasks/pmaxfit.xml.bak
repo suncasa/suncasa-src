@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" ?>
+
+<casaxml xmlns="http://casa.nrao.edu/schema/psetTypes.html"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://casa.nrao.edu/schema/casa.xsd
+file:///opt/casa/code/xmlcasa/xml/casa.xsd">
+
+<!-- This is the task interface to ia.fitcomponents           -->
+<!--                                                          -->
+
+<task type="function" name="pmaxfit" category="analysis">
+pmaxfit(imagefiles, ncpu=8, box='', width=5)
+
+    <shortdescription>Find maximum and do parabolic fit in the sky</shortdescription>
+
+    <description>
+        PARAMETER SUMMARY
+        imagename        Name of the input image
+        box              Rectangular region(s) to select in direction plane. See "help par.box"
+                         for details. Default is to use the entire direction plane.
+                         eg "100, 120, 200, 220, 300, 300, 400, 400" to use two boxes.
+
+        OVERVIEW
+        This application finds the pixel with the maximum value in the region, and then uses function
+        findsources to generate a Componentlist with one component.
+
+        The method returns a dictionary with fours keys, 'succeeded', 'timestamps', 'imagenames'
+        and 'outputs'. The value of 'outputs' is a dictionary representing
+        a component list reflecting the fit results over multiple channels.
+        Both the 'outputs' dictionaries can be read into a component list tool (default tool is named cl)
+        using the fromrecord() method for easier inspection using tool methods, eg
+
+        FITTING OVER MULTIPLE CHANNELS
+
+        For fitting over multiple channels, the result of the previous successful fit is used as
+        the estimate for the next channel. The number of gaussians fit cannot be varied on a channel
+        by channel basis. Thus the variation of source structure should be reasonably smooth in
+        frequency to produce reliable fit results.
+    </description>
+
+    <example>
+
+
+        EXAMPLE:
+
+        Here is how one might fit two gaussians to multiple channels of a cube using the fit
+        from the previous channel as the initial estimate for the next. It also illustrates
+        how one can specify a region in the associated continuum image as the region to use
+        as the fit for the channel.
+
+
+        \begin{verbatim}
+        default pmaxfit
+        imagename = "co_cube.im"
+        # specify region using region from continuum
+        box = "100,120,200,200"
+        pmaxfit()
+    </example>
+
+    <input>
+        <param type="stringArray" name="imagefiles" mustexist="true" >
+            <description>A list of the input images</description>
+            <value></value>
+            <example>imagefiles=['ngc5921.im','ngc5921.im2']</example>
+        </param>
+
+        <param type="int" name="ncpu">
+          <description>Number of cpu cores to use</description>
+          <value>8</value>
+        </param>
+
+        <param type="string" name="box">
+            <description>Rectangular region(s) to select in direction plane. See "help par.box" for details. Default is to use the entire direction plane.</description>
+            <value/>
+            <example>box='100,120,200,200'</example>
+        </param>
+
+        <param type="int" name="width">
+          <description>Half-width of fit grid</description>
+          <value>5</value>
+        </param>
+        CONSTRAINTS
+        <constraints>
+            <!--<when param="doreg">-->
+                <!--<equals type="bool" value="False"/>-->
+                <!--<equals type="bool" value="True">-->
+                      <!--<default param="timestamps"><value type="stringArray"></value></default>-->
+                      <!--<default param="ephemfile"><value type="string"></value></default>-->
+                      <!--<default param="msinfofile"><value type="string"></value></default>-->
+                <!--</equals>-->
+            <!--</when>-->
+            <!--<when param="mask">-->
+                <!--<notequals type="string" value="">-->
+                    <!--<default param="stretch"><value type="bool">False</value></default>-->
+                <!--</notequals>-->
+            <!--</when>-->
+            <!--<when param="logfile">-->
+                <!--<notequals type="string" value="">-->
+                    <!--<default param="append">-->
+                        <!--<value>True</value>-->
+                    <!--</default>-->
+                <!--</notequals>-->
+            <!--</when>-->
+            <!--<when param="complist">-->
+                <!--<notequals type="string" value="">-->
+                    <!--<default param="overwrite">-->
+                        <!--<value>False</value>-->
+                    <!--</default>-->
+                <!--</notequals>-->
+            <!--</when>-->
+            <!--<when param="dooff">-->
+                <!--<notequals type="bool" value="False">-->
+                    <!--<default param="offset">-->
+                        <!--<value>0.0</value>-->
+                    <!--</default>-->
+                    <!--<default param="fixoffset">-->
+                        <!--<value>False</value>-->
+                    <!--</default>-->
+                <!--</notequals>-->
+            <!--</when>-->
+        </constraints>
+    </input>
+    <returns type="void"/>
+</task>
+</casaxml>
