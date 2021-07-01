@@ -27,7 +27,7 @@ docompress = True
 ncpu = multiprocessing.cpu_count()
 ## set False to plot EOVSA images as open contours, set True to plot as filled contours
 opencontour = False
-clevels = [0.9, 1.0]
+clevels = [0.5, 1.0]
 
 #### ---- Control knobs for AIA plotting ---- ####
 ## set True if plot AIA images as the background
@@ -40,5 +40,5 @@ ql.qlookplot(vis=msfile, specfile=specfile, timerange=timerange, spw=spw,
              restoringbeam=['30arcsec'],
              opencontour=opencontour, clevels=clevels,
              plotaia=plotaia, aiawave=aiawave,
-             mkmovie=mkmovie, twidth=twidth, docompress=docompress, stokes=stokes, overwrite=False)
+             mkmovie=mkmovie, twidth=twidth, docompress=docompress, stokes=stokes)
 
