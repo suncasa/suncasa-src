@@ -35,11 +35,11 @@ except:
 import sunpy
 
 # check sunpy version
-sunpyver = sunpy.version.major
-if sunpyver <= 1:
-    from sunpy import sun
-else:
+sunpy1 = sunpy.version.major >=1
+if sunpy1:
     from sunpy.coordinates import sun
+else:
+    from sunpy import sun
 
 try:
     from astropy.io import fits as pyfits
@@ -760,14 +760,14 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             p_angle = hel['p0']
             hgln_obs = 0.
             rsun_ref = sun.constants.radius.value
-            if sunpyver <= 1:
-                dsun_obs = sun.sunearth_distance(Time(dateobs)).to(u.meter).value
-                rsun_obs = sun.solar_semidiameter_angular_size(Time(dateobs)).value
-                hglt_obs = sun.heliographic_solar_center(Time(dateobs))[1].value
-            else:
+            if sunpy1:
                 dsun_obs = sun.earth_distance(Time(dateobs)).to(u.meter).value
                 rsun_obs = sun.angular_radius(Time(dateobs)).value
                 hglt_obs = sun.B0(Time(dateobs)).value
+            else:
+                dsun_obs = sun.sunearth_distance(Time(dateobs)).to(u.meter).value
+                rsun_obs = sun.solar_semidiameter_angular_size(Time(dateobs)).value
+                hglt_obs = sun.heliographic_solar_center(Time(dateobs))[1].value
             try:
                 # this works for pyfits version of CASA 4.7.0 but not CASA 4.6.0
                 header.set('exptime', exptime)

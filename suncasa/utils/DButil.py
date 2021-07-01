@@ -353,7 +353,7 @@ def img2html_movie(imgprefix, outname='movie', img_fmt='png'):
     fi.write('</HTML>\n')
     fi.write('\n')
     fi.close()  # pdb.set_trace()
-    print('Write movie to {}'.format(htmlfile))
+    print('\nWrite movie to {}'.format(htmlfile))
     print('To open -----> firefox {} &'.format(os.path.abspath(htmlfile)))
 
 

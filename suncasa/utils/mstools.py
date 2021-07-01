@@ -14,10 +14,48 @@ except:
     ms = mstool()
     qa = qatool()
 
-
 import numpy as np
 from tqdm import tqdm
 import os
+
+
+def get_cfreq(msfile, spw=None):
+    '''
+    get center frequencies of all spectral windows for msfile
+    spw: [option] return the cfreq of spw. spw can be a a string or a list of string. The syntax of spw follows the standard spw Parameter in CASA
+    if spw is not provided, return the cfreq of all spws in the msfile.
+    return cfreqs is in GHz
+    '''
+    tb.open(msfile + '/SPECTRAL_WINDOW')
+    reffreqs = tb.getcol('REF_FREQUENCY')
+    bdwds = tb.getcol('TOTAL_BANDWIDTH')
+    cfreqs = reffreqs + bdwds / 2.
+    tb.close()
+    ncfreq = len(reffreqs)
+    if spw is not None:
+        cfreqs_spw = []
+        for sp in spw:
+            if '~' in sp:
+                cfreq = np.nanmean([cfreqs[max(0, min(int(s), ncfreq - 1))] for s in sp.split('~')])
+            else:
+                cfreq = cfreqs[max(0, min(int(sp), ncfreq - 1))]
+            cfreqs_spw.append(cfreq)
+        cfreqs = np.array(cfreqs_spw)
+    cfreqs = cfreqs/1e9
+    return cfreqs
+
+
+def get_bmsize(cfreq, refbmsize=30.0, reffreq=1.6, minbmsize=4.0):
+    '''
+    get beamsize at frequencies definded by cfreq based on refbmsize at reffreq
+    cfreq: input frequencies at GHz
+    refbmsize: reference beam size in arcsec
+    reffreq: reference frequency in GHz
+    minbmsize: minimum beam size in arcsec
+    '''
+    bmsize = refbmsize * reffreq / cfreq
+    bmsize[bmsize < minbmsize] = minbmsize
+    return bmsize
 
 
 def get_trange(msfile):
@@ -246,7 +284,7 @@ def concat_slftb(tb_in=[], tb_out=None):
         else:
             for col in cols:
                 if tbidx == 1 and col in ['CPARAM', 'PARAMERR', 'FLAG', 'SNR']:
-                    tbdata[col].append(tb.getcol(col)[::-1,...])
+                    tbdata[col].append(tb.getcol(col)[::-1, ...])
                 else:
                     tbdata[col].append(tb.getcol(col))
         tb.close()
@@ -270,7 +308,7 @@ def concat_slftb(tb_in=[], tb_out=None):
         return tb_out
 
 
-def gaincalXY(vis=None, caltable=None, pols='XXYY', msfileXY=None, gaintableXY=None,  **kwargs):
+def gaincalXY(vis=None, caltable=None, pols='XXYY', msfileXY=None, gaintableXY=None, **kwargs):
     from gaincal_cli import gaincal_cli as gaincal
     if pols == 'XXYY':
         pols = 'XX,YY'
@@ -309,12 +347,11 @@ def getmodel(vis, spw=None):
     tb.done()
     return model_d
 
+
 def putmodel(vis, spw=None, model=None):
     tb.open(vis, nomodify=False)
     subt = tb.query("DATA_DESC_ID==" + str(spw))
-    model_d = subt.putcol('MODEL_DATA',model)
+    model_d = subt.putcol('MODEL_DATA', model)
     subt.done()
     tb.done()
     return model_d
-
-

@@ -1,6 +1,6 @@
-<casaxml xsi:schemaLocation="http://casa.nrao.edu/schema/casa.xsd file:///opt/casa/code/xmlcasa/xml/casa.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://casa.nrao.edu/schema/psetTypes.html">
+<casaxml xsi:schemaLocation="http://casa.nrao.edu/schema/casa.xsd file:///opt/casa/code/xmlcasa/xml/casa.xsd" xmlns="http://casa.nrao.edu/schema/psetTypes.html" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
-<task name="subvs" type="function">
+<task type="function" name="subvs">
      <shortdescription>Vector-subtraction in UV using selected time ranges and spectral channels as background</shortdescription>
 
 <description>
@@ -19,27 +19,27 @@ average over frequency (channels) and time (integrations).
 </description>
 
 <input>
-    <param mustexist="true" name="vis" type="path">
+    <param type="path" name="vis" mustexist="true">
 		<description>Name of input measurement set</description>
 		<value/>
     </param>
 
-    <param mustexist="false" name="outputvis" type="path">
+    <param type="path" name="outputvis" mustexist="false">
 		<description>Name of output measurement set</description>
 		<value/>
     </param>
 
-    <param name="timerange" type="string">
+    <param type="string" name="timerange">
 		<description>Select the time range of the input visbility to be subtracted from</description>
 		<value/>
     </param>
 
-    <param name="spw" type="string">
+    <param type="string" name="spw">
 		<description>Select the spectral channels of the input visibility to be subtracted from</description>
 		<value/>
     </param>
 
-    <param name="mode" type="string">
+    <param type="string" name="mode">
         <description>Operation: linear, highpass</description>
         <value>linear</value>
         <allowed kind="enum">
@@ -49,42 +49,42 @@ average over frequency (channels) and time (integrations).
         </allowed>
     </param>
 
-    <param subparam="true" name="subtime1" type="string">
+    <param type="string" name="subtime1" subparam="true">
 		<description>Select the first time range as the background for uv subtraction </description>
 		<value/>
     </param>
 
-    <param subparam="true" name="subtime2" type="string">
+    <param type="string" name="subtime2" subparam="true">
 		<description>Select the second time range as the background for uv subtraction </description>
 		<value/>
     </param>
 
-    <param subparam="true" name="smoothaxis" type="string">
+    <param type="string" name="smoothaxis" subparam="true">
 		<description>Select the axis along which smooth is performed</description>
 		<value>time</value>
     </param>
 
-    <param subparam="true" name="smoothtype" type="string">
+    <param type="string" name="smoothtype" subparam="true">
 		<description>Select the smooth type</description>
 		<value>flat</value>
     </param>
 
-    <param subparam="true" name="smoothwidth" type="int">
+    <param type="int" name="smoothwidth" subparam="true">
 		<description>Select the width of the smoothing window</description>
 		<value>5</value>
     </param>
 
-    <param name="splitsel" type="bool">
+    <param type="bool" name="splitsel">
 		<description>Split the selected timerange and spectral channels as outputvis</description>
 		<value>True</value>
     </param>
 
-    <param name="reverse" type="bool">
+    <param type="bool" name="reverse">
 		<description>Reverse the sign of the background-subtracted data (for absorptive structure)</description>
 		<value>False</value>
     </param>
 
-    <param name="overwrite" type="bool">
+    <param type="bool" name="overwrite">
 		<description>Overwrite the already existing output measurement set</description>
 		<value>False</value>
     </param>

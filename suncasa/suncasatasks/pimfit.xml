@@ -1,186 +1,186 @@
-<casaxml xsi:schemaLocation="http://casa.nrao.edu/schema/casa.xsd file:///opt/casa/code/xmlcasa/xml/casa.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://casa.nrao.edu/schema/psetTypes.html">
+<casaxml xsi:schemaLocation="http://casa.nrao.edu/schema/casa.xsd file:///opt/casa/code/xmlcasa/xml/casa.xsd" xmlns="http://casa.nrao.edu/schema/psetTypes.html" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
 
 
 
-<task category="analysis" name="pimfit" type="function">
+<task type="function" name="pimfit" category="analysis">
 
 <shortdescription>Fit one or more elliptical Gaussian components on an image region(s)</shortdescription>
 
 <input>
-    <param mustexist="true" name="imagefiles" type="pathVec">
+    <param type="pathVec" name="imagefiles" mustexist="true">
     	<description>A list of the input images</description>
     	<value/>
         <example>imagefiles=['ngc5921.im','ngc5921.im2']</example>
     </param>
 
-    <param name="ncpu" type="int">
+    <param type="int" name="ncpu">
       <description>Number of cpu cores to use</description>
       <value>8</value>
     </param>
 
-    <param name="doreg" type="bool">
+    <param type="bool" name="doreg">
             <description>True if use vla_prep to register the image</description>
             <value>False</value>
     </param>
 
-    <param subparam="true" name="ephemfile" type="string">
+    <param type="string" name="ephemfile" subparam="true">
             <description>emphemeris file generated from vla_prep.read_horizons()</description>
             <value type="string"/>
     </param>
-    <param subparam="true" name="timestamps" type="stringVec">
+    <param type="stringVec" name="timestamps" subparam="true">
     	<description>A list of timestamps of the input images</description>
     	<value/>
         <example>timestamps=['17:25:36','17:25:37']</example>
     </param>
-    <param subparam="true" name="msinfofile" type="string">
+    <param type="string" name="msinfofile" subparam="true">
             <description>time-dependent phase center information generated from vla_prep.read_msinfo()</description>
             <value type="string"/>
 
-    </param><param name="box" type="string">
+    </param><param type="string" name="box">
         <description>Rectangular region(s) to select in direction plane. See &quot;help par.box&quot; for details. Default is to use the entire direction plane.</description>
         <value/>
         <example>box='100,120,200,200'</example>
     </param>
-    <param name="region" type="any">
+    <param type="any" name="region">
         <description>Region selection. See &quot;help par.region&quot; for details. Default is to use the full image.</description>
-	    <any limittype="string stringArray record" type="variant"/>
+	    <any type="variant" limittype="string stringArray record"/>
         <value type="string"/>
         <example>region='myregion'</example>
     </param>
-    <param name="chans" type="any">
+    <param type="any" name="chans">
         <description>Channels to use. See &quot;help par.chans&quot; for details. Default is to use all channels.</description>
-        <any limittype="string int" type="variant"/>
+        <any type="variant" limittype="string int"/>
         <value type="string"/>
     </param>
-    <param name="stokes" type="string">
+    <param type="string" name="stokes">
         <description>Stokes planes to use. See &quot;help par.stokes&quot; for details. Default is to use first Stokes plane.</description>
         <value/>
         <example>stokes='Q'</example>
     </param>
     
-   <param name="mask" type="string">
+   <param type="string" name="mask">
         <description>Mask to use. See help par.mask. Default is none.</description>
         <value/>
     </param>
 
-   <param name="includepix" type="intVec">
+   <param type="intVec" name="includepix">
         <description>Range of pixel values to include for fitting.</description>
         <value/>
         <example>includepix=[0.5,500]</example>
     </param>
     
-    <param name="excludepix" type="intVec">
+    <param type="intVec" name="excludepix">
         <description>Range of pixel values to exclude for fitting.</description>
         <value/>
         <example>excludepix=[-500,.05]</example>
     </param>
     
-    <param name="residual" type="string">
+    <param type="string" name="residual">
         <description>Name of output residual image.</description>
         <value/>
         <example>residual='ngc5921_fit_resid.im'</example>
     </param>
     
-    <param name="model" type="string">
+    <param type="string" name="model">
         <description>Name of output model image.</description>
         <value/>
         <example>model='ngc5921_fit_model.im'</example>
     </param>
     
-    <param name="estimates" type="string">
+    <param type="string" name="estimates">
         <description>Name of file containing initial estimates of component parameters.</description>
         <value/>
         <example>estimates='ngc5921_fit_estimates.txt'</example>
     </param>
     
-    <param name="logfile" type="string">
+    <param type="string" name="logfile">
         <description>Name of file to write fit results.</description>
         <value/>
         <example>logfile=&quot;myimfitlog.txt&quot;</example>
     </param>
 
-    <param subparam="true" name="append" type="bool"> 
+    <param type="bool" name="append" subparam="true"> 
         <description>If logfile exists, append to it if True or overwrite it if False</description>
         <value>True</value>
         <example>append=True</example>
     </param> 
 
-    <param name="newestimates" type="string">
+    <param type="string" name="newestimates">
         <description>File to write fit results which can be used as initial estimates for next run.</description>
         <value/>
         <example>newestimates=&quot;myestimates.txt&quot;</example>
     </param>
-    <param name="complist" type="string">
+    <param type="string" name="complist">
         <description>Name of output component list table.</description>
         <value/>
         <example>complist='myoutputcomplist.tbl'</example>
     </param>
-    <param subparam="true" name="overwrite" type="bool">
+    <param type="bool" name="overwrite" subparam="true">
         <description>Overwrite component list table if it exists?</description>
         <value>False</value>
         <example>overwrite=true</example>
     </param>
-    <param name="dooff" direction="in" type="bool">
+    <param type="bool" direction="in" name="dooff">
         <description>Also fit a zero level offset? Default is False</description>
         <value>False</value>
     </param>
-    <param subparam="true" name="offset" direction="in" type="double">
+    <param type="double" direction="in" name="offset" subparam="true">
         <description>Initial estimate of zero-level offset. Only used if doff is True. Default is 0.0</description>
         <value>0.0</value>
     </param>
-    <param subparam="true" name="fixoffset" direction="in" type="bool">
+    <param type="bool" direction="in" name="fixoffset" subparam="true">
         <description>Keep the zero level offset fixed during fit? Default is False </description>
         <value>False</value>
     </param>
-    <param subparam="true" name="stretch" direction="in" type="bool">
+    <param type="bool" direction="in" name="stretch" subparam="true">
         <description>Stretch the mask if necessary and possible? See help par.stretch </description>
         <value>False</value>
     </param>
-    <param name="rms" type="any">
+    <param type="any" name="rms">
         <type>int</type><type>double</type><type>record</type><type>string</type>
         <description>RMS to use in calculation of uncertainties. Numeric or valid quantity (record or string). If numeric, it is given units of the input image. If quantity, units must conform to image units. If not positive, the rms of the residual image, in the region of the fit, is used.</description>
         <value>-1</value>
     </param>
-    <param name="noisefwhm" type="any">
+    <param type="any" name="noisefwhm">
         <type>int</type><type>double</type><type>record</type><type>string</type>
         <description>Noise correlation beam FWHM. If numeric value, interpreted as pixel widths. If quantity (dictionary, string), it must have angular units.</description>
         <value type="string"/>
     </param>
-    <param name="summary" type="string">
+    <param type="string" name="summary">
         <description>File name to which to write table of fit parameters.</description>
         <value/>
     </param>
     <constraints>
         <when param="doreg">
-            <equals value="False" type="bool"/>
-            <equals value="True" type="bool">
+            <equals type="bool" value="False"/>
+            <equals type="bool" value="True">
                   <default param="timestamps"><value type="stringVec"/></default>
                   <default param="ephemfile"><value type="string"/></default>
                   <default param="msinfofile"><value type="string"/></default>
             </equals>
         </when>
         <when param="mask">
-            <notequals value="" type="string">
+            <notequals type="string" value="">
                 <default param="stretch"><value type="bool">False</value></default>
             </notequals>
         </when>
         <when param="logfile">
-            <notequals value="" type="string">
+            <notequals type="string" value="">
                 <default param="append">
                     <value>True</value>
                 </default>
             </notequals>
         </when>
         <when param="complist">
-            <notequals value="" type="string">
+            <notequals type="string" value="">
                 <default param="overwrite">
                     <value>False</value>
                 </default>
             </notequals>
         </when>
         <when param="dooff">
-            <notequals value="False" type="bool">
+            <notequals type="bool" value="False">
                 <default param="offset">
                     <value>0.0</value>
                 </default>

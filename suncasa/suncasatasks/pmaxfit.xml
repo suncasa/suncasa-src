@@ -1,9 +1,9 @@
-<casaxml xsi:schemaLocation="http://casa.nrao.edu/schema/casa.xsd file:///opt/casa/code/xmlcasa/xml/casa.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://casa.nrao.edu/schema/psetTypes.html">
+<casaxml xsi:schemaLocation="http://casa.nrao.edu/schema/casa.xsd file:///opt/casa/code/xmlcasa/xml/casa.xsd" xmlns="http://casa.nrao.edu/schema/psetTypes.html" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
 
 
 
-<task category="analysis" name="pmaxfit" type="function">
+<task type="function" name="pmaxfit" category="analysis">
 pmaxfit(imagefiles, ncpu=8, box='', width=5)
 
     <shortdescription>Find maximum and do parabolic fit in the sky</shortdescription>
@@ -53,24 +53,24 @@ pmaxfit(imagefiles, ncpu=8, box='', width=5)
     </example>
 
     <input>
-        <param mustexist="true" name="imagefiles" type="pathVec">
+        <param type="pathVec" name="imagefiles" mustexist="true">
             <description>A list of the input images</description>
             <value/>
             <example>imagefiles=['ngc5921.im','ngc5921.im2']</example>
         </param>
 
-        <param name="ncpu" type="int">
+        <param type="int" name="ncpu">
           <description>Number of cpu cores to use</description>
           <value>8</value>
         </param>
 
-        <param name="box" type="string">
+        <param type="string" name="box">
             <description>Rectangular region(s) to select in direction plane. See &quot;help par.box&quot; for details. Default is to use the entire direction plane.</description>
             <value/>
             <example>box='100,120,200,200'</example>
         </param>
 
-        <param name="width" type="int">
+        <param type="int" name="width">
           <description>Half-width of fit grid</description>
           <value>5</value>
         </param>

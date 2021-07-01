@@ -1,7 +1,7 @@
-<casaxml xsi:schemaLocation="http://casa.nrao.edu/schema/casa.xsd file:///opt/casa/code/xmlcasa/xml/casa.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://casa.nrao.edu/schema/psetTypes.html">
+<casaxml xsi:schemaLocation="http://casa.nrao.edu/schema/casa.xsd file:///opt/casa/code/xmlcasa/xml/casa.xsd" xmlns="http://casa.nrao.edu/schema/psetTypes.html" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
 
-<task category="Import/export" name="importeovsa" type="function">
+<task type="function" name="importeovsa" category="Import/export">
 
         
         
@@ -87,69 +87,69 @@
     </example>
 
     <input>
-        <param mustexist="true" name="idbfiles" type="any">
+        <param type="any" name="idbfiles" mustexist="true">
             <description>Name of input EOVSA idb file(s) or observation time range.</description>
             <type>string</type><type>stringVec</type>
             <value type="string"/>
         </param>
 
-        <param name="ncpu" type="int">
+        <param type="int" name="ncpu">
             <description>Number of cpu cores to use</description>
             <value>1</value>
         </param>
 
         
         
-        <param name="timebin" type="string">
+        <param type="string" name="timebin">
             <description>Bin width for time averaging</description>
             <value type="string">0s</value>
         </param>
 
         
-        <param name="width" type="any">
+        <param type="any" name="width">
             <description>Width of output channel relative to MS channel (# to average)</description>
             <type>string</type><type>stringVec</type><type>int</type><type>intVec</type>
             <value type="int">1</value>
         </param>
 
-        <param name="visprefix" type="string">
+        <param type="string" name="visprefix">
             <description>Prefix of vis names (may include the path).</description>
             <type>string</type>
             <value type="string"/>
         </param>
 
-        <param name="udb_corr" type="bool">
+        <param type="bool" name="udb_corr">
             <description>if applying correction to input UDB files before import to MS.</description>
             <value>True</value>
         </param>
 
-        <param subparam="false" name="use_exist_udbcorr" type="bool">
+        <param type="bool" name="use_exist_udbcorr" subparam="false">
             <description>If use the existed udb_corr results. </description>
             <value>False</value>
         </param>
 
-        <param name="nocreatms" type="bool">
+        <param type="bool" name="nocreatms">
             <description>If setting nocreatms True, will simulate a model measurement set for the first idb file and copy the model for the rest of idl files in list. If False, will simulate a new measurement set for every idbfile in list.</description>
             <value>False</value>
         </param>
 
-        <param name="doconcat" type="bool">
+        <param type="bool" name="doconcat">
             <description>If concatenate multi casa measurement sets to one file.</description>
             <value>False</value>
         </param>
 
-        <param name="modelms" type="string">
+        <param type="string" name="modelms">
             <description>Name of input model measurement set file. If modelms is assigned, no simulation will start.</description>
             <type>string</type>
             <value type="string"/>
         </param>
 
-        <param name="doscaling" type="bool">
+        <param type="bool" name="doscaling">
             <description>If creating a new MS file with the amplitude of visibility data rescaled.</description>
             <value>False</value>
         </param>
 
-        <param subparam="true" name="keep_nsclms" type="bool">
+        <param type="bool" name="keep_nsclms" subparam="true">
             <description>Keep the no scaling measurement sets</description>
             <value>False</value>
         </param>
@@ -157,16 +157,16 @@
         
         <constraints>
             <when param="doscaling">
-                <equals value="False" type="bool"/>
-                <equals value="True" type="bool">
+                <equals type="bool" value="False"/>
+                <equals type="bool" value="True">
                     <default param="keep_nsclms">
                         <value type="bool">False</value>
                     </default>
                 </equals>
             </when>
             <when param="udb_corr">
-                <equals value="False" type="bool"/>
-                <equals value="True" type="bool">
+                <equals type="bool" value="False"/>
+                <equals type="bool" value="True">
                     <default param="use_exist_udbcorr">
                         <value type="bool">False</value>
                     </default>

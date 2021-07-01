@@ -1,78 +1,78 @@
-<casaxml xsi:schemaLocation="http://casa.nrao.edu/schema/casa.xsd file:///opt/casa/code/xmlcasa/xml/casa.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://casa.nrao.edu/schema/psetTypes.html">
+<casaxml xsi:schemaLocation="http://casa.nrao.edu/schema/casa.xsd file:///opt/casa/code/xmlcasa/xml/casa.xsd" xmlns="http://casa.nrao.edu/schema/psetTypes.html" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
 
-<task category="utility, manipulation" name="concateovsa" type="function">
+<task type="function" name="concateovsa" category="utility, manipulation">
     <shortdescription>Concatenate several EOVSA visibility data sets.</shortdescription>
 
     <input>
-        <param mustexist="true" kind="ms" name="vis" type="any">
+        <param type="any" name="vis" kind="ms" mustexist="true">
             <description>Name of input visibility files to be concatenated</description>
                 <type>string</type><type>stringVec</type>
                 <value type="string"/>
         </param>
 
-        <param name="concatvis" type="string">
+        <param type="string" name="concatvis">
             <description>Name of output visibility file</description>
             <value/>
         </param>
 
-        <param ignorecase="True" name="datacolumn" type="string">
+        <param type="string" name="datacolumn" ignorecase="True">
             <description>Which data column(s) to concatenate</description>
             <value>corrected</value>
-            <allowed ignorecase="True" kind="enum">
+            <allowed kind="enum" ignorecase="True">
                 <value>corrected</value>
                 <value>data</value>
             </allowed>
         </param>
 
-        <param name="keep_orig_ms" type="bool">
+        <param type="bool" name="keep_orig_ms">
             <description>If false, input vis files will be removed</description>
             <value>True</value>
         </param>
 
-        <param ignorecase="True" name="cols2rm" type="string">
+        <param type="string" name="cols2rm" ignorecase="True">
             <description>Columns in concatvis to be removed to slim the concatvis</description>
             <value>model,corrected</value>
-            <allowed ignorecase="True" kind="enum">
+            <allowed kind="enum" ignorecase="True">
                 <value>model,corrected</value>
                 <value>model</value>
                 <value>corrected</value>
             </allowed>
         </param>
 
-        <param name="freqtol" type="any">
+        <param type="any" name="freqtol">
             <description>Frequency shift tolerance for considering data as the same spwid</description>
             <any type="variant"/>
             <value type="string"/>
         </param>
 
-        <param name="dirtol" type="any">
+        <param type="any" name="dirtol">
             <description>Direction shift tolerance for considering data as the same field</description>
             <any type="variant"/>
             <value type="string"/>
         </param>
 
-        <param name="respectname" type="bool">
+        <param type="bool" name="respectname">
             <description>If true, fields with a different name are not merged even if their direction agrees</description>
             <value>False</value>
         </param>
 
-        <param name="timesort" type="bool">
+        <param type="bool" name="timesort">
             <description>If true, sort by TIME in ascending order</description>
             <value>True</value>
         </param>
 
-        <param name="copypointing" type="bool">
+        <param type="bool" name="copypointing">
             <description>Copy all rows of the POINTING table.</description>
             <value>True</value>
         </param>
 
-        <param name="visweightscale" type="doubleVec">
+        <param type="doubleVec" name="visweightscale">
             <description>List of the weight scaling factors to be applied to the individual MSs</description>
             <value/>
         </param>
 
-        <param name="forcesingleephemfield" type="any">
+        <param type="any" name="forcesingleephemfield">
             <description>make sure that there is only one joint ephemeris for every field in this list</description>
             <any type="variant"/>
             <value type="string"/>
