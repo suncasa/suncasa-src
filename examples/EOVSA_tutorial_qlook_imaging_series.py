@@ -24,7 +24,7 @@ mkmovie = True
 ## set True if generate compressed fits
 docompress = True
 ## numbers of CPU threads for computing
-ncpu = multiprocessing.cpu_count()
+ncpu = 1 #multiprocessing.cpu_count()
 ## set False to plot EOVSA images as open contours, set True to plot as filled contours
 opencontour = False
 clevels = [0.5, 1.0]
