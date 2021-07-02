@@ -25,7 +25,7 @@ fidxs = np.arange(0, 48)
 ## The alpha blending value for , between 0 (transparent) and 1 (opaque).
 alpha = 0.5
 ## The respective maximum intensity of EOVSA images
-vmin = 0.3
+vmin = 0.3 
 
 
 ## Get solar coordinates of every pixels in the radio image.
@@ -43,7 +43,7 @@ mapx, mapy = np.linspace(x0, x1, nx), np.linspace(y0, y1, ny)
 
 ## Plot the AIA maps on the background
 fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(10, 4.8), sharex=True, sharey=True)
-aiacmap = plt.get_cmap('gray_r')
+aiacmap = copy.copy(plt.get_cmap('gray_r'))
 aiacmap.set_under('white')
 aiacmap.set_over('k')
 aiamap = smap.Map(aiafile)

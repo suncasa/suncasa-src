@@ -14,10 +14,82 @@ except:
     ms = mstool()
     qa = qatool()
 
-
 import numpy as np
 from tqdm import tqdm
 import os
+
+
+def get_freqinfo(msfile, spw=None, returnbounds=False):
+    '''
+    get center frequencies of all spectral windows for msfile
+    spw: [option] return the cfreq of spw. spw can be a a string or a list of string.
+    The syntax of spw follows the standard spw Parameter in CASA
+    if spw is not provided, return the cfreq of all spws in the msfile.
+    return cfreqs is in GHz
+    if returnbounds is True, return a dictionary including comprehensive freq information of the ms.
+    '''
+
+    ms.open(msfile)
+    spwInfo = ms.getspectralwindowinfo()
+    nspw = len(spwInfo.keys())
+    reffreqs = []
+    bdwds = []
+    chanwds = []
+    for s in range(nspw):
+        s_ = str(s)
+        reffreqs.append(spwInfo[s_]['RefFreq'])
+        bdwds.append(spwInfo[s_]['TotalWidth'])
+        chanwds.append(spwInfo[s_]['ChanWidth'])
+    reffreqs = np.array(reffreqs) / 1e9
+    bdwds = np.array(bdwds) / 1e9
+    chanwds = np.array(chanwds) / 1e9
+    ms.close()
+    cfreqs = reffreqs + bdwds / 2.0 - chanwds / 2.0
+    freqbounds = {'bounds_all': np.hstack((reffreqs, reffreqs[-1] + bdwds[-1])), 'cfreqs_all': cfreqs,
+                  'bounds_all_lo': reffreqs, 'bounds_all_hi': reffreqs + bdwds}
+    if spw is not None:
+        freqbounds_lo_spw = []
+        freqbounds_hi_spw = []
+        cfreqs_spw = []
+        for sp in spw:
+            if '~' in sp:
+                sps = sp.split('~')
+                cfreq = np.nanmean([cfreqs[max(0, min(int(s), nspw - 1))] for s in sps])
+                s1 = max(0, min(int(sps[0]), nspw - 1))
+                s2 = max(0, min(int(sps[1]) + 1, nspw - 1))
+                freqbound_lo = freqbounds['bounds_all'][s1]
+                freqbound_hi = freqbounds['bounds_all'][s2]
+            else:
+                s = max(0, min(int(sp), nspw - 1))
+                cfreq = cfreqs[s]
+                freqbound_lo = freqbounds['bounds_all'][s]
+                freqbound_hi = freqbounds['bounds_all'][s] + bdwds[s]
+            freqbounds_lo_spw.append(freqbound_lo)
+            freqbounds_hi_spw.append(freqbound_hi)
+            cfreqs_spw.append(cfreq)
+        cfreqs = np.array(cfreqs_spw)
+        freqbounds_lo = np.array(freqbounds_lo_spw)
+        freqbounds_hi = np.array(freqbounds_hi_spw)
+        freqbounds['bounds_lo'] = freqbounds_lo
+        freqbounds['bounds_hi'] = freqbounds_hi
+        freqbounds['cfreqs'] = cfreqs
+    if returnbounds:
+        return freqbounds
+    else:
+        return cfreqs
+
+
+def get_bmsize(cfreq, refbmsize=30.0, reffreq=1.6, minbmsize=4.0):
+    '''
+    get beamsize at frequencies definded by cfreq based on refbmsize at reffreq
+    cfreq: input frequencies at GHz
+    refbmsize: reference beam size in arcsec
+    reffreq: reference frequency in GHz
+    minbmsize: minimum beam size in arcsec
+    '''
+    bmsize = refbmsize * reffreq / cfreq
+    bmsize[bmsize < minbmsize] = minbmsize
+    return bmsize
 
 
 def get_trange(msfile):
@@ -246,7 +318,7 @@ def concat_slftb(tb_in=[], tb_out=None):
         else:
             for col in cols:
                 if tbidx == 1 and col in ['CPARAM', 'PARAMERR', 'FLAG', 'SNR']:
-                    tbdata[col].append(tb.getcol(col)[::-1,...])
+                    tbdata[col].append(tb.getcol(col)[::-1, ...])
                 else:
                     tbdata[col].append(tb.getcol(col))
         tb.close()
@@ -270,7 +342,7 @@ def concat_slftb(tb_in=[], tb_out=None):
         return tb_out
 
 
-def gaincalXY(vis=None, caltable=None, pols='XXYY', msfileXY=None, gaintableXY=None,  **kwargs):
+def gaincalXY(vis=None, caltable=None, pols='XXYY', msfileXY=None, gaintableXY=None, **kwargs):
     from gaincal_cli import gaincal_cli as gaincal
     if pols == 'XXYY':
         pols = 'XX,YY'
@@ -309,12 +381,11 @@ def getmodel(vis, spw=None):
     tb.done()
     return model_d
 
+
 def putmodel(vis, spw=None, model=None):
     tb.open(vis, nomodify=False)
     subt = tb.query("DATA_DESC_ID==" + str(spw))
-    model_d = subt.putcol('MODEL_DATA',model)
+    model_d = subt.putcol('MODEL_DATA', model)
     subt.done()
     tb.done()
     return model_d
-
-

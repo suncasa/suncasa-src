@@ -10,32 +10,43 @@ from suncasa.utils import helioimage2fits as hf
 pversion = sys.version_info.major
 if pversion < 3:
     ## CASA version < 6
-    from taskinit import ms, tb, qa
+    from taskinit import ms, tb, qa, casalog
     from tclean_cli import tclean_cli as tclean
+
+    is_casa6 = False
 else:
     ## CASA version >= 6
+    from casatasks import casalog, tclean
     from casatools import table as tbtool
     from casatools import ms as mstool
     from casatools import quanta as qatool
-    from casatasks import casalog, tclean
 
     tb = tbtool()
     ms = mstool()
     qa = qatool()
+    is_casa6 = True
 
 
 def clean_iter(tim, vis, imageprefix, imagesuffix,
-               twidth, doreg, docompress, usephacenter, reftime, ephem, msinfo, toTb, sclfactor, overwrite,
-               selectdata, field, spw,
-               uvrange, antenna, scan, observation, intent, datacolumn, imsize, cell, phasecenter, stokes,
-               projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
-               interpolation, gridder, facets, chanchunks, wprojplanes, vptable, usepointing, mosweight, aterm, psterm,
-               wbawp, conjbeams, cfcache, computepastep, rotatepastep, pblimit, normtype, deconvolver, scales, nterms,
-               smallscalebias, restoration, restoringbeam, pbcor, outlierfile, weighting, robust, npixels, uvtaper,
-               niter, gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive,
-               usemask, mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold,
-               smoothfactor, minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart,
-               savemodel, calcres, calcpsf, parallel, subregion, tmpdir, btidx):
+               twidth, doreg, docompress, usephacenter, reftime, ephem, msinfo, toTb, sclfactor, subregion, overwrite,
+               selectdata, field, spw, timerange, uvrange, antenna, scan, observation, intent, datacolumn,
+               imagename, imsize, cell, phasecenter, stokes, projection, startmodel, specmode, reffreq, nchan,
+               start,
+               width, outframe, veltype, restfreq, interpolation, perchanweightdensity, gridder, facets,
+               psfphasecenter,
+               wprojplanes, vptable, mosweight, aterm, psterm, wbawp, conjbeams, cfcache, usepointing,
+               computepastep,
+               rotatepastep, pointingoffsetsigdev, pblimit, normtype, deconvolver, scales, nterms,
+               smallscalebias,
+               restoration, restoringbeam, pbcor, outlierfile, weighting, robust, noise, npixels, uvtaper, niter,
+               gain,
+               threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive, usemask,
+               mask,
+               pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold, smoothfactor,
+               minbeamfrac,
+               cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, fastnoise, restart,
+               savemodel,
+               calcres, calcpsf, psfcutoff, parallel, btidx):
     bt = btidx  # 0
     if bt + twidth < len(tim) - 1:
         et = btidx + twidth - 1
@@ -60,52 +71,41 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
     image0 = btstr.replace(':', '').replace('-', '')
     imname = imageprefix + image0 + imagesuffix
 
-    # ms_tmp = tmpdir + image0 + '.ms'
-    # print('checkpoint 1')
-    # # split(vis=vis, outputvis=ms_tmp, field=field, scan=scan, antenna=antenna, timerange=timerange,
-    # #       datacolumn=datacolumn)
-    # ms.open(vis)
-    # print('checkpoint 1-1')
-    # ms.split(ms_tmp,field=field, scan=scan, baseline=antenna, time=timerange,whichcol=datacolumn)
-    # print('checkpoint 1-2')
-    # ms.close()
-    # print('checkpoint 2')
-
     if overwrite or (len(glob.glob(imname + '*')) == 0):
         os.system('rm -rf {}*'.format(imname))
-        try:
-            tclean(vis=vis, selectdata=selectdata, field=field, spw=spw, timerange=timerange, uvrange=uvrange,
-                   antenna=antenna, scan=scan, observation=observation, intent=intent, datacolumn=datacolumn,
-                   imagename=imname, imsize=imsize, cell=cell, phasecenter=phasecenter, stokes=stokes,
-                   projection=projection, startmodel=startmodel, specmode=specmode, reffreq=reffreq, nchan=nchan,
-                   start=start, width=width, outframe=outframe, veltype=veltype, restfreq=restfreq,
-                   interpolation=interpolation, gridder=gridder, facets=facets, chanchunks=chanchunks,
-                   wprojplanes=wprojplanes, vptable=vptable, usepointing=usepointing, mosweight=mosweight, aterm=aterm,
-                   psterm=psterm, wbawp=wbawp, conjbeams=conjbeams, cfcache=cfcache, computepastep=computepastep,
-                   rotatepastep=rotatepastep, pblimit=pblimit, normtype=normtype, deconvolver=deconvolver,
-                   scales=scales, nterms=nterms, smallscalebias=smallscalebias, restoration=restoration,
-                   restoringbeam=restoringbeam, pbcor=pbcor, outlierfile=outlierfile, weighting=weighting,
-                   robust=robust, npixels=npixels, uvtaper=uvtaper, niter=niter, gain=gain, threshold=threshold,
-                   nsigma=nsigma, cycleniter=cycleniter, cyclefactor=cyclefactor, minpsffraction=minpsffraction,
-                   maxpsffraction=maxpsffraction, interactive=interactive, usemask=usemask, mask=mask, pbmask=pbmask,
-                   sidelobethreshold=sidelobethreshold, noisethreshold=noisethreshold,
-                   lownoisethreshold=lownoisethreshold, negativethreshold=negativethreshold, smoothfactor=smoothfactor,
-                   minbeamfrac=minbeamfrac, cutthreshold=cutthreshold, growiterations=growiterations,
-                   dogrowprune=dogrowprune, minpercentchange=minpercentchange, verbose=verbose, restart=restart,
-                   savemodel=savemodel, calcres=calcres, calcpsf=calcpsf, parallel=parallel)
-            # print('checkpoint 3')
-            if pbcor:
-                clnjunks = ['.flux', '.mask', '.model', '.psf', '.residual', '.pb', '.sumwt', '.image']
-            else:
-                clnjunks = ['.flux', '.mask', '.model', '.psf', '.residual', '.pb', '.sumwt', '.image.pbcor']
-            for clnjunk in clnjunks:
-                if os.path.exists(imname + clnjunk):
-                    shutil.rmtree(imname + clnjunk)
-            if pbcor:
-                os.system('mv {} {}'.format(imname + '.image.pbcor', imname + '.image'))
-        except:
-            print('error in cleaning image: ' + btstr)
-            return [False, btstr, etstr, '']
+        # try:
+        tclean(vis=vis, selectdata=selectdata, field=field, spw=spw, timerange=timerange, uvrange=uvrange,
+               antenna=antenna, scan=scan, observation=observation, intent=intent, datacolumn=datacolumn,
+               imagename=imname, imsize=imsize, cell=cell, phasecenter=phasecenter, stokes=stokes,
+               projection=projection, startmodel=startmodel, specmode=specmode, reffreq=reffreq, nchan=nchan,
+               start=start, width=width, outframe=outframe, veltype=veltype, restfreq=restfreq,
+               interpolation=interpolation, perchanweightdensity=perchanweightdensity, gridder=gridder, facets=facets,
+               psfphasecenter=psfphasecenter, wprojplanes=wprojplanes, vptable=vptable, mosweight=mosweight,
+               aterm=aterm, psterm=psterm, wbawp=wbawp, conjbeams=conjbeams, cfcache=cfcache, usepointing=usepointing,
+               computepastep=computepastep, rotatepastep=rotatepastep, pointingoffsetsigdev=pointingoffsetsigdev,
+               pblimit=pblimit, normtype=normtype, deconvolver=deconvolver, scales=scales, nterms=nterms,
+               smallscalebias=smallscalebias, restoration=restoration, restoringbeam=restoringbeam, pbcor=pbcor,
+               outlierfile=outlierfile, weighting=weighting, robust=robust, noise=noise, npixels=npixels,
+               uvtaper=uvtaper, niter=niter, gain=gain, threshold=threshold, nsigma=nsigma, cycleniter=cycleniter,
+               cyclefactor=cyclefactor, minpsffraction=minpsffraction, maxpsffraction=maxpsffraction,
+               interactive=interactive, usemask=usemask, mask=mask, pbmask=pbmask, sidelobethreshold=sidelobethreshold,
+               noisethreshold=noisethreshold, lownoisethreshold=lownoisethreshold, negativethreshold=negativethreshold,
+               smoothfactor=smoothfactor, minbeamfrac=minbeamfrac, cutthreshold=cutthreshold,
+               growiterations=growiterations, dogrowprune=dogrowprune, minpercentchange=minpercentchange,
+               verbose=verbose, fastnoise=fastnoise, restart=restart, savemodel=savemodel, calcres=calcres,
+               calcpsf=calcpsf, psfcutoff=psfcutoff, parallel=parallel)
+        if pbcor:
+            clnjunks = ['.flux', '.mask', '.model', '.psf', '.residual', '.pb', '.sumwt', '.image']
+        else:
+            clnjunks = ['.flux', '.mask', '.model', '.psf', '.residual', '.pb', '.sumwt', '.image.pbcor']
+        for clnjunk in clnjunks:
+            if os.path.exists(imname + clnjunk):
+                shutil.rmtree(imname + clnjunk)
+        if pbcor:
+            os.system('mv {} {}'.format(imname + '.image.pbcor', imname + '.image'))
+        # except:
+        #     print('error in cleaning image: ' + btstr)
+        #     return [False, btstr, etstr, '']
     else:
         print(imname + ' exists. Clean task aborted.')
 
@@ -146,21 +146,21 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
             return [False, btstr, etstr, imname + '.image']
 
 
-def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, sclfactor, subregion,
-             docompress,
-             overwrite, selectdata, field, spw, timerange, uvrange, antenna, scan, observation, intent, datacolumn,
-             imsize, cell, phasecenter,
-             stokes, projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
-             interpolation, gridder, facets, chanchunks, wprojplanes, vptable, usepointing, mosweight, aterm, psterm,
-             wbawp, conjbeams, cfcache, computepastep, rotatepastep, pblimit, normtype, deconvolver, scales, nterms,
-             smallscalebias, restoration, restoringbeam, pbcor, outlierfile, weighting, robust, npixels, uvtaper, niter,
-             gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive, usemask,
-             mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold, smoothfactor,
-             minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart, savemodel,
-             calcres, calcpsf, parallel):
+def ptclean6(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, sclfactor, subregion,
+             docompress, overwrite,
+             selectdata, field, spw, timerange, uvrange, antenna, scan, observation, intent, datacolumn,
+             imagename, imsize, cell, phasecenter, stokes, projection, startmodel, specmode, reffreq, nchan, start,
+             width, outframe, veltype, restfreq, interpolation, perchanweightdensity, gridder, facets, psfphasecenter,
+             wprojplanes, vptable, mosweight, aterm, psterm, wbawp, conjbeams, cfcache, usepointing, computepastep,
+             rotatepastep, pointingoffsetsigdev, pblimit, normtype, deconvolver, scales, nterms, smallscalebias,
+             restoration, restoringbeam, pbcor, outlierfile, weighting, robust, noise, npixels, uvtaper, niter, gain,
+             threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive, usemask, mask,
+             pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold, smoothfactor, minbeamfrac,
+             cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, fastnoise, restart, savemodel,
+             calcres, calcpsf, psfcutoff, parallel):
     if not (type(ncpu) is int):
         casalog.post('ncpu should be an integer')
-        ncpu = 8
+        ncpu = 1
 
     if doreg:
         # check if ephem and msinfo exist. If not, generate one on the fly
@@ -180,9 +180,6 @@ def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
         workdir = os.path.dirname(imageprefix)
     else:
         workdir = './'
-    tmpdir = workdir + '/tmp/'
-    if not os.path.exists(tmpdir):
-        os.makedirs(tmpdir)
     # get number of time pixels
     ms.open(vis)
     ms.selectinit()
@@ -200,6 +197,7 @@ def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
         twidth = len(tim)
     # find out the start and end time index according to the parameter timerange
     # if not defined (empty string), use start and end from the entire time of the ms
+
     if not timerange:
         btidx = 0
         etidx = len(tim) - 1
@@ -227,6 +225,7 @@ def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
         except ValueError:
             print("keyword 'timerange' has a wrong format")
 
+
     btstr = qa.time(qa.quantity(tim[btidx], 's'), prec=9, form='fits')[0]
     etstr = qa.time(qa.quantity(tim[etidx], 's'), prec=9, form='fits')[0]
 
@@ -238,19 +237,26 @@ def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
     res = []
     # partition
     clnpart = partial(clean_iter, tim, vis, imageprefix, imagesuffix,
-                      twidth, doreg, docompress, usephacenter, reftime, ephem, msinfo, toTb, sclfactor, overwrite,
-                      selectdata,
-                      field, spw,
-                      uvrange, antenna, scan, observation, intent, datacolumn, imsize, cell, phasecenter, stokes,
-                      projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
-                      interpolation, gridder, facets, chanchunks, wprojplanes, vptable, usepointing, mosweight, aterm,
-                      psterm, wbawp, conjbeams, cfcache, computepastep, rotatepastep, pblimit, normtype, deconvolver,
-                      scales, nterms, smallscalebias, restoration, restoringbeam, pbcor, outlierfile, weighting, robust,
-                      npixels, uvtaper, niter, gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction,
-                      maxpsffraction, interactive, usemask, mask, pbmask, sidelobethreshold, noisethreshold,
-                      lownoisethreshold, negativethreshold, smoothfactor, minbeamfrac, cutthreshold, growiterations,
-                      dogrowprune, minpercentchange, verbose, restart, savemodel, calcres, calcpsf, parallel, subregion,
-                      tmpdir)
+                      twidth, doreg, docompress, usephacenter, reftime, ephem, msinfo, toTb, sclfactor, subregion,
+                      overwrite,
+                      selectdata, field, spw, timerange, uvrange, antenna, scan, observation, intent, datacolumn,
+                      imagename, imsize, cell, phasecenter, stokes, projection, startmodel, specmode, reffreq, nchan,
+                      start,
+                      width, outframe, veltype, restfreq, interpolation, perchanweightdensity, gridder, facets,
+                      psfphasecenter,
+                      wprojplanes, vptable, mosweight, aterm, psterm, wbawp, conjbeams, cfcache, usepointing,
+                      computepastep,
+                      rotatepastep, pointingoffsetsigdev, pblimit, normtype, deconvolver, scales, nterms,
+                      smallscalebias,
+                      restoration, restoringbeam, pbcor, outlierfile, weighting, robust, noise, npixels, uvtaper, niter,
+                      gain,
+                      threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive, usemask,
+                      mask,
+                      pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold, smoothfactor,
+                      minbeamfrac,
+                      cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, fastnoise, restart,
+                      savemodel,
+                      calcres, calcpsf, psfcutoff, parallel)
     timelapse = 0
     t0 = time()
     # parallelization
@@ -278,8 +284,5 @@ def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
         results['BeginTime'].append(r[1])
         results['EndTime'].append(r[2])
         results['ImageName'].append(r[3])
-
-    if os.path.exists(tmpdir):
-        os.system('rm -rf ' + tmpdir)
 
     return results

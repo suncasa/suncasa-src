@@ -8,20 +8,22 @@ import sys
 from suncasa.utils import helioimage2fits as hf
 
 pversion = sys.version_info.major
-if pversion < 3:
+if pversion<3:
     ## CASA version < 6
-    from taskinit import ms, tb, qa
+    from taskinit import ms, tb, qa, casalog
     from tclean_cli import tclean_cli as tclean
+    is_casa6=False
 else:
     ## CASA version >= 6
+    from casatasks import casalog, tclean
     from casatools import table as tbtool
     from casatools import ms as mstool
     from casatools import quanta as qatool
-    from casatasks import casalog, tclean
 
     tb = tbtool()
     ms = mstool()
     qa = qatool()
+    is_casa6 = True
 
 
 def clean_iter(tim, vis, imageprefix, imagesuffix,
@@ -36,6 +38,7 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
                usemask, mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold,
                smoothfactor, minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart,
                savemodel, calcres, calcpsf, parallel, subregion, tmpdir, btidx):
+
     bt = btidx  # 0
     if bt + twidth < len(tim) - 1:
         et = btidx + twidth - 1
@@ -60,16 +63,6 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
     image0 = btstr.replace(':', '').replace('-', '')
     imname = imageprefix + image0 + imagesuffix
 
-    # ms_tmp = tmpdir + image0 + '.ms'
-    # print('checkpoint 1')
-    # # split(vis=vis, outputvis=ms_tmp, field=field, scan=scan, antenna=antenna, timerange=timerange,
-    # #       datacolumn=datacolumn)
-    # ms.open(vis)
-    # print('checkpoint 1-1')
-    # ms.split(ms_tmp,field=field, scan=scan, baseline=antenna, time=timerange,whichcol=datacolumn)
-    # print('checkpoint 1-2')
-    # ms.close()
-    # print('checkpoint 2')
 
     if overwrite or (len(glob.glob(imname + '*')) == 0):
         os.system('rm -rf {}*'.format(imname))
@@ -146,7 +139,7 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
             return [False, btstr, etstr, imname + '.image']
 
 
-def ptclean3(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, sclfactor, subregion,
+def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, sclfactor, subregion,
              docompress,
              overwrite, selectdata, field, spw, timerange, uvrange, antenna, scan, observation, intent, datacolumn,
              imsize, cell, phasecenter,
