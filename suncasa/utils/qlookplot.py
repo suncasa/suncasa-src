@@ -10,10 +10,11 @@ import sunpy.map as smap
 from astropy import units as u
 from astropy.time import Time
 from astropy.io import fits
-from ..utils.mstools import time2filename, get_cfreq, get_bmsize
+from ..utils import mstools
 from ..utils import dspec as ds
 
 sunpy1 = sunpy.version.major >= 1
+sunpy3 = sunpy.version.major >= 3
 py3 = sys.version_info.major >= 3
 if py3:
     # For Python 3.0 and later
@@ -187,6 +188,46 @@ def uniq(lst):
         nlst.append(item)
         last = item
     return nlst
+
+
+def get_colorbar_params(fbounds, stepfactor=1):
+    cfq = fbounds['cfreqs']
+    nspws = len(cfq)
+    freqmask = []
+    if 'bounds_lo' in fbounds.keys():
+        bounds = np.hstack((fbounds['bounds_lo'], fbounds['bounds_hi'][-1]))
+        if bounds[0] > fbounds['bounds_all'][0]:
+            bounds = np.hstack((fbounds['bounds_all'][0], bounds))
+        if bounds[-1] < fbounds['bounds_all'][-1]:
+            bounds = np.hstack((bounds, fbounds['bounds_all'][-1]))
+        if fbounds['bounds_lo'][0] > fbounds['bounds_all'][0]:
+            fbd_lo, fbd_hi = fbounds['bounds_all'][0], fbounds['bounds_lo'][0]
+        else:
+            fbd_lo, fbd_hi = None, None
+        freqmask.append((fbd_lo, fbd_hi))
+        for sidx, s in enumerate(fbounds['bounds_hi']):
+            if sidx == nspws - 1:
+                if fbounds['bounds_hi'][sidx] < fbounds['bounds_all'][-1]:
+                    fbd_lo, fbd_hi = fbounds['bounds_hi'][sidx], fbounds['bounds_all'][-1]
+                else:
+                    fbd_lo, fbd_hi = None, None
+            else:
+                fbd_lo, fbd_hi = s, fbounds['bounds_lo'][sidx + 1]
+            freqmask.append((fbd_lo, fbd_hi))
+    else:
+        bounds = fbounds['bounds_all']
+    step = int(nspws // int(50 / stepfactor))
+    if step > 1:
+        ticks = cfq[::step]
+    else:
+        ticks = cfq
+    vmin = fbounds['bounds_all'][0]
+    vmax = fbounds['bounds_all'][-1]
+    # if vmin not in ticks:
+    #     ticks = np.hstack((vmin, ticks))
+    # if vmax not in ticks:
+    #     ticks = np.hstack((ticks, vmax))
+    return ticks, bounds, vmax, vmin, freqmask
 
 
 def downloadAIAdata(trange, wavelength=None, outdir='./'):
@@ -400,18 +441,18 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
         # slfcalms = './' + msfilebs + '.rr'
         # split(msfile, outputvis=slfcalms, datacolumn='corrected', correlation='RR')
 
-    cfreqs = get_cfreq(msfile, spws)
+    cfreqs = mstools.get_freqinfo(msfile, spws)
     if restoringbeam == ['']:
-        restoringbms = ['']*nspw
+        restoringbms = [''] * nspw
     else:
         if observatory == 'EOVSA':
             try:
                 sbeam = np.float(restoringbeam[0].replace('arcsec', ''))
             except:
                 sbeam = 35.
-            restoringbms = get_bmsize(cfreqs, refbmsize=sbeam, reffreq=1.6, minbmsize=4.0)
+            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=sbeam, reffreq=1.6, minbmsize=4.0)
         else:
-            restoringbms = ['']*nspw
+            restoringbms = [''] * nspw
     for sp, spw in enumerate(spws):
         spwran = [s.zfill(2) for s in spw.split('~')]
 
@@ -427,7 +468,7 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
         else:
             raise ValueError("Keyword 'spw' in wrong format")
 
-        if restoringbms[sp]=='':
+        if restoringbms[sp] == '':
             restoringbm = ['']
         else:
             restoringbm = ['{:.1f}arcsec'.format(restoringbms[sp])]
@@ -556,8 +597,9 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     imax=None, imin=None, icmap=None, inorm=None,
                     amax=None, amin=None, acmap=None, anorm=None,
                     nclevels=None, dmax=None, dmin=None, dcmap=None, dnorm=None, sclfactor=1.0,
-                    clevels=None, spwcmap='RdYlBu', aiafits='', aiadir=None, aiawave=171, plotaia=True, moviename='',
-                    alpha_cont=1.0, custom_mapcubes=[], opencontour=False):
+                    clevels=None, spwcmap='RdYlBu', aiafits='', aiadir=None, aiawave=171, plotaia=True,
+                    freqbounds=None, moviename='',
+                    alpha_cont=1.0, custom_mapcubes=[], opencontour=False, movieformat='html'):
     '''
     Required inputs:
     Important optional inputs:
@@ -643,6 +685,9 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     # Freq = set(imres['Freq']) ## list is an unhashable type
     imres['Freq'] = [list(ll) for ll in imres['Freq']]
     Freq = sorted(uniq(imres['Freq']))
+    cfreqs = freqbounds['cfreqs']
+    cfreqs_all = freqbounds['cfreqs_all']
+    freq_dist = (cfreqs - cfreqs_all[0]) / (cfreqs_all[-1] - cfreqs_all[0])
 
     if custom_mapcubes:
         cmpc_plttimes_mjd = []
@@ -666,7 +711,11 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         print('{0:d} figures to plot'.format(len(tpltidxs)))
     plt.ioff()
     import matplotlib.gridspec as gridspec
-    spec = specdata['spec'] / 1.0e4 * sclfactor
+    if np.iscomplexobj(specdata['spec']):
+        spec = np.abs(specdata['spec'])
+    else:
+        spec = specdata['spec']
+    spec = spec / 1.0e4 * sclfactor
     spec = checkspecnan(spec)
     (npol, nbl, nfreq, ntim) = spec.shape
     # tidx = range(ntim)
@@ -698,8 +747,8 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         hnspw = max(nspw // 2, 1)
         ncols = hnspw
         nrows = 2 + 2  # 1 image: 1x1, 1 dspec:2x4
-        fig = plt.figure(figsize=(8, 8))
-        gs = gridspec.GridSpec(nrows, ncols, height_ratios=[3, 3, 1, 1])
+        fig = plt.figure(figsize=(10, 10))
+        gs = gridspec.GridSpec(nrows, ncols, height_ratios=[4, 4, 1, 1])
         if nspw <= 1 or plotaia:
             axs = [plt.subplot(gs[:2, :hnspw])]
         else:
@@ -757,7 +806,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         ncols = hnspw + 2  # 1 image: 1x1, 1 dspec:2x2
         nrows = 2 + 2
         fig = plt.figure(figsize=(12, 8))
-        gs = gridspec.GridSpec(nrows, ncols, height_ratios=[3, 3, 1, 1])
+        gs = gridspec.GridSpec(nrows, ncols, height_ratios=[4, 4, 1, 1])
         if nspw <= 1 or plotaia:
             axs = [plt.subplot(gs[:2, 2:]), plt.subplot(gs[2:, 2:])]
         else:
@@ -906,7 +955,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         else:
             aiamap = None
 
-        colors_spws = spwcmap(np.linspace(0, 1, nspw))
+        colors_spws = spwcmap(freq_dist)
         for s, sp in enumerate(range(nspw)):
             image = images_sort[i, s]
             for pidx, pol in enumerate(pols):
@@ -952,12 +1001,16 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                         rmap = rmap.submap((fov[0] + np.array([-1.0, 1.0]) * pad) * u.arcsec,
                                            (fov[1] + np.array([-1.0, 1.0]) * pad) * u.arcsec)
                     except:
-                        pad = max(fov[1][0] - fov[0][0], fov[1][1] - fov[0][1])
+                        pad = max(fov[0][1] - fov[0][0], fov[1][1] - fov[1][0])
                         bl = SkyCoord((fov[0][0] - pad) * u.arcsec, (fov[1][0] - pad) * u.arcsec,
                                       frame=rmap.coordinate_frame)
                         tr = SkyCoord((fov[0][1] + pad) * u.arcsec, (fov[1][1] + pad) * u.arcsec,
                                       frame=rmap.coordinate_frame)
-                        rmap = rmap.submap(bl, tr)
+                        if sunpy3:
+                            rmap = rmap.submap(bl, top_right=tr)
+                        else:
+                            rmap = rmap.submap(bl, tr)
+
                 else:
                     dim = u.Quantity([256, 256], u.pixel)
                     rmap = rmap.resample(dim)
@@ -1001,18 +1054,19 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                             clevels1 = np.array(clevels) * np.nanmax(rmap.data)
                         except:
                             clevels1 = np.linspace(0.5, 1.0, 2) * np.nanmax(rmap.data)
-                    if nspw > 1:
-                        if opencontour:
-                            rmap_.contour(axes=ax, levels=clevels1,
-                                          colors=[colors_spws[s]] * len(clevels1),
-                                          alpha=alpha_cont)
+                    if np.any(clevels1):
+                        if nspw > 1:
+                            if opencontour:
+                                rmap_.contour(axes=ax, levels=clevels1,
+                                              colors=[colors_spws[s]] * len(clevels1),
+                                              alpha=alpha_cont)
 
+                            else:
+                                rmap_.contourf(axes=ax, levels=clevels1,
+                                               colors=[colors_spws[s]] * len(clevels1),
+                                               alpha=alpha_cont)
                         else:
-                            rmap_.contourf(axes=ax, levels=clevels1,
-                                           colors=[colors_spws[s]] * len(clevels1),
-                                           alpha=alpha_cont)
-                    else:
-                        rmap_.contour(axes=ax, levels=clevels1, cmap=spwcmap)
+                            rmap_.contour(axes=ax, levels=clevels1, cmap=spwcmap)
                 else:
                     rmap_.imshow(axes=ax, vmax=iranges[pidx][1], vmin=iranges[pidx][0], cmap=cmaps[pol],
                                  interpolation='nearest')
@@ -1054,18 +1108,18 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     timetext = ax.text(0.99, 0.98, '', color='w', fontweight='bold', fontsize=9, ha='right', va='top',
                                        transform=ax.transAxes)
                 timetext.set_text(plttime.iso[:19])
-                if nspw > 1:
-                    if nspw <= 10:
-                        try:
-                            ax.text(0.98, 0.01 + 0.05 * s,
-                                    '{1} @ {0:.1f} GHz'.format(rmap.meta['RESTFRQ'] / 1e9, pol),
-                                    color=spwcmap(float(s) / (nspw - 1)), transform=ax.transAxes,
-                                    fontweight='bold', ha='right')
-                        except:
-                            ax.text(0.98, 0.01 + 0.05 * s, '{1} @ {0:.1f} GHz'.format(0., pol),
-                                    color=spwcmap(float(s) / (nspw - 1)), transform=ax.transAxes,
-                                    fontweight='bold', ha='right')
-                else:
+                if nspw <= 1:
+                    # if nspw <= 10:
+                    #     try:
+                    #         ax.text(0.98, 0.01 + 0.05 * s,
+                    #                 '{1} @ {0:.1f} GHz'.format(rmap.meta['RESTFRQ'] / 1e9, pol),
+                    #                 color=spwcmap(float(s) / (nspw - 1)), transform=ax.transAxes,
+                    #                 fontweight='bold', ha='right')
+                    #     except:
+                    #         ax.text(0.98, 0.01 + 0.05 * s, '{1} @ {0:.1f} GHz'.format(0., pol),
+                    #                 color=spwcmap(float(s) / (nspw - 1)), transform=ax.transAxes,
+                    #                 fontweight='bold', ha='right')
+                    # else:
                     try:
                         ax.text(0.98, 0.01, '{1} @ {0:.1f} GHz'.format(rmap.meta['RESTFRQ'] / 1e9, pol),
                                 color='w',
@@ -1078,15 +1132,32 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 ax.set_title(' ')
                 # ax.xaxis.set_visible(False)
                 # ax.yaxis.set_visible(False)
-        if nspw > 10:
-            for pidx in range(npols):
-                ax = axs[pidx]
-                divider = make_axes_locatable(ax)
-                cax_freq = divider.append_axes('right', size='3.0%', pad=0.05)
-                # cax_freq.tick_params(direction='out')
-                Freqs = [np.mean(fq) for fq in Freq]
-                mpl.colorbar.ColorbarBase(cax_freq, cmap=spwcmap, norm=colors.Normalize(vmax=Freqs[-1], vmin=Freqs[0]))
-                cax_freq.set_ylabel('Frequency [GHz]')
+        if i == 0:
+            if nspw > 1:
+                import matplotlib.colorbar as colorbar
+                ticks, bounds, vmax, vmin, freqmask = get_colorbar_params(freqbounds )
+
+                for pidx in range(npols):
+                    ax = axs[pidx]
+                    divider = make_axes_locatable(ax)
+                    cax_freq = divider.append_axes('right', size='6.0%', pad=0.1)
+                    # cax_freq.tick_params(direction='out')
+                    cb = colorbar.ColorbarBase(cax_freq, norm=colors.Normalize(vmin=vmin, vmax=vmax), cmap=spwcmap,
+                                               orientation='vertical', boundaries=bounds, spacing='proportional',
+                                               ticks=ticks, format='%4.1f', alpha=alpha_cont)
+                    # Freqs = [np.mean(fq) for fq in Freq]
+                    # mpl.colorbar.ColorbarBase(cax_freq, cmap=spwcmap, norm=colors.Normalize(vmax=Freqs[-1], vmin=Freqs[0]))
+                    for fbd_lo, fbd_hi in freqmask:
+                        if fbd_hi is not None:
+                            cax_freq.axhspan(fbd_lo, fbd_hi, hatch='//', edgecolor='k', facecolor='#BBBBBB')
+                    cax_freq.set_ylabel('Frequency [GHz]')
+                    cax_freq.tick_params(axis="y", pad=-20., length=0, colors='k', labelsize=8)
+                    cax_freq.axhline(vmin, xmin=1.0, xmax=1.2, color='k', clip_on=False)
+                    cax_freq.axhline(vmax, xmin=1.0, xmax=1.2, color='k', clip_on=False)
+                    cax_freq.text(1.25, 0.0, '{:.1f}'.format(vmin), fontsize=9, transform=cax_freq.transAxes, va='center',
+                             ha='left')
+                    cax_freq.text(1.25, 1.0, '{:.1f}'.format(vmax), fontsize=9, transform=cax_freq.transAxes, va='center',
+                             ha='left')
         figname = observatory + '_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:19] + '.png'
         # fig_tdt = plttime.to_datetime())
         # fig_subdir = fig_tdt.strftime("%Y/%m/%d/")
@@ -1101,7 +1172,10 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     plt.close(fig)
     if not moviename:
         moviename = 'movie'
-    DButil.img2html_movie(figdir_, outname=moviename)
+    if movieformat.lower() == 'html':
+        DButil.img2html_movie(figdir_, outname=moviename)
+    else:
+        DButil.img2movie(figdir_, outname=moviename)
 
 
 def dspec_external(vis, workdir='./', specfile=None):
@@ -1129,8 +1203,9 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
               interactive=False, usemsphacenter=True, imagefile=None, outfits='',
               imax=None, imin=None, icmap=None, inorm=None, nclevels=3,
               clevels=None, calpha=0.5, goestime=None,
+              spwcmap = 'RdYlBu',
               plotaia=True, aiawave=171, aiafits=None, aiadir=None, datacolumn='data', docompress=False,
-              mkmovie=False, overwrite=True, ncpu=1, twidth=1, verbose=False,
+              mkmovie=False, overwrite=True, ncpu=1, twidth=1, verbose=False, movieformat='html',
               clearmshistory=False, show_warnings=False, opencontour=False):
     '''
     Required inputs:
@@ -1165,6 +1240,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
     Example:
     '''
 
+    from importlib import reload
+    reload(mstools)
     if not show_warnings:
         import warnings
         warnings.filterwarnings("ignore")
@@ -1263,6 +1340,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                 endtim1 = Time(qa.quantity(tend, 'd')['value'], format='mjd')
         except ValueError:
             print("keyword 'timerange' in wrong format")
+
     midtime_mjd = (starttim1.mjd + endtim1.mjd) / 2.
 
     if vis.endswith('/'):
@@ -1276,19 +1354,20 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
     metadata = ms.metadata()
     observatory = metadata.observatorynames()[0]
     spwInfo = ms.getspectralwindowinfo()
-    nspw = len(spwInfo)
+    nspwall = len(spwInfo)
+
     if not spw:
         if observatory == 'EOVSA':
-            # if nspw == 31:
+            # if nspwall == 31:
             #     spw = list((np.arange(30) + 1).astype(str))
             #     spwselec = '1~' + str(30)
             #     spw = [str(sp) for sp in spw]
             # else:
-            spw = list(np.arange(nspw).astype(str))
-            spwselec = '0~' + str(nspw - 1)
+            spw = list(np.arange(nspwall).astype(str))
+            spwselec = '0~' + str(nspwall - 1)
             spw = [str(sp) for sp in spw]
         else:
-            spwselec = '0~' + str(nspw - 1)
+            spwselec = '0~' + str(nspwall - 1)
             spw = [spwselec]
     else:
         if type(spw) is list:
@@ -1297,6 +1376,11 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             spwselec = spw
             spw = [spw]  # spw=spw.split(';')
 
+    freqbounds = mstools.get_freqinfo(vis, spw=spw, returnbounds=True)
+    cfreqs = freqbounds['cfreqs']
+    cfreqs_all = freqbounds['cfreqs_all']
+    freq_dist = lambda fq: (fq - cfreqs_all[0]) / (cfreqs_all[-1] - cfreqs_all[0])
+    spwcmap = plt.get_cmap(spwcmap)
     staql = {'timerange': timerange, 'spw': spwselec}
     if ms.msselect(staql, onlyparse=True):
         ndx = ms.msselectedindices()
@@ -1389,18 +1473,22 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             if not os.path.exists(qlookfigdir):
                 os.makedirs(qlookfigdir)
             plt_qlook_image(imres, timerange=timerange, figdir=qlookfigdir, specdata=specdata, verbose=verbose,
-                            stokes=stokes, fov=xyrange,
+                            stokes=stokes, fov=xyrange,spwcmap=spwcmap,
                             amax=amax, amin=amin, acmap=acmap, anorm=anorm,
                             imax=imax, imin=imin, icmap=icmap, inorm=inorm,
                             nclevels=nclevels, clevels=clevels,
                             dmax=dmax, dmin=dmin, dcmap=dcmap, dnorm=dnorm,
                             sclfactor=sclfactor,
-                            aiafits=aiafits, aiawave=aiawave, aiadir=aiadir, plotaia=plotaia, alpha_cont=calpha,
-                            opencontour=opencontour)
+                            aiafits=aiafits, aiawave=aiawave, aiadir=aiadir, plotaia=plotaia,
+                            freqbounds=freqbounds, alpha_cont=calpha,
+                            opencontour=opencontour, movieformat=movieformat)
 
     else:
-        cfreqs = []
-        spec = specdata['spec'] / 1.e4 * sclfactor
+        if np.iscomplexobj(specdata['spec']):
+            spec = np.abs(specdata['spec'])
+        else:
+            spec = specdata['spec']
+        spec = spec / 1.e4 * sclfactor
         spec = checkspecnan(spec)
         (npol_fits, nbl, nfreq, ntim) = spec.shape
         fidx = range(nfreq)
@@ -1618,15 +1706,14 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
 
                 if nspws > 1:
                     imagefiles, fitsfiles = [], []
-                    cfreqs = get_cfreq(vis, spw)
                     if restoringbeam == ['']:
-                        restoringbms = ['']*nspws
+                        restoringbms = [''] * nspws
                     else:
                         try:
                             sbeam = np.float(restoringbeam[0].replace('arcsec', ''))
                         except:
                             sbeam = 35.
-                        restoringbms = get_bmsize(cfreqs, refbmsize=sbeam, reffreq=1.6, minbmsize=4.0)
+                        restoringbms = mstools.get_bmsize(cfreqs, refbmsize=sbeam, reffreq=1.6, minbmsize=4.0)
                     sto = stokes.replace(',', '')
                     print('Original phasecenter: ' + str(ra0) + str(dec0))
                     print('use phasecenter: ' + phasecenter)
@@ -1688,7 +1775,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                              docompress=False)
                     # print('fits file ' + ','.join(fitsfiles) + ' selected')
                     if not outfits:
-                        outfits = time2filename(vis, timerange=timerange) + '.outim.image.fits'
+                        outfits = mstools.time2filename(vis, timerange=timerange) + '.outim.image.fits'
                     fu.fits_wrap_spwX(fitsfiles, outfitsfile=outfits)
                     warnings.warn(
                         "If the provided spw is not equally spaced, the frequency information of the fits file {} that combining {} could be a wrong. Use it with caution!".format(
@@ -1747,14 +1834,14 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                         if os.path.exists(imagename + junk):
                             os.system('rm -rf ' + imagename + junk)
                     if not outfits:
-                        outfits = time2filename(vis, timerange=timerange) + '.outim.image.fits'
+                        outfits = mstools.time2filename(vis, timerange=timerange) + '.outim.image.fits'
                     hf.imreg(vis=vis, imagefile=imagefile, timerange=timerange, reftime=reftime,
                              fitsfile=outfits, verbose=verbose, overwrite=True, sclfactor=sclfactor, toTb=toTb,
                              docompress=docompress)
                     print('fits file ' + outfits + ' selected')
             else:
                 if not outfits:
-                    outfits = time2filename(vis, timerange=timerange) + '.outim.image.fits'
+                    outfits = mstools.time2filename(vis, timerange=timerange) + '.outim.image.fits'
                 hf.imreg(vis=vis, imagefile=imagefile, timerange=timerange, reftime=reftime,
                          fitsfile=outfits, verbose=verbose, overwrite=True, sclfactor=sclfactor, toTb=toTb,
                          docompress=docompress)
@@ -1850,7 +1937,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             axs = [[ax4, ax5], [ax6, ax7]]
             for s, sp in enumerate(spw):
                 for pidx, pol in enumerate(pols):
-                    rcmap = [plt.cm.RdYlBu(float(s) / len(spw))] * len(clvls[pol])
+                    rcmap = [spwcmap(freq_dist(cfreqs[s]))] * len(clvls[pol])
                     if ndim > 2:
                         rmap_plt = smap.Map(np.squeeze(datas[pol][s, :, :]), rheader)
                     else:
@@ -1905,7 +1992,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                 title = '{0} multi spw'.format(observatory, (bfreqghz + efreqghz) / 2.0)
                 for s, sp in enumerate(spw):
                     for pidx, pol in enumerate(pols):
-                        rcmap = [cmaps[pol](float(s) / len(spw))] * len(clvls[pol])
+                        rcmap = [cmaps[pol](freq_dist(cfreqs[s]))] * len(clvls[pol])
                         rmap_plt = smap.Map(np.squeeze(datas[pol][s, :, :]), rheader)
                         rmap_plt_ = pmX.Sunmap(rmap_plt)
                         rmap_plt_.contourf(axes=[axs[pidx][0], axs[pidx][1]], colors=rcmap,
@@ -1951,34 +2038,45 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             ax.set_xlabel(ax.get_xlabel(), fontsize=9)
             ax.set_ylabel(ax.get_ylabel(), fontsize=9)
 
-        fig.subplots_adjust(top=0.94, bottom=0.07, left=0.06, right=0.94, hspace=0.80, wspace=0.88)
+        fig.subplots_adjust(top=0.94, bottom=0.07, left=0.06, right=0.93, hspace=0.80, wspace=0.88)
 
         if nspws >= 2:
-            try:
-                import matplotlib.colorbar as colorbar
-                axs = [ax4, ax7]
-                ax1_pos = axs[0].get_position().extents
-                ax2_pos = axs[1].get_position().extents
-                caxcenter = (ax1_pos[2] + ax2_pos[0]) / 2.0 - ax1_pos[2] + ax2_pos[2]
-                caxwidth = (ax2_pos[0] - ax1_pos[2]) / 2.0
-                cayheight = ax1_pos[3] - 0.05 - ax2_pos[1]
+            # try:
+            import matplotlib.colorbar as colorbar
+            axs = [ax4, ax7]
+            ax1_pos = axs[0].get_position().extents
+            ax2_pos = axs[1].get_position().extents
+            caxcenter = (ax1_pos[2] + ax2_pos[0]) / 2.0 - ax1_pos[2] + ax2_pos[2]
+            caxwidth = (ax2_pos[0] - ax1_pos[2]) / 2.0
+            cayheight = ax1_pos[3] - 0.05 - ax2_pos[1]
+            cax = plt.axes((caxcenter - caxwidth / 2.0, ax2_pos[1], caxwidth, cayheight))
 
-                bounds = np.linspace(rcfreqs[0] - 0.25, rcfreqs[-1] + 0.25, len(rcfreqs) + 1)
-                ticks = rcfreqs
-                cax = plt.axes((caxcenter - caxwidth / 2.0, ax2_pos[1], caxwidth, cayheight))
+            ticks, bounds, vmax, vmin, freqmask = get_colorbar_params(freqbounds)
 
-                cb = colorbar.ColorbarBase(cax, norm=colors.Normalize(vmax=rcfreqs[-1], vmin=rcfreqs[0]),
-                                           cmap=plt.cm.RdYlBu,
-                                           orientation='vertical', boundaries=bounds, spacing='uniform', ticks=ticks,
-                                           format='%4.1f', alpha=calpha)
-                ax.text(0.5, 1.04, 'MW', ha='center', va='bottom', transform=cax.transAxes, color='k',
-                        fontweight='normal')
-                ax.text(0.5, 1.01, '[GHz]', ha='center', va='bottom', transform=cax.transAxes, color='k',
-                        fontweight='normal')
-                cax.xaxis.set_visible(False)
-                cax.tick_params(axis="y", pad=-20., length=0, colors='k', labelsize=8)
-            except:
-                pass
+            cb = colorbar.ColorbarBase(cax, norm=colors.Normalize(vmin=vmin, vmax=vmax), cmap=spwcmap,
+                                       orientation='vertical', boundaries=bounds, spacing='proportional',
+                                       ticks=ticks, format='%4.1f', alpha=calpha)
+
+            for fbd_lo, fbd_hi in freqmask:
+                if fbd_hi is not None:
+                    cax.axhspan(fbd_lo, fbd_hi, hatch='//', edgecolor='k', facecolor='#BBBBBB')
+
+            ax.text(0.5, 1.04, 'MW', ha='center', va='bottom', transform=cax.transAxes, color='k',
+                    fontweight='normal')
+            ax.text(0.5, 1.01, '[GHz]', ha='center', va='bottom', transform=cax.transAxes, color='k',
+                    fontweight='normal')
+            cax.xaxis.set_visible(False)
+            cax.tick_params(axis="y", pad=-20., length=0, colors='k', labelsize=8)
+            cax.axhline(vmin, xmin=1.0, xmax=1.2, color='k', clip_on=False)
+            cax.axhline(vmax, xmin=1.0, xmax=1.2, color='k', clip_on=False)
+            cax.text(1.25, 0.0, '{:.1f}'.format(vmin), fontsize=9, transform=cax.transAxes, va='center', ha='left')
+            cax.text(1.25, 1.0, '{:.1f}'.format(vmax), fontsize=9, transform=cax.transAxes, va='center', ha='left')
+            # cax2 = cax.twiny()
+            # cax2.set_visible(False)
+            # cax2.tick_params(axis="y", pad=0., length=10, colors='k', labelsize=8)
+            # cax2.set_yticks([vmin,vmax])
+            # except:
+            #     print('Failed to plot SPW colorbar')
 
         fig.canvas.draw_idle()
         fig.show()

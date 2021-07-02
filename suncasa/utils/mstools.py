@@ -19,30 +19,64 @@ from tqdm import tqdm
 import os
 
 
-def get_cfreq(msfile, spw=None):
+def get_freqinfo(msfile, spw=None, returnbounds=False):
     '''
     get center frequencies of all spectral windows for msfile
-    spw: [option] return the cfreq of spw. spw can be a a string or a list of string. The syntax of spw follows the standard spw Parameter in CASA
+    spw: [option] return the cfreq of spw. spw can be a a string or a list of string.
+    The syntax of spw follows the standard spw Parameter in CASA
     if spw is not provided, return the cfreq of all spws in the msfile.
     return cfreqs is in GHz
+    if returnbounds is True, return a dictionary including comprehensive freq information of the ms.
     '''
-    tb.open(msfile + '/SPECTRAL_WINDOW')
-    reffreqs = tb.getcol('REF_FREQUENCY')
-    bdwds = tb.getcol('TOTAL_BANDWIDTH')
-    cfreqs = reffreqs + bdwds / 2.
-    tb.close()
-    ncfreq = len(reffreqs)
+
+    ms.open(msfile)
+    spwInfo = ms.getspectralwindowinfo()
+    nspw = len(spwInfo.keys())
+    reffreqs = []
+    bdwds = []
+    chanwds = []
+    for s in range(nspw):
+        s_ = str(s)
+        reffreqs.append(spwInfo[s_]['RefFreq'])
+        bdwds.append(spwInfo[s_]['TotalWidth'])
+        chanwds.append(spwInfo[s_]['ChanWidth'])
+    reffreqs = np.array(reffreqs) / 1e9
+    bdwds = np.array(bdwds) / 1e9
+    chanwds = np.array(chanwds) / 1e9
+    ms.close()
+    cfreqs = reffreqs + bdwds / 2.0 - chanwds / 2.0
+    freqbounds = {'bounds_all': np.hstack((reffreqs, reffreqs[-1] + bdwds[-1])), 'cfreqs_all': cfreqs,
+                  'bounds_all_lo': reffreqs, 'bounds_all_hi': reffreqs + bdwds}
     if spw is not None:
+        freqbounds_lo_spw = []
+        freqbounds_hi_spw = []
         cfreqs_spw = []
         for sp in spw:
             if '~' in sp:
-                cfreq = np.nanmean([cfreqs[max(0, min(int(s), ncfreq - 1))] for s in sp.split('~')])
+                sps = sp.split('~')
+                cfreq = np.nanmean([cfreqs[max(0, min(int(s), nspw - 1))] for s in sps])
+                s1 = max(0, min(int(sps[0]), nspw - 1))
+                s2 = max(0, min(int(sps[1]) + 1, nspw - 1))
+                freqbound_lo = freqbounds['bounds_all'][s1]
+                freqbound_hi = freqbounds['bounds_all'][s2]
             else:
-                cfreq = cfreqs[max(0, min(int(sp), ncfreq - 1))]
+                s = max(0, min(int(sp), nspw - 1))
+                cfreq = cfreqs[s]
+                freqbound_lo = freqbounds['bounds_all'][s]
+                freqbound_hi = freqbounds['bounds_all'][s] + bdwds[s]
+            freqbounds_lo_spw.append(freqbound_lo)
+            freqbounds_hi_spw.append(freqbound_hi)
             cfreqs_spw.append(cfreq)
         cfreqs = np.array(cfreqs_spw)
-    cfreqs = cfreqs/1e9
-    return cfreqs
+        freqbounds_lo = np.array(freqbounds_lo_spw)
+        freqbounds_hi = np.array(freqbounds_hi_spw)
+        freqbounds['bounds_lo'] = freqbounds_lo
+        freqbounds['bounds_hi'] = freqbounds_hi
+        freqbounds['cfreqs'] = cfreqs
+    if returnbounds:
+        return freqbounds
+    else:
+        return cfreqs
 
 
 def get_bmsize(cfreq, refbmsize=30.0, reffreq=1.6, minbmsize=4.0):

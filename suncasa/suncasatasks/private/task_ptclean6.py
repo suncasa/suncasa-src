@@ -197,6 +197,7 @@ def ptclean6(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
         twidth = len(tim)
     # find out the start and end time index according to the parameter timerange
     # if not defined (empty string), use start and end from the entire time of the ms
+
     if not timerange:
         btidx = 0
         etidx = len(tim) - 1
@@ -223,6 +224,7 @@ def ptclean6(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
                 etidx = len(tim) - 1
         except ValueError:
             print("keyword 'timerange' has a wrong format")
+
 
     btstr = qa.time(qa.quantity(tim[btidx], 's'), prec=9, form='fits')[0]
     etstr = qa.time(qa.quantity(tim[etidx], 's'), prec=9, form='fits')[0]

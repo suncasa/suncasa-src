@@ -354,7 +354,7 @@ def img2html_movie(imgprefix, outname='movie', img_fmt='png'):
     fi.write('\n')
     fi.close()  # pdb.set_trace()
     print('\nWrite movie to {}'.format(htmlfile))
-    print('To open -----> firefox {} &'.format(os.path.abspath(htmlfile)))
+    # print('To open -----> firefox {} &'.format(os.path.abspath(htmlfile)))
 
 
 def my_timer(orig_func):
