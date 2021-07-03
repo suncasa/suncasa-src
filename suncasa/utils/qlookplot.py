@@ -195,7 +195,9 @@ def get_colorbar_params(fbounds, stepfactor=1):
     nspws = len(cfq)
     freqmask = []
     if 'bounds_lo' in fbounds.keys():
-        bounds = np.hstack((fbounds['bounds_lo'], fbounds['bounds_hi'][-1]))
+        # bounds = np.hstack((fbounds['bounds_lo'], fbounds['bounds_hi'][-1]))
+        bounds = np.hstack((fbounds['bounds_lo'], fbounds['bounds_hi']))
+        bounds = np.array(uniq(list(set(bounds))))
         if bounds[0] > fbounds['bounds_all'][0]:
             bounds = np.hstack((fbounds['bounds_all'][0], bounds))
         if bounds[-1] < fbounds['bounds_all'][-1]:
@@ -1259,7 +1261,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
         xyrange = [[xc - xlen / 2.0, xc + xlen / 2.0], [yc - ylen / 2.0, yc + ylen / 2.0]]
     stokes_allowed = ['RR,LL', 'I,V', 'RRLL', 'IV', 'XXYY', 'XX,YY', 'RR', 'LL', 'I', 'V', 'XX', 'YY']
     if not stokes in stokes_allowed:
-        print('wrong stokes parameter ' + str(stokes) + '. Allowed values are ' + ';  '.join(stokes_allowed))
+        print('Error: wrong stokes parameter ' + str(stokes) + '. Allowed values are ' + ';  '.join(stokes_allowed))
         return -1
     if stokes == 'RRLL':
         stokes = 'RR,LL'
@@ -1279,7 +1281,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
     if vis[-1] == '/':
         vis = vis[:-1]
     if not os.path.exists(vis):
-        print('input measurement not exist')
+        print('Error: input measurement not exist')
         return -1
     if clearmshistory:
         ms_clearhistory(vis)
@@ -1377,6 +1379,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             spw = [spw]  # spw=spw.split(';')
 
     freqbounds = mstools.get_freqinfo(vis, spw=spw, returnbounds=True)
+    # print(freqbounds)
     cfreqs = freqbounds['cfreqs']
     cfreqs_all = freqbounds['cfreqs_all']
     freq_dist = lambda fq: (fq - cfreqs_all[0]) / (cfreqs_all[-1] - cfreqs_all[0])
@@ -1944,8 +1947,12 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                         rmap_plt = smap.Map(np.squeeze(datas[pol]), rheader)
                     rmap_plt_ = pmX.Sunmap(rmap_plt)
                     if nspws > 1:
-                        rmap_plt_.contourf(axes=[axs[pidx][0], axs[pidx][1]], colors=rcmap,
-                                           levels=clvls[pol] * np.nanmax(rmap_plt.data), alpha=calpha)
+                        if opencontour:
+                            rmap_plt_.contour(axes=[axs[pidx][0], axs[pidx][1]], colors=rcmap,
+                                               levels=clvls[pol][:1] * np.nanmax(rmap_plt.data), alpha=calpha)
+                        else:
+                            rmap_plt_.contourf(axes=[axs[pidx][0], axs[pidx][1]], colors=rcmap,
+                                               levels=clvls[pol] * np.nanmax(rmap_plt.data), alpha=calpha)
                     else:
                         rmap_plt_.contour(axes=[axs[pidx][0], axs[pidx][1]], cmap=cmaps[pol],
                                           levels=clvls[pol] * np.nanmax(rmap_plt.data), alpha=calpha)
@@ -1995,8 +2002,12 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                         rcmap = [cmaps[pol](freq_dist(cfreqs[s]))] * len(clvls[pol])
                         rmap_plt = smap.Map(np.squeeze(datas[pol][s, :, :]), rheader)
                         rmap_plt_ = pmX.Sunmap(rmap_plt)
-                        rmap_plt_.contourf(axes=[axs[pidx][0], axs[pidx][1]], colors=rcmap,
-                                           levels=clvls[pol] * np.nanmax(rmap_plt.data), alpha=calpha)
+                        if opencontour:
+                            rmap_plt_.contour(axes=[axs[pidx][0], axs[pidx][1]], colors=rcmap,
+                                               levels=clvls[pol][:1] * np.nanmax(rmap_plt.data), alpha=calpha)
+                        else:
+                            rmap_plt_.contourf(axes=[axs[pidx][0], axs[pidx][1]], colors=rcmap,
+                                               levels=clvls[pol] * np.nanmax(rmap_plt.data), alpha=calpha)
                         axs[pidx][0].set_title(title + ' ' + pols[pidx], fontsize=9)
                         rmap_plt_.draw_limb(axes=[axs[pidx][0], axs[pidx][1]])
                         rmap_plt_.draw_grid(axes=[axs[pidx][0], axs[pidx][1]])
