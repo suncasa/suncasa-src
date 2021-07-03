@@ -26,8 +26,8 @@ setup(
     install_requires=install_requires,
     extras_require=extras,
     # use_scm_version={'write_to': os.path.join('suncasa', '_version.py')},
-    # version='0.1.2.9.0' ## test
-    version='0.1.2.9' ## official
+    # version='0.1.2.9.1' ## test
+    version='0.1.2.9.1' ## official
     # ,
     # ext_modules=get_extensions(),
 )
