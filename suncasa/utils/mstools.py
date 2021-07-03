@@ -63,8 +63,8 @@ def get_freqinfo(msfile, spw=None, returnbounds=False):
                 s = max(0, min(int(sp), nspw - 1))
                 cfreq = cfreqs[s]
                 freqbound_lo = freqbounds['bounds_all'][s]
-                freqbound_hi = freqbounds['bounds_all'][max(0, min(int(sp) + 1, nspw - 1))]
-                # freqbound_hi = freqbounds['bounds_all'][s] + bdwds[s]
+                # freqbound_hi = freqbounds['bounds_all'][max(0, min(int(sp) + 1, nspw - 1))]
+                freqbound_hi = freqbounds['bounds_all'][s] + bdwds[s]
             freqbounds_lo_spw.append(freqbound_lo)
             freqbounds_hi_spw.append(freqbound_hi)
             cfreqs_spw.append(cfreq)
