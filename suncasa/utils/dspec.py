@@ -20,8 +20,7 @@ except:
     ms = mstool()
     qa = qatool()
 
-import matplotlib.dates as mdates
-from matplotlib.dates import date2num, AutoDateFormatter, AutoDateLocator
+from matplotlib.dates import AutoDateFormatter, AutoDateLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 stokestype = [
@@ -84,7 +83,6 @@ for k, v in zip(range(len(stokestype)), stokestype):
 def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='', scan='', datacolumn='data',
               domedian=False, timeran=None, spw=None, timebin='0s', regridfreq=False, fillnan=None, verbose=False,
               usetbtool=False):
-    # from split_cli import split_cli as split
     if vis.endswith('/'):
         vis = vis[:-1]
     msfile = vis
@@ -375,14 +373,23 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None, norm=None,
         print("Please enter 'RR', 'LL', 'RRLL','XX', 'YY', 'XXYY', 'I', 'V', 'IV' for pol")
         return 0
 
+    if norm is None:
+        norm = colors.Normalize(vmax=dmax, vmin=dmin)
     zaxis = zaxis.lower()
+    if isinstance(specdata, str):
+        if specdata.endswith('.fts'):
+            try:
+                from suncasa.eovsa import eovsa_dspec
+                from matplotlib.colors import LogNorm
+                return eovsa_dspec.get_dspec(specdata, doplot=True, cmap=cmap, norm=norm)
+            except:
+                pass
     spec, bl, tim, freq, pols = rd_dspec(specdata, zaxis=zaxis)
     (npol, nbl, nfreq, ntim) = spec.shape
 
     tim_ = Time(tim / 3600. / 24., format='mjd')
     tim_plt = tim_.plot_date
 
-    import matplotlib
 
     if timerange:
         if type(timerange[0]) is str:
@@ -410,8 +417,7 @@ def plt_dspec(specdata, pol='I', dmin=None, dmax=None, norm=None,
     # if not dmax:
     #    dmax = spec_med * 5.
     # do the plot
-    if norm is None:
-        norm = colors.Normalize(vmax=dmax, vmin=dmin)
+
     for b in range(nbl):
         if pol not in ['RRLL', 'IV', 'XXYY']:
             if pol in ['RR', 'XX']:
