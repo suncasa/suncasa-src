@@ -127,7 +127,7 @@ class Dspec:
     def get_dspec(self, fname=None, specfile=None, bl='', uvrange='', field='', scan='',
                   datacolumn='data',
                   domedian=False, timeran=None, spw=None, timebin='0s', regridfreq=False, fillnan=None, verbose=False,
-                  usetbtool=False):
+                  usetbtool=True):
         if fname.endswith('/'):
             fname = fname[:-1]
         msfile = fname
@@ -138,8 +138,6 @@ class Dspec:
         if domedian:
             if not uvrange:
                 uvrange = '0.2~0.8km'
-        else:
-            uvrange = ''
         if not bl:
             bl = ''
         else:
