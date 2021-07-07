@@ -71,7 +71,7 @@ for ax in axs:
     ax.set_xlabel('Solar-X [arcsec]')
     ax.set_ylabel('Solar-y [arcsec]')
     ax.set_title('')
-ax.text(0.02, 0.98, 'SOL2020-11-29 M4.4 Event', ha='left', va='top', color='k', transform=ax.transAxes, fontsize=12,
+ax.text(0.02, 0.98, 'SOL2021-05-07 M4 Event', ha='left', va='top', color='k', transform=ax.transAxes, fontsize=12,
         fontweight='bold')
 ax.text(0.02, 0.01, ' '.join(['AIA {:.0f} Å'.format(aiamap.wavelength.value), aiamap.date.datetime.strftime('%Y-%m-%dT%H:%M:%S')]), ha='left',
         va='bottom',

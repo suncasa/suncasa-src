@@ -13,7 +13,7 @@ spw=['0~1','5','10','15','25','30','40~45']
 ## image center for clean in solar X-Y in arcsec
 xycen = [-900, 280]
 ## pixel scale
-cell = ['2.5arcsec']
+cell = ['2.0arcsec']
 ## number of pixels in X and Y. If only one value is provided, NX = NY
 imsize = [128]
 ## field of view of the zoomed-in panels in unit of arcsec
@@ -43,7 +43,7 @@ movieformat = 'mp4'
 
 ql.qlookplot(vis=msfile, specfile=specfile, timerange=timerange, spw=spw,
              ncpu=ncpu, xycen=xycen, imsize=imsize, fov=fov, cell=cell,
-             restoringbeam=['30arcsec'],
+             restoringbeam=['60arcsec'],robust=0.5,
              opencontour=opencontour, clevels=clevels,
              plotaia=plotaia, aiawave=aiawave,
              mkmovie=mkmovie, twidth=twidth, docompress=docompress, stokes=stokes,
