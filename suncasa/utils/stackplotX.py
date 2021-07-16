@@ -9,7 +9,6 @@ from astropy.io import fits
 import numpy.ma as ma
 import matplotlib.cm as cm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import sunpy.map
 import astropy.units as u
 import pickle
 import glob
@@ -27,14 +26,33 @@ from functools import partial
 import multiprocessing as mp
 import gc
 from matplotlib.widgets import Slider, Button
-from sunpy.physics.solar_rotation import mapsequence_solar_derotate
 import warnings
-from sunpy.instr.aia import aiaprep
 from suncasa.utils.lineticks import LineTicks
 from suncasa.utils import signal_utils as su
 from suncasa.utils import stputils as stpu
 # import pdb
+from packaging import version as pversion
+
+import sunpy
+# check sunpy version
+sunpy1 = sunpy.version.major >=1
+if sunpy1:
+    from sunpy.coordinates import sun
+else:
+    from sunpy import sun
+
+import sunpy.map
+from sunpy.physics.solar_rotation import mapsequence_solar_derotate
 from sunpy.map.mapsequence import MapSequence
+
+if pversion.parse(sunpy.version.version)>=pversion.parse('2.1'):
+    from aiapy.calibrate import register, update_pointing, normalize_exposure
+    def aiaprep(sunpymap):
+        m_updated_pointing = update_pointing(sunpymap)
+        m_registered = register(m_updated_pointing)
+        return m_registered
+else:
+    from sunpy.instr.aia import aiaprep
 
 
 # warnings.filterwarnings('ignore')
@@ -1771,9 +1789,9 @@ class Stackplot:
             vmin = clrange['low']
         if (norm is None) and (not diff):
             if clrange['log']:
-                norm = colors.LogNorm(vmin=np.min(self.stackplt), vmax=np.max(self.stackplt))
+                norm = colors.LogNorm(vmin=vmin, vmax=vmax)
             else:
-                norm = colors.Normalize(vmin=np.min(self.stackplt), vmax=np.max(self.stackplt))
+                norm = colors.Normalize(vmin=vmin, vmax=vmax)
 
         cutslitplt = self.cutslitbd.cutslitplt
         if not cmap:
