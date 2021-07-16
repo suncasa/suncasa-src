@@ -194,9 +194,10 @@ class Dspec:
             nf = np.sum(spw_nfrq)
             smry = mdata.summary()
             scan_ntimes = []  # List of number of times in each scan
+            scanids = sorted(smry['observationID=0']['arrayID=0'].keys())
             for iscan in range(nscans):
                 scan_ntimes.append(
-                    smry['observationID=0']['arrayID=0']['scan=' + str(iscan)]['fieldID=0']['nrows'] / nspw / nbl)
+                    smry['observationID=0']['arrayID=0'][scanids[iscan]]['fieldID=0']['nrows'] / nspw / nbl)
             scan_ntimes = np.array(scan_ntimes)
             scan_ntimes_integer = scan_ntimes.astype(np.int)
             if len(np.where(scan_ntimes % scan_ntimes_integer != 0)[0]) != 0:
@@ -204,7 +205,7 @@ class Dspec:
                 scan_ntimes = []  # List of number of times in each scan
                 for iscan in range(nscans):
                     scan_ntimes.append(
-                        len(smry['observationID=0']['arrayID=0']['scan=' + str(iscan)]['fieldID=0'].keys()) - 6)
+                        len(smry['observationID=0']['arrayID=0'][scanids[iscan]]['fieldID=0'].keys()) - 6)
                 scan_ntimes = np.array(scan_ntimes)
             else:
                 scan_ntimes = scan_ntimes_integer
@@ -241,7 +242,7 @@ class Dspec:
                         if type(fillnan) in [int, float]:
                             spec_[flag] = float(fillnan)
                         else:
-                            spec_[flag] = 0.0
+                            spec_[flag] = np.nan
                         # Insert data for this spw into larger array
                         specamp[:, fptr:fptr + nfrq, :, j] = spec_
                         freq[fptr:fptr + nfrq] = cfrq

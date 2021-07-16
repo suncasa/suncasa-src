@@ -7,6 +7,7 @@ import matplotlib.colorbar as colorbar
 from suncasa.utils import fitsutils as fu
 from sunpy import map as smap
 import copy
+from suncasa.dspec import gsutils
 
 ## SDO/AIA image fits
 aiafile = 'aia.lev1_euv_12s.2021-05-07T190209Z.171.image_lev1.fits'
