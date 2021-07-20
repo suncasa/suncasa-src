@@ -59,7 +59,7 @@ import matplotlib.patches as patches
 from ..utils import DButil
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from suncasa.utils import plot_mapX as pmX
-from suncasa.utils import fitsutils as fu
+from suncasa.io import ndfits
 from tqdm import tqdm
 
 sunpy1 = sunpy.version.major >= 1
@@ -227,13 +227,13 @@ def get_colorbar_params(fbounds, stepfactor=1):
         ticks = cfq[::step]
     else:
         ticks = cfq
-    vmin = fbounds['bounds_all'][0]
-    vmax = fbounds['bounds_all'][-1]
+    fmin = fbounds['bounds_all'][0]
+    fmax = fbounds['bounds_all'][-1]
     # if vmin not in ticks:
     #     ticks = np.hstack((vmin, ticks))
     # if vmax not in ticks:
     #     ticks = np.hstack((ticks, vmax))
-    return ticks, bounds, vmax, vmin, freqmask
+    return ticks, bounds, fmax, fmin, freqmask
 
 
 def downloadAIAdata(trange, wavelength=None, outdir='./'):
@@ -447,7 +447,7 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
         # slfcalms = './' + msfilebs + '.rr'
         # split(msfile, outputvis=slfcalms, datacolumn='corrected', correlation='RR')
 
-    cfreqs = mstools.get_freqinfo(msfile, spws)
+    cfreqs = mstools.get_bandinfo(msfile, spws)
     if restoringbeam == ['']:
         restoringbms = [''] * nspw
     else:
@@ -967,7 +967,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 if suci[s]:
                     try:
                         # rmap = smap.Map(image)
-                        rmap, ndim, npol_fits, stokaxis, rcfreqs, rdata, rheader = fu.read_compressed_image_fits(image)
+                        rmap, rdata, rheader, ndim, npol_fits, stokaxis, rfreqs, rdelts = ndfits.read(image)
                         cmaps, datas = get_rdata_dict(rdata, ndim, stokaxis, npol_fits, icmap=icmap, stokes=stokes)
                     except:
                         continue
@@ -1140,14 +1140,14 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         if i == 0:
             if nspw > 1:
                 import matplotlib.colorbar as colorbar
-                ticks, bounds, vmax, vmin, freqmask = get_colorbar_params(freqbounds)
+                ticks, bounds, fmax, fmin, freqmask = get_colorbar_params(freqbounds)
 
                 for pidx in range(npols):
                     ax = axs[pidx]
                     divider = make_axes_locatable(ax)
                     cax_freq = divider.append_axes('right', size='6.0%', pad=0.1)
                     # cax_freq.tick_params(direction='out')
-                    cb = colorbar.ColorbarBase(cax_freq, norm=colors.Normalize(vmin=vmin, vmax=vmax), cmap=icmap,
+                    cb = colorbar.ColorbarBase(cax_freq, norm=colors.Normalize(vmin=fmin, vmax=fmax), cmap=icmap,
                                                orientation='vertical', boundaries=bounds, spacing='proportional',
                                                ticks=ticks, format='%4.1f', alpha=alpha_cont)
                     # Freqs = [np.mean(fq) for fq in Freq]
@@ -1157,12 +1157,12 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                             cax_freq.axhspan(fbd_lo, fbd_hi, hatch='//', edgecolor='k', facecolor='#BBBBBB')
                     cax_freq.set_ylabel('Frequency [GHz]')
                     cax_freq.tick_params(axis="y", pad=-20., length=0, colors='k', labelsize=8)
-                    cax_freq.axhline(vmin, xmin=1.0, xmax=1.2, color='k', clip_on=False)
-                    cax_freq.axhline(vmax, xmin=1.0, xmax=1.2, color='k', clip_on=False)
-                    cax_freq.text(1.25, 0.0, '{:.1f}'.format(vmin), fontsize=9, transform=cax_freq.transAxes,
+                    cax_freq.axhline(fmin, xmin=1.0, xmax=1.2, color='k', clip_on=False)
+                    cax_freq.axhline(fmax, xmin=1.0, xmax=1.2, color='k', clip_on=False)
+                    cax_freq.text(1.25, 0.0, '{:.1f}'.format(fmin), fontsize=9, transform=cax_freq.transAxes,
                                   va='center',
                                   ha='left')
-                    cax_freq.text(1.25, 1.0, '{:.1f}'.format(vmax), fontsize=9, transform=cax_freq.transAxes,
+                    cax_freq.text(1.25, 1.0, '{:.1f}'.format(fmax), fontsize=9, transform=cax_freq.transAxes,
                                   va='center',
                                   ha='left')
         figname = observatory + '_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:19] + '.png'
@@ -1388,7 +1388,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
 
     if icmap is None:
         if plotaia:
-            if nspws>1:
+            if nspws > 1:
                 icmap = plt.get_cmap('RdYlBu')
             else:
                 icmap = plt.get_cmap('gist_heat')
@@ -1397,10 +1397,10 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
     else:
         icmap = plt.get_cmap(icmap)
 
-    freqbounds = mstools.get_freqinfo(vis, spw=spw, returnbounds=True)
+    bdinfo = mstools.get_bandinfo(vis, spw=spw, returnbdinfo=True)
     # print(freqbounds)
-    cfreqs = freqbounds['cfreqs']
-    cfreqs_all = freqbounds['cfreqs_all']
+    cfreqs = bdinfo['cfreqs']
+    cfreqs_all = bdinfo['cfreqs_all']
     freq_dist = lambda fq: (fq - cfreqs_all[0]) / (cfreqs_all[-1] - cfreqs_all[0])
     staql = {'timerange': timerange, 'spw': spwselec}
     if ms.msselect(staql, onlyparse=True):
@@ -1422,7 +1422,6 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
         ms.close()
         return -1
     ms.close()
-
 
     if observatory == 'EOVSA':
         if stokes == 'RRLL' or stokes == 'RR,LL':
@@ -1501,7 +1500,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                             dmax=dmax, dmin=dmin, dcmap=dcmap, dnorm=dnorm,
                             sclfactor=sclfactor,
                             aiafits=aiafits, aiawave=aiawave, aiadir=aiadir, plotaia=plotaia,
-                            freqbounds=freqbounds, alpha_cont=calpha,
+                            freqbounds=bdinfo, alpha_cont=calpha,
                             opencontour=opencontour, movieformat=movieformat)
 
     else:
@@ -1800,21 +1799,11 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                     # print('fits file ' + ','.join(fitsfiles) + ' selected')
                     if not outfits:
                         outfits = mstools.time2filename(vis, timerange=timerange) + '.outim.image.fits'
-                    fu.fits_wrap_spwX(fitsfiles, outfitsfile=outfits)
+
+                    ndfits.wrap(fitsfiles, outfitsfile=outfits, docompress=docompress)
                     warnings.warn(
                         "If the provided spw is not equally spaced, the frequency information of the fits file {} that combining {} could be a wrong. Use it with caution!".format(
                             outfits, ','.join(fitsfiles)))
-                    if docompress:
-                        fitsftmp = outfits + ".tmp.fits"
-                        os.system("mv {} {}".format(outfits, fitsftmp))
-                        hdu = fits.open(fitsftmp)
-                        hdu[0].verify('fix')
-                        header = hdu[0].header
-                        data = hdu[0].data
-                        fu.write_compressed_image_fits(outfits, data, header, compression_type='RICE_1',
-                                                       quantize_level=4.0)
-                        os.system("rm -rf {}".format(fitsftmp))
-
                 else:
                     imagename = os.path.join(workdir, visname + '.outim')
                     junks = ['.flux', '.model', '.psf', '.residual', '.mask', '.pb', '.sumwt', '.image', '.image.pbcor']
@@ -1884,7 +1873,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
         # else:
         if isinstance(rfits, list):
             rfits = rfits[0]
-        rmap, ndim, npol_fits, stokaxis, rcfreqs, rdata, rheader = fu.read_compressed_image_fits(rfits)
+        rmap, rdata, rheader, ndim, npol_fits, stokaxis, rfreqs, rdelts = ndfits.read(rfits)
 
         if rmap is None:
             print('radio fits file not recognized by sunpy.map. Aborting...')
@@ -2083,7 +2072,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             cayheight = ax1_pos[3] - 0.05 - ax2_pos[1]
             cax = plt.axes((caxcenter - caxwidth / 2.0, ax2_pos[1], caxwidth, cayheight))
 
-            ticks, bounds, vmax, vmin, freqmask = get_colorbar_params(freqbounds)
+            ticks, bounds, vmax, vmin, freqmask = get_colorbar_params(bdinfo)
 
             cb = colorbar.ColorbarBase(cax, norm=colors.Normalize(vmin=vmin, vmax=vmax), cmap=icmap,
                                        orientation='vertical', boundaries=bounds, spacing='proportional',

@@ -5,7 +5,7 @@ import os
 import astropy.units as u
 from sunpy import map as smap
 from astropy.coordinates import SkyCoord
-from suncasa.utils import fitsutils as fu
+from suncasa.io import ndfits
 import GScodes  # initialization library - located either in the current directory or in the system path
 from suncasa.utils import mstools
 import lmfit
@@ -254,7 +254,7 @@ class RegionSelector:
     #     return 1
 
     def subdata(self, xs, ys, rfile):
-        rmap, ndim, npol_fits, stokaxis, rcfreqs, rdata, rheader = fu.read_compressed_image_fits(rfile)
+        rmap, rdata, rheader, ndim, npol_fits, stokaxis, rfreqs, rdelts = ndfits.read(rfile)
         ny, nx = rmap.data.shape
         tr_coord = rmap.top_right_coord
         bl_coord = rmap.bottom_left_coord
@@ -283,8 +283,9 @@ class RegionSelector:
         # print(np.count_nonzero(mask))
         self.npix = np.count_nonzero(mask)
         self.area = self.npix * dx * dy
-        data = rdata[:, :, mask]
+        data = rdata[ :, mask]
         # print(rdata[:, :, mask])
+        # print(mask.shape, rdata.shape, data.shape)
         data = np.squeeze(data)
         # print(data.shape)
         return data
@@ -362,7 +363,7 @@ class RegionSelector:
         elif nxs == 2:
             datas = []
             # eofile = self.eofiles[0]
-            # rmap, ndim, npol_fits, stokaxis, rcfreqs, rdata, rheader = fu.read_compressed_image_fits(eofile)
+            # rmap, rdata, rheader, ndim, npol_fits, stokaxis, rfreqs, rdelts = ndfits.read(eofile)
             # data = self.subdata(xs, ys, eofile)
             # datas.append(data)
             for tidx, eofile in enumerate(self.eofiles):
@@ -439,12 +440,10 @@ class GStool:
     #
     # showaia = property(fget=get_showaia, fset=set_showaia, doc="`Boolean`-like: Display AIA image or not")
 
-    def __init__(self, msfile, eofiles, spws, aiafile=None, xycen=None, fov=None, freqghz_bound=[-1, 100], calpha=0.5,
-                 clevels=np.array([0.3, 1.0]), opencontour = None):
-        self.msfile = msfile
+    def __init__(self, eofiles, aiafile=None, xycen=None, fov=None, freqghz_bound=[-1, 100], calpha=0.5,
+                 clevels=np.array([0.3, 1.0]), opencontour=None):
         self.aiafile = aiafile
         self.eofiles = eofiles
-        self.spws = spws
         self.xycen = xycen
         self.fov = fov
         self.calpha = calpha
@@ -453,18 +452,17 @@ class GStool:
         self.opencontour = opencontour
         self._showaia = False
 
-
-        freqbounds = mstools.get_freqinfo(self.msfile, spw=self.spws, returnbounds=True)
-        self.cfreqs = cfreqs = freqbounds['cfreqs']
-        self.cfreqs_all = cfreqs_all= freqbounds['cfreqs_all']
+        rmap, rdata, rheader, ndim, npol_fits, stokaxis, rfreqs, rdelts = ndfits.read(eofiles[0])
+        self.bdinfo = bdinfo = ndfits.get_bdinfo(rfreqs, rdelts)
+        self.cfreqs = cfreqs = bdinfo['cfreqs']
+        self.cfreqs_all = cfreqs_all = bdinfo['cfreqs_all']
         self.freq_dist = lambda fq: (fq - cfreqs_all[0]) / (cfreqs_all[-1] - cfreqs_all[0])
 
         self.ntim = ntim = len(eofiles)
         self.xlim = xlim = xycen[0] + np.array([-1, 1]) * 0.5 * fov[0]
         self.ylim = ylim = xycen[1] + np.array([-1, 1]) * 0.5 * fov[1]
 
-        rmap, ndim, npol_fits, stokaxis, rcfreqs, rdata, rheader = fu.read_compressed_image_fits(eofiles[0])
-        nspw = len(spws)
+        nspw = len(rfreqs)
         eodate = Time(rmap.date.mjd + rmap.exposure_time.value / 2. / 24 / 3600, format='mjd')
         ny, nx = rmap.data.shape
         x0, x1 = (np.array([1, rmap.meta['NAXIS1']]) - rmap.meta['CRPIX1']) * rmap.meta['CDELT1'] + \
@@ -499,18 +497,18 @@ class GStool:
 
         if self._showaia:
             if self.opencontour is None:
-                self.opencontour=False
+                self.opencontour = False
         else:
             if self.opencontour is None:
-                self.opencontour=True
+                self.opencontour = True
         ## Plot EOVSA images as filled contour on top of the AIA image
         icmap = plt.get_cmap('RdYlBu')
         cts = []
         ## color map for spectra from the image series
         tcmap = plt.get_cmap('turbo')
 
-        for s, sp in enumerate(spws):
-            data = rdata[0, s, ...]
+        for s, sp in enumerate(rfreqs):
+            data = rdata[s, ...]
             clvls = clevels * np.nanmax(data)
             rcmap = [icmap(self.freq_dist(self.cfreqs[s]))] * len(clvls)
             if self.opencontour:
@@ -544,7 +542,7 @@ class GStool:
         divider = make_axes_locatable(axs[1])
         cax = divider.append_axes("right", size="8%", pad=0.08)
 
-        ticks, bounds, vmax, vmin, freqmask = ql.get_colorbar_params(freqbounds)
+        ticks, bounds, vmax, vmin, freqmask = ql.get_colorbar_params(bdinfo)
 
         cb = colorbar.ColorbarBase(cax, norm=colors.Normalize(vmin=vmin, vmax=vmax), cmap=icmap,
                                    orientation='vertical', boundaries=bounds, spacing='proportional',
@@ -594,7 +592,6 @@ class GStool:
         self.scatter_eospecs_fit = []
         self.scatter_eospecs = []
 
-
     def set_params(self, params):
         ssz = self.region.area  # source area in arcsec^2
         params.add('ssz', value=ssz, vary=False)  # pixel size in arcsec^2
@@ -621,12 +618,12 @@ class GStool:
         if len(self.scatter_eospecs_fit) == 0:
             for ti, cplt in enumerate(self.cplts):
                 self.scatter_eospecs_fit.append(
-                    self.ax_eospec.errorbar(freqghz_ma, tb_ma / 1.e6, yerr=tb_err_ma / 1.e6, marker='.', ms=1, linestyle='',
-                                       c=cplt))
+                    self.ax_eospec.errorbar(freqghz_ma, tb_ma / 1.e6, yerr=tb_err_ma / 1.e6, marker='.', ms=1,
+                                            linestyle='',
+                                            c=cplt))
         else:
             for ti, cplt in enumerate(self.cplts):
                 set_errorobj(freqghz_ma, tb_ma / 1.e6, self.scatter_eospecs_fit[ti], yerr=tb_err_ma / 1.e6)
-
 
     def fit(self):
 
@@ -646,13 +643,14 @@ class GStool:
 
         # flx_rms = rms
         tb_err = tb * 0.0
-        tb_err[:] = 1.e6
+        tb_err[:] = 0.2e6
         tb_err_ma = ma.masked_array(tb_err, tb_ma.mask)
         if len(self.scatter_eospecs_fit) == 0:
             for ti, cplt in enumerate(self.cplts):
                 self.scatter_eospecs_fit.append(
-                    self.ax_eospec.errorbar(freqghz_ma, tb_ma / 1.e6, yerr=tb_err_ma / 1.e6, marker='.', ms=1, linestyle='',
-                                       c=cplt))
+                    self.ax_eospec.errorbar(freqghz_ma, tb_ma / 1.e6, yerr=tb_err_ma / 1.e6, marker='.', ms=1,
+                                            linestyle='',
+                                            c=cplt))
         else:
             for ti, cplt in enumerate(self.cplts):
                 set_errorobj(freqghz_ma, tb_ma / 1.e6, self.scatter_eospecs_fit[ti], yerr=tb_err_ma / 1.e6)

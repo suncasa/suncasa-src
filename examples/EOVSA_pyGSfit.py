@@ -5,7 +5,7 @@ from importlib import reload
 
 reload(gsutils)
 
-msfile = 'IDB20210507_1840-1920XXYY.cal.10s.slfcaled.ms'
+# msfile = 'IDB20210507_1840-1920XXYY.cal.10s.slfcaled.ms'
 ## SDO/AIA image fits
 aiafile = 'aia.lev1_euv_12s.2021-05-07T190209Z.171.image_lev1.fits'
 # aiafile = 'aia.lev1_uv_24s.2021-05-07T190214Z.1600.image_lev1.fits'
@@ -24,7 +24,7 @@ clevels = np.array([0.3, 1.0])
 freqghz_bound = [2., 14.0]
 # freqghz_bound = [-1, 100]
 
-gt = gsutils.GStool(msfile, eofiles, spws, aiafile=aiafile, xycen=xycen, fov=fov, freqghz_bound=freqghz_bound,
+gt = gsutils.GStool(eofiles, aiafile=aiafile, xycen=xycen, fov=fov, freqghz_bound=freqghz_bound,
                     calpha=calpha, clevels=clevels)
 
 dep = 20.  # total source depth, 1e8 cm
@@ -49,7 +49,6 @@ Tth = 30.  # Thermal temperature in MK
 # Tth = region.wT / 1e6  # Thermal temperature in MK
 theta = 70.
 
-
 params = lmfit.Parameters()
 params.add('lnf', value=-2., vary=False)  # ln of fractional error adjustment
 
@@ -63,7 +62,6 @@ params.add('delta', value=delta, min=1.5, max=10.0, vary=True)  # Power law inde
 params.add('theta', value=theta, min=20., max=85, vary=False)  # theta
 params.add('Emin', value=Emin, min=0.001, max=0.05, vary=False)  # Emin
 params.add('Emax', value=Emax, min=0.1, max=300, vary=False)  # Emax
-
 
 gt.set_params(params=params)
 
