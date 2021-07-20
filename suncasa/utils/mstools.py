@@ -19,7 +19,7 @@ from tqdm import tqdm
 import os
 
 
-def get_freqinfo(msfile, spw=None, returnbounds=False):
+def get_bandinfo(msfile, spw=None, returnbdinfo=False):
     '''
     get center frequencies of all spectral windows for msfile
     spw: [option] return the cfreq of spw. spw can be a a string or a list of string.
@@ -45,7 +45,7 @@ def get_freqinfo(msfile, spw=None, returnbounds=False):
     chanwds = np.array(chanwds) / 1e9
     ms.close()
     cfreqs = reffreqs + bdwds / 2.0 - chanwds / 2.0
-    freqbounds = {'bounds_all': np.hstack((reffreqs, reffreqs[-1] + bdwds[-1])), 'cfreqs_all': cfreqs,
+    bdinfo = {'bounds_all': np.hstack((reffreqs, reffreqs[-1] + bdwds[-1])), 'cfreqs_all': cfreqs,
                   'bounds_all_lo': reffreqs, 'bounds_all_hi': reffreqs + bdwds}
     if spw is not None:
         freqbounds_lo_spw = []
@@ -57,25 +57,25 @@ def get_freqinfo(msfile, spw=None, returnbounds=False):
                 cfreq = np.nanmean([cfreqs[max(0, min(int(s), nspw - 1))] for s in sps])
                 s1 = max(0, min(int(sps[0]), nspw - 1))
                 s2 = max(0, min(int(sps[1]) + 1, nspw - 1))
-                freqbound_lo = freqbounds['bounds_all'][s1]
-                freqbound_hi = freqbounds['bounds_all'][s2]
+                freqbound_lo = bdinfo['bounds_all'][s1]
+                freqbound_hi = bdinfo['bounds_all'][s2]
             else:
                 s = max(0, min(int(sp), nspw - 1))
                 cfreq = cfreqs[s]
-                freqbound_lo = freqbounds['bounds_all'][s]
+                freqbound_lo = bdinfo['bounds_all'][s]
                 # freqbound_hi = freqbounds['bounds_all'][max(0, min(int(sp) + 1, nspw - 1))]
-                freqbound_hi = freqbounds['bounds_all'][s] + bdwds[s]
+                freqbound_hi = bdinfo['bounds_all'][s] + bdwds[s]
             freqbounds_lo_spw.append(freqbound_lo)
             freqbounds_hi_spw.append(freqbound_hi)
             cfreqs_spw.append(cfreq)
         cfreqs = np.array(cfreqs_spw)
         freqbounds_lo = np.array(freqbounds_lo_spw)
         freqbounds_hi = np.array(freqbounds_hi_spw)
-        freqbounds['bounds_lo'] = freqbounds_lo
-        freqbounds['bounds_hi'] = freqbounds_hi
-        freqbounds['cfreqs'] = cfreqs
-    if returnbounds:
-        return freqbounds
+        bdinfo['bounds_lo'] = freqbounds_lo
+        bdinfo['bounds_hi'] = freqbounds_hi
+        bdinfo['cfreqs'] = cfreqs
+    if returnbdinfo:
+        return bdinfo
     else:
         return cfreqs
 
