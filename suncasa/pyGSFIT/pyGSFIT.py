@@ -12,7 +12,6 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from matplotlib import patches, cm
-import gsutils
 from suncasa.io import ndfits
 from astropy.time import Time
 import numpy as np
@@ -21,11 +20,12 @@ from sunpy import map as smap
 from astropy.io import fits
 import astropy.units as u
 
-sys.path.append('./')
-from gsutils import ff_emission
+# from suncasa.pyGSFIT import gsutils
+# from gsutils import ff_emission
 import numpy.ma as ma
 import warnings
 
+sys.path.append('./')
 warnings.filterwarnings("ignore")
 pg.setConfigOption('background', 'w')
 pg.setConfigOption('foreground', 'k')
@@ -77,7 +77,7 @@ class App(QMainWindow):
         self.initUItab_fit()
         self.initUItab_analyzer()
 
-        #self.tabs.currentChanged.connect(self.tabChanged)
+        # self.tabs.currentChanged.connect(self.tabChanged)
 
         # Add tabs to widget
         layout.addWidget(self.tabs)
@@ -192,7 +192,7 @@ class App(QMainWindow):
         # Create main layout (a Vertical Layout)
         mainlayout = QVBoxLayout()
         mainlayout.addWidget(QLabel("This is the tab for analyzing fit results"))
-        self.tabs.widget(1).setLayout(mainlayout)
+        self.tabs.widget(2).setLayout(mainlayout)
 
     def eofile_select_return(self):
         ''' Called when the FITS filename LineEdit widget gets a carriage-return.
@@ -422,7 +422,7 @@ class App(QMainWindow):
             cmap = pg.ColorMap(pos=np.linspace(0.0, 1.0, 6), color=colors)
             self.meocanvas.setColorMap(cmap)
             nf, nx, ny = self.rdata.shape
-            self.roi = pg.RectROI([nx / 2, ny / 2], [20, 20], pen=(0, 9))
+            self.roi = pg.RectROI([nx / 2 - 10, ny / 2 - 10], [20, 20], pen=(0, 9))
             # self.roi.sigRegionChanged.connect(self.update_spec)
             self.roi.sigRegionChanged.connect(self.update_pgspec)
             self.meocanvas.addItem(self.roi)
@@ -440,6 +440,7 @@ class App(QMainWindow):
         freqghz_ma = ma.masked_array(freqghz, mask_fit)
         tb_ma = ma.masked_array(tb, mask_fit)
         logtb_ma = np.log10(tb_ma)
+        logfreqghz_ma = np.log10(freqghz_ma)
 
         tb_err = 0.1 * tb
         logtb_err = tb_err / tb / np.log(10.)
@@ -454,12 +455,45 @@ class App(QMainWindow):
         #    plt.plot(x, y, 'k--', alpha=0.1)
 
         self.speccanvas.clear()
-        dataplot = self.speccanvas.plot(x=freqghz_ma, y=logtb_ma, symbol='o')
-        errplot = pg.ErrorBarItem(x=freqghz_ma, y=logtb_ma, top=logtb_err_ma,
-                                  bottom=logtb_err_ma, beam=0.5)
+        dataplot = self.speccanvas.plot(x=logfreqghz_ma, y=logtb_ma, symbol='o')
+        errplot = pg.ErrorBarItem(x=logfreqghz_ma, y=logtb_ma, top=logtb_err_ma,
+                                  bottom=logtb_err_ma, beam=0.025)
         # dataplot.setLogMode(True, True)
+        # errplot.setLogMode(True, True)
         self.speccanvas.addItem(dataplot)
         self.speccanvas.addItem(errplot)
+        xax = self.speccanvas.getAxis('bottom')
+        xax.setLabel("Frequency [GHz]")
+        xticksv = list(range(0, 4))
+        xticks_minor = []
+        for l in xticksv:
+            vp = 10 ** l
+            xticks_minor += list(np.arange(2 * vp, 10 * vp, 1 * vp))
+        xax.setTicks([[(v, '{:.0f}'.format(10 ** v)) for v in xticksv], [(np.log10(v), '') for v in xticks_minor]])
+        yax = self.speccanvas.getAxis('left')
+        yax.setLabel("Brightness Temperature [MK]")
+        yticksv = list(range(1, 15))
+        yticks_minor = []
+        for l in yticksv:
+            vp = 10 ** l
+            yticks_minor += list(np.arange(2 * vp, 10 * vp, 1 * vp))
+        yticks = []
+        for v in yticksv:
+            if v >= 6:
+                yticks.append([v, r'{:.0f}'.format(10 ** v / 1e6)])
+            if v == 1:
+                yticks.append([v, r'{:.5f}'.format(10 ** v / 1e6)])
+            elif v == 2:
+                yticks.append([v, r'{:.4f}'.format(10 ** v / 1e6)])
+            elif v == 3:
+                yticks.append([v, r'{:.3f}'.format(10 ** v / 1e6)])
+            elif v == 4:
+                yticks.append([v, r'{:.2f}'.format(10 ** v / 1e6)])
+            elif v == 5:
+                yticks.append([v, r'{:.1f}'.format(10 ** v / 1e6)])
+            else:
+                yticks.append([v, r'{:.0f}'.format(10 ** v / 1e6)])
+        yax.setTicks([yticks, [(np.log10(v), '') for v in yticks_minor]])
 
     def update_spec(self):
         """Use Matplotlib.pyplot for the spectral plot"""
