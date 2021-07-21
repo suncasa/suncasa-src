@@ -807,11 +807,11 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             iranges = [[imin, imax], [-1, 1]]
         print('plot the dynamic spectrum in pol ' + pol)
 
-        hnspw = max(nspw / 2, 1)
+        hnspw = max(nspw // 2, 1)
         ncols = hnspw + 2  # 1 image: 1x1, 1 dspec:2x2
         nrows = 2 + 2
         fig = plt.figure(figsize=(12, 8))
-        gs = gridspec.GridSpec(nrows, ncols, height_ratios=[4, 4, 1, 1])
+        gs = gridspec.GridSpec(nrows, ncols, height_ratios=[1,1, 1, 1])
         if nspw <= 1 or plotaia:
             axs = [plt.subplot(gs[:2, 2:]), plt.subplot(gs[2:, 2:])]
         else:
