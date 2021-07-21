@@ -284,7 +284,7 @@ class RegionSelector:
         # print(np.count_nonzero(mask))
         self.npix = np.count_nonzero(mask)
         self.area = self.npix * dx * dy
-        data = rdata[ :, mask]
+        data = rdata[:, mask]
         # print(rdata[:, :, mask])
         # print(mask.shape, rdata.shape, data.shape)
         data = np.squeeze(data)
@@ -628,8 +628,6 @@ class GStool:
                 set_errorobj(freqghz_ma, tb_ma / 1.e6, self.scatter_eospecs_fit[ti], yerr=tb_err_ma / 1.e6)
 
     def fit(self):
-
-        freqghz_bound = [2., 14.0]
         ti = 0
         tb = self.region.errobjs[ti][0].get_ydata() * 1e6
         tb_ma = ma.masked_less_equal(tb, 0)
@@ -651,8 +649,7 @@ class GStool:
             for ti, cplt in enumerate(self.cplts):
                 self.scatter_eospecs_fit.append(
                     self.ax_eospec.errorbar(freqghz_ma, tb_ma / 1.e6, yerr=tb_err_ma / 1.e6, marker='.', ms=1,
-                                            linestyle='',
-                                            c=cplt))
+                                            linestyle='', c=cplt))
         else:
             for ti, cplt in enumerate(self.cplts):
                 set_errorobj(freqghz_ma, tb_ma / 1.e6, self.scatter_eospecs_fit[ti], yerr=tb_err_ma / 1.e6)
