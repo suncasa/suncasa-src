@@ -20,6 +20,7 @@ from tqdm import tqdm
 from astropy.io import fits
 import numpy.ma as ma
 
+
 libname = os.path.join(os.path.dirname(GScodes.__file__),
                        'MWTransferArr.so')  # name of the executable library - located where Python can find it
 
@@ -428,6 +429,7 @@ class RegionSelector:
             self.errobjs[0][0].figure.canvas.draw_idle()
             for line in self.boxline:
                 line.set_data([xs[0], xs[1], xs[1], xs[0], xs[0]], [ys[0], ys[0], ys[1], ys[1], ys[0]])
+
         clkpnt.figure.canvas.draw_idle()
 
 
