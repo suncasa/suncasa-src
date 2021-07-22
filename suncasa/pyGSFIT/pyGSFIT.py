@@ -44,15 +44,21 @@ class App(QMainWindow):
         self.left = 0
         self.top = 0
         self.width = 1200
-        self.height = 1000
+        self.height = 1100
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
         self._main = QWidget()
         self.setCentralWidget(self._main)
         self.initUI()
         self.threadpool = QThreadPool()
-        self.haseovsamap = False
-        self.hasaiamap = False
+        self.has_eovsamap = False
+        self.has_aiamap = False
+        self.has_rms = False
+        self.tb_upperbound = 5e9 # lower bound of brightness temperature to consider
+        self.tb_lowerbound = 1e3 # lower bound of brightness temperature to consider
+        self.freqghz_bound = [1.0, 18.0]
+        self.rois = []
+        self.nroi = 0
 
     def initUI(self):
 
@@ -142,13 +148,15 @@ class App(QMainWindow):
         qlookarea.addWidget(self.qlooktoolbar)
         qlookarea.addWidget(self.qlookcanvas)
         # self.qlook_axs = self.qlookcanvas.figure.subplots(nrows=1, ncols=4)
-        gs = gridspec.GridSpec(ncols=4, nrows=1)
+        gs = gridspec.GridSpec(ncols=2, nrows=1, width_ratios=[1, 3], left=0.08, right=0.95, wspace=0.15)
+        gs1 = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=gs[0], wspace=0)
+        gs2 = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=gs[1], wspace=0.05)
         self.qlook_axs = []
-        self.qlook_axs.append(self.qlookcanvas.figure.add_subplot(gs[0, 0]))
-        self.qlook_axs.append(self.qlookcanvas.figure.add_subplot(gs[0, 1]))
-        self.qlook_axs.append(self.qlookcanvas.figure.add_subplot(gs[0, 2], sharex=self.qlook_axs[-1],
+        self.qlook_axs.append(self.qlookcanvas.figure.add_subplot(gs1[0]))
+        self.qlook_axs.append(self.qlookcanvas.figure.add_subplot(gs2[0]))
+        self.qlook_axs.append(self.qlookcanvas.figure.add_subplot(gs2[1], sharex=self.qlook_axs[-1],
                               sharey=self.qlook_axs[-1]))
-        self.qlook_axs.append(self.qlookcanvas.figure.add_subplot(gs[0, 3], sharex=self.qlook_axs[-1],
+        self.qlook_axs.append(self.qlookcanvas.figure.add_subplot(gs2[2], sharex=self.qlook_axs[-1],
                               sharey=self.qlook_axs[-1]))
 
         upperbox.addLayout(qlookarea)
@@ -156,13 +164,34 @@ class App(QMainWindow):
 
         # lowerbox
         lowerbox = QGridLayout()  # lower box has two hboxes: left for multi-panel display and right for spectrum
+        pgimgbox = QVBoxLayout()  # left box of lower box for pg ImageView and associated buttons
+        pgbuttonbox = QHBoxLayout()  # bottom of pgimgbox for a bunch or buttons
+
+        # RMS Region Selection Button
+        self.rms_selection_button = QPushButton("Select RMS Rgn")
+        self.rms_selection_button.setStyleSheet("background-color : lightgrey")
+        self.rms_selection_button.setCheckable(True)
+        self.rms_selection_button.clicked.connect(self.rms_rgn_select)
+        pgbuttonbox.addWidget(self.rms_selection_button)
+
+        # ADD ROI Region for Obtaining Spectra
+        self.add_roi_button = QPushButton("Add ROI")
+        self.add_roi_button.setStyleSheet("background-color : lightgrey")
+        pgbuttonbox.addWidget(self.add_roi_button)
+        self.add_roi_button.clicked.connect(self.roi_select)
+
+        ## todo: add this button later
+        self.add_roi_grid_button = QPushButton("Add ROI Grid")
+        self.add_roi_grid_button.setStyleSheet("background-color : lightgrey")
+
+        pgbuttonbox.addWidget(self.add_roi_grid_button)
 
         # Add plotting area for multi-panel EOVSA images
-        # self.meocanvas = FigureCanvas(Figure(figsize=(6, 6)))
         self.meocanvas = pg.ImageView(name='EOVSA Explorer')
-        # self.meotoolbar = NavigationToolbar(self.meocanvas, self)
-        # meoplotarea.addWidget(self.meotoolbar)
-        lowerbox.addWidget(self.meocanvas, 0, 0)
+
+        pgimgbox.addWidget(self.meocanvas)
+        pgimgbox.addLayout(pgbuttonbox)
+        lowerbox.addLayout(pgimgbox, 0, 0)
         lowerbox.setColumnStretch(0, 1.5)
         # self.meo_axs = self.meocanvas.figure.subplots(nrows=2, ncols=2)
         # self.plot_axs.clear()
@@ -346,7 +375,7 @@ class App(QMainWindow):
             self.opencontour = True
             self.clevels = np.array([0.3, 0.7])
             self.calpha = 1.
-            self.haseovsamap = True
+            self.has_eovsamap = True
             nspw = len(self.rfreqs)
             bds = np.linspace(0, nspw, 5)[1:4].astype(np.int)
             eodate = Time(self.rmap.date.mjd + self.rmap.exposure_time.value / 2. / 24 / 3600, format='mjd')
@@ -362,6 +391,7 @@ class App(QMainWindow):
             ax0.add_patch(rect)
             mapx, mapy = np.linspace(x0, x1, nx), np.linspace(y0, y1, ny)
             icmap = plt.get_cmap('RdYlBu')
+
             # now plot 3 panels of EOVSA images
             # plot the images
             eocmap = plt.get_cmap('viridis')
@@ -375,9 +405,13 @@ class App(QMainWindow):
                 eomap.draw_limb(axes=ax)
                 ax.set_xlim()
                 ax.set_ylim()
-                ax.set_xlabel('')
-                ax.set_ylabel('')
+                ax.set_xlabel('Solar X [arcsec]')
                 ax.set_title('')
+                if n == 0:
+                    ax.set_ylabel('Solar Y [arcsec]')
+                else:
+                    ax.set_ylabel('')
+                    ax.set_yticklabels([])
                 ax.text(0.01, 0.98, '{0:.1f} GHz'.format(cfreq), ha='left', va='top',
                         fontsize=10, color='w', transform=ax.transAxes)
                 ax.set_aspect('equal')
@@ -386,14 +420,14 @@ class App(QMainWindow):
             self.fname = '<Select or enter a valid fits filename>'
             self.fitsentry.setText(self.fname)
             # self.infoEdit.setPlainText('')
-            self.haseovsamap = False
+            self.has_eovsamap = False
 
         if os.path.exists(self.aiafname):
             try:
                 aiacmap = plt.get_cmap('gray_r')
                 aiamap = smap.Map(self.aiafname)
                 aiamap.plot(axes=ax0, cmap=aiacmap)
-                self.hasaiamap = True
+                self.has_aiamap = True
             except:
                 self.statusBar.showMessage('Something is wrong with the provided AIA FITS file', 2000)
         else:
@@ -401,11 +435,11 @@ class App(QMainWindow):
             self.aiafname = '<Select or enter a valid fits filename>'
             self.aiafitsentry.setText(self.aiafname)
             # self.infoEdit.setPlainText('')
-            self.hasaiamap = False
+            self.has_aiamap = False
         cts = []
-        if self.hasaiamap:
+        if self.has_aiamap:
             aiamap.plot(axes=ax0, cmap=aiacmap)
-        if self.haseovsamap:
+        if self.has_eovsamap:
             for s, sp in enumerate(self.rfreqs):
                 data = self.rdata[s, ...]
                 clvls = self.clevels * np.nanmax(data)
@@ -421,13 +455,13 @@ class App(QMainWindow):
 
         ax0.set_xlim([-1200, 1200])
         ax0.set_ylim([-1200, 1200])
-        ax0.set_xlabel('Solar-X [arcsec]')
-        ax0.set_ylabel('Solar-y [arcsec]')
+        ax0.set_xlabel('Solar X [arcsec]')
+        ax0.set_ylabel('Solar Y [arcsec]')
         # ax0.set_title('')
         ax0.set_aspect('equal')
-        self.qlookcanvas.figure.subplots_adjust(left=0.05, right=0.95,
-                                                bottom=0.06, top=0.95,
-                                                hspace=0.1, wspace=0.1)
+        #self.qlookcanvas.figure.subplots_adjust(left=0.05, right=0.95,
+        #                                        bottom=0.06, top=0.95,
+        #                                        hspace=0.1, wspace=0.1)
         self.qlookcanvas.draw()
 
     def plot_pg_eovsamap(self):
@@ -445,7 +479,7 @@ class App(QMainWindow):
             self.opencontour = True
             self.clevels = np.array([0.3, 0.7])
             self.calpha = 1.
-            self.haseovsamap = True
+            self.has_eovsamap = True
             nspw = len(self.rfreqs)
             eodate = Time(self.rmap.date.mjd + self.rmap.exposure_time.value / 2. / 24 / 3600, format='mjd')
             ny, nx = self.rmap.data.shape
@@ -471,47 +505,50 @@ class App(QMainWindow):
             ]
             cmap = pg.ColorMap(pos=np.linspace(0.0, 1.0, 6), color=colors)
             self.meocanvas.setColorMap(cmap)
-            nf, nx, ny = self.rdata.shape
-            self.roi = pg.RectROI([nx / 2 - 10, ny / 2 - 10], [20, 20], pen=(0, 9))
+            #nf, nx, ny = self.rdata.shape
+            #self.roi = pg.RectROI([nx / 2 - 10, ny / 2 - 10], [20, 20], pen=(0, 9))
             # self.roi.sigRegionChanged.connect(self.update_spec)
-            self.roi.sigRegionChanged.connect(self.update_pgspec)
-            self.meocanvas.addItem(self.roi)
+            #self.roi.sigRegionChanged.connect(self.update_pgspec)
+            #self.meocanvas.addItem(self.roi)
 
     def update_pgspec(self):
         """Use Pyqtgraph's PlotWidget for the spectral plot"""
-        self.freqghz_bound = [1.0, 18.0]
-        self.subim = self.roi.getArrayRegion(self.rdata[:, ::-1, :], self.meocanvas.getImageItem(), axes=(2, 1))
-        # print(self.subim.shape)
-        tb = np.nanmax(self.subim, axis=(1, 2))
-        tb_ma = ma.masked_less_equal(tb, 0)
-        freqghz = self.cfreqs
-        freqghz_ma = ma.masked_outside(freqghz, self.freqghz_bound[0], self.freqghz_bound[1])
-        mask_fit = np.logical_or(freqghz_ma.mask, tb_ma.mask)
-        freqghz_ma = ma.masked_array(freqghz, mask_fit)
-        tb_ma = ma.masked_array(tb, mask_fit)
-        logtb_ma = np.log10(tb_ma)
-        logfreqghz_ma = np.log10(freqghz_ma)
-
-        tb_err = 0.1 * tb
-        logtb_err = tb_err / tb / np.log(10.)
-        tb_err_ma = ma.masked_array(tb_err, tb_ma.mask)
-        logtb_err_ma = ma.masked_array(logtb_err, tb_ma.mask)
-        errobjs = []
-        # plt = pg.plot()
-        # ax.clear()
-        # x = np.linspace(1, 20, 10)
-        # for ll in [-1, 0, 1, 2, 3, 4]:
-        #    y = 10. ** (-2 * np.log10(x) + ll)
-        #    plt.plot(x, y, 'k--', alpha=0.1)
-
         self.speccanvas.clear()
-        dataplot = self.speccanvas.plot(x=logfreqghz_ma, y=logtb_ma, symbol='o')
-        errplot = pg.ErrorBarItem(x=logfreqghz_ma, y=logtb_ma, top=logtb_err_ma,
-                                  bottom=logtb_err_ma, beam=0.025)
-        # dataplot.setLogMode(True, True)
-        # errplot.setLogMode(True, True)
-        self.speccanvas.addItem(dataplot)
-        self.speccanvas.addItem(errplot)
+        if self.has_rms:
+            rmsplot = self.speccanvas.plot(x=np.log10(self.cfreqs), y=np.log10(self.rms), pen='k',
+                                           symbol='d', symbolPen='k', symbolBrush=None)
+            self.speccanvas.addItem(rmsplot)
+        for n, roi in enumerate(self.rois):
+            subim = roi.getArrayRegion(self.rdata[:, ::-1, :], self.meocanvas.getImageItem(), axes=(2, 1))
+            # print(self.subim.shape)
+            tb = np.nanmax(subim, axis=(1, 2))
+            tb_ma = ma.masked_less_equal(tb, self.tb_lowerbound)
+            freqghz = self.cfreqs
+            freqghz_ma = ma.masked_outside(freqghz, self.freqghz_bound[0], self.freqghz_bound[1])
+            mask_fit = np.logical_or(freqghz_ma.mask, tb_ma.mask)
+            freqghz_ma = ma.masked_array(freqghz, mask_fit)
+            tb_ma = ma.masked_array(tb, mask_fit)
+            logtb_ma = np.log10(tb_ma)
+            logfreqghz_ma = np.log10(freqghz_ma)
+            dataplot = self.speccanvas.plot(x=logfreqghz_ma, y=logtb_ma, pen=None,
+                                            symbol='o', symbolPen=(n, 9), symbolBrush=(n, 9))
+            self.speccanvas.addItem(dataplot)
+
+            # Add errorbar if rms is defined
+            if self.has_rms:
+                tb_rms_ma = ma.masked_array(self.rms, tb_ma.mask)
+                #### The following only works when tb_err is small
+                # logtb_err = tb_err / tb / np.log(10.)
+                # tb_err_ma = ma.masked_array(tb_err, tb_ma.mask)
+                # logtb_err_ma = ma.masked_array(logtb_err, tb_ma.mask)
+                tb_bounds_min = np.maximum(tb_ma - tb_rms_ma, np.ones_like(tb_ma) * self.tb_lowerbound)
+                tb_bounds_max = tb_ma + tb_rms_ma
+
+                errplot = pg.ErrorBarItem(x=logfreqghz_ma, y=logtb_ma, top=np.log10(tb_bounds_max/tb_ma),
+                                          bottom=np.log10(tb_ma/tb_bounds_min), beam=0.025, pen=(n, 9))
+                self.speccanvas.addItem(errplot)
+
+        self.speccanvas.setLimits(yMin=np.log10(self.tb_lowerbound), yMax=np.log10(self.tb_upperbound))
         xax = self.speccanvas.getAxis('bottom')
         yax = self.speccanvas.getAxis('left')
         xax.setLabel("Frequency [GHz]")
@@ -521,7 +558,6 @@ class App(QMainWindow):
 
     def update_spec(self):
         """Use Matplotlib.pyplot for the spectral plot"""
-        self.freqghz_bound = [1.0, 18.0]
         self.subim = self.roi.getArrayRegion(self.rdata[:, ::-1, :], self.meocanvas.getImageItem(), axes=(2, 1))
         # print(self.subim.shape)
         tb = np.nanmax(self.subim, axis=(1, 2))
@@ -532,7 +568,7 @@ class App(QMainWindow):
         freqghz_ma = ma.masked_array(freqghz, mask_fit)
         tb_ma = ma.masked_array(tb, mask_fit)
 
-        tb_err = tb * 0.0
+        tb_err = tb * 0.1
         tb_err[:] = 1.e6
         tb_err_ma = ma.masked_array(tb_err, tb_ma.mask)
         errobjs = []
@@ -560,6 +596,43 @@ class App(QMainWindow):
         ax.set_xlabel('Frequency [GHz]')
 
         self.speccanvas.draw()
+
+    def rms_rgn_select(self):
+        """Select a region to calculate rms on spectra"""
+        if self.rms_selection_button.isChecked():
+            self.rms_selection_button.setStyleSheet("background-color : lightblue")
+            self.rms_roi = pg.RectROI([0, 0], [40, 40], pen='w')
+            self.meocanvas.addItem(self.rms_roi)
+            self.rms_rgn_return()
+            self.rms_roi.sigRegionChanged.connect(self.rms_rgn_return)
+        else:
+            # if rms already exists, remove the ROI box
+            self.rms_selection_button.setStyleSheet("background-color : lightgrey")
+            self.meocanvas.removeItem(self.rms_roi)
+
+
+    def rms_rgn_return(self):
+        """Select a region to calculate rms on spectra"""
+        self.rms = np.std(self.rms_roi.getArrayRegion(self.rdata[:, ::-1, :],
+                                                      self.meocanvas.getImageItem(), axes=(2, 1)), axis=(1, 2))
+        self.has_rms = True
+        self.update_pgspec()
+
+    def roi_select(self):
+        """Add a ROI region to the selection"""
+        nf, nx, ny = self.rdata.shape
+        newroi = pg.RectROI([nx / 2 - 10, ny / 2 - 10], [20, 20], pen=(len(self.rois), 9))
+        self.rois.append(newroi)
+        self.meocanvas.addItem(self.rois[-1])
+        self.roi_select_return()
+        newroi.sigRegionChanged.connect(self.roi_select_return)
+        self.nroi = len(self.rois)
+
+    def roi_select_return(self):
+        self.update_pgspec()
+
+
+
 
 
 if __name__ == '__main__':
