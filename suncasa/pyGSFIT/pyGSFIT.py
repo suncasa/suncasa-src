@@ -10,6 +10,7 @@ from matplotlib.backends.backend_qt5agg import (
     FigureCanvas)
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
+import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 from matplotlib import patches, cm
 from suncasa.io import ndfits
@@ -140,7 +141,15 @@ class App(QMainWindow):
         self.qlooktoolbar = NavigationToolbar(self.qlookcanvas, self)
         qlookarea.addWidget(self.qlooktoolbar)
         qlookarea.addWidget(self.qlookcanvas)
-        self.qlook_axs = self.qlookcanvas.figure.subplots(nrows=1, ncols=4)
+        # self.qlook_axs = self.qlookcanvas.figure.subplots(nrows=1, ncols=4)
+        gs = gridspec.GridSpec(ncols=4, nrows=1)
+        self.qlook_axs = []
+        self.qlook_axs.append(self.qlookcanvas.figure.add_subplot(gs[0, 0]))
+        self.qlook_axs.append(self.qlookcanvas.figure.add_subplot(gs[0, 1]))
+        self.qlook_axs.append(self.qlookcanvas.figure.add_subplot(gs[0, 2], sharex=self.qlook_axs[-1],
+                              sharey=self.qlook_axs[-1]))
+        self.qlook_axs.append(self.qlookcanvas.figure.add_subplot(gs[0, 3], sharex=self.qlook_axs[-1],
+                              sharey=self.qlook_axs[-1]))
 
         upperbox.addLayout(qlookarea)
         mainlayout.addLayout(upperbox)
@@ -174,7 +183,6 @@ class App(QMainWindow):
         # self.spec_axs = self.speccanvas.figure.subplots(nrows=1, ncols=1)
         lowerbox.addLayout(specplotarea, 0, 1)
         lowerbox.setColumnStretch(1, 1)
-
 
         mainlayout.addLayout(lowerbox)
         self.tabs.widget(0).setLayout(mainlayout)
@@ -510,9 +518,6 @@ class App(QMainWindow):
         yax.setLabel("Brightness Temperature [MK]")
         xax.setTicks([self.xticks, self.xticks_minor])
         yax.setTicks([self.yticks, self.yticks_minor])
-
-
-
 
     def update_spec(self):
         """Use Matplotlib.pyplot for the spectral plot"""
