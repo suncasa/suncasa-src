@@ -562,12 +562,12 @@ class App(QMainWindow):
 
     def update_fbar(self):
         if self.fbar is not None:
-            self.speccanvas.removeItem(self.fbar)
-            self.fbar = self.speccanvas.plot(x=np.log10([self.meocanvas.timeLine.getXPos()] * 2), y=[1, 15], pen='k')
-        # try:
-        #     pass
-        # except:
-        #     pass
+            try:
+                self.speccanvas.removeItem(self.fbar)
+                self.fbar = self.speccanvas.plot(x=np.log10([self.meocanvas.timeLine.getXPos()] * 2), y=[1, 15], pen='k')
+                self.speccanvas.addItem(self.fbar)
+            except:
+                pass
 
 
     def update_spec(self):
