@@ -54,6 +54,7 @@ class App(QMainWindow):
         self.has_eovsamap = False
         self.has_aiamap = False
         self.has_rms = False
+        self.fbar = None
         self.tb_upperbound = 5e9 # lower bound of brightness temperature to consider
         self.tb_lowerbound = 1e3 # lower bound of brightness temperature to consider
         self.freqghz_bound = [1.0, 18.0]
@@ -193,6 +194,7 @@ class App(QMainWindow):
         pgimgbox.addLayout(pgbuttonbox)
         lowerbox.addLayout(pgimgbox, 0, 0)
         lowerbox.setColumnStretch(0, 1.5)
+        self.meocanvas.sigTimeChanged.connect(self.update_fbar)
         # self.meo_axs = self.meocanvas.figure.subplots(nrows=2, ncols=2)
         # self.plot_axs.clear()
         # im = self.dspec_ax.pcolormesh(pd, fghz,np.clip(spec, minval, maxval))
@@ -548,6 +550,8 @@ class App(QMainWindow):
                                           bottom=np.log10(tb_ma/tb_bounds_min), beam=0.025, pen=(n, 9))
                 self.speccanvas.addItem(errplot)
 
+        self.fbar = self.speccanvas.plot(x=np.log10([self.meocanvas.timeLine.getXPos()]*2), y=[1,15], pen='k')
+        self.speccanvas.addItem(self.fbar)
         self.speccanvas.setLimits(yMin=np.log10(self.tb_lowerbound), yMax=np.log10(self.tb_upperbound))
         xax = self.speccanvas.getAxis('bottom')
         yax = self.speccanvas.getAxis('left')
@@ -555,6 +559,16 @@ class App(QMainWindow):
         yax.setLabel("Brightness Temperature [MK]")
         xax.setTicks([self.xticks, self.xticks_minor])
         yax.setTicks([self.yticks, self.yticks_minor])
+
+    def update_fbar(self):
+        if self.fbar is not None:
+            self.speccanvas.removeItem(self.fbar)
+            self.fbar = self.speccanvas.plot(x=np.log10([self.meocanvas.timeLine.getXPos()] * 2), y=[1, 15], pen='k')
+        # try:
+        #     pass
+        # except:
+        #     pass
+
 
     def update_spec(self):
         """Use Matplotlib.pyplot for the spectral plot"""
