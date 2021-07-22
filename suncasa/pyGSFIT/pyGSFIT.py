@@ -10,6 +10,7 @@ from matplotlib.backends.backend_qt5agg import (
     FigureCanvas)
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
+import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 from matplotlib import patches, cm
 from suncasa.io import ndfits
@@ -140,7 +141,15 @@ class App(QMainWindow):
         self.qlooktoolbar = NavigationToolbar(self.qlookcanvas, self)
         qlookarea.addWidget(self.qlooktoolbar)
         qlookarea.addWidget(self.qlookcanvas)
-        self.qlook_axs = self.qlookcanvas.figure.subplots(nrows=1, ncols=4)
+        # self.qlook_axs = self.qlookcanvas.figure.subplots(nrows=1, ncols=4)
+        gs = gridspec.GridSpec(ncols=4, nrows=1)
+        self.qlook_axs = []
+        self.qlook_axs.append(self.qlookcanvas.figure.add_subplot(gs[0, 0]))
+        self.qlook_axs.append(self.qlookcanvas.figure.add_subplot(gs[0, 1]))
+        self.qlook_axs.append(self.qlookcanvas.figure.add_subplot(gs[0, 2], sharex=self.qlook_axs[-1],
+                              sharey=self.qlook_axs[-1]))
+        self.qlook_axs.append(self.qlookcanvas.figure.add_subplot(gs[0, 3], sharex=self.qlook_axs[-1],
+                              sharey=self.qlook_axs[-1]))
 
         upperbox.addLayout(qlookarea)
         mainlayout.addLayout(upperbox)
@@ -212,6 +221,7 @@ class App(QMainWindow):
         self.plot_qlookmap()
         # self.initspecplot()
         self.plot_pg_eovsamap()
+        self.init_pgspecplot()
 
     def aiafile_select_return(self):
         ''' Called when the FITS filename LineEdit widget gets a carriage-return.
@@ -244,6 +254,45 @@ class App(QMainWindow):
                                                                   "FITS Images (*.fits *.fit *.ft)")
         self.aiafitsentry.setText(self.aiafname)
         self.aiafile_select_return()
+
+    def init_pgspecplot(self):
+        """ Initial Spectral Plot if no data has been loaded """
+        xticksv = list(range(0, 4))
+        self.xticks = []
+        xticksv_minor = []
+        for v in xticksv:
+            vp = 10 ** v
+            xticksv_minor += list(np.arange(2 * vp, 10 * vp, 1 * vp))
+            self.xticks.append((v, '{:.0f}'.format(vp)))
+        self.xticks_minor = []
+        for v in xticksv_minor:
+            self.xticks_minor.append((np.log10(v), ''))
+        yticksv = list(range(1, 15))
+        yticksv_minor = []
+        for v in yticksv:
+            vp = 10 ** v
+            yticksv_minor += list(np.arange(2 * vp, 10 * vp, 1 * vp))
+        self.yticks_minor = []
+        for v in yticksv_minor:
+            self.yticks_minor.append((np.log10(v), ''))
+        self.yticks = []
+        for v in yticksv:
+            if v >= 6:
+                self.yticks.append([v, r'{:.0f}'.format(10 ** v / 1e6)])
+            if v == 1:
+                self.yticks.append([v, r'{:.5f}'.format(10 ** v / 1e6)])
+            elif v == 2:
+                self.yticks.append([v, r'{:.4f}'.format(10 ** v / 1e6)])
+            elif v == 3:
+                self.yticks.append([v, r'{:.3f}'.format(10 ** v / 1e6)])
+            elif v == 4:
+                self.yticks.append([v, r'{:.2f}'.format(10 ** v / 1e6)])
+            elif v == 5:
+                self.yticks.append([v, r'{:.1f}'.format(10 ** v / 1e6)])
+            else:
+                self.yticks.append([v, r'{:.0f}'.format(10 ** v / 1e6)])
+
+        self.update_pgspec()
 
     def initspecplot(self):
         """ Initial Spectral Plot if no data has been loaded (not used for pyqtgraph method)"""
@@ -283,7 +332,7 @@ class App(QMainWindow):
         # Plot a quicklook map
         # self.qlook_ax.clear()
         ax0 = self.qlook_axs[0]
-        bds = [5, 15, 25]
+
         if os.path.exists(self.fname):
             rmap, rdata, rheader, ndim, npol_fits, stokaxis, rfreqs, rfdelts = ndfits.read(self.fname)
             self.rmap = rmap
@@ -299,6 +348,7 @@ class App(QMainWindow):
             self.calpha = 1.
             self.haseovsamap = True
             nspw = len(self.rfreqs)
+            bds = np.linspace(0, nspw, 5)[1:4].astype(np.int)
             eodate = Time(self.rmap.date.mjd + self.rmap.exposure_time.value / 2. / 24 / 3600, format='mjd')
             rsun_obs = sunpy.coordinates.sun.angular_radius(eodate).value
             solar_limb = patches.Circle((0, 0), radius=rsun_obs, fill=False, color='k', lw=1, linestyle=':')
@@ -463,37 +513,11 @@ class App(QMainWindow):
         self.speccanvas.addItem(dataplot)
         self.speccanvas.addItem(errplot)
         xax = self.speccanvas.getAxis('bottom')
-        xax.setLabel("Frequency [GHz]")
-        xticksv = list(range(0, 4))
-        xticks_minor = []
-        for l in xticksv:
-            vp = 10 ** l
-            xticks_minor += list(np.arange(2 * vp, 10 * vp, 1 * vp))
-        xax.setTicks([[(v, '{:.0f}'.format(10 ** v)) for v in xticksv], [(np.log10(v), '') for v in xticks_minor]])
         yax = self.speccanvas.getAxis('left')
+        xax.setLabel("Frequency [GHz]")
         yax.setLabel("Brightness Temperature [MK]")
-        yticksv = list(range(1, 15))
-        yticks_minor = []
-        for l in yticksv:
-            vp = 10 ** l
-            yticks_minor += list(np.arange(2 * vp, 10 * vp, 1 * vp))
-        yticks = []
-        for v in yticksv:
-            if v >= 6:
-                yticks.append([v, r'{:.0f}'.format(10 ** v / 1e6)])
-            if v == 1:
-                yticks.append([v, r'{:.5f}'.format(10 ** v / 1e6)])
-            elif v == 2:
-                yticks.append([v, r'{:.4f}'.format(10 ** v / 1e6)])
-            elif v == 3:
-                yticks.append([v, r'{:.3f}'.format(10 ** v / 1e6)])
-            elif v == 4:
-                yticks.append([v, r'{:.2f}'.format(10 ** v / 1e6)])
-            elif v == 5:
-                yticks.append([v, r'{:.1f}'.format(10 ** v / 1e6)])
-            else:
-                yticks.append([v, r'{:.0f}'.format(10 ** v / 1e6)])
-        yax.setTicks([yticks, [(np.log10(v), '') for v in yticks_minor]])
+        xax.setTicks([self.xticks, self.xticks_minor])
+        yax.setTicks([self.yticks, self.yticks_minor])
 
     def update_spec(self):
         """Use Matplotlib.pyplot for the spectral plot"""
