@@ -22,7 +22,7 @@ import numpy.ma as ma
 
 
 libname = os.path.join(os.path.dirname(GScodes.__file__),
-                       'MWTransferArr.so')  # name of the executable library - located where Python can find it
+                       'binaries/MWTransferArr.so')  # name of the executable library - located where Python can find it
 
 
 def kev2k(eng):
