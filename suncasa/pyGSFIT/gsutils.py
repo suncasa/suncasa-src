@@ -642,8 +642,8 @@ class GStool:
         #     ax_spec.plot(freqghz_ma, tb_ma / 1.e6, marker='o', linestyle='', c=cplts[ti]))
 
         # flx_rms = rms
-        tb_err = tb * 0.0
-        tb_err[:] = 0.2e6
+        tb_err = tb * 0.1
+        # tb_err[:] = 0.2e6
         tb_err_ma = ma.masked_array(tb_err, tb_ma.mask)
         if len(self.scatter_eospecs_fit) == 0:
             for ti, cplt in enumerate(self.cplts):
