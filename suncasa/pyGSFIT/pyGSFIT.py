@@ -36,6 +36,16 @@ pg.setConfigOption('background', 'w')
 pg.setConfigOption('foreground', 'k')
 pg.setConfigOptions(imageAxisOrder='row-major')
 
+fit_param_text = {'Bx100G': 'B [\u00d7100 G]',
+                  'log_nnth': 'log(n<sub>nth</sub>) [cm<sup>-3</sup>]',
+                  'delta': '\u03b4',
+                  'Emin_keV': 'E<sub>min</sub> [keV]',
+                  'Emax_MeV': 'E<sub>max</sub> [MeV]',
+                  'theta': '\u03b8 [degree]',
+                  'log_nth': 'log(n<sub>th</sub>) [cm<sup>-3</sup>]',
+                  'T_MK': 'T [MK]',
+                  'depth_Mm': 'depth [Mm]'}
+
 
 class App(QMainWindow):
 
@@ -78,8 +88,6 @@ class App(QMainWindow):
         self.nroi = 0
         self.roi_select_idx = 0
         self.initUI()
-
-
 
     def initUI(self):
 
@@ -273,7 +281,6 @@ class App(QMainWindow):
 
         fit_layout.addWidget(roi_select_group)
 
-
         ####### Group 2: Fit Settings Group
         fit_setting_group = QGroupBox("Fit Settings")
         fit_setting_box = QVBoxLayout()
@@ -345,8 +352,8 @@ class App(QMainWindow):
         fit_param_box.addWidget(QLabel('Maximum'), 0, 4)
         fit_param_box.addWidget(QLabel('Fit Results'), 0, 5)
         for n, key in enumerate(self.fit_params):
-            #param_layout = QHBoxLayout()
-            #param_layout.addWidget(QLabel(key))
+            # param_layout = QHBoxLayout()
+            # param_layout.addWidget(QLabel(key))
             param_init_value_widget = QDoubleSpinBox()
             param_init_value_widget.setDecimals(1)
             param_init_value_widget.setValue(self.fit_params[key].init_value)
@@ -371,12 +378,12 @@ class App(QMainWindow):
             param_fit_value_widget.setValue(self.fit_params[key].value)
             param_fit_value_widget.valueChanged.connect(self.update_params)
 
-            fit_param_box.addWidget(QLabel(key), n+1, 0)
-            fit_param_box.addWidget(param_init_value_widget, n+1, 1)
-            fit_param_box.addWidget(param_vary_widget, n+1, 2)
-            fit_param_box.addWidget(param_min_widget, n+1, 3)
-            fit_param_box.addWidget(param_max_widget, n+1, 4)
-            fit_param_box.addWidget(param_fit_value_widget, n+1, 5)
+            fit_param_box.addWidget(QLabel(fit_param_text[key]), n + 1, 0)
+            fit_param_box.addWidget(param_init_value_widget, n + 1, 1)
+            fit_param_box.addWidget(param_vary_widget, n + 1, 2)
+            fit_param_box.addWidget(param_min_widget, n + 1, 3)
+            fit_param_box.addWidget(param_max_widget, n + 1, 4)
+            fit_param_box.addWidget(param_fit_value_widget, n + 1, 5)
 
             self.param_init_value_widgets.append(param_init_value_widget)
             self.param_vary_widgets.append(param_vary_widget)
@@ -844,7 +851,6 @@ class App(QMainWindow):
         self.ele_dist = self.ele_function_selector_widget.currentText()
         self.init_params()
 
-
     def init_params(self):
         if self.ele_dist == 'powerlaw':
             self.fit_params = lmfit.Parameters()
@@ -858,7 +864,7 @@ class App(QMainWindow):
                                      ('T_MK', 10., False, 0.1, 100, None, None),
                                      ('depth_Mm', 10., False, 1., 100., None, None))
             self.fit_function = gscf.SinglePowerLawMinimizerOneSrc
-        #print(self.fit_params)
+        # print(self.fit_params)
 
     def update_params(self):
         print('==========Parameters Updated To the Following=======')
@@ -894,7 +900,7 @@ class App(QMainWindow):
         tb_max_fit_res = self.fit_function(mi.params, freqghz_toplot)
         self.spec_fitplot = self.speccanvas.plot(x=np.log10(freqghz_toplot), y=np.log10(tb_max_fit_res),
                                                  pen=dict(color=pg.mkColor(self.roi_select_idx), width=4),
-                                             symbol=None, symbolBrush=None)
+                                                 symbol=None, symbolBrush=None)
         self.speccanvas.addItem(self.spec_fitplot)
 
 
