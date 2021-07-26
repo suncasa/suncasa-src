@@ -66,27 +66,34 @@ class App(QMainWindow):
         self.fit_method = 'nelder'
         self.fit_params = lmfit.Parameters()
         self.fit_params.add_many(('Bx100G', 2., True, 0.1, 100., None, None),
-                                 ('log_nnth', 7., True, 3., 11, None, None),
+                                 ('log_nnth', 5., True, 3., 11, None, None),
                                  ('delta', 4., True, 1., 30., None, None),
-                                 ('Emin_keV', 10., True, 1., 100., None, None),
+                                 ('Emin_keV', 10., False, 1., 100., None, None),
                                  ('Emax_MeV', 10., False, 0.05, 100., None, None),
-                                 ('theta', 45., False, 0.01, 89.9, None, None),
+                                 ('theta', 45., True, 0.01, 89.9, None, None),
                                  ('log_nth', 10, True, 4., 13., None, None),
-                                 ('T_MK', 10., False, 0.1, 100, None, None),
-                                 ('depth_Mm', 10., False, 1., 100., None, None))
+                                 ('T_MK', 1., False, 0.1, 100, None, None),
+                                 ('depth_Mm', 5., False, 1., 100., None, None))
+        self.fit_params_nvarys = 5
+        self.fit_kws = {'maxiter': 200 * self.fit_params_nvarys, 'xatol': 0.01, 'fatol': 10.}
         self.fit_function = gscf.SinglePowerLawMinimizerOneSrc
         self.threadpool = QThreadPool()
         self.has_eovsamap = False
         self.has_aiamap = False
-        self.has_rms = False
+        self.has_bkg = False
         self.has_rois = False
         self.fbar = None
-        self.tb_upperbound = 5e9  # lower bound of brightness temperature to consider
-        self.tb_lowerbound = 1e3  # lower bound of brightness temperature to consider
-        self.freq_bound = [1.0, 18.0]
+        self.data_freq_bound = [1.0, 18.0]  # Initial Frequency Bound of the instrument
+        self.fit_tb_bound = [1e3, 5e9]  # Bound of brightness temperature to consider for the fit
+        self.fit_freq_bound = [1.0, 18.0]
         self.rois = []
         self.nroi = 0
         self.roi_select_idx = 0
+        # some controls for qlookplot
+        self.opencontour = True
+        self.clevels = np.array([0.3, 0.7])
+        self.calpha = 1.
+        # initialize the window
         self.initUI()
 
     def initUI(self):
@@ -203,13 +210,6 @@ class App(QMainWindow):
         pgimgbox = QVBoxLayout()  # left box of lower box for pg ImageView and associated buttons
         pgbuttonbox = QHBoxLayout()  # bottom of pgimgbox for a bunch or buttons
 
-        # RMS Region Selection Button
-        self.rms_selection_button = QPushButton("Select RMS Rgn")
-        self.rms_selection_button.setStyleSheet("background-color : lightgrey")
-        self.rms_selection_button.setCheckable(True)
-        self.rms_selection_button.clicked.connect(self.rms_rgn_select)
-        pgbuttonbox.addWidget(self.rms_selection_button)
-
         # ADD ROI Region for Obtaining Spectra
         self.add_roi_button = QPushButton("Add ROI")
         self.add_roi_button.setStyleSheet("background-color : lightgrey")
@@ -274,10 +274,22 @@ class App(QMainWindow):
         # roi_group_box.addWidget(QLabel("ROI Information"))
         roi_group_box.addWidget(self.roi_info)
 
-        # Do fit button for selected ROI
+        ## Add buttons for doing spectral fit
+        fit_button_box = QHBoxLayout()
+        # Background selection button
+        # self.bkg_selection_button = QPushButton("Select Background")
+        # self.bkg_selection_button.setStyleSheet("background-color : lightgrey")
+        # self.bkg_selection_button.setCheckable(True)
+        # self.bkg_selection_button.clicked.connect(self.bkg_rgn_select)
+        # fit_button_box.addWidget(self.bkg_selection_button)
+
+        # Do Fit Button
         do_spec_fit_button = QPushButton("Fit Selected ROI")
         do_spec_fit_button.clicked.connect(self.do_spec_fit)
-        roi_group_box.addWidget(do_spec_fit_button)
+        fit_button_box.addWidget(do_spec_fit_button)
+
+        # Add fit button box to roi group
+        roi_group_box.addLayout(fit_button_box)
 
         fit_layout.addWidget(roi_select_group)
 
@@ -288,36 +300,37 @@ class App(QMainWindow):
         freq_bound_box = QHBoxLayout()
 
         # Group 2: Lower Frequency Bounds for fit
-        self.freq_lowbound_slider = QSlider(Qt.Horizontal)
-        self.freq_lowbound_slider.setMinimum(1)
-        self.freq_lowbound_slider.setMaximum(18)
-        self.freq_lowbound_slider.setValue(1)
-        self.freq_lowbound_slider.setSingleStep(0.2)
-        self.freq_lowbound_slider.setTickPosition(QSlider.TicksBelow)
-        self.freq_lowbound_slider.setTickInterval(1)
-        self.freq_lowbound_slider.valueChanged.connect(self.freq_lowbound_valuechange)
-        freq_bound_box.addWidget(QLabel("Min Freq"))
-        freq_bound_box.addWidget(self.freq_lowbound_slider)
+        self.freq_lowbound_selector = QDoubleSpinBox()
+        self.freq_lowbound_selector.setDecimals(1)
+        self.freq_lowbound_selector.setRange(self.data_freq_bound[0], self.data_freq_bound[1])
+        self.freq_lowbound_selector.setSingleStep(0.1)
+        self.freq_lowbound_selector.setValue(self.data_freq_bound[0])
+        self.freq_lowbound_selector.valueChanged.connect(self.freq_lowbound_valuechange)
+        freq_bound_box.addWidget(QLabel("Minimum Frequency (GHz)"))
+        freq_bound_box.addWidget(self.freq_lowbound_selector)
 
         # Group 2: Upper Frequency Bounds for fit
-        self.freq_hibound_slider = QSlider(Qt.Horizontal)
-        self.freq_hibound_slider.setMinimum(1)
-        self.freq_hibound_slider.setMaximum(18)
-        self.freq_hibound_slider.setValue(18)
-        self.freq_hibound_slider.setSingleStep(0.2)
-        self.freq_hibound_slider.setTickPosition(QSlider.TicksBelow)
-        self.freq_hibound_slider.setTickInterval(1)
-        self.freq_hibound_slider.valueChanged.connect(self.freq_hibound_valuechange)
-        freq_bound_box.addWidget(QLabel("Max Freq"))
-        freq_bound_box.addWidget(self.freq_hibound_slider)
+        self.freq_hibound_selector = QDoubleSpinBox()
+        self.freq_hibound_selector.setDecimals(1)
+        self.freq_hibound_selector.setRange(self.data_freq_bound[0], self.data_freq_bound[1])
+        self.freq_hibound_selector.setSingleStep(0.1)
+        self.freq_hibound_selector.setValue(self.data_freq_bound[1])
+        self.freq_hibound_selector.valueChanged.connect(self.freq_hibound_valuechange)
+        freq_bound_box.addWidget(QLabel("Maximum Frequency (GHz)"))
+        freq_bound_box.addWidget(self.freq_hibound_selector)
 
         # Group 2: Fit Method
-        fit_method_box = QHBoxLayout()
+        self.fit_method_box = QHBoxLayout()
         self.fit_method_selector_widget = QComboBox()
-        self.fit_method_selector_widget.addItems(["nelder", "leastsq", "differential_evolution", "basinhopping"])
+        self.fit_method_selector_widget.addItems(["nelder", "basinhopping", "differential_evolution"])
         self.fit_method_selector_widget.currentIndexChanged.connect(self.fit_method_selector)
-        fit_method_box.addWidget(QLabel("Fit Method"))
-        fit_method_box.addWidget(self.fit_method_selector_widget)
+        self.fit_method_box.addWidget(QLabel("Fit Method"))
+        self.fit_method_box.addWidget(self.fit_method_selector_widget)
+
+        # Group 2: Fit Method Dependent Keywords
+        self.fit_kws_box = QHBoxLayout()
+        self.update_fit_kws_widgets()
+        self.fit_method_box.addLayout(self.fit_kws_box)
 
         # Group 2: Electron Function
         ele_function_box = QHBoxLayout()
@@ -329,7 +342,7 @@ class App(QMainWindow):
         ele_function_box.addWidget(self.ele_function_selector_widget)
 
         fit_setting_box.addLayout(freq_bound_box)
-        fit_setting_box.addLayout(fit_method_box)
+        fit_setting_box.addLayout(self.fit_method_box)
         fit_setting_box.addLayout(ele_function_box)
         fit_layout.addWidget(fit_setting_group)
 
@@ -420,6 +433,16 @@ class App(QMainWindow):
         self.fitsdata = None
         try:
             rmap, rdata, rheader, ndim, npol_fits, stokaxis, rfreqs, rfdelts = ndfits.read(self.fname)
+            self.rmap = rmap
+            self.rdata = rdata
+            self.rfreqs = rfreqs
+            self.rheader = rheader
+            self.bdinfo = bdinfo = ndfits.get_bdinfo(rfreqs, rfdelts)
+            self.cfreqs = bdinfo['cfreqs']
+            self.freqbdwds = rfdelts
+            self.cfreqs_all = cfreqs_all = bdinfo['cfreqs_all']
+            self.freq_dist = lambda fq: (fq - cfreqs_all[0]) / (cfreqs_all[-1] - cfreqs_all[0])
+            self.has_eovsamap = True
             # self.infoEdit.setPlainText(repr(rheader))
         except:
             self.statusBar.showMessage('Filename is not a valid FITS file', 2000)
@@ -428,9 +451,8 @@ class App(QMainWindow):
             # self.infoEdit.setPlainText('')
 
         self.plot_qlookmap()
-        # self.initspecplot()
-        self.plot_pg_eovsamap()
         self.init_pgspecplot()
+        self.plot_pg_eovsamap()
 
     def aiafile_select_return(self):
         ''' Called when the FITS filename LineEdit widget gets a carriage-return.
@@ -544,18 +566,6 @@ class App(QMainWindow):
 
         if os.path.exists(self.fname):
             rmap, rdata, rheader, ndim, npol_fits, stokaxis, rfreqs, rfdelts = ndfits.read(self.fname)
-            self.rmap = rmap
-            self.rdata = rdata
-            self.rfreqs = rfreqs
-            self.rheader = rheader
-            self.bdinfo = bdinfo = ndfits.get_bdinfo(rfreqs, rfdelts)
-            self.cfreqs = cfreqs = bdinfo['cfreqs']
-            self.cfreqs_all = cfreqs_all = bdinfo['cfreqs_all']
-            self.freq_dist = lambda fq: (fq - cfreqs_all[0]) / (cfreqs_all[-1] - cfreqs_all[0])
-            self.opencontour = True
-            self.clevels = np.array([0.3, 0.7])
-            self.calpha = 1.
-            self.has_eovsamap = True
             nspw = len(self.rfreqs)
             bds = np.linspace(0, nspw, 5)[1:4].astype(np.int)
             eodate = Time(self.rmap.date.mjd + self.rmap.exposure_time.value / 2. / 24 / 3600, format='mjd')
@@ -647,20 +657,7 @@ class App(QMainWindow):
     def plot_pg_eovsamap(self):
         """This is to plot the eovsamap with the pyqtgraph's ImageView Widget"""
         if os.path.exists(self.fname):
-            rmap, rdata, rheader, ndim, npol_fits, stokaxis, rfreqs, rfdelts = ndfits.read(self.fname)
-            self.rmap = rmap
-            self.rdata = rdata
-            self.rfreqs = rfreqs
-            self.rheader = rheader
-            self.bdinfo = bdinfo = ndfits.get_bdinfo(rfreqs, rfdelts)
-            self.cfreqs = cfreqs = bdinfo['cfreqs']
-            self.cfreqs_all = cfreqs_all = bdinfo['cfreqs_all']
-            self.freq_dist = lambda fq: (fq - cfreqs_all[0]) / (cfreqs_all[-1] - cfreqs_all[0])
-            self.opencontour = True
-            self.clevels = np.array([0.3, 0.7])
-            self.calpha = 1.
-            self.has_eovsamap = True
-            nspw = len(self.rfreqs)
+            nspw = len(self.cfreqs)
             eodate = Time(self.rmap.date.mjd + self.rmap.exposure_time.value / 2. / 24 / 3600, format='mjd')
             ny, nx = self.rmap.data.shape
             x0, x1 = (np.array([1, self.rmap.meta['NAXIS1']]) - self.rmap.meta['CRPIX1']) * self.rmap.meta['CDELT1'] + \
@@ -685,11 +682,16 @@ class App(QMainWindow):
             ]
             cmap = pg.ColorMap(pos=np.linspace(0.0, 1.0, 6), color=colors)
             self.pg_img_canvas.setColorMap(cmap)
-            # nf, nx, ny = self.rdata.shape
-            # self.roi = pg.RectROI([nx / 2 - 10, ny / 2 - 10], [20, 20], pen=(0, 9))
-            # self.roi.sigRegionChanged.connect(self.update_spec)
-            # self.roi.sigRegionChanged.connect(self.update_pgspec)
-            # self.meocanvas.addItem(self.roi)
+
+            # define the initial background ROI region
+            if not self.has_bkg:
+                self.bkg_roi = pg.RectROI([0, 0], [40, 40], pen='w')
+                self.pg_img_canvas.addItem(self.bkg_roi)
+                self.has_bkg = True
+                bkg_roi_label = pg.TextItem("Background", anchor=(0, 0), color='w')
+                bkg_roi_label.setParentItem(self.bkg_roi)
+                self.bkg_rgn_update()
+                self.bkg_roi.sigRegionChanged.connect(self.bkg_rgn_update)
 
     def get_roi_specs(self):
         for n, roi in enumerate(self.rois):
@@ -702,18 +704,18 @@ class App(QMainWindow):
 
     def update_fitmask(self):
         for n, roi in enumerate(self.rois):
-            tb_max_tofit0 = ma.masked_less_equal(roi.tb_max, self.tb_lowerbound)
-            freqghz_tofit0 = ma.masked_outside(self.cfreqs, self.freq_bound[0], self.freq_bound[1])
+            tb_max_tofit0 = ma.masked_less_equal(roi.tb_max, self.fit_tb_bound[0])
+            freqghz_tofit0 = ma.masked_outside(self.cfreqs, self.fit_freq_bound[0], self.fit_freq_bound[1])
             roi.mask_tofit = mask_tofit = np.logical_or(freqghz_tofit0.mask, tb_max_tofit0.mask)
             roi.freqghz_tofit = ma.masked_array(self.cfreqs, mask_tofit)
             roi.tb_max_tofit = ma.masked_array(roi.tb_max, mask_tofit)
-            if self.has_rms:
-                roi.tb_rms_tofit = ma.masked_array(self.rms, roi.mask_tofit)
+            if self.has_bkg:
+                roi.tb_rms_tofit = ma.masked_array(self.bkg, roi.mask_tofit)
 
     def plot_pgspec(self):
         self.update_fitmask()
-        if self.has_rms:
-            rmsplot = self.speccanvas.plot(x=np.log10(self.cfreqs), y=np.log10(self.rms), pen='k',
+        if self.has_bkg:
+            rmsplot = self.speccanvas.plot(x=np.log10(self.cfreqs), y=np.log10(self.bkg), pen='k',
                                            symbol='d', symbolPen='k', symbolBrush=None)
             self.speccanvas.addItem(rmsplot)
         self.spec_dataplots = []
@@ -734,12 +736,12 @@ class App(QMainWindow):
             self.spec_dataplots_tofit.append(spec_dataplot_tofit)
 
             # Add errorbar if rms is defined
-            if self.has_rms:
-                tb_rms = self.rms
-                tb_bounds_min = np.maximum(roi.tb_max - tb_rms, np.ones_like(roi.tb_max) * self.tb_lowerbound)
+            if self.has_bkg:
+                tb_rms = self.bkg
+                tb_bounds_min = np.maximum(roi.tb_max - tb_rms, np.ones_like(roi.tb_max) * self.fit_tb_bound[0])
                 tb_bounds_max = roi.tb_max + tb_rms
                 tb_bounds_min_ma = np.maximum(roi.tb_max_tofit - roi.tb_rms_tofit,
-                                              np.ones_like(roi.tb_max_tofit) * self.tb_lowerbound)
+                                              np.ones_like(roi.tb_max_tofit) * self.fit_tb_bound[0])
                 tb_bounds_max_ma = roi.tb_max_tofit + roi.tb_rms_tofit
                 errplot = pg.ErrorBarItem(x=np.log10(roi.freqghz), y=np.log10(roi.tb_max),
                                           top=np.log10(tb_bounds_max / roi.tb_max),
@@ -748,7 +750,7 @@ class App(QMainWindow):
 
         self.fbar = self.speccanvas.plot(x=np.log10([self.pg_img_canvas.timeLine.getXPos()] * 2), y=[1, 15], pen='k')
         self.speccanvas.addItem(self.fbar)
-        self.speccanvas.setLimits(yMin=np.log10(self.tb_lowerbound), yMax=np.log10(self.tb_upperbound))
+        self.speccanvas.setLimits(yMin=np.log10(self.fit_tb_bound[0]), yMax=np.log10(self.fit_tb_bound[1]))
         xax = self.speccanvas.getAxis('bottom')
         yax = self.speccanvas.getAxis('left')
         xax.setLabel("Frequency [GHz]")
@@ -758,11 +760,11 @@ class App(QMainWindow):
 
     def pgspec_add_boundbox(self):
         # add frequency bound
-        self.freq_bound_rgn = pg.LinearRegionItem(brush=(20, 50, 200, 20))
-        self.freq_bound_rgn.setZValue(10)
-        self.freq_bound_rgn.setRegion([np.log10(self.freq_bound[0]), np.log10(self.freq_bound[1])])
-        self.speccanvas.addItem(self.freq_bound_rgn)
-        self.freq_bound_rgn.sigRegionChanged.connect(self.update_freq_bound_rgn)
+        self.rgn_freq_bound = pg.LinearRegionItem(brush=(20, 50, 200, 20))
+        self.rgn_freq_bound.setZValue(10)
+        self.rgn_freq_bound.setRegion([np.log10(self.fit_freq_bound[0]), np.log10(self.fit_freq_bound[1])])
+        self.speccanvas.addItem(self.rgn_freq_bound)
+        self.rgn_freq_bound.sigRegionChangeFinished.connect(self.update_freq_bound_rgn)
 
     def update_pgspec(self):
         """Use Pyqtgraph's PlotWidget for the spectral plot"""
@@ -780,24 +782,25 @@ class App(QMainWindow):
             except:
                 pass
 
-    def rms_rgn_select(self):
-        """Select a region to calculate rms on spectra"""
-        if self.rms_selection_button.isChecked():
-            self.rms_selection_button.setStyleSheet("background-color : lightblue")
-            self.rms_roi = pg.RectROI([0, 0], [40, 40], pen='w')
-            self.pg_img_canvas.addItem(self.rms_roi)
-            self.rms_rgn_return()
-            self.rms_roi.sigRegionChanged.connect(self.rms_rgn_return)
-        else:
-            # if rms already exists, remove the ROI box
-            self.rms_selection_button.setStyleSheet("background-color : lightgrey")
-            self.pg_img_canvas.removeItem(self.rms_roi)
+    #    def bkg_rgn_select(self):
+    #        """Select a region to calculate rms on spectra"""
+    #        if self.bkg_selection_button.isChecked():
+    #            self.bkg_selection_button.setStyleSheet("background-color : lightblue")
+    #            #self.bkg_roi = pg.RectROI([0, 0], [40, 40], pen='w')
+    #            #self.pg_img_canvas.addItem(self.bkg_roi)
+    #            #self.bkg_rgn_update()
+    #            self.bkg_roi.sigRegionChanged.connect(self.bkg_rgn_update)
+    #        else:
+    #            # if unChecked remove the ROI box from the plot
+    #            self.bkg_selection_button.setStyleSheet("background-color : lightgrey")
+    #            self.pg_img_canvas.removeItem(self.bkg_roi)
 
-    def rms_rgn_return(self):
+    def bkg_rgn_update(self):
         """Select a region to calculate rms on spectra"""
-        self.rms = np.std(self.rms_roi.getArrayRegion(self.rdata[:, ::-1, :],
+        self.bkg = np.std(self.bkg_roi.getArrayRegion(self.rdata[:, ::-1, :],
                                                       self.pg_img_canvas.getImageItem(), axes=(2, 1)), axis=(1, 2))
-        self.has_rms = True
+        # bkg_roi_label = pg.TextItem("Background", anchor=(0, 0), color='w')
+        # bkg_roi_label.setParentItem(self.bkg_roi)
         self.update_pgspec()
 
     def roi_select(self):
@@ -825,18 +828,20 @@ class App(QMainWindow):
         self.update_pgspec()
 
     def freq_lowbound_valuechange(self):
-        self.freq_bound[0] = self.freq_lowbound_slider.value()
+        self.fit_freq_bound[0] = self.freq_lowbound_selector.value()
         self.update_pgspec()
 
     def freq_hibound_valuechange(self):
-        self.freq_bound[1] = self.freq_hibound_slider.value()
+        self.fit_freq_bound[1] = self.freq_hibound_selector.value()
         self.update_pgspec()
 
     def update_freq_bound_rgn(self):
-        self.freq_bound_rgn.setZValue(10)
-        min_logfreq, max_logfreq = self.freq_bound_rgn.getRegion()
-        self.freq_bound = [10. ** min_logfreq, 10. ** max_logfreq]
+        self.rgn_freq_bound.setZValue(10)
+        min_logfreq, max_logfreq = self.rgn_freq_bound.getRegion()
+        self.fit_freq_bound = [10. ** min_logfreq, 10. ** max_logfreq]
         self.update_fitmask()
+        self.freq_lowbound_selector.setValue(self.fit_freq_bound[0])
+        self.freq_hibound_selector.setValue(self.fit_freq_bound[1])
         for spec_dataplot, spec_dataplot_tofit in zip(self.spec_dataplots, self.spec_dataplots_tofit):
             self.speccanvas.removeItem(spec_dataplot)
             self.speccanvas.removeItem(spec_dataplot_tofit)
@@ -845,6 +850,8 @@ class App(QMainWindow):
     def fit_method_selector(self):
         print("Selected Fit Method is: {}".format(self.fit_method_selector_widget.currentText()))
         self.fit_method = self.fit_method_selector_widget.currentText()
+        self.init_fit_kws()
+        self.update_fit_kws_widgets()
 
     def ele_function_selector(self):
         print("Selected Electron Distribution Function is: {}".format(self.ele_function_selector_widget.currentText()))
@@ -855,44 +862,110 @@ class App(QMainWindow):
         if self.ele_dist == 'powerlaw':
             self.fit_params = lmfit.Parameters()
             self.fit_params.add_many(('Bx100G', 2., True, 0.1, 100., None, None),
-                                     ('log_nnth', 7., True, 3., 11, None, None),
+                                     ('log_nnth', 5., True, 3., 11, None, None),
                                      ('delta', 4., True, 1., 30., None, None),
-                                     ('Emin_keV', 10., True, 1., 100., None, None),
+                                     ('Emin_keV', 10., False, 1., 100., None, None),
                                      ('Emax_MeV', 10., False, 0.05, 100., None, None),
                                      ('theta', 45., True, 0.01, 89.9, None, None),
                                      ('log_nth', 10, True, 4., 13., None, None),
-                                     ('T_MK', 10., False, 0.1, 100, None, None),
-                                     ('depth_Mm', 10., False, 1., 100., None, None))
+                                     ('T_MK', 1., False, 0.1, 100, None, None),
+                                     ('depth_Mm', 5., False, 1., 100., None, None))
+            self.fit_params_nvarys = 0
+            for key, par in self.fit_params.items():
+                if par.vary:
+                    self.fit_params_nvarys += 1
+
             self.fit_function = gscf.SinglePowerLawMinimizerOneSrc
         # print(self.fit_params)
 
+    def init_fit_kws(self):
+        # first refresh the widgets
+        if self.fit_method == 'nelder':
+            self.fit_kws = {'maxiter': 200 * self.fit_params_nvarys, 'xatol': 0.01, 'fatol': 10.}
+        if self.fit_method == 'basinhopping':
+            freqghz_tofit = self.rois[self.roi_select_idx].freqghz_tofit.compressed()
+            self.fit_kws = {'niter': 50, 'T': len(freqghz_tofit) * 8., 'stepsize': 0.8,
+                            'interval': 25}
+
+    def update_fit_kws_widgets(self):
+        # first delete every widget for the fit keywords
+        if self.fit_kws_box.count() > 0:
+            for n in reversed(range(self.fit_kws_box.count())):
+                self.fit_kws_box.itemAt(n).widget().deleteLater()
+
+        self.fit_kws_key_widgets = []
+        self.fit_kws_value_widgets = []
+        for n, key in enumerate(self.fit_kws):
+            fit_kws_key_widget = QLabel(key)
+            self.fit_kws_box.addWidget(fit_kws_key_widget)
+            if type(self.fit_kws[key]) == int:
+                fit_kws_value_widget = QSpinBox()
+                fit_kws_value_widget.setMaximum(5000)
+                fit_kws_value_widget.setValue(self.fit_kws[key])
+                fit_kws_value_widget.valueChanged.connect(self.update_fit_kws)
+            if type(self.fit_kws[key]) == float:
+                fit_kws_value_widget = QDoubleSpinBox()
+                fit_kws_value_widget.setValue(self.fit_kws[key])
+                fit_kws_value_widget.setMaximum(10000)
+                fit_kws_value_widget.setDecimals(2)
+                fit_kws_value_widget.valueChanged.connect(self.update_fit_kws)
+            if type(self.fit_kws[key]) == str:
+                fit_kws_value_widget = QTextEdit()
+                fit_kws_value_widget.setText(self.fit_kws[key])
+                fit_kws_value_widget.valueChanged.connect(self.update_fit_kws)
+            self.fit_kws_key_widgets.append(fit_kws_key_widget)
+            self.fit_kws_value_widgets.append(fit_kws_value_widget)
+            self.fit_kws_box.addWidget(fit_kws_value_widget)
+
+    def update_fit_kws(self):
+        # print('==========Parameters Updated To the Following=======')
+        for n, key in enumerate(self.fit_kws):
+            if (isinstance(self.fit_kws_value_widgets[n], QSpinBox)
+                    or isinstance(self.fit_kws_value_widgets[n], QDoubleSpinBox)):
+                self.fit_kws[key] = self.fit_kws_value_widgets[n].value()
+            if isinstance(self.fit_kws_value_widgets[n], QLineEdit):
+                self.fit_kws[key] = self.fit_kws_value_widgets[n].toPlainText()
+        # print(self.fit_kws)
+
     def update_params(self):
-        print('==========Parameters Updated To the Following=======')
+        # print('==========Parameters Updated To the Following=======')
+        self.fit_params_nvarys = 0
         for n, key in enumerate(self.fit_params):
             self.fit_params[key].init_value = self.param_init_value_widgets[n].value()
             self.fit_params[key].vary = self.param_vary_widgets[n].isChecked()
             self.fit_params[key].min = self.param_min_widgets[n].value()
             self.fit_params[key].max = self.param_max_widgets[n].value()
             self.fit_params[key].value = self.param_init_value_widgets[n].value()
-            print(key, ':', self.fit_params[key], self.fit_params[key].vary)
+            if self.fit_params[key].vary:
+                self.fit_params_nvarys += 1
 
     def do_spec_fit(self):
-        if hasattr(self, 'spec_fitplot'):
-            self.speccanvas.removeItem(self.spec_fitplot)
         freqghz_tofit = self.rois[self.roi_select_idx].freqghz_tofit.compressed()
         tb_max_tofit = self.rois[self.roi_select_idx].tb_max_tofit.compressed()
         tb_rms_tofit = self.rois[self.roi_select_idx].tb_rms_tofit.compressed()
+        max_nfev = 1000
+        ## Set up fit keywords
+        fit_kws = self.fit_kws
+        if self.fit_method == 'basinhopping':
+            fit_kws['minimizer_kwargs'] = {'method': 'Nelder-Mead'}
+            max_nfev *= self.fit_kws['niter'] * (self.fit_params_nvarys + 1)
+        if self.fit_method == 'nelder':
+            fit_kws = {'options': self.fit_kws}
+        print(fit_kws)
+
+        if hasattr(self, 'spec_fitplot'):
+            self.speccanvas.removeItem(self.spec_fitplot)
 
         mini = lmfit.Minimizer(gscf.SinglePowerLawMinimizerOneSrc, self.fit_params,
                                fcn_args=(freqghz_tofit,),
-                               fcn_kws={'tb': tb_max_tofit, 'tb_err': tb_rms_tofit},
-                               nan_policy='omit')
+                               fcn_kws={'tb': tb_max_tofit, 'tb_err': tb_rms_tofit, },
+                               max_nfev=max_nfev, nan_policy='omit')
         method = self.fit_method
-        mi = mini.minimize(method=method)
+        mi = mini.minimize(method=method, **fit_kws)
         print(method + ' minimization results')
-        print(lmfit.fit_report(mi.params))
+        print(lmfit.fit_report(mi, show_correl=True))
         self.fit_params_res = mi.params
-        print('==========Update Fit Parameter Results=======')
+        print('==========Fit Parameters Updated=======')
         for n, key in enumerate(self.fit_params_res):
             self.param_fit_value_widgets[n].setValue(self.fit_params_res[key].value)
 

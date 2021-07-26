@@ -1,8 +1,13 @@
-def ff_emission(em, T=1.e7, Z=1., mu=1.e10):
-    from astropy import constants as const
-    import astropy.units as u
-    import numpy as np
+import numpy as np
+import os
+import astropy.units as u
+from astropy import constants as const
+import warnings
 
+warnings.simplefilter("default")
+
+
+def ff_emission(em, T=1.e7, Z=1., mu=1.e10):
     T = T * u.k
     mu = mu * u.Hz
     esu = const.e.esu
@@ -19,41 +24,121 @@ def ff_emission(em, T=1.e7, Z=1., mu=1.e10):
     return T.value * (1 - np.exp(-opc.value))
 
 
-def sfu2tb(freq, flux, area):
-    # frequency in Hz
-    # flux in sfu
-    # area: area of the radio source in arcsec^2
-    sfu2cgs = 1e-19
-    vc = 2.998e10
-    kb = 1.38065e-16
-    # sr = np.pi * (size[0] / 206265. / 2.) * (size[1] / 206265. / 2.)
-    sr = area / 206265. ** 2
-    Tb = flux * sfu2cgs * vc ** 2. / (2. * kb * freq ** 2. * sr)
-    return Tb
+def sfu2tb(frequency, flux, area=None, size=None, square=True, reverse=False, verbose=False):
+    """
+        frequency: single element or array, in Hz
+        flux: single element or array of flux, in sfu; if reverse, it is brightness temperature in K
+        area: area in arcsec^2
+        size: Two-dimensional width of the radio source, [major, minor], in arcsec.
+              Ignored if both area and size are provided
+        reverse: if True, convert brightness temperature in K to flux in sfu integrated uniformly withing the size
+    """
+
+    c = const.c.cgs
+    k_B = const.k_B.cgs
+    sfu = u.jansky * 1e4
+
+    if (not 'area' in vars()) and (not 'size' in vars()):
+        print('Neither area nor size is provided. Abort...')
+
+    if not hasattr(frequency, 'unit'):
+        # assume frequency is in Hz
+        frequency = frequency * u.Hz
+
+    if not hasattr(flux, 'unit'):
+        # assume flux is in sfu
+        if reverse:
+            flux = flux * u.K
+        else:
+            flux = flux * sfu
+
+    if area:
+        if not hasattr(area, 'unit'):
+            # assume area is in arcsec^2
+            area = area * u.arcsec ** 2
+
+    if size and (not area):
+        if type(size) != list:
+            size = [size]
+
+        if len(size) > 2:
+            print('size needs to have 1 or 2 elements.')
+        elif len(size) < 2:
+            if verbose:
+                print('Only one element is provided for source size. Assume symmetric source')
+            if not hasattr(size[0], 'unit'):
+                # assume size in arcsec
+                size[0] = size[0] * u.arcsec
+            # define half size
+            a = b = size[0] / 2.
+        else:
+            if not hasattr(size[0], 'unit'):
+                # assume size in arcsec
+                size[0] = size[0] * u.arcsec
+            if not hasattr(size[1], 'unit'):
+                # assume size in arcsec
+                size[1] = size[1] * u.arcsec
+            # define half size
+            a = size[0] / 2.
+            b = size[1] / 2.
+        if square:
+            if verbose:
+                print('Assume square-shaped source.')
+            area = 4. * a * b
+        else:
+            if verbose:
+                print('Assume elliptical-shaped source.')
+            area = np.pi * a * b
+
+    sr = area.to(u.radian ** 2)
+    factor = c ** 2. / (2. * k_B * frequency ** 2. * sr)
+
+    if reverse:
+        # returned value is flux in sfu
+        if verbose:
+            print('converting input brightness temperature in K to flux density in sfu.')
+        return (flux / factor).to(sfu, equivalencies=u.dimensionless_angles())
+    else:
+        # returned value is brightness temperature in K
+        if verbose:
+            print('converting input flux density in sfu to brightness temperature in K.')
+        return (flux * factor).to(u.K, equivalencies=u.dimensionless_angles())
+
 
 class GSCostFunctions:
-    def SinglePowerLawMinimizerOneSrc(fit_params, freqghz, tb=None, tb_err=None, showplt=False):
-        from suncasa.pyGSFIT import GScodes
-        import os, sys
-        import numpy as np
-        import math
-        libname = os.path.join(os.path.dirname(GScodes.__file__),
-                       'binaries/MWTransferArr.so')
-        # params are defined by lmfit.Paramters()
-        '''
+    def SinglePowerLawMinimizerOneSrc(fit_params, freqghz, tb=None, tb_err=None,
+                                      flux=None, flux_err=None, src_area=None, src_size=None,
+                                      calc_flux=False, pgplot_widget=None, show_plot=False, debug=False, verbose=False):
+        """
         params: parameters defined by lmfit.Paramters()
         freqghz: frequencies in GHz
-        ssz: pixel size in arcsec
-        tb: reference brightness temperature in K
+        tb: input brightness temperature in K
         tb_err: uncertainties of reference brightness temperature in K
-        '''
-
+        flux: input flux density in sfu
+        flux_err: uncertainties of input flux density in K
+        src_area: area of the source in arcsec^2
+        src_size: size of the source in arcsec, in [size_x, size_y]. Currently assume rectangle.
+        calc_flux: Default (False) is to return brightness temperature.
+                    True if return the calculated flux density. Note one needs to provide src_area/src_size for this
+                        option. Otherwise assumes src_size = 2 arcsec (typical EOVSA pixel size).
+        @rtype: 1. If no tb/tb_err or flux/flux_err is provided, return the calculated
+                    brightness temperature or flux for each input frequency.
+                2. If tb/tb_err or flux/flux_err are provided, return the
+                    (scaled) residual for each input frequency
+        """
+        import GScodes
+        libname = os.path.join(os.path.dirname(GScodes.__file__),
+                               'binaries/MWTransferArr.so')
         from scipy import interpolate
         GET_MW = GScodes.initGET_MW(libname)  # load the library
 
-        #ssz = float(fit_params['ssz'].value)  # source area in arcsec^2
-        ssz = 10. ** 2 ##TODO currently assuming 10 arcsec^2
-        ssz_cm2 = ssz * (0.725e8) ** 2. # now in cm2
+        if (not src_area) and (not src_size):
+            if verbose:
+                print('No source size provided. Assume fitting resolved brightness temperature spectra.')
+            src_area = 4.  # assume 4 arcsec^2 (typical EOVSA pixel size)
+        elif not src_area and src_size:
+            src_area = src_size[0] * src_size[1]
+
         depth = float(fit_params['depth_Mm'].value) * 1e8  # total source depth in cm
         Bmag = float(fit_params['Bx100G'].value) * 100.  # magnetic field strength in G
         Tth = float(fit_params['T_MK'].value) * 1e6  # thermal temperature in K
@@ -63,8 +148,14 @@ class GSCostFunctions:
         theta = float(fit_params['theta'].value)  # viewing angle in degrees
         Emin = float(fit_params['Emin_keV'].value) / 1e3  # low energy cutoff of nonthermal electrons in MeV
         Emax = float(fit_params['Emax_MeV'].value)  # high energy cutoff of nonthermal electrons in MeV
-        #E_hi = 0.1
-        #nrl = nrlh * (Emin ** (1. - delta) - Emax * (1. - delta)) / (E_hi ** (1. - delta) - Emax ** (1. - delta))
+        if debug:
+            # debug against previous codes
+            print('depth, Bmag, Tth, nth/1e10, lognrl, delta, theta, Emin, Emax: '
+                  '{0:.1f}, {1:.1f}, {2:.1f}, {3:.1f}, {4:.1f}, '
+                  '{5:.1f}, {6:.1f}, {7:.2f}, {8:.1f}'.format(depth / 0.725e8, Bmag, Tth / 1e6, nth / 1e10,
+                                                              np.log10(nrl), delta, theta, Emin, Emax))
+        # E_hi = 0.1
+        # nrl = nrlh * (Emin ** (1. - delta) - Emax * (1. - delta)) / (E_hi ** (1. - delta) - Emax ** (1. - delta))
 
         Nf = 100  # number of frequencies
         NSteps = 1  # number of nodes along the line-of-sight
@@ -74,7 +165,7 @@ class GSCostFunctions:
         Lparms[1] = Nf
 
         Rparms = np.zeros(5, dtype='double')  # array of global floating-point parameters
-        Rparms[0] = ssz_cm2  # Area, cm^2
+        Rparms[0] = src_area * (0.725e8 ** 2.)  # Area, cm^2
         Rparms[1] = 0.8e9  # starting frequency to calculate spectrum, Hz
         Rparms[2] = 0.02  # logarithmic step in frequency
         Rparms[3] = 0  # f^C
@@ -85,13 +176,13 @@ class GSCostFunctions:
         ParmLocal[1] = Tth  # T_0, K
         ParmLocal[2] = nth  # n_0 - thermal electron density, cm^{-3}
         ParmLocal[3] = Bmag  # B - magnetic field, G
-        ParmLocal[6] = 3     # distribution over energy (PLW is chosen)
-        ParmLocal[7] = nrl   # n_b - nonthermal electron density, cm^{-3}
-        ParmLocal[9] = Emin   # E_min, MeV
-        ParmLocal[10] = Emax # E_max, MeV
+        ParmLocal[6] = 3  # distribution over energy (PLW is chosen)
+        ParmLocal[7] = nrl  # n_b - nonthermal electron density, cm^{-3}
+        ParmLocal[9] = Emin  # E_min, MeV
+        ParmLocal[10] = Emax  # E_max, MeV
         ParmLocal[12] = delta  # \delta_1
-        ParmLocal[14] = 0    # distribution over pitch-angle (isotropic is chosen)
-        ParmLocal[15] = 90   # loss-cone boundary, degrees
+        ParmLocal[14] = 0  # distribution over pitch-angle (isotropic is chosen)
+        ParmLocal[15] = 90  # loss-cone boundary, degrees
         ParmLocal[16] = 0.2  # \Delta\mu
 
         Parms = np.zeros((24, NSteps), dtype='double', order='F')  # 2D array of input parameters - for multiple voxels
@@ -104,43 +195,79 @@ class GSCostFunctions:
 
         # calculating the emission for array distribution (array -> on)
         res = GET_MW(Lparms, Rparms, Parms, dummy, dummy, dummy, RL)
-
         if res:
             # retrieving the results
             f = RL[0]
             I_L = RL[5]
             I_R = RL[6]
+            all_zeros = not RL.any()
+            if not all_zeros:
+                flux_model = I_L + I_R
+                flux_model = np.nan_to_num(flux_model) + 1e-11
+                logf = np.log10(f)
+                logflux_model = np.log10(flux_model)
+                logfreqghz = np.log10(freqghz)
+                interpfunc = interpolate.interp1d(logf, logflux_model, kind='linear')
+                logmflux = interpfunc(logfreqghz)
+                mflux = 10. ** logmflux
+                mtb = sfu2tb(np.array(freqghz) * 1.e9, mflux, area=src_area).value
 
-            if showplt:
-                import matplotlib.pyplot as plt
-                fig, ax = plt.subplots(1, 1)
-                ax.plot(f, I_L + I_R)
-                ax.set_xscale('log')
-                ax.set_yscale('log')
-                ax.set_title('Total intensity (array)')
-                ax.set_xlabel('Frequency, GHz')
-                ax.set_ylabel('Intensity, sfu')
+                if pgplot_widget:
+                    ## TODO: figure out a way to update the main widget
+                    import pyqtgraph as pg
+                    all_items = pgplot_widget.getPlotItem().listDataItems()
+                    if len(all_items) > 0:
+                        pgplot_widget.removeItem(all_items[-1])
+                    spec_fitplot = pgplot_widget.plot(x=np.log10(freqghz), y=np.log10(mtb),
+                                                             pen=dict(color=pg.mkColor(0), width=3),
+                                                             symbol=None, symbolBrush=None)
+                    pgplot_widget.addItem(spec_fitplot)
 
-            flx_model = I_L + I_R
-            flx_model = np.nan_to_num(flx_model) + 1e-11
-            logf = np.log10(f)
-            logflx_model = np.log10(flx_model)
-            logfreqghz = np.log10(freqghz)
-            interpfunc = interpolate.interp1d(logf, logflx_model, kind='linear')
-            logmflx = interpfunc(logfreqghz)
-            mflx = 10. ** logmflx
-            mtb = sfu2tb(np.array(freqghz) * 1.e9, mflx, ssz)
+                if show_plot:
+                    import matplotlib.pyplot as plt
+                    fig, (ax1, ax2) = plt.subplots(1, 2)
+                    ax1.plot(freqghz, mflux, 'k')
+                    #ax1.set_xlim([1, 20])
+                    ax1.set_xlabel('Frequency (GHz)')
+                    ax1.set_ylabel('Flux (sfu)')
+                    ax1.set_title('Flux Spectrum')
+                    ax1.set_xscale('log')
+                    ax1.set_yscale('log')
+                    ax2.plot(freqghz, mtb, 'k')
+                    #ax2.set_xlim([1, 20])
+                    ax2.set_xlabel('Frequency (GHz)')
+                    ax2.set_ylabel('Brightness Temperature (K)')
+                    ax2.set_title('Brightness Temperature Spectrum')
+                    ax2.set_xscale('log')
+                    ax2.set_yscale('log')
+                    ax2.legend()
+                    plt.show()
+            else:
+                print("Calculation error! Assign an unrealistically huge number")
+                mflux = np.ones_like(freqghz) * 1e4
+                mtb = sfu2tb(np.array(freqghz) * 1.e9, mflux, area=src_area).value
         else:
-            print("Calculation error!")
+            print("Calculation error! Assign an unrealistically huge number")
+            mflux = np.ones_like(freqghz) * 1e9
+            mtb = sfu2tb(np.array(freqghz) * 1.e9, mflux, area=src_area).value
 
-        if tb is None:
-            return mtb
-        if tb_err is None:
-            # return mTb - Tb
-            return mtb - tb
-        # wt = 1./flx_err
-        # wt = 1./(Tb_err/Tb/np.log(10.))
-        # residual = np.abs((logmTb - np.log10(Tb))) * wt
-        # residual = np.abs((mflx - flx)) * wt
-        residual = (mtb - tb) / tb_err
-        return residual
+        # Return values
+        if calc_flux:
+            if flux is None:
+            # nothing is provided, return the model spectrum
+                return mflux
+            if flux_err is None:
+                # no uncertainty provided, return absolute residual
+                return mflux - flux
+            # Return scaled residual
+            return (mflux - flux) / flux_err
+        else:
+            if tb is None:
+                # nothing is provided, return the model spectrum
+                return mtb
+            if tb_err is None:
+                # no uncertainty provided, return absolute residual
+                return mtb - tb
+            # Return scaled residual
+            return (mtb - tb) / tb_err
+
