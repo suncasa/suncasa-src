@@ -3,6 +3,7 @@ import numpy as np
 from astropy.io import fits
 from sunpy import map as smap
 import warnings
+warnings.simplefilter("ignore")
 
 stokesval = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3': 'RL', '-4': 'LR', '-5': 'XX',
              '-6': 'YY', '-7': 'XY', '-8': 'YX'}
@@ -149,39 +150,57 @@ def read(filepath, hdus=None, memmap=None, verbose=False, **kwargs):
         for h in hdulist:
             h.verify('silentfix+warn')
 
+        meta = {}
         for i, hdu in enumerate(hdulist):
             try:
                 ndim = hdu.data.ndim
-                dshape = hdu.data.shape
                 header = hdu.header
                 slc = [slice(None)] * ndim
-                nx = header['NAXIS1']
-                ny = header['NAXIS2']
-                freqaxis = None
-                stokaxis = None
-                npol_fits = 1
+                freq_axis = None
+                pol_axis = None
+                _ = None
+                npol = 1
                 nfreq_fits = 1
                 for idx in range(ndim):
                     v = header['CTYPE{}'.format(idx + 1)]
                     if v.startswith('FREQ'):
-                        freqaxis = ndim - (idx + 1)
+                        freq_axis = ndim - (idx + 1)
                         nfreq_fits = header['NAXIS{}'.format(idx + 1)]
                     if v.startswith('STOKES'):
-                        stokaxis = ndim - (idx + 1)
-                        npol_fits = header['NAXIS{}'.format(idx + 1)]
-                if freqaxis is not None:
-                    slc[freqaxis] = slice(0, 1)
-                    rfreqs = (hdu.header['CRVAL{}'.format(ndim - freqaxis)] + hdu.header[
-                        'CDELT{}'.format(ndim - freqaxis)] * np.arange(
-                        hdu.header['NAXIS{}'.format(ndim - freqaxis)])) / 1e9
+                        pol_axis = ndim - (idx + 1)
+                        npol = header['NAXIS{}'.format(idx + 1)]
+                if freq_axis is not None:
+                    slc[freq_axis] = slice(0, 1)
+                    meta['ref_cfreqs'] = (hdu.header['CRVAL{}'.format(ndim - freq_axis)] + hdu.header[
+                        'CDELT{}'.format(ndim - freq_axis)] * np.arange(
+                        hdu.header['NAXIS{}'.format(ndim - freq_axis)]))
+                    meta['ref_freqdelts'] = np.ones_like(meta['ref_cfreqs']) \
+                                            * hdu.header['CDELT{}'.format(ndim - freq_axis)]
                 else:
-                    rfreqs = np.array([hdu.header['RESTFRQ'] / 1e9])
-                if stokaxis is not None:
-                    slc[stokaxis] = slice(0, 1)
+                    meta['ref_cfreqs'] = np.array([hdu.header['RESTFRQ']])
+
+                if pol_axis is not None:
+                    slc[pol_axis] = slice(0, 1)
+                    meta['pol_idxs'] = (hdu.header['CRVAL{}'.format(ndim - pol_axis)] + hdu.header[
+                        'CDELT{}'.format(ndim - pol_axis)] * np.arange(
+                        hdu.header['NAXIS{}'.format(ndim - pol_axis)]))
+                    meta['pol_names'] = [stokesval['{0:d}'.format(int(p))] for p in meta['pol_idxs']]
+                if _ is not None:
+                    slc[_] = slice(0, 1)
                 hdu.data[np.isnan(hdu.data)] = 0.0
                 rmap = smap.Map(np.squeeze(hdu.data[slc]), hdu.header)
-                rdata = hdu.data.copy()
-                rheader = hdu.header.copy()
+                data = hdu.data.copy()
+                meta['header'] = hdu.header.copy()
+                meta['refmap'] = rmap  # this is a sunpy map of the first slice
+                meta['naxis'] = ndim
+                meta['hgln_axis'] = ndim - 1  # solar X
+                meta['nx'] = header['NAXIS1']
+                meta['hglt_axis'] = ndim - 2  # solar Y
+                meta['ny'] = header['NAXIS2']
+                meta['freq_axis'] = freq_axis
+                meta['nfreq'] = nfreq_fits
+                meta['pol_axis'] = pol_axis
+                meta['npol'] = npol
                 break
             except Exception as e:
                 if verbose:
@@ -190,16 +209,23 @@ def read(filepath, hdus=None, memmap=None, verbose=False, **kwargs):
                     else:
                         print(e)
                     print('skipped HDU {}'.format(i))
-                rmap, rdata, rheader, ndim, npol_fits, stokaxis, rfreqs, rdelts = None, None, None, None, None, None, None, None
-        try:
-            hdu = hdulist[-1]
-            rfreqs = np.array(hdu.data['cfreqs'])
-            rdelts = np.array(hdu.data['cdelts'])
-        except:
-            pass
+                meta, data = {}, None
+
+        # Check if an additional frequency axis exists. If so, they should be in the last hdu.
+        if hasattr(hdulist[-1].data, 'cfreqs'):
+            if verbose:
+                print('FITS file contains an additional frequency axis. '
+                      'Update the frequency information in cfreqs and cdelts. '
+                      'Ignore the original version with equal spacings.')
+            meta['ref_cfreqs'] = np.array(hdulist[-1].data['cfreqs'])
+            meta['ref_freqdelts'] = np.array(hdulist[-1].data['cdelts'])
+        else:
+            if verbose:
+                print('FITS file does not have an additional frequency axis. '
+                      'Use the original version with equal spacings.')
         hdulist.close()
 
-        return rmap, rdata, rheader, ndim, npol_fits, stokaxis, rfreqs, rdelts
+        return meta, data
 
 
 def write(fname, data, header, mask=None, fix_invalid=True, filled_value=0.0, **kwargs):
@@ -311,5 +337,5 @@ def wrap(fitsfiles, outfitsfile='output.fits', docompress=False, mask=None, fix_
 
     hdulnew = fits.HDUList([fits.PrimaryHDU(data=data, header=header), tbhdu])
     hdulnew.writeto(outfitsfile)
-    print('wrapped fits writed to ' + outfitsfile)
+    print('wrapped fits written as ' + outfitsfile)
     return 1

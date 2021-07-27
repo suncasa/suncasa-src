@@ -79,6 +79,7 @@ class App(QMainWindow):
         self.fit_function = gscf.SinglePowerLawMinimizerOneSrc
         self.threadpool = QThreadPool()
         self.has_eovsamap = False
+        self.has_stokes = False
         self.has_aiamap = False
         self.has_bkg = False
         self.has_rois = False
@@ -89,6 +90,7 @@ class App(QMainWindow):
         self.rois = []
         self.nroi = 0
         self.roi_select_idx = 0
+        self.pol_select_idx = 0
         # some controls for qlookplot
         self.opencontour = True
         self.clevels = np.array([0.3, 0.7])
@@ -432,16 +434,26 @@ class App(QMainWindow):
         self.fname = self.fitsentry.text()
         self.fitsdata = None
         try:
-            rmap, rdata, rheader, ndim, npol_fits, stokaxis, rfreqs, rfdelts = ndfits.read(self.fname)
-            self.rmap = rmap
-            self.rdata = rdata
-            self.rfreqs = rfreqs
-            self.rheader = rheader
-            self.bdinfo = bdinfo = ndfits.get_bdinfo(rfreqs, rfdelts)
-            self.cfreqs = bdinfo['cfreqs']
-            self.freqbdwds = rfdelts
-            self.cfreqs_all = cfreqs_all = bdinfo['cfreqs_all']
-            self.freq_dist = lambda fq: (fq - cfreqs_all[0]) / (cfreqs_all[-1] - cfreqs_all[0])
+            meta, data = ndfits.read(self.fname)
+            if meta['naxis'] < 3:
+                print('Input fits file must have at least 3 dimensions. Abort..')
+            elif meta['naxis'] == 3:
+                print('Input fits file does not have stokes axis. Assume Stokes I.')
+                data = np.expand_dims(data, axis=0)
+                self.pol_axis = 0
+                self.pol_names = ['I']
+                self.has_stokes = False
+            elif meta['naxis'] == 4:
+                print('Input fits file has stokes axis, located at index {0:d} of the data cube'.
+                      format(meta['pol_axis']))
+                self.has_stokes = True
+                self.pol_axis = meta['pol_axis']
+                self.pol_names = meta['pol_names']
+            self.meta = meta
+            self.data = data
+            self.cfreqs = meta['ref_cfreqs'] / 1e9 # convert to GHz
+            self.freqdelts = meta['ref_freqdelts'] / 1e9 # convert to GHz
+            self.freq_dist = lambda fq: (fq - self.cfreqs[0]) / (self.cfreqs[-1] - self.cfreqs[0])
             self.has_eovsamap = True
             # self.infoEdit.setPlainText(repr(rheader))
         except:
@@ -564,19 +576,20 @@ class App(QMainWindow):
         # self.qlook_ax.clear()
         ax0 = self.qlook_axs[0]
 
-        if os.path.exists(self.fname):
-            rmap, rdata, rheader, ndim, npol_fits, stokaxis, rfreqs, rfdelts = ndfits.read(self.fname)
-            nspw = len(self.rfreqs)
+        if self.has_eovsamap:
+            nspw = self.meta['nfreq']
             bds = np.linspace(0, nspw, 5)[1:4].astype(np.int)
-            eodate = Time(self.rmap.date.mjd + self.rmap.exposure_time.value / 2. / 24 / 3600, format='mjd')
+            eodate = Time(self.meta['refmap'].date.mjd + self.meta['refmap'].exposure_time.value / 2. / 24 / 3600,
+                          format='mjd')
             rsun_obs = sunpy.coordinates.sun.angular_radius(eodate).value
             solar_limb = patches.Circle((0, 0), radius=rsun_obs, fill=False, color='k', lw=1, linestyle=':')
             ax0.add_patch(solar_limb)
-            ny, nx = self.rmap.data.shape
-            x0, x1 = (np.array([1, self.rmap.meta['NAXIS1']]) - self.rmap.meta['CRPIX1']) * self.rmap.meta['CDELT1'] + \
-                     self.rmap.meta['CRVAL1']
-            y0, y1 = (np.array([1, self.rmap.meta['NAXIS2']]) - self.rmap.meta['CRPIX2']) * self.rmap.meta['CDELT2'] + \
-                     self.rmap.meta['CRVAL2']
+            nx = self.meta['nx']
+            ny = self.meta['ny']
+            x0, x1 = (np.array([1, nx]) - self.meta['header']['CRPIX1']) * self.meta['header']['CDELT1'] + \
+                     self.meta['header']['CRVAL1']
+            y0, y1 = (np.array([1, ny]) - self.meta['header']['CRPIX2']) * self.meta['header']['CDELT2'] + \
+                     self.meta['header']['CRVAL2']
             rect = patches.Rectangle((x0, y0), x1 - x0, y1 - y0, color='k', alpha=0.7, lw=1, fill=False)
             ax0.add_patch(rect)
             mapx, mapy = np.linspace(x0, x1, nx), np.linspace(y0, y1, ny)
@@ -588,7 +601,7 @@ class App(QMainWindow):
             for n, bd in enumerate(bds):
                 ax = self.qlook_axs[n + 1]
                 cfreq = self.cfreqs[bd]
-                eomap_ = smap.Map(self.rdata[bd], self.rheader)
+                eomap_ = smap.Map(self.data[self.pol_select_idx, bd], self.meta['header'])
                 eomap = pmX.Sunmap(eomap_)
                 eomap.imshow(axes=ax, cmap=eocmap)
                 eomap.draw_grid(axes=ax)
@@ -630,8 +643,8 @@ class App(QMainWindow):
         if self.has_aiamap:
             aiamap.plot(axes=ax0, cmap=aiacmap)
         if self.has_eovsamap:
-            for s, sp in enumerate(self.rfreqs):
-                data = self.rdata[s, ...]
+            for s, sp in enumerate(self.cfreqs):
+                data = self.data[self.pol_select_idx, s, ...]
                 clvls = self.clevels * np.nanmax(data)
                 rcmap = [icmap(self.freq_dist(self.cfreqs[s]))] * len(clvls)
                 if self.opencontour:
@@ -656,21 +669,10 @@ class App(QMainWindow):
 
     def plot_pg_eovsamap(self):
         """This is to plot the eovsamap with the pyqtgraph's ImageView Widget"""
-        if os.path.exists(self.fname):
-            nspw = len(self.cfreqs)
-            eodate = Time(self.rmap.date.mjd + self.rmap.exposure_time.value / 2. / 24 / 3600, format='mjd')
-            ny, nx = self.rmap.data.shape
-            x0, x1 = (np.array([1, self.rmap.meta['NAXIS1']]) - self.rmap.meta['CRPIX1']) * self.rmap.meta['CDELT1'] + \
-                     self.rmap.meta['CRVAL1']
-            y0, y1 = (np.array([1, self.rmap.meta['NAXIS2']]) - self.rmap.meta['CRPIX2']) * self.rmap.meta['CDELT2'] + \
-                     self.rmap.meta['CRVAL2']
-            dx = self.rmap.meta['CDELT1']
-            dy = self.rmap.meta['CDELT2']
-            mapx, mapy = np.linspace(x0, x1, nx), np.linspace(y0, y1, ny)
-
+        if self.has_eovsamap:
             # plot the images
             # need to reverse the y axis to emulate matplotlib.pyplot.imshow's origin='lower' option
-            self.pg_img_canvas.setImage(self.rdata[:, ::-1, :], xvals=self.cfreqs)
+            self.pg_img_canvas.setImage(self.data[self.pol_select_idx, :, ::-1, :], xvals=self.cfreqs)
             ## Set a custom color map
             colors = [
                 (0, 0, 0),
@@ -695,7 +697,7 @@ class App(QMainWindow):
 
     def get_roi_specs(self):
         for n, roi in enumerate(self.rois):
-            subim = roi.getArrayRegion(self.rdata[:, ::-1, :], self.pg_img_canvas.getImageItem(), axes=(2, 1))
+            subim = roi.getArrayRegion(self.data[self.pol_select_idx, :, ::-1, :], self.pg_img_canvas.getImageItem(), axes=(2, 1))
             # print(self.subim.shape)
             roi.freqghz = self.cfreqs
             roi.tb_max = np.nanmax(subim, axis=(1, 2))
@@ -797,7 +799,7 @@ class App(QMainWindow):
 
     def bkg_rgn_update(self):
         """Select a region to calculate rms on spectra"""
-        self.bkg = np.std(self.bkg_roi.getArrayRegion(self.rdata[:, ::-1, :],
+        self.bkg = np.std(self.bkg_roi.getArrayRegion(self.data[self.pol_select_idx, :, ::-1, :],
                                                       self.pg_img_canvas.getImageItem(), axes=(2, 1)), axis=(1, 2))
         # bkg_roi_label = pg.TextItem("Background", anchor=(0, 0), color='w')
         # bkg_roi_label.setParentItem(self.bkg_roi)
@@ -805,8 +807,7 @@ class App(QMainWindow):
 
     def roi_select(self):
         """Add a ROI region to the selection"""
-        nf, nx, ny = self.rdata.shape
-        newroi = pg.RectROI([nx / 2 - 10, ny / 2 - 10], [10, 10], pen=(len(self.rois), 9))
+        newroi = pg.RectROI([self.meta['nx'] / 2 - 10, self.meta['ny'] / 2 - 10], [10, 10], pen=(len(self.rois), 9))
         self.rois.append(newroi)
         self.pg_img_canvas.addItem(self.rois[-1])
         self.roi_select_return()
