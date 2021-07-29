@@ -106,18 +106,14 @@ def sfu2tb(frequency, flux, area=None, size=None, square=True, reverse=False, ve
 
 
 class GSCostFunctions:
-    def SinglePowerLawMinimizerOneSrc(fit_params, freqghz, tb=None, tb_err=None,
-                                      flux=None, flux_err=None, src_area=None, src_size=None,
-                                      calc_flux=False, pgplot_widget=None, show_plot=False, debug=False, verbose=False):
+    def SinglePowerLawMinimizerOneSrc(fit_params, freqghz, spec=None, spec_err=None,
+                                      spec_in_tb=True, pgplot_widget=None, show_plot=False, debug=False, verbose=False):
         """
         params: parameters defined by lmfit.Paramters()
         freqghz: frequencies in GHz
-        tb: input brightness temperature in K
-        tb_err: uncertainties of reference brightness temperature in K
-        flux: input flux density in sfu
-        flux_err: uncertainties of input flux density in K
-        src_area: area of the source in arcsec^2
-        src_size: size of the source in arcsec, in [size_x, size_y]. Currently assume rectangle.
+        spec: input spectrum, can be brightness temperature in K, or flux density in sfu
+        spec_err: uncertainties of spectrum in K or sfu
+        spec_in_tb: if True, input is brightness temperature in K, otherwise is flux density in sfu
         calc_flux: Default (False) is to return brightness temperature.
                     True if return the calculated flux density. Note one needs to provide src_area/src_size for this
                         option. Otherwise assumes src_size = 2 arcsec (typical EOVSA pixel size).
@@ -132,14 +128,17 @@ class GSCostFunctions:
         from scipy import interpolate
         GET_MW = GScodes.initGET_MW(libname)  # load the library
 
-        if (not src_area) and (not src_size):
-            if verbose:
-                print('No source size provided. Assume fitting resolved brightness temperature spectra.')
-            src_area = 4.  # assume 4 arcsec^2 (typical EOVSA pixel size)
-        elif not src_area and src_size:
-            src_area = src_size[0] * src_size[1]
+        #if (not src_area) and (not src_size):
+        #    if verbose:
+        #        print('No source size provided. Assume fitting resolved brightness temperature spectra.')
+        #    src_area = 4.  # assume 4 arcsec^2 (typical EOVSA pixel size)
+        #elif not src_area and src_size:
+        #    src_area = src_size[0] * src_size[1]
 
-        depth = float(fit_params['depth_Mm'].value) * 1e8  # total source depth in cm
+        asec2cm = 0.725e8
+        src_area = float(fit_params['area_asec2'].value)  # source area in arcsec^2
+        src_area_cm2 = src_area * asec2cm ** 2.  # source area in cm^2
+        depth_cm = float(fit_params['depth_asec'].value) * asec2cm  # total source depth in cm
         Bmag = float(fit_params['Bx100G'].value) * 100.  # magnetic field strength in G
         Tth = float(fit_params['T_MK'].value) * 1e6  # thermal temperature in K
         nth = 10. ** float(fit_params['log_nth'].value)  # thermal density
@@ -152,7 +151,7 @@ class GSCostFunctions:
             # debug against previous codes
             print('depth, Bmag, Tth, nth/1e10, lognrl, delta, theta, Emin, Emax: '
                   '{0:.1f}, {1:.1f}, {2:.1f}, {3:.1f}, {4:.1f}, '
-                  '{5:.1f}, {6:.1f}, {7:.2f}, {8:.1f}'.format(depth / 0.725e8, Bmag, Tth / 1e6, nth / 1e10,
+                  '{5:.1f}, {6:.1f}, {7:.2f}, {8:.1f}'.format(depth_cm / 0.725e8, Bmag, Tth / 1e6, nth / 1e10,
                                                               np.log10(nrl), delta, theta, Emin, Emax))
         # E_hi = 0.1
         # nrl = nrlh * (Emin ** (1. - delta) - Emax * (1. - delta)) / (E_hi ** (1. - delta) - Emax ** (1. - delta))
@@ -165,14 +164,14 @@ class GSCostFunctions:
         Lparms[1] = Nf
 
         Rparms = np.zeros(5, dtype='double')  # array of global floating-point parameters
-        Rparms[0] = src_area * (0.725e8 ** 2.)  # Area, cm^2
+        Rparms[0] = src_area_cm2  # Area, cm^2
         Rparms[1] = 0.8e9  # starting frequency to calculate spectrum, Hz
         Rparms[2] = 0.02  # logarithmic step in frequency
         Rparms[3] = 0  # f^C
         Rparms[4] = 0  # f^WH
 
         ParmLocal = np.zeros(24, dtype='double')  # array of voxel parameters - for a single voxel
-        ParmLocal[0] = depth / NSteps  # voxel depth, cm
+        ParmLocal[0] = depth_cm / NSteps  # voxel depth, cm
         ParmLocal[1] = Tth  # T_0, K
         ParmLocal[2] = nth  # n_0 - thermal electron density, cm^{-3}
         ParmLocal[3] = Bmag  # B - magnetic field, G
@@ -252,22 +251,22 @@ class GSCostFunctions:
             mtb = sfu2tb(np.array(freqghz) * 1.e9, mflux, area=src_area).value
 
         # Return values
-        if calc_flux:
-            if flux is None:
-            # nothing is provided, return the model spectrum
-                return mflux
-            if flux_err is None:
-                # no uncertainty provided, return absolute residual
-                return mflux - flux
-            # Return scaled residual
-            return (mflux - flux) / flux_err
-        else:
-            if tb is None:
+        if spec_in_tb:
+            if spec is None:
                 # nothing is provided, return the model spectrum
                 return mtb
-            if tb_err is None:
+            if spec_err is None:
                 # no uncertainty provided, return absolute residual
-                return mtb - tb
+                return mtb - spec
             # Return scaled residual
-            return (mtb - tb) / tb_err
+            return (mtb - spec) / spec_err
+        else:
+            if spec is None:
+                # nothing is provided, return the model spectrum
+                return mflux
+            if spec_err is None:
+                # no uncertainty provided, return absolute residual
+                return mflux - spec
+            # Return scaled residual
+            return (mflux - spec) / spec_err
 
