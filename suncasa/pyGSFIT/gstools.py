@@ -136,7 +136,13 @@ class GSCostFunctions:
         #    src_area = src_size[0] * src_size[1]
 
         asec2cm = 0.725e8
-        src_area = float(fit_params['area_asec2'].value)  # source area in arcsec^2
+        if 'area_asec2' in fit_params.keys():
+            src_area = float(fit_params['area_asec2'].value)  # source area in arcsec^2
+        else:
+            src_area = 4.  # arcsec^2. default area for bright temperature spectral fitting. Will be divided out.
+            if not spec_in_tb:
+                print('=======Warning: no source area is provided for flux density calculation. '
+                      'Use area = 4 arcsec^2 as the place default (1 EOVSA pixel).======')
         src_area_cm2 = src_area * asec2cm ** 2.  # source area in cm^2
         depth_cm = float(fit_params['depth_asec'].value) * asec2cm  # total source depth in cm
         Bmag = float(fit_params['Bx100G'].value) * 100.  # magnetic field strength in G
