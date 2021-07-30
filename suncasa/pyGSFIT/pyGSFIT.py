@@ -53,9 +53,11 @@ class App(QMainWindow):
     def __init__(self):
         super().__init__()
         self._createMenuBar()
-        self.fname = '<Select or enter a valid EOVSA fits file name>'
+        self.eoimg_fname = '<Select or enter a valid EOVSA image fits file name>'
+        self.eodspec_fname = '<Select or enter a valid EOVSA spectrogram fits file name>'
         self.aiafname = '<Select or enter a valid AIA fits file name>'
-        self.fitsentry = QLineEdit()
+        self.eoimg_fitsentry = QLineEdit()
+        self.eodspec_fitsentry = QLineEdit()
         self.title = 'pyGSFIT'
         self.left = 0
         self.top = 0
@@ -87,8 +89,8 @@ class App(QMainWindow):
         self.has_rois = False
         self.fbar = None
         self.data_freq_bound = [1.0, 18.0]  # Initial Frequency Bound of the instrument
-        self.tb_spec_bound = [1e3, 5e9]  # Bound of brightness temperature to consider for the fit
-        self.flx_spec_bound = [1e-4, 1e4]  # Bound of flux density to consider for the fit
+        self.tb_spec_bound = [1e3, 5e9]  # Bound of brightness temperature; the lower bound is set to the fit limit
+        self.flx_spec_bound = [1e-4, 1e5]  # Bound of flux density; the lower bound is set to the fit limit
         self.fit_freq_bound = [1.0, 18.0]
         self.roi_freq_bound = [1.0, 18.0]
         self.spec_frac_err = 0.1   # fractional error of the intensity (assumed to be due to flux calibration error)
@@ -170,17 +172,27 @@ class App(QMainWindow):
         # Top of the upper box of the data layout is for file selection and fits header display
         file_selection_box = QHBoxLayout()
 
-        # EOVSA FITS Filename entry
-        eo_selection_box = QHBoxLayout()
-        file_selection_box.addLayout(eo_selection_box)
+        # EOVSA Image FITS Filename entry
+        eoimg_selection_box = QHBoxLayout()
+        file_selection_box.addLayout(eoimg_selection_box)
         # Create Browse button
-        eo_selection_button = QPushButton("Load EOVSA")
-        eo_selection_button.clicked.connect(self.eofile_select)
-        eo_selection_box.addWidget(eo_selection_button)
-
+        eoimg_selection_button = QPushButton("Load EOVSA Image")
+        eoimg_selection_button.clicked.connect(self.eoimg_file_select)
+        eoimg_selection_box.addWidget(eoimg_selection_button)
         # Create LineEdit widget for FITS filename
-        self.fitsentry.resize(8 * len(self.fname), 20)
-        eo_selection_box.addWidget(self.fitsentry)
+        self.eoimg_fitsentry.resize(8 * len(self.eoimg_fname), 20)
+        eoimg_selection_box.addWidget(self.eoimg_fitsentry)
+
+        # EOVSA Spectrogram FITS Filename entry
+        eodspec_selection_box = QHBoxLayout()
+        file_selection_box.addLayout(eodspec_selection_box)
+        # Create Browse button
+        eodspec_selection_button = QPushButton("Load EOVSA Spectrogram")
+        eodspec_selection_button.clicked.connect(self.eodspec_file_select)
+        eodspec_selection_box.addWidget(eodspec_selection_button)
+        # Create LineEdit widget for FITS filename
+        self.eodspec_fitsentry.resize(8 * len(self.eoimg_fname), 20)
+        eodspec_selection_box.addWidget(self.eodspec_fitsentry)
 
         # AIA FITS Filename entry
         aia_selection_box = QHBoxLayout()
@@ -190,9 +202,9 @@ class App(QMainWindow):
         aia_selection_button.clicked.connect(self.aiafile_select)
         aia_selection_box.addWidget(aia_selection_button)
         # Create LineEdit widget for AIA FITS file
-        self.aiafitsentry = QLineEdit()
-        self.aiafitsentry.resize(8 * len(self.fname), 20)
-        aia_selection_box.addWidget(self.aiafitsentry)
+        self.aiaimg_fitsentry = QLineEdit()
+        self.aiaimg_fitsentry.resize(8 * len(self.eoimg_fname), 20)
+        aia_selection_box.addWidget(self.aiaimg_fitsentry)
 
         # Add top box of the upper box in data layout
         data_layout_upperbox.addLayout(file_selection_box)
@@ -511,21 +523,21 @@ class App(QMainWindow):
         mainlayout.addWidget(QLabel("This is the tab for analyzing fit results"))
         self.tabs.widget(1).setLayout(mainlayout)
 
-    def eofile_select(self):
+    def eoimg_file_select(self):
         """ Handle Browse button for EOVSA FITS file"""
         # self.fname = QFileDialog.getExistingDirectory(self, 'Select FITS File', './', QFileDialog.ShowDirsOnly)
-        #self.fname, _file_filter = QFileDialog.getOpenFileName(self, 'Select EOVSA FITS File to open', './',
-        #                                                       "FITS Images (*.fits *.fit *.ft)")
-        self.fname = 'EOVSA_20210507T190205.000000.outim.image.allbd.fits'
-        self.fitsentry.setText(self.fname)
-        self.eofile_select_return()
+        self.eoimg_fname, _file_filter = QFileDialog.getOpenFileName(self, 'Select EOVSA Spectral Image FITS File',
+                                                                     './', 'FITS Images (*.fits *.fit *.ft *.fts)')
+        #self.fname = 'EOVSA_20210507T190205.000000.outim.image.allbd.fits'
+        self.eoimg_fitsentry.setText(self.eoimg_fname)
+        self.eoimg_file_select_return()
 
-    def eofile_select_return(self):
+    def eoimg_file_select_return(self):
         ''' Called when the FITS filename LineEdit widget gets a carriage-return.
             Trys to read FITS header and return header info (no data read at this time)
         '''
-        self.fname = self.fitsentry.text()
-        self.fitsdata = None
+        self.eoimg_fname = self.eoimg_fitsentry.text()
+        self.eoimg_fitsdata = None
         self.has_eovsamap = False
 
         # Clean up all existing plots
@@ -543,7 +555,7 @@ class App(QMainWindow):
             self.has_rois = False
 
         try:
-            meta, data = ndfits.read(self.fname)
+            meta, data = ndfits.read(self.eoimg_fname)
             if meta['naxis'] < 3:
                 print('Input fits file must have at least 3 dimensions. Abort..')
             elif meta['naxis'] == 3:
@@ -572,27 +584,41 @@ class App(QMainWindow):
             # self.infoEdit.setPlainText(repr(rheader))
         except:
             self.statusBar.showMessage('Filename is not a valid FITS file', 2000)
-            self.fname = '<Select or enter a valid fits filename>'
-            self.fitsentry.setText(self.fname)
+            self.eoimg_fname = '<Select or enter a valid fits filename>'
+            self.eoimg_fitsentry.setText(self.eoimg_fname)
             # self.infoEdit.setPlainText('')
 
         self.plot_qlookmap()
         self.init_pgspecplot()
         self.plot_pg_eovsamap()
 
+    def eodspec_file_select(self):
+        """ Handle Browse button for EOVSA FITS file"""
+        # self.fname = QFileDialog.getExistingDirectory(self, 'Select FITS File', './', QFileDialog.ShowDirsOnly)
+        self.eodspec_fname, _file_filter = QFileDialog.getOpenFileName(self, 'Select EOVSA Dynamic Spectrum FITS File',
+                                                                     './', 'FITS Images (*.fits *.fit *.ft *.fts)')
+        self.eodspec_fitsentry.setText(self.eodspec_fname)
+        self.eodspec_file_select_return()
+
+    def eodspec_file_select_return(self):
+        ## todo: complete the action
+        print('To be added')
+        self.eodspec_fname = '<Select or enter a valid fits filename>'
+        self.eodspec_fitsentry.setText(self.eodspec_fname)
+
     def aiafile_select(self):
         """ Handle Browse button for AIA FITS file """
         self.aiafname, _file_filter = QFileDialog.getOpenFileName(self, 'Select AIA FITS File to open', './',
                                                                   "FITS Images (*.fits *.fit *.ft)")
-        self.aiafitsentry.setText(self.aiafname)
+        self.aiaimg_fitsentry.setText(self.aiafname)
         self.aiafile_select_return()
 
     def aiafile_select_return(self):
         ''' Called when the FITS filename LineEdit widget gets a carriage-return.
             Trys to read FITS header and return header info (no data read at this time)
         '''
-        self.aiafname = self.aiafitsentry.text()
-        self.fitsdata = None
+        self.aiafname = self.aiaimg_fitsentry.text()
+        self.eoimg_fitsdata = None
         try:
             hdu = fits.open(self.aiafname)
             # self.infoEdit.setPlainText(repr(hdu[1].header))
@@ -706,8 +732,8 @@ class App(QMainWindow):
                 ax.set_aspect('equal')
         else:
             self.statusBar.showMessage('EOVSA FITS file does not exist', 2000)
-            self.fname = '<Select or enter a valid fits filename>'
-            self.fitsentry.setText(self.fname)
+            self.eoimg_fname = '<Select or enter a valid fits filename>'
+            self.eoimg_fitsentry.setText(self.eoimg_fname)
             # self.infoEdit.setPlainText('')
             self.has_eovsamap = False
 
@@ -722,7 +748,7 @@ class App(QMainWindow):
         else:
             self.statusBar.showMessage('AIA FITS file does not exist', 2000)
             self.aiafname = '<Select or enter a valid fits filename>'
-            self.aiafitsentry.setText(self.aiafname)
+            self.aiaimg_fitsentry.setText(self.aiafname)
             # self.infoEdit.setPlainText('')
             self.has_aiamap = False
         cts = []
