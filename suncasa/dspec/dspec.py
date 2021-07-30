@@ -117,19 +117,19 @@ class Dspec:
             self.time_axis = Time(s['time_axis'], format='mjd')
             self.freq_axis = s['spectrum_axis'] * 1e9
         else:
-            spec, tim, freq, bl, pol = self.rd_dspec(fname, zaxis='amp', zunit='jy')
+            spec, tim, freq, bl, pol = self.rd_dspec(fname, spectype='amp', specunit='jy')
             self.data = spec
             self.time_axis = Time(tim / 24 / 3600, format='mjd')
             self.freq_axis = freq
             self.bl = bl
             self.pol = pol
 
-    def tofits(self, fitsfile=None, specdata=None, zaxis='amp', zunit='jy'):
+    def tofits(self, fitsfile=None, specdata=None, spectype='amp', specunit='jy'):
         """
         @param fitsfile: Path/name of the output fits file
         @param specdata: [optional] input dictionary that is consistent with rd_dspec()
-        @param zaxis: [optional] Specify if the 3rd axis is amplitude or something else (phase)
-        @param zunit: [optional] Specify if the input data unit is Jansky ('jy'), solar flux unit ('sfu'), or
+        @param spectype: [optional] Specify if the 3rd axis is amplitude or something else (phase)
+        @param specunit: [optional] Specify if the input data unit is Jansky ('jy'), solar flux unit ('sfu'), or
                         brightness temperature ('k'). If 'jy', devide the amplitude by 1e4. If anything else,
                         stay unchanged.
         @return:
@@ -143,7 +143,7 @@ class Dspec:
 
         if specdata:
             try:
-                spec, tim, freq, bl, pol = self.rd_dspec(specdata, zaxis=zaxis, zunit=zunit)
+                spec, tim, freq, bl, pol = self.rd_dspec(specdata, spectype=spectype, specunit=specunit)
                 tim = Time(tim / 24 / 3600, format='mjd')
             except:
                 print('Something is wrong with the input specdata.')
@@ -155,8 +155,7 @@ class Dspec:
         tbhdu1 = fits.BinTableHDU.from_columns(cols1)
         tbhdu1.name = 'SFREQ'
 
-        # Split up mjd into days and msec, really intuitive syntax, thanks python
-
+        # Split up mjd into days and msec
         date_obs = tim[0].iso
         date_end = tim[-1].iso
         ut = tim.mjd
@@ -488,8 +487,8 @@ class Dspec:
             f.write(buf)
         f.close()
 
-    def rd_dspec(self, specdata, zaxis='amp', zunit='jy'):
-        zaxis = zaxis.lower()
+    def rd_dspec(self, specdata, spectype='amp', specunit='jy'):
+        spectype = spectype.lower()
         if type(specdata) is str:
             try:
                 specdata = np.load(specdata)
@@ -497,26 +496,26 @@ class Dspec:
                 specdata = np.load(specdata, encoding='latin1')
         try:
             if np.iscomplexobj(specdata['spec']):
-                if zaxis == 'amp':
-                    if zunit.lower() == 'jy':
+                if spectype == 'amp':
+                    if specunit.lower() == 'jy':
                         spec = np.abs(specdata['spec']) / 1.e4
-                    elif zunit.lower() == 'sfu' or zunit.lower() == 'k':
+                    elif specunit.lower() == 'sfu' or specunit.lower() == 'k':
                         spec = np.abs(specdata['spec'])
                     else:
-                        raise ValueError("Input zunit is {}. "
-                                         "If zxis = 'amp', zunit must be 'jy', 'sfu', or 'k'".format(zunit))
-                elif zaxis == 'phase':
+                        raise ValueError("Input specunit is {}. "
+                                         "If spectype = 'amp', specunit must be 'jy', 'sfu', or 'k'".format(specunit))
+                elif spectype == 'phase':
                     spec = np.angle(specdata['spec'])
                 else:
-                    raise ValueError('zaxis must be amp or phase!')
+                    raise ValueError('spectype must be amp or phase!')
             else:
-                if zunit.lower() == 'jy':
+                if specunit.lower() == 'jy':
                     spec = specdata['spec'] / 1.e4
-                elif zunit.lower() == 'sfu' or zunit.lower() == 'k':
+                elif specunit.lower() == 'sfu' or specunit.lower() == 'k':
                     spec = specdata['spec']
                 else:
-                    raise ValueError("Input zunit is {}. "
-                                     "If zxis = 'amp', zunit must be 'jy', 'sfu', or 'k'".format(zunit))
+                    raise ValueError("Input specunit is {}. "
+                                     "If spectype = 'amp', specunit must be 'jy', 'sfu', or 'k'".format(specunit))
             if 'bl' in specdata.keys():
                 try:
                     bl = specdata['bl'].item()
