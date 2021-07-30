@@ -90,7 +90,7 @@ class Dspec:
     f_label = None
     bl = None
     uvrange = None
-    pols = None
+    pol = None
 
 
     def __init__(self, fname=None, specfile=None, bl='', uvrange='', field='', scan='',
@@ -110,19 +110,90 @@ class Dspec:
                 self.read(fname)
 
     def read(self, fname):
-        if fname.endswith('.fts'):
+        if fname.endswith('.fts') or fname.endswith('.fits'):
             from .sources import eovsa
             s = eovsa.get_dspec(fname, doplot=False)
             self.data = s['spectrogram']
             self.time_axis = Time(s['time_axis'], format='mjd')
-            self.freq_axis=s['spectrum_axis'] * 1e9
+            self.freq_axis = s['spectrum_axis'] * 1e9
         else:
-            spec, bl, tim, freq, pols = self.rd_dspec(fname, zaxis='amp')
+            spec, tim, freq, bl, pol = self.rd_dspec(fname, zaxis='amp', zunit='jy')
             self.data = spec
             self.time_axis = Time(tim / 24 / 3600, format='mjd')
-            self.freq_axis=freq
+            self.freq_axis = freq
             self.bl = bl
-            self.pols = pols
+            self.pol = pol
+
+    def tofits(self, fitsfile=None, specdata=None, zaxis='amp', zunit='jy'):
+        """
+        @param fitsfile: Path/name of the output fits file
+        @param specdata: [optional] input dictionary that is consistent with rd_dspec()
+        @param zaxis: [optional] Specify if the 3rd axis is amplitude or something else (phase)
+        @param zunit: [optional] Specify if the input data unit is Jansky ('jy'), solar flux unit ('sfu'), or
+                        brightness temperature ('k'). If 'jy', devide the amplitude by 1e4. If anything else,
+                        stay unchanged.
+        @return:
+        """
+        from astropy.io import fits
+
+        if hasattr(self, 'data'):
+            spec = self.data
+            tim = self.time_axis
+            freq = self.freq_axis
+
+        if specdata:
+            try:
+                spec, tim, freq, bl, pol = self.rd_dspec(specdata, zaxis=zaxis, zunit=zunit)
+                tim = Time(tim / 24 / 3600, format='mjd')
+            except:
+                print('Something is wrong with the input specdata.')
+
+        hdu = fits.PrimaryHDU(spec)
+        # Set up the extensions: sfreq, ut
+        col1 = fits.Column(name='sfreq', format='E', array=freq)
+        cols1 = fits.ColDefs([col1])
+        tbhdu1 = fits.BinTableHDU.from_columns(cols1)
+        tbhdu1.name = 'SFREQ'
+
+        # Split up mjd into days and msec, really intuitive syntax, thanks python
+
+        date_obs = tim[0].iso
+        date_end = tim[-1].iso
+        ut = tim.mjd
+        ut_int = ut.astype(np.int32)
+        ut_msec = 1000.0*86400.0*(ut-ut_int)
+        ut_ms1 = ut_msec.astype(np.int32)
+
+        # J is the format code for a 32 bit integer, who would have thought
+        # http://astropy.readthedocs.org/en/latest/io/fits/usage/table.html
+        col3 = fits.Column(name='mjd', format='J', array=ut_int)
+        col4 = fits.Column(name='time', format='J', array=ut_ms1)
+
+        cols3 = fits.ColDefs([col3, col4])
+        tbhdu3 = fits.BinTableHDU.from_columns(cols3)
+        tbhdu3.name = 'UT'
+
+        #create an HDUList object to put in header information
+        hdulist = fits.HDUList([hdu, tbhdu1, tbhdu3])
+
+        #primary header
+        prihdr = hdulist[0].header
+        prihdr.set('FILENAME', fitsfile)
+        prihdr.set('ORIGIN', 'NJIT', 'Institute where file was written')
+        prihdr.set('TELESCOP', 'EOVSA', 'Expanded Owens Valley Solar Array')
+        prihdr.set('OBJ_ID', 'SUN', 'Object ID')
+        prihdr.set('TYPE', 1, 'Flare Spectrum')
+        prihdr.set('DATE_OBS', date_obs, 'Start date/time of observation')
+        prihdr.set('DATE_END', date_end, 'End date/time of observation')
+        prihdr.set('FREQMIN', min(freq), 'Min freq in observation (GHz)')
+        prihdr.set('FREQMAX', max(freq), 'Max freq in observation (GHz)')
+        prihdr.set('XCEN', 0.0, 'Antenna pointing in arcsec from Sun centre')
+        prihdr.set('YCEN', 0.0, 'Antenna pointing in arcsec from Sun centre')
+        prihdr.set('POLARIZA', 'I', 'Polarizations present')
+        prihdr.set('RESOLUTI', 0.0, 'Resolution value')
+        # Write the file
+        hdulist.writeto(fitsfile, clobber=True)
+
 
     def get_dspec(self, fname=None, specfile=None, bl='', uvrange='', field='', scan='',
                   datacolumn='data',
@@ -150,10 +221,10 @@ class Dspec:
             try:
                 tb.open(fname + '/POLARIZATION')
                 corrtype = tb.getcell('CORR_TYPE', 0)
-                pols = [stokesenum[p] for p in corrtype]
+                pol = [stokesenum[p] for p in corrtype]
                 tb.close()
             except:
-                pols = []
+                pol = []
 
             antmask = []
             if uvrange is not '' or bl is not '':
@@ -314,10 +385,10 @@ class Dspec:
             try:
                 tb.open(vis_spl + '/POLARIZATION')
                 corrtype = tb.getcell('CORR_TYPE', 0)
-                pols = [stokesenum[p] for p in corrtype]
+                pol = [stokesenum[p] for p in corrtype]
                 tb.close()
             except:
-                pols = []
+                pol = []
 
             if regridfreq:
                 ms.open(vis_spl, nomodify=False)
@@ -383,7 +454,7 @@ class Dspec:
         if os.path.exists(specfile):
             os.system('rm -rf ' + specfile)
         np.savez(specfile, spec=ospec, tim=tim, freq=freq,
-                 timeran=timeran, spw=spw, bl=bl, uvrange=uvrange, pol=pols)
+                 timeran=timeran, spw=spw, bl=bl, uvrange=uvrange, pol=pol)
         if verbose:
             print('Median dynamic spectrum saved as: ' + specfile)
 
@@ -417,7 +488,7 @@ class Dspec:
             f.write(buf)
         f.close()
 
-    def rd_dspec(self, specdata, zaxis='amp'):
+    def rd_dspec(self, specdata, zaxis='amp', zunit='jy'):
         zaxis = zaxis.lower()
         if type(specdata) is str:
             try:
@@ -427,27 +498,41 @@ class Dspec:
         try:
             if np.iscomplexobj(specdata['spec']):
                 if zaxis == 'amp':
-                    spec = np.abs(specdata['spec']) / 1.e4
+                    if zunit.lower() == 'jy':
+                        spec = np.abs(specdata['spec']) / 1.e4
+                    elif zunit.lower() == 'sfu' or zunit.lower() == 'k':
+                        spec = np.abs(specdata['spec'])
+                    else:
+                        raise ValueError("Input zunit is {}. "
+                                         "If zxis = 'amp', zunit must be 'jy', 'sfu', or 'k'".format(zunit))
                 elif zaxis == 'phase':
                     spec = np.angle(specdata['spec'])
                 else:
                     raise ValueError('zaxis must be amp or phase!')
             else:
-                zaxis = 'amp'
-                spec = specdata['spec'] / 1.e4
-            try:
-                bl = specdata['bl'].item()
-            except:
-                bl = specdata['bl']
+                if zunit.lower() == 'jy':
+                    spec = specdata['spec'] / 1.e4
+                elif zunit.lower() == 'sfu' or zunit.lower() == 'k':
+                    spec = specdata['spec']
+                else:
+                    raise ValueError("Input zunit is {}. "
+                                     "If zxis = 'amp', zunit must be 'jy', 'sfu', or 'k'".format(zunit))
+            if 'bl' in specdata.keys():
+                try:
+                    bl = specdata['bl'].item()
+                except:
+                    bl = specdata['bl']
+            else:
+                bl = ''
 
             tim = specdata['tim']
             freq = specdata['freq']
             if 'pol' in specdata.keys():
-                pols = specdata['pol']
+                pol= specdata['pol']
             else:
-                pols = []
+                pol = []
 
-            return spec, bl, tim, freq, pols
+            return spec, tim, freq, bl, pol
         except:
             raise ValueError('format of specdata not recognized. Check your input')
 
@@ -534,7 +619,7 @@ class Dspec:
         spec = self.data
         bl = self.bl
         freq = self.freq_axis
-        pols = self.pols
+        pol = self.pol
 
         if spec.ndim == 2:
             nfreq, ntim = len(self.freq_axis), len(self.time_axis)
@@ -579,12 +664,12 @@ class Dspec:
                     elif pol in ['LL', 'YY']:
                         spec_plt = spec[1, b, :, :]
                     elif pol == 'I':
-                        if ('XX' in pols) or ('YY' in pols):
+                        if ('XX' in pol) or ('YY' in pol):
                             spec_plt = spec[0, b, :, :] + spec[1, b, :, :]
                         else:
                             spec_plt = (spec[0, b, :, :] + spec[1, b, :, :]) / 2.
                     elif pol == 'V':
-                        if ('XX' in pols) or ('YY' in pols):
+                        if ('XX' in pol) or ('YY' in pol):
                             spec_plt = spec[0, b, :, :] - spec[1, b, :, :]
                         else:
                             spec_plt = (spec[0, b, :, :] - spec[1, b, :, :]) / 2.
@@ -619,7 +704,7 @@ class Dspec:
                 if bl:
                     ax.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + pol)
                 else:
-                    ax.set_title('Median dynamic spectrum')
+                    ax.set_title('Dynamic spectrum')
                 locator = AutoDateLocator(minticks=2)
                 ax.xaxis.set_major_locator(locator)
                 ax.xaxis.set_major_formatter(AutoDateFormatter(locator))
