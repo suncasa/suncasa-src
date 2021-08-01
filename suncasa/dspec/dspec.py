@@ -681,6 +681,8 @@ class Dspec:
                 ax = fig.add_subplot(111)
                 freqghz = freq / 1e9
                 im = ax.pcolormesh(tim_plt, freqghz, spec_plt, cmap=cmap, norm=norm, shading='auto')
+
+                # make colorbar
                 divider = make_axes_locatable(ax)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax, cax=cax_spec)
