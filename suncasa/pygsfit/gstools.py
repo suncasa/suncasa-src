@@ -1,28 +1,30 @@
 import numpy as np
-import os
+import os, platform
 import astropy.units as u
 from astropy import constants as const
+import ctypes
+from numpy.ctypeslib import ndpointer
+from scipy import interpolate
 import warnings
-
 warnings.simplefilter("default")
 
+def initGET_MW(libname):
+    """
+    Python wrapper for fast gyrosynchrotron codes.
+    Identical to GScodes.py in https://github.com/kuznetsov-radio/gyrosynchrotron
+    This is for the single thread version
+    @param libname: path for locating compiled shared library
+    @return: An executable for calling the GS codes in single thread
+    """
+    _intp = ndpointer(dtype=ctypes.c_int32, flags='F')
+    _doublep = ndpointer(dtype=ctypes.c_double, flags='F')
 
-def ff_emission(em, T=1.e7, Z=1., mu=1.e10):
-    T = T * u.k
-    mu = mu * u.Hz
-    esu = const.e.esu
-    k_B = const.k_B.cgs
-    m_e = const.m_e.cgs
-    c = const.c.cgs
-    bmax = (3 * k_B * T * u.k / m_e) ** 0.5 / 2.0 / np.pi / (mu * u.Hz)
-    bmin = Z * esu ** 2 / 3. / k_B / T
-    lnbb = np.log((bmax / bmin).value)
-    ka_mu = 1. / mu ** 2 / T ** 1.5 * (
-            Z ** 2 * esu ** 6 / c / np.sqrt(2. * np.pi * (m_e * k_B) ** 3)) * np.pi ** 2 / 4.0 * lnbb
-    # print(ka_mu, em)
-    opc = ka_mu * em
-    return T.value * (1 - np.exp(-opc.value))
+    libc_mw = ctypes.CDLL(libname)
+    mwfunc = libc_mw.pyGET_MW
+    mwfunc.argtypes = [_intp, _doublep, _doublep, _doublep, _doublep, _doublep, _doublep]
+    mwfunc.restype = ctypes.c_int
 
+    return mwfunc
 
 def sfu2tb(frequency, flux, area=None, size=None, square=True, reverse=False, verbose=False):
     """
@@ -104,6 +106,22 @@ def sfu2tb(frequency, flux, area=None, size=None, square=True, reverse=False, ve
             print('converting input flux density in sfu to brightness temperature in K.')
         return (flux * factor).to(u.K, equivalencies=u.dimensionless_angles())
 
+def ff_emission(em, T=1.e7, Z=1., mu=1.e10):
+    T = T * u.k
+    mu = mu * u.Hz
+    esu = const.e.esu
+    k_B = const.k_B.cgs
+    m_e = const.m_e.cgs
+    c = const.c.cgs
+    bmax = (3 * k_B * T * u.k / m_e) ** 0.5 / 2.0 / np.pi / (mu * u.Hz)
+    bmin = Z * esu ** 2 / 3. / k_B / T
+    lnbb = np.log((bmax / bmin).value)
+    ka_mu = 1. / mu ** 2 / T ** 1.5 * (
+            Z ** 2 * esu ** 6 / c / np.sqrt(2. * np.pi * (m_e * k_B) ** 3)) * np.pi ** 2 / 4.0 * lnbb
+
+    opc = ka_mu * em
+    return T.value * (1 - np.exp(-opc.value))
+
 
 class GSCostFunctions:
     def SinglePowerLawMinimizerOneSrc(fit_params, freqghz, spec=None, spec_err=None,
@@ -122,18 +140,13 @@ class GSCostFunctions:
                 2. If tb/tb_err or flux/flux_err are provided, return the
                     (scaled) residual for each input frequency
         """
-        import GScodes
-        libname = os.path.join(os.path.dirname(GScodes.__file__),
-                               'binaries/MWTransferArr.so')
-        from scipy import interpolate
-        GET_MW = GScodes.initGET_MW(libname)  # load the library
-
-        #if (not src_area) and (not src_size):
-        #    if verbose:
-        #        print('No source size provided. Assume fitting resolved brightness temperature spectra.')
-        #    src_area = 4.  # assume 4 arcsec^2 (typical EOVSA pixel size)
-        #elif not src_area and src_size:
-        #    src_area = src_size[0] * src_size[1]
+        if platform.system() == 'Linux' or platform.system() == 'Darwin':
+            libname = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                   'binaries/MWTransferArr.so')
+        if platform.system() == 'Windows':
+            libname = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                   'binaries/MWTransferArr64.dll')
+        GET_MW = initGET_MW(libname)  # load the library
 
         asec2cm = 0.725e8
         if 'area_asec2' in fit_params.keys():
@@ -218,7 +231,7 @@ class GSCostFunctions:
                 mtb = sfu2tb(np.array(freqghz) * 1.e9, mflux, area=src_area).value
 
                 if pgplot_widget:
-                    ## TODO: figure out a way to update the main widget
+                    ##todo: figure out a way to update the main widget
                     import pyqtgraph as pg
                     all_items = pgplot_widget.getPlotItem().listDataItems()
                     if len(all_items) > 0:

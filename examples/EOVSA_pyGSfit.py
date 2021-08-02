@@ -1,6 +1,6 @@
 import lmfit
 import numpy as np
-from suncasa.pyGSFIT import gsutils
+from suncasa.pygsfit import gsutils
 from importlib import reload
 
 reload(gsutils)

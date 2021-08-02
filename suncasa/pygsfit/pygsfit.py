@@ -18,20 +18,18 @@ from matplotlib import patches, cm
 from suncasa.io import ndfits
 from astropy.time import Time
 import numpy as np
+import numpy.ma as ma
 import sunpy
 from sunpy import map as smap
 import astropy
 from astropy.io import fits
 import astropy.units as u
 import lmfit
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 import gstools
-
-# from suncasa.pyGSFIT import gsutils
-# from gsutils import ff_emission
-import numpy.ma as ma
 import warnings
 
-sys.path.append('./')
+
 warnings.filterwarnings("ignore")
 pg.setConfigOption('background', 'w')
 pg.setConfigOption('foreground', 'k')
@@ -59,7 +57,7 @@ class App(QMainWindow):
         self.aiafname = '<Select or enter a valid AIA fits file name>'
         self.eoimg_fitsentry = QLineEdit()
         self.eodspec_fitsentry = QLineEdit()
-        self.title = 'pyGSFIT'
+        self.title = 'pygsfit'
         self.left = 0
         self.top = 0
         self.width = 1600
@@ -320,7 +318,7 @@ class App(QMainWindow):
         self.add_to_roigroup_button.setPopupMode(QToolButton.MenuButtonPopup)
         self.add_to_roigroup_button.setMenu(QMenu(self.add_to_roigroup_button))
         self.add_to_roigroup_widget = QListWidget()
-        self.add_to_roigroup_widget.addItems(['0', '1', '2'])  ##todo
+        self.add_to_roigroup_widget.addItems(['0', '1', '2'])  ##todo: update ROI group # on the fly
         self.add_to_roigroup_widget.itemClicked.connect(self.add_to_roigroup_selection)
         action = QWidgetAction(self.add_to_roigroup_button)
         action.setDefaultWidget(self.add_to_roigroup_widget)
@@ -353,7 +351,7 @@ class App(QMainWindow):
         roi_definition_group_box.addLayout(roi_button_box)
 
         roi_grid_box = QHBoxLayout()
-        ## todo: add this button later
+        ## todo: add this button to draw a box and define a group of ROIs with a given size
         self.add_roi_grid_button = QPushButton("Add ROI Grid")
         self.add_roi_grid_button.setStyleSheet("background-color : lightgrey")
         roi_grid_box.addWidget(self.add_roi_grid_button)
@@ -382,7 +380,7 @@ class App(QMainWindow):
         self.roigroup_selection_button.setPopupMode(QToolButton.MenuButtonPopup)
         self.roigroup_selection_button.setMenu(QMenu(self.roigroup_selection_button))
         self.roigroup_selection_widget = QListWidget()
-        self.roigroup_selection_widget.addItems(['0', '1', '2'])  ##todo
+        self.roigroup_selection_widget.addItems(['0', '1', '2'])  ##todo: update ROI group list on the fly
         self.roigroup_selection_widget.itemClicked.connect(self.roigroup_selection)
         action = QWidgetAction(self.roigroup_selection_button)
         action.setDefaultWidget(self.roigroup_selection_widget)
@@ -636,8 +634,6 @@ class App(QMainWindow):
         self.eodspec_file_select_return()
 
     def eodspec_file_select_return(self):
-        ## todo: complete the action
-        #print('To be added')
         try:
             hdulist = fits.open(self.eodspec_fname)
             dspec = hdulist[0].data
@@ -1119,7 +1115,6 @@ class App(QMainWindow):
 
     def bkg_rgn_update(self):
         """Select a region to calculate rms on spectra"""
-        ## todo something is wrong with the bkg roi values
         bkg_subim = self.bkg_roi.getArrayRegion(self.pgdata, self.pg_img_canvas.getImageItem(), axes=(1, 2))
         nf_bkg, ny_bkg, nx_bkg = bkg_subim.shape
         self.bkg_roi.freqghz = self.cfreqs
@@ -1175,13 +1170,12 @@ class App(QMainWindow):
     def roigroup_selection(self):
         items = self.roigroup_selection_widget.selectedItems()
         if len(items) > 0:
-            self.roigroup_selection_button.setText(items[0].text()) ## todo
+            self.roigroup_selection_button.setText(items[0].text())
             self.roi_group_idx = int(items[0].text())
         else:
             self.roi_group_idx = 0
 
     def roi_selection_action(self):
-        ## todo
         items = self.roi_selection_widget.selectedItems()
         if len(items) > 0:
             self.roi_selection_button.setText(items[0].text())
@@ -1325,14 +1319,14 @@ class App(QMainWindow):
     #    self.update_pgspec()
 
     def roi_freq_lowbound_valuechange(self):
-        self.roi_freq_bound[0] = self.roi_freq_lowbound_selector.value()  ##todo
+        self.roi_freq_bound[0] = self.roi_freq_lowbound_selector.value()
         self.statusBar.showMessage('Selected Lower Frequency Bound for ROI is {0:.1f} GHz'.
                                    format(self.roi_freq_bound[0]))
         self.update_freq_mask(self.new_roi)
         self.update_pgspec()
 
     def roi_freq_hibound_valuechange(self):
-        self.roi_freq_bound[1] = self.roi_freq_hibound_selector.value()  ##todo
+        self.roi_freq_bound[1] = self.roi_freq_hibound_selector.value()
         self.statusBar.showMessage('Selected Higher Frequency Bound for ROI is {0:.1f} GHz'.
                                    format(self.roi_freq_bound[1]))
         self.update_freq_mask(self.new_roi)
@@ -1415,6 +1409,7 @@ class App(QMainWindow):
             self.update_fit_param_widgets()
 
         if self.ele_dist == 'thermal f-f':
+            ## todo: thermal free-free cost function to be added
             self.fit_params = lmfit.Parameters()
             self.fit_params.add_many(('theta', 45., True, 0.01, 89.9, None, None),
                                      ('log_nth', 10, True, 4., 13., None, None),
@@ -1427,9 +1422,7 @@ class App(QMainWindow):
                     self.fit_params_nvarys += 1
 
             self.update_fit_param_widgets()
-            self.fit_function = gstools.GSCostFunctions.SinglePowerLawMinimizerOneSrc ## todo: to be added
-            self.update_fit_param_widgets()
-        # print(self.fit_params)
+            #self.fit_function = gstools.GSCostFunctions.SinglePowerLawMinimizerOneSrc
 
     def init_fit_kws(self):
         # first refresh the widgets
