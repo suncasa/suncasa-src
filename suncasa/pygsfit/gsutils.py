@@ -1,13 +1,11 @@
 import numpy as np
 # import sys
 import math
-import os
+import os, sys, platform
 import astropy.units as u
 from sunpy import map as smap
 from astropy.coordinates import SkyCoord
 from suncasa.io import ndfits
-import GScodes  # initialization library - located either in the current directory or in the system path
-from suncasa.utils import mstools
 import lmfit
 from astropy.time import Time
 import matplotlib.pyplot as plt
@@ -19,11 +17,16 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from tqdm import tqdm
 from astropy.io import fits
 import numpy.ma as ma
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+import gstools
 
-
-libname = os.path.join(os.path.dirname(GScodes.__file__),
-                       'binaries/MWTransferArr.so')  # name of the executable library - located where Python can find it
-
+# name of the fast gyrosynchrotron codes shared library
+if platform.system() == 'Linux' or platform.system() == 'Darwin':
+    libname = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                           'binaries/MWTransferArr.so')
+if platform.system() == 'Windows':
+    libname = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                           'binaries/MWTransferArr64.dll')
 
 def kev2k(eng):
     return 11604525.00617 * eng
@@ -123,7 +126,7 @@ def mwspec2min_1src(params, freqghz, tb=None, tb_err=None, arcsec2cm=0.725e8, sh
     '''
 
     from scipy import interpolate
-    GET_MW = GScodes.initGET_MW(libname)  # load the library
+    GET_MW = gstools.initGET_MW(libname)  # load the library
 
     ssz = float(params['ssz'].value)  # # source area in arcsec^2
     depth = float(params['depth'].value)  # total source depth in arcsec
