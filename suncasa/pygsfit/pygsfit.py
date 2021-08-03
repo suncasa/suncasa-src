@@ -350,7 +350,8 @@ class App(QMainWindow):
         # ADD presets selection box
         self.roi_selection_presets_widget = QComboBox()
         self.roi_selection_presets_widget.addItems(
-            ["Presets","Img_Inte_ROIs"])
+            ["Presets","Img_Inte_ROIs","Save Group","Load Preset"])
+        self.roi_selection_presets_widget.insertSeparator(self.roi_selection_presets_widget.count()-2)
         self.roi_selection_presets_widget.setCurrentIndex(0)
         self.roi_selection_presets_widget.currentIndexChanged.connect(self.presets_selector)
         roi_button_box.addWidget(self.roi_selection_presets_widget)
