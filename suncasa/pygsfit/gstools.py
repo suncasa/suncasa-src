@@ -5,6 +5,7 @@ from astropy import constants as const
 import ctypes
 from numpy.ctypeslib import ndpointer
 from scipy import interpolate
+import functools
 import warnings
 warnings.simplefilter("default")
 
@@ -124,7 +125,7 @@ def ff_emission(em, T=1.e7, Z=1., mu=1.e10):
 
 
 class GSCostFunctions:
-    def SinglePowerLawMinimizerOneSrc(fit_params, freqghz, spec=None, spec_err=None,
+    def SinglePowerLawMinimizerOneSrc(fit_params, freqghz, elec_dist = 2,spec=None, spec_err=None,
                                       spec_in_tb=True, pgplot_widget=None, show_plot=False, debug=False, verbose=False):
         """
         params: parameters defined by lmfit.Paramters()
@@ -194,7 +195,7 @@ class GSCostFunctions:
         ParmLocal[1] = Tth  # T_0, K
         ParmLocal[2] = nth  # n_0 - thermal electron density, cm^{-3}
         ParmLocal[3] = Bmag  # B - magnetic field, G
-        ParmLocal[6] = 3  # distribution over energy (PLW is chosen)
+        ParmLocal[6] = elec_dist  # distribution over energy (PLW is chosen)
         ParmLocal[7] = nrl  # n_b - nonthermal electron density, cm^{-3}
         ParmLocal[9] = Emin  # E_min, MeV
         ParmLocal[10] = Emax  # E_max, MeV
@@ -289,3 +290,4 @@ class GSCostFunctions:
             # Return scaled residual
             return (mflux - spec) / spec_err
 
+    Ff_Gyroresonance_MinimizerOneSrc = functools.partial(SinglePowerLawMinimizerOneSrc, elec_dist = 2)

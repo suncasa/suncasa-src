@@ -25,6 +25,7 @@ import astropy
 from astropy.io import fits
 import astropy.units as u
 import lmfit
+from astropy import wcs
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 import gstools
 import roi_preset_def
@@ -348,13 +349,18 @@ class App(QMainWindow):
         roi_button_box.addWidget(self.roi_freq_hibound_selector)
 
         # ADD presets selection box
-        self.roi_selection_presets_widget = QComboBox()
-        self.roi_selection_presets_widget.addItems(
-            ["Presets","Img_Inte_ROIs","Save Group","Load Preset"])
-        self.roi_selection_presets_widget.insertSeparator(self.roi_selection_presets_widget.count()-2)
-        self.roi_selection_presets_widget.setCurrentIndex(0)
-        self.roi_selection_presets_widget.currentIndexChanged.connect(self.presets_selector)
-        roi_button_box.addWidget(self.roi_selection_presets_widget)
+        self.add_customized_rois_button = QToolButton()
+        self.add_customized_rois_button.setText('Customized ROIs')
+        self.add_customized_rois_button.clicked.connect(self.add_customized_rois_window)
+        self.add_customized_rois_button.setPopupMode(QToolButton.MenuButtonPopup)
+        self.preset_menu = QMenu()
+        #self.roi_selection_presets_widget = QComboBox()
+        self.preset_menu.addAction('Img_Inte_ROIs', self.presets_selector)
+        self.preset_menu.addSeparator()
+        self.preset_menu.addAction('Save Group', self.presets_selector)
+        self.preset_menu.addAction('Load Group', self.presets_selector)
+        self.add_customized_rois_button.setMenu(self.preset_menu)
+        roi_button_box.addWidget(self.add_customized_rois_button)
 
 
         roi_definition_group_box.addLayout(roi_button_box)
@@ -623,6 +629,8 @@ class App(QMainWindow):
             self.mapx, self.mapy = np.linspace(self.x0, self.x1, meta['nx']), np.linspace(self.y0, self.y1, meta['ny'])
             self.tp_cal_factor = np.ones_like(self.cfreqs)
             self.has_eovsamap = True
+            with fits.open(self.eoimg_fname, mode='readonly') as wcs_hdul:
+                self.eo_wcs = wcs.WCS(wcs_hdul[0].header)
             # self.infoEdit.setPlainText(repr(rheader))
         except:
             self.statusBar.showMessage('Filename is not a valid FITS file', 2000)
@@ -1195,9 +1203,24 @@ class App(QMainWindow):
         #print(self.current_roi_idx)
 
     def presets_selector(self):
-        print("Seleting ROI(s) with preset: '{}'".format(self.roi_selection_presets_widget.currentText()))
+        cur_action = self.sender()
+        print("Seleting ROI(s) with preset: '{}'".format(cur_action.text()))
         #self.add_customized_roi = roi_preset_def.add_customized_roi
-        self.add_preset = roi_preset_def.add_preset_roi_selection(self, preset=self.roi_selection_presets_widget.currentText())
+        self.add_preset = roi_preset_def.add_preset_roi_selection(self, preset=cur_action.text())
+
+    def add_customized_rois_window(self):
+        #todo: add a new window that users can define a group of new rois.
+        print('window to be added')
+        self.customized_rois_Form = QDialog()
+        ui = roi_preset_def.roi_dialog(img_size=[self.meta['nx'],self.meta['ny']])
+        ui.setupUi(self.customized_rois_Form)
+        self.customized_rois_Form.show()
+        self.customized_rois_Form.exec()
+        #sys.exit(app.exec_())
+        #self.customized_rois_Win = roi_preset_def.customized_roi_Form()
+        #self.customized_rois_Win.show()
+        #self.customized_rois_Win.exec_()
+
 
     def calc_roi_spec(self):
         #print('=================Update ROI SPEC===============')
@@ -1313,6 +1336,38 @@ class App(QMainWindow):
             print('Either image time or calibrated total power dynamic spectrum does not exist.')
 
     def apply_tpcal_factor(self):
+        #for temperaully usage, will be deleted
+        self.tp_cal_factor = np.array([0.8968681293174783,
+                              0.9504386992178108,
+                              0.9864297646421983,
+                              1.0046183712994354,
+                              1.0073926502244068,
+                              0.9963845092060498,
+                              0.974559770155146,
+                              0.9679649296239162,
+                              0.9721789413558524,
+                              1.0246710037574687,
+                              1.0150754437059715,
+                              1.0259100245105293,
+                              0.9971982617916876,
+                              0.9569032223294974,
+                              0.8844379333696123,
+                              0.8806220629713111,
+                              0.9191327181320694,
+                              0.9624422318111411,
+                              1.18508626296237,
+                              1.7152360040386947,
+                              1.1957008909262994,
+                              0.9518102288380225,
+                              0.7552816125649132,
+                              0.502108960566717,
+                              0.4722516099151832,
+                              0.38384067602634003,
+                              0.37399974982408735,
+                              0.3611911951252105,
+                              0.3332326681873762,
+                              0.2872018988250148])
+        #WWWWWWW deleted later
         if self.apply_tpcal_factor_button.isChecked()==True:
             self.statusBar.showMessage('Apply total power correction factor to data.')
             self.data[self.pol_select_idx] /= self.tp_cal_factor[:, None, None]
@@ -1437,6 +1492,24 @@ class App(QMainWindow):
 
             self.update_fit_param_widgets()
             #self.fit_function = gstools.GSCostFunctions.SinglePowerLawMinimizerOneSrc
+        if self.ele_dist == 'thermal f-f + gyrores':
+            self.fit_params = lmfit.Parameters()
+            self.fit_params.add_many(('Bx100G', 2., True, 0.1, 100., None, None),
+                                     ('log_nnth', 5., False, 3., 11, None, None),
+                                     ('delta', 4., False, 1., 30., None, None),
+                                     ('Emin_keV', 10., False, 1., 100., None, None),
+                                     ('Emax_MeV', 10., False, 0.05, 100., None, None),
+                                     ('theta', 45., True, 0.01, 89.9, None, None),
+                                     ('log_nth', 10, True, 4., 13., None, None),
+                                     ('T_MK', 1., True, 0.1, 100, None, None),
+                                     ('depth_asec', 5., False, 1., 100., None, None))
+            self.fit_params_nvarys = 0
+            for key, par in self.fit_params.items():
+                if par.vary:
+                    self.fit_params_nvarys += 1
+
+            self.fit_function = gstools.GSCostFunctions.Ff_Gyroresonance_MinimizerOneSrc
+            self.update_fit_param_widgets()
 
     def init_fit_kws(self):
         # first refresh the widgets
