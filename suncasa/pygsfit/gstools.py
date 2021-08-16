@@ -290,4 +290,3 @@ class GSCostFunctions:
             # Return scaled residual
             return (mflux - spec) / spec_err
 
-    Ff_Gyroresonance_MinimizerOneSrc = functools.partial(SinglePowerLawMinimizerOneSrc, elec_dist = 2)

@@ -349,18 +349,15 @@ class App(QMainWindow):
         roi_button_box.addWidget(self.roi_freq_hibound_selector)
 
         # ADD presets selection box
-        self.add_customized_rois_button = QToolButton()
-        self.add_customized_rois_button.setText('Customized ROIs')
-        self.add_customized_rois_button.clicked.connect(self.add_customized_rois_window)
-        self.add_customized_rois_button.setPopupMode(QToolButton.MenuButtonPopup)
-        self.preset_menu = QMenu()
-        #self.roi_selection_presets_widget = QComboBox()
-        self.preset_menu.addAction('Img_Inte_ROIs', self.presets_selector)
-        self.preset_menu.addSeparator()
-        self.preset_menu.addAction('Save Group', self.presets_selector)
-        self.preset_menu.addAction('Load Group', self.presets_selector)
-        self.add_customized_rois_button.setMenu(self.preset_menu)
-        roi_button_box.addWidget(self.add_customized_rois_button)
+        self.add_manual_rois_button = QToolButton()
+        self.add_manual_rois_button.setText('Define ROIs')
+        self.add_manual_rois_button.clicked.connect(self.add_manually_defined_rois)
+        self.add_manual_rois_button.setPopupMode(QToolButton.MenuButtonPopup)
+        self.group_roi_op_menu = QMenu()
+        self.group_roi_op_menu.addAction('Save Group', self.group_roi_op_selector)
+        self.group_roi_op_menu.addAction('Load Group', self.group_roi_op_selector)
+        self.add_manual_rois_button.setMenu(self.group_roi_op_menu)
+        roi_button_box.addWidget(self.add_manual_rois_button)
 
 
         roi_definition_group_box.addLayout(roi_button_box)
@@ -455,6 +452,11 @@ class App(QMainWindow):
         self.apply_tpcal_factor_button = QRadioButton("Apply?")
         self.apply_tpcal_factor_button.clicked.connect(self.apply_tpcal_factor)
         tpcal_correction_box.addWidget(self.apply_tpcal_factor_button)
+
+        # Button for cal image integrated flux
+        calc_img_flx_button = QPushButton("Img Flux")
+        calc_img_flx_button.clicked.connect(lambda:roi_preset_def.rois_for_cal_flux(self))
+        tpcal_correction_box.addWidget(calc_img_flx_button)
 
         roi_selection_group_box.addLayout(tpcal_correction_box)
 
@@ -1202,25 +1204,31 @@ class App(QMainWindow):
         self.update_pgspec()
         #print(self.current_roi_idx)
 
-    def presets_selector(self):
+    def group_roi_op_selector(self):
         cur_action = self.sender()
-        print("Seleting ROI(s) with preset: '{}'".format(cur_action.text()))
-        #self.add_customized_roi = roi_preset_def.add_customized_roi
-        self.add_preset = roi_preset_def.add_preset_roi_selection(self, preset=cur_action.text())
+        cur_op = cur_action.text()
+        if cur_op == 'Save Group':
+            roi_preset_def.save_roi_group(self)
 
-    def add_customized_rois_window(self):
-        #todo: add a new window that users can define a group of new rois.
-        print('window to be added')
-        self.customized_rois_Form = QDialog()
-        ui = roi_preset_def.roi_dialog(img_size=[self.meta['nx'],self.meta['ny']])
-        ui.setupUi(self.customized_rois_Form)
-        self.customized_rois_Form.show()
-        self.customized_rois_Form.exec()
-        #sys.exit(app.exec_())
-        #self.customized_rois_Win = roi_preset_def.customized_roi_Form()
-        #self.customized_rois_Win.show()
-        #self.customized_rois_Win.exec_()
-
+    def exec_customized_rois_window(self):
+        try:
+            self.customized_rois_Form = QDialog()
+            ui = roi_preset_def.roi_dialog(img_size=[self.meta['nx'],self.meta['ny']])
+            ui.setupUi(self.customized_rois_Form)
+            self.customized_rois_Form.show()
+            cur_result = self.customized_rois_Form.exec()
+            crtf_list = ui.getResult(self.customized_rois_Form)
+            print('cur_result: ',crtf_list)
+            return (crtf_list,cur_result)
+        except:
+            msg_box = QMessageBox(QMessageBox.Warning, 'No EOVSA Image Loaded', 'Load EOVSA Image first!')
+            msg_box.exec_()
+    def add_manually_defined_rois(self):
+        dialog_output = self.exec_customized_rois_window()
+        if not dialog_output[1] or len(dialog_output[0]) == 0:
+            print('No ROI is added!')
+        else:
+            roi_preset_def.add_md_rois(self, inp_str_list =dialog_output[0])
 
     def calc_roi_spec(self):
         #print('=================Update ROI SPEC===============')
@@ -1336,38 +1344,6 @@ class App(QMainWindow):
             print('Either image time or calibrated total power dynamic spectrum does not exist.')
 
     def apply_tpcal_factor(self):
-        #for temperaully usage, will be deleted
-        self.tp_cal_factor = np.array([0.8968681293174783,
-                              0.9504386992178108,
-                              0.9864297646421983,
-                              1.0046183712994354,
-                              1.0073926502244068,
-                              0.9963845092060498,
-                              0.974559770155146,
-                              0.9679649296239162,
-                              0.9721789413558524,
-                              1.0246710037574687,
-                              1.0150754437059715,
-                              1.0259100245105293,
-                              0.9971982617916876,
-                              0.9569032223294974,
-                              0.8844379333696123,
-                              0.8806220629713111,
-                              0.9191327181320694,
-                              0.9624422318111411,
-                              1.18508626296237,
-                              1.7152360040386947,
-                              1.1957008909262994,
-                              0.9518102288380225,
-                              0.7552816125649132,
-                              0.502108960566717,
-                              0.4722516099151832,
-                              0.38384067602634003,
-                              0.37399974982408735,
-                              0.3611911951252105,
-                              0.3332326681873762,
-                              0.2872018988250148])
-        #WWWWWWW deleted later
         if self.apply_tpcal_factor_button.isChecked()==True:
             self.statusBar.showMessage('Apply total power correction factor to data.')
             self.data[self.pol_select_idx] /= self.tp_cal_factor[:, None, None]
