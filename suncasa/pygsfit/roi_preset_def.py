@@ -8,9 +8,10 @@ from regions import Regions, CRTFRegionParserError
 from PyQt5.QtGui import QDesktopServices
 
 class roi_dialog(object):
-    def __init__(self, img_size, world_converter=None):
+    def __init__(self, img_size, cfreqs):
         self.world = False
         self.img_size = img_size
+        self.cfreqs = cfreqs
         self.display_list = []
         # self.input_example = '[[{0}, {1}],[{2}, {3}]],[1.0, 18.0]'.format(int(img_size[0] * 0.3),
         #                                                                  int(img_size[1] * 0.3),
@@ -64,7 +65,7 @@ class roi_dialog(object):
         # self.label.setGeometry(QRect(10, 160, 381, 21))
         # self.label.setObjectName("label")
         self.pushButton_url = QPushButton(Dialog)
-        self.pushButton_url.setGeometry(QRect(10, 250, 163, 32))
+        self.pushButton_url.setGeometry(QRect(500, 180, 81, 32))
         self.pushButton_url.setObjectName("pushButton_url")
         self.pushButton_url.clicked.connect(lambda: QDesktopServices.openUrl(
             QUrl("https://casaguides.nrao.edu/index.php/CASA_Region_Format#Global_definitions")))
@@ -79,8 +80,16 @@ class roi_dialog(object):
         self.pushButton_add_to_list.setGeometry(QRect(470, 250, 113, 32))
         self.pushButton_add_to_list.setObjectName("pushButton")
         self.pushButton_add_to_list.clicked.connect(self.add_to_list)
+        self.pushButton_img_flx_preset = QPushButton(Dialog)
+        self.pushButton_img_flx_preset.setGeometry(QRect(10, 250, 120, 32))
+        self.pushButton_img_flx_preset.setObjectName("img_flx_roi")
+        self.pushButton_img_flx_preset.clicked.connect(self.rois_for_cal_flux)
+        self.pushButton_load_file = QPushButton(Dialog)
+        self.pushButton_load_file.setGeometry(QRect(200, 250, 140, 32))
+        self.pushButton_load_file.setObjectName("load_roi_file")
+        self.pushButton_load_file.clicked.connect(self.roi_file_select)
         self.shape_comboBox = QComboBox(Dialog)
-        self.shape_comboBox.setGeometry(QRect(230, 250, 104, 26))
+        self.shape_comboBox.setGeometry(QRect(350, 250, 104, 26))
         self.shape_comboBox.setObjectName("comboBox")
         self.shape_comboBox.addItems([''] * 7)
         # self.label_2 = QLabel(Dialog)
@@ -98,7 +107,9 @@ class roi_dialog(object):
         # self.label.setText(
         #    _translate("Dialog", "FOV in pixel/arcsec, freq_boundry in GHz"))
         # self.checkBox.setText(_translate("Dialog", "World"))
-        self.pushButton_url.setText(_translate("Dialog", "CASA Region Format"))
+        self.pushButton_url.setText(_translate("Dialog", "Instructions"))
+        self.pushButton_img_flx_preset.setText(_translate("Dialog", "EOVSA Flx ROIs"))
+        self.pushButton_load_file.setText(_translate("Dialog", "Load ROI File"))
         self.pushButton_add_to_list.setText(_translate("Dialog", "Add to List"))
         self.pushButton_delete.setText(_translate("Dialog", "Delete"))
         self.shape_comboBox.setItemText(0, _translate("Dialog", "box"))
@@ -140,6 +151,49 @@ class roi_dialog(object):
         # dialog = roi_dialog(parent)
         # cur_result = dialog.exec_()
         return self.display_list
+
+    def rois_for_cal_flux(self):
+        selections = [str(x) for x in np.arange(2, 6).tolist()]
+        seleted_item, okPressed = QInputDialog.getItem(None, "Number of ROIs", "Number of ROIs", selections, 0, False)
+        num_of_rois = int(seleted_item)
+        print(self.cfreqs)
+        if okPressed:
+            print(num_of_rois, ' ROIs are created')
+            freq_boundry = np.linspace(0, len(self.cfreqs) - 1, num_of_rois + 1, dtype=int)
+            size_list = [int(max(100.0 * self.cfreqs[0] / self.cfreqs[freq_ind], 5.)) for freq_ind in
+                         freq_boundry[:-1]]
+            crtf_str_list = []
+            for nri in range(num_of_rois):
+                crtf_str_list.append(
+                    'centerbox[[{}pix, {}pix], [{}pix, {}pix]], range=[{}GHz, {}GHz]'.format(int(self.img_size[0] / 2),
+                                                                                             int(self.img_size[1] / 2),
+                                                                                             size_list[nri],
+                                                                                             size_list[nri],
+                                                                                             self.cfreqs[freq_boundry[nri]],
+                                                                                             self.cfreqs[freq_boundry[nri + 1]]))
+            for cur_str in crtf_str_list:
+                self.display_list.append(cur_str)
+            self.slm.setStringList(self.display_list)
+            self.rois_list_view.setModel(self.slm)
+        else:
+            return
+    def roi_file_select(self, Dialog):
+        cur_file_name, _file_filter = QFileDialog.getOpenFileName(None, 'Select Region save',
+                                                                     './', 'Region save (*.crtf *.reg *.ds9 *.fits)')
+        #self.fname = 'EOVSA_20210507T190205.000000.outim.image.allbd.fits'
+        cur_format = cur_file_name.split('.')[-1]
+        if cur_format == 'reg':
+            cur_format = 'ds9'
+        try:
+            cur_region = Regions.read(cur_file_name, format=cur_file_name.split('.')[-1])
+        except:
+            msg_box = QMessageBox(QMessageBox.Warning, 'Invalid Input!', 'The input can not be converted!')
+            msg_box.exec_()
+        self.display_list.append(cur_region.serialize(format='crtf'))
+        self.slm.setStringList(self.display_list)
+        self.rois_list_view.setModel(self.slm)
+        return
+
 
 
 def crtf_to_pgroi(crtf_str, eo_wcs, pen_arg):

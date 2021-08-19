@@ -453,11 +453,6 @@ class App(QMainWindow):
         self.apply_tpcal_factor_button.clicked.connect(self.apply_tpcal_factor)
         tpcal_correction_box.addWidget(self.apply_tpcal_factor_button)
 
-        # Button for cal image integrated flux
-        calc_img_flx_button = QPushButton("Img Flux")
-        calc_img_flx_button.clicked.connect(lambda:roi_preset_def.rois_for_cal_flux(self))
-        tpcal_correction_box.addWidget(calc_img_flx_button)
-
         roi_selection_group_box.addLayout(tpcal_correction_box)
 
         ## Add buttons for doing spectral fit
@@ -1213,7 +1208,7 @@ class App(QMainWindow):
     def exec_customized_rois_window(self):
         try:
             self.customized_rois_Form = QDialog()
-            ui = roi_preset_def.roi_dialog(img_size=[self.meta['nx'],self.meta['ny']])
+            ui = roi_preset_def.roi_dialog(img_size=[self.meta['nx'],self.meta['ny']], cfreqs = self.cfreqs)
             ui.setupUi(self.customized_rois_Form)
             self.customized_rois_Form.show()
             cur_result = self.customized_rois_Form.exec()
