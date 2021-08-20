@@ -274,68 +274,72 @@ def write(fname, data, header, mask=None, fix_invalid=True, filled_value=0.0, **
 
 def wrap(fitsfiles, outfitsfile='output.fits', docompress=False, mask=None, fix_invalid=True, filled_value=0.0,
          **kwargs):
-    fitsfiles = sorted(fitsfiles)
-    nband = len(fitsfiles)
-    fits_exist = []
-    idx_fits_exist = []
-    for sidx, fitsf in enumerate(fitsfiles):
-        if os.path.exists(fitsf):
-            fits_exist.append(fitsf)
-            idx_fits_exist.append(sidx)
-    if len(fits_exist) == 0: raise ValueError('None of the input fitsfiles exists!')
-    os.system('cp {} {}'.format(fits_exist[0], outfitsfile))
-    hdu0 = fits.open(outfitsfile, mode='update')
-    header = hdu0[0].header
-    npol, nbd, ny, nx = int(header['NAXIS4']), nband, int(header['NAXIS2']), int(header['NAXIS1'])
-    data = np.zeros((npol, nbd, ny, nx))
-    cdelts = []
-    cfreqs = []
-    for sidx, fitsf in enumerate(fits_exist):
-        hdu = fits.open(fitsf)
-        cdelts.append(hdu[0].header['CDELT3'])
-        cfreqs.append(hdu[0].header['CRVAL3'])
-        for pidx in range(npol):
-            if len(hdu[0].data.shape) == 2:
-                data[pidx, idx_fits_exist[sidx], :, :] = hdu[0].data
+    if len(fitsfiles)<=1:
+        print('There is only one files in the fits file list. wrap is aborted!')
+        return 0
+    else:
+        fitsfiles = sorted(fitsfiles)
+        nband = len(fitsfiles)
+        fits_exist = []
+        idx_fits_exist = []
+        for sidx, fitsf in enumerate(fitsfiles):
+            if os.path.exists(fitsf):
+                fits_exist.append(fitsf)
+                idx_fits_exist.append(sidx)
+        if len(fits_exist) == 0: raise ValueError('None of the input fitsfiles exists!')
+        os.system('cp {} {}'.format(fits_exist[0], outfitsfile))
+        hdu0 = fits.open(outfitsfile, mode='update')
+        header = hdu0[0].header
+        npol, nbd, ny, nx = int(header['NAXIS4']), nband, int(header['NAXIS2']), int(header['NAXIS1'])
+        data = np.zeros((npol, nbd, ny, nx))
+        cdelts = []
+        cfreqs = []
+        for sidx, fitsf in enumerate(fits_exist):
+            hdu = fits.open(fitsf)
+            cdelts.append(hdu[0].header['CDELT3'])
+            cfreqs.append(hdu[0].header['CRVAL3'])
+            for pidx in range(npol):
+                if len(hdu[0].data.shape) == 2:
+                    data[pidx, idx_fits_exist[sidx], :, :] = hdu[0].data
+                else:
+                    data[pidx, idx_fits_exist[sidx], :, :] = hdu[0].data[pidx, 0, :, :]
+        cfreqs = np.array(cfreqs)
+        cdelts = np.array(cdelts)
+        df = np.nanmean(np.diff(cfreqs) / np.diff(idx_fits_exist))  ## in case some of the band is missing
+        header['cdelt3'] = df
+        header['NAXIS3'] = nband
+        header['NAXIS'] = 4
+        header['CRVAL3'] = header['CRVAL3'] - df * idx_fits_exist[0]
+        if os.path.exists(outfitsfile):
+            os.system('rm -rf {}'.format(outfitsfile))
+
+        col1 = fits.Column(name='cfreqs', format='E', array=cfreqs)
+        col2 = fits.Column(name='cdelts', format='E', array=cdelts)
+        tbhdu = fits.BinTableHDU.from_columns([col1, col2])
+        if docompress:
+            dshape = data.shape
+            dim = data.ndim
+            if dim - np.count_nonzero(np.array(dshape) == 1) > 3:
+                pass
             else:
-                data[pidx, idx_fits_exist[sidx], :, :] = hdu[0].data[pidx, 0, :, :]
-    cfreqs = np.array(cfreqs)
-    cdelts = np.array(cdelts)
-    df = np.nanmean(np.diff(cfreqs) / np.diff(idx_fits_exist))  ## in case some of the band is missing
-    header['cdelt3'] = df
-    header['NAXIS3'] = nband
-    header['NAXIS'] = 4
-    header['CRVAL3'] = header['CRVAL3'] - df * idx_fits_exist[0]
-    if os.path.exists(outfitsfile):
-        os.system('rm -rf {}'.format(outfitsfile))
+                if fix_invalid:
+                    data[np.isnan(data)] = filled_value
+                if kwargs is {}:
+                    kwargs.update({'compression_type': 'RICE_1', 'quantize_level': 4.0})
+                if isinstance(outfitsfile, str):
+                    outfitsfile = os.path.expanduser(outfitsfile)
 
-    col1 = fits.Column(name='cfreqs', format='E', array=cfreqs)
-    col2 = fits.Column(name='cdelts', format='E', array=cdelts)
-    tbhdu = fits.BinTableHDU.from_columns([col1, col2])
-    if docompress:
-        dshape = data.shape
-        dim = data.ndim
-        if dim - np.count_nonzero(np.array(dshape) == 1) > 3:
-            pass
-        else:
-            if fix_invalid:
-                data[np.isnan(data)] = filled_value
-            if kwargs is {}:
-                kwargs.update({'compression_type': 'RICE_1', 'quantize_level': 4.0})
-            if isinstance(outfitsfile, str):
-                outfitsfile = os.path.expanduser(outfitsfile)
+                header, data = headersqueeze(header, data)
+                hdunew = fits.CompImageHDU(data=data, header=header, **kwargs)
+                if mask is None:
+                    hdulnew = fits.HDUList([fits.PrimaryHDU(), hdunew, tbhdu])
+                else:
+                    hdumask = fits.CompImageHDU(data=mask.astype(np.uint8), **kwargs)
+                    hdulnew = fits.HDUList([fits.PrimaryHDU(), hdunew, tbhdu, hdumask])
+                hdulnew.writeto(outfitsfile, output_verify='fix')
+                return 1
 
-            header, data = headersqueeze(header, data)
-            hdunew = fits.CompImageHDU(data=data, header=header, **kwargs)
-            if mask is None:
-                hdulnew = fits.HDUList([fits.PrimaryHDU(), hdunew, tbhdu])
-            else:
-                hdumask = fits.CompImageHDU(data=mask.astype(np.uint8), **kwargs)
-                hdulnew = fits.HDUList([fits.PrimaryHDU(), hdunew, tbhdu, hdumask])
-            hdulnew.writeto(outfitsfile, output_verify='fix')
-            return 1
-
-    hdulnew = fits.HDUList([fits.PrimaryHDU(data=data, header=header), tbhdu])
-    hdulnew.writeto(outfitsfile)
-    print('wrapped fits written as ' + outfitsfile)
-    return 1
+        hdulnew = fits.HDUList([fits.PrimaryHDU(data=data, header=header), tbhdu])
+        hdulnew.writeto(outfitsfile)
+        print('wrapped fits written as ' + outfitsfile)
+        return 1

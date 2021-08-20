@@ -1798,7 +1798,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                              docompress=False)
                     # print('fits file ' + ','.join(fitsfiles) + ' selected')
                     if not outfits:
-                        outfits = mstools.time2filename(vis, timerange=timerange) + '.outim.image.fits'
+                        outfits = mstools.time2filename(vis, timerange=timerange) + '.image.fits'
 
                     ndfits.wrap(fitsfiles, outfitsfile=outfits, docompress=docompress)
                     warnings.warn(
@@ -1847,14 +1847,14 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                         if os.path.exists(imagename + junk):
                             os.system('rm -rf ' + imagename + junk)
                     if not outfits:
-                        outfits = mstools.time2filename(vis, timerange=timerange) + '.outim.image.fits'
+                        outfits = mstools.time2filename(vis, timerange=timerange) + '.image.fits'
                     hf.imreg(vis=vis, imagefile=imagefile, timerange=timerange, reftime=reftime,
                              fitsfile=outfits, verbose=verbose, overwrite=True, sclfactor=sclfactor, toTb=toTb,
                              docompress=docompress)
                     print('fits file ' + outfits + ' selected')
             else:
                 if not outfits:
-                    outfits = mstools.time2filename(vis, timerange=timerange) + '.outim.image.fits'
+                    outfits = mstools.time2filename(vis, timerange=timerange) + '.image.fits'
                 hf.imreg(vis=vis, imagefile=imagefile, timerange=timerange, reftime=reftime,
                          fitsfile=outfits, verbose=verbose, overwrite=True, sclfactor=sclfactor, toTb=toTb,
                          docompress=docompress)
