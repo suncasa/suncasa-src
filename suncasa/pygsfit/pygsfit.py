@@ -28,7 +28,7 @@ import lmfit
 from astropy import wcs
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 import gstools
-import roi_preset_def
+import roi_utils
 import warnings
 
 
@@ -1203,12 +1203,12 @@ class App(QMainWindow):
         cur_action = self.sender()
         cur_op = cur_action.text()
         if cur_op == 'Save Group':
-            roi_preset_def.save_roi_group(self)
+            roi_utils.save_roi_group(self)
 
     def exec_customized_rois_window(self):
         try:
             self.customized_rois_Form = QDialog()
-            ui = roi_preset_def.roi_dialog(img_size=[self.meta['nx'],self.meta['ny']], cfreqs = self.cfreqs)
+            ui = roi_utils.roi_dialog(img_size=[self.meta['nx'], self.meta['ny']], cfreqs = self.cfreqs)
             ui.setupUi(self.customized_rois_Form)
             self.customized_rois_Form.show()
             cur_result = self.customized_rois_Form.exec()
@@ -1223,7 +1223,7 @@ class App(QMainWindow):
         if not dialog_output[1] or len(dialog_output[0]) == 0:
             print('No ROI is added!')
         else:
-            roi_preset_def.add_md_rois(self, inp_str_list =dialog_output[0])
+            roi_utils.add_md_rois(self, inp_str_list =dialog_output[0])
 
     def calc_roi_spec(self):
         #print('=================Update ROI SPEC===============')

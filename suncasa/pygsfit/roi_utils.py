@@ -107,8 +107,8 @@ class roi_dialog(object):
         # self.label.setText(
         #    _translate("Dialog", "FOV in pixel/arcsec, freq_boundry in GHz"))
         # self.checkBox.setText(_translate("Dialog", "World"))
-        self.pushButton_url.setText(_translate("Dialog", "Instructions"))
-        self.pushButton_img_flx_preset.setText(_translate("Dialog", "EOVSA Flx ROIs"))
+        self.pushButton_url.setText(_translate("Dialog", "Doc"))
+        self.pushButton_img_flx_preset.setText(_translate("Dialog", "EOVSA Presets"))
         self.pushButton_load_file.setText(_translate("Dialog", "Load ROI File"))
         self.pushButton_add_to_list.setText(_translate("Dialog", "Add to List"))
         self.pushButton_delete.setText(_translate("Dialog", "Delete"))
