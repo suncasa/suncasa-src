@@ -27,6 +27,7 @@ import astropy.units as u
 from astropy import wcs
 import lmfit
 filedir = os.path.dirname(os.path.realpath(__file__))
+print(filedir)
 sys.path.append(filedir)
 import gstools
 import roi_utils
@@ -1753,6 +1754,33 @@ class App(QMainWindow):
         self.update_pgspec()
         # print(self.current_roi_idx)
 
+    def group_roi_op_selector(self):
+        cur_action = self.sender()
+        cur_op = cur_action.text()
+        if cur_op == 'Save Group':
+            roi_utils.save_roi_group(self)
+
+    def exec_customized_rois_window(self):
+        try:
+            self.customized_rois_Form = QDialog()
+            ui = roi_utils.roi_dialog(img_size=[self.meta['nx'], self.meta['ny']], cfreqs = self.cfreqs)
+            ui.setupUi(self.customized_rois_Form)
+            self.customized_rois_Form.show()
+            cur_result = self.customized_rois_Form.exec()
+            crtf_list = ui.getResult(self.customized_rois_Form)
+            print('cur_result: ',crtf_list)
+            return (crtf_list,cur_result)
+        except:
+            msg_box = QMessageBox(QMessageBox.Warning, 'No EOVSA Image Loaded', 'Load EOVSA Image first!')
+            msg_box.exec_()
+
+    def add_manually_defined_rois(self):
+        dialog_output = self.exec_customized_rois_window()
+        if not dialog_output[1] or len(dialog_output[0]) == 0:
+            print('No ROI is added!')
+        else:
+            roi_utils.add_md_rois(self, inp_str_list =dialog_output[0])
+
     def calc_roi_spec(self, evt):
         # print('=================Update ROI SPEC===============')
         # roi = self.rois[self.roi_group_idx][self.current_roi_idx]
@@ -1786,34 +1814,7 @@ class App(QMainWindow):
         else:
             rois2update = self.rois[self.roi_group_idx]
 
-    def group_roi_op_selector(self):
-        cur_action = self.sender()
-        cur_op = cur_action.text()
-        if cur_op == 'Save Group':
-            roi_utils.save_roi_group(self)
-
-    def exec_customized_rois_window(self):
-        try:
-            self.customized_rois_Form = QDialog()
-            ui = roi_utils.roi_dialog(img_size=[self.meta['nx'], self.meta['ny']], cfreqs = self.cfreqs)
-            ui.setupUi(self.customized_rois_Form)
-            self.customized_rois_Form.show()
-            cur_result = self.customized_rois_Form.exec()
-            crtf_list = ui.getResult(self.customized_rois_Form)
-            print('cur_result: ',crtf_list)
-            return (crtf_list,cur_result)
-        except:
-            msg_box = QMessageBox(QMessageBox.Warning, 'No EOVSA Image Loaded', 'Load EOVSA Image first!')
-            msg_box.exec_()
-    def add_manually_defined_rois(self):
-        dialog_output = self.exec_customized_rois_window()
-        if not dialog_output[1] or len(dialog_output[0]) == 0:
-            print('No ROI is added!')
-        else:
-            roi_utils.add_md_rois(self, inp_str_list =dialog_output[0])
-
-    def calc_roi_spec(self):
-        for roi in rois2update::
+        for roi in rois2update:
             ## todo: investigate why using axes = (2, 1) returns entirely different (wrong!) results
 
             subim = roi.getArrayRegion(self.pgdata,
