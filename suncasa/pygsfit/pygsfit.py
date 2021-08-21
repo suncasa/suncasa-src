@@ -24,18 +24,30 @@ from sunpy import map as smap
 import astropy
 from astropy.io import fits
 import astropy.units as u
-import lmfit
 from astropy import wcs
-sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+import lmfit
+filedir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(filedir)
 import gstools
 import roi_utils
 import warnings
-
 
 warnings.filterwarnings("ignore")
 pg.setConfigOption('background', 'w')
 pg.setConfigOption('foreground', 'k')
 pg.setConfigOptions(imageAxisOrder='row-major')
+
+SMALL_SIZE = 8
+MEDIUM_SIZE = 9
+BIGGER_SIZE = 10
+
+plt.rc('font', size=SMALL_SIZE)  # controls default text sizes
+plt.rc('axes', titlesize=SMALL_SIZE)  # fontsize of the axes title
+plt.rc('axes', labelsize=MEDIUM_SIZE)  # fontsize of the x and y labels
+plt.rc('xtick', labelsize=SMALL_SIZE)  # fontsize of the tick labels
+plt.rc('ytick', labelsize=SMALL_SIZE)  # fontsize of the tick labels
+plt.rc('legend', fontsize=SMALL_SIZE)  # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 fit_param_text = {'Bx100G': 'B [\u00d7100 G]',
                   'log_nnth': 'log(n<sub>nth</sub>) [cm<sup>-3</sup>]',
@@ -49,16 +61,172 @@ fit_param_text = {'Bx100G': 'B [\u00d7100 G]',
                   'area_asec2': 'area [arcsec<sup>2</sup>]'}
 
 
+class LineSegmentROIX(pg.ROI):
+    r"""
+    ROI subclass with two freely-moving handles defining a line.
+
+    ============== =============================================================
+    **Arguments**
+    positions      (list of two length-2 sequences) The endpoints of the line
+                   segment. Note that, unlike the handle positions specified in
+                   other ROIs, these positions must be expressed in the normal
+                   coordinate system of the ROI, rather than (0 to 1) relative
+                   to the size of the ROI.
+    \**args        All extra keyword arguments are passed to ROI()
+    ============== =============================================================
+    """
+
+    def __init__(self, positions=(None, None), pos=None, handles=(None, None), **args):
+        if pos is None:
+            pos = [0, 0]
+
+        pg.ROI.__init__(self, pos, [1, 1], **args)
+        if len(positions) > 2:
+            raise Exception("LineSegmentROI must be defined by exactly 2 positions. For more points, use PolyLineROI.")
+
+        for i, p in enumerate(positions):
+            self.addFreeHandle(p, item=handles[i])
+
+    @property
+    def endpoints(self):
+        # must not be cached because self.handles may change.
+        return [h['item'] for h in self.handles]
+
+    def listPoints(self):
+        return [p['item'].pos() for p in self.handles]
+
+    def getState(self):
+        state = pg.ROI.getState(self)
+        state['points'] = [pg.Point(h.pos()) for h in self.getHandles()]
+        return state
+
+    def saveState(self):
+        state = pg.ROI.saveState(self)
+        state['points'] = [tuple(h.pos()) for h in self.getHandles()]
+        return state
+
+    def setState(self, state):
+        pg.ROI.setState(self, state)
+        p1 = [state['points'][0][0] + state['pos'][0], state['points'][0][1] + state['pos'][1]]
+        p2 = [state['points'][1][0] + state['pos'][0], state['points'][1][1] + state['pos'][1]]
+        self.movePoint(self.getHandles()[0], p1, finish=False)
+        self.movePoint(self.getHandles()[1], p2)
+
+    def paint(self, p, *args):
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setPen(self.currentPen)
+        h1 = self.endpoints[0].pos()
+        h2 = self.endpoints[1].pos()
+        p.drawLine(h1, h2)
+
+    def boundingRect(self):
+        return self.shape().boundingRect()
+
+    def shape(self):
+        p = QPainterPath()
+
+        h1 = self.endpoints[0].pos()
+        h2 = self.endpoints[1].pos()
+        dh = h2 - h1
+        if dh.length() == 0:
+            return p
+        pxv = self.pixelVectors(dh)[1]
+        if pxv is None:
+            return p
+
+        pxv *= 4
+
+        p.moveTo(h1 + pxv)
+        p.lineTo(h2 + pxv)
+        p.lineTo(h2 - pxv)
+        p.lineTo(h1 - pxv)
+        p.lineTo(h1 + pxv)
+
+        return p
+
+    def getArrayRegion(self, data, img, axes=(0, 1), order=1, returnMappedCoords=False, **kwds):
+        """
+        Use the position of this ROI relative to an imageItem to pull a slice
+        from an array.
+
+        Since this pulls 1D data from a 2D coordinate system, the return value
+        will have ndim = data.ndim-1
+
+        See :meth:`~pytqgraph.ROI.getArrayRegion` for a description of the
+        arguments.
+        """
+        print([h.pos() for h in self.endpoints])
+        imgPts = [self.mapToItem(img, h.pos()) for h in self.endpoints]
+        rgns = []
+        coords = []
+
+        d = pg.Point(imgPts[1] - imgPts[0])
+        o = pg.Point(imgPts[0])
+        rgn = pg.functions.affineSlice(data, shape=(int(d.length()),), vectors=[pg.Point(d.norm())], origin=o,
+                                       axes=axes,
+                                       order=order, returnCoords=returnMappedCoords, **kwds)
+        print(rgn)
+
+        return rgn
+
+
+class PolyLineROIX(pg.PolyLineROI):
+    # def __init__(self, positions, closed=False, pos=None, **args):
+    #     if pos is None:
+    #         pos = [0, 0]
+    #
+    #     self.closed = closed
+    #     self.segments = []
+    #     pg.ROI.__init__(self, pos, size=[1,1], **args)
+    #
+    #     self.setPoints(positions)
+
+    @property
+    def endpoints(self):
+        # must not be cached because self.handles may change.
+        return [h['item'] for h in self.handles]
+
+    def listPoints(self):
+        return [p['item'].pos() for p in self.handles]
+
+    def getArrayRegion(self, data, img, axes=(0, 1), order=1, returnMappedCoords=False, **kwds):
+        """
+        Use the position of this ROI relative to an imageItem to pull a slice
+        from an array.
+
+        Since this pulls 1D data from a 2D coordinate system, the return value
+        will have ndim = data.ndim-1
+
+        See :meth:`~pytqgraph.ROI.getArrayRegion` for a description of the
+        arguments.
+        """
+        # print([h.pos() for h in self.endpoints])
+        imgPts = [self.mapToItem(img, h.pos()) for h in self.endpoints]
+        rgns = []
+        coords = []
+
+        rgns = []
+        for idx, imgPt in enumerate(imgPts[:-1]):
+            d = pg.Point(imgPts[idx + 1] - imgPts[idx])
+            o = pg.Point(imgPts[idx])
+            rgn = pg.functions.affineSlice(data, shape=(int(d.length()),), vectors=[pg.Point(d.norm())], origin=o,
+                                           axes=axes,
+                                           order=order, returnCoords=returnMappedCoords, **kwds)
+            rgns.append(rgn)
+
+        return np.hstack(rgns)
+
+
 class App(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self._createMenuBar()
+
         self.eoimg_fname = '<Select or enter a valid EOVSA image fits file name>'
         self.eodspec_fname = '<Select or enter a valid EOVSA spectrogram fits file name>'
         self.aiafname = '<Select or enter a valid AIA fits file name>'
-        self.eoimg_fitsentry = QLineEdit()
-        self.eodspec_fitsentry = QLineEdit()
+        # self.eoimg_fitsentry = QLineEdit()
+        # self.eodspec_fitsentry = QLineEdit()
         self.title = 'pygsfit'
         self.left = 0
         self.top = 0
@@ -84,6 +252,7 @@ class App(QMainWindow):
         self.fit_function = gstools.GSCostFunctions.SinglePowerLawMinimizerOneSrc
         self.threadpool = QThreadPool()
         self.has_eovsamap = False
+        self.has_dspec = False
         self.has_stokes = False
         self.has_aiamap = False
         self.has_bkg = False
@@ -94,7 +263,7 @@ class App(QMainWindow):
         self.flx_spec_bound = [1e-4, 1e5]  # Bound of flux density; the lower bound is set to the fit limit
         self.fit_freq_bound = [1.0, 18.0]
         self.roi_freq_bound = [1.0, 18.0]
-        self.spec_frac_err = 0.1   # fractional error of the intensity (assumed to be due to flux calibration error)
+        self.spec_frac_err = 0.1  # fractional error of the intensity (assumed to be due to flux calibration error)
         self.spec_rmsplots = []
         self.spec_dataplots = []
         self.spec_dataplots_tofit = []
@@ -103,56 +272,200 @@ class App(QMainWindow):
         self.roi_group_idx = 0
         self.nroi_current_group = 0
         self.current_roi_idx = 0
+        self.distSpecCanvasSet = {}
         self.pol_select_idx = 0
         self.spec_in_tb = True
         self.is_calibrated_tp = True
+        self.qlookimg_axs = None
+        self.qlookdspec_ax = None
         # some controls for qlookplot
         self.opencontour = True
         self.clevels = np.array([0.3, 0.7])
         self.calpha = 1.
+        self.pgcmap = self._create_pgcmap(cmap='viridis', ncolorstop=6)
         # initialize the window
         # self.initUI()
         self.initUItab_explorer()
+        # ## quick input for debug --------------
+        # self.eoimg_file_select()
+        # ## quick input for debug --------------
+
+    def _create_pgcmap(self, cmap='viridis', ncolorstop=6):
+        """This is to create the cmap for pyqtgraph's ImageView Widgets"""
+        from matplotlib import cm
+        mpl_cmap = cm.get_cmap(cmap, ncolorstop)
+        mpl_colors = mpl_cmap(np.linspace(0, 1, ncolorstop)) * 255
+        colors = []
+        for s in range(ncolorstop):
+            colors.append((int(mpl_colors[s, 0]), int(mpl_colors[s, 1]), int(mpl_colors[s, 2])))
+
+        cmap = pg.ColorMap(pos=np.linspace(0.0, 1.0, ncolorstop), color=colors)
+        return cmap
+
+    def _createToolBars(self):
+        # Using a title
+        # fileToolBar = self.addToolBar("File")
+        iconsize = QSize(50, 50)
+        selectToolBar = self.addToolBar("ADD")
+        self.addSelectAction = QAction(QIcon("{}/resources/add-button.svg".format(filedir)), "&Add ROI", self)
+        self.addSelectAction.setText('Add ROI')
+        self.addSelectAction.triggered.connect(self.add_new_roi)
+        selectToolBar.addAction(self.addSelectAction)
+
+        ## define ROI toolbar
+        roiToolBar = self.addToolBar("ROI")
+
+        self.rectButton = QToolButton(self, text="RectROI", checkable=True)
+        self.rectButton.setIcon(QIcon("{}/resources/roi-rect.svg".format(filedir)))
+        self.rectButton.setChecked(True)
+        self.rectButton.setIconSize(iconsize)
+        self.rectButton.setToolTip('Rectangle ROI tool')
+        self.rectButton.setStyleSheet("QToolButton::hover"
+                                      "{"
+                                      "background-color : #555555;"
+                                      "}")
+
+        self.elpsButton = QToolButton(self, text="EllipseROI", checkable=True)
+        self.elpsButton.setIcon(QIcon("{}/resources/roi-ellipse.svg".format(filedir)))
+        self.elpsButton.setIconSize(iconsize)
+        self.elpsButton.setToolTip('Ellipse ROI tool')
+        self.elpsButton.setStyleSheet("QToolButton::hover"
+                                      "{"
+                                      "background-color : #555555;"
+                                      "}")
+
+        self.polygonButton = QToolButton(self, text="PolygonROI", checkable=True)
+        self.polygonButton.setIcon(QIcon("{}/resources/roi-polygon.svg".format(filedir)))
+        self.polygonButton.setIconSize(iconsize)
+        self.polygonButton.setToolTip('Polygon ROI tool')
+        self.polygonButton.setStyleSheet("QToolButton::hover"
+                                         "{"
+                                         "background-color : #555555;"
+                                         "}")
+        ## define Slice toolbar
+        sliceToolBar = self.addToolBar("sliceROI")
+
+        self.lineButton = QToolButton(self, text="LineSegmentROI", checkable=True)
+        self.lineButton.setIcon(QIcon("{}/resources/slice-line.svg".format(filedir)))
+        self.lineButton.setIconSize(iconsize)
+        self.lineButton.setToolTip('Line slice ROI tool')
+        self.lineButton.setStyleSheet("QToolButton::hover"
+                                      "{"
+                                      "background-color : #555555;"
+                                      "}")
+
+        self.polyLineButton = QToolButton(self, text="PolyLineROI", checkable=True)
+        self.polyLineButton.setIcon(QIcon("{}/resources/slice-polyline.svg".format(filedir)))
+        self.polyLineButton.setIconSize(iconsize)
+        self.polyLineButton.setToolTip('PolyLine slice ROI tool')
+        self.polyLineButton.setStyleSheet("QToolButton::hover"
+                                          "{"
+                                          "background-color : #555555;"
+                                          "}")
+
+        # self.multiRectButton = QToolButton(self, text="MultiRectROI", checkable=True)
+        # self.multiRectButton.setIcon(QIcon("{}/resources/slice-line.svg".format(filedir)))
+        # self.multiRectButton.setIconSize(iconsize)
+        # self.multiRectButton.setToolTip('PolyLine slice tool')
+        # self.multiRectButton.setStyleSheet("QToolButton::hover"
+        #                                    "{"
+        #                                    "background-color : #555555;"
+        #                                    "}")
+
+        self.toolBarButtonGroup = QButtonGroup(self, exclusive=True)
+        for button in [
+            self.rectButton,
+            self.elpsButton,
+            self.polygonButton
+        ]:
+            roiToolBar.addWidget(button)
+            self.toolBarButtonGroup.addButton(button)
+        # for button in [self.lineButton, self.polyLineButton, self.multiRectButton]:
+        for button in [self.lineButton, self.polyLineButton]:
+            sliceToolBar.addWidget(button)
+            self.toolBarButtonGroup.addButton(button)
+
+        self.add2slice = QCheckBox('Add ROI to slice?')
+        self.add2slice.setChecked(False)
+        self.add2slice.setToolTip(
+            'If True, the selected ROI will be added to the last slice ROI. If there no slice ROI exists, use the sliceROI tools on the right to create one.')
+        roiToolBar.addWidget(self.add2slice)
+        # self.add2slice.toggled.connect(self.is_calibrated_tp_state)
+
+        # self.addSelectAction.set(True)
+        # self.rectAction = QAction(QIcon("{}/resources/roi-rect.svg".format(filedir)), "&Rectangle", self)
+        # self.rectAction.setCheckable(True)
+        # self.circAction = QAction(QIcon("{}/resources/roi-circ.svg".format(filedir)), "&Circle", self)
+        # self.circAction.setCheckable(True)
+        # self.polylineAction = QAction(QIcon("{}/resources/roi-polyline.svg".format(filedir)), "&PolyLine", self)
+        # self.polylineAction.setCheckable(True)
+        # roiToolBar.addAction(self.rectAction)
+        # roiToolBar.addAction(self.circAction)
+        # roiToolBar.addAction(self.polylineAction)
+        # # # Using a QToolBar object
+        # # editToolBar = QToolBar("Edit", self)
+        # # self.addToolBar(editToolBar)
+        # # # Using a QToolBar object and a toolbar area
+        # # helpToolBar = QToolBar("Image", self)
+        # # self.addToolBar(Qt.TopToolBarArea, helpToolBar)
 
     def _createMenuBar(self):
-        menuBar = self.menuBar()
-        fileMenu = QMenu("&File", self)
-        menuBar.addMenu(fileMenu)
+        menubar = self.menuBar()
+        ## PYQT5 does not support native menubar on MacOS
+        menubar.setNativeMenuBar(False)
+        # fileMenu = QMenu("&File", self)
+        # menubar.addMenu(fileMenu)
+        actionFile = menubar.addMenu("File")
+
+        action_loadEOVSAimage = QAction("Load EOVSA Image", self)
+        action_loadEOVSAimage.triggered.connect(self.eoimg_file_select)
+        actionFile.addAction(action_loadEOVSAimage)
+        action_loadAIA = QAction("Load AIA", self)
+        action_loadAIA.triggered.connect(self.aiafile_select)
+        actionFile.addAction(action_loadAIA)
+        action_loadEOVSAspectrogram = QAction("Load EOVSA Spectrogram", self)
+        action_loadEOVSAspectrogram.triggered.connect(self.eodspec_file_select)
+        actionFile.addAction(action_loadEOVSAspectrogram)
+        # actionFile.addAction("Open AIA")
+        # actionFile.addAction("Open EOVSA Spectrogram")
+        actionFile.addSeparator()
+        actionFile.addAction("Quit")
+
         # Creating menus using a title
-        editMenu = menuBar.addMenu("&Edit")
-        helpMenu = menuBar.addMenu("&Help")
+        editMenu = menubar.addMenu("&Edit")
+        # helpMenu = menuBar.addMenu(" &Help")
+        # self.menu_layout.addWidget(menuBar)
 
-    #    def initUI(self):
+    # def initUI(self):
+    #     self.statusBar = QStatusBar()
+    #     self.setStatusBar(self.statusBar)
+    #     self.progressBar = QProgressBar()
+    #     self.progressBar.setGeometry(10, 10, 200, 15)
     #
-    #        self.statusBar = QStatusBar()
-    #        self.setStatusBar(self.statusBar)
-    #        self.progressBar = QProgressBar()
-    #        self.progressBar.setGeometry(10, 10, 200, 15)
-
-    #        layout = QVBoxLayout()
-    #        # Initialize tab screen
-    #        self.tabs = QTabWidget()
-    #        tab_explorer = QWidget()
-    #        tab_fit = QWidget()
-    #        tab_analyzer = QWidget()
-
-    #        # Add tabs
-    #        self.tabs.addTab(tab_explorer, "Explorer")
-    #        # self.tabs.addTab(tab_fit, "Fit")
-    #        self.tabs.addTab(tab_analyzer, "Analyzer")
-
-    #        # Each tab's user interface is complex, so this splits them into separate functions.
-    #        self.initUItab_explorer()
-    #        # self.initUItab_fit()
-    #        self.initUItab_analyzer()
+    #     layout = QVBoxLayout()
+    #     # Initialize tab screen
+    #     self.tabs = QTabWidget()
+    #     tab_explorer = QWidget()
+    #     tab_fit = QWidget()
+    #     tab_analyzer = QWidget()
     #
-    #        # self.tabs.currentChanged.connect(self.tabChanged)
-
-    #        # Add tabs to widget
-    #        layout.addWidget(self.tabs)
-    #        self._main.setLayout(layout)
+    #     # Add tabs
+    #     self.tabs.addTab(tab_explorer, "Explorer")
+    #     # self.tabs.addTab(tab_fit, "Fit")
+    #     self.tabs.addTab(tab_analyzer, "Analyzer")
     #
-    #        self.show()
+    #     # Each tab's user interface is complex, so this splits them into separate functions.
+    #     self.initUItab_explorer()
+    #     # self.initUItab_fit()
+    #     self.initUItab_analyzer()
+    #
+    #     # self.tabs.currentChanged.connect(self.tabChanged)
+    #
+    #     # Add tabs to widget
+    #     layout.addWidget(self.tabs)
+    #     self._main.setLayout(layout)
+    #
+    #     self.show()
 
     # Explorer Tab User Interface
     #
@@ -162,6 +475,8 @@ class App(QMainWindow):
         self.setStatusBar(self.statusBar)
         self.progressBar = QProgressBar()
         self.progressBar.setGeometry(10, 10, 200, 15)
+        self._createMenuBar()
+        self._createToolBars()
         main_layout = QHBoxLayout()
 
         # Creat Data Display and Fit Tab
@@ -171,50 +486,50 @@ class App(QMainWindow):
         ###### The Following is for datalayout ######
         # Upper box of the data layout has two hboxes: top box and quicklook plot box
         data_layout_upperbox = QVBoxLayout()
-        # Top of the upper box of the data layout is for file selection and fits header display
-        file_selection_box = QGridLayout()
-
-        # EOVSA Image FITS Filename entry
-        eoimg_selection_box = QHBoxLayout()
-        file_selection_box.addLayout(eoimg_selection_box, 0, 0)
-        # Create Browse button
-        eoimg_selection_button = QPushButton("Load EOVSA Image")
-        eoimg_selection_button.clicked.connect(self.eoimg_file_select)
-        eoimg_selection_box.addWidget(eoimg_selection_button)
-        # Create LineEdit widget for FITS filename
-        self.eoimg_fitsentry.resize(8 * len(self.eoimg_fname), 20)
-        eoimg_selection_box.addWidget(self.eoimg_fitsentry)
-
-        # EOVSA Spectrogram FITS Filename entry
-        eodspec_selection_box = QHBoxLayout()
-        file_selection_box.addLayout(eodspec_selection_box, 0, 1)
-        # Create Browse button
-        eodspec_selection_button = QPushButton("Load EOVSA Spectrogram")
-        eodspec_selection_button.clicked.connect(self.eodspec_file_select)
-        eodspec_selection_box.addWidget(eodspec_selection_button)
-        # Create LineEdit widget for FITS filename
-        self.eodspec_fitsentry.resize(8 * len(self.eoimg_fname), 20)
-        eodspec_selection_box.addWidget(self.eodspec_fitsentry)
-
-        self.is_calibrated_tp_button = QRadioButton('Is Calibrated TP?')
-        self.is_calibrated_tp_button.setChecked(self.is_calibrated_tp)
-        self.is_calibrated_tp_button.toggled.connect(self.is_calibrated_tp_state)
-        eodspec_selection_box.addWidget(self.is_calibrated_tp_button)
-
-        # AIA FITS Filename entry
-        aia_selection_box = QHBoxLayout()
-        file_selection_box.addLayout(aia_selection_box, 1, 0)
-        # Create Browse button
-        aia_selection_button = QPushButton("Load AIA")
-        aia_selection_button.clicked.connect(self.aiafile_select)
-        aia_selection_box.addWidget(aia_selection_button)
-        # Create LineEdit widget for AIA FITS file
-        self.aiaimg_fitsentry = QLineEdit()
-        self.aiaimg_fitsentry.resize(8 * len(self.eoimg_fname), 20)
-        aia_selection_box.addWidget(self.aiaimg_fitsentry)
-
-        # Add top box of the upper box in data layout
-        data_layout_upperbox.addLayout(file_selection_box)
+        # # Top of the upper box of the data layout is for file selection and fits header display
+        # file_selection_box = QGridLayout()
+        #
+        # # EOVSA Image FITS Filename entry
+        # eoimg_selection_box = QHBoxLayout()
+        # file_selection_box.addLayout(eoimg_selection_box, 0, 0)
+        # # Create Browse button
+        # eoimg_selection_button = QPushButton("Load EOVSA Image")
+        # eoimg_selection_button.clicked.connect(self.eoimg_file_select)
+        # eoimg_selection_box.addWidget(eoimg_selection_button)
+        # # Create LineEdit widget for FITS filename
+        # self.eoimg_fitsentry.resize(8 * len(self.eoimg_fname), 15)
+        # eoimg_selection_box.addWidget(self.eoimg_fitsentry)
+        #
+        # # EOVSA Spectrogram FITS Filename entry
+        # eodspec_selection_box = QHBoxLayout()
+        # file_selection_box.addLayout(eodspec_selection_box, 0, 1)
+        # # Create Browse button
+        # eodspec_selection_button = QPushButton("Load EOVSA Spectrogram")
+        # eodspec_selection_button.clicked.connect(self.eodspec_file_select)
+        # eodspec_selection_box.addWidget(eodspec_selection_button)
+        # # Create LineEdit widget for FITS filename
+        # self.eodspec_fitsentry.resize(8 * len(self.eoimg_fname), 15)
+        # eodspec_selection_box.addWidget(self.eodspec_fitsentry)
+        #
+        # self.is_calibrated_tp_button = QRadioButton('Is Calibrated TP?')
+        # self.is_calibrated_tp_button.setChecked(self.is_calibrated_tp)
+        # self.is_calibrated_tp_button.toggled.connect(self.is_calibrated_tp_state)
+        # eodspec_selection_box.addWidget(self.is_calibrated_tp_button)
+        #
+        # # AIA FITS Filename entry
+        # aia_selection_box = QHBoxLayout()
+        # file_selection_box.addLayout(aia_selection_box, 1, 0)
+        # # Create Browse button
+        # aia_selection_button = QPushButton("Load AIA")
+        # aia_selection_button.clicked.connect(self.aiafile_select)
+        # aia_selection_box.addWidget(aia_selection_button)
+        # # Create LineEdit widget for AIA FITS file
+        # self.aiaimg_fitsentry = QLineEdit()
+        # self.aiaimg_fitsentry.resize(8 * len(self.eoimg_fname), 15)
+        # aia_selection_box.addWidget(self.aiaimg_fitsentry)
+        #
+        # # Add top box of the upper box in data layout
+        # data_layout_upperbox.addLayout(file_selection_box)
 
         # Create label and TextEdit widget for FITS header information
         # fitsinfobox = QVBoxLayout()
@@ -227,35 +542,21 @@ class App(QMainWindow):
         # self.infoEdit.setMaximumWidth(500)
         # fitsinfobox.addWidget(QLabel("FITS Information"))
         # fitsinfobox.addWidget(self.infoEdit)
-
-        # Bottom of the upper box in data layout: quick look plotting area
-        qlookarea = QHBoxLayout()
-        qlookimgbox = QVBoxLayout()
-        qlookdspecbox = QVBoxLayout()
-        self.qlookimg_canvas = FigureCanvas(Figure(figsize=(6, 4)))
-        self.qlookimg_toolbar = NavigationToolbar(self.qlookimg_canvas, self)
-        qlookimgbox.addWidget(self.qlookimg_canvas)
-        qlookimgbox.addWidget(self.qlookimg_toolbar)
-        self.qlookdspec_canvas = FigureCanvas(Figure(figsize=(6, 4)))
-        self.qlookdspec_toolbar = NavigationToolbar(self.qlookdspec_canvas, self)
-        qlookdspecbox.addWidget(self.qlookdspec_canvas)
-        qlookdspecbox.addWidget(self.qlookdspec_toolbar)
-
-        # self.qlook_axs = self.qlookcanvas.figure.subplots(nrows=1, ncols=4)
-        #gs = gridspec.GridSpec(ncols=2, nrows=1, width_ratios=[1, 1], left=0.15, right=0.95, wspace=0.3)
-        gs = gridspec.GridSpec(ncols=1, nrows=1, left=0.15, right=0.95, bottom=0.15, wspace=0.3)
-        self.qlookimg_axs = []
-        self.qlookimg_axs.append(self.qlookimg_canvas.figure.add_subplot(gs[0]))
-        #self.qlookimg_axs.append(self.qlookimg_canvas.figure.add_subplot(gs[1]))
-
-        self.qlookdspec_ax = self.qlookdspec_canvas.figure.subplots(1, 1)
-
-        qlookarea.addLayout(qlookimgbox)
-        qlookarea.addLayout(qlookdspecbox)
-
-        data_layout_upperbox.addLayout(qlookarea)
         data_layout.addLayout(data_layout_upperbox)
-        # data_layout.setRowStretch(0, 1.)
+
+        # # toolbox
+        # ## ADD ROI type selection
+        # self.roi_type_button_box = QHBoxLayout()
+        # self.roi_type_selector_widget = QComboBox()
+        # self.roi_type_selector_widget.addItems(["Rect", "Line", "differential_evolution"])
+        # # self.roi_type_selector_widget.currentIndexChanged.connect(self.fit_method_selector)
+        # self.roi_type_button_box.addWidget(QLabel("placeholder for toolbar"))
+        # self.roi_type_button_box.addWidget(self.roi_type_selector_widget)
+        #
+        # # middle box of the
+        # data_layout_middlebox = QVBoxLayout()
+        # data_layout_middlebox.addLayout(self.roi_type_button_box)
+        # data_layout.addLayout(data_layout_middlebox)
 
         # lowerbox
         data_layout_lowerbox = QGridLayout()  # lower box has two hboxes: left for multi-panel display and right for spectrum
@@ -266,40 +567,105 @@ class App(QMainWindow):
         self.pg_img_mouse_pos_widget = QLabel("")
         pg_img_status_box.addWidget(self.pg_img_mouse_pos_widget)
         self.pg_img_roi_info_widget = QLabel("")
-        #pg_img_status_box.addWidget(self.pg_img_roi_info_widget)
+        # pg_img_status_box.addWidget(self.pg_img_roi_info_widget)
         self.pg_img_bkg_roi_info_widget = QLabel("")
         pg_img_status_box.addWidget(self.pg_img_bkg_roi_info_widget)
 
         # Add plotting area for multi-panel EOVSA images
-        self.pg_img_canvas = pg.ImageView(name='EOVSA Explorer')
+        self.pg_img_plot = pg.PlotItem(labels={'bottom': ('Solar X [arcsec]', ''), 'left': ('Solar Y [arcsec]', '')})
+        self.pg_img_canvas = pg.ImageView(name='EOVSA Explorer', view=self.pg_img_plot)
 
         pgimgbox.addWidget(self.pg_img_canvas)
         # pgimgbox.addLayout(pgbuttonbox)
         pgimgbox.addLayout(pg_img_status_box)
         data_layout_lowerbox.addLayout(pgimgbox, 0, 0)
-        data_layout_lowerbox.setColumnStretch(0, 1.7)
+        data_layout_lowerbox.setColumnStretch(0, 2)
         self.pg_img_canvas.sigTimeChanged.connect(self.update_fbar)
 
         # right box for spectral plots
-        specplotarea = QVBoxLayout()
-        # add a toggle between Tb and flux density
-        specplotmode_box = QHBoxLayout()
-        self.plot_tb_button = QRadioButton("Plot Brightness Temperature or Flux Density")
-        self.plot_tb_button.setChecked(True)
-        self.plot_tb_button.toggled.connect(self.tb_flx_btnstate)
-        specplotmode_box.addWidget(self.plot_tb_button)
-        specplotarea.addLayout(specplotmode_box)
-
+        self.specplotarea = QVBoxLayout()
         # self.speccanvas = FigureCanvas(Figure(figsize=(4, 6)))
         self.speccanvas = pg.PlotWidget()
         # self.spectoolbar = NavigationToolbar(self.speccanvas, self)
-        # specplotarea.addWidget(self.spectoolbar)
-        specplotarea.addWidget(self.speccanvas)
+        # self.specplotarea.addWidget(self.spectoolbar)
+        self.specplotarea.addWidget(self.speccanvas)
         # self.spec_axs = self.speccanvas.figure.subplots(nrows=1, ncols=1)
-        data_layout_lowerbox.addLayout(specplotarea, 0, 1)
+        data_layout_lowerbox.addLayout(self.specplotarea, 0, 1)
         data_layout_lowerbox.setColumnStretch(1, 1)
 
+        # add a toggle between Tb and flux density
+        specplotmode_box = QVBoxLayout()
+        tb_flx_button_group = QButtonGroup(self)
+        self.plot_tb_button = QRadioButton("Brightness Temperature", self)
+        self.plot_tb_button.toggled.connect(self.tb_flx_btnstate)
+        self.plot_flx_button = QRadioButton("Flux Density", self)
+        self.plot_flx_button.toggled.connect(self.tb_flx_btnstate)
+        tb_flx_button_group.addButton(self.plot_tb_button)
+        tb_flx_button_group.addButton(self.plot_flx_button)
+        self.plot_tb_button.setChecked(True)
+        # self.plot_flx_button.setChecked(False)
+        specplotmode_box.addWidget(self.plot_tb_button)
+        specplotmode_box.addWidget(self.plot_flx_button)
+        self.specplotarea.addLayout(specplotmode_box)
+
         data_layout.addLayout(data_layout_lowerbox)
+
+        data_layout_lowerbox2 = QVBoxLayout()
+        # Create a button to toggle the qlookimg box.
+        qlookimglabel = QLabel("solar Image")
+        self.qlookimgbutton = QToolButton()
+        self.qlookimgbutton.setArrowType(Qt.RightArrow)
+        self.qlookimgbutton.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        self.qlookimgbutton.setFixedSize(20, 20)
+        self.qlookimgbutton.setCheckable(True)
+        self.qlookimgbutton.toggled.connect(self.showqlookimg)
+
+        # Create a button to toggle the qlookspec box.
+        qlookdspeclabel = QLabel("Spectrogram")
+        self.qlookdspecbutton = QToolButton()
+        self.qlookdspecbutton.setArrowType(Qt.RightArrow)
+        self.qlookdspecbutton.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        self.qlookdspecbutton.setFixedSize(20, 20)
+        self.qlookdspecbutton.setCheckable(True)
+        self.qlookdspecbutton.setChecked(False)
+        self.qlookdspecbutton.toggled.connect(self.showqlookdspec)
+
+        self.is_calibrated_tp_button = QCheckBox('Is Calibrated TP?')
+        self.is_calibrated_tp_button.setChecked(self.is_calibrated_tp)
+        self.is_calibrated_tp_button.toggled.connect(self.is_calibrated_tp_state)
+
+        qlookbuttonbox = QHBoxLayout()
+        qlookbuttonbox_l = QHBoxLayout()
+        qlookbuttonbox_l.addWidget(self.qlookimgbutton)
+        qlookbuttonbox_l.addWidget(qlookimglabel)
+        qlookbuttonbox_r = QHBoxLayout()
+        qlookbuttonbox_r.addWidget(self.qlookdspecbutton)
+        qlookbuttonbox_r.addWidget(qlookdspeclabel)
+        qlookbuttonbox_r.addWidget(self.is_calibrated_tp_button)
+        qlookbuttonbox.addLayout(qlookbuttonbox_l)
+        qlookbuttonbox.addLayout(qlookbuttonbox_r)
+        qlookbuttonbox.setStretch(0, 1)
+        qlookbuttonbox.setStretch(1, 2)
+        data_layout_lowerbox2.addLayout(qlookbuttonbox)
+
+        # Bottom of the upper box in data layout: quick look plotting area
+        qlookarea = QHBoxLayout()
+
+        self.qlookimgbox = QVBoxLayout()
+        self.qlookdspecbox = QVBoxLayout()
+        self.qlookdummybox = QVBoxLayout()
+
+        dummy_spacer = QLabel('')
+        self.qlookdummybox.addWidget(dummy_spacer)
+        qlookarea.addLayout(self.qlookimgbox)
+        qlookarea.addLayout(self.qlookdspecbox)
+        qlookarea.addLayout(self.qlookdummybox)
+
+        data_layout_lowerbox2.addLayout(qlookarea)
+        data_layout.addLayout(data_layout_lowerbox2)
+        # data_layout.setRowStretch(0, 1.)
+
+        # data_layout.addLayout(data_layout_bottombox)
         main_layout.addLayout(data_layout)
 
         ####### The following is for fit layout on the right of the main window ######
@@ -307,9 +673,9 @@ class App(QMainWindow):
         roi_definition_group = QGroupBox("ROI Definition")
         roi_definition_group_box = QVBoxLayout()
         roi_definition_group.setLayout(roi_definition_group_box)
-        roi_button_box = QHBoxLayout()
 
         # ADD ROI Region for Obtaining Spectra
+        roi_button_box = QHBoxLayout()
         self.add_roi_button = QPushButton("Add New ROI")
         self.add_roi_button.setStyleSheet("background-color : lightgrey")
         roi_button_box.addWidget(self.add_roi_button)
@@ -327,8 +693,6 @@ class App(QMainWindow):
         self.add_to_roigroup_button.menu().addAction(action)
         roi_button_box.addWidget(QLabel("to Group"))
         roi_button_box.addWidget(self.add_to_roigroup_button)
-
-
 
         self.roi_freq_lowbound_selector = QDoubleSpinBox()
         self.roi_freq_lowbound_selector.setDecimals(1)
@@ -358,8 +722,6 @@ class App(QMainWindow):
         self.group_roi_op_menu.addAction('Load Group', self.group_roi_op_selector)
         self.add_manual_rois_button.setMenu(self.group_roi_op_menu)
         roi_button_box.addWidget(self.add_manual_rois_button)
-
-
         roi_definition_group_box.addLayout(roi_button_box)
 
         roi_grid_box = QHBoxLayout()
@@ -378,7 +740,6 @@ class App(QMainWindow):
         roi_definition_group_box.addLayout(roi_grid_box)
 
         fit_layout.addWidget(roi_definition_group)
-
         # Group 2: ROI Selection Group
         roi_selection_group = QGroupBox("ROI Selection")
         roi_selection_group_box = QVBoxLayout()
@@ -441,7 +802,6 @@ class App(QMainWindow):
         combine_flux_button = QPushButton("Combine Flux of Current ROI Group")
         combine_flux_button.clicked.connect(self.combine_roi_group_flux)
         tpcal_correction_box.addWidget(combine_flux_button)
-
 
         # Button for calculating total power calibration factor
         calc_tpcal_factor_button = QPushButton("Compute TP Cal factor")
@@ -546,8 +906,7 @@ class App(QMainWindow):
 
         fit_layout.addWidget(fit_param_group)
         main_layout.addLayout(fit_layout)
-        # data_layout.setRowStretch(1, 1.2)
-        # self.tabs.widget(0).setLayout(main_layout)
+
         self._main.setLayout(main_layout)
         self.show()
 
@@ -570,23 +929,28 @@ class App(QMainWindow):
     def eoimg_file_select(self):
         """ Handle Browse button for EOVSA FITS file"""
         # self.fname = QFileDialog.getExistingDirectory(self, 'Select FITS File', './', QFileDialog.ShowDirsOnly)
+        ## quick input for debug -------------
         self.eoimg_fname, _file_filter = QFileDialog.getOpenFileName(self, 'Select EOVSA Spectral Image FITS File',
                                                                      './', 'FITS Images (*.fits *.fit *.ft *.fts)')
-        #self.fname = 'EOVSA_20210507T190205.000000.outim.image.allbd.fits'
-        self.eoimg_fitsentry.setText(self.eoimg_fname)
+        # self.eoimg_fname = 'EOVSA_20210507T190135.000000.outim.image.allbd.fits'
+        ## quick input for debug -------------
+        # self.eoimg_fitsentry.setText(self.eoimg_fname)
         self.eoimg_file_select_return()
 
     def eoimg_file_select_return(self):
         ''' Called when the FITS filename LineEdit widget gets a carriage-return.
             Trys to read FITS header and return header info (no data read at this time)
         '''
-        self.eoimg_fname = self.eoimg_fitsentry.text()
+
+        # print('self.qlookimg_axs is None:',self.qlookimg_axs is None)
+        if self.qlookimg_axs is not None:
+            for ax in self.qlookimg_axs:
+                ax.cla()
+        #     self.showqlookimg(showplt=True)
+        # self.eoimg_fname = self.eoimg_fitsentry.text()
         self.eoimg_fitsdata = None
         self.has_eovsamap = False
 
-        # Clean up all existing plots
-        for ax in self.qlookimg_axs:
-            ax.cla()
         self.pg_img_canvas.clear()
         if self.has_bkg:
             self.pg_img_canvas.removeItem(self.bkg_roi)
@@ -623,6 +987,10 @@ class App(QMainWindow):
                                meta['header']['CRVAL1']
             self.y0, self.y1 = (np.array([1, meta['ny']]) - meta['header']['CRPIX2']) * meta['header']['CDELT2'] + \
                                meta['header']['CRVAL2']
+            self.dx, self.dy = self.meta['header']['CDELT1'], self.meta['header']['CDELT2']
+            self.xcen, self.ycen = [(self.x0 + self.x1) / 2.0, (self.y0 + self.y1) / 2.0]
+            self.xsiz, self.ysiz = [self.meta['nx'] * self.dx,
+                                    self.meta['ny'] * self.dy]
             self.mapx, self.mapy = np.linspace(self.x0, self.x1, meta['nx']), np.linspace(self.y0, self.y1, meta['ny'])
             self.tp_cal_factor = np.ones_like(self.cfreqs)
             self.has_eovsamap = True
@@ -632,10 +1000,16 @@ class App(QMainWindow):
         except:
             self.statusBar.showMessage('Filename is not a valid FITS file', 2000)
             self.eoimg_fname = '<Select or enter a valid fits filename>'
-            self.eoimg_fitsentry.setText(self.eoimg_fname)
+            # self.eoimg_fitsentry.setText(self.eoimg_fname)
             # self.infoEdit.setPlainText('')
 
-        self.plot_qlookmap()
+        if not self.qlookimgbutton.isChecked():
+            self.qlookimgbutton.setChecked(True)
+        else:
+            self.showqlookimg()
+        # Clean up all existing plots
+
+        # self.plot_qlookmap()
         self.init_pgspecplot()
         self.plot_pg_eovsamap()
 
@@ -643,8 +1017,8 @@ class App(QMainWindow):
         """ Handle Browse button for EOVSA FITS file"""
         # self.fname = QFileDialog.getExistingDirectory(self, 'Select FITS File', './', QFileDialog.ShowDirsOnly)
         self.eodspec_fname, _file_filter = QFileDialog.getOpenFileName(self, 'Select EOVSA Dynamic Spectrum FITS File',
-                                                                     './', 'FITS Images (*.fits *.fit *.ft *.fts)')
-        self.eodspec_fitsentry.setText(self.eodspec_fname)
+                                                                       './', 'FITS Images (*.fits *.fit *.ft *.fts)')
+        # self.eodspec_fitsentry.setText(self.eodspec_fname)
         self.eodspec_file_select_return()
 
     def eodspec_file_select_return(self):
@@ -656,16 +1030,19 @@ class App(QMainWindow):
             pol = header['polariza']
             fghz = np.array(astropy.table.Table(hdulist[1].data)['sfreq'])
             tim_ = astropy.table.Table(hdulist[2].data)
-            tmjd= np.array(tim_['mjd']) + np.array(tim_['time']) / 24. / 3600 / 1000
+            tmjd = np.array(tim_['mjd']) + np.array(tim_['time']) / 24. / 3600 / 1000
             tim = Time(tmjd, format='mjd')
             self.dspec = {'dspec': dspec, 'time_axis': tim, 'freq_axis': fghz, 'observatory': observatory, 'pol': pol}
             self.has_dspec = True
             self.eodspec_fname = '<Select or enter a valid fits filename>'
-            self.eodspec_fitsentry.setText(self.eodspec_fname)
+            # self.eodspec_fitsentry.setText(self.eodspec_fname)
         except:
             self.statusBar.showMessage('{} is not a valid dynamic spectrum FITS file'.format(self.eodspec_fname))
 
-        self.plot_dspec()
+        if not self.qlookdspecbutton.isChecked():
+            self.qlookdspecbutton.setChecked(True)
+        else:
+            self.showqlookdspec()
 
     def is_calibrated_tp_state(self):
         if self.is_calibrated_tp_button.isChecked() == True:
@@ -675,19 +1052,18 @@ class App(QMainWindow):
             self.statusBar.showMessage('Loaded spectrogram is *not* calibrated total power dynamic spectrum.')
             self.is_calibrated_tp = False
 
-
     def aiafile_select(self):
         """ Handle Browse button for AIA FITS file """
         self.aiafname, _file_filter = QFileDialog.getOpenFileName(self, 'Select AIA FITS File to open', './',
                                                                   "FITS Images (*.fits *.fit *.ft)")
-        self.aiaimg_fitsentry.setText(self.aiafname)
+        # self.aiaimg_fitsentry.setText(self.aiafname)
         self.aiafile_select_return()
 
     def aiafile_select_return(self):
         ''' Called when the FITS filename LineEdit widget gets a carriage-return.
             Trys to read FITS header and return header info (no data read at this time)
         '''
-        self.aiafname = self.aiaimg_fitsentry.text()
+        # self.aiafname = self.aiaimg_fitsentry.text()
         self.eoimg_fitsdata = None
         try:
             hdu = fits.open(self.aiafname)
@@ -697,8 +1073,11 @@ class App(QMainWindow):
             self.aiafname = '<Select or enter a valid fits filename>'
             # self.aiafitsentry.setText(self.fname)
             # self.infoEdit.setPlainText('')
-
-        self.plot_qlookmap()
+        if not self.qlookimgbutton.isChecked():
+            self.qlookimgbutton.setChecked(True)
+        else:
+            self.showqlookimg()
+        # self.plot_qlookmap()
 
     def init_pgspecplot(self):
         """ Initial Spectral Plot if no data has been loaded """
@@ -754,9 +1133,8 @@ class App(QMainWindow):
 
         self.update_pgspec()
 
-    def plot_qlookmap(self, detailed_map=False):
+    def plot_qlookmap(self):
         """Quicklook plot in the upper box using matplotlib.pyplot and sunpy.map"""
-        from suncasa.utils import plot_mapX as pmX
         # Plot a quicklook map
         # self.qlook_ax.clear()
         ax0 = self.qlookimg_axs[0]
@@ -774,39 +1152,11 @@ class App(QMainWindow):
             ax0.add_patch(rect)
             icmap = plt.get_cmap('RdYlBu')
 
-            if detailed_map:
-                #bds = np.linspace(0, nspw, 5)[1:4].astype(np.int)
-                bds = [int(nspw/2)]
-                # now plot 3 panels of EOVSA images
-                # plot the images
-                eocmap = plt.get_cmap('viridis')
-                for n, bd in enumerate(bds):
-                    ax = self.qlookimg_axs[n + 1]
-                    cfreq = self.cfreqs[bd]
-                    eomap_ = smap.Map(self.data[self.pol_select_idx, bd], self.meta['header'])
-                    eomap = pmX.Sunmap(eomap_)
-                    eomap.imshow(axes=ax, cmap=eocmap)
-                    eomap.draw_grid(axes=ax)
-                    eomap.draw_limb(axes=ax)
-                    # ax.set_xlim()
-                    # ax.set_ylim()
-                    ax.set_xlabel('Solar X [arcsec]')
-                    ax.set_title('')
-                    if n == 0:
-                        ax.tick_params(bottom=True, top=True, left=True, right=True, labelleft=True, labelbottom=True)
-                        #ax.set_ylabel('Solar Y [arcsec]')
-                        ax.set_title('')
-                    else:
-                        ax.tick_params(bottom=True, top=True, left=True, right=True, labelleft=False, labelbottom=True)
-                    ax.set_ylabel('')
-                    ax.text(0.01, 0.98, '{0:.1f} GHz'.format(cfreq), ha='left', va='top',
-                            fontsize=10, color='w', transform=ax.transAxes)
-                    ax.set_aspect('equal')
             self.qlookimg_canvas.figure.suptitle('EOVSA at {}'.format(eotimestr))
         else:
             self.statusBar.showMessage('EOVSA FITS file does not exist', 2000)
             self.eoimg_fname = '<Select or enter a valid fits filename>'
-            self.eoimg_fitsentry.setText(self.eoimg_fname)
+            # self.eoimg_fitsentry.setText(self.eoimg_fname)
             # self.infoEdit.setPlainText('')
             self.has_eovsamap = False
 
@@ -819,7 +1169,7 @@ class App(QMainWindow):
         else:
             self.statusBar.showMessage('AIA FITS file does not exist', 2000)
             self.aiafname = '<Select or enter a valid fits filename>'
-            self.aiaimg_fitsentry.setText(self.aiafname)
+            # self.aiaimg_fitsentry.setText(self.aiafname)
             # self.infoEdit.setPlainText('')
             self.has_aiamap = False
         cts = []
@@ -849,7 +1199,7 @@ class App(QMainWindow):
         ax0.set_ylabel('Solar Y [arcsec]')
         # ax0.set_title('')
         ax0.set_aspect('equal')
-        #self.qlookimg_canvas.figure.subplots_adjust(left=0.10, right=0.95,
+        # self.qlookimg_canvas.figure.subplots_adjust(left=0.10, right=0.95,
         #                                        bottom=0.10, top=0.95,
         #                                        hspace=0, wspace=0.35)
         self.qlookimg_canvas.draw()
@@ -908,42 +1258,41 @@ class App(QMainWindow):
         clb_spec = plt.colorbar(im_spec, ax=ax, cax=cax_spec)
         clb_spec.set_label('Flux [sfu]')
         self.qlookdspec_canvas.figure.subplots_adjust(left=0.1, right=0.85,
-                                               bottom=0.20, top=0.92,
-                                              hspace=0, wspace=0)
+                                                      bottom=0.20, top=0.92,
+                                                      hspace=0, wspace=0)
         self.qlookdspec_canvas.draw()
 
-
-    def plot_pg_eovsamap(self, cmap='viridis', ncolorstop=6):
+    def plot_pg_eovsamap(self):
         """This is to plot the eovsamap with the pyqtgraph's ImageView Widget"""
-        from matplotlib import cm
         if self.has_eovsamap:
             # plot the images
             # need to invert the y axis to put the origin to the lower left (tried invertY but labels are screwed up)
-            self.pgdata = self.data[self.pol_select_idx, :, ::-1, :].reshape(
+            # self.pg_img_plot.setLimits(xMin=self.x0, xMax=self.x1, yMin=self.y0, yMax=self.y1)
+            # self.pgdata = self.data[self.pol_select_idx, :, ::-1, :].reshape(
+            #     (self.meta['nfreq'], self.meta['ny'], self.meta['nx']))
+            self.pgdata = self.data[self.pol_select_idx, :, :, :].reshape(
                 (self.meta['nfreq'], self.meta['ny'], self.meta['nx']))
-            self.pg_img_canvas.setImage(self.pgdata, xvals=self.cfreqs)
+            # self.pg_img_canvas.setImage(self.pgdata, xvals=self.cfreqs)
+            self.pg_img_canvas.setImage(self.pgdata, xvals=self.cfreqs, pos=[self.x0, self.y0],
+                                        scale=[self.meta['header']['CDELT1'], self.meta['header']['CDELT2']])
             # self.pg_img_canvas.setImage(self.data[self.pol_select_idx], xvals=self.cfreqs)
-            vbox = self.pg_img_canvas.getView()
-            vbox.invertY(True)
-            mpl_cmap = cm.get_cmap(cmap, ncolorstop)
-            mpl_colors = mpl_cmap(np.linspace(0, 1, ncolorstop)) * 255
-            colors = []
-            for s in range(ncolorstop):
-                colors.append((int(mpl_colors[s, 0]), int(mpl_colors[s, 1]), int(mpl_colors[s, 2])))
+            self.pg_img_canvas.getView().invertY(False)
 
-            cmap = pg.ColorMap(pos=np.linspace(0.0, 1.0, ncolorstop), color=colors)
-            self.pg_img_canvas.setColorMap(cmap)
+            self.pg_img_canvas.setColorMap(self.pgcmap)
             self.pg_freq_current = self.pg_img_canvas.timeLine.getXPos()
             self.pg_freq_idx = np.argmin(np.abs(self.cfreqs - self.pg_freq_current))
             self.pg_img_canvas.getImageItem().hoverEvent = self.pg_map_hover_event
 
             # define the initial background ROI region
             if not self.has_bkg:
-                self.bkg_roi = pg.RectROI([0, self.meta['ny'] - 40], [40, 40], pen='w')
+                self.bkg_roi = pg.RectROI([self.x0 + self.dx / 2.0, self.y1 + self.dx / 2.0 - self.ysiz / 5],
+                                          [self.xsiz / 5, self.ysiz / 5], pen='w')
+                self.bkg_roi.addScaleHandle([1.0, 0.0], [0.0, 1.0])
+                self.bkg_roi.addRotateHandle([1.0, 0.5], [0.5, 0.5])
                 self.pg_img_canvas.addItem(self.bkg_roi)
                 self.has_bkg = True
-                bkg_roi_label = pg.TextItem("Background", anchor=(0, 0), color='w')
-                bkg_roi_label.setParentItem(self.bkg_roi)
+                self.bkg_roi_label = pg.TextItem("Background", anchor=(0, 0), color='w')
+                self.bkg_roi_label.setParentItem(self.bkg_roi)
                 self.bkg_rgn_update()
                 self.bkg_roi.sigRegionChanged.connect(self.bkg_rgn_update)
 
@@ -967,7 +1316,7 @@ class App(QMainWindow):
         solx, soly = self.mapx[j], self.mapy[::-1][i]
         text_to_display = '[Cursor] x: {0:6.1f}", y: {1:6.1f}", freq: {3:4.1f} GHz, ' \
                           'T<sub>B</sub>={4:6.2f} MK'.format(solx, soly, self.pg_freq_idx,
-                                                            self.pg_freq_current, val / 1e6)
+                                                             self.pg_freq_current, val / 1e6)
         self.pg_img_mouse_pos_widget.setText(text_to_display)
         # print(text_to_display)
         # self.pg_img_hover_label.setText(text_to_display, color='w')
@@ -1002,6 +1351,13 @@ class App(QMainWindow):
                     roi.spec_err_tofit = ma.masked_array(spec_err, roi.mask_tofit)
                     roi.tb_rms_tofit = ma.masked_array(self.bkg_roi.tb_rms, roi.mask_tofit)
 
+    def init_pgdistspec_widget(self):
+        """Use Pyqtgraph's PlotWidget for the distance-spectral plot"""
+        plot = pg.PlotItem(labels={'bottom': ('Frequency [GHz]', ''), 'left': ('Distance [arcsec]', '')})
+        self.distSpecCanvasSet[self.new_roi.roi_id] = pg.ImageView(view=plot)
+        self.specplotarea.insertWidget(0, self.distSpecCanvasSet[self.new_roi.roi_id])
+        for i in range(self.specplotarea.count()):
+            self.specplotarea.setStretch(i, 1)
 
     def update_pgspec(self):
         """Use Pyqtgraph's PlotWidget for the spectral plot"""
@@ -1026,75 +1382,90 @@ class App(QMainWindow):
         self.spec_rmsplots = []
         current_roi_group = self.rois[self.roi_group_idx]
         for n, roi in enumerate(current_roi_group):
-            if n == self.current_roi_idx or (n == len(current_roi_group) + self.current_roi_idx):
-                symbolfill = (n, 9)
-            else:
-                symbolfill = None
-            if self.spec_in_tb:
-                spec = roi.tb_max
-                spec_bound = self.tb_spec_bound
-            else:
-                spec = roi.total_flux
-                spec_bound = self.flx_spec_bound
-            if ma.is_masked(roi.freqghz):
-                log_freqghz = np.log10(roi.freqghz.compressed())
-                log_spec = np.log10(spec.compressed())
-            else:
-                log_freqghz = np.log10(roi.freqghz)
-                log_spec = np.log10(spec)
-            spec_dataplot = self.speccanvas.plot(x=log_freqghz, y=log_spec, pen=None,
-                                                 symbol='o', symbolPen=(n, 9), symbolBrush=None)
-            spec_dataplot_tofit = self.speccanvas.plot(x=np.log10(roi.freqghz_tofit.compressed()),
-                                                       y=np.log10(roi.spec_tofit.compressed()),
-                                                       pen=None,
-                                                       symbol='o', symbolPen=(n, 9), symbolBrush=symbolfill)
-
-            self.speccanvas.addItem(spec_dataplot)
-            self.speccanvas.addItem(spec_dataplot_tofit)
-            self.spec_dataplots.append(spec_dataplot)
-            self.spec_dataplots_tofit.append(spec_dataplot_tofit)
-            #print('ROI', n)
-            #print(roi.freqghz_tofit.compressed())
-            #print(roi.spec_tofit.compressed())
-
-            # Add errorbar if rms is defined
-            if self.has_bkg:
-                # define error in spectrum
+            if roi.type == "sliceROI":
                 if self.spec_in_tb:
-                    spec_rms = self.bkg_roi.tb_rms
+                    spectrogram = roi.tb_im
                 else:
-                    spec_rms = gstools.sfu2tb(roi.freqghz * 1e9 * u.Hz, self.bkg_roi.tb_rms * u.K,
-                                              area=roi.total_area * u.arcsec ** 2, reverse=True).value
-                # add fractional err in quadrature
-                spec_err = np.sqrt(spec_rms ** 2. + (self.spec_frac_err * spec) ** 2.)
-                spec_rmsplot = self.speccanvas.plot(x=np.log10(self.cfreqs), y=np.log10(spec_rms), pen='k',
-                                                    symbol='d', symbolPen='k', symbolBrush=None)
-                self.speccanvas.addItem(spec_rmsplot)
-                self.spec_rmsplots.append(spec_rmsplot)
+                    spectrogram = roi.tb_im_flux
+                im_pix_siz = np.nanmean([self.meta['header']['CDELT1'], self.meta['header']['CDELT2']])
+                self.distSpecCanvasSet[roi.roi_id].clear()
+                self.distSpecCanvasSet[roi.roi_id].setImage(spectrogram.T, pos=[self.cfreqs[0], 0],
+                                                            scale=[np.nanmean(np.diff(self.cfreqs)), im_pix_siz])
+                self.distSpecCanvasSet[roi.roi_id].setColorMap(self.pgcmap)
+                view = self.distSpecCanvasSet[roi.roi_id].getView()
+                view.invertY(False)
+                view.setAspectLocked(False)
+                nf_sub, nd_sub = spectrogram.shape
+                view.setLimits(xMin=self.cfreqs[0], xMax=self.cfreqs[-1], yMin=0, yMax=nd_sub * im_pix_siz)
             else:
-                spec_err = (self.spec_frac_err * spec) ** 2.
-            err_bounds_min = np.maximum(spec - spec_err, np.ones_like(spec) * spec_bound[0])
-            err_bounds_max = spec + spec_err
-            errplot = pg.ErrorBarItem(x=np.log10(roi.freqghz), y=np.log10(spec),
-                                      top=np.log10(err_bounds_max) - np.log10(spec),
-                                      bottom=np.log10(spec) - np.log10(err_bounds_min), beam=0.025, pen=(n, 9))
+                if n == self.current_roi_idx or (n == len(current_roi_group) + self.current_roi_idx):
+                    symbolfill = (n, 9)
+                else:
+                    symbolfill = None
+                if self.spec_in_tb:
+                    spec = roi.tb_max
+                    spec_bound = self.tb_spec_bound
+                else:
+                    spec = roi.total_flux
+                    spec_bound = self.flx_spec_bound
+                if ma.is_masked(roi.freqghz):
+                    log_freqghz = np.log10(roi.freqghz.compressed())
+                    log_spec = np.log10(spec.compressed())
+                else:
+                    log_freqghz = np.log10(roi.freqghz)
+                    log_spec = np.log10(spec)
+                spec_dataplot = self.speccanvas.plot(x=log_freqghz, y=log_spec, pen=None,
+                                                     symbol='o', symbolPen=(n, 9), symbolBrush=None)
+                spec_dataplot_tofit = self.speccanvas.plot(x=np.log10(roi.freqghz_tofit.compressed()),
+                                                           y=np.log10(roi.spec_tofit.compressed()),
+                                                           pen=None,
+                                                           symbol='o', symbolPen=(n, 9), symbolBrush=symbolfill)
 
-            self.speccanvas.addItem(errplot)
+                self.speccanvas.addItem(spec_dataplot)
+                self.speccanvas.addItem(spec_dataplot_tofit)
+                self.spec_dataplots.append(spec_dataplot)
+                self.spec_dataplots_tofit.append(spec_dataplot_tofit)
+                # print('ROI', n)
+                # print(roi.freqghz_tofit.compressed())
+                # print(roi.spec_tofit.compressed())
 
+                # Add errorbar if rms is defined
+                if self.has_bkg:
+                    # define error in spectrum
+                    if self.spec_in_tb:
+                        spec_rms = self.bkg_roi.tb_rms
+                    else:
+                        spec_rms = gstools.sfu2tb(roi.freqghz * 1e9 * u.Hz, self.bkg_roi.tb_rms * u.K,
+                                                  area=roi.total_area * u.arcsec ** 2, reverse=True).value
+                    # add fractional err in quadrature
+                    spec_err = np.sqrt(spec_rms ** 2. + (self.spec_frac_err * spec) ** 2.)
+                    spec_rmsplot = self.speccanvas.plot(x=np.log10(self.cfreqs), y=np.log10(spec_rms), pen='k',
+                                                        symbol='d', symbolPen='k', symbolBrush=None)
+                    self.speccanvas.addItem(spec_rmsplot)
+                    self.spec_rmsplots.append(spec_rmsplot)
+                else:
+                    spec_err = (self.spec_frac_err * spec) ** 2.
+                err_bounds_min = np.maximum(spec - spec_err, np.ones_like(spec) * spec_bound[0])
+                err_bounds_max = spec + spec_err
+                errplot = pg.ErrorBarItem(x=np.log10(roi.freqghz), y=np.log10(spec),
+                                          top=np.log10(err_bounds_max) - np.log10(spec),
+                                          bottom=np.log10(spec) - np.log10(err_bounds_min), beam=0.025, pen=(n, 9))
 
-        self.fbar = self.speccanvas.plot(x=np.log10([self.pg_img_canvas.timeLine.getXPos()] * 2),
-                                         y=[np.log10(spec_bound[0]), np.log10(spec_bound[1])], pen='k')
-        self.speccanvas.addItem(self.fbar)
-        self.speccanvas.setLimits(yMin=np.log10(spec_bound[0]), yMax=np.log10(spec_bound[1]))
-        xax = self.speccanvas.getAxis('bottom')
-        yax = self.speccanvas.getAxis('left')
-        xax.setLabel("Frequency [GHz]")
-        if self.spec_in_tb:
-            yax.setLabel("Brightness Temperature [MK]")
-        else:
-            yax.setLabel("Flux Density [sfu]")
-        xax.setTicks([self.xticks, self.xticks_minor])
-        yax.setTicks([self.yticks, self.yticks_minor])
+                self.speccanvas.addItem(errplot)
+
+            self.fbar = self.speccanvas.plot(x=np.log10([self.pg_img_canvas.timeLine.getXPos()] * 2),
+                                             y=[np.log10(spec_bound[0]), np.log10(spec_bound[1])], pen='k')
+            self.speccanvas.addItem(self.fbar)
+            self.speccanvas.setLimits(yMin=np.log10(spec_bound[0]), yMax=np.log10(spec_bound[1]))
+            xax = self.speccanvas.getAxis('bottom')
+            yax = self.speccanvas.getAxis('left')
+            xax.setLabel("Frequency [GHz]")
+            if self.spec_in_tb:
+                yax.setLabel("Brightness Temperature [MK]")
+            else:
+                yax.setLabel("Flux Density [sfu]")
+            xax.setTicks([self.xticks, self.xticks_minor])
+            yax.setTicks([self.yticks, self.yticks_minor])
 
     def pgspec_add_boundbox(self):
         # add frequency bound
@@ -1131,6 +1502,11 @@ class App(QMainWindow):
         """Select a region to calculate rms on spectra"""
         bkg_subim = self.bkg_roi.getArrayRegion(self.pgdata, self.pg_img_canvas.getImageItem(), axes=(1, 2))
         nf_bkg, ny_bkg, nx_bkg = bkg_subim.shape
+        if self.bkg_roi.pos()[1] < self.y0 + self.ysiz * 0.1:
+            self.bkg_roi_label.setAnchor((0, 1))
+        else:
+            self.bkg_roi_label.setAnchor((0, 0))
+        # if self.bkg_roi.pos()[1] < self.y0 + self.ysiz * 0.1:
         self.bkg_roi.freqghz = self.cfreqs
         self.bkg_roi.tb_mean = np.nanmean(bkg_subim, axis=(1, 2))
         self.bkg_roi.tb_rms = np.std(bkg_subim, axis=(1, 2))
@@ -1140,38 +1516,216 @@ class App(QMainWindow):
         self.bkg_roi.total_area = self.bkg_roi.total_pix * self.meta['header']['CDELT1'] * self.meta['header']['CDELT2']
         # Total flux of the ROI in sfu
         self.bkg_roi.total_flux = gstools.sfu2tb(self.bkg_roi.freqghz * 1e9 * u.Hz, self.bkg_roi.tb_mean * u.K,
-                                        area=self.bkg_roi.total_area * u.arcsec ** 2, reverse=True).value
+                                                 area=self.bkg_roi.total_area * u.arcsec ** 2, reverse=True).value
         self.pg_img_bkg_roi_info_widget.setText('[Background] freq: {0:.2f} GHz, '
-                                            'T<sub>B</sub><sup>rms</sup>: {1:.2f} MK, '
-                                            'T<sub>B</sub><sup>mean</sup>: {2:.2f} MK, Flux: {3:.2f} sfu'.
-                                            format(self.pg_freq_current,
-                                                   self.bkg_roi.tb_rms[self.pg_freq_idx] / 1e6,
-                                                   self.bkg_roi.tb_mean[self.pg_freq_idx] / 1e6,
-                                                   self.bkg_roi.total_flux[self.pg_freq_idx]))
-        # bkg_roi_label = pg.TextItem("Background", anchor=(0, 0), color='w')
-        # bkg_roi_label.setParentItem(self.bkg_roi)
+                                                'T<sub>B</sub><sup>rms</sup>: {1:.2f} MK, '
+                                                'T<sub>B</sub><sup>mean</sup>: {2:.2f} MK, Flux: {3:.2f} sfu'.
+                                                format(self.pg_freq_current,
+                                                       self.bkg_roi.tb_rms[self.pg_freq_idx] / 1e6,
+                                                       self.bkg_roi.tb_mean[self.pg_freq_idx] / 1e6,
+                                                       self.bkg_roi.total_flux[self.pg_freq_idx]))
+        # self.bkg_roi_label = pg.TextItem("Background", anchor=(0, 0), color='w')
+        # self.bkg_roi_label.setParentItem(self.bkg_roi)
         self.update_pgspec()
+
+    def findlastsliceROI(self):
+        roi_type_list = [roi.type for roi in self.rois[self.roi_group_idx]][::-1]
+        if "sliceROI" in roi_type_list:
+            return self.rois[self.roi_group_idx][::-1][roi_type_list.index("sliceROI")]
+        else:
+            return None
 
     def add_new_roi(self):
         """Add a ROI region to the selection"""
-        self.new_roi = pg.RectROI([self.meta['nx'] / 2 - 10,
-                                  self.meta['ny'] / 2 - 10], [10, 10], pen=(len(self.rois[self.roi_group_idx]), 9))
+        self.roi_type = self.toolBarButtonGroup.checkedButton().text()
+        ischildROI = False
+        if self.add2slice.isChecked():
+            if self.roi_type in ["LineSegmentROI", "PolyLineROI"]:
+                roi_xcen = self.xcen
+                roi_ycen = self.ycen
+                roi_size = np.array([self.xsiz, self.ysiz]) / 20
+            elif self.roi_type in ["PolygonROI"]:
+                self.statusBar.showMessage(
+                    '"add ROI to Slice" is not yet supported for PolygonROI.')
+                return
+            else:
+                lastsliceROI = self.findlastsliceROI()
+                if lastsliceROI is None:
+                    self.statusBar.showMessage(
+                        'There is no sliceROI existed in the current ROI group, use the sliceROI tools to add one first.')
+                    return
+                else:
+                    ischildROI = True
+                    # print(lastsliceROI)
+                    childROI = lastsliceROI.childROI
+                    nchildROI = len(childROI.keys())
+
+                    pts = [h.pos() for h in lastsliceROI.endpoints]
+                    # print(pts)
+                    # print(childROI.keys())
+                    dist = [0]
+                    pts_orig = lastsliceROI.pos()
+                    pts_x = [pts[0].x()]
+                    pts_y = [pts[0].y()]
+                    for idx, pt in enumerate(pts[:-1]):
+                        d = pg.Point(pts[idx + 1] - pts[idx])
+                        dist.append(d.length())
+                        pts_x.append(pts[idx + 1].x())
+                        pts_y.append(pts[idx + 1].y())
+                    dist = np.cumsum(dist)
+                    dnew = np.linspace(dist[0], dist[-1], nchildROI + 1)
+                    pts_x = np.array(pts_x) + pts_orig.x()
+                    pts_y = np.array(pts_y) + pts_orig.y()
+                    pts_xnew = np.interp(dnew, dist, pts_x)
+                    pts_ynew = np.interp(dnew, dist, pts_y)
+                    roi_xcen = pts_xnew[-1]
+                    roi_ycen = pts_ynew[-1]
+                    if nchildROI > 0:
+                        roi_size = childROI[0].size()
+                    else:
+                        roi_size = np.array([self.xsiz, self.ysiz]) / 20
+
+                    for idx, (k, v) in enumerate(childROI.items()):
+                        v.sigRegionChanged.disconnect(self.calc_roi_spec)
+                        v.setPos((pts_xnew[idx] - roi_size[0] / 2.0, pts_ynew[idx] - roi_size[0] / 2.0))
+                        v.setSize(roi_size)
+                    for idx, (k, v) in enumerate(childROI.items()):
+                        v.sigRegionChanged.connect(self.calc_roi_spec)
+                    # if nchildROI == 0:
+                    #     pass
+                    # else:
+                    #     pass
+
+                    # if there is no slice roi. return. infobar output: add a slice first.
+                    # else:
+                    #   if there is childROI
+                    #       read the last childROI's size and distribute this childROI
+                    #   else
+                    #       use default size and place this childROI in the center of the slice.
+        else:
+            roi_xcen = self.xcen
+            roi_ycen = self.ycen
+            roi_size = np.array([self.xsiz, self.ysiz]) / 20
+
+        # if ischildROI:
+        #     colorid = len(lastsliceROI.childROI.keys())
+        # else:
+        colorid = len(self.rois[self.roi_group_idx])
+        if self.roi_type == "RectROI":
+            self.new_roi = pg.RectROI([roi_xcen - roi_size[0] / 2.0,
+                                       roi_ycen - roi_size[1] / 2.0], roi_size,
+                                      pen=(colorid, 9),
+                                      removable=True, centered=True)
+            # self.new_roi.setSize(self.new_roi.size(), center=(0.5, 0.5))
+            # self.new_roi.setAngle(self.new_roi.angle(), center=(0.5, 0.5))
+            self.new_roi.addRotateHandle([1.0, 0.5], [0.5, 0.5])
+        elif self.roi_type == "EllipseROI":
+            self.new_roi = pg.EllipseROI([roi_xcen - roi_size[0] / 2.0,
+                                          roi_ycen - roi_size[1] / 2.0], roi_size,
+                                         pen=(colorid, 9), removable=True)
+            # self.new_roi.setSize(self.new_roi.size(), center=(0.5, 0.5))
+            # self.new_roi.setAngle(self.new_roi.angle(), center=(0.5, 0.5))
+        elif self.roi_type == "PolygonROI":
+            self.new_roi = pg.PolyLineROI([[roi_xcen - roi_size[0] * 1,
+                                            roi_ycen - roi_size[1] * 0.5],
+                                           [roi_xcen + roi_size[0] * 0,
+                                            roi_ycen - roi_size[1] * 0.5],
+                                           [roi_xcen + roi_size[0] * 1,
+                                            roi_ycen + roi_size[1] * 0.5],
+                                           [roi_xcen - roi_size[0] * 0,
+                                            roi_ycen + roi_size[1] * 0.5]],
+                                          pen=(colorid, 9), removable=True, closed=True)
+            self.new_roi.addRotateHandle([1.0, 0.5], [0.5, 0.5])
+        elif self.roi_type == "LineSegmentROI":
+            self.new_roi = pg.LineSegmentROI([[roi_xcen - roi_size[0] / 2.0,
+                                               roi_ycen - roi_size[1] / 2.0],
+                                              [roi_xcen + roi_size[0] / 2.0,
+                                               roi_ycen + roi_size[1] / 2.0]],
+                                             pen=(colorid, 9),
+                                             removable=True)
+        elif self.roi_type == "PolyLineROI":
+            self.new_roi = PolyLineROIX([[roi_xcen - roi_size[0] / 2.0,
+                                          roi_ycen - roi_size[1] / 2.0],
+                                         [roi_xcen + roi_size[0] / 2.0,
+                                          roi_ycen + roi_size[1] / 2.0]],
+                                        pen=(colorid, 9),
+                                        removable=True, closed=False)
+        else:
+            self.new_roi = pg.RectROI([roi_xcen - roi_size[0] / 2.0,
+                                       roi_ycen - roi_size[1] / 2.0], roi_size,
+                                      pen=(colorid, 9),
+                                      removable=True)
+            self.new_roi.addRotateHandle([1.0, 0.5], [0.5, 0.5])
+
+        self.new_roi.ischildROI = ischildROI
         self.pg_img_canvas.addItem(self.new_roi)
         self.new_roi.freq_mask = np.ones_like(self.cfreqs) * False
         self.new_roi.sigRegionChanged.connect(self.calc_roi_spec)
+        self.new_roi.sigRemoveRequested.connect(self.remove_ROI)
+
         # choose which group to add
         self.add_to_roigroup_selection()
+        if self.roi_type in ["LineSegmentROI", "PolyLineROI"]:
+            self.new_roi.type = "sliceROI"
+            self.new_roi.childROI = {}
+        else:
+            self.new_roi.type = "ROI"
+            if ischildROI:
+                self.new_roi.colorid = colorid
+                self.new_roi.parentROI = lastsliceROI
+                self.new_roi.childROIkey = nchildROI
+                self.new_roi.parentROI.childROI[self.new_roi.childROIkey] = self.new_roi
+
         self.rois[self.roi_group_idx].append(self.new_roi)
         self.nroi_current_group = len(self.rois[self.roi_group_idx])
         self.roi_selection_widget.clear()
         self.roi_selection_widget.addItems([str(i) for i in range(self.nroi_current_group)])
         self.current_roi_idx = self.nroi_current_group - 1
+        self.new_roi.roi_id = self.current_roi_idx
         self.has_rois = True
-        #self.roi_freq_lowbound_selector.setValue(self.data_freq_bound[0])
-        #self.roi_freq_hibound_selector.setValue(self.data_freq_bound[1])
-        self.calc_roi_spec()
+        # self.roi_freq_lowbound_selector.setValue(self.data_freq_bound[0])
+        # self.roi_freq_hibound_selector.setValue(self.data_freq_bound[1])
+        if self.new_roi.type == "sliceROI":
+            self.init_pgdistspec_widget()
+        self.calc_roi_spec(None)
 
         # self.roi_slider_rangechange()
+
+    def remove_ROI(self, evt):
+        if evt.ischildROI:
+            evt.parentROI.childROI.pop(evt.childROIkey)
+            chilROI = {}
+            for idx, (k, v) in enumerate(evt.parentROI.childROI.items()):
+                chilROI[idx] = v
+                v.childROIkey = idx
+            del evt.parentROI.childROI
+            evt.parentROI.childROI = chilROI
+        if evt.type in ["sliceROI"]:
+            self.distSpecCanvasSet[evt.roi_id].deleteLater()
+            for idx, (k, v) in enumerate(evt.childROI.items()):
+                self.rois[self.roi_group_idx].remove(v)
+                self.pg_img_canvas.removeItem(v)
+        self.rois[self.roi_group_idx].remove(evt)
+
+        self.nroi_current_group = len(self.rois[self.roi_group_idx])
+        self.roi_selection_widget.clear()
+        self.roi_selection_widget.addItems([str(i) for i in range(self.nroi_current_group)])
+        self.current_roi_idx = self.nroi_current_group - 1
+        for idx, roi in enumerate(self.rois[self.roi_group_idx]):
+            if roi.type != "sliceROI":
+                roi.setPen((idx, 9))
+        self.pg_img_canvas.removeItem(evt)
+
+        if np.count_nonzero(self.rois) < 1:
+            self.has_rois = False
+            self.speccanvas.clear()
+        else:
+            self.calc_roi_spec(None)
+        del evt
+
+    # self.view.scene().removeItem(evt)
+
+    # ROI = None
 
     def add_to_roigroup_selection(self):
         items = self.add_to_roigroup_widget.selectedItems()
@@ -1197,7 +1751,40 @@ class App(QMainWindow):
         else:
             self.current_roi_idx = len(self.rois[self.roi_group_idx]) - 1
         self.update_pgspec()
-        #print(self.current_roi_idx)
+        # print(self.current_roi_idx)
+
+    def calc_roi_spec(self, evt):
+        # print('=================Update ROI SPEC===============')
+        # roi = self.rois[self.roi_group_idx][self.current_roi_idx]
+        # roi = self.new_roi
+        # print('calc_roi_spec', evt)
+
+        ## if the signal emitter is a child ROI of a sliceROI
+        if evt is not None:
+            rois2update = [evt]
+            if evt.ischildROI:
+                ROIsize = evt.size()
+                ROIangle = evt.angle()
+                ROIpos = evt.pos()
+                # print(evt.parentROI.childROI)
+                for idx, (k, v) in enumerate(evt.parentROI.childROI.items()):
+                    update = 0
+                    v.sigRegionChanged.disconnect(self.calc_roi_spec)
+                    if ROIsize != v.size():
+                        update = 1
+                        v.setSize(ROIsize, center=(0.5, 0.5))
+                    if ROIangle != v.angle():
+                        update = 1
+                        v.setAngle(ROIangle, center=(0.5, 0.5))
+                    if ROIpos != v.pos():
+                        update = 0
+                    # print(update,v)
+                    if update:
+                        rois2update.append(v)
+                for idx, (k, v) in enumerate(evt.parentROI.childROI.items()):
+                    v.sigRegionChanged.connect(self.calc_roi_spec)
+        else:
+            rois2update = self.rois[self.roi_group_idx]
 
     def group_roi_op_selector(self):
         cur_action = self.sender()
@@ -1226,56 +1813,58 @@ class App(QMainWindow):
             roi_utils.add_md_rois(self, inp_str_list =dialog_output[0])
 
     def calc_roi_spec(self):
-        #print('=================Update ROI SPEC===============')
-        #roi = self.rois[self.roi_group_idx][self.current_roi_idx]
-        #roi = self.new_roi
-        for roi in self.rois[self.roi_group_idx]:
+        for roi in rois2update::
             ## todo: investigate why using axes = (2, 1) returns entirely different (wrong!) results
-            (subim, subim_coords) = roi.getArrayRegion(self.pgdata,
-                                                       self.pg_img_canvas.getImageItem(), axes=(1, 2),
-                                                       returnMappedCoords=True)
-            # subim_coords contain a nested list of the (interpolated) x y pix coordinates in the following form
-            # [[y of (pix ij)], [x of (pix ij)]
-            nf_sub, ny_sub, nx_sub = subim.shape
-            #print('ROI pixel position', roi.pos())
-            #print('ROI pixel size', roi.size())
-            roi.pos_sol_tlc = [self.mapx[int(round(roi.pos()[0]))], self.mapy[::-1][int(round(roi.pos()[1]))]]
-            roi.size_sol = [self.meta['header']['CDELT1'] * roi.size()[0],
-                            self.meta['header']['CDELT2'] * roi.size()[1]]
-            roi.pos_sol_cen = [roi.pos_sol_tlc[0] + roi.size_sol[0] / 2.,
-                               roi.pos_sol_tlc[1] - roi.size_sol[1] / 2.]
 
-            #print('ROI top-left-corner position in solar coords', roi.pos_sol_tlc)
-            #print('ROI size in arcsec', roi.size_sol)
+            subim = roi.getArrayRegion(self.pgdata,
+                                       self.pg_img_canvas.getImageItem(), axes=(1, 2))
+
             roi.freqghz = self.cfreqs
             roi.freq_bound = copy.copy(self.roi_freq_bound)
-            roi.tb_max = np.nanmax(subim, axis=(1, 2))
-            roi.tb_mean = np.nanmean(subim, axis=(1, 2))
-            roi.total_pix = ny_sub * nx_sub
+            tb2flx_1d = gstools.sfu2tb(roi.freqghz * 1e9 * u.Hz, np.ones_like(roi.freqghz) * u.K,
+                                       area=self.meta['header']['CDELT1'] * self.meta['header'][
+                                           'CDELT2'] * u.arcsec ** 2, reverse=True).value
+
+            if roi.type == "sliceROI":
+                nf_sub, nd_sub = subim.shape
+                roi.total_pix = nd_sub
+
+                roi.tb_max = np.nanmax(subim, axis=1)
+                roi.tb_mean = np.nanmean(subim, axis=1)
+
+                roi.tb_im = subim
+
+                tb2flx_2d = np.tile(tb2flx_1d, nd_sub).reshape(nd_sub, nf_sub).transpose()
+                roi.tb_im_flux = roi.tb_im * tb2flx_2d
+            else:
+                nf_sub, ny_sub, nx_sub = subim.shape
+                roi.total_pix = ny_sub * nx_sub
+
+                roi.tb_max = np.nanmax(subim, axis=(1, 2))
+                roi.tb_mean = np.nanmean(subim, axis=(1, 2))
+
             # Total area of the ROI in arcsec^2
             roi.total_area = roi.total_pix * self.meta['header']['CDELT1'] * self.meta['header']['CDELT2']
             # Total flux of the ROI in sfu
             roi.total_flux = gstools.sfu2tb(roi.freqghz * 1e9 * u.Hz, roi.tb_mean * u.K,
-                                                            area=roi.total_area * u.arcsec ** 2, reverse=True).value
+                                            area=roi.total_area * u.arcsec ** 2, reverse=True).value
+            # print(tb2flx_1d * roi.tb_mean * roi.total_pix /roi.total_flux)
             if np.sum(roi.freq_mask) > 0:
                 roi.freqghz = ma.masked_array(roi.freqghz, roi.freq_mask)
                 roi.tb_max = ma.masked_array(roi.tb_max, roi.freq_mask)
                 roi.tb_mean = ma.masked_array(roi.tb_mean, roi.freq_mask)
                 roi.total_flux = ma.masked_array(roi.total_flux, roi.freq_mask)
 
-            #self.update_freq_mask(self.new_roi)
-
-        # print('Shape of the ROI selection', subim.shape)
-        # print('Coordinates of the ROI selection', subim_coords)
-        self.roi_info.setText('[Current ROI] x: {0:6.1f}", y: {1:6.1f}", freq: {2:4.1f} GHz, '
-                                            'T<sub>B</sub><sup>max</sup>: {3:5.1f} MK, '
-                                            'T<sub>B</sub><sup>mean</sup>: {4:5.1f} MK, Flux: {5:5.1f} sfu'.
-                                            format(roi.pos_sol_cen[0], roi.pos_sol_cen[1], self.pg_freq_current,
-                                                   roi.tb_max[self.pg_freq_idx] / 1e6,
-                                                   roi.tb_mean[self.pg_freq_idx] / 1e6,
-                                                   roi.total_flux[self.pg_freq_idx]))
-
-        #self.update_fitmask()
+        if 'roi' in vars():
+            self.roi_info.setText('[Current ROI] x: {0:6.1f}", y: {1:6.1f}", freq: {2:4.1f} GHz, '
+                                  'T<sub>B</sub><sup>max</sup>: {3:5.1f} MK, '
+                                  'T<sub>B</sub><sup>mean</sup>: {4:5.1f} MK, Flux: {5:5.1f} sfu'.
+                                  format(roi.pos()[0] + roi.size()[0] / 2, roi.pos()[1] + roi.size()[1] / 2,
+                                         self.pg_freq_current,
+                                         roi.tb_max[self.pg_freq_idx] / 1e6,
+                                         roi.tb_mean[self.pg_freq_idx] / 1e6,
+                                         roi.total_flux[self.pg_freq_idx]))
+        # self.update_fitmask()
         self.update_pgspec()
 
     def combine_roi_group_flux(self):
@@ -1309,9 +1898,10 @@ class App(QMainWindow):
             if hasattr(self, 'img_tot_flux_plot'):
                 self.speccanvas.removeItem(self.img_tot_flux_plot)
             else:
-                self.img_tot_flux_plot = self.speccanvas.plot(x=np.log10(self.img_tot_fghz), y=np.log10(self.img_tot_flux),
-                                                         pen=dict(color='k', width=4),
-                                                         symbol=None, symbolBrush=None)
+                self.img_tot_flux_plot = self.speccanvas.plot(x=np.log10(self.img_tot_fghz),
+                                                              y=np.log10(self.img_tot_flux),
+                                                              pen=dict(color='k', width=4),
+                                                              symbol=None, symbolBrush=None)
                 self.speccanvas.addItem(self.img_tot_flux_plot)
 
     def calc_tpcal_factor(self):
@@ -1339,21 +1929,21 @@ class App(QMainWindow):
             print('Either image time or calibrated total power dynamic spectrum does not exist.')
 
     def apply_tpcal_factor(self):
-        if self.apply_tpcal_factor_button.isChecked()==True:
+        if self.apply_tpcal_factor_button.isChecked() == True:
             self.statusBar.showMessage('Apply total power correction factor to data.')
             self.data[self.pol_select_idx] /= self.tp_cal_factor[:, None, None]
             self.tpcal_factor_applied = True
-            self.calc_roi_spec()
+            self.calc_roi_spec(None)
         else:
             self.statusBar.showMessage('Unapply total power correction factor to data.')
             self.data[self.pol_select_idx] *= self.tp_cal_factor[:, None, None]
             self.tpcal_factor_applied = False
-            self.calc_roi_spec()
+            self.calc_roi_spec(None)
 
-    #def roi_slider_rangechange(self):
+    # def roi_slider_rangechange(self):
     #    self.roi_select_slider.setMaximum(self.nroi - 1)
 
-    #def roi_slider_valuechange(self):
+    # def roi_slider_valuechange(self):
     #    self.current_roi_idx = self.roi_select_slider.value()
     #    self.roi_info.setPlainText('Selected ROI {}'.format(self.current_roi_idx))
     #    self.update_pgspec()
@@ -1462,7 +2052,8 @@ class App(QMainWindow):
                     self.fit_params_nvarys += 1
 
             self.update_fit_param_widgets()
-            #self.fit_function = gstools.GSCostFunctions.SinglePowerLawMinimizerOneSrc
+
+
         if self.ele_dist == 'thermal f-f + gyrores':
             self.fit_params = lmfit.Parameters()
             self.fit_params.add_many(('Bx100G', 2., True, 0.1, 100., None, None),
@@ -1615,6 +2206,56 @@ class App(QMainWindow):
         self.init_pgspecplot()
         self.update_pgspec()
 
+    def showqlookimg(self):
+        for i in range(self.qlookimgbox.count()):
+            self.qlookimgbox.itemAt(i).widget().deleteLater()
+        if self.qlookimgbutton.isChecked():
+            self.qlookimg_canvas = FigureCanvas(Figure(figsize=(6, 4)))
+            self.qlookimg_toolbar = NavigationToolbar(self.qlookimg_canvas, self)
+            self.qlookimg_axs = [self.qlookimg_canvas.figure.subplots(1, 1)]
+            self.qlookimgbox.addWidget(self.qlookimg_canvas)
+            self.qlookimgbox.addWidget(self.qlookimg_toolbar)
+            self.qlookimgbutton.setArrowType(Qt.DownArrow)
+            self.plot_qlookmap()
+            if self.qlookdspecbutton.isChecked():
+                self.qlookimgbox.parent().setStretch(0, 1)
+                self.qlookimgbox.parent().setStretch(1, 2)
+                self.qlookimgbox.parent().setStretch(2, 0)
+            else:
+                self.qlookimgbox.parent().setStretch(0, 0)
+                self.qlookimgbox.parent().setStretch(0, 0)
+                self.qlookimgbox.parent().setStretch(1, 0)
+        else:
+            self.qlookimgbutton.setArrowType(Qt.RightArrow)
+            self.qlookimgbox.parent().setStretch(0, 0)
+            self.qlookimgbox.parent().setStretch(0, 0)
+            self.qlookimgbox.parent().setStretch(1, 0)
+
+    def showqlookdspec(self):
+        for i in range(self.qlookdspecbox.count()):
+            self.qlookdspecbox.itemAt(i).widget().deleteLater()
+        if self.qlookdspecbutton.isChecked():
+            self.qlookdspec_canvas = FigureCanvas(Figure(figsize=(6, 4)))
+            self.qlookdspec_toolbar = NavigationToolbar(self.qlookdspec_canvas, self)
+            self.qlookdspec_ax = self.qlookdspec_canvas.figure.subplots(1, 1)
+            self.qlookdspecbox.addWidget(self.qlookdspec_canvas)
+            self.qlookdspecbox.addWidget(self.qlookdspec_toolbar)
+            self.qlookdspecbutton.setArrowType(Qt.DownArrow)
+            if self.qlookimgbutton.isChecked():
+                self.qlookdspecbox.parent().setStretch(0, 1)
+                self.qlookdspecbox.parent().setStretch(1, 2)
+                self.qlookdspecbox.parent().setStretch(2, 0)
+            else:
+                self.qlookdspecbox.parent().setStretch(0, 0)
+                self.qlookdspecbox.parent().setStretch(1, 0)
+                self.qlookdspecbox.parent().setStretch(2, 0)
+            if self.has_dspec:
+                self.plot_dspec()
+        else:
+            self.qlookdspecbutton.setArrowType(Qt.RightArrow)
+            self.qlookdspecbox.parent().setStretch(0, 0)
+            self.qlookdspecbox.parent().setStretch(1, 0)
+            self.qlookdspecbox.parent().setStretch(2, 0)
 
     def do_spec_fit(self):
         roi = self.rois[self.roi_group_idx][self.current_roi_idx]
