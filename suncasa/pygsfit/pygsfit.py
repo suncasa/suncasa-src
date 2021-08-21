@@ -24,11 +24,12 @@ from sunpy import map as smap
 import astropy
 from astropy.io import fits
 import astropy.units as u
+from astropy import wcs
 import lmfit
-
 filedir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(filedir)
 import gstools
+import roi_utils
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -711,6 +712,16 @@ class App(QMainWindow):
         roi_button_box.addWidget(QLabel("Max Freq (GHz)"))
         roi_button_box.addWidget(self.roi_freq_hibound_selector)
 
+        # ADD presets selection box
+        self.add_manual_rois_button = QToolButton()
+        self.add_manual_rois_button.setText('Define ROIs')
+        self.add_manual_rois_button.clicked.connect(self.add_manually_defined_rois)
+        self.add_manual_rois_button.setPopupMode(QToolButton.MenuButtonPopup)
+        self.group_roi_op_menu = QMenu()
+        self.group_roi_op_menu.addAction('Save Group', self.group_roi_op_selector)
+        self.group_roi_op_menu.addAction('Load Group', self.group_roi_op_selector)
+        self.add_manual_rois_button.setMenu(self.group_roi_op_menu)
+        roi_button_box.addWidget(self.add_manual_rois_button)
         roi_definition_group_box.addLayout(roi_button_box)
 
         roi_grid_box = QHBoxLayout()
@@ -983,6 +994,8 @@ class App(QMainWindow):
             self.mapx, self.mapy = np.linspace(self.x0, self.x1, meta['nx']), np.linspace(self.y0, self.y1, meta['ny'])
             self.tp_cal_factor = np.ones_like(self.cfreqs)
             self.has_eovsamap = True
+            with fits.open(self.eoimg_fname, mode='readonly') as wcs_hdul:
+                self.eo_wcs = wcs.WCS(wcs_hdul[0].header)
             # self.infoEdit.setPlainText(repr(rheader))
         except:
             self.statusBar.showMessage('Filename is not a valid FITS file', 2000)
@@ -1773,8 +1786,34 @@ class App(QMainWindow):
         else:
             rois2update = self.rois[self.roi_group_idx]
 
-        ## only update the ROIs that are changed
-        for roi in rois2update:
+    def group_roi_op_selector(self):
+        cur_action = self.sender()
+        cur_op = cur_action.text()
+        if cur_op == 'Save Group':
+            roi_utils.save_roi_group(self)
+
+    def exec_customized_rois_window(self):
+        try:
+            self.customized_rois_Form = QDialog()
+            ui = roi_utils.roi_dialog(img_size=[self.meta['nx'], self.meta['ny']], cfreqs = self.cfreqs)
+            ui.setupUi(self.customized_rois_Form)
+            self.customized_rois_Form.show()
+            cur_result = self.customized_rois_Form.exec()
+            crtf_list = ui.getResult(self.customized_rois_Form)
+            print('cur_result: ',crtf_list)
+            return (crtf_list,cur_result)
+        except:
+            msg_box = QMessageBox(QMessageBox.Warning, 'No EOVSA Image Loaded', 'Load EOVSA Image first!')
+            msg_box.exec_()
+    def add_manually_defined_rois(self):
+        dialog_output = self.exec_customized_rois_window()
+        if not dialog_output[1] or len(dialog_output[0]) == 0:
+            print('No ROI is added!')
+        else:
+            roi_utils.add_md_rois(self, inp_str_list =dialog_output[0])
+
+    def calc_roi_spec(self):
+        for roi in rois2update::
             ## todo: investigate why using axes = (2, 1) returns entirely different (wrong!) results
 
             subim = roi.getArrayRegion(self.pgdata,
@@ -2013,7 +2052,26 @@ class App(QMainWindow):
                     self.fit_params_nvarys += 1
 
             self.update_fit_param_widgets()
-            # self.fit_function = gstools.GSCostFunctions.SinglePowerLawMinimizerOneSrc
+
+
+        if self.ele_dist == 'thermal f-f + gyrores':
+            self.fit_params = lmfit.Parameters()
+            self.fit_params.add_many(('Bx100G', 2., True, 0.1, 100., None, None),
+                                     ('log_nnth', 5., False, 3., 11, None, None),
+                                     ('delta', 4., False, 1., 30., None, None),
+                                     ('Emin_keV', 10., False, 1., 100., None, None),
+                                     ('Emax_MeV', 10., False, 0.05, 100., None, None),
+                                     ('theta', 45., True, 0.01, 89.9, None, None),
+                                     ('log_nth', 10, True, 4., 13., None, None),
+                                     ('T_MK', 1., True, 0.1, 100, None, None),
+                                     ('depth_asec', 5., False, 1., 100., None, None))
+            self.fit_params_nvarys = 0
+            for key, par in self.fit_params.items():
+                if par.vary:
+                    self.fit_params_nvarys += 1
+
+            self.fit_function = gstools.GSCostFunctions.Ff_Gyroresonance_MinimizerOneSrc
+            self.update_fit_param_widgets()
 
     def init_fit_kws(self):
         # first refresh the widgets
