@@ -918,8 +918,10 @@ def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=Tr
     '''
     ms.open(vis)
     out = ms.summary()
-    tst = Time(out['BeginTime'])
-    ted = Time(out['EndTime'])
+    tst = Time(out['BeginTime'], format='mjd')
+    ted = Time(out['EndTime'], format='mjd')
+    metadata = ms.metadata()
+    observatory = metadata.observatorynames()[0]
     ms.close()
     datstr = tst.iso[:10]
 
@@ -953,11 +955,6 @@ def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=Tr
                         edtim = sttim
                 except ValueError:
                     print("keyword 'timerange' in wrong format")
-
-    ms.open(vis)
-    metadata = ms.metadata()
-    observatory = metadata.observatorynames()[0]
-    ms.close()
 
     midtim_mjd = (sttim.mjd + edtim.mjd) / 2.
     midtim = Time(midtim_mjd, format='mjd')
