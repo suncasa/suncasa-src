@@ -916,10 +916,11 @@ def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=Tr
     phasecenter
     midtim: mid time of the given timerange
     '''
-    tb.open(vis + '/POINTING')
-    tst = Time(tb.getcell('TIME_ORIGIN', 0) / 24. / 3600., format='mjd')
-    ted = Time(tb.getcell('TIME_ORIGIN', tb.nrows() - 1) / 24. / 3600., format='mjd')
-    tb.close()
+    ms.open(vis)
+    out = ms.summary()
+    tst = Time(out['BeginTime'])
+    ted = Time(out['EndTime'])
+    ms.close()
     datstr = tst.iso[:10]
 
     if isinstance(timerange, Time):
