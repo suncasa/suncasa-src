@@ -73,7 +73,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
 
     Keyword arguments:
     t0: Referece time in astropy.Time format
-    dur: duration of the returned coordinates. Default to 2 minutes
+    dur: duration of the returned coordinates in days. Default to 1 minute
     vis: CASA visibility dataset (in measurement set format). If provided, use entire duration from
          the visibility data
     observatory: observatory code (from JPL Horizons). If not provided, use information from visibility.
@@ -93,7 +93,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     if not t0 and not vis:
         t0 = Time.now()
     if not dur:
-        dur = 1. / 60. / 24.  # default to 2 minutes
+        dur = 1. / 60. / 24.  # default to 1 minute
     if t0:
         try:
             btime = Time(t0)
@@ -118,7 +118,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
                 metadata = ms.metadata()
                 if metadata.observatorynames()[0] == 'EVLA':
                     observatory = '-5'
-                elif metadata.observatorynames()[0] == 'EOVSA':
+                elif metadata.observatorynames()[0] == 'EOVSA' or metadata.observatorynames()[0] == 'FASR':
                     observatory = '-81'
                 elif metadata.observatorynames()[0] == 'ALMA':
                     observatory = '-7'
@@ -145,9 +145,12 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     etime = Time(btime.mjd + dur, format='mjd')
 
     try:
-        cmdstr = "https://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
+        cmdstr = "https://ssd.jpl.nasa.gov/api/horizons.api?format=text&&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
             observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
                                                                                                   ',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
+        # cmdstr = "https://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
+        #     observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
+        #                                                                                           ',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
         cmdstr = cmdstr.replace("'", "%27")
         try:
             context = ssl._create_unverified_context()
@@ -160,8 +163,27 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         # todo use geocentric coordinate for the new VLA data
         import requests, collections
         params = collections.OrderedDict()
-        params['batch'] = '1'
-        params['TABLE_TYPE'] = "'OBSERVER'"
+        # params['batch'] = '1'
+        # params['TABLE_TYPE'] = "'OBSERVER'"
+        # params['QUANTITIES'] = "'1,17,20'"
+        # params['CSV_FORMAT'] = "'YES'"
+        # params['ANG_FORMAT'] = "'DEG'"
+        # params['CAL_FORMAT'] = "'BOTH'"
+        # params['SOLAR_ELONG'] = "'0,180'"
+        # if observatory == '500':
+        #     params['CENTER'] = "'500'"
+        # else:
+        #     params['CENTER'] = "'{}@399'".format(observatory)
+        # params['COMMAND'] = "'10'"
+        # params['START_TIME'] = "'{}'".format(btime.iso[:-4].replace(' ', ','))
+        # params['STOP_TIME'] = "'{}'".format(etime.iso[:-4].replace(' ', ','))
+        # params['STEP_SIZE'] = "'1m'"
+        # params['SKIP_DAYLT'] = "'NO'"
+        # params['EXTRA_PREC'] = "'YES'"
+        # params['APPAENT'] = "'REFRACTED'"
+        # results = requests.get("https://ssd.jpl.nasa.gov/horizons_batch.cgi", params=params)
+
+        params['EPHEM_TYPE'] = "'OBSERVER'"
         params['QUANTITIES'] = "'1,17,20'"
         params['CSV_FORMAT'] = "'YES'"
         params['ANG_FORMAT'] = "'DEG'"
@@ -177,14 +199,15 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         params['STEP_SIZE'] = "'1m'"
         params['SKIP_DAYLT'] = "'NO'"
         params['EXTRA_PREC'] = "'YES'"
-        params['APPAENT'] = "'REFRACTED'"
-        results = requests.get("https://ssd.jpl.nasa.gov/horizons_batch.cgi", params=params)
+        params['APPARENT'] = "'REFRACTED'"
+        results = requests.get("https://ssd.jpl.nasa.gov/api/horizons.api?format=text", params=params)
         lines = [ll for ll in results.iter_lines()]
 
     # add a check for python 3
     if py3:
         lines = [l.decode('utf-8', 'backslashreplace') for l in lines]
 
+    # print(lines)
     nline = len(lines)
     istart = 0
     for i in range(nline):
@@ -324,7 +347,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
     '''
     if not vis or not os.path.exists(vis):
         raise ValueError('Please provide information of the MS database!')
-    if not ephem:
+    if (not ephem) and usephacenter:
         ephem = read_horizons(vis=vis)
     if not msinfo:
         msinfo0 = read_msinfo(vis)
@@ -346,7 +369,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
     ras = msinfo0['ras']
     decs = msinfo0['decs']
     if 'observatory' in msinfo0.keys():
-        if msinfo0['observatory'] == 'EOVSA':
+        if msinfo0['observatory'] == 'EOVSA' or msinfo0['observatory'] == 'FASR':
             usephacenter = False
     if type(ras) is list:
         ra_rads = [ra['value'] for ra in ras]
@@ -464,54 +487,68 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
             ra_b += 2. * np.pi
 
         # compare with ephemeris from JPL Horizons
+        if not usephacenter:
+            if msinfo0['observatory'] == 'EVLA':
+                observatory_id = '-5'
+            elif msinfo0['observatory'] == 'EOVSA' or msinfo0['observatory'] == 'FASR':
+                observatory_id = '-81'
+            elif msinfo0['observatory'] == 'ALMA':
+                observatory_id = '-7'
+            ephem = read_horizons(Time(tref_d, format='mjd'), observatory = observatory_id)
+
         time0 = ephem['time']
         ra0 = ephem['ra']
         dec0 = ephem['dec']
         p0 = ephem['p0']
         delta0 = ephem['delta']
-        if len(time0) > 1:
-            ind = bisect.bisect_left(time0, tref_d)
-            dt0 = time0[ind] - time0[ind - 1]
-            dt_ref = tref_d - time0[ind - 1]
-            dra0 = ra0[ind] - ra0[ind - 1]
-            ddec0 = dec0[ind] - dec0[ind - 1]
-            dp0 = p0[ind] - p0[ind - 1]
-            ddelta0 = delta0[ind] - delta0[ind - 1]
-            ra0 = ra0[ind - 1] + dra0 / dt0 * dt_ref
-            dec0 = dec0[ind - 1] + ddec0 / dt0 * dt_ref
-            p0 = p0[ind - 1] + dp0 / dt0 * dt_ref
-            delta0 = delta0[ind - 1] + ddelta0 / dt0 * dt_ref
-        else:
-            try:
-                ra0 = ra0[0]
-                dec0 = dec0[0]
-                p0 = p0[0]
-                delta0 = delta0[0]
-            except:
-                print("Error in retrieving info from ephemeris!")
-        if ra0 < 0:
-            ra0 += 2. * np.pi
 
-        # RA and DEC offset in arcseconds
-        decoff = degrees((dec - dec0)) * 3600.
-        raoff = degrees((ra - ra0) * cos(dec)) * 3600.
-        # Convert into heliocentric offsets
-        prad = -radians(p0)
-        refx = (-raoff) * cos(prad) - decoff * sin(prad)
-        refy = (-raoff) * sin(prad) + decoff * cos(prad)
+        if usephacenter:
+            if len(time0) > 1:
+                ind = bisect.bisect_left(time0, tref_d)
+                dt0 = time0[ind] - time0[ind - 1]
+                dt_ref = tref_d - time0[ind - 1]
+                dra0 = ra0[ind] - ra0[ind - 1]
+                ddec0 = dec0[ind] - dec0[ind - 1]
+                dp0 = p0[ind] - p0[ind - 1]
+                ddelta0 = delta0[ind] - delta0[ind - 1]
+                ra0 = ra0[ind - 1] + dra0 / dt0 * dt_ref
+                dec0 = dec0[ind - 1] + ddec0 / dt0 * dt_ref
+                p0 = p0[ind - 1] + dp0 / dt0 * dt_ref
+                delta0 = delta0[ind - 1] + ddelta0 / dt0 * dt_ref
+            else:
+                try:
+                    ra0 = ra0[0]
+                    dec0 = dec0[0]
+                    p0 = p0[0]
+                    delta0 = delta0[0]
+                except:
+                    print("Error in retrieving info from ephemeris!")
+            if ra0 < 0:
+                ra0 += 2. * np.pi
+
+            # RA and DEC offset in arcseconds
+            decoff = degrees((dec - dec0)) * 3600.
+            raoff = degrees((ra - ra0) * cos(dec)) * 3600.
+            # Convert into heliocentric offsets
+            prad = -radians(p0)
+            refx = (-raoff) * cos(prad) - decoff * sin(prad)
+            refy = (-raoff) * sin(prad) + decoff * cos(prad)
+            helio0['raoff'] = raoff
+            helio0['decoff'] = decoff
+            helio0['refx'] = refx
+            helio0['refy'] = refy
+            helio0['p0'] = p0
+        else:
+            helio0['raoff'] = 0. 
+            helio0['decoff'] = 0.
+            helio0['refx'] = 0.
+            helio0['refy'] = 0.
+            helio0['p0'] = p0[0]
+
         helio0['ra'] = ra  # ra of the actual pointing
         helio0['dec'] = dec  # dec of the actual pointing
         helio0['ra_fld'] = ra_b  # ra of the field, used as the reference in e.g., clean
         helio0['dec_fld'] = dec_b  # dec of the field, used as the refenrence in e.g., clean
-        helio0['raoff'] = raoff
-        helio0['decoff'] = decoff
-        if usephacenter:
-            helio0['refx'] = refx
-            helio0['refy'] = refy
-        else:
-            helio0['refx'] = 0.
-            helio0['refy'] = 0.
-        helio0['p0'] = p0
         # helio['r_sun']=np.degrees(R_sun.value/(au.value*delta0))*3600. #in arcsecs
         helio.append(helio0)
     return helio
@@ -916,10 +953,13 @@ def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=Tr
     phasecenter
     midtim: mid time of the given timerange
     '''
-    tb.open(vis + '/POINTING')
-    tst = Time(tb.getcell('TIME_ORIGIN', 0) / 24. / 3600., format='mjd')
-    ted = Time(tb.getcell('TIME_ORIGIN', tb.nrows() - 1) / 24. / 3600., format='mjd')
-    tb.close()
+    ms.open(vis)
+    out = ms.summary()
+    tst = Time(out['BeginTime'], format='mjd')
+    ted = Time(out['EndTime'], format='mjd')
+    metadata = ms.metadata()
+    observatory = metadata.observatorynames()[0]
+    ms.close()
     datstr = tst.iso[:10]
 
     if isinstance(timerange, Time):
@@ -952,11 +992,6 @@ def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=Tr
                         edtim = sttim
                 except ValueError:
                     print("keyword 'timerange' in wrong format")
-
-    ms.open(vis)
-    metadata = ms.metadata()
-    observatory = metadata.observatorynames()[0]
-    ms.close()
 
     midtim_mjd = (sttim.mjd + edtim.mjd) / 2.
     midtim = Time(midtim_mjd, format='mjd')

@@ -917,13 +917,30 @@ def make_ephem(vis, ephemfile=None):
     etime = Time((etime.mjd + 1.0 / 60 / 24), format='mjd')
     startdate = btime.iso.replace(' ', ',')[:-7]
     enddate = etime.iso.replace(' ', ',')[:-7]
+
+    ### Horizons Batch CGI Script
+    ### The Horizons batch CGI script https://ssd.jpl.nasa.gov/horizons_batch.cgi is obsolete.
+    ### lease instead use the Horizons API.
+    # cmd = ["COMMAND= '10'", "CENTER= '-5@399'", "MAKE_EPHEM= 'YES'", "TABLE_TYPE= 'OBSERVER'",
+    #        "START_TIME= '%s'" % startdate, "STOP_TIME= '%s'" % enddate, "STEP_SIZE= '1m'", "CAL_FORMAT= 'CAL'",
+    #        "TIME_DIGITS= 'MINUTES'", "ANG_FORMAT= 'DEG'", "OUT_UNITS= 'KM-S'", "RANGE_UNITS= 'AU'",
+    #        "APPARENT= 'AIRLESS'", "SOLAR_ELONG= '0,180'", "SUPPRESS_RANGE_RATE= 'NO'", "SKIP_DAYLT= 'NO'",
+    #        "EXTRA_PREC= 'NO'", "R_T_S_ONLY= 'NO'", "REF_SYSTEM= 'J2000'", "CSV_FORMAT= 'YES'", "OBJ_DATA= 'YES'",
+    #        "TIME_DIGITS ='MIN'", "QUANTITIES= '{}'".format(quantities)]
+    # cmdstr = "http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&" + '&'.join(cmd)
+
+    ### Horizons API
     cmd = ["COMMAND= '10'", "CENTER= '-5@399'", "MAKE_EPHEM= 'YES'", "TABLE_TYPE= 'OBSERVER'",
            "START_TIME= '%s'" % startdate, "STOP_TIME= '%s'" % enddate, "STEP_SIZE= '1m'", "CAL_FORMAT= 'CAL'",
            "TIME_DIGITS= 'MINUTES'", "ANG_FORMAT= 'DEG'", "OUT_UNITS= 'KM-S'", "RANGE_UNITS= 'AU'",
            "APPARENT= 'AIRLESS'", "SOLAR_ELONG= '0,180'", "SUPPRESS_RANGE_RATE= 'NO'", "SKIP_DAYLT= 'NO'",
            "EXTRA_PREC= 'NO'", "R_T_S_ONLY= 'NO'", "REF_SYSTEM= 'J2000'", "CSV_FORMAT= 'YES'", "OBJ_DATA= 'YES'",
-           "TIME_DIGITS ='MIN'", "QUANTITIES= '{}'".format(quantities)]
-    cmdstr = "http://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=l&" + '&'.join(cmd)
+           "QUANTITIES= '{}'".format(quantities)]
+    cmdstr = "https://ssd.jpl.nasa.gov/api/horizons.api?format=text&" + '&'.join(cmd)
+
+
+    cmdstr = cmdstr.replace("'", "%27")
+    cmdstr = cmdstr.replace(" ", "%20")
     try:
         context = ssl._create_unverified_context()
         f = urllib2.urlopen(cmdstr, context=context)

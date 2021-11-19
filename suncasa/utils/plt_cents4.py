@@ -542,8 +542,8 @@ if dopltvdspec:
 
                 linebuilder.scatter = scatters
                 linebuilder.line = lines
-                linebuilder.xs = list(scatters[0].get_xdata())
-                linebuilder.ys = list(scatters[0].get_ydata())
+                linebuilder.mapx = list(scatters[0].get_xdata())
+                linebuilder.mapy = list(scatters[0].get_ydata())
                 linebuilder.xsline, linebuilder.ysline = lns[0]['x'], lns[0]['y']
 
                 xs, ys = linebuilder.xsline, linebuilder.ysline
