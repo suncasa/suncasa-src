@@ -145,9 +145,12 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     etime = Time(btime.mjd + dur, format='mjd')
 
     try:
-        cmdstr = "https://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
+        cmdstr = "https://ssd.jpl.nasa.gov/api/horizons.api?format=text&&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
             observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
                                                                                                   ',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
+        # cmdstr = "https://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
+        #     observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
+        #                                                                                           ',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
         cmdstr = cmdstr.replace("'", "%27")
         try:
             context = ssl._create_unverified_context()
@@ -160,8 +163,27 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         # todo use geocentric coordinate for the new VLA data
         import requests, collections
         params = collections.OrderedDict()
-        params['batch'] = '1'
-        params['TABLE_TYPE'] = "'OBSERVER'"
+        # params['batch'] = '1'
+        # params['TABLE_TYPE'] = "'OBSERVER'"
+        # params['QUANTITIES'] = "'1,17,20'"
+        # params['CSV_FORMAT'] = "'YES'"
+        # params['ANG_FORMAT'] = "'DEG'"
+        # params['CAL_FORMAT'] = "'BOTH'"
+        # params['SOLAR_ELONG'] = "'0,180'"
+        # if observatory == '500':
+        #     params['CENTER'] = "'500'"
+        # else:
+        #     params['CENTER'] = "'{}@399'".format(observatory)
+        # params['COMMAND'] = "'10'"
+        # params['START_TIME'] = "'{}'".format(btime.iso[:-4].replace(' ', ','))
+        # params['STOP_TIME'] = "'{}'".format(etime.iso[:-4].replace(' ', ','))
+        # params['STEP_SIZE'] = "'1m'"
+        # params['SKIP_DAYLT'] = "'NO'"
+        # params['EXTRA_PREC'] = "'YES'"
+        # params['APPAENT'] = "'REFRACTED'"
+        # results = requests.get("https://ssd.jpl.nasa.gov/horizons_batch.cgi", params=params)
+
+        params['EPHEM_TYPE'] = "'OBSERVER'"
         params['QUANTITIES'] = "'1,17,20'"
         params['CSV_FORMAT'] = "'YES'"
         params['ANG_FORMAT'] = "'DEG'"
@@ -177,14 +199,15 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         params['STEP_SIZE'] = "'1m'"
         params['SKIP_DAYLT'] = "'NO'"
         params['EXTRA_PREC'] = "'YES'"
-        params['APPAENT'] = "'REFRACTED'"
-        results = requests.get("https://ssd.jpl.nasa.gov/horizons_batch.cgi", params=params)
+        params['APPARENT'] = "'REFRACTED'"
+        results = requests.get("https://ssd.jpl.nasa.gov/api/horizons.api?format=text", params=params)
         lines = [ll for ll in results.iter_lines()]
 
     # add a check for python 3
     if py3:
         lines = [l.decode('utf-8', 'backslashreplace') for l in lines]
 
+    # print(lines)
     nline = len(lines)
     istart = 0
     for i in range(nline):
