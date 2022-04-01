@@ -288,6 +288,7 @@ class Dspec:
                 ms.close()
                 ms.open(fname)
 
+
             scan_ntimes = []  # List of number of times in each scan
             # for iscan in range(nscans):
             #     print(smry['observationID=0']['arrayID=0'][scanids[iscan]]['fieldID=0']['nrows'])
