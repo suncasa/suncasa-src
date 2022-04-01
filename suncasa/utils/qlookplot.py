@@ -1557,10 +1557,13 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
 
             print('plot the dynamic spectrum in pol ' + ' & '.join(pols))
 
+            if dnorm is None:
+                dnorm = colors.Normalize(vmax=dmax,vmin=dmin)
+
             axs = [ax1, ax2]
             for axidx, ax in enumerate(axs):
                 if axidx < npol_in:
-                    ax.pcolormesh(spec_tim_plt, freqghz, specs[pols[axidx]], cmap=dcmap, vmin=dmin, vmax=dmax,
+                    ax.pcolormesh(spec_tim_plt, freqghz, specs[pols[axidx]], cmap=dcmap, norm=dnorm,
                                   rasterized=True)
                     ax.set_title(observatory + ' ' + datstr + ' ' + pols[axidx], fontsize=9)
                 ax.set_autoscale_on(True)
