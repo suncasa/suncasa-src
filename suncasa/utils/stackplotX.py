@@ -521,7 +521,7 @@ class LightCurveBuilder:
 
 
 class SpaceTimeSlitBuilder:
-    def __init__(self, axes, cutlength=80, cutsmooth=10.0, scale=1.0, color='white'):
+    def __init__(self, axes, dspec, cutlength=80, cutsmooth=10.0, scale=1.0, color='white'):
         if isinstance(axes, list):
             self.axes_dspec = axes[0]
             naxes = len(axes)
@@ -543,6 +543,7 @@ class SpaceTimeSlitBuilder:
             self.axes_accel = None
             self.speedlines = []
             self.accellines = []
+        self.dspec = dspec
         self.clickedpoints, = self.axes_dspec.plot([], [], 'o', color=color)
         self.slitline, = self.axes_dspec.plot([], [], color=color, ls=':')
         self.cutlength = cutlength
@@ -580,6 +581,9 @@ class SpaceTimeSlitBuilder:
             self.clickedpoints.set_data(self.xx, self.yy)
             self.clickedpoints.figure.canvas.draw()
             self.update()
+            if event.button == 2:
+                self.xx.append(event.xdata)
+                self.select_distance_along_a_slice(int(self.xx[-1]))
         else:
             if event.inaxes != self.axes_dspec:
                 return
@@ -748,6 +752,34 @@ class SpaceTimeSlitBuilder:
                                         '{}'.format(idx), color=self.color, transform=self.axes_dspec.transData,
                                         ha='left', va='bottom')
             self.slitlines_text.append(text)
+
+    def select_distance_along_a_slice(self, ixx):
+        'select points more accurately by doing it on a distance-flux plot'
+        cur_time = self.dspec['x'][0] + (ixx/3600./24.)
+        cur_idx = np.argmin(np.abs(self.dspec['x'] - cur_time))
+        fig_sdas, axes_sdas = plt.subplots(nrows=1, ncols=1)
+        axes_sdas.plot(self.dspec['y'][1:], self.dspec['dspec'][:,cur_idx])
+        axes_sdas.set_xlabel(self.dspec['ytitle'])
+        axes_sdas.set_ylabel('Flux')
+        axes_sdas.set_title('Close to save the last choice')
+        tmp_selected_distance_list=[]
+
+        def sdas_on_click(event):
+            if event.button == 1:
+                tmp_selected_distance_list.append(event.xdata)
+                axes_sdas.axvspan(tmp_selected_distance_list[-1],tmp_selected_distance_list[-1]+1,facecolor='r',edgecolor='r')
+                axes_sdas.figure.canvas.draw()
+            else:
+                print('Only left clicking is supported')
+
+        def sdas_close_figure(event):
+            if len(tmp_selected_distance_list)> 1.e-9:
+                self.yy.append(tmp_selected_distance_list[-1])
+                self.clickedpoints.set_data(self.xx, self.yy)
+                self.clickedpoints.figure.canvas.draw()
+                self.update()
+        plt.connect('button_press_event', sdas_on_click)
+        plt.connect('close_event', sdas_close_figure)
 
     def spacetimeslits_tofile(self, outfile=None, spacetimeslits=None):
         if not spacetimeslits:
@@ -2073,7 +2105,7 @@ class Stackplot:
         ax.set_xlim(x[frm_range[0]], x[frm_range[-1]])
         ax = axs_stpanal[-1]
         ax.set_xlabel('seconds since {}'.format(Time(stackplt['x'][0], format='plot_date').iso[:-4]))
-        self.spacetimeslitbd = SpaceTimeSlitBuilder(axs_stpanal, cutlength=50, color='red')
+        self.spacetimeslitbd = SpaceTimeSlitBuilder(axs_stpanal, self.stackplt_wrap(), cutlength=50, color='red')
 
         axCutsmooth = plt.axes([0.35, 0.01, 0.40, 0.015])
         self.stCutsmooth = Slider(axCutsmooth, 'Smooth', 0.0, 100.0, valinit=10, valfmt='%0.0f')
