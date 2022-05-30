@@ -76,7 +76,7 @@ def resettable(f):
 def b_filter(data, lowcut, highcut, fs, ix):
     x = data[ix]
     # y = butter_bandpass_filter(x, lowcut * fs, highcut * fs, fs, order=5)
-    y = su.bandpass_filter(None, data, fs=fs, cutoff=[lowcut, highcut]) + 1.0
+    y = su.bandpass_filter(None, x, fs=fs, cutoff=[lowcut, highcut]) + 1.0
     return {'idx': ix, 'y': y}
 
 
