@@ -626,7 +626,7 @@ def getbeam(imagefile=None, beamfile=None):
 
 def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, reftime=None, fitsfile=None, beamfile=None,
           offsetfile=None, toTb=None, sclfactor=1.0, verbose=False, p_ang=False, overwrite=True, usephacenter=True,
-          deletehistory=False, subregion=[], docompress=False):
+          deletehistory=False, subregion='', docompress=False):
     ''' 
     main routine to register CASA images
            Required Inputs:
@@ -730,7 +730,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 tb.close()
                 ia.open(img)
                 imr = ia.rotate(pa=str(-p0) + 'deg')
-                if subregion is not []:
+                if subregion is not '':
                     imr = imr.subimage(region=subregion)
                 imr.tofits(fitsf, history=False, overwrite=overwrite)
                 imr.close()

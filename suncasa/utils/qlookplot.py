@@ -405,7 +405,7 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
                    phasecenter='', robust=0.0, niter=500, gain=0.1, imsize=[512], cell=['5.0arcsec'], pbcor=True,
                    reftime='', restoringbeam=[''],
                    mask='', docompress=False,
-                   uvrange='', c_external=True, show_warnings=False):
+                   uvrange='', subregion = '', c_external=True, show_warnings=False):
     vis = [vis]
     subdir = ['/']
 
@@ -525,6 +525,7 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
                        'sclfactor': sclfactor,
                        'datacolumn': datacolumn,
                        'pbcor': pbcor,
+                       'subregion':subregion,
                        'weighting': 'briggs',
                        'robust': robust}
             for key, val in inpdict.items():
@@ -578,6 +579,7 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
                           sclfactor=sclfactor,
                           datacolumn=datacolumn,
                           pbcor=pbcor,
+                          subregion=subregion,
                           weighting='briggs',
                           robust=robust)
 
@@ -879,8 +881,12 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             dspecvspans = []
             for pol in range(npols):
                 ax = axs_dspec[pol]
+                if dnorm is None:
+                    vnorm = colors.Normalize(vmax=dranges[pol][1], vmin=dranges[pol][0])
+                else:
+                    vnorm = dnorm
                 im_spec = ax.pcolormesh(spec_tim_plt[tidx], freqghz, spec_plt[pol][:, tidx], cmap=cmaps[pol],
-                                        vmax=dranges[pol][1], vmin=dranges[pol][0], rasterized=True)
+                                        norm=vnorm, rasterized=True)
                 ax.set_xlim(spec_tim_plt[tidx[0]], spec_tim_plt[tidx[-1]])
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 ax.set_ylabel('Frequency [GHz]')
