@@ -1,17 +1,17 @@
-import numpy as np
+import os
+import sys
+
 import matplotlib.pyplot as plt
-import os, sys
-# from config import get_and_create_download_dir
-import shutil
-from astropy.io import fits
-from ..utils import helioimage2fits as hf
+import numpy as np
 import sunpy
 import sunpy.map as smap
 from astropy import units as u
 from astropy.time import Time
-from astropy.io import fits
-from ..utils import mstools
+
 from ..utils import dspec as ds
+# from config import get_and_create_download_dir
+from ..utils import helioimage2fits as hf
+from ..utils import mstools
 
 sunpy1 = sunpy.version.major >= 1
 sunpy3 = sunpy.version.major >= 3
@@ -49,10 +49,8 @@ except:
     c_external = False
 
 from matplotlib.dates import DateFormatter
-from astropy.io import fits
 from astropy.coordinates import SkyCoord
 import matplotlib as mpl
-import matplotlib.cm as cm
 
 import matplotlib.colors as colors
 import matplotlib.patches as patches
@@ -405,7 +403,7 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
                    phasecenter='', robust=0.0, niter=500, gain=0.1, imsize=[512], cell=['5.0arcsec'], pbcor=True,
                    reftime='', restoringbeam=[''],
                    mask='', docompress=False,
-                   uvrange='', subregion = '', c_external=True, show_warnings=False):
+                   uvrange='', subregion='', c_external=True, show_warnings=False):
     vis = [vis]
     subdir = ['/']
 
@@ -525,7 +523,7 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
                        'sclfactor': sclfactor,
                        'datacolumn': datacolumn,
                        'pbcor': pbcor,
-                       'subregion':subregion,
+                       'subregion': subregion,
                        'weighting': 'briggs',
                        'robust': robust}
             for key, val in inpdict.items():
@@ -974,7 +972,8 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     try:
                         # rmap = smap.Map(image)
                         meta, rdata = ndfits.read(image)
-                        cmaps, datas = get_rdata_dict(rdata, meta['naxis'], meta['pol_axis'], meta['npol'], icmap=icmap, stokes=stokes)
+                        cmaps, datas = get_rdata_dict(rdata, meta['naxis'], meta['pol_axis'], meta['npol'], icmap=icmap,
+                                                      stokes=stokes)
                     except:
                         continue
 
@@ -1210,13 +1209,13 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
               reftime='', xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0,
               weighting='briggs', niter=500, sclfactor=1.0,
               imsize=[512], cell=['5.0arcsec'], mask='', gain=0.1, pbcor=True,
-              antenna='', toTb=True,
+              antenna='', toTb=True, subregion='',
               interactive=False, usemsphacenter=True, imagefile=None, outfits='',
               imax=None, imin=None, icmap=None, inorm=None, nclevels=3,
               clevels=None, calpha=0.5, goestime=None,
               plotaia=True, aiawave=171, aiafits=None, aiadir=None, datacolumn='data', docompress=False,
               mkmovie=False, overwrite=True, ncpu=1, twidth=1, verbose=False, movieformat='html',
-              clearmshistory=False, show_warnings=False, opencontour=False, quiet = False):
+              clearmshistory=False, show_warnings=False, opencontour=False, quiet=False):
     '''
     Required inputs:
             vis: calibrated CASA measurement set
@@ -1482,6 +1481,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                                        reftime=reftime, restoringbeam=restoringbeam, sclfactor=sclfactor,
                                        docompress=docompress,
                                        c_external=c_external,
+                                       subregion=subregion,
                                        show_warnings=show_warnings)
             else:
                 if os.path.exists(imresfile):
@@ -1496,6 +1496,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                                            reftime=reftime, restoringbeam=restoringbeam, sclfactor=sclfactor,
                                            docompress=docompress,
                                            c_external=c_external,
+                                           subregion=subregion,
                                            show_warnings=show_warnings)
             if not os.path.exists(qlookfigdir):
                 os.makedirs(qlookfigdir)
@@ -1564,7 +1565,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             print('plot the dynamic spectrum in pol ' + ' & '.join(pols))
 
             if dnorm is None:
-                dnorm = colors.Normalize(vmax=dmax,vmin=dmin)
+                dnorm = colors.Normalize(vmax=dmax, vmin=dmin)
 
             axs = [ax1, ax2]
             for axidx, ax in enumerate(axs):
@@ -1640,7 +1641,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
 
                 ax3.set_ylim([-8, -3])
                 ax3.set_yticks([-8, -7, -6, -5, -4, -3])
-                ax3.set_yticklabels([r'$10^{-8}$', r'$10^{-7}$', r'$10^{-6}$', r'$10^{-5}$', r'$10^{-4}$', r'$10^{-3}$'])
+                ax3.set_yticklabels(
+                    [r'$10^{-8}$', r'$10^{-7}$', r'$10^{-6}$', r'$10^{-5}$', r'$10^{-4}$', r'$10^{-3}$'])
                 ax3.set_title('Goes Soft X-ray', fontsize=9)
                 ax3.set_ylabel('Watts m$^{-2}$')
                 ax3.set_xlabel(Time(spec_tim_plt[0], format='plot_date').iso[0:10])
@@ -1893,7 +1895,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                 print('radio fits file not recognized by sunpy.map. Aborting...')
                 return -1
 
-            cmaps, datas = get_rdata_dict(rdata, meta['naxis'], meta['pol_axis'], meta['npol'], icmap=icmap, stokes=stokes)
+            cmaps, datas = get_rdata_dict(rdata, meta['naxis'], meta['pol_axis'], meta['npol'], icmap=icmap,
+                                          stokes=stokes)
 
             if not xyrange:
                 if xycen:
@@ -1917,7 +1920,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                 x2 = x0 + sz_x / 2.
                 y1 = y0 - sz_y / 2.
                 y2 = y0 + sz_y / 2.
-                xyrange = [[x1.to(u.arcsec).value, x2.to(u.arcsec).value], [y1.to(u.arcsec).value, y2.to(u.arcsec).value]]
+                xyrange = [[x1.to(u.arcsec).value, x2.to(u.arcsec).value],
+                           [y1.to(u.arcsec).value, y2.to(u.arcsec).value]]
             else:
                 sz_x = (xyrange[0][1] - xyrange[0][0]) * u.arcsec
                 sz_y = (xyrange[1][1] - xyrange[1][0]) * u.arcsec
@@ -2013,7 +2017,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                         axs[pidx][0].set_title(title + ' ' + pols[pidx], fontsize=9)
                         rmap_plt_.draw_limb(axes=[axs[pidx][0], axs[pidx][1]])
                         rmap_plt_.draw_grid(axes=[axs[pidx][0], axs[pidx][1]])
-                        rect = mpl.patches.Rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value, edgecolor='w',
+                        rect = mpl.patches.Rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value,
+                                                     edgecolor='w',
                                                      facecolor='none')
                         axs[pidx][0].add_patch(rect)
                         # rmap_plt_.imshow(axes=axs[pidx][1], cmap=cmaps[pol],interpolation = 'nearest')
