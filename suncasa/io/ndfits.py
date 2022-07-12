@@ -278,7 +278,13 @@ def wrap(fitsfiles, outfitsfile='output.fits', docompress=False, mask=None, fix_
         print('There is only one files in the fits file list. wrap is aborted!')
         return 0
     else:
-        fitsfiles = sorted(fitsfiles)
+        num_file=len(fitsfiles)
+        freqs=np.zeros(num_file)
+        for j,file1 in enumerate(fitsfiles):
+            hdu=fits.open(file1)
+            freqs[j]=hdu[0].header['CRVAL3']
+        ind=np.argsort(freqs)
+        fitsfiles = [fitsfiles[j] for j in ind]
         nband = len(fitsfiles)
         fits_exist = []
         idx_fits_exist = []
