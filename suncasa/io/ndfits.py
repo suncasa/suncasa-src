@@ -283,6 +283,7 @@ def wrap(fitsfiles, outfitsfile='output.fits', docompress=False, mask=None, fix_
         for j,file1 in enumerate(fitsfiles):
             hdu=fits.open(file1)
             freqs[j]=hdu[0].header['CRVAL3']
+            hdu.close()
         ind=np.argsort(freqs)
         fitsfiles = [fitsfiles[j] for j in ind]
         nband = len(fitsfiles)
