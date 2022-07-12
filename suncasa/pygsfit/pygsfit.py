@@ -2065,63 +2065,99 @@ class App(QMainWindow):
 
         if hasattr(self, 'spec_fitplot'):
             self.speccanvas.removeItem(self.spec_fitplot)
+        if self.fit_function != gstools.GSCostFunctions.SinglePowerLawMinimizerOneSrc:
+            print ("Not yet implemented")
+        else:
+            mini = lmfit.Minimizer(self.fit_function, self.fit_params,
+                                   fcn_args=(freqghz_tofit,),
+                                   fcn_kws={'spec': spec_tofit, 'spec_err': spec_err_tofit, 'spec_in_tb': self.spec_in_tb},
+                                   max_nfev=max_nfev, nan_policy='omit')
+            method = self.fit_method
+            mi = mini.minimize(method=method, **fit_kws)
+            print(method + ' minimization results')
+            print(lmfit.fit_report(mi, show_correl=True))
+            self.fit_params_res = mi.params
+            print('==========Fit Parameters Updated=======')
+            for n, key in enumerate(self.fit_params_res):
+                self.param_fit_value_widgets[n].setValue(self.fit_params_res[key].value)
 
-        mini = lmfit.Minimizer(gstools.GSCostFunctions.SinglePowerLawMinimizerOneSrc, self.fit_params,
-                               fcn_args=(freqghz_tofit,),
-                               fcn_kws={'spec': spec_tofit, 'spec_err': spec_err_tofit, 'spec_in_tb': self.spec_in_tb},
-                               max_nfev=max_nfev, nan_policy='omit')
-        method = self.fit_method
-        mi = mini.minimize(method=method, **fit_kws)
-        print(method + ' minimization results')
-        print(lmfit.fit_report(mi, show_correl=True))
-        self.fit_params_res = mi.params
-        print('==========Fit Parameters Updated=======')
-        for n, key in enumerate(self.fit_params_res):
-            self.param_fit_value_widgets[n].setValue(self.fit_params_res[key].value)
-
-        freqghz_toplot = np.logspace(0, np.log10(20.), 100)
-        spec_fit_res = self.fit_function(mi.params, freqghz_toplot, spec_in_tb=self.spec_in_tb)
-        self.spec_fitplot = self.speccanvas.plot(x=np.log10(freqghz_toplot), y=np.log10(spec_fit_res),
-                                                 pen=dict(color=pg.mkColor(self.current_roi_idx), width=4),
-                                                 symbol=None, symbolBrush=None)
-        self.speccanvas.addItem(self.spec_fitplot)
-        ## Surajit
-        if self.savedata==True:
-            
-            roi_props=(self.rois[self.roi_group_idx][self.current_roi_idx]).saveState()
-            roi_pos=[i for i in roi_props['pos']]
-            roi_size=[i for i in roi_props['size']]
-            roi_angle=roi_props['angle']
-            filename, ok2 = QFileDialog.getSaveFileName(None,
-                                                    "Save the selected group ()",
-                                                    os.getcwd(),
-                                                    "All Files (*)")
-            if ok2:
-                hf=h5py.File(filename,'w')
-                hf.attrs['roi_pos']=roi_pos
-                hf.attrs['roi_size']=roi_size
-                hf.attrs['roi_angle']=roi_angle
-                hf.attrs['image_file']=self.eoimg_fname
-                hf.attrs['spec_file']=self.eodspec_fname
-                hf.attrs['lower_freq']=self.fit_freq_bound[0]
-                hf.attrs['higher_freq']=self.fit_freq_bound[1]
-                if self.spec_in_tb:
-                    spec = roi.tb_max
-                    spec_bound = self.tb_spec_bound
-                    spec_rms = self.bkg_roi.tb_rms
-                else:
-                    spec = roi.total_flux
-                    spec_bound = self.flx_spec_bound
-                    spec_rms = gstools.sfu2tb(roi.freqghz * 1e9 * u.Hz, self.bkg_roi.tb_rms * u.K,
-                                              area=roi.total_area * u.arcsec ** 2, reverse=True).value
-                # add fractional err in quadrature
-                spec_err = np.sqrt(spec_rms ** 2. + (self.spec_frac_err * spec) ** 2.)
-                hf.create_dataset('observed_spectrum',data=spec)
-                hf.create_dataset('error',data=spec_err)
-                hf.create_dataset('obs_freq',data=self.cfreqs)
-                hf.create_dataset('model_freq',data=freqghz_toplot)
-                hf.create_dataset('model_spectrum',data=spec_fit_res)
-                hf.close()
+            freqghz_toplot = np.logspace(0, np.log10(20.), 100)
+            spec_fit_res = self.fit_function(mi.params, freqghz_toplot, spec_in_tb=self.spec_in_tb)
+            self.spec_fitplot = self.speccanvas.plot(x=np.log10(freqghz_toplot), y=np.log10(spec_fit_res),
+                                                     pen=dict(color=pg.mkColor(self.current_roi_idx), width=4),
+                                                     symbol=None, symbolBrush=None)
+            self.speccanvas.addItem(self.spec_fitplot)
+            ## Surajit
+            if self.savedata==True:
+                
+                roi_props=(self.rois[self.roi_group_idx][self.current_roi_idx]).saveState()
+                roi_pos=[i for i in roi_props['pos']]
+                roi_size=[i for i in roi_props['size']]
+                roi_angle=roi_props['angle']
+                filename, ok2 = QFileDialog.getSaveFileName(None,
+                                                        "Save the selected group ()",
+                                                        os.getcwd(),
+                                                        "All Files (*)")
+                if ok2:
+                    hf=h5py.File(filename,'w')
+                    hf.attrs['roi_pos']=roi_pos
+                    hf.attrs['roi_size']=roi_size
+                    hf.attrs['roi_angle']=roi_angle
+                    hf.attrs['image_file']=self.eoimg_fname
+                    hf.attrs['spec_file']=self.eodspec_fname
+                    hf.attrs['lower_freq']=self.fit_freq_bound[0]
+                    hf.attrs['higher_freq']=self.fit_freq_bound[1]
+                    
+                    if self.fit_function == gstools.GSCostFunctions.SinglePowerLawMinimizerOneSrc:
+                     
+                        hf.attrs['Bx100G']=np.array([self.fit_params['Bx100G'].init_value,\
+                                                    self.fit_params['Bx100G'].min,self.fit_params['Bx100G'].max,\
+                                                    mi.params['Bx100G'].value,mi.params['Bx100G'].stderr])
+                        hf.attrs['log_nnth']=np.array([self.fit_params['log_nnth'].init_value,\
+                                                    self.fit_params['log_nnth'].min,self.fit_params['log_nnth'].max,\
+                                                    mi.params['log_nnth'].value,mi.params['log_nnth'].stderr])
+                        hf.attrs['delta']=np.array([self.fit_params['delta'].init_value,\
+                                                    self.fit_params['delta'].min,self.fit_params['delta'].max,\
+                                                    mi.params['delta'].value,mi.params['delta'].stderr])
+                        hf.attrs['Emin_keV']=np.array([self.fit_params['Emin_keV'].init_value,\
+                                                    self.fit_params['Emin_keV'].min,self.fit_params['Emin_keV'].max,\
+                                                    mi.params['Emin_keV'].value,mi.params['Emin_keV'].stderr])
+                        hf.attrs['Emax_MeV']=np.array([self.fit_params['Emax_MeV'].init_value,\
+                                                    self.fit_params['Emax_MeV'].min,self.fit_params['Emax_MeV'].max,\
+                                                    mi.params['Emax_MeV'].value,mi.params['Emax_MeV'].stderr])
+                        hf.attrs['theta']=np.array([self.fit_params['theta'].init_value,\
+                                                    self.fit_params['theta'].min,self.fit_params['theta'].max,\
+                                                    mi.params['theta'].value,mi.params['theta'].stderr])
+                        hf.attrs['log_nth']=np.array([self.fit_params['log_nth'].init_value,\
+                                                    self.fit_params['log_nth'].min,self.fit_params['log_nth'].max,\
+                                                    mi.params['log_nth'].value,mi.params['log_nth'].stderr])
+                        hf.attrs['T_MK']=np.array([self.fit_params['T_MK'].init_value,\
+                                                    self.fit_params['T_MK'].min,self.fit_params['T_MK'].max,\
+                                                    mi.params['T_MK'].value,mi.params['T_MK'].stderr])
+                        hf.attrs['depth_asec']=np.array([self.fit_params['depth_asec'].init_value,\
+                                                    self.fit_params['depth_asec'].min,self.fit_params['depth_asec'].max,\
+                                                    mi.params['depth_asec'].value,mi.params['depth_asec'].stderr])
+                        
+                    if self.spec_in_tb:
+                        spec = roi.tb_max
+                        spec_bound = self.tb_spec_bound
+                        spec_rms = self.bkg_roi.tb_rms
+                    else:
+                        spec = roi.total_flux
+                        spec_bound = self.flx_spec_bound
+                        spec_rms = gstools.sfu2tb(roi.freqghz * 1e9 * u.Hz, self.bkg_roi.tb_rms * u.K,
+                                                  area=roi.total_area * u.arcsec ** 2, reverse=True).value
+                        hf.attrs['area_asec2']=np.array([self.fit_params['area_asec2'].init_value,\
+                                                    self.fit_params['area_asec2'].min,self.fit_params['area_asec2'].max,\
+                                                    mi.params['area_asec2'].value,mi.params['area_asec2'].stderr])
+                    # add fractional err in quadrature
+                    spec_err = np.sqrt(spec_rms ** 2. + (self.spec_frac_err * spec) ** 2.)
+                    hf.create_dataset('observed_spectrum',data=spec)
+                    hf.create_dataset('error',data=spec_err)
+                    hf.create_dataset('obs_freq',data=self.cfreqs)
+                    hf.create_dataset('model_freq',data=freqghz_toplot)
+                    hf.create_dataset('model_spectrum',data=spec_fit_res)
+                    hf.close()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
