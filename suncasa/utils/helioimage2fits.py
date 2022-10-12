@@ -145,9 +145,12 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     etime = Time(btime.mjd + dur, format='mjd')
 
     try:
-        cmdstr = "https://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
+        cmdstr = "https://ssd.jpl.nasa.gov/api/horizons.api?format=text&&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
             observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
                                                                                                   ',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
+        # cmdstr = "https://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
+        #     observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
+        #                                                                                           ',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
         cmdstr = cmdstr.replace("'", "%27")
         try:
             context = ssl._create_unverified_context()
@@ -160,8 +163,27 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         # todo use geocentric coordinate for the new VLA data
         import requests, collections
         params = collections.OrderedDict()
-        params['batch'] = '1'
-        params['TABLE_TYPE'] = "'OBSERVER'"
+        # params['batch'] = '1'
+        # params['TABLE_TYPE'] = "'OBSERVER'"
+        # params['QUANTITIES'] = "'1,17,20'"
+        # params['CSV_FORMAT'] = "'YES'"
+        # params['ANG_FORMAT'] = "'DEG'"
+        # params['CAL_FORMAT'] = "'BOTH'"
+        # params['SOLAR_ELONG'] = "'0,180'"
+        # if observatory == '500':
+        #     params['CENTER'] = "'500'"
+        # else:
+        #     params['CENTER'] = "'{}@399'".format(observatory)
+        # params['COMMAND'] = "'10'"
+        # params['START_TIME'] = "'{}'".format(btime.iso[:-4].replace(' ', ','))
+        # params['STOP_TIME'] = "'{}'".format(etime.iso[:-4].replace(' ', ','))
+        # params['STEP_SIZE'] = "'1m'"
+        # params['SKIP_DAYLT'] = "'NO'"
+        # params['EXTRA_PREC'] = "'YES'"
+        # params['APPAENT'] = "'REFRACTED'"
+        # results = requests.get("https://ssd.jpl.nasa.gov/horizons_batch.cgi", params=params)
+
+        params['EPHEM_TYPE'] = "'OBSERVER'"
         params['QUANTITIES'] = "'1,17,20'"
         params['CSV_FORMAT'] = "'YES'"
         params['ANG_FORMAT'] = "'DEG'"
@@ -177,14 +199,15 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         params['STEP_SIZE'] = "'1m'"
         params['SKIP_DAYLT'] = "'NO'"
         params['EXTRA_PREC'] = "'YES'"
-        params['APPAENT'] = "'REFRACTED'"
-        results = requests.get("https://ssd.jpl.nasa.gov/horizons_batch.cgi", params=params)
+        params['APPARENT'] = "'REFRACTED'"
+        results = requests.get("https://ssd.jpl.nasa.gov/api/horizons.api?format=text", params=params)
         lines = [ll for ll in results.iter_lines()]
 
     # add a check for python 3
     if py3:
         lines = [l.decode('utf-8', 'backslashreplace') for l in lines]
 
+    # print(lines)
     nline = len(lines)
     istart = 0
     for i in range(nline):
@@ -230,7 +253,7 @@ def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
     dirs = []
     ras = []
     decs = []
-    ephem_file = glob.glob(vis + '/FIELD/EPHEM*SUN.tab')
+    ephem_file = glob.glob(vis + '/FIELD/EPHEM*.tab')
     if ephem_file:
         print('Loading ephemeris info from {}'.format(ephem_file[0]))
         tb.open(ephem_file[0])
@@ -247,10 +270,10 @@ def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
                 fieldid = scans[scanid]['0']['FieldId']
                 fieldids.append(fieldid)
                 inttimes.append(scans[scanid]['0']['IntegrationTime'])
-            ras = f_ra(np.array(btimes))
-            decs = f_dec(np.array(btimes))
-            ras = qa.convert(qa.quantity(ras, 'deg'), 'rad')
-            decs = qa.convert(qa.quantity(decs, 'deg'), 'rad')
+            scan_ras = f_ra(np.array(btimes))
+            scan_decs = f_dec(np.array(btimes))
+            ras = qa.convert(qa.quantity(col_ra, 'deg'), 'rad')#qa.convert(qa.quantity(ras, 'deg'), 'rad')
+            decs = qa.convert(qa.quantity(col_dec, 'deg'), 'rad')#qa.convert(qa.quantity(decs, 'deg'), 'rad')
         else:
             ras = qa.convert(qa.quantity(col_ra, 'deg'), 'rad')
             decs = qa.convert(qa.quantity(col_dec, 'deg'), 'rad')
@@ -270,7 +293,9 @@ def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
     msinfo['vis'] = vis
     msinfo['scans'] = scans
     msinfo['fieldids'] = fieldids
-    msinfo['btimes'] = btimes
+    msinfo['btimes'] = col_mjd
+    msinfo['scan_start_times']=btimes
+    msinfo['scan_end_times']=etimes
     msinfo['btimestr'] = btimestr
     msinfo['inttimes'] = inttimes
     msinfo['ras'] = ras
@@ -345,6 +370,8 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
     inttimes = msinfo0['inttimes']
     ras = msinfo0['ras']
     decs = msinfo0['decs']
+    scan_start_times=msinfo0['scan_start_times']
+    
     if 'observatory' in msinfo0.keys():
         if msinfo0['observatory'] == 'EOVSA' or msinfo0['observatory'] == 'FASR':
             usephacenter = False
@@ -373,7 +400,6 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
         reftime = [reftime]
     if (not isinstance(reftime, list)):
         print('input "reftime" is not a valid list. Abort...')
-
     nreftime = len(reftime)
     helio = []
     for reftime0 in reftime:
@@ -429,6 +455,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                 scanlen = btimes[ind] - btimes[ind - 1]
                 (ra_b, ra_e) = (ra_rads[ind - 1], ra_rads[ind])
                 (dec_b, dec_e) = (dec_rads[ind - 1], dec_rads[ind])
+             
             if ind >= len(btimes):
                 scanlen = btimes[ind - 1] - btimes[ind - 2]
                 (ra_b, ra_e) = (ra_rads[ind - 2], ra_rads[ind - 1])
@@ -524,6 +551,22 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
 
         helio0['ra'] = ra  # ra of the actual pointing
         helio0['dec'] = dec  # dec of the actual pointing
+        ind = bisect.bisect_left(scan_start_times, tref_d)
+        if ind > 1:
+            dt = tref_d - scan_start_times[ind - 1]
+            if ind < len(scan_start_times):
+                fieldid=fieldids[ind]
+                ms.open(vis)
+                dir = ms.getfielddirmeas('PHASE_DIR', fieldid)
+                ra_b=dir['m0']['value']
+                dec_b=dir['m1']['value']
+                if ra_b < 0:
+                    ra_b += 2. * np.pi
+                ms.close()
+            if ind >= len(btimes):
+                
+                (ra_b, ra_e) = (ra_rads[ind - 2], ra_rads[ind - 1])
+                (dec_b, dec_e) = (dec_rads[ind - 2], dec_rads[ind - 1])
         helio0['ra_fld'] = ra_b  # ra of the field, used as the reference in e.g., clean
         helio0['dec_fld'] = dec_b  # dec of the field, used as the refenrence in e.g., clean
         # helio['r_sun']=np.degrees(R_sun.value/(au.value*delta0))*3600. #in arcsecs
@@ -603,7 +646,7 @@ def getbeam(imagefile=None, beamfile=None):
 
 def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, reftime=None, fitsfile=None, beamfile=None,
           offsetfile=None, toTb=None, sclfactor=1.0, verbose=False, p_ang=False, overwrite=True, usephacenter=True,
-          deletehistory=False, subregion=[], docompress=False):
+          deletehistory=False, subregion='', docompress=False):
     ''' 
     main routine to register CASA images
            Required Inputs:
@@ -707,7 +750,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 tb.close()
                 ia.open(img)
                 imr = ia.rotate(pa=str(-p0) + 'deg')
-                if subregion is not []:
+                if subregion!='':
                     imr = imr.subimage(region=subregion)
                 imr.tofits(fitsf, history=False, overwrite=overwrite)
                 imr.close()
