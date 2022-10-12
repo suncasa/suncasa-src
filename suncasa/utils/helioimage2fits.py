@@ -253,7 +253,7 @@ def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
     dirs = []
     ras = []
     decs = []
-    ephem_file = glob.glob(vis + '/FIELD/EPHEM*SUN.tab')
+    ephem_file = glob.glob(vis + '/FIELD/EPHEM*.tab')
     if ephem_file:
         print('Loading ephemeris info from {}'.format(ephem_file[0]))
         tb.open(ephem_file[0])
@@ -270,10 +270,10 @@ def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
                 fieldid = scans[scanid]['0']['FieldId']
                 fieldids.append(fieldid)
                 inttimes.append(scans[scanid]['0']['IntegrationTime'])
-            ras = f_ra(np.array(btimes))
-            decs = f_dec(np.array(btimes))
-            ras = qa.convert(qa.quantity(ras, 'deg'), 'rad')
-            decs = qa.convert(qa.quantity(decs, 'deg'), 'rad')
+            scan_ras = f_ra(np.array(btimes))
+            scan_decs = f_dec(np.array(btimes))
+            ras = qa.convert(qa.quantity(col_ra, 'deg'), 'rad')#qa.convert(qa.quantity(ras, 'deg'), 'rad')
+            decs = qa.convert(qa.quantity(col_dec, 'deg'), 'rad')#qa.convert(qa.quantity(decs, 'deg'), 'rad')
         else:
             ras = qa.convert(qa.quantity(col_ra, 'deg'), 'rad')
             decs = qa.convert(qa.quantity(col_dec, 'deg'), 'rad')
@@ -293,7 +293,9 @@ def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
     msinfo['vis'] = vis
     msinfo['scans'] = scans
     msinfo['fieldids'] = fieldids
-    msinfo['btimes'] = btimes
+    msinfo['btimes'] = col_mjd
+    msinfo['scan_start_times']=btimes
+    msinfo['scan_end_times']=etimes
     msinfo['btimestr'] = btimestr
     msinfo['inttimes'] = inttimes
     msinfo['ras'] = ras
@@ -368,6 +370,8 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
     inttimes = msinfo0['inttimes']
     ras = msinfo0['ras']
     decs = msinfo0['decs']
+    scan_start_times=msinfo0['scan_start_times']
+    
     if 'observatory' in msinfo0.keys():
         if msinfo0['observatory'] == 'EOVSA' or msinfo0['observatory'] == 'FASR':
             usephacenter = False
@@ -396,7 +400,6 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
         reftime = [reftime]
     if (not isinstance(reftime, list)):
         print('input "reftime" is not a valid list. Abort...')
-
     nreftime = len(reftime)
     helio = []
     for reftime0 in reftime:
@@ -452,6 +455,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                 scanlen = btimes[ind] - btimes[ind - 1]
                 (ra_b, ra_e) = (ra_rads[ind - 1], ra_rads[ind])
                 (dec_b, dec_e) = (dec_rads[ind - 1], dec_rads[ind])
+             
             if ind >= len(btimes):
                 scanlen = btimes[ind - 1] - btimes[ind - 2]
                 (ra_b, ra_e) = (ra_rads[ind - 2], ra_rads[ind - 1])
@@ -547,6 +551,22 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
 
         helio0['ra'] = ra  # ra of the actual pointing
         helio0['dec'] = dec  # dec of the actual pointing
+        ind = bisect.bisect_left(scan_start_times, tref_d)
+        if ind > 1:
+            dt = tref_d - scan_start_times[ind - 1]
+            if ind < len(scan_start_times):
+                fieldid=fieldids[ind]
+                ms.open(vis)
+                dir = ms.getfielddirmeas('PHASE_DIR', fieldid)
+                ra_b=dir['m0']['value']
+                dec_b=dir['m1']['value']
+                if ra_b < 0:
+                    ra_b += 2. * np.pi
+                ms.close()
+            if ind >= len(btimes):
+                
+                (ra_b, ra_e) = (ra_rads[ind - 2], ra_rads[ind - 1])
+                (dec_b, dec_e) = (dec_rads[ind - 2], dec_rads[ind - 1])
         helio0['ra_fld'] = ra_b  # ra of the field, used as the reference in e.g., clean
         helio0['dec_fld'] = dec_b  # dec of the field, used as the refenrence in e.g., clean
         # helio['r_sun']=np.degrees(R_sun.value/(au.value*delta0))*3600. #in arcsecs
@@ -626,7 +646,7 @@ def getbeam(imagefile=None, beamfile=None):
 
 def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, reftime=None, fitsfile=None, beamfile=None,
           offsetfile=None, toTb=None, sclfactor=1.0, verbose=False, p_ang=False, overwrite=True, usephacenter=True,
-          deletehistory=False, subregion=[], docompress=False):
+          deletehistory=False, subregion='', docompress=False):
     ''' 
     main routine to register CASA images
            Required Inputs:
@@ -730,7 +750,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 tb.close()
                 ia.open(img)
                 imr = ia.rotate(pa=str(-p0) + 'deg')
-                if subregion is not []:
+                if subregion!='':
                     imr = imr.subimage(region=subregion)
                 imr.tofits(fitsf, history=False, overwrite=overwrite)
                 imr.close()
