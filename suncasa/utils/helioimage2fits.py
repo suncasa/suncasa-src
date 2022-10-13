@@ -277,6 +277,7 @@ def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
         else:
             ras = qa.convert(qa.quantity(col_ra, 'deg'), 'rad')
             decs = qa.convert(qa.quantity(col_dec, 'deg'), 'rad')
+        msinfo['btimes'] = col_mjd
     else:
         for idx, scanid in enumerate(scanids):
             btimes.append(scans[scanid]['0']['BeginTime'])
@@ -288,12 +289,13 @@ def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
             dirs.append(dir)
             ras.append(dir['m0'])
             decs.append(dir['m1'])
+        msinfo['btimes']=btimes
     ms.close()
     btimestr = [qa.time(qa.quantity(btimes[idx], 'd'), form='fits', prec=10)[0] for idx in range(nscanid)]
     msinfo['vis'] = vis
     msinfo['scans'] = scans
     msinfo['fieldids'] = fieldids
-    msinfo['btimes'] = col_mjd
+    
     msinfo['scan_start_times']=btimes
     msinfo['scan_end_times']=etimes
     msinfo['btimestr'] = btimestr
