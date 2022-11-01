@@ -145,13 +145,15 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     etime = Time(btime.mjd + dur, format='mjd')
 
     try:
-        cmdstr = "https://ssd.jpl.nasa.gov/api/horizons.api?format=text&&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
+        cmdstr = "https://ssd.jpl.nasa.gov/api/horizons.api?format=text&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='sun'&START_TIME='".format(
             observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
                                                                                                   ',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
         # cmdstr = "https://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
         #     observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
         #                                                                                           ',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
         cmdstr = cmdstr.replace("'", "%27")
+        # print('1################')
+        # print(cmdstr)
         try:
             context = ssl._create_unverified_context()
             f = urlopen(cmdstr, context=context)
@@ -193,7 +195,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
             params['CENTER'] = "'500'"
         else:
             params['CENTER'] = "'{}@399'".format(observatory)
-        params['COMMAND'] = "'10'"
+        params['COMMAND'] = "'sun'"
         params['START_TIME'] = "'{}'".format(btime.iso[:-4].replace(' ', ','))
         params['STOP_TIME'] = "'{}'".format(etime.iso[:-4].replace(' ', ','))
         params['STEP_SIZE'] = "'1m'"
@@ -201,6 +203,8 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         params['EXTRA_PREC'] = "'YES'"
         params['APPARENT'] = "'REFRACTED'"
         results = requests.get("https://ssd.jpl.nasa.gov/api/horizons.api?format=text", params=params)
+        # print('2################')
+        # print(results)
         lines = [ll for ll in results.iter_lines()]
 
     # add a check for python 3
@@ -253,7 +257,7 @@ def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
     dirs = []
     ras = []
     decs = []
-    ephem_file = glob.glob(vis + '/FIELD/EPHEM*SUN.tab')
+    ephem_file = glob.glob(vis + '/FIELD/EPHEM*.tab')
     if ephem_file:
         print('Loading ephemeris info from {}'.format(ephem_file[0]))
         tb.open(ephem_file[0])
