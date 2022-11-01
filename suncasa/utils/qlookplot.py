@@ -599,7 +599,8 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
     return imres
 
 
-def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=True, stokes='I,V', fov=None,
+def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None,
+                    verbose=True, stokes='I,V', fov=None,
                     imax=None, imin=None, icmap=None, inorm=None,
                     amax=None, amin=None, acmap=None, anorm=None,
                     nclevels=None, dmax=None, dmin=None, dcmap=None, dnorm=None, sclfactor=1.0,
@@ -732,6 +733,10 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
     spec_tim = Time(specdata['tim'] / 3600. / 24., format='mjd')
     tidx, = np.where(np.logical_and(spec_tim > t_ran[0], spec_tim < t_ran[1]))
     spec_tim_plt = spec_tim.plot_date
+    if spwplt is None:
+        nspwplt = nspw
+    else:
+        nspwplt = len(spwplt)
 
     if npols == 1:
         if pol == 'RR':
@@ -965,8 +970,13 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             aiamap = None
 
         colors_spws = icmap(freq_dist)
-        for s, sp in enumerate(range(nspw)):
+        spwpltCounts = 0
+        for s, sp in enumerate(Spw):
+            if spwplt is not None:
+                if sp not in spwplt:
+                    continue
             image = images_sort[i, s]
+            # print(image)
             for pidx, pol in enumerate(pols):
                 if suci[s]:
                     try:
@@ -1044,7 +1054,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                         acmap = 'gray_r'
 
                     if nspw > 1:
-                        if s == 0:
+                        if spwpltCounts == 0:
                             aiamap_ = pmX.Sunmap(aiamap)
                             aiamap_.imshow(axes=ax, cmap=acmap,
                                            norm=anorm,
@@ -1068,7 +1078,6 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                                 rmap_.contour(axes=ax, levels=clevels1,
                                               colors=[colors_spws[s]] * len(clevels1),
                                               alpha=alpha_cont)
-
                             else:
                                 rmap_.contourf(axes=ax, levels=clevels1,
                                                colors=[colors_spws[s]] * len(clevels1),
@@ -1112,7 +1121,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 else:
                     ax.set_xlim([-1220, 1220])
                     ax.set_ylim([-1220, 1220])
-                if s == 0 and pidx == 0:
+                if spwpltCounts == 0 and pidx == 0:
                     timetext = ax.text(0.99, 0.98, '', color='w', fontweight='bold', fontsize=9, ha='right', va='top',
                                        transform=ax.transAxes)
                 timetext.set_text(plttime.iso[:19])
@@ -1140,6 +1149,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                 ax.set_title(' ')
                 # ax.xaxis.set_visible(False)
                 # ax.yaxis.set_visible(False)
+            spwpltCounts += 1
         if i == 0:
             if nspw > 1:
                 import matplotlib.colorbar as colorbar
@@ -1203,7 +1213,8 @@ def dspec_external(vis, workdir='./', specfile=None):
     os.system('casa --nologger -c {}'.format(dspecscript))
 
 
-def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange='', stokes='RR,LL',
+def qlookplot(vis, timerange=None, spw='', spwplt=None,
+              workdir='./', specfile=None, uvrange='', stokes='RR,LL',
               dmin=None, dmax=None, dcmap=None, dnorm=None,
               amax=None, amin=None, acmap=None, anorm=None,
               reftime='', xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0,
@@ -1480,6 +1491,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                                        pbcor=pbcor,
                                        reftime=reftime, restoringbeam=restoringbeam, sclfactor=sclfactor,
                                        docompress=docompress,
+                                       overwrite=overwrite,
                                        c_external=c_external,
                                        subregion=subregion,
                                        show_warnings=show_warnings)
@@ -1495,12 +1507,14 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                                            cell=cell, pbcor=pbcor,
                                            reftime=reftime, restoringbeam=restoringbeam, sclfactor=sclfactor,
                                            docompress=docompress,
+                                           overwrite=overwrite,
                                            c_external=c_external,
                                            subregion=subregion,
                                            show_warnings=show_warnings)
             if not os.path.exists(qlookfigdir):
                 os.makedirs(qlookfigdir)
-            plt_qlook_image(imres, timerange=timerange, figdir=qlookfigdir, specdata=specdata, verbose=verbose,
+            plt_qlook_image(imres, timerange=timerange, spwplt=spwplt, figdir=qlookfigdir, specdata=specdata,
+                            verbose=verbose,
                             stokes=stokes, fov=xyrange,
                             amax=amax, amin=amin, acmap=acmap, anorm=anorm,
                             imax=imax, imin=imin, icmap=icmap, inorm=inorm,
@@ -1947,13 +1961,20 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                             clvls[pol] = np.array(clevels)
 
             if 'aiamap' in vars():
+                if anorm is None:
+                    if amax is None:
+                        amax = np.nanmax(aiamap.data)
+                    if amin is None:
+                        amin = 1.0
+                    anorm = colors.LogNorm(vmin=amin, vmax=amax)
+
                 title0 = 'AIA {0:.0f} Å'.format(aiamap.wavelength.value)
                 aiamap_ = pmX.Sunmap(aiamap)
 
                 axs = [ax4, ax6]
                 aiamap_.draw_limb(axes=axs)
                 aiamap_.draw_grid(axes=axs)
-                aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=colors.LogNorm(vmin=1.0), interpolation='nearest')
+                aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=anorm, interpolation='nearest')
                 for axidx, ax in enumerate(axs):
                     ax.set_title(title0, fontsize=9)
                     rect = mpl.patches.Rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value, edgecolor='w',
@@ -1963,10 +1984,14 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                 axs = [ax5, ax7]
                 aiamap_.draw_limb(axes=axs)
                 aiamap_.draw_grid(axes=axs)
-                aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=colors.LogNorm(vmin=1.0), interpolation='nearest')
+                aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=anorm, interpolation='nearest')
 
                 axs = [[ax4, ax5], [ax6, ax7]]
                 for s, sp in enumerate(spw):
+                    if spwplt is not None:
+                        if sp not in spwplt:
+                            continue
+
                     for pidx, pol in enumerate(pols):
                         rcmap = [icmap(freq_dist(cfreqs[s]))] * len(clvls[pol])
                         if meta['naxis'] > 2:
