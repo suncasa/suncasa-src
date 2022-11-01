@@ -1,52 +1,50 @@
-import numpy as np
+import gc
+import multiprocessing as mp
 import os
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-from astropy.time import Time
-import matplotlib.dates as mdates
-from astropy.io import fits
-import numpy.ma as ma
-import matplotlib.cm as cm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-import astropy.units as u
 import pickle
-import glob
+import time
+from copy import deepcopy
+from functools import partial
+
+import astropy.units as u
+import matplotlib.cm as cm
+import matplotlib.colors as colors
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import numpy as np
+import numpy.ma as ma
+import sunpy
+from astropy.time import Time
+from matplotlib.widgets import Slider, Button
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+# import pdb
+from packaging import version as pversion
+from scipy import signal
 # from astropy import units as u
 # import sunpy.map as smap
 from scipy.interpolate import griddata
-from scipy import signal
-from suncasa.utils import DButil
-from scipy.interpolate import splev, splrep
-import scipy.ndimage
-import time
 from tqdm import *
-from copy import deepcopy
-from functools import partial
-import multiprocessing as mp
-import gc
-from matplotlib.widgets import Slider, Button
-import warnings
-from suncasa.utils.lineticks import LineTicks
+
+from suncasa.utils import DButil
 from suncasa.utils import signal_utils as su
 from suncasa.utils import stputils as stpu
-# import pdb
-from packaging import version as pversion
+from suncasa.utils.lineticks import LineTicks
 
-import sunpy
 # check sunpy version
-sunpy1 = sunpy.version.major >=1
+sunpy1 = sunpy.version.major >= 1
 if sunpy1:
-    from sunpy.coordinates import sun
+    pass
 else:
-    from sunpy import sun
+    pass
 
 import sunpy.map
 from sunpy.physics.solar_rotation import mapsequence_solar_derotate
 from sunpy.map.mapsequence import MapSequence
 
-if pversion.parse(sunpy.version.version)>=pversion.parse('2.1'):
-    from aiapy.calibrate import register, update_pointing, normalize_exposure
+if pversion.parse(sunpy.version.version) >= pversion.parse('2.1'):
+    from aiapy.calibrate import register, update_pointing
+
+
     def aiaprep(sunpymap):
         m_updated_pointing = update_pointing(sunpymap)
         m_registered = register(m_updated_pointing)
@@ -267,7 +265,7 @@ def getimprofile(data, cutslit, xrange=None, yrange=None, get_peak=False, verbos
         intens = np.zeros((len(cutslit['xcen']), nwv))
         if verbose:
             print("Input data cube is 3D, the dimension (ny, nx, nwv) is ({0:d}, {1:d}, {2:d})".format(ndy, ndx, nwv))
-    
+
     num = len(cutslit['xcen'])
     if num < 2:
         print("The slice should have at least two anchoring points! Return -1")
@@ -1130,7 +1128,8 @@ class Stackplot:
                 return ax  # ax.autoscale(True, 'both', True)  # ax.autoscale_view(True, True, True)  # ax.relim(visible_only=True)
 
     def make_mapseq(self, trange, outfile=None, fov=None, wavelength='171', binpix=1, dt_data=1, derotate=False,
-                     tosave=True, superpixel=False, aia_prep=False, mapinterp=False, overwrite=False, dtype=None, normalize=True):
+                    tosave=True, superpixel=False, aia_prep=False, mapinterp=False, overwrite=False, dtype=None,
+                    normalize=True):
         if not overwrite:
             if outfile is not None:
                 if os.path.exists(outfile):
@@ -1225,10 +1224,10 @@ class Stackplot:
         if tosave:
             if not outfile:
                 outfile = 'mapseq_{0}_bin{3}_dtdata{4}_{1}_{2}.mapseq'.format(mapseq[0].meta['wavelnth'],
-                                                                               trange[0].isot[:-4].replace(':', ''),
-                                                                               trange[1].isot[:-4].replace(':', ''),
-                                                                               binpix,
-                                                                               dt_data)
+                                                                              trange[0].isot[:-4].replace(':', ''),
+                                                                              trange[1].isot[:-4].replace(':', ''),
+                                                                              binpix,
+                                                                              dt_data)
             if overwrite:
                 if os.path.exists(outfile):
                     os.system('rm -rf {}'.format(outfile))
@@ -1278,8 +1277,8 @@ class Stackplot:
         mp_info = self.mapseq_info(mapseq)
         if not outfile:
             outfile = 'mapseq_{0}_{1}_{2}.mapseq'.format(mapseq[0].meta['wavelnth'],
-                                                          self.trange[0].isot[:-4].replace(':', ''),
-                                                          self.trange[1].isot[:-4].replace(':', ''))
+                                                         self.trange[0].isot[:-4].replace(':', ''),
+                                                         self.trange[1].isot[:-4].replace(':', ''))
         with open(outfile, 'wb') as sf:
             print('Saving mapseq to {}'.format(outfile))
             pickle.dump({'mp': mapseq, 'trange': mp_info['trange'], 'fov': mp_info['fov'], 'binpix': mp_info['binpix'],
@@ -1334,7 +1333,7 @@ class Stackplot:
         return mapseq_diff
 
     def mapseq_mkdiff(self, mode='rdiff', dt=36., medfilt=None, gaussfilt=None, bfilter=False, lowcut=1 / 10 / 60.,
-                       highcut=1 / 1 / 60., window=[None, None], outfile=None, tosave=False, dtype=None):
+                      highcut=1 / 1 / 60., window=[None, None], outfile=None, tosave=False, dtype=None):
         '''
 
         :param mode: accept modes: rdiff, rratio, bdiff, bratio, dtrend, dtrend_diff, dtrend_ratio
@@ -1436,19 +1435,19 @@ class Stackplot:
         if tosave:
             if not outfile:
                 outfile = 'mapseq_{5}_{0}_bin{3}_dtdata{4}_{1}_{2}.mapseq'.format(self.mapseq[0].meta['wavelnth'],
-                                                                                   self.trange[0].isot[:-4].replace(
-                                                                                       ':', ''),
-                                                                                   self.trange[1].isot[:-4].replace(
-                                                                                       ':', ''),
-                                                                                   self.binpix, self.dt_data,
-                                                                                   mode)
+                                                                                  self.trange[0].isot[:-4].replace(
+                                                                                      ':', ''),
+                                                                                  self.trange[1].isot[:-4].replace(
+                                                                                      ':', ''),
+                                                                                  self.binpix, self.dt_data,
+                                                                                  mode)
             self.mapseq_tofile(outfile=outfile, mapseq=mapseq_diff)
         self.mapseq_diff = mapseq_diff
         return mapseq_diff
 
     def plot_mapseq(self, mapseq=None, hdr=False, norm=None, vmax=None, vmin=None, cmap=None, diff=False,
-                     sav_img=False, out_dir=None, dpi=100, anim=False, silent=False, draw_limb=False, draw_grid=False,
-                     colortitle=None, title=['observatory', 'detector', 'wavelength', 'time'], fov=[], fps=15):
+                    sav_img=False, out_dir=None, dpi=100, anim=False, silent=False, draw_limb=False, draw_grid=False,
+                    colortitle=None, title=['observatory', 'detector', 'wavelength', 'time'], fov=[], fps=15):
         '''
 
         :param mapseq:
@@ -1572,11 +1571,11 @@ class Stackplot:
                     t_map = Time(tstr)
                     fig_mapseq.canvas.draw()
                     fig_mapseq.savefig('{0}/{3}{1}-{2}.png'.format(out_dir, smap.meta['wavelnth'],
-                                                                    t_map.iso.replace(' ', 'T').replace(':',
-                                                                                                        '').replace('-',
-                                                                                                                    '')[
-                                                                    :-4],
-                                                                    smap.detector), format='png', dpi=dpi)
+                                                                   t_map.iso.replace(' ', 'T').replace(':',
+                                                                                                       '').replace('-',
+                                                                                                                   '')[
+                                                                   :-4],
+                                                                   smap.detector), format='png', dpi=dpi)
                 plt.ion()
         else:
             ax, im1 = self.plot_map(mapseq_plot[0], norm=norm, vmax=vmax, vmin=vmin, cmap=cmap, diff=diff,
@@ -1718,7 +1717,11 @@ class Stackplot:
         with open('{}'.format(outfile), 'wb') as sf:
             pickle.dump(cutslit, sf)
 
-    def make_stackplot(self, mapseq, frm_range=[], threshold=None, gamma=1.0, get_peak=False, trackslit=False):
+    def make_stackplot(self, mapseq, frm_range=[], threshold=None, gamma=1.0, get_peak=False, trackslit_diffrot=False,
+                       negval=False, movingcut=[]):
+        '''
+        movingcut: [x,y]. x and y are an array of offset in X and Y direction, respectively. the length of x/y is nframes
+        '''
         stackplt = []
         print('making the stack plot...')
         if type(frm_range) is list:
@@ -1730,6 +1733,11 @@ class Stackplot:
             else:
                 frm_range = [0, len(mapseq)]
         maplist = []
+        nframe = frm_range[-1] - frm_range[0]
+        if movingcut is []:
+            movingcut = [np.zeros(nframe), np.zeros(nframe)]
+        else:
+            pass
         for idx, smap in enumerate(tqdm(mapseq)):
             if frm_range[0] <= idx <= frm_range[-1]:
                 data = smap.data.copy()
@@ -1750,16 +1758,19 @@ class Stackplot:
                 data = data ** gamma
                 maplist.append(sunpy.map.Map(data.data, mapseq[idx].meta))
 
-                if trackslit:
+                if trackslit_diffrot:
                     if idx == frm_range[0]:
                         fov = stpu.get_map_corner_coord(smap)
                     else:
                         pass
                 else:
                     fov = stpu.get_map_corner_coord(smap)
-                intens = getimprofile(data, self.cutslitbd.cutslitplt, xrange=fov[:2].value,
-                                      yrange=fov[2:].value, get_peak=get_peak)
-                stackplt.append(intens['y'])
+                intens = getimprofile(data, self.cutslitbd.cutslitplt, xrange=fov[:2].value + movingcut[0][idx],
+                                      yrange=fov[2:].value + movingcut[1][idx], get_peak=get_peak)
+                if negval:
+                    stackplt.append(-intens['y'])
+                else:
+                    stackplt.append(intens['y'])
             else:
                 stackplt.append(np.zeros_like(self.cutslitbd.cutslitplt['dist']) * np.nan)
                 maplist.append(mapseq[idx])
@@ -1798,10 +1809,11 @@ class Stackplot:
                 kwargs.pop('doplot')
             self.plot_stackplot(refresh=False, **kwargs)
 
-    def plot_stackplot(self, mapseq=None,fov=None, hdr=False, norm=None, vmax=None, vmin=None, cmap=None, layout_vert=False,
+    def plot_stackplot(self, mapseq=None, fov=None, hdr=False, norm=None, vmax=None, vmin=None, cmap=None,
+                       layout_vert=False,
                        diff=False, uni_cm=True, sav_img=False, out_dir=None, dpi=100, anim=False, frm_range=[],
                        cutslitplt=None, silent=False, refresh=True, threshold=None, gamma=1.0, get_peak=False,
-                       trackslit=False):
+                       trackslit_diffrot=False, negval=False, movingcut=[]):
         if mapseq:
             try:
                 mapseq_plot = deepcopy(mapseq)
@@ -1836,7 +1848,8 @@ class Stackplot:
                 frm_range = [0, len(mapseq_plot)]
         if refresh:
             mapseq_plot = self.make_stackplot(mapseq_plot, frm_range=frm_range, threshold=threshold, gamma=gamma,
-                                               get_peak=get_peak, trackslit=trackslit)
+                                              get_peak=get_peak, trackslit_diffrot=trackslit_diffrot, negval=negval,
+                                              movingcut=movingcut)
         if layout_vert:
             fig_mapseq = plt.figure(figsize=(7, 7))
         else:
@@ -1877,8 +1890,8 @@ class Stackplot:
                                                      layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
             cuttraj, = ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
-            ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
-            ax.plot(cutslitplt['xs1'], cutslitplt['ys1'], color='white', ls='dotted')
+            cuttrajs1, = ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
+            cuttrajs2, = ax.plot(cutslitplt['xs1'], cutslitplt['ys1'], color='white', ls='dotted')
             dists = cutslitplt['dist']
             dist_ticks = ax2.axes.get_yticks()
             dist_ticks_idx = []
@@ -1889,6 +1902,14 @@ class Stackplot:
 
             maj_t = LineTicks(cuttraj, dist_ticks_idx, 10, lw=2, label=['{:.0f}"'.format(dt) for dt in dist_ticks])
             ax2.set_xlim(dspec['x'][frm_range[0]], dspec['x'][frm_range[-1]])
+
+            def update_slit(frm):
+                cuttraj.set_xdata(cutslitplt['xcen'] - movingcut[0][frm])
+                cuttraj.set_ydata(cutslitplt['ycen'] - movingcut[1][frm])
+                cuttrajs1.set_xdata(cutslitplt['xs0'] - movingcut[0][frm])
+                cuttrajs1.set_ydata(cutslitplt['ys0'] - movingcut[1][frm])
+                cuttrajs2.set_xdata(cutslitplt['xs1'] - movingcut[0][frm])
+                cuttrajs2.set_ydata(cutslitplt['ys1'] - movingcut[1][frm])
 
             if anim:
                 import matplotlib
@@ -1909,6 +1930,7 @@ class Stackplot:
                     else:
                         vspan_xy[np.array([2, 3]), 0] = self.tplt[frm].plot_date
                     vspan.set_xy(vspan_xy)
+                    update_slit(frm)
                     ax.set_title(
                         '{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, smap.meta['t_obs']))
                     fig_mapseq.canvas.draw()
@@ -1954,6 +1976,7 @@ class Stackplot:
                     else:
                         vspan_xy[np.array([2, 3]), 0] = self.tplt[frm].plot_date
                     vspan.set_xy(vspan_xy)
+                    update_slit(frm)
                     t_map = Time(tstr)
                     fig_mapseq.canvas.draw()
                     try:
@@ -1974,8 +1997,8 @@ class Stackplot:
                                                      layout_vert=layout_vert)
             plt.subplots_adjust(bottom=0.10)
             cuttraj, = ax.plot(cutslitplt['xcen'], cutslitplt['ycen'], color='white', ls='solid')
-            ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
-            ax.plot(cutslitplt['xs1'], cutslitplt['ys1'], color='white', ls='dotted')
+            cuttrajs1, = ax.plot(cutslitplt['xs0'], cutslitplt['ys0'], color='white', ls='dotted')
+            cuttrajs2, = ax.plot(cutslitplt['xs1'], cutslitplt['ys1'], color='white', ls='dotted')
             dists = cutslitplt['dist']
             dist_ticks = ax2.axes.get_yticks()
             dist_ticks_idx = []
@@ -1996,6 +2019,14 @@ class Stackplot:
                                   alpha=0.0)
             nfrms = len(self.tplt)
 
+            def update_slit(frm):
+                cuttraj.set_xdata(cutslitplt['xcen'] - movingcut[0][frm])
+                cuttraj.set_ydata(cutslitplt['ycen'] - movingcut[1][frm])
+                cuttrajs1.set_xdata(cutslitplt['xs0'] - movingcut[0][frm])
+                cuttrajs1.set_ydata(cutslitplt['ys0'] - movingcut[1][frm])
+                cuttrajs2.set_xdata(cutslitplt['xs1'] - movingcut[0][frm])
+                cuttrajs2.set_ydata(cutslitplt['ys1'] - movingcut[1][frm])
+
             def update2(val):
                 tmode = '{}'.format(self.fig_mapseq.canvas.toolbar.mode)
                 if tmode == '':
@@ -2014,6 +2045,7 @@ class Stackplot:
                     else:
                         vspan_xy[np.array([2, 3]), 0] = self.tplt[frm].plot_date
                     vspan.set_xy(vspan_xy)
+                    update_slit(frm)
                     fig_mapseq.canvas.draw()
                 else:
                     self.fig_mapseq.canvas.toolbar.set_message(

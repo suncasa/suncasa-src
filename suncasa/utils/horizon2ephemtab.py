@@ -1,3 +1,4 @@
+## only works in CASA 5
 from astropy.time import Time
 import numpy as np
 
@@ -11,8 +12,8 @@ def make_ephem(vis, ephemfile=None):
     btime = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
     etime = Time(tb.getcell('TIME', tb.nrows() - 1) / 24. / 3600., format='mjd')
     tb.close()
-    print "Beginning time of this scan " + btime.iso
-    print "End time of this scan " + etime.iso
+    print("Beginning time of this scan " + btime.iso)
+    print("End time of this scan " + etime.iso)
 
     btime = Time((btime.mjd - 1.0/60./24.), format='mjd')
     etime = Time((etime.mjd + 1.0/60./24.), format='mjd')
@@ -72,4 +73,15 @@ def make_ephem_tb(vis, output_casa_table_name=None):
         jplreader.ephem_dict_to_table(output_dictionary, output_casa_table_name)
         print('Ephemeris table written to {}'.format(output_casa_table_name))
     else:
-        print "sun-ephem-geo.txt not found!"
+        print("sun-ephem-geo.txt not found!")
+
+def ephem2evla(ephemfile):
+    import recipes.ephemerides.JPLephem_reader2 as jplreader
+    if os.path.isfile(ephemfile):
+        output_dictionary = jplreader.readJPLephem(ephemfile)
+        print('RA DEC  table written to {}'.format(output_casa_table_name))
+        np.deg2rad(output_dictionary['data']['DEC']['data']['value'])
+        np.deg2rad(output_dictionary['data']['RA']['data']['value'])
+        output_dictionary['data']['Rho']['data']['value']
+    else:
+        print("sun-ephem-geo.txt not found!")
