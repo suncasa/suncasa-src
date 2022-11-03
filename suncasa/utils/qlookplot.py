@@ -1249,12 +1249,15 @@ def dspec_external(vis, workdir='./', specfile=None,ds_normalised=False):
         specfile = os.path.join(workdir, os.path.basename(vis) + '.dspec.npz')
     os.system('rm -rf {}'.format(dspecscript))
     fi = open(dspecscript, 'wb')
+    fi.write('from suncasa.utils import dspec as ds \n')
     if ds_normalised==False:
-    	fi.write('from suncasa.utils import dspec as ds \n')
-    else:
-    	fi.write('from suncasa.utils import dspec_median_subtracted as ds \n')
-    fi.write(
+        fi.write(
         'specdata = ds.get_dspec("{0}", specfile="{1}", domedian=True, verbose=True, savespec=True, usetbtool=True) \n'.format(
+            vis,
+            specfile))
+    else:
+        fi.write(
+        'specdata = ds.get_dspec("{0}", specfile="{1}", domedian=True, verbose=True, savespec=True, usetbtool=True, ds_normalised=True) \n'.format(
             vis,
             specfile))
     fi.close()
@@ -1365,11 +1368,12 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             print('Provided dynamic spectrum file not numpy npz. Generating one from the visibility data')
             specfile = os.path.join(workdir, os.path.basename(vis) + '.dspec.npz')
             if c_external:
+                
                 dspec_external(vis, workdir=workdir, specfile=specfile,ds_normalised=ds_normalised)
                 specdata = np.load(specfile)  # specdata = ds.get_dspec(vis, domedian=True, verbose=True)
             else:
                 specdata = ds.get_dspec(vis, specfile=specfile, domedian=True, verbose=True, savespec=True,
-                                        usetbtool=True)
+                                        usetbtool=True,ds_normalised=ds_normalised)
 
     else:
         print('Dynamic spectrum file not provided; Generating one from the visibility data')
@@ -1379,7 +1383,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             dspec_external(vis, workdir=workdir, specfile=specfile,ds_normalised=ds_normalised)
             specdata = np.load(specfile)  # specdata = ds.get_dspec(vis, domedian=True, verbose=True)
         else:
-            specdata = ds.get_dspec(vis, specfile=specfile, domedian=True, verbose=True, savespec=True, usetbtool=True)
+            specdata = ds.get_dspec(vis, specfile=specfile, domedian=True, verbose=True, savespec=True, usetbtool=True,ds_normalised=ds_normalised)
 
     try:
         tb.open(vis + '/POINTING')
