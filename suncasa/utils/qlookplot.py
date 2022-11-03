@@ -642,7 +642,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     nclevels=None, dmax=None, dmin=None, dcmap=None, dnorm=None, sclfactor=1.0,
                     clevels=None, aiafits='', aiadir=None, aiawave=171, plotaia=True,
                     freqbounds=None, moviename='',
-                    alpha_cont=1.0, custom_mapcubes=[], opencontour=False, movieformat='html'):
+                    alpha_cont=1.0, custom_mapcubes=[], opencontour=False, movieformat='html',ds_normalised=False):
     '''
     Required inputs:
     Important optional inputs:
@@ -979,11 +979,12 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     y1_new = y0_new + v
                     # ax.set_position(mpl.transforms.Bbox([[x0_new, y0_new], [x1_new, y1_new]]))
                     ax.xaxis.set_visible(False)
-                divider = make_axes_locatable(ax)
-                cax_spec = divider.append_axes('right', size='3.0%', pad=0.05)
-                cax_spec.tick_params(direction='out')
-                clb_spec = plt.colorbar(im_spec, ax=ax, cax=cax_spec)
-                clb_spec.set_label('Flux [sfu]')
+                if ds_normalised==False:    
+                    divider = make_axes_locatable(ax)
+                    cax_spec = divider.append_axes('right', size='3.0%', pad=0.05)
+                    cax_spec.tick_params(direction='out')
+                    clb_spec = plt.colorbar(im_spec, ax=ax, cax=cax_spec)
+                    clb_spec.set_label('Flux [sfu]')
         else:
             for pol in range(npols):
                 xy = dspecvspans[pol].get_xy()
@@ -1242,13 +1243,16 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         DButil.img2movie(figdir_, outname=moviename)
 
 
-def dspec_external(vis, workdir='./', specfile=None):
+def dspec_external(vis, workdir='./', specfile=None,ds_normalised=False):
     dspecscript = os.path.join(workdir, 'dspec.py')
     if not specfile:
         specfile = os.path.join(workdir, os.path.basename(vis) + '.dspec.npz')
     os.system('rm -rf {}'.format(dspecscript))
     fi = open(dspecscript, 'wb')
-    fi.write('from suncasa.utils import dspec as ds \n')
+    if ds_normalised==False:
+    	fi.write('from suncasa.utils import dspec as ds \n')
+    else:
+    	fi.write('from suncasa.utils import dspec_median_subtracted as ds \n')
     fi.write(
         'specdata = ds.get_dspec("{0}", specfile="{1}", domedian=True, verbose=True, savespec=True, usetbtool=True) \n'.format(
             vis,
@@ -1269,7 +1273,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
               clevels=None, calpha=0.5, goestime=None,
               plotaia=True, aiawave=171, aiafits=None, aiadir=None, datacolumn='data', docompress=False,
               mkmovie=False, overwrite=True, ncpu=1, twidth=1, verbose=False, movieformat='html',
-              clearmshistory=False, show_warnings=False, opencontour=False, quiet=False):
+              clearmshistory=False, show_warnings=False, opencontour=False, quiet=False,ds_normalised=False):
     '''
     Required inputs:
             vis: calibrated CASA measurement set
@@ -1361,7 +1365,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             print('Provided dynamic spectrum file not numpy npz. Generating one from the visibility data')
             specfile = os.path.join(workdir, os.path.basename(vis) + '.dspec.npz')
             if c_external:
-                dspec_external(vis, workdir=workdir, specfile=specfile)
+                dspec_external(vis, workdir=workdir, specfile=specfile,ds_normalised=ds_normalised)
                 specdata = np.load(specfile)  # specdata = ds.get_dspec(vis, domedian=True, verbose=True)
             else:
                 specdata = ds.get_dspec(vis, specfile=specfile, domedian=True, verbose=True, savespec=True,
@@ -1372,7 +1376,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
         # specdata = ds.get_dspec(vis, domedian=True, verbose=True)
         specfile = os.path.join(workdir, os.path.basename(vis) + '.dspec.npz')
         if c_external:
-            dspec_external(vis, workdir=workdir, specfile=specfile)
+            dspec_external(vis, workdir=workdir, specfile=specfile,ds_normalised=ds_normalised)
             specdata = np.load(specfile)  # specdata = ds.get_dspec(vis, domedian=True, verbose=True)
         else:
             specdata = ds.get_dspec(vis, specfile=specfile, domedian=True, verbose=True, savespec=True, usetbtool=True)
@@ -1563,7 +1567,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                             sclfactor=sclfactor,
                             aiafits=aiafits, aiawave=aiawave, aiadir=aiadir, plotaia=plotaia,
                             freqbounds=bdinfo, alpha_cont=calpha,
-                            opencontour=opencontour, movieformat=movieformat)
+                            opencontour=opencontour, movieformat=movieformat,ds_normalised=ds_normalised)
 
     else:
         if np.iscomplexobj(specdata['spec']):
