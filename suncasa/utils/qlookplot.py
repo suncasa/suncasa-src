@@ -1,17 +1,17 @@
-import numpy as np
+import os
+import sys
+
 import matplotlib.pyplot as plt
-import os, sys
-# from config import get_and_create_download_dir
-import shutil
-from astropy.io import fits
-from ..utils import helioimage2fits as hf
+import numpy as np
 import sunpy
 import sunpy.map as smap
 from astropy import units as u
 from astropy.time import Time
-from astropy.io import fits
-from ..utils import mstools
+
 from ..utils import dspec as ds
+# from config import get_and_create_download_dir
+from ..utils import helioimage2fits as hf
+from ..utils import mstools
 
 sunpy1 = sunpy.version.major >= 1
 sunpy3 = sunpy.version.major >= 3
@@ -49,10 +49,8 @@ except:
     c_external = False
 
 from matplotlib.dates import DateFormatter
-from astropy.io import fits
 from astropy.coordinates import SkyCoord
 import matplotlib as mpl
-import matplotlib.cm as cm
 
 import matplotlib.colors as colors
 import matplotlib.patches as patches
@@ -235,6 +233,36 @@ def get_colorbar_params(fbounds, stepfactor=1):
     #     ticks = np.hstack((ticks, vmax))
     return ticks, bounds, fmax, fmin, freqmask
 
+def download_jp2(tstart,tend,wavelengths,outdir):
+    from sunpy.net.helioviewer import HelioviewerClient
+    from astropy import time as time_module
+    from sunpy import map as smap
+    hv = HelioviewerClient()
+    
+    for wave in wavelengths:
+        if wave!=1600 and wave!=1700:
+            tdt=time_module.TimeDelta(12,format='sec')
+        else:
+            tdt=time_module.TimeDelta(24,format='sec')
+        if wave==1600 or wave==1700:
+            product = 'aia.lev1_uv_24s'
+        else:
+            product = 'aia.lev1_euv_12s'
+        st=tstart
+        while st<=tend:
+            st.format='iso'
+            filepath=hv.download_jp2(st.value,observatory='SDO',instrument='AIA',measurement=str(int(wave)))
+            print (filepath)
+            aiamap=smap.Map(filepath)
+            head=aiamap.meta
+            tobs=head['T_OBS']
+            date=tobs[:10]
+            time=''.join(tobs[10:].split(':'))[:-1]
+            wavelength1=head['WAVELNTH']
+            filename=product+'.'+date+time+'_Z.'+str(wavelength1)+".image_lev_1.fits"
+            os.system("mv "+filepath+" "+outdir+filename)
+            st+=tdt
+    return    
 
 def downloadAIAdata(trange, wavelength=None, outdir='./'):
     if isinstance(trange, list) or isinstance(trange, tuple) or type(trange) == np.ndarray or type(trange) == Time:
@@ -270,6 +298,7 @@ def downloadAIAdata(trange, wavelength=None, outdir='./'):
         for widx, wave in enumerate(wavelength):
             wave1 = wave - 3.0
             wave2 = wave + 3.0
+            
             qr = Fido.search(a.Time(tst.iso, ted.iso),
                              a.Instrument.aia,
                              a.Wavelength(wave1 * u.AA, wave2 * u.AA))
@@ -286,29 +315,35 @@ def downloadAIAdata(trange, wavelength=None, outdir='./'):
                                                                                                 :-1] + '.image_lev1.fits'
                 print(ll, jsocnamestr)
                 os.system('mv {} {}/{}'.format(ll, outdir, jsocnamestr))
+          
     except:
-        from sunpy.net import vso
-        client = vso.VSOClient()
-        for widx, wave in enumerate(wavelength):
-            wave1 = wave - 3.0
-            wave2 = wave + 3.0
-            print('{}/{} Downloading  AIA {:.0f} data ...'.format(widx + 1, nwave, wave))
-            qr = client.query(vso.attrs.Time(tst.iso, ted.iso), vso.attrs.Instrument('aia'),
-                              vso.attrs.Wave(wave1 * u.AA, wave2 * u.AA))
-            res = client.get(qr, path='{file}').wait()
+        try:
+            from sunpy.net import vso
+            client = vso.VSOClient()
+            for widx, wave in enumerate(wavelength):
+                wave1 = wave - 3.0
+                wave2 = wave + 3.0
+                print('{}/{} Downloading  AIA {:.0f} data ...'.format(widx + 1, nwave, wave))
+                qr = client.query(vso.attrs.Time(tst.iso, ted.iso), vso.attrs.Instrument('aia'),
+                                  vso.attrs.Wave(wave1 * u.AA, wave2 * u.AA))
+                res = client.get(qr, path='{file}').wait()
 
-            for ll in res:
-                vsonamestrs = ll.split('_')
-                if vsonamestrs[2].startswith('1600') or vsonamestrs[2].startswith('1700'):
-                    product = 'aia.lev1_uv_24s'
-                else:
-                    product = 'aia.lev1_euv_12s'
-                jsocnamestr = product + '.' + '{}-{}-{}{}{}Z.'.format(vsonamestrs[3], vsonamestrs[4], vsonamestrs[5],
-                                                                      vsonamestrs[6],
-                                                                      vsonamestrs[7]).upper() + vsonamestrs[2][
-                                                                                                :-1] + '.image_lev1.fits'
-                print(ll, jsocnamestr)
-                os.system('mv {} {}/{}'.format(ll, outdir, jsocnamestr))
+                for ll in res:
+                    vsonamestrs = ll.split('_')
+                    if vsonamestrs[2].startswith('1600') or vsonamestrs[2].startswith('1700'):
+                        product = 'aia.lev1_uv_24s'
+                    else:
+                        product = 'aia.lev1_euv_12s'
+                    jsocnamestr = product + '.' + '{}-{}-{}{}{}Z.'.format(vsonamestrs[3], vsonamestrs[4], vsonamestrs[5],
+                                                                          vsonamestrs[6],
+                                                                          vsonamestrs[7]).upper() + vsonamestrs[2][
+                                                                                                    :-1] + '.image_lev1.fits'
+                    print(ll, jsocnamestr)
+                    os.system('mv {} {}/{}'.format(ll, outdir, jsocnamestr))
+        except:
+            download_jp2(tst,ted,wavelength,outdir)
+    if len(res)==0:
+        download_jp2(tst,ted,wavelength,outdir)
     if os.path.exists('/tmp/suds/'):
         os.system('rm -rf /tmp/suds/')
 
@@ -405,7 +440,7 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
                    phasecenter='', robust=0.0, niter=500, gain=0.1, imsize=[512], cell=['5.0arcsec'], pbcor=True,
                    reftime='', restoringbeam=[''],
                    mask='', docompress=False,
-                   uvrange='', c_external=True, show_warnings=False):
+                   uvrange='', subregion='', c_external=True, show_warnings=False):
     vis = [vis]
     subdir = ['/']
 
@@ -525,6 +560,7 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
                        'sclfactor': sclfactor,
                        'datacolumn': datacolumn,
                        'pbcor': pbcor,
+                       'subregion': subregion,
                        'weighting': 'briggs',
                        'robust': robust}
             for key, val in inpdict.items():
@@ -578,6 +614,7 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
                           sclfactor=sclfactor,
                           datacolumn=datacolumn,
                           pbcor=pbcor,
+                          subregion=subregion,
                           weighting='briggs',
                           robust=robust)
 
@@ -605,7 +642,7 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     nclevels=None, dmax=None, dmin=None, dcmap=None, dnorm=None, sclfactor=1.0,
                     clevels=None, aiafits='', aiadir=None, aiawave=171, plotaia=True,
                     freqbounds=None, moviename='',
-                    alpha_cont=1.0, custom_mapcubes=[], opencontour=False, movieformat='html'):
+                    alpha_cont=1.0, custom_mapcubes=[], opencontour=False, movieformat='html',ds_normalised=False):
     '''
     Required inputs:
     Important optional inputs:
@@ -850,9 +887,26 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                         aiafiles.append(None)
                     else:
                         aiafiles.append(aiafile)
+                
                 if np.count_nonzero(aiafiles) < ntime / 2.0:
                     downloadAIAdata(trange=t_ran, wavelength=aiawave)
                     aiadir = './'
+                    aiafiles = []
+                    for i in tqdm(range(ntime)):
+                        plttime = btimes_sort[i, 0]
+                        aiafile = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime,
+                                                     isexists=True,
+                                                     timtol=120. / 3600. / 24)
+                        if not aiafile:
+                            aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True,
+                                                          timtol=120. / 3600. / 24)
+                        if not aiafile:
+                            aiafile = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=plttime, isexists=True,
+                                                          timtol=120. / 3600. / 24)
+                        if aiafile is []:
+                            aiafiles.append(None)
+                        else:
+                            aiafiles.append(aiafile)
         else:
             # from suncasa.utils import stackplotX as stp
             # st = stp.Stackplot(aiafits)
@@ -879,8 +933,12 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
             dspecvspans = []
             for pol in range(npols):
                 ax = axs_dspec[pol]
+                if dnorm is None:
+                    vnorm = colors.Normalize(vmax=dranges[pol][1], vmin=dranges[pol][0])
+                else:
+                    vnorm = dnorm
                 im_spec = ax.pcolormesh(spec_tim_plt[tidx], freqghz, spec_plt[pol][:, tidx], cmap=cmaps[pol],
-                                        vmax=dranges[pol][1], vmin=dranges[pol][0], rasterized=True)
+                                        norm=vnorm, rasterized=True)
                 ax.set_xlim(spec_tim_plt[tidx[0]], spec_tim_plt[tidx[-1]])
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 ax.set_ylabel('Frequency [GHz]')
@@ -921,11 +979,12 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     y1_new = y0_new + v
                     # ax.set_position(mpl.transforms.Bbox([[x0_new, y0_new], [x1_new, y1_new]]))
                     ax.xaxis.set_visible(False)
-                divider = make_axes_locatable(ax)
-                cax_spec = divider.append_axes('right', size='3.0%', pad=0.05)
-                cax_spec.tick_params(direction='out')
-                clb_spec = plt.colorbar(im_spec, ax=ax, cax=cax_spec)
-                clb_spec.set_label('Flux [sfu]')
+                if ds_normalised==False:    
+                    divider = make_axes_locatable(ax)
+                    cax_spec = divider.append_axes('right', size='3.0%', pad=0.05)
+                    cax_spec.tick_params(direction='out')
+                    clb_spec = plt.colorbar(im_spec, ax=ax, cax=cax_spec)
+                    clb_spec.set_label('Flux [sfu]')
         else:
             for pol in range(npols):
                 xy = dspecvspans[pol].get_xy()
@@ -968,7 +1027,8 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
                     try:
                         # rmap = smap.Map(image)
                         meta, rdata = ndfits.read(image)
-                        cmaps, datas = get_rdata_dict(rdata, meta['naxis'], meta['pol_axis'], meta['npol'], icmap=icmap, stokes=stokes)
+                        cmaps, datas = get_rdata_dict(rdata, meta['naxis'], meta['pol_axis'], meta['npol'], icmap=icmap,
+                                                      stokes=stokes)
                     except:
                         continue
 
@@ -1183,15 +1243,21 @@ def plt_qlook_image(imres, timerange='', figdir=None, specdata=None, verbose=Tru
         DButil.img2movie(figdir_, outname=moviename)
 
 
-def dspec_external(vis, workdir='./', specfile=None):
+def dspec_external(vis, workdir='./', specfile=None,ds_normalised=False):
     dspecscript = os.path.join(workdir, 'dspec.py')
     if not specfile:
         specfile = os.path.join(workdir, os.path.basename(vis) + '.dspec.npz')
     os.system('rm -rf {}'.format(dspecscript))
     fi = open(dspecscript, 'wb')
     fi.write('from suncasa.utils import dspec as ds \n')
-    fi.write(
+    if ds_normalised==False:
+        fi.write(
         'specdata = ds.get_dspec("{0}", specfile="{1}", domedian=True, verbose=True, savespec=True, usetbtool=True) \n'.format(
+            vis,
+            specfile))
+    else:
+        fi.write(
+        'specdata = ds.get_dspec("{0}", specfile="{1}", domedian=True, verbose=True, savespec=True, usetbtool=True, ds_normalised=True) \n'.format(
             vis,
             specfile))
     fi.close()
@@ -1204,13 +1270,13 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
               reftime='', xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0,
               weighting='briggs', niter=500, sclfactor=1.0,
               imsize=[512], cell=['5.0arcsec'], mask='', gain=0.1, pbcor=True,
-              antenna='', toTb=True,
+              antenna='', toTb=True, subregion='',
               interactive=False, usemsphacenter=True, imagefile=None, outfits='',
               imax=None, imin=None, icmap=None, inorm=None, nclevels=3,
               clevels=None, calpha=0.5, goestime=None,
               plotaia=True, aiawave=171, aiafits=None, aiadir=None, datacolumn='data', docompress=False,
               mkmovie=False, overwrite=True, ncpu=1, twidth=1, verbose=False, movieformat='html',
-              clearmshistory=False, show_warnings=False, opencontour=False, quiet = False):
+              clearmshistory=False, show_warnings=False, opencontour=False, quiet=False,ds_normalised=False):
     '''
     Required inputs:
             vis: calibrated CASA measurement set
@@ -1302,21 +1368,22 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             print('Provided dynamic spectrum file not numpy npz. Generating one from the visibility data')
             specfile = os.path.join(workdir, os.path.basename(vis) + '.dspec.npz')
             if c_external:
-                dspec_external(vis, workdir=workdir, specfile=specfile)
+                
+                dspec_external(vis, workdir=workdir, specfile=specfile,ds_normalised=ds_normalised)
                 specdata = np.load(specfile)  # specdata = ds.get_dspec(vis, domedian=True, verbose=True)
             else:
                 specdata = ds.get_dspec(vis, specfile=specfile, domedian=True, verbose=True, savespec=True,
-                                        usetbtool=True)
+                                        usetbtool=True,ds_normalised=ds_normalised)
 
     else:
         print('Dynamic spectrum file not provided; Generating one from the visibility data')
         # specdata = ds.get_dspec(vis, domedian=True, verbose=True)
         specfile = os.path.join(workdir, os.path.basename(vis) + '.dspec.npz')
         if c_external:
-            dspec_external(vis, workdir=workdir, specfile=specfile)
+            dspec_external(vis, workdir=workdir, specfile=specfile,ds_normalised=ds_normalised)
             specdata = np.load(specfile)  # specdata = ds.get_dspec(vis, domedian=True, verbose=True)
         else:
-            specdata = ds.get_dspec(vis, specfile=specfile, domedian=True, verbose=True, savespec=True, usetbtool=True)
+            specdata = ds.get_dspec(vis, specfile=specfile, domedian=True, verbose=True, savespec=True, usetbtool=True,ds_normalised=ds_normalised)
 
     try:
         tb.open(vis + '/POINTING')
@@ -1476,6 +1543,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                                        reftime=reftime, restoringbeam=restoringbeam, sclfactor=sclfactor,
                                        docompress=docompress,
                                        c_external=c_external,
+                                       subregion=subregion,
                                        show_warnings=show_warnings)
             else:
                 if os.path.exists(imresfile):
@@ -1490,6 +1558,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                                            reftime=reftime, restoringbeam=restoringbeam, sclfactor=sclfactor,
                                            docompress=docompress,
                                            c_external=c_external,
+                                           subregion=subregion,
                                            show_warnings=show_warnings)
             if not os.path.exists(qlookfigdir):
                 os.makedirs(qlookfigdir)
@@ -1502,7 +1571,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                             sclfactor=sclfactor,
                             aiafits=aiafits, aiawave=aiawave, aiadir=aiadir, plotaia=plotaia,
                             freqbounds=bdinfo, alpha_cont=calpha,
-                            opencontour=opencontour, movieformat=movieformat)
+                            opencontour=opencontour, movieformat=movieformat,ds_normalised=ds_normalised)
 
     else:
         if np.iscomplexobj(specdata['spec']):
@@ -1557,10 +1626,13 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
 
             print('plot the dynamic spectrum in pol ' + ' & '.join(pols))
 
+            if dnorm is None:
+                dnorm = colors.Normalize(vmax=dmax, vmin=dmin)
+
             axs = [ax1, ax2]
             for axidx, ax in enumerate(axs):
                 if axidx < npol_in:
-                    ax.pcolormesh(spec_tim_plt, freqghz, specs[pols[axidx]], cmap=dcmap, vmin=dmin, vmax=dmax,
+                    ax.pcolormesh(spec_tim_plt, freqghz, specs[pols[axidx]], cmap=dcmap, norm=dnorm,
                                   rasterized=True)
                     ax.set_title(observatory + ' ' + datstr + ' ' + pols[axidx], fontsize=9)
                 ax.set_autoscale_on(True)
@@ -1631,7 +1703,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
 
                 ax3.set_ylim([-8, -3])
                 ax3.set_yticks([-8, -7, -6, -5, -4, -3])
-                ax3.set_yticklabels([r'$10^{-8}$', r'$10^{-7}$', r'$10^{-6}$', r'$10^{-5}$', r'$10^{-4}$', r'$10^{-3}$'])
+                ax3.set_yticklabels(
+                    [r'$10^{-8}$', r'$10^{-7}$', r'$10^{-6}$', r'$10^{-5}$', r'$10^{-4}$', r'$10^{-3}$'])
                 ax3.set_title('Goes Soft X-ray', fontsize=9)
                 ax3.set_ylabel('Watts m$^{-2}$')
                 ax3.set_xlabel(Time(spec_tim_plt[0], format='plot_date').iso[0:10])
@@ -1877,14 +1950,14 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             # else:
             if isinstance(rfits, list):
                 rfits = rfits[0]
-
             meta, rdata = ndfits.read(rfits)
             rmap = smap.Map(np.squeeze(rdata), meta['header'])
             if rmap is None:
                 print('radio fits file not recognized by sunpy.map. Aborting...')
                 return -1
 
-            cmaps, datas = get_rdata_dict(rdata, meta['naxis'], meta['pol_axis'], meta['npol'], icmap=icmap, stokes=stokes)
+            cmaps, datas = get_rdata_dict(rdata, meta['naxis'], meta['pol_axis'], meta['npol'], icmap=icmap,
+                                          stokes=stokes)
 
             if not xyrange:
                 if xycen:
@@ -1908,7 +1981,8 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                 x2 = x0 + sz_x / 2.
                 y1 = y0 - sz_y / 2.
                 y2 = y0 + sz_y / 2.
-                xyrange = [[x1.to(u.arcsec).value, x2.to(u.arcsec).value], [y1.to(u.arcsec).value, y2.to(u.arcsec).value]]
+                xyrange = [[x1.to(u.arcsec).value, x2.to(u.arcsec).value],
+                           [y1.to(u.arcsec).value, y2.to(u.arcsec).value]]
             else:
                 sz_x = (xyrange[0][1] - xyrange[0][0]) * u.arcsec
                 sz_y = (xyrange[1][1] - xyrange[1][0]) * u.arcsec
@@ -1928,6 +2002,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                     if pol == 'V':
                         clvls[pol] = np.array([0.8, -0.6, -0.4, -0.2, 0.2, 0.4, 0.6, 0.8])
                     else:
+
                         if clevels is None:
                             clvls[pol] = np.linspace(0.3, 1, 2)
                         else:
@@ -2004,7 +2079,9 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                         axs[pidx][0].set_title(title + ' ' + pols[pidx], fontsize=9)
                         rmap_plt_.draw_limb(axes=[axs[pidx][0], axs[pidx][1]])
                         rmap_plt_.draw_grid(axes=[axs[pidx][0], axs[pidx][1]])
-                        rect = mpl.patches.Rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value, edgecolor='w',
+
+                        rect = mpl.patches.Rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value,
+                                                     edgecolor='w',
                                                      facecolor='none')
                         axs[pidx][0].add_patch(rect)
                         # rmap_plt_.imshow(axes=axs[pidx][1], cmap=cmaps[pol],interpolation = 'nearest')

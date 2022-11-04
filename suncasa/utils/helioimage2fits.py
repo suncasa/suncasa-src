@@ -61,6 +61,11 @@ def ms_clearhistory(msfile):
     tb.close()
 
 
+def normalise(angle):  ### convenience function to normalise angles by 2 pi
+			### angle in radians
+    b=int(angle/(2*np.pi))
+    return angle-b*(2*np.pi)
+
 def ms_restorehistory(msfile):
     tb_history = msfile + '/HISTORY'
     os.system('mv {0}_bk {0}'.format(tb_history))
@@ -277,6 +282,7 @@ def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
         else:
             ras = qa.convert(qa.quantity(col_ra, 'deg'), 'rad')
             decs = qa.convert(qa.quantity(col_dec, 'deg'), 'rad')
+        msinfo['btimes'] = col_mjd
     else:
         for idx, scanid in enumerate(scanids):
             btimes.append(scans[scanid]['0']['BeginTime'])
@@ -288,12 +294,13 @@ def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
             dirs.append(dir)
             ras.append(dir['m0'])
             decs.append(dir['m1'])
+        msinfo['btimes']=btimes
     ms.close()
     btimestr = [qa.time(qa.quantity(btimes[idx], 'd'), form='fits', prec=10)[0] for idx in range(nscanid)]
     msinfo['vis'] = vis
     msinfo['scans'] = scans
     msinfo['fieldids'] = fieldids
-    msinfo['btimes'] = col_mjd
+    
     msinfo['scan_start_times']=btimes
     msinfo['scan_end_times']=etimes
     msinfo['btimestr'] = btimestr
@@ -531,8 +538,8 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                 ra0 += 2. * np.pi
 
             # RA and DEC offset in arcseconds
-            decoff = degrees((dec - dec0)) * 3600.
-            raoff = degrees((ra - ra0) * cos(dec)) * 3600.
+            decoff = degrees(normalise(dec - dec0)) * 3600.
+            raoff = degrees(normalise(ra - ra0) * cos(dec)) * 3600.
             # Convert into heliocentric offsets
             prad = -radians(p0)
             refx = (-raoff) * cos(prad) - decoff * sin(prad)
@@ -763,8 +770,8 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             (imra, imdec) = (imsum['refval'][0], imsum['refval'][1])
             # find out the difference of the image center to the CASA phase center
             # RA and DEC difference in arcseconds
-            ddec = degrees((imdec - hel['dec_fld'])) * 3600.
-            dra = degrees((imra - hel['ra_fld']) * cos(hel['dec_fld'])) * 3600.
+            ddec = degrees(normalise(imdec - hel['dec_fld'])) * 3600.
+            dra = degrees(normalise(imra - hel['ra_fld']) * cos(hel['dec_fld'])) * 3600.
             # Convert into image heliocentric offsets
             prad = -radians(hel['p0'])
             dx = (-dra) * cos(prad) - ddec * sin(prad)
