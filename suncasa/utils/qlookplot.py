@@ -1950,7 +1950,6 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
             # else:
             if isinstance(rfits, list):
                 rfits = rfits[0]
-
             meta, rdata = ndfits.read(rfits)
             rmap = smap.Map(np.squeeze(rdata), meta['header'])
             if rmap is None:
@@ -2003,6 +2002,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                     if pol == 'V':
                         clvls[pol] = np.array([0.8, -0.6, -0.4, -0.2, 0.2, 0.4, 0.6, 0.8])
                     else:
+
                         if clevels is None:
                             clvls[pol] = np.linspace(0.3, 1, 2)
                         else:
@@ -2079,6 +2079,7 @@ def qlookplot(vis, timerange=None, spw='', workdir='./', specfile=None, uvrange=
                         axs[pidx][0].set_title(title + ' ' + pols[pidx], fontsize=9)
                         rmap_plt_.draw_limb(axes=[axs[pidx][0], axs[pidx][1]])
                         rmap_plt_.draw_grid(axes=[axs[pidx][0], axs[pidx][1]])
+
                         rect = mpl.patches.Rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value,
                                                      edgecolor='w',
                                                      facecolor='none')
