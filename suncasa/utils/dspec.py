@@ -297,7 +297,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
                 time_ = data['time']
                 if fillnan is not None:
                     flag_ = ms.getdata(['flag', 'time', 'axis_info'], ifraxis=True)['flag']
-                    if type(fillnan) in [int, float, long]:
+                    if type(fillnan) in [int, float]:
                         specamp_[flag_] = float(fillnan)
                     else:
                         specamp_[flag_] = 0.0
