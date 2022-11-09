@@ -35,36 +35,52 @@ def get_bandinfo(msfile, spw=None, returnbdinfo=False):
     reffreqs = []
     bdwds = []
     chanwds = []
+    nchans = []
     for s in range(nspw):
         s_ = str(s)
         reffreqs.append(spwInfo[s_]['RefFreq'])
         bdwds.append(spwInfo[s_]['TotalWidth'])
         chanwds.append(spwInfo[s_]['ChanWidth'])
+        nchans.append(spwInfo[s_]['NumChan'])
     reffreqs = np.array(reffreqs) / 1e9
     bdwds = np.array(bdwds) / 1e9
     chanwds = np.array(chanwds) / 1e9
+    nchans = np.array(nchans)
     ms.close()
     cfreqs = reffreqs + bdwds / 2.0 - chanwds / 2.0
     bdinfo = {'bounds_all': np.hstack((reffreqs, reffreqs[-1] + bdwds[-1])), 'cfreqs_all': cfreqs,
-                  'bounds_all_lo': reffreqs, 'bounds_all_hi': reffreqs + bdwds}
+              'bounds_all_lo': reffreqs, 'bounds_all_hi': reffreqs + bdwds}
     if spw is not None:
         freqbounds_lo_spw = []
         freqbounds_hi_spw = []
         cfreqs_spw = []
         for sp in spw:
-            if '~' in sp:
-                sps = sp.split('~')
-                cfreq = np.nanmean([cfreqs[max(0, min(int(s), nspw - 1))] for s in sps])
-                s1 = max(0, min(int(sps[0]), nspw - 1))
-                s2 = max(0, min(int(sps[1]) + 1, nspw - 1))
-                freqbound_lo = bdinfo['bounds_all'][s1]
-                freqbound_hi = bdinfo['bounds_all'][s2]
+            if ':' in sp:
+                sp_, chn = sp.split(':')
+                sp_ = int(sp_)
+                if '~' in chn:
+                    chns = chn.split('~')
+                    freqbound_lo = reffreqs[sp_] + chanwds[sp_] * int(chns[0])
+                    freqbound_hi = reffreqs[sp_] + chanwds[sp_] * (int(chns[1]) + 1)
+                else:
+                    ch = max(0, min(int(chn), nchans[sp_] - 1))
+                    freqbound_lo = reffreqs[sp_] + chanwds[sp_] * ch
+                    freqbound_hi = reffreqs[sp_] + chanwds[sp_] * (ch+1)
+                cfreq = (freqbound_lo + freqbound_hi) / 2.0
             else:
-                s = max(0, min(int(sp), nspw - 1))
-                cfreq = cfreqs[s]
-                freqbound_lo = bdinfo['bounds_all'][s]
-                # freqbound_hi = freqbounds['bounds_all'][max(0, min(int(sp) + 1, nspw - 1))]
-                freqbound_hi = bdinfo['bounds_all'][s] + bdwds[s]
+                if '~' in sp:
+                    sps = sp.split('~')
+                    cfreq = np.nanmean([cfreqs[max(0, min(int(s), nspw - 1))] for s in sps])
+                    s1 = max(0, min(int(sps[0]), nspw - 1))
+                    s2 = max(0, min(int(sps[1]) + 1, nspw - 1))
+                    freqbound_lo = bdinfo['bounds_all'][s1]
+                    freqbound_hi = bdinfo['bounds_all'][s2]
+                else:
+                    s = max(0, min(int(sp), nspw - 1))
+                    cfreq = cfreqs[s]
+                    freqbound_lo = bdinfo['bounds_all'][s]
+                    # freqbound_hi = freqbounds['bounds_all'][max(0, min(int(sp) + 1, nspw - 1))]
+                    freqbound_hi = bdinfo['bounds_all'][s] + bdwds[s]
             freqbounds_lo_spw.append(freqbound_lo)
             freqbounds_hi_spw.append(freqbound_hi)
             cfreqs_spw.append(cfreq)
