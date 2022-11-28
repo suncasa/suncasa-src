@@ -505,7 +505,8 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                 observatory_id = '-81'
             elif msinfo0['observatory'] == 'ALMA':
                 observatory_id = '-7'
-            ephem = read_horizons(Time(tref_d, format='mjd'), observatory = observatory_id)
+            if not ephem:
+                ephem = read_horizons(Time(tref_d, format='mjd'), observatory = observatory_id)
 
         time0 = ephem['time']
         ra0 = ephem['ra']
