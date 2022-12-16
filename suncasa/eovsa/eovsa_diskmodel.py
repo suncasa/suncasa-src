@@ -466,6 +466,7 @@ def fit_vs_freq(out):
 
 
 def calc_diskmodel(slashdate, nbands, freq, defaultfreq):
+    from astropy.time import Time
     # Default disk size measured for 2019/09/03
     # todo add monthly fitting procedure for the disk size and flux density
     defaultsize = np.array([990.6, 989.4, 988.2, 987.1, 986.0, 984.9, 983.8, 982.7, 981.7, 980.7,
@@ -478,8 +479,12 @@ def calc_diskmodel(slashdate, nbands, freq, defaultfreq):
     fac = eph.get_sunearth_distance('2019/09/03') / eph.get_sunearth_distance(slashdate)
     newsize = defaultsize * fac.to_value()
     if nbands == 34:
-        # Interpolate size to 31 spectal windows (bands 4-34 -> spw 0-30)
-        newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq[3:])
+        if Time(slashdate.replace('/','-')).mjd < Time('2018-03-13').mjd:
+            # Interpolate size to 31 spectral windows (bands 4-34 -> spw 0-30)
+            newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq[3:])
+        else:
+            # Dates between 2018-03-13 have 33 spectral windows
+            newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq[[0]+range(2,34)])
     dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize], dtype='S12')
 
     # These are nominal flux densities * 2, determined on 2019/09/03
@@ -494,8 +499,12 @@ def calc_diskmodel(slashdate, nbands, freq, defaultfreq):
                              10023598, 8896671])
     fdens = defaultfdens
     if nbands == 34:
-        # Interpolate size to 31 spectal windows (bands 4-34 -> spw 0-30)
-        fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq[3:])
+        if Time(slashdate.replace('/','-')).mjd < Time('2018-03-13').mjd:
+            # Interpolate size to 31 spectal windows (bands 4-34 -> spw 0-30)
+            fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq[3:])
+        else:
+            # Dates between 2018-03-13 have 33 spectral windows
+            fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq[[0]+range(2,34)])
     return dsize, fdens
 
 
@@ -839,7 +848,7 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
                    bright=None, pols='XX'):
     ''' Uses images from disk-selfcaled data as model for further self-calibration of outer antennas.
         This is only a good idea if there are bright active regions that provide strong signal on the
-        londer baselines.
+        long baselines.
     '''
     trange = ant_trange(vis)
 
