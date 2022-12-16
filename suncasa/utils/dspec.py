@@ -82,7 +82,7 @@ for k, v in zip(range(len(stokestype)), stokestype):
 
 def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='', scan='', datacolumn='data',
               domedian=False, timeran=None, spw=None, timebin='0s', regridfreq=False, fillnan=None, verbose=False,
-              usetbtool=False):
+              usetbtool=False,ds_normalised=True):
     if vis.endswith('/'):
         vis = vis[:-1]
     msfile = vis
@@ -362,9 +362,17 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
         # spec_masked = np.ma.masked_array(spec, mask=np.logical_or(spec_masked.mask, spec_masked2.mask))
         # spec_med = np.ma.filled(np.ma.median(spec_masked, axis=1), fill_value=0.)
         spec = np.abs(spec)
-        spec_med = np.nanmedian(spec, axis=1)
-        nbl = 1
-        ospec = spec_med.reshape((npol, nbl, nfreq, ntim))
+        if ds_normalised==False:
+            spec_med = np.nanmedian(spec, axis=1)
+            nbl = 1
+            ospec = spec_med.reshape((npol, nbl, nfreq, ntim))
+        else:
+            spec_med_time=np.expand_dims(np.nanmedian(spec,axis=3),axis=3)
+            spec_normalised=(spec-spec_med_time)/spec_med_time
+            spec_med_bl = np.nanmedian(spec_normalised, axis=1)
+            nbl = 1
+            ospec = spec_med_bl.reshape((npol, nbl, nfreq, ntim))
+            ospec=ospec*1e4
     else:
         ospec = spec
     # Save the dynamic spectral data

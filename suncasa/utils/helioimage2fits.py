@@ -61,6 +61,11 @@ def ms_clearhistory(msfile):
     tb.close()
 
 
+def normalise(angle):  ### convenience function to normalise angles by 2 pi
+			### angle in radians
+    b=int(angle/(2*np.pi))
+    return angle-b*(2*np.pi)
+
 def ms_restorehistory(msfile):
     tb_history = msfile + '/HISTORY'
     os.system('mv {0}_bk {0}'.format(tb_history))
@@ -564,8 +569,8 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                 ra0 += 2. * np.pi
 
             # RA and DEC offset in arcseconds
-            decoff = degrees((dec - dec0)) * 3600.
-            raoff = degrees((ra - ra0) * cos(dec)) * 3600.
+            decoff = degrees(normalise(dec - dec0)) * 3600.
+            raoff = degrees(normalise(ra - ra0) * cos(dec)) * 3600.
             # Convert into heliocentric offsets
             prad = -radians(p0)
             refx = (-raoff) * cos(prad) - decoff * sin(prad)
@@ -796,8 +801,8 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             (imra, imdec) = (imsum['refval'][0], imsum['refval'][1])
             # find out the difference of the image center to the CASA phase center
             # RA and DEC difference in arcseconds
-            ddec = degrees((imdec - hel['dec_fld'])) * 3600.
-            dra = degrees((imra - hel['ra_fld']) * cos(hel['dec_fld'])) * 3600.
+            ddec = degrees(normalise(imdec - hel['dec_fld'])) * 3600.
+            dra = degrees(normalise(imra - hel['ra_fld']) * cos(hel['dec_fld'])) * 3600.
             # Convert into image heliocentric offsets
             prad = -radians(hel['p0'])
             dx = (-dra) * cos(prad) - ddec * sin(prad)
