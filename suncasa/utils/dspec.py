@@ -166,19 +166,19 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
         nf = np.sum(spw_nfrq)
         smry = mdata.summary()
         scan_ntimes = []  # List of number of times in each scan
-        #for iscan in range(nscans):
+        #TODO the following assumes the field ID is 0, which may not be the case for ms with multiple fields
         for scannumber in scannumbers:
             scan_ntimes.append(
-                smry['observationID=0']['arrayID=0']['scan=' + str(scannumber)]['fieldID='+str(field)]['nrows'] / nspw / nbl)
+                smry['observationID=0']['arrayID=0']['scan=' + str(scannumber)]['fieldID=0']['nrows'] / nspw / nbl)
         scan_ntimes = np.array(scan_ntimes)
         scan_ntimes_integer = scan_ntimes.astype(np.int)
         if len(np.where(scan_ntimes % scan_ntimes_integer != 0)[0]) != 0:
             # if True:
             scan_ntimes = []  # List of number of times in each scan
-            #for iscan in range(nscans):
+            #TODO the following assumes the field ID is 0, which may not be the case for ms with multiple fields
             for scannumber in scannumbers:
                 scan_ntimes.append(
-                    len(smry['observationID=0']['arrayID=0']['scan=' + str(scannumber)]['fieldID='+str(field)].keys()) - 6)
+                    len(smry['observationID=0']['arrayID=0']['scan=' + str(scannumber)]['fieldID=0'].keys()) - 6)
             scan_ntimes = np.array(scan_ntimes)
         else:
             scan_ntimes = scan_ntimes_integer
