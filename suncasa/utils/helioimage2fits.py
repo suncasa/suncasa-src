@@ -240,7 +240,30 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     return ephem
 
 
-def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
+def read_msinfo(vis=None, msinfofile=None, use_ephem=True, interp_to_scan=False):
+    """
+    Module ot read CASA measurement set and return RA, DEC, and time stamps of the phase center.
+    Options for returning those from the emphemeris table (if available) or use those from the FIELD table.
+    Parameters
+    ----------
+    vis: (required) path to the input CASA measurement set
+    msinfofile: (optional) path/name of the saved numpy .npz file
+    use_ephem: (optional) if True (default), use the enclosed emphemeris table, otherwise use RA/DEC of the FIELD table
+    interp_to_scan: (optional) if True, the entries of the emphemeris table
+        are interpolated to the beginning of each scan. This is mainly for backward compatibility. Default is False.
+    Returns
+    -------
+    msinfo: A dictionary contains necessary information for ephem_to_helio()
+        vis: CASA measurement set
+        observatory: Name of the observatory. May be used if they default to phase at the solar center.
+        scans: summary info of the scans
+        fieldids: a list of all FIELD ids
+        scan_start_times: list of the start times of all scans, in mjd
+        scan_end_times: list of the end times of all scans, in mjd
+        btimes: time stamps used by ephem_to_helio() to determine the image/phase center shifts, in mjd
+        ras: corresponding RA coordinates used by ephem_to_helio() to determine the image/phase center shifts, in rad
+        decs: corresponding DEC coordinates used by ephem_to_helio() to determine the image/phase center shifts, in rad
+    """
     import glob
     # read MS information #
     msinfo = dict.fromkeys(['vis', 'scans', 'fieldids', 'btimes', 'btimestr', 'inttimes', 'ras', 'decs', 'observatory'])
@@ -253,61 +276,64 @@ def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
     btimes = []
     btimestr = []
     etimes = []
+    btimes_scan = []
+    etimes_scan = []
     fieldids = []
     inttimes = []
     dirs = []
-    ras = []
-    decs = []
+    ras_scan = []
+    decs_scan = []
     ephem_file = glob.glob(vis + '/FIELD/EPHEM*.tab')
-    if ephem_file:
+    for idx, scanid in enumerate(scanids):
+        btimes_scan.append(scans[scanid]['0']['BeginTime'])
+        etimes_scan.append(scans[scanid]['0']['EndTime'])
+        fieldid = scans[scanid]['0']['FieldId']
+        fieldids.append(fieldid)
+        inttimes.append(scans[scanid]['0']['IntegrationTime'])
+        dir = ms.getfielddirmeas('PHASE_DIR', fieldid)
+        dirs.append(dir)
+        ras_scan.append(dir['m0'])
+        decs_scan.append(dir['m1'])
+
+    if use_ephem and ephem_file:
         print('Loading ephemeris info from {}'.format(ephem_file[0]))
         tb.open(ephem_file[0])
         col_ra = tb.getcol('RA')
         col_dec = tb.getcol('DEC')
         col_mjd = tb.getcol('MJD')
-        if use_scan_time:
+        if interp_to_scan:
             from scipy.interpolate import interp1d
             f_ra = interp1d(col_mjd, col_ra)
             f_dec = interp1d(col_mjd, col_dec)
-            for idx, scanid in enumerate(scanids):
-                btimes.append(scans[scanid]['0']['BeginTime'])
-                etimes.append(scans[scanid]['0']['EndTime'])
-                fieldid = scans[scanid]['0']['FieldId']
-                fieldids.append(fieldid)
-                inttimes.append(scans[scanid]['0']['IntegrationTime'])
-            scan_ras = f_ra(np.array(btimes))
-            scan_decs = f_dec(np.array(btimes))
-            ras = qa.convert(qa.quantity(col_ra, 'deg'), 'rad')#qa.convert(qa.quantity(ras, 'deg'), 'rad')
-            decs = qa.convert(qa.quantity(col_dec, 'deg'), 'rad')#qa.convert(qa.quantity(decs, 'deg'), 'rad')
+            ras_ = f_ra(np.array(btimes_scan))
+            decs_ = f_dec(np.array(btimes_scan))
+            ras = qa.convert(qa.quantity(ras_, 'deg'), 'rad')
+            decs = qa.convert(qa.quantity(decs_, 'deg'), 'rad')
+            btimes = btimes_scan
         else:
             ras = qa.convert(qa.quantity(col_ra, 'deg'), 'rad')
             decs = qa.convert(qa.quantity(col_dec, 'deg'), 'rad')
-        msinfo['btimes'] = col_mjd
+            btimes = col_mjd
     else:
-        for idx, scanid in enumerate(scanids):
-            btimes.append(scans[scanid]['0']['BeginTime'])
-            etimes.append(scans[scanid]['0']['EndTime'])
-            fieldid = scans[scanid]['0']['FieldId']
-            fieldids.append(fieldid)
-            inttimes.append(scans[scanid]['0']['IntegrationTime'])
-            dir = ms.getfielddirmeas('PHASE_DIR', fieldid)
-            dirs.append(dir)
-            ras.append(dir['m0'])
-            decs.append(dir['m1'])
-        msinfo['btimes']=btimes
+        ras = ras_scan
+        decs = decs_scan
+        btimes = btimes_scan
+
     ms.close()
-    btimestr = [qa.time(qa.quantity(btimes[idx], 'd'), form='fits', prec=10)[0] for idx in range(nscanid)]
+
+    # put the relevent information into the dictionary
+    btimestr = [qa.time(qa.quantity(btime, 'd'), form='fits', prec=10)[0] for btime in btimes]
     msinfo['vis'] = vis
+    msinfo['observatory'] = observatory
     msinfo['scans'] = scans
     msinfo['fieldids'] = fieldids
-    
-    msinfo['scan_start_times']=btimes
-    msinfo['scan_end_times']=etimes
+    msinfo['scan_start_times'] = btimes_scan
+    msinfo['scan_end_times'] = etimes_scan
+    msinfo['btimes'] = btimes
     msinfo['btimestr'] = btimestr
     msinfo['inttimes'] = inttimes
     msinfo['ras'] = ras
     msinfo['decs'] = decs
-    msinfo['observatory'] = observatory
     if msinfofile:
         np.savez(msinfofile, vis=vis, scans=scans, fieldids=fieldids, btimes=btimes, btimestr=btimestr,
                  inttimes=inttimes, ras=ras, decs=decs,
@@ -316,9 +342,12 @@ def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
 
 
 def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None, usephacenter=False):
-    '''1. Take a solar ms database, read the scan and field information, find out the pointings (in RA and DEC)
-       2. Compare with the ephemeris of the solar disk center (in RA and DEC)
-       3. Generate VLA pointings in heliocentric coordinates
+    '''
+    Module for calculating offsets of the phase center to the solar disk center using the following steps
+    1. Take a solar ms database, read the scan and field information, find out the phase centers (in RA and DEC).
+        This step is done with read_msinfo()
+    2. Compare with the ephemeris of the solar disk center (in RA and DEC)
+    3. Record RA/DEC of the phase center and offsets in RA/DEC and Helioprojective Cartesian coordinates (solar X/Y)
        inputs:
            msinfo: CASA MS information, output from read_msinfo
            ephem: solar ephem, output from read_horizons
@@ -377,7 +406,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
     inttimes = msinfo0['inttimes']
     ras = msinfo0['ras']
     decs = msinfo0['decs']
-    scan_start_times=msinfo0['scan_start_times']
+    scan_start_times = msinfo0['scan_start_times']
     
     if 'observatory' in msinfo0.keys():
         if msinfo0['observatory'] == 'EOVSA' or msinfo0['observatory'] == 'FASR':
@@ -459,11 +488,13 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
         if ind > 1:
             dt = tref_d - btimes[ind - 1]
             if ind < len(btimes):
+                # the reference time falls into the time range of scan start times or ephemeris table
                 scanlen = btimes[ind] - btimes[ind - 1]
                 (ra_b, ra_e) = (ra_rads[ind - 1], ra_rads[ind])
                 (dec_b, dec_e) = (dec_rads[ind - 1], dec_rads[ind])
              
             if ind >= len(btimes):
+                # the reference time falls at the right edge
                 scanlen = btimes[ind - 1] - btimes[ind - 2]
                 (ra_b, ra_e) = (ra_rads[ind - 2], ra_rads[ind - 1])
                 (dec_b, dec_e) = (dec_rads[ind - 2], dec_rads[ind - 1])
@@ -472,7 +503,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
             ra_e = ra_b
             dec_b = dec_rads[ind - 1]
             dec_e = dec_b
-            scanlen = 10.  # radom value
+            scanlen = 10.  # random value
             dt = 0.
         if ind < 1:
             if np.abs((tref_d - btimes[0]) * 24 * 3600) < inttime / 2.0:
@@ -481,15 +512,15 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                 ra_e = ra_b
                 dec_b = dec_rads[ind - 1]
                 dec_e = dec_b
-                scanlen = 10.  # radom value
+                scanlen = 10.  # random value
                 dt = 0.
             else:
                 raise ValueError('Reference time does not fall into the scan list!')
         if polyfit:
             ra = cra[0] * tref_d ** 2. + cra[1] * tref_d + cra[2]
             dec = cdec[0] * tref_d ** 2. + cdec[1] * tref_d + cdec[2]
-        # if not, use linearly interpolated RA and DEC at the beginning of this scan and next scan
         else:
+            # if not, use linearly interpolated RA and DEC at the beginning of this scan and next scan
             ra = ra_b + (ra_e - ra_b) / scanlen * dt
             dec = dec_b + (dec_e - dec_b) / scanlen * dt
         if ra < 0:
@@ -505,7 +536,8 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                 observatory_id = '-81'
             elif msinfo0['observatory'] == 'ALMA':
                 observatory_id = '-7'
-            ephem = read_horizons(Time(tref_d, format='mjd'), observatory = observatory_id)
+            if not ephem:
+                ephem = read_horizons(Time(tref_d, format='mjd'), observatory = observatory_id)
 
         time0 = ephem['time']
         ra0 = ephem['ra']
@@ -556,8 +588,9 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
             helio0['refy'] = 0.
             helio0['p0'] = p0[0]
 
-        helio0['ra'] = ra  # ra of the actual pointing
-        helio0['dec'] = dec  # dec of the actual pointing
+        helio0['ra'] = ra  # ra of the actual phase center
+        helio0['dec'] = dec  # dec of the actual phase center
+
         ind = bisect.bisect_left(scan_start_times, tref_d)
         if ind > 1:
             dt = tref_d - scan_start_times[ind - 1]
@@ -571,7 +604,6 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                     ra_b += 2. * np.pi
                 ms.close()
             if ind >= len(btimes):
-                
                 (ra_b, ra_e) = (ra_rads[ind - 2], ra_rads[ind - 1])
                 (dec_b, dec_e) = (dec_rads[ind - 2], dec_rads[ind - 1])
         helio0['ra_fld'] = ra_b  # ra of the field, used as the reference in e.g., clean
@@ -930,13 +962,10 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                         factor = const * nu ** 2  # SI unit
                         jy_to_si = 1e-26
                         # print(nu/1e9, beam_area, factor)
-                        factor2 = sclfactor
-                        # if sclfactor:
-                        #     factor2 = 100.
                         if faxis == '3':
-                            data[:, i, :, :] *= jy_to_si / beam_area / factor * factor2
+                            data[:, i, :, :] *= jy_to_si / beam_area / factor * sclfactor
                         if faxis == '4':
-                            data[i, :, :, :] *= jy_to_si / beam_area / factor * factor2
+                            data[i, :, :, :] *= jy_to_si / beam_area / factor * sclfactor
 
             header = fu.headerfix(header)
             hdu.flush()
