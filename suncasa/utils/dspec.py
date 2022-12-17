@@ -82,7 +82,7 @@ for k, v in zip(range(len(stokestype)), stokestype):
 
 def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='', scan='', datacolumn='data',
               domedian=False, timeran=None, spw=None, timebin='0s', regridfreq=False, fillnan=None, verbose=False,
-              usetbtool=False,ds_normalised=True):
+              usetbtool=False,ds_normalised=False):
     if vis.endswith('/'):
         vis = vis[:-1]
     msfile = vis
@@ -332,7 +332,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
                 time_ = data['time']
                 if fillnan:
                     flag_ = ms.getdata(['flag', 'time', 'axis_info'], ifraxis=True)['flag']
-                    if type(fillnan) in [int, float, long]:
+                    if type(fillnan) in [int, float]:
                         specamp_[flag_] = float(fillnan)
                     else:
                         specamp_[flag_] = 0.0
