@@ -29,8 +29,8 @@ class FlareSelfCalib():
             logfile = workpath + "selfcal_{0:s}.log".format(Time.now().isot[:-4].replace(':', '').replace('-', ''))
         self.logfile = logfile
         self.identify_data_gap = True
-        # self.slfcal_spws = [3, 5, 8, 10, 15, 20, 24, 30, 35, 40, 42, 45]
-        self.slfcal_spws = [15, 24]  ## spw used for flare finding and final imaging
+        self.slfcal_spws = [3, 5, 8, 10, 15, 20, 24, 30, 35, 40, 42, 45]
+        #self.slfcal_spws = [15, 24]  ## spw used for flare finding and final imaging
         self.maximum_spw = max(self.slfcal_spws)
         self.minimum_spw = min(self.slfcal_spws)
         self.slfcal_spwstr = ','.join(
@@ -116,7 +116,7 @@ class FlareSelfCalib():
     @staticmethod
     def get_img_center_heliocoords(images):
         """
-        Provide a set of images (at different frequencies), find the peak location
+        Provide a set of images in helioprojective coordinates (at different frequencies), find the peak location
         Parameters
         ----------
         images: list of fits image files
@@ -191,6 +191,9 @@ class FlareSelfCalib():
 
     @staticmethod
     def check_shift(image, shift, cell):
+        if type(cell) == str:
+            # input cell is in the format of '5.0000arcsec'
+            cell = float(cell.split('a')[0])
         header = imhead(image)
         major = header['restoringbeam']['major']['value']
         minor = header['restoringbeam']['minor']['value']
@@ -647,9 +650,9 @@ class FlareSelfCalib():
         spwran = str(first_freq) + "~" + str(last_freq)
         self.logf.write("spw=" + str(s).zfill(2) + " Checking against " + str(first_freq) + "~" + str(last_freq) + "\n")
 
-        tclean(vis=msname, imagename="check_maxpix_robust", uvrange=uvrange, \
-               spw=spwran, imsize=imsize, cell=cell, niter=1, gain=0.05, \
-               cyclefactor=10, weighting='briggs', robust=0.0, savemodel='none', \
+        tclean(vis=msname, imagename="check_maxpix_robust", uvrange=uvrange,
+               spw=spwran, imsize=imsize, cell=cell, niter=1, gain=0.05,
+               cyclefactor=10, weighting='briggs', robust=0.0, savemodel='none',
                pbcor=False, pblimit=0.001, phasecenter=self.phasecenter, stokes='XX')
 
         maxpix1 = imstat("check_maxpix_robust.image", mask="mask(\'" + mask + "\')")["maxpos"]
@@ -671,7 +674,7 @@ class FlareSelfCalib():
         num_psf = len(psf)
         for i in range(iteration_num + 1, num_psf):
             image = prefix + '_' + str(i).zfill(2)
-            for str1 in ['.image', '.mask', '.residual', '.psf', \
+            for str1 in ['.image', '.mask', '.residual', '.psf',
                          '.model', '.sumwt', '.pb', '.fits']:
                 os.system("rm -rf " + image + str1)
             os.system("rm -rf " + image + ".gcal")
@@ -708,7 +711,8 @@ class FlareSelfCalib():
 
     def flare_finder(self):
         """
-        Provide input visibility, find out the time ranges for doing self-calibration
+        Provide input visibility, find out the flare peak time, flare duration, and
+        suitable time ranges for performing self-calibration
         Parameters
         ----------
 
@@ -716,6 +720,10 @@ class FlareSelfCalib():
         -------
 
         """
+        ###TODO: currently it iterates over ALL the supplied spw list to find the flare peak,
+        ### which is likely an overkill.
+        ### Also self-calbration time range needs to be a shorter time around the peak.
+        ### Now it is as long as 1-min, which may include significant flare evolution
         flare_times = []
         found_flares = []
         flare_peak = []
@@ -934,27 +942,21 @@ class FlareSelfCalib():
         return
 
     def find_phasecenter(self):
-        ### in the case that the phase center is not defined, we need to first make a big dirty
-        ### map starting from the lowest frequency. Then I shall check if the DR of
-        ### the dirty map is at least 8. If not, I shall proceed to the next frequency.
-        ### Once, I find a source detection, I shall set the peak location to the phasecenter.
+        """
+        The purpose of this module is to find a new phasecenter at the flare location for imaging
+        Returns
+        -------
+        Updates self.phasecenter (in J2000 RA and DEC) to be the flare location
+        """
         imagename = self.workpath + "tmpimg"
         ra = []
         dec = []
-        ###TODO: spw range is hard coded, need to be more adaptive.
-        for j, s in enumerate(self.slfcal_spws):  ### I will find phasecenter only at these frequencies
+        ###TODO: spw range is hard coded to use up to the first 3 spws of the supplied spw list,
+        ### It could fail if they do not have a clear flare response. Need to be more adaptive.
+        for j, s in enumerate(self.slfcal_spws):
             if j == 4:
                 break
             current_trange = self.flare_times[j]
-            # ms_slfcaled = self.workdir + os.path.basename(self.vis).replace('.ms', '.slfcaled_v2.ms')
-            # output, selfcaled, visibility
-            # slfcalms = self.slfcaldir + 'slfcalms.XX.slfcal'
-            # intermediate small visibility for selfcalbration
-            # print("Spliting from " + self.vis)
-            # if os.path.exists(slfcalms):
-            #    os.system("rm -rf " + slfcalms + "*")
-            # split(vis=self.vis, outputvis=slfcalms, datacolumn='data',
-            #      timerange=current_trange, correlation='XX', spw=self.selfcal_spw)
 
             tclean(vis=self.vis, imagename=imagename, timerange=current_trange, spw=str(s), uvrange=self.uvranges[j],
                    imsize=4096, cell=self.cell_vals[j], niter=0, gain=0.05, cyclefactor=10,
@@ -1366,7 +1368,7 @@ class FlareSelfCalib():
                 if maxpix[0] != maxpix1[0] and maxpix[1] != maxpix1[1]:
                     shift_ok = FlareSelfCalib.check_shift("check_maxpix.image",
                                                           np.array([maxpix[0] - maxpix1[0], maxpix[1] - maxpix1[1]]),
-                                                          self.cell[s])  ## 2 is the cellsize
+                                                          cell_val)  ## 2 is the cellsize
                 else:
                     shift_ok = True
                 print("not an artefact", shift_ok)
@@ -1603,6 +1605,8 @@ class FlareSelfCalib():
 
         if doimaging:
             imaging_timer = timeit.default_timer()
+            ##TODO: the following relies on the completion of the prior self-calibration produced images.
+            ## Need to remove such dependence if these images are not available.
             image_list = glob.glob(imgprefix + "*_helio.fits")
             if hasattr(self, 'final_ms'):
                 if os.path.exists(self.final_ms):
@@ -1639,7 +1643,7 @@ class FlareSelfCalib():
             mkmovie = True
             docompress = True
             opencontour = False
-            clevels = [0.5, 1.0]
+            clevels = [0.6, 1.0]
             plotaia = True
             aiawave = 1600
             movieformat = 'mp4'
