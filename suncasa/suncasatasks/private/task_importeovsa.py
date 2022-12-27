@@ -143,6 +143,9 @@ def trange2filelist(trange=[], verbose=False):
 
 
 def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, doscaling, keep_nsclms, fileidx):
+    '''
+
+    '''
     from taskinit import tb, casalog
     filename = filelist[fileidx]
     uv = aipy.miriad.UV(filename)

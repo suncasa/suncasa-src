@@ -1,10 +1,11 @@
-import numpy as np
 import glob
-import os
 import json
+import os
 import pickle
 from functools import wraps
+
 import astropy.units as u
+import numpy as np
 
 __author__ = ["Sijie Yu"]
 __email__ = "sijie.yu@njit.edu"
@@ -479,6 +480,7 @@ def smooth(x, window_len=11, window='hanning'):
     else:
         return y[window_len - 1:-(window_len - 1)]
 
+
 # def smooth(x, window_len=11, window='hanning', mode='same'):
 #     """smooth the data using a window with requested size.
 #
@@ -537,7 +539,7 @@ def smooth(x, window_len=11, window='hanning'):
 #         return y[np.int(window_len / 2 - 1):-np.int(window_len / 2)]
 
 def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num=0, crf=15, fps=10, overwrite=False,
-              crop=[], title=[], dpi=200, keeptmp=False, usetmp=False):
+              crop=[], title=[], dpi=200, keeptmp=False, usetmp=False, autorotate=True):
     '''
 
     :param imgprefix:
@@ -600,21 +602,27 @@ def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num
             ow = '-y'
         else:
             ow = ''
+        if autorotate:
+            noautorotate = ''
+        else:
+            noautorotate = '-noautorotate'
         try:
             outdstr = ' '.join(['-{} {}'.format(k, v) for k, v in outd.iteritems()])
         except:
             outdstr = ' '.join(['-{} {}'.format(k, outd[k]) for k in outd])
         try:
-            cmd = 'ffmpeg -r {3} -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} '.format(tmpdir, img_ext,
-                                                                                                        outdstr,
-                                                                                                        fps) + '{0} {1}.mp4'.format(
+            cmd = 'ffmpeg {4} -r {3} -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} '.format(tmpdir,
+                                                                                                            img_ext,
+                                                                                                            outdstr,
+                                                                                                            fps,
+                                                                                                            noautorotate) + '{0} {1}.mp4'.format(
                 ow, os.path.join(os.path.dirname(imgprefix), outname))
             subprocess.check_output(['bash', '-c', cmd])
         except:
-            cmd = 'ffmpeg -r {3} -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2"'.format(
+            cmd = 'ffmpeg {4} -r {3} -f image2 -i {0}%04d.{1} -vcodec libx264 -pix_fmt yuv420p {2} -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2"'.format(
                 tmpdir, img_ext,
                 outdstr,
-                fps) + '{0} {1}.mp4'.format(
+                fps, noautorotate) + '{0} {1}.mp4'.format(
                 ow, os.path.join(os.path.dirname(imgprefix), outname))
             subprocess.check_output(['bash', '-c', cmd])
         print(cmd)
@@ -1222,14 +1230,18 @@ def readsdofileX(datadir=None, filelist=None, wavelength=None, trange=None, isex
             sdofitspath = glob.glob(
                 datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
         if len(sdofitspath) == 0:
-            return []  # raise ValueError('No SDO file found under {}.'.format(datadir))
+            sdofitspath = glob.glob(
+                datadir + '/hmi*{0}*{1}*{2}*.fits'.format(ymd[0], ymd[1], ymd[2]))
+            if len(sdofitspath) == 0:
+                return []  # raise ValueError('No SDO file found under {}.'.format(datadir))
         sdofits = [os.path.basename(ll) for ll in sdofitspath]
         if 'hmi' in sdofits[0]:
             sdotimeline = Time(
                 [insertchar(insertchar(
-                    insertchar(insertchar(ll.split('.')[2].replace('_TAI', '').replace('_', ' '), ':', -4), ':', -2), '-',
+                    insertchar(insertchar(ll.split('.')[2].replace('_TAI', '').replace('_', ' '), ':', -4), ':', -2),
+                    '-',
                     6), '-', 4) for ll in
-                 sdofits],
+                    sdofits],
                 format='iso', scale='utc')
         else:
             sdotimeline = Time(
@@ -1288,12 +1300,12 @@ def htfit_warren2011(x, y, cutlength):
     def fit_func(t, h0, vt, a0, tau):
         return h0 + vt * t + a0 * tau ** 2 * (np.exp(-t / tau) - 1)
 
-    x0=x[0]
-    params = curve_fit(fit_func, x-x0, y)
+    x0 = x[0]
+    params = curve_fit(fit_func, x - x0, y)
 
     [h0, vt, a0, tau] = params[0]
     xs = np.linspace(np.nanmin(x), np.nanmax(x), cutlength)
-    ys = fit_func(xs-x0, h0, vt, a0, tau)
+    ys = fit_func(xs - x0, h0, vt, a0, tau)
     grads = get_curve_grad(xs, ys)
     return {'xs': xs, 'ys': ys, 'grads': grads['grad'], 'posangs': grads['posang']}
 

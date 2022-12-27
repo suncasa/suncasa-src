@@ -153,13 +153,15 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     etime = Time(btime.mjd + dur, format='mjd')
 
     try:
-        cmdstr = "https://ssd.jpl.nasa.gov/api/horizons.api?format=text&&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
+        cmdstr = "https://ssd.jpl.nasa.gov/api/horizons.api?format=text&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='sun'&START_TIME='".format(
             observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
                                                                                                   ',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
         # cmdstr = "https://ssd.jpl.nasa.gov/horizons_batch.cgi?batch=1&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='10'&START_TIME='".format(
         #     observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
         #                                                                                           ',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
         cmdstr = cmdstr.replace("'", "%27")
+        # print('1################')
+        # print(cmdstr)
         try:
             context = ssl._create_unverified_context()
             f = urlopen(cmdstr, context=context)
@@ -201,7 +203,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
             params['CENTER'] = "'500'"
         else:
             params['CENTER'] = "'{}@399'".format(observatory)
-        params['COMMAND'] = "'10'"
+        params['COMMAND'] = "'sun'"
         params['START_TIME'] = "'{}'".format(btime.iso[:-4].replace(' ', ','))
         params['STOP_TIME'] = "'{}'".format(etime.iso[:-4].replace(' ', ','))
         params['STEP_SIZE'] = "'1m'"
@@ -209,6 +211,8 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         params['EXTRA_PREC'] = "'YES'"
         params['APPARENT'] = "'REFRACTED'"
         results = requests.get("https://ssd.jpl.nasa.gov/api/horizons.api?format=text", params=params)
+        # print('2################')
+        # print(results)
         lines = [ll for ll in results.iter_lines()]
 
     # add a check for python 3
@@ -281,8 +285,6 @@ def read_msinfo(vis=None, msinfofile=None, use_ephem=True, interp_to_scan=False,
     btimes = []
     btimestr = []
     etimes = []
-    btimes_scan = []
-    etimes_scan = []
     fieldids = []
     inttimes = []
     dirs = []
@@ -361,7 +363,6 @@ def read_msinfo(vis=None, msinfofile=None, use_ephem=True, interp_to_scan=False,
     # put the relevent information into the dictionary
     btimestr = [qa.time(qa.quantity(btime, 'd'), form='fits', prec=10)[0] for btime in btimes]
     msinfo['vis'] = vis
-    msinfo['observatory'] = observatory
     msinfo['scans'] = scans
     msinfo['fieldids'] = fieldids
     msinfo['inttimes'] = inttimes
@@ -372,12 +373,10 @@ def read_msinfo(vis=None, msinfofile=None, use_ephem=True, interp_to_scan=False,
     msinfo['btimestr'] = btimestr
     msinfo['ras'] = ras
     msinfo['decs'] = decs
-
     if msinfofile:
         np.savez(msinfofile, vis=vis, observatory=observatory, scans=scans, fieldids=fieldids, inttimes=inttimes,
                  btimes=btimes, btimestr=btimestr, ras=ras, decs=decs)
     return msinfo
-
 
 def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=True, usephacenter=True, verbose=False):
     '''
@@ -451,7 +450,6 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
     ras = msinfo0['ras']
     decs = msinfo0['decs']
     scan_start_times = msinfo0['scan_start_times']
-
     if 'observatory' in msinfo0.keys():
         if msinfo0['observatory'] == 'EOVSA' or msinfo0['observatory'] == 'FASR':
             usephacenter = False
@@ -499,6 +497,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
         reftime = [reftime]
     if (not isinstance(reftime, list)):
         print('input "reftime" is not a valid list. Abort...')
+
     nreftime = len(reftime)
     helio = []
     for reftime0 in reftime:
@@ -570,7 +569,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
             ra_e = ra_b
             dec_b = dec_rads[ind - 1]
             dec_e = dec_b
-            scanlen = 10.  # random value
+            scanlen = 10.  # radom value
             dt = 0.
         if ind < 1:
             print('Warning!!! The provided reference time falls BEFORE the first ephemeris record.')
@@ -581,7 +580,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
                 ra_e = ra_b
                 dec_b = dec_rads[ind - 1]
                 dec_e = dec_b
-                scanlen = 10.  # random value
+                scanlen = 10.  # radom value
                 dt = 0.
             else:
                 raise ValueError('Reference time does not fall into the provided ephemeris record')
@@ -589,7 +588,6 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
             ra = np.polyval(cra, tref_d - reftime_poly)
             dec = np.polyval(cdec, tref_d - reftime_poly)
         else:
-            # if not, use linearly interpolated RA and DEC at the beginning of this scan and next scan
             ra = ra_b + (ra_e - ra_b) / scanlen * dt
             dec = dec_b + (dec_e - dec_b) / scanlen * dt
         if ra < 0:
@@ -606,6 +604,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
                 observatory_id = '-81'
             elif msinfo0['observatory'] == 'ALMA':
                 observatory_id = '-7'
+
             if not ephem:
                 ephem = read_horizons(Time(tref_d, format='mjd'), observatory=observatory_id)
 
@@ -633,8 +632,8 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
                 ra0 += 2. * np.pi
 
             # RA and DEC offset in arcseconds
-            decoff = degrees(normalise(dec - dec0)) * 3600.
-            raoff = degrees(normalise(ra - ra0) * cos(dec)) * 3600.
+            decoff = degrees((dec - dec0)) * 3600.
+            raoff = degrees((ra - ra0) * cos(dec)) * 3600.
             # Convert into heliocentric offsets
             prad = -radians(p0)
             refx = (-raoff) * cos(prad) - decoff * sin(prad)
@@ -655,9 +654,9 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
             helio0['dec0'] = decs_ephem[0]
             helio0['p0'] = p0s_ephem[0]
 
+
         helio0['ra'] = ra  # ra of the actual phase center
         helio0['dec'] = dec  # dec of the actual phase center
-
         ind = bisect.bisect_left(scan_start_times, tref_d)
         if ind > 1:
             dt = tref_d - scan_start_times[ind - 1]
@@ -879,8 +878,8 @@ def imreg(vis=None, imagefile=None, timerange=None,
             (imra, imdec) = (imsum['refval'][0], imsum['refval'][1])
             # find out the difference of the image center to the CASA phase center
             # RA and DEC difference in arcseconds
-            ddec = degrees(normalise(imdec - hel['dec_fld'])) * 3600.
-            dra = degrees(normalise(imra - hel['ra_fld']) * cos(hel['dec_fld'])) * 3600.
+            ddec = degrees((imdec - hel['dec_fld'])) * 3600.
+            dra = degrees((imra - hel['ra_fld']) * cos(hel['dec_fld'])) * 3600.
             # Convert into image heliocentric offsets
             prad = -radians(hel['p0'])
             dx = (-dra) * cos(prad) - ddec * sin(prad)
@@ -1039,10 +1038,13 @@ def imreg(vis=None, imagefile=None, timerange=None,
                         factor = const * nu ** 2  # SI unit
                         jy_to_si = 1e-26
                         # print(nu/1e9, beam_area, factor)
+                        factor2 = sclfactor
+                        # if sclfactor:
+                        #     factor2 = 100.
                         if faxis == '3':
-                            data[:, i, :, :] *= jy_to_si / beam_area / factor * sclfactor
+                            data[:, i, :, :] *= jy_to_si / beam_area / factor * factor2
                         if faxis == '4':
-                            data[i, :, :, :] *= jy_to_si / beam_area / factor * sclfactor
+                            data[i, :, :, :] *= jy_to_si / beam_area / factor * factor2
 
             header = fu.headerfix(header)
             hdu.flush()
