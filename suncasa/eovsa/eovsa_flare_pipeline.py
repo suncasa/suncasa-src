@@ -21,6 +21,7 @@ ms = ms()
 msmd = msmetadata()
 tb = table()
 
+
 class FlareSelfCalib():
     def __init__(self, vis=None, workpath='./', logfile=None):
         ##========================= initial setups =================================
@@ -30,7 +31,7 @@ class FlareSelfCalib():
         self.logfile = logfile
         self.identify_data_gap = True
         self.slfcal_spws = [3, 5, 8, 10, 15, 20, 24, 30, 35, 40, 42, 45]
-        #self.slfcal_spws = [15, 24]  ## spw used for flare finding and final imaging
+        # self.slfcal_spws = [15, 24]  ## spw used for flare finding and final imaging
         self.maximum_spw = max(self.slfcal_spws)
         self.minimum_spw = min(self.slfcal_spws)
         self.slfcal_spwstr = ','.join(
@@ -1623,7 +1624,7 @@ class FlareSelfCalib():
                     "%Y/%m/%d/%H:%M:%S")
             else:
                 imaging_start_time = (
-                            self.flare_peak_datetime - dt.timedelta(seconds=self.total_duration / 2)).strftime(
+                        self.flare_peak_datetime - dt.timedelta(seconds=self.total_duration / 2)).strftime(
                     "%Y/%m/%d/%H:%M:%S")
             imaging_end_mjd = self.flare_peak_mjd + self.total_duration / 2
             if imaging_end_mjd > self.ms_endmjd:

@@ -8,6 +8,7 @@ import astropy.units as u
 import warnings
 from suncasa.utils import fitsutils as fu
 import ssl
+from scipy.interpolate import interp1d
 
 py3 = sys.version_info.major >= 3
 if py3:
@@ -35,7 +36,7 @@ except:
 import sunpy
 
 # check sunpy version
-sunpy1 = sunpy.version.major >=1
+sunpy1 = sunpy.version.major >= 1
 if sunpy1:
     from sunpy.coordinates import sun
 else:
@@ -59,6 +60,12 @@ def ms_clearhistory(msfile):
     if nrows > 0:
         tb.removerows(range(nrows))
     tb.close()
+
+
+def normalise(angle):  ### convenience function to normalise angles by 2 pi
+    ### angle in radians
+    b = int(angle / (2 * np.pi))
+    return angle - b * (2 * np.pi)
 
 
 def ms_restorehistory(msfile):
@@ -122,6 +129,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
                     observatory = '-81'
                 elif metadata.observatorynames()[0] == 'ALMA':
                     observatory = '-7'
+                metadata.close()
                 ms.close()
             tb.open(vis)
             btime_vis = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
@@ -239,13 +247,38 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     return ephem
 
 
-def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
+def read_msinfo(vis=None, msinfofile=None, use_ephem=True, interp_to_scan=False, verbose=False):
+    """
+    Module ot read CASA measurement set and return RA, DEC, and time stamps of the phase center.
+    Options for returning those from the emphemeris table (if available) or use those from the FIELD table.
+    Parameters
+    ----------
+    vis: (required) path to the input CASA measurement set
+    msinfofile: (optional) path/name of the saved numpy .npz file
+    use_ephem: (optional) if True (default), use the enclosed emphemeris table, otherwise use RA/DEC of the FIELD table
+    interp_to_scan: (optional) if True, the entries of the emphemeris table
+        are interpolated to the beginning of each scan. This is mainly for backward compatibility. Default is False.
+    Returns
+    -------
+    msinfo: A dictionary contains necessary information for ephem_to_helio()
+        vis: CASA measurement set
+        observatory: Name of the observatory. May be used if they default to phase at the solar center.
+        scans: summary info of the scans
+        fieldids: a list of all FIELD ids
+        scan_start_times: list of the start times of all scans, in mjd
+        scan_end_times: list of the end times of all scans, in mjd
+        btimes: time stamps used by ephem_to_helio() to determine the image/phase center shifts, in mjd
+        ras: corresponding RA coordinates used by ephem_to_helio() to determine the image/phase center shifts, in rad
+        decs: corresponding DEC coordinates used by ephem_to_helio() to determine the image/phase center shifts, in rad
+    """
     import glob
     # read MS information #
     msinfo = dict.fromkeys(['vis', 'scans', 'fieldids', 'btimes', 'btimestr', 'inttimes', 'ras', 'decs', 'observatory'])
     ms.open(vis)
     metadata = ms.metadata()
     observatory = metadata.observatorynames()[0]
+    if verbose:
+        print('This measurement set has these fields: ', metadata.fieldnames())
     scans = ms.getscansummary()
     scanids = sorted(scans.keys(), key=lambda x: int(x))
     nscanid = len(scanids)
@@ -255,65 +288,103 @@ def read_msinfo(vis=None, msinfofile=None, use_scan_time=True):
     fieldids = []
     inttimes = []
     dirs = []
-    ras = []
-    decs = []
-    ephem_file = glob.glob(vis + '/FIELD/EPHEM*.tab')
-    if ephem_file:
-        print('Loading ephemeris info from {}'.format(ephem_file[0]))
-        tb.open(ephem_file[0])
+    ras_scan = []
+    decs_scan = []
+
+    for idx, scanid in enumerate(scanids):
+        btimes_scan.append(scans[scanid]['0']['BeginTime'])
+        etimes_scan.append(scans[scanid]['0']['EndTime'])
+        fieldid = scans[scanid]['0']['FieldId']
+        fieldids.append(fieldid)
+        inttimes.append(scans[scanid]['0']['IntegrationTime'])
+        dir = ms.getfielddirmeas('PHASE_DIR', fieldid)
+        dirs.append(dir)
+        ras_scan.append(dir['m0'])
+        decs_scan.append(dir['m1'])
+
+    # TODO: a caveat is that here we assume that there is only one ephemeris object in the ms
+    if metadata.nfields() > 1:
+        print('Warning!!! Multiple fields found in this measurement set. Will only select the first one!')
+
+    metadata.close()
+    ms.close()
+    ephem_table = glob.glob(vis + '/FIELD/EPHEM0*.tab')
+    if use_ephem and len(ephem_table) == 1:
+        if verbose:
+            print('Found ephemeris table {}. Loading data...'.format(ephem_table[0]))
+        tb.open(ephem_table[0])
         col_ra = tb.getcol('RA')
         col_dec = tb.getcol('DEC')
         col_mjd = tb.getcol('MJD')
-        if use_scan_time:
-            from scipy.interpolate import interp1d
-            f_ra = interp1d(col_mjd, col_ra)
-            f_dec = interp1d(col_mjd, col_dec)
-            for idx, scanid in enumerate(scanids):
-                btimes.append(scans[scanid]['0']['BeginTime'])
-                etimes.append(scans[scanid]['0']['EndTime'])
-                fieldid = scans[scanid]['0']['FieldId']
-                fieldids.append(fieldid)
-                inttimes.append(scans[scanid]['0']['IntegrationTime'])
-            ras = f_ra(np.array(btimes))
-            decs = f_dec(np.array(btimes))
-            ras = qa.convert(qa.quantity(ras, 'deg'), 'rad')
-            decs = qa.convert(qa.quantity(decs, 'deg'), 'rad')
+        tb.close()
+        # check if the ephemeris has time that are 1 hour earlier than the measurement set
+        idx, = np.where((col_mjd < (btimes_scan[0] - 1. / 24.)) | ((col_mjd > (etimes_scan[-1] + 1. / 24.))))
+        if len(idx) > 0:
+            print('Warning!!! I found that the ephemeris table has times that are outside that of the ms data.')
+            print('Select those within +-1 hr of the ms data. Please proceed with caution...')
+            col_ra = col_ra[idx]
+            col_dec = col_dec[idx]
+            col_mjd = col_mjd[idx]
+
+        # Down-sample the ephemeris data to 60 s cadence (corresponding to <0.2" of shift due to solar rotation)
+        dt_sec = np.median(np.diff(col_mjd)) * 24. * 3600.
+        if dt_sec < 60.:
+            if verbose:
+                print('Ephemeris has a (median) cadence of {0:.3f}s. Down-sample to 60s.'.format(dt_sec))
+            nt_res = int((col_mjd[-1] - col_mjd[0]) * 24. * 3600. / 60.)
+            if nt_res > 2:
+                btimes_res = np.linspace(col_mjd[0], col_mjd[-1], nt_res)
+                f_ra = interp1d(col_mjd, col_ra, kind='linear')
+                f_dec = interp1d(col_mjd, col_dec, kind='linear')
+                ras_ = f_ra(np.array(btimes_res))
+                decs_ = f_dec(np.array(btimes_res))
+                ras = qa.convert(qa.quantity(ras_, 'deg'), 'rad')
+                decs = qa.convert(qa.quantity(decs_, 'deg'), 'rad')
+                btimes = btimes_res
         else:
             ras = qa.convert(qa.quantity(col_ra, 'deg'), 'rad')
             decs = qa.convert(qa.quantity(col_dec, 'deg'), 'rad')
+            btimes = col_mjd
+
+        if interp_to_scan:
+            f_ra = interp1d(col_mjd, col_ra, kind='linear')
+            f_dec = interp1d(col_mjd, col_dec, kind='linear')
+            ras_ = f_ra(np.array(btimes_scan))
+            decs_ = f_dec(np.array(btimes_scan))
+            ras = qa.convert(qa.quantity(ras_, 'deg'), 'rad')
+            decs = qa.convert(qa.quantity(decs_, 'deg'), 'rad')
+            btimes = btimes_scan
+
     else:
-        for idx, scanid in enumerate(scanids):
-            btimes.append(scans[scanid]['0']['BeginTime'])
-            etimes.append(scans[scanid]['0']['EndTime'])
-            fieldid = scans[scanid]['0']['FieldId']
-            fieldids.append(fieldid)
-            inttimes.append(scans[scanid]['0']['IntegrationTime'])
-            dir = ms.getfielddirmeas('PHASE_DIR', fieldid)
-            dirs.append(dir)
-            ras.append(dir['m0'])
-            decs.append(dir['m1'])
-    ms.close()
-    btimestr = [qa.time(qa.quantity(btimes[idx], 'd'), form='fits', prec=10)[0] for idx in range(nscanid)]
+        ras = ras_scan
+        decs = decs_scan
+        btimes = btimes_scan
+
+    # put the relevent information into the dictionary
+    btimestr = [qa.time(qa.quantity(btime, 'd'), form='fits', prec=10)[0] for btime in btimes]
     msinfo['vis'] = vis
     msinfo['scans'] = scans
     msinfo['fieldids'] = fieldids
+    msinfo['inttimes'] = inttimes
+
+    msinfo['scan_start_times'] = btimes_scan
+    msinfo['scan_end_times'] = etimes_scan
     msinfo['btimes'] = btimes
     msinfo['btimestr'] = btimestr
-    msinfo['inttimes'] = inttimes
     msinfo['ras'] = ras
     msinfo['decs'] = decs
-    msinfo['observatory'] = observatory
     if msinfofile:
-        np.savez(msinfofile, vis=vis, scans=scans, fieldids=fieldids, btimes=btimes, btimestr=btimestr,
-                 inttimes=inttimes, ras=ras, decs=decs,
-                 observatory=observatory)
+        np.savez(msinfofile, vis=vis, observatory=observatory, scans=scans, fieldids=fieldids, inttimes=inttimes,
+                 btimes=btimes, btimestr=btimestr, ras=ras, decs=decs)
     return msinfo
 
-
-def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None, usephacenter=False):
-    '''1. Take a solar ms database, read the scan and field information, find out the pointings (in RA and DEC)
-       2. Compare with the ephemeris of the solar disk center (in RA and DEC)
-       3. Generate VLA pointings in heliocentric coordinates
+def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=True, usephacenter=True, verbose=False):
+    '''
+    Module for calculating offsets of the phase center to the solar disk center using the following steps
+    1. Take a solar ms database, read the scan and field information, find out the phase centers (in RA and DEC).
+        This step is done with read_msinfo()
+    2. Compare with the ephemeris of the solar disk center (in RA and DEC)
+    3. Record RA/DEC of the phase center and offsets in RA/DEC and Helioprojective Cartesian coordinates (solar X/Y)
        inputs:
            msinfo: CASA MS information, output from read_msinfo
            ephem: solar ephem, output from read_horizons
@@ -322,10 +393,10 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                     or a time range (e.g., '2012/03/03/12:00:00~2012/03/03/13:00:00'. If the latter,
                     take the midpoint of the timerange for reference. If no date specified, take
                     the date of the first scan
-           polyfit: ONLY works for MS database with only one source with continously tracking;
-                    not recommanded unless scan length is too long and want to have very high accuracy
+           dopolyfit: Bool. Default: True. Works for MS database with only one source with continously tracking.
+                    Disabled if usephacenter=False.
            usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris.
-                                 Otherwise assume the phasecenter is correctly pointed to the solar disk center
+                                 Otherwise assume the phasecenter is pointed to the solar disk center
                                  (EOVSA case)
 
        return value:
@@ -335,26 +406,30 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                    ra: actual RA of phasecenter in the ms file at the reference time (interpolated)
                    dec: actual DEC of phasecenter in the ms file at the reference time (interpolated)
                    # CASA uses only RA and DEC of the closest field (e.g. in clean) #
-                   ra_fld: right ascention of the CASA reference pointing direction
-                   dec_fld: declination of the CASA reference pointing direction
-                   raoff: RA offset of the phasecenter in the ms file to solar center
-                   decoff: DEC offset of the phasecenter in the ms file to solar center
-                   refx: heliocentric X offset of the phasecenter in the ms file to solar center
-                   refy: heliocentric Y offset of the phasecenter in the ms file to solar center
+                   ra_fld: RA of the CASA reference pointing direction, in radian
+                   dec_fld: DEC of the CASA reference pointing direction, in radian
+                   ra0: RA of the solar disk center, in radian
+                   dec0: DEC of the solar disk center, in radian
+                   raoff: RA offset of the phasecenter in the ms file to solar disk center, in arcsec
+                   decoff: DEC offset of the phasecenter in the ms file to solar disk center, in arcsec
+                   refx: heliocentric X offset of the phasecenter in the ms file to solar disk center, in arcsec
+                   refy: heliocentric Y offset of the phasecenter in the ms file to solar disk center, in arcsec
     ######## Example #########
-         msfile='sun_C_20140910T221952-222952.10s.cal.ms'
-         ephemfile='horizons_sun_20140910.radecp'
-         ephem=vla_prep.read_horizons(ephemfile=ephemfile)
-         msinfo=vla_prep.read_msinfo(msfile=msfile)
-         polyfit=0
-         reftime = '22:25:20~22:25:40'
+        from suncasa.utils import helioimage2fits as hf
+        vis = vis = '22B-174_20221031_sun.1s.cal.ms'
+        ephem = hf.ephem_to_helio(vis=vis, reftime='2022/10/31/20:37:10~2022/10/31/20:37:20', dopolyfit=True,
+                        usephacenter=True, verbose=True)
+        # Read out the ms information takes some time. To save time, one can read out the ms information first
+            and supply the record here for registering multiple images. It will skip the read_msinfo() step.
+        msinfo = hf.read_msinfo(vis=vis, verbose=True)
+        ephem = hf.ephem_to_helio(vis=vis, msinfo=msinfo, reftime='2022/10/31/20:37:10~2022/10/31/20:37:20',
+                                 dopolyfit=True, usephacenter=True, verbose=True)
     '''
     if not vis or not os.path.exists(vis):
         raise ValueError('Please provide information of the MS database!')
-    if (not ephem) and usephacenter:
-        ephem = read_horizons(vis=vis)
+
     if not msinfo:
-        msinfo0 = read_msinfo(vis)
+        msinfo0 = read_msinfo(vis, verbose=verbose)
     else:
         if isinstance(msinfo, str):
             try:
@@ -365,16 +440,23 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
             msinfo0 = msinfo
         else:
             raise ValueError('msinfo should be either a numpy npz or a dictionary')
-    print('msinfo is derived from: {0:s}'.format(msinfo0['vis']))
-    scans = msinfo0['scans']
+    if verbose:
+        print('msinfo is derived from: {0:s}'.format(msinfo0['vis']))
+    # scans = msinfo0['scans']
     fieldids = msinfo0['fieldids']
     btimes = msinfo0['btimes']
+    btimestr = msinfo0['btimestr']
     inttimes = msinfo0['inttimes']
     ras = msinfo0['ras']
     decs = msinfo0['decs']
+    scan_start_times = msinfo0['scan_start_times']
     if 'observatory' in msinfo0.keys():
         if msinfo0['observatory'] == 'EOVSA' or msinfo0['observatory'] == 'FASR':
             usephacenter = False
+
+    if (not ephem) and usephacenter:
+        ephem = read_horizons(vis=vis)
+
     if type(ras) is list:
         ra_rads = [ra['value'] for ra in ras]
     elif type(ras) is dict:
@@ -389,9 +471,24 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
     else:
         print('Type of msinfo0["decs"] unrecognized.')
     # fit 2nd order polynomial fits to the RAs and DECs #
-    if polyfit:
-        cra = np.polyfit(btimes, ra_rads, 2)
-        cdec = np.polyfit(btimes, dec_rads, 2)
+    if dopolyfit:
+        from suncasa.utils import fit_planet_position as fp
+        if verbose:
+            print('Use polynomial fit to interpolate the ms ephemeris data')
+            print('Ephemeris start and end time', btimestr[0], btimestr[-1])
+            print('Number of ephemeris data points used for polyfit', len(btimes))
+        res = fp.fit_planet_positions(btimes, ras['value'], decs['value'], allowed_error=0.05)
+        if res[0] == 0:  # success
+            reftime_poly = res[1]
+            cra = np.flip(np.array(res[2]))
+            cdec = np.flip(np.array(res[3]))
+            ra_diff = (np.polyval(cra, btimes - reftime_poly) - ras['value']) * 180. / np.pi * 3600.
+            dec_diff = (np.polyval(cdec, btimes - reftime_poly) - decs['value']) * 180. / np.pi * 3600.
+            if verbose:
+                print('Maximum deviation of the polynomial fit in RA, DEC is {0:.2f}", {1:.2f}"'.format(
+                    np.nanmax(ra_diff), np.max(dec_diff)))
+        else:
+            print('Polyfit cannot achieve the required accuracy. Use linear interpolation instead.')
 
     # find out phase center infomation in ms according to the input time or timerange #
     if not reftime:
@@ -447,20 +544,27 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
         # helio0['exptime'] = tdur_s
 
         # find out phase center RA and DEC in the measurement set according to the reference time
-        # if polyfit, then use the 2nd order polynomial coeffs
+        # if dopolyfit, then use the polynomial fit to interpolate
         inttime = np.nanmean(inttimes)
         ind = bisect.bisect_left(btimes, tref_d)
         if ind > 1:
+            # meaning the reference time is AFTER the start time of the ms ephemeris data
             dt = tref_d - btimes[ind - 1]
             if ind < len(btimes):
+                # the reference time falls into the time range of the ms ephemeris data
                 scanlen = btimes[ind] - btimes[ind - 1]
                 (ra_b, ra_e) = (ra_rads[ind - 1], ra_rads[ind])
                 (dec_b, dec_e) = (dec_rads[ind - 1], dec_rads[ind])
             if ind >= len(btimes):
+                # the reference time falls after the last ephemeris record
+                print('Warning!!! The provided reference time falls AFTER the last ephemeris record.')
+                print('            I have to use the last record to register the image')
                 scanlen = btimes[ind - 1] - btimes[ind - 2]
                 (ra_b, ra_e) = (ra_rads[ind - 2], ra_rads[ind - 1])
                 (dec_b, dec_e) = (dec_rads[ind - 2], dec_rads[ind - 1])
-        if ind == 1:  # only one scan exists (e.g., imported from AIPS)
+        if ind == 1:  # only one recorded exists (e.g., data imported from AIPS)
+            print('Warning!!! Only one record exists in the ms ephemeris record.')
+            print('           I have to use this only record to register the image.')
             ra_b = ra_rads[ind - 1]
             ra_e = ra_b
             dec_b = dec_rads[ind - 1]
@@ -468,6 +572,8 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
             scanlen = 10.  # radom value
             dt = 0.
         if ind < 1:
+            print('Warning!!! The provided reference time falls BEFORE the first ephemeris record.')
+            print('           Trying if it is within the integration time of the first record.')
             if np.abs((tref_d - btimes[0]) * 24 * 3600) < inttime / 2.0:
                 ind = 1
                 ra_b = ra_rads[ind - 1]
@@ -477,11 +583,10 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
                 scanlen = 10.  # radom value
                 dt = 0.
             else:
-                raise ValueError('Reference time does not fall into the scan list!')
-        if polyfit:
-            ra = cra[0] * tref_d ** 2. + cra[1] * tref_d + cra[2]
-            dec = cdec[0] * tref_d ** 2. + cdec[1] * tref_d + cdec[2]
-        # if not, use linearly interpolated RA and DEC at the beginning of this scan and next scan
+                raise ValueError('Reference time does not fall into the provided ephemeris record')
+        if dopolyfit:
+            ra = np.polyval(cra, tref_d - reftime_poly)
+            dec = np.polyval(cdec, tref_d - reftime_poly)
         else:
             ra = ra_b + (ra_e - ra_b) / scanlen * dt
             dec = dec_b + (dec_e - dec_b) / scanlen * dt
@@ -492,41 +597,37 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
 
         # compare with ephemeris from JPL Horizons
         if not usephacenter:
+            # Do not need to read the information from the measurement set
             if msinfo0['observatory'] == 'EVLA':
                 observatory_id = '-5'
             elif msinfo0['observatory'] == 'EOVSA' or msinfo0['observatory'] == 'FASR':
                 observatory_id = '-81'
             elif msinfo0['observatory'] == 'ALMA':
                 observatory_id = '-7'
-            ephem = read_horizons(Time(tref_d, format='mjd'), observatory = observatory_id)
 
-        time0 = ephem['time']
-        ra0 = ephem['ra']
-        dec0 = ephem['dec']
-        p0 = ephem['p0']
-        delta0 = ephem['delta']
+            if not ephem:
+                ephem = read_horizons(Time(tref_d, format='mjd'), observatory=observatory_id)
+
+        times_ephem = ephem['time']
+        ras_ephem = ephem['ra']
+        decs_ephem = ephem['dec']
+        p0s_ephem = ephem['p0']
 
         if usephacenter:
-            if len(time0) > 1:
-                ind = bisect.bisect_left(time0, tref_d)
-                dt0 = time0[ind] - time0[ind - 1]
-                dt_ref = tref_d - time0[ind - 1]
-                dra0 = ra0[ind] - ra0[ind - 1]
-                ddec0 = dec0[ind] - dec0[ind - 1]
-                dp0 = p0[ind] - p0[ind - 1]
-                ddelta0 = delta0[ind] - delta0[ind - 1]
-                ra0 = ra0[ind - 1] + dra0 / dt0 * dt_ref
-                dec0 = dec0[ind - 1] + ddec0 / dt0 * dt_ref
-                p0 = p0[ind - 1] + dp0 / dt0 * dt_ref
-                delta0 = delta0[ind - 1] + ddelta0 / dt0 * dt_ref
+            if len(times_ephem) > 1:
+                f_ra = interp1d(times_ephem, ras_ephem, kind='linear')
+                f_dec = interp1d(times_ephem, decs_ephem, kind='linear')
+                f_p0 = interp1d(times_ephem, p0s_ephem, kind='linear')
+                ra0 = f_ra(tref_d)
+                dec0 = f_dec(tref_d)
+                p0 = f_p0(tref_d)
             else:
                 try:
-                    ra0 = ra0[0]
-                    dec0 = dec0[0]
-                    p0 = p0[0]
-                    delta0 = delta0[0]
+                    ra0 = ras_ephem[0]
+                    dec0 = decs_ephem[0]
+                    p0 = p0s_ephem[0]
                 except:
-                    print("Error in retrieving info from ephemeris!")
+                    print("Error in retrieving info from JPL solar ephemeris!")
             if ra0 < 0:
                 ra0 += 2. * np.pi
 
@@ -541,16 +642,36 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, polyfit=None
             helio0['decoff'] = decoff
             helio0['refx'] = refx
             helio0['refy'] = refy
+            helio0['ra0'] = ra0
+            helio0['dec0'] = dec0
             helio0['p0'] = p0
         else:
-            helio0['raoff'] = 0. 
+            helio0['raoff'] = 0.
             helio0['decoff'] = 0.
             helio0['refx'] = 0.
             helio0['refy'] = 0.
-            helio0['p0'] = p0[0]
+            helio0['ra0'] = ras_ephem[0]
+            helio0['dec0'] = decs_ephem[0]
+            helio0['p0'] = p0s_ephem[0]
 
-        helio0['ra'] = ra  # ra of the actual pointing
-        helio0['dec'] = dec  # dec of the actual pointing
+
+        helio0['ra'] = ra  # ra of the actual phase center
+        helio0['dec'] = dec  # dec of the actual phase center
+        ind = bisect.bisect_left(scan_start_times, tref_d)
+        if ind > 1:
+            dt = tref_d - scan_start_times[ind - 1]
+            if ind < len(scan_start_times):
+                fieldid = fieldids[ind]
+                ms.open(vis)
+                dir = ms.getfielddirmeas('PHASE_DIR', fieldid)
+                ra_b = dir['m0']['value']
+                dec_b = dir['m1']['value']
+                if ra_b < 0:
+                    ra_b += 2. * np.pi
+                ms.close()
+            if ind >= len(btimes):
+                (ra_b, ra_e) = (ra_rads[ind - 2], ra_rads[ind - 1])
+                (dec_b, dec_e) = (dec_rads[ind - 2], dec_rads[ind - 1])
         helio0['ra_fld'] = ra_b  # ra of the field, used as the reference in e.g., clean
         helio0['dec_fld'] = dec_b  # dec of the field, used as the refenrence in e.g., clean
         # helio['r_sun']=np.degrees(R_sun.value/(au.value*delta0))*3600. #in arcsecs
@@ -628,9 +749,11 @@ def getbeam(imagefile=None, beamfile=None):
     return bmaj, bmin, bpa, beamunit, bpaunit
 
 
-def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, reftime=None, fitsfile=None, beamfile=None,
-          offsetfile=None, toTb=None, sclfactor=1.0, verbose=False, p_ang=False, overwrite=True, usephacenter=True,
-          deletehistory=False, subregion='', docompress=False):
+def imreg(vis=None, imagefile=None, timerange=None,
+          ephem=None, msinfo=None, fitsfile=None,
+          usephacenter=True, dopolyfit=True, reftime=None, offsetfile=None, beamfile=None,
+          toTb=False, sclfactor=1.0, p_ang=False, overwrite=True,
+          deletehistory=False, subregion='', docompress=False, verbose=False):
     ''' 
     main routine to register CASA images
            Required Inputs:
@@ -643,14 +766,20 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                ephem: DICTIONARY. solar ephem, output from read_horizons. 
                       If not provided, query JPL Horizons based on time info of the vis (internet connection required)
                fitsfile: STRING or LIST. name of the output registered fits files
-               reftime: STRING or LIST. Each element should be in CASA standard time format, e.g., '2012/03/03/12:00:00'
-               offsetfile: optionally provide an offset with a series of solar x and y offsets with timestamps 
                toTb: Bool. Convert the default Jy/beam to brightness temperature?
                sclfactor: scale the image values up by its value (to compensate VLA 20 dB attenuator)
                verbose: Bool. Show more diagnostic info if True.
                usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris.
                                      Otherwise assume the phasecenter is correctly pointed to the solar disk center
                                      (EOVSA case)
+               dopolyfit: Bool -- if True, fit the ephemeris from the measurement set using a polynomial fit.
+                                  if False, just use linear interpolation
+               ###### The following two parameters are only meant for temporary fixes ########################
+               reftime: STRING or LIST. ONLY USED IF ANOTHER TIME (OTHER THAN TIME TO MAKE THE IMAGE)
+                        IS NEEDED TO FIND RA AND DEC.
+                        Each element should be in CASA standard time format, e.g., '2012/03/03/12:00:00'
+               offsetfile: optionally provide an offset with a series of solar x and y offsets with timestamps
+               ###############################################################################################
                subregion: Region selection. See 'help par.region' for details.
     Usage:
     >>> from suncasa.utils import helioimage2fits as hf
@@ -696,10 +825,12 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
             reftime = [reftime] * nimg
         if len(reftime) != nimg:
             raise ValueError('Number of reference times does not match that of input images!')
-        helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=reftime, usephacenter=usephacenter)
+        helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=reftime,
+                               usephacenter=usephacenter, dopolyfit=dopolyfit)
     else:
         # use the supplied timerange to register the image
-        helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=timerange, usephacenter=usephacenter)
+        helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=timerange,
+                               usephacenter=usephacenter, dopolyfit=dopolyfit)
 
     if toTb:
         (bmajs, bmins, bpas, beamunits, bpaunits) = getbeam(imagefile=imagefile, beamfile=beamfile)
@@ -734,7 +865,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 tb.close()
                 ia.open(img)
                 imr = ia.rotate(pa=str(-p0) + 'deg')
-                if subregion is not '':
+                if subregion != '':
                     imr = imr.subimage(region=subregion)
                 imr.tofits(fitsf, history=False, overwrite=overwrite)
                 imr.close()
