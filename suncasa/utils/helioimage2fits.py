@@ -407,19 +407,24 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
                    ra: actual RA of phasecenter in the ms file at the reference time (interpolated)
                    dec: actual DEC of phasecenter in the ms file at the reference time (interpolated)
                    # CASA uses only RA and DEC of the closest field (e.g. in clean) #
-                   ra_fld: right ascention of the CASA reference pointing direction
-                   dec_fld: declination of the CASA reference pointing direction
-                   raoff: RA offset of the phasecenter in the ms file to solar center
-                   decoff: DEC offset of the phasecenter in the ms file to solar center
-                   refx: heliocentric X offset of the phasecenter in the ms file to solar center
-                   refy: heliocentric Y offset of the phasecenter in the ms file to solar center
+                   ra_fld: RA of the CASA reference pointing direction, in radian
+                   dec_fld: DEC of the CASA reference pointing direction, in radian
+                   ra0: RA of the solar disk center, in radian
+                   dec0: DEC of the solar disk center, in radian
+                   raoff: RA offset of the phasecenter in the ms file to solar disk center, in arcsec
+                   decoff: DEC offset of the phasecenter in the ms file to solar disk center, in arcsec
+                   refx: heliocentric X offset of the phasecenter in the ms file to solar disk center, in arcsec
+                   refy: heliocentric Y offset of the phasecenter in the ms file to solar disk center, in arcsec
     ######## Example #########
-         msfile='sun_C_20140910T221952-222952.10s.cal.ms'
-         ephemfile='horizons_sun_20140910.radecp'
-         ephem=vla_prep.read_horizons(ephemfile=ephemfile)
-         msinfo=vla_prep.read_msinfo(msfile=msfile)
-         dopolyfit=True
-         reftime = '22:25:20~22:25:40'
+        from suncasa.utils import helioimage2fits as hf
+        vis = vis = '22B-174_20221031_sun.1s.cal.ms'
+        ephem = hf.ephem_to_helio(vis=vis, reftime='2022/10/31/20:37:10~2022/10/31/20:37:20', dopolyfit=True,
+                        usephacenter=True, verbose=True)
+        # Read out the ms information takes some time. To save time, one can read out the ms information first
+            and supply the record here for registering multiple images. It will skip the read_msinfo() step.
+        msinfo = hf.read_msinfo(vis=vis, verbose=True)
+        ephem = hf.ephem_to_helio(vis=vis, msinfo=msinfo, reftime='2022/10/31/20:37:10~2022/10/31/20:37:20',
+                                 dopolyfit=True, usephacenter=True, verbose=True)
     '''
     if not vis or not os.path.exists(vis):
         raise ValueError('Please provide information of the MS database!')
@@ -638,13 +643,17 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
             helio0['decoff'] = decoff
             helio0['refx'] = refx
             helio0['refy'] = refy
+            helio0['ra0'] = ra0
+            helio0['dec0'] = dec0
             helio0['p0'] = p0
         else:
             helio0['raoff'] = 0.
             helio0['decoff'] = 0.
             helio0['refx'] = 0.
             helio0['refy'] = 0.
-            helio0['p0'] = p0[0]
+            helio0['ra0'] = ras_ephem[0]
+            helio0['dec0'] = decs_ephem[0]
+            helio0['p0'] = p0s_ephem[0]
 
         helio0['ra'] = ra  # ra of the actual phase center
         helio0['dec'] = dec  # dec of the actual phase center
