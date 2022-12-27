@@ -1,12 +1,68 @@
+import copy
 import os
 import numpy as np
 from astropy.io import fits
 from sunpy import map as smap
 import warnings
+import sys
+
 warnings.simplefilter("ignore")
 
 stokesval = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3': 'RL', '-4': 'LR', '-5': 'XX',
              '-6': 'YY', '-7': 'XY', '-8': 'YX'}
+
+
+def read_imres(imresfile):
+    from astropy.time import Time
+    py3 = sys.version_info.major >= 3
+
+    def uniq(lst):
+        last = object()
+        nlst = []
+        for item in lst:
+            if item == last:
+                continue
+            nlst.append(item)
+            last = item
+        return nlst
+
+    imres = np.load(imresfile, encoding="latin1", allow_pickle=True)
+    imres = imres['imres'].item()
+
+    if not py3:
+        iterop_ = imres.iteritems()
+    else:
+        iterop_ = imres.items()
+    for k, v in iterop_:
+        imres[k] = list(np.array(v))
+    Spw = sorted(list(set(imres['Spw'])))
+    Spw = [sp.lstrip('0') for sp in Spw]
+    nspw = len(Spw)
+    imres['Freq'] = [list(ll) for ll in imres['Freq']]
+    Freq = sorted(uniq(imres['Freq']))
+
+    plttimes = list(set(imres['BeginTime']))
+    plttimes = sorted(plttimes)
+    ntime = len(plttimes)
+    # sort the imres according to time
+    images = np.array(imres['ImageName'])
+    btimes = Time(imres['BeginTime'])
+    etimes = Time(imres['EndTime'])
+    spws = np.array(imres['Spw'])
+    suc = np.array(imres['Succeeded'])
+    inds = btimes.argsort()
+    images_sort = images[inds].reshape(ntime, nspw)
+    btimes_sort = btimes[inds].reshape(ntime, nspw)
+    etimes_sort = etimes[inds].reshape(ntime, nspw)
+    suc_sort = suc[inds].reshape(ntime, nspw)
+    spws_sort = spws[inds].reshape(ntime, nspw)
+    return {'images': images_sort,
+            'btimes': btimes_sort,
+            'etimes': etimes_sort,
+            'spws_sort': spws_sort,
+            'spws': Spw,
+            'freq': Freq,
+            'plttimes': Time(plttimes)}
 
 
 def headerfix(header, PC_coor=True):
@@ -33,6 +89,26 @@ def headerfix(header, PC_coor=True):
     for k in keys2remove:
         header.remove(k)
     return header
+
+
+def headerparse(header):
+    '''
+        get axis index of polarization
+    '''
+
+    ndim = header['NAXIS']
+    stokesinfo = {'axis': None, 'headernew': {}}
+    keys2analy = ['NAXIS', 'CTYPE', 'CRVAL', 'CDELT', 'CRPIX', 'CUNIT']
+    for dim in range(1, ndim + 1):
+        k = 'CTYPE{}'.format(dim)
+        if header[k].startswith('STOKES'):
+            stokesinfo['axis'] = dim
+    if stokesinfo['axis'] is not None:
+        dim = stokesinfo['axis']
+        for k in keys2analy:
+            k_ = '{}{}'.format(k, dim)
+            stokesinfo['headernew']['{}{}'.format(k, 4)] = header[k_]
+    return stokesinfo
 
 
 def headersqueeze(header, data):
@@ -76,11 +152,12 @@ def headersqueeze(header, data):
                 if dim2 > 1:
                     idx_nonsdim2 = idx_nonsdim2 + 1
                 k_ = 'PC{:02d}_{:d}'.format(idx1 + 1, idx2 + 1)
-                v = header[k_]
-                header.remove(k_)
-                if dim1 > 1 and dim2 > 1:
-                    k_new = 'PC{:02d}_{:d}'.format(idx_nonsdim1, idx_nonsdim2)
-                    header[k_new] = v
+                if k_ in header.keys():
+                    v = header[k_]
+                    header.remove(k_)
+                    if dim1 > 1 and dim2 > 1:
+                        k_new = 'PC{:02d}_{:d}'.format(idx_nonsdim1, idx_nonsdim2)
+                        header[k_new] = v
 
         header['NAXIS'] = nonsdim
         data = np.squeeze(data)
@@ -188,7 +265,7 @@ def read(filepath, hdus=None, memmap=None, verbose=False, **kwargs):
                 if _ is not None:
                     slc[_] = slice(0, 1)
                 hdu.data[np.isnan(hdu.data)] = 0.0
-                rmap = smap.Map(np.squeeze(hdu.data[slc]), hdu.header)
+                rmap = smap.Map(np.squeeze(hdu.data[tuple(slc)]), hdu.header)
                 data = hdu.data.copy()
                 meta['header'] = hdu.header.copy()
                 meta['refmap'] = rmap  # this is a sunpy map of the first slice
@@ -273,8 +350,12 @@ def write(fname, data, header, mask=None, fix_invalid=True, filled_value=0.0, **
 
 
 def wrap(fitsfiles, outfitsfile='output.fits', docompress=False, mask=None, fix_invalid=True, filled_value=0.0,
+         imres=None,
          **kwargs):
-    if len(fitsfiles)<=1:
+    '''
+    wrap single frequency fits files into a multiple frequencies fits file
+    '''
+    if len(fitsfiles) <= 1:
         print('There is only one files in the fits file list. wrap is aborted!')
         return 0
     else:
@@ -289,27 +370,89 @@ def wrap(fitsfiles, outfitsfile='output.fits', docompress=False, mask=None, fix_
         if len(fits_exist) == 0: raise ValueError('None of the input fitsfiles exists!')
         os.system('cp {} {}'.format(fits_exist[0], outfitsfile))
         hdu0 = fits.open(outfitsfile, mode='update')
-        header = hdu0[0].header
-        npol, nbd, ny, nx = int(header['NAXIS4']), nband, int(header['NAXIS2']), int(header['NAXIS1'])
-        data = np.zeros((npol, nbd, ny, nx))
-        cdelts = []
-        cfreqs = []
-        for sidx, fitsf in enumerate(fits_exist):
-            hdu = fits.open(fitsf)
-            cdelts.append(hdu[0].header['CDELT3'])
-            cfreqs.append(hdu[0].header['CRVAL3'])
-            for pidx in range(npol):
-                if len(hdu[0].data.shape) == 2:
-                    data[pidx, idx_fits_exist[sidx], :, :] = hdu[0].data
+        header = hdu0[-1].header
+
+        if 'XTENSION' in header.keys():
+            if imres is None:
+                cdelts = [325.e8] * nband
+            else:
+                cdelts = np.squeeze(np.diff(np.array(imres['freq']), axis=1)) * 1e9
+            stokesinfo = headerparse(header)
+            if stokesinfo['axis'] is None:
+                npol = 1
+            else:
+                npol = int(header['NAXIS{}'.format(stokesinfo['axis'])])
+            nbd = nband
+            ny = int(header['NAXIS2'])
+            nx = int(header['NAXIS1'])
+
+            data = np.zeros((npol, nbd, ny, nx))
+            cfreqs = []
+            for sidx, fitsf in enumerate(fits_exist):
+                hdu = fits.open(fitsf)
+                cfreqs.append(hdu[-1].header['RESTFRQ'])
+                for pidx in range(npol):
+                    if len(hdu[-1].data.shape) == 2:
+                        data[pidx, idx_fits_exist[sidx], :, :] = hdu[-1].data
+                    elif len(hdu[-1].data.shape) == 3:
+                        data[pidx, idx_fits_exist[sidx], :, :] = hdu[-1].data[pidx, :, :]
+                    else:
+                        data[pidx, idx_fits_exist[sidx], :, :] = hdu[-1].data[pidx, 0, :, :]
+            cfreqs = np.array(cfreqs)
+            cdelts = np.array(cdelts)
+            df = np.nanmean(np.diff(cfreqs) / np.diff(idx_fits_exist))  ## in case some of the band is missing
+            header['NAXIS'] = 4
+            header['NAXIS3'] = nband
+            header['CTYPE3'] = 'FREQ'
+            header['CRVAL3'] = cfreqs[0]
+            header['CDELT3'] = df
+            header['CRPIX3'] = 1.0
+            header['CUNIT3'] = 'Hz      '
+            if stokesinfo['axis'] is None:
+                header['NAXIS4'] = 1
+                header['CTYPE4'] = 'STOKES'
+                header['CRVAL4'] = -5  ## assume XX
+                header['CDELT4'] = 1.0
+                header['CRPIX4'] = 1.0
+                header['CUNIT4'] = '        '
+            else:
+                for k, v in stokesinfo['headernew'].items():
+                    print(k, v)
+                    header[k] = v
+        else:
+            npol = int(header['NAXIS4'])
+            nbd = nband
+            ny = int(header['NAXIS2'])
+            nx = int(header['NAXIS1'])
+
+            data = np.zeros((npol, nbd, ny, nx))
+            cdelts = []
+            cfreqs = []
+            for sidx, fitsf in enumerate(fits_exist):
+                hdu = fits.open(fitsf)
+                cdelts.append(hdu[-1].header['CDELT3'])
+                cfreqs.append(hdu[-1].header['CRVAL3'])
+                for pidx in range(npol):
+                    if len(hdu[-1].data.shape) == 2:
+                        data[pidx, idx_fits_exist[sidx], :, :] = hdu[-1].data
+                    else:
+                        data[pidx, idx_fits_exist[sidx], :, :] = hdu[-1].data[pidx, 0, :, :]
+            cfreqs = np.array(cfreqs)
+            cdelts = np.array(cdelts)
+            df = np.nanmean(np.diff(cfreqs) / np.diff(idx_fits_exist))  ## in case some of the band is missing
+            header['cdelt3'] = df
+            header['NAXIS3'] = nband
+            header['NAXIS'] = 4
+            header['CRVAL3'] = header['CRVAL3'] - df * idx_fits_exist[0]
+
+        for dim1 in range(1, header['NAXIS'] + 1):
+            for dim2 in range(1, header['NAXIS'] + 1):
+                k = 'PC{:02d}_{:d}'.format(dim1, dim2)
+                if dim1 == dim2:
+                    header[k] = 1.0
                 else:
-                    data[pidx, idx_fits_exist[sidx], :, :] = hdu[0].data[pidx, 0, :, :]
-        cfreqs = np.array(cfreqs)
-        cdelts = np.array(cdelts)
-        df = np.nanmean(np.diff(cfreqs) / np.diff(idx_fits_exist))  ## in case some of the band is missing
-        header['cdelt3'] = df
-        header['NAXIS3'] = nband
-        header['NAXIS'] = 4
-        header['CRVAL3'] = header['CRVAL3'] - df * idx_fits_exist[0]
+                    header[k] = 0.0
+
         if os.path.exists(outfitsfile):
             os.system('rm -rf {}'.format(outfitsfile))
 

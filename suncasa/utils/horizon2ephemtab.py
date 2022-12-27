@@ -1,7 +1,7 @@
 ## only works in CASA 5
 from astropy.time import Time
 import numpy as np
-
+import os
 
 def make_ephem(vis, ephemfile=None):
     import urllib2, ssl

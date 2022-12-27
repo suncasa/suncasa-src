@@ -1489,6 +1489,9 @@ class Stackplot:
         if sav_img:
             if out_dir is None:
                 out_dir = './'
+            else:
+                if not os.path.exists(out_dir):
+                    os.makedirs(out_dir)
 
             ax, im1 = self.plot_map(mapseq_plot[0], norm=norm, vmax=vmax, vmin=vmin, cmap=cmap, diff=diff,
                                     returnImAx=True,
@@ -1702,7 +1705,7 @@ class Stackplot:
                 frm_range = [0, len(mapseq)]
         maplist = []
         nframe = frm_range[-1] - frm_range[0]
-        if movingcut is []:
+        if movingcut == []:
             movingcut = [np.zeros(nframe), np.zeros(nframe)]
         else:
             pass
@@ -1814,10 +1817,13 @@ class Stackplot:
                     frm_range[-1] = len(mapseq_plot)
             else:
                 frm_range = [0, len(mapseq_plot)]
+
         if refresh:
             mapseq_plot = self.make_stackplot(mapseq_plot, frm_range=frm_range, threshold=threshold, gamma=gamma,
                                               get_peak=get_peak, trackslit_diffrot=trackslit_diffrot, negval=negval,
                                               movingcut=movingcut)
+
+
         if layout_vert:
             fig_mapseq = plt.figure(figsize=(7, 7))
         else:
@@ -1872,12 +1878,13 @@ class Stackplot:
             ax2.set_xlim(dspec['x'][frm_range[0]], dspec['x'][frm_range[-1]])
 
             def update_slit(frm):
-                cuttraj.set_xdata(cutslitplt['xcen'] - movingcut[0][frm])
-                cuttraj.set_ydata(cutslitplt['ycen'] - movingcut[1][frm])
-                cuttrajs1.set_xdata(cutslitplt['xs0'] - movingcut[0][frm])
-                cuttrajs1.set_ydata(cutslitplt['ys0'] - movingcut[1][frm])
-                cuttrajs2.set_xdata(cutslitplt['xs1'] - movingcut[0][frm])
-                cuttrajs2.set_ydata(cutslitplt['ys1'] - movingcut[1][frm])
+                if movingcut != []:
+                    cuttraj.set_xdata(cutslitplt['xcen'] - movingcut[0][frm])
+                    cuttraj.set_ydata(cutslitplt['ycen'] - movingcut[1][frm])
+                    cuttrajs1.set_xdata(cutslitplt['xs0'] - movingcut[0][frm])
+                    cuttrajs1.set_ydata(cutslitplt['ys0'] - movingcut[1][frm])
+                    cuttrajs2.set_xdata(cutslitplt['xs1'] - movingcut[0][frm])
+                    cuttrajs2.set_ydata(cutslitplt['ys1'] - movingcut[1][frm])
 
             if anim:
                 import matplotlib
@@ -1988,12 +1995,13 @@ class Stackplot:
             nfrms = len(self.tplt)
 
             def update_slit(frm):
-                cuttraj.set_xdata(cutslitplt['xcen'] - movingcut[0][frm])
-                cuttraj.set_ydata(cutslitplt['ycen'] - movingcut[1][frm])
-                cuttrajs1.set_xdata(cutslitplt['xs0'] - movingcut[0][frm])
-                cuttrajs1.set_ydata(cutslitplt['ys0'] - movingcut[1][frm])
-                cuttrajs2.set_xdata(cutslitplt['xs1'] - movingcut[0][frm])
-                cuttrajs2.set_ydata(cutslitplt['ys1'] - movingcut[1][frm])
+                if movingcut!=[]:
+                    cuttraj.set_xdata(cutslitplt['xcen'] - movingcut[0][frm])
+                    cuttraj.set_ydata(cutslitplt['ycen'] - movingcut[1][frm])
+                    cuttrajs1.set_xdata(cutslitplt['xs0'] - movingcut[0][frm])
+                    cuttrajs1.set_ydata(cutslitplt['ys0'] - movingcut[1][frm])
+                    cuttrajs2.set_xdata(cutslitplt['xs1'] - movingcut[0][frm])
+                    cuttrajs2.set_ydata(cutslitplt['ys1'] - movingcut[1][frm])
 
             def update2(val):
                 tmode = '{}'.format(self.fig_mapseq.canvas.toolbar.mode)
@@ -2058,8 +2066,8 @@ class Stackplot:
             self.btraject = Button(axtraject, 'trajectory')
 
             def stackplt_traject(event):
-                self.stackplt_traject_fromfile(self.stackplt_wrap(), frm_range=frm_range, cmap=cmap, vmax=vmax,
-                                               vmin=vmin, gamma=gamma)
+                self.stackplt_traject_fromfile(self.stackplt_wrap(), frm_range=frm_range, cmap=cmap,
+                                               norm=norm, gamma=gamma)
 
             self.btraject.on_clicked(stackplt_traject)
 
@@ -2067,14 +2075,13 @@ class Stackplot:
             self.blghtcurv = Button(axlghtcurv, 'lightcurve')
 
             def stackplt_lghtcurv(event):
-                self.stackplt_lghtcurv_fromfile(self.stackplt_wrap(), frm_range=frm_range, cmap=cmap, vmax=vmax,
-                                                vmin=vmin, gamma=gamma)
+                self.stackplt_lghtcurv_fromfile(self.stackplt_wrap(), frm_range=frm_range, cmap=cmap, norm=norm, gamma=gamma)
 
             self.blghtcurv.on_clicked(stackplt_lghtcurv)
 
         return
 
-    def stackplt_traject_fromfile(self, infile, frm_range=[], cmap='inferno', vmax=None, vmin=None, gamma=1.0):
+    def stackplt_traject_fromfile(self, infile, frm_range=[], cmap='inferno', norm=None, gamma=1.0):
         if isinstance(infile, str):
             with open('{}'.format(infile), 'rb') as sf:
                 stackplt = pickle.load(sf, encoding='latin1')
@@ -2101,7 +2108,7 @@ class Stackplot:
         x = (x - x[0]) * 24 * 3600
         ax = axs_stpanal[0]
         im = ax.pcolormesh(x, y, dspec ** gamma, cmap=cmap,
-                           vmax=vmax, vmin=vmin, rasterized=True)
+                           norm=norm, rasterized=True)
         ax.set_xlim(x[frm_range[0]], x[frm_range[-1]])
         ax = axs_stpanal[-1]
         ax.set_xlabel('seconds since {}'.format(Time(stackplt['x'][0], format='plot_date').iso[:-4]))
@@ -2117,7 +2124,7 @@ class Stackplot:
         self.stCutsmooth.on_changed(sCutsmooth_update)
         return
 
-    def stackplt_lghtcurv_fromfile(self, infile, frm_range=[], cmap='inferno', vmax=None, vmin=None, gamma=1.0,
+    def stackplt_lghtcurv_fromfile(self, infile, frm_range=[], cmap='inferno', norm=None, gamma=1.0,
                                    log=False, axes=None):
         if isinstance(infile, str):
             with open('{}'.format(infile), 'rb') as sf:
@@ -2134,10 +2141,10 @@ class Stackplot:
         x, y, dspec = stackplt['x'], stackplt['y'], stackplt['dspec']
         if log:
             im = ax.pcolormesh(x, y, dspec ** gamma, cmap=cmap,
-                               norm=colors.LogNorm(vmax=vmax, vmin=vmin), rasterized=True)
+                               norm=norm, rasterized=True)
         else:
             im = ax.pcolormesh(x, y, dspec ** gamma, cmap=cmap,
-                               norm=colors.Normalize(vmax=vmax, vmin=vmin), rasterized=True)
+                               norm=norm, rasterized=True)
 
         ax.set_xlim(x[frm_range[0]], x[frm_range[-1]])
         date_format = mdates.DateFormatter('%H:%M:%S')

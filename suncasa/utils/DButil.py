@@ -1230,7 +1230,10 @@ def readsdofileX(datadir=None, filelist=None, wavelength=None, trange=None, isex
             sdofitspath = glob.glob(
                 datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
         if len(sdofitspath) == 0:
-            return []  # raise ValueError('No SDO file found under {}.'.format(datadir))
+            sdofitspath = glob.glob(
+                datadir + '/hmi*{0}*{1}*{2}*.fits'.format(ymd[0], ymd[1], ymd[2]))
+            if len(sdofitspath) == 0:
+                return []  # raise ValueError('No SDO file found under {}.'.format(datadir))
         sdofits = [os.path.basename(ll) for ll in sdofitspath]
         if 'hmi' in sdofits[0]:
             sdotimeline = Time(

@@ -1,11 +1,10 @@
-import os
-
 __all__ = ['Dspec']
 
-import numpy as np
 import os
 import struct
+
 import matplotlib.pyplot as plt
+import numpy as np
 from astropy.time import Time
 
 try:
@@ -190,7 +189,7 @@ class Dspec:
         prihdr.set('POLARIZA', 'I', 'Polarizations present')
         prihdr.set('RESOLUTI', 0.0, 'Resolution value')
         # Write the file
-        hdulist.writeto(fitsfile, clobber=True)
+        hdulist.writeto(fitsfile, overwrite=True)
 
     def get_dspec(self, fname=None, specfile=None, bl='', uvrange='', field='', scan='',
                   datacolumn='data',
@@ -227,7 +226,7 @@ class Dspec:
 
             if hanning:
                 from casatasks import hanningsmooth
-                hanningsmooth(vis=fname, datacolumn='data', field='', outputvis=fname + '.tmpms')
+                hanningsmooth(vis=fname, datacolumn='data', field=field, outputvis=fname + '.tmpms')
                 fname = fname + '.tmpms'
             tb.open(fname)
             spwtb = tbtool()
@@ -254,7 +253,13 @@ class Dspec:
 
             scanids = sorted(smry['observationID=0']['arrayID=0'].keys())
             ## todo find a way to determine the target fieldID if multi-fields exist
-            nbl = int(smry['observationID=0']['arrayID=0'][scanids[0]]['fieldID=0']['0']['nrows'] / nspw)
+            smryscan0 = smry['observationID=0']['arrayID=0'][scanids[0]]
+            fieldid = ''
+            for k in smryscan0.keys():
+                if k.startswith('fieldID='):
+                    fieldid = k
+                    break
+            nbl = int(smryscan0[fieldid]['0']['nrows'] / nspw)
             if nbl == nbaselines + nantennas:
                 hasautocorr = True
             elif nbl == nbaselines:
@@ -288,7 +293,6 @@ class Dspec:
                 ms.close()
                 ms.open(fname)
 
-
             scan_ntimes = []  # List of number of times in each scan
             # for iscan in range(nscans):
             #     print(smry['observationID=0']['arrayID=0'][scanids[iscan]]['fieldID=0']['nrows'])
@@ -297,7 +301,8 @@ class Dspec:
 
             nrows = []
             for iscan in range(nscans):
-                nrow = smry['observationID=0']['arrayID=0'][scanids[iscan]]['fieldID=0']['nrows']
+                smryscan = smry['observationID=0']['arrayID=0'][scanids[iscan]]
+                nrow = next(v for k, v in smryscan.items() if 'fieldID=' in k)['nrows']
                 nrows.append(nrow)
                 scan_ntimes.append(nrow / nspw / nbl)
             scan_ntimes = np.array(scan_ntimes)
@@ -306,11 +311,13 @@ class Dspec:
                 # if True:
                 scan_ntimes = []  # List of number of times in each scan
                 for iscan in range(nscans):
-                    nrows_scan = [] ## get the nrows for each time. They are not always the SAME!
-                    for k, v in smry['observationID=0']['arrayID=0'][scanids[iscan]]['fieldID=0'].items():
-                        if isinstance(v,dict):
-                            nrows_scan.append(v['nrows'])
-                    scan_ntimes.append(nrows[iscan]/max(set(nrows_scan)))
+                    nrows_scan = []  ## get the nrows for each time. They are not always the SAME!
+                    smryscan = smry['observationID=0']['arrayID=0'][scanids[iscan]]
+                    # for k, v in smryscan['fieldID=0'].items():
+                    #     if isinstance(v,dict):
+                    #         nrows_scan.append(v['nrows'])
+                    nrows_scan.append(next(v for k, v in smryscan.items() if 'fieldID=' in k)['nrows'])
+                    scan_ntimes.append(nrows[iscan] / max(set(nrows_scan)))
                     # scan_ntimes.append(
                     #     len(smry['observationID=0']['arrayID=0'][scanids[iscan]]['fieldID=0'].keys()) - 6)
                 scan_ntimes = np.array(scan_ntimes).astype(np.int)
@@ -744,7 +751,7 @@ class Dspec:
                 fig = plt.figure(figsize=(8, 4), dpi=100)
                 ax = fig.add_subplot(111)
                 freqghz = freq / 1e9
-                im = ax.pcolormesh(tim_plt, freqghz, spec_plt, cmap=cmap, norm=norm, shading='auto')
+                im = ax.pcolormesh(tim_plt, freqghz, spec_plt, cmap=cmap, norm=norm, shading='auto', rasterized=True)
 
                 # make colorbar
                 divider = make_axes_locatable(ax)
@@ -801,7 +808,7 @@ class Dspec:
                                                     0)
                 ax1 = fig.add_subplot(211)
                 freqghz = freq / 1e9
-                im = ax1.pcolormesh(tim_plt, freqghz, spec_plt_1, cmap=cmap, norm=norm, shading='auto')
+                im = ax1.pcolormesh(tim_plt, freqghz, spec_plt_1, cmap=cmap, norm=norm, shading='auto', rasterized=True)
                 divider = make_axes_locatable(ax1)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax1, cax=cax_spec)
@@ -830,7 +837,7 @@ class Dspec:
                 ax1.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[0])
                 ax1.set_autoscale_on(False)
                 ax2 = fig.add_subplot(212)
-                im = ax2.pcolormesh(tim_plt, freqghz, spec_plt_2, cmap=cmap, norm=norm, shading='auto')
+                im = ax2.pcolormesh(tim_plt, freqghz, spec_plt_2, cmap=cmap, norm=norm, shading='auto', rasterized=True)
                 divider = make_axes_locatable(ax2)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax2, cax=cax_spec)

@@ -1,4 +1,16 @@
-from taskinit import tb, qa, ms
+import sys
+py3 = sys.version_info.major >= 3
+
+if py3:
+    from casatools import table as tbtool
+    from casatools import ms as mstool
+    from casatools import quanta as qatool
+    tb = tbtool()
+    ms = mstool()
+    qa = qatool()
+else:
+    from taskinit import tb, qa, ms
+
 
 def getAntennaPosition(vis):
     tb.open(vis + '/ANTENNA')

@@ -416,6 +416,8 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
                 doscaling=False, keep_nsclms=False, use_exist_udbcorr=False):
     casalog.origin('importeovsa')
 
+    if ncpu is None:
+        ncpu = 1
     if type(idbfiles) == Time:
         filelist = trange2filelist(idbfiles)
     else:
