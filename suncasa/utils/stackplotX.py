@@ -9,7 +9,6 @@ from astropy.io import fits
 import numpy.ma as ma
 import matplotlib.cm as cm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import sunpy.map
 import astropy.units as u
 import pickle
 import glob
@@ -27,14 +26,33 @@ from functools import partial
 import multiprocessing as mp
 import gc
 from matplotlib.widgets import Slider, Button
-from sunpy.physics.solar_rotation import mapsequence_solar_derotate
 import warnings
-from sunpy.instr.aia import aiaprep
 from suncasa.utils.lineticks import LineTicks
 from suncasa.utils import signal_utils as su
 from suncasa.utils import stputils as stpu
 # import pdb
+from packaging import version as pversion
+
+import sunpy
+# check sunpy version
+sunpy1 = sunpy.version.major >=1
+if sunpy1:
+    from sunpy.coordinates import sun
+else:
+    from sunpy import sun
+
+import sunpy.map
+from sunpy.physics.solar_rotation import mapsequence_solar_derotate
 from sunpy.map.mapsequence import MapSequence
+
+if pversion.parse(sunpy.version.version)>=pversion.parse('2.1'):
+    from aiapy.calibrate import register, update_pointing, normalize_exposure
+    def aiaprep(sunpymap):
+        m_updated_pointing = update_pointing(sunpymap)
+        m_registered = register(m_updated_pointing)
+        return m_registered
+else:
+    from sunpy.instr.aia import aiaprep
 
 
 # warnings.filterwarnings('ignore')
@@ -219,11 +237,42 @@ def MakeSlit(pointDF):
     return cutslitplt
 
 
-def getimprofile(data, cutslit, xrange=None, yrange=None, get_peak=False):
-    num = len(cutslit['xcen'])
-    if num > 1:
-        intens = np.zeros(num)
+def getimprofile(data, cutslit, xrange=None, yrange=None, get_peak=False, verbose=False):
+    """
+    Get values at a slice
+
+    Inputs:
+        data: input image data. Dimension: (ny, nx) or (ny, nx, nwv). nwv is the number of wavelengths/frequencies
+        cutslit: cutslit generated from CutslitBuilder().cutslitplt
+        xrange: [min(xs), max(xs)], where xs is the x coordinate values of the input image data.
+                If None (default), assume pixel coordinate values in cutslit
+        yrange: [min(ys), max(ys)], where ys is the y coordinate values of the input image data.
+                If None (default), assume pixel coordinate values in cutslit
+        get_peak: If True, return the peak of all pixels across the slit within the slit width.
+                  If False (default), return the average value.
+        verbose: If True, print out more details in command line. Default is False
+
+    return:
+        A dictionary of {'x': distance from min(cutslit['xcen']), min(cutslit['ycen'])
+                         'y': value on the cut, the shape is (len(cutslit['xcen'], [nwv])}
+    """
+    # first, check the dimension of the input image data
+    if data.ndim == 2:
         ndy, ndx = data.shape
+        intens = np.zeros(len(cutslit['xcen']))
+        if verbose:
+            print("Input data cube is 2D, the dimension (ny, nx) is ({0:d}, {1:d})".format(ndy, ndx))
+    elif data.ndim == 3:
+        ndy, ndx, nwv = data.shape
+        intens = np.zeros((len(cutslit['xcen']), nwv))
+        if verbose:
+            print("Input data cube is 3D, the dimension (ny, nx, nwv) is ({0:d}, {1:d}, {2:d})".format(ndy, ndx, nwv))
+    
+    num = len(cutslit['xcen'])
+    if num < 2:
+        print("The slice should have at least two anchoring points! Return -1")
+        return -1
+    else:
         if xrange is not None and yrange is not None:
             xs0 = (cutslit['xs0'] - xrange[0]) / (xrange[1] - xrange[0]) * ndx
             xs1 = (cutslit['xs1'] - xrange[0]) / (xrange[1] - xrange[0]) * ndx
@@ -238,9 +287,9 @@ def getimprofile(data, cutslit, xrange=None, yrange=None, get_peak=False):
             inten = stpu.improfile(data, [xs0[ll], xs1[ll]], [ys0[ll], ys1[ll]], interp='nearest')
             try:
                 if get_peak:
-                    intens[ll] = np.nanmax(inten)
+                    intens[ll] = np.nanmax(inten, axis=0)
                 else:
-                    intens[ll] = np.nanmean(inten)
+                    intens[ll] = np.nanmean(inten, axis=0)
             except:
                 intens[ll] = np.nan
         intensdist = {'x': cutslit['dist'], 'y': intens}
@@ -1771,9 +1820,9 @@ class Stackplot:
             vmin = clrange['low']
         if (norm is None) and (not diff):
             if clrange['log']:
-                norm = colors.LogNorm(vmin=np.min(self.stackplt), vmax=np.max(self.stackplt))
+                norm = colors.LogNorm(vmin=vmin, vmax=vmax)
             else:
-                norm = colors.Normalize(vmin=np.min(self.stackplt), vmax=np.max(self.stackplt))
+                norm = colors.Normalize(vmin=vmin, vmax=vmax)
 
         cutslitplt = self.cutslitbd.cutslitplt
         if not cmap:

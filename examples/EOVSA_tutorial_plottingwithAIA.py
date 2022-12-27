@@ -1,4 +1,3 @@
-import os
 import numpy as np
 from astropy.time import Time
 import matplotlib.pyplot as plt
