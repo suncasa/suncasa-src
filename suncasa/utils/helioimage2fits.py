@@ -405,7 +405,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
            usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris.
                                  Otherwise assume the phasecenter is pointed to the solar disk center
                                  (EOVSA case)
-           geocenteric: Bool -- if True, use geocentric RA & DEC.
+           geocentric: Bool -- if True, use geocentric RA & DEC.
                         If False, use topocentric RA & DEC based on observatory location
                         Default: False
 
@@ -774,7 +774,7 @@ def getbeam(imagefile=None, beamfile=None):
 
 def imreg(vis=None, imagefile=None, timerange=None,
           ephem=None, msinfo=None, fitsfile=None,
-          usephacenter=True, dopolyfit=True, reftime=None, offsetfile=None, beamfile=None,
+          usephacenter=True, geocentric=False, dopolyfit=True, reftime=None, offsetfile=None, beamfile=None,
           toTb=False, sclfactor=1.0, p_ang=False, overwrite=True,
           deletehistory=False, subregion='', docompress=False, verbose=False):
     ''' 
@@ -795,6 +795,9 @@ def imreg(vis=None, imagefile=None, timerange=None,
                usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris.
                                      Otherwise assume the phasecenter is correctly pointed to the solar disk center
                                      (EOVSA case)
+               geocentric: Bool -- if True, use geocentric RA & DEC.
+                        If False, use topocentric RA & DEC based on observatory location
+                        Default: False
                dopolyfit: Bool -- if True, fit the ephemeris from the measurement set using a polynomial fit.
                                   if False, just use linear interpolation
                ###### The following two parameters are only meant for temporary fixes ########################
@@ -849,11 +852,11 @@ def imreg(vis=None, imagefile=None, timerange=None,
         if len(reftime) != nimg:
             raise ValueError('Number of reference times does not match that of input images!')
         helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=reftime,
-                               usephacenter=usephacenter, dopolyfit=dopolyfit, verbose=verbose)
+                               usephacenter=usephacenter, geocentric=geocentric, dopolyfit=dopolyfit, verbose=verbose)
     else:
         # use the supplied timerange to register the image
         helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=timerange,
-                               usephacenter=usephacenter, dopolyfit=dopolyfit, verbose=verbose)
+                               usephacenter=usephacenter, geocentric=geocentric, dopolyfit=dopolyfit, verbose=verbose)
 
     if toTb:
         (bmajs, bmins, bpas, beamunits, bpaunits) = getbeam(imagefile=imagefile, beamfile=beamfile)
