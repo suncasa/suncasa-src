@@ -118,7 +118,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
             # btime = Time(summary['BeginTime'], format='mjd')
             # etime = Time(summary['EndTime'], format='mjd')
             ## alternative way to avoid conflicts with importeovsa, if needed -- more time consuming
-            if observatory == 'geocentric':
+            if observatory == 'geocentric' or observatory == '500':
                 observatory = '500'
             else:
                 ms.open(vis)
@@ -247,7 +247,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     return ephem
 
 
-def read_msinfo(vis=None, msinfofile=None, use_ephem=True, interp_to_scan=False, verbose=False):
+def read_msinfo(vis=None, msinfofile=None, interp_to_scan=False, verbose=False):
     """
     Module ot read CASA measurement set and return RA, DEC, and time stamps of the phase center.
     Options for returning those from the emphemeris table (if available) or use those from the FIELD table.
@@ -255,7 +255,7 @@ def read_msinfo(vis=None, msinfofile=None, use_ephem=True, interp_to_scan=False,
     ----------
     vis: (required) path to the input CASA measurement set
     msinfofile: (optional) path/name of the saved numpy .npz file
-    use_ephem: (optional) if True (default), use the enclosed emphemeris table, otherwise use RA/DEC of the FIELD table
+    #use_ephem: (optional) if True (default), use the enclosed emphemeris table, otherwise use RA/DEC of the FIELD table
     interp_to_scan: (optional) if True, the entries of the emphemeris table
         are interpolated to the beginning of each scan. This is mainly for backward compatibility. Default is False.
     Returns
@@ -308,10 +308,11 @@ def read_msinfo(vis=None, msinfofile=None, use_ephem=True, interp_to_scan=False,
 
     metadata.close()
     ms.close()
-    ephem_table = glob.glob(vis + '/FIELD/EPHEM0*.tab')
-    if use_ephem and len(ephem_table) == 1:
+    ephem_table = glob.glob(vis + '/FIELD/EPHEM*.tab')
+    if len(ephem_table) == 1:
         if verbose:
-            print('Found ephemeris table {}. Loading data...'.format(ephem_table[0]))
+            print('Found ephemeris table {}. If VLA, this is probably post-2014 data.'.format(ephem_table[0]))
+            print('The visibility phase center is probably synchronized with the ephemeris. Loading data...')
         tb.open(ephem_table[0])
         col_ra = tb.getcol('RA')
         col_dec = tb.getcol('DEC')
@@ -346,6 +347,7 @@ def read_msinfo(vis=None, msinfofile=None, use_ephem=True, interp_to_scan=False,
             decs = qa.convert(qa.quantity(col_dec, 'deg'), 'rad')
             btimes = col_mjd
 
+        ##TODO: I don't know why I was doing this. It seems it is never used.
         if interp_to_scan:
             f_ra = interp1d(col_mjd, col_ra, kind='linear')
             f_dec = interp1d(col_mjd, col_dec, kind='linear')
@@ -354,11 +356,15 @@ def read_msinfo(vis=None, msinfofile=None, use_ephem=True, interp_to_scan=False,
             ras = qa.convert(qa.quantity(ras_, 'deg'), 'rad')
             decs = qa.convert(qa.quantity(decs_, 'deg'), 'rad')
             btimes = btimes_scan
-
+        msinfo['has_ephem_table'] = True
     else:
+        if verbose:
+            print('This measurement set does not have an ephemeris table attached. '
+                  'The visibility phascenter uses RA and DEC of the FIELD attached to each scan')
         ras = ras_scan
         decs = decs_scan
         btimes = btimes_scan
+        msinfo['has_ephem_table'] = False
 
     # put the relevent information into the dictionary
     btimestr = [qa.time(qa.quantity(btime, 'd'), form='fits', prec=10)[0] for btime in btimes]
@@ -375,10 +381,11 @@ def read_msinfo(vis=None, msinfofile=None, use_ephem=True, interp_to_scan=False,
     msinfo['decs'] = decs
     if msinfofile:
         np.savez(msinfofile, vis=vis, observatory=observatory, scans=scans, fieldids=fieldids, inttimes=inttimes,
-                 btimes=btimes, btimestr=btimestr, ras=ras, decs=decs)
+                 btimes=btimes, btimestr=btimestr, ras=ras, decs=decs, has_ephem_table=has_ephem_table)
     return msinfo
 
-def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=True, usephacenter=True, verbose=False):
+def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=True,
+                   usephacenter=True, geocentric=False, verbose=False):
     '''
     Module for calculating offsets of the phase center to the solar disk center using the following steps
     1. Take a solar ms database, read the scan and field information, find out the phase centers (in RA and DEC).
@@ -398,8 +405,11 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
            usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris.
                                  Otherwise assume the phasecenter is pointed to the solar disk center
                                  (EOVSA case)
+           geocentric: Bool -- if True, use geocentric RA & DEC.
+                        If False, use topocentric RA & DEC based on observatory location
+                        Default: False
 
-       return value:
+       return values:
            helio: a list of VLA pointing information
                    reftimestr: reference time, in FITS format string
                    reftime: reference time, in mjd format
@@ -414,6 +424,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
                    decoff: DEC offset of the phasecenter in the ms file to solar disk center, in arcsec
                    refx: heliocentric X offset of the phasecenter in the ms file to solar disk center, in arcsec
                    refy: heliocentric Y offset of the phasecenter in the ms file to solar disk center, in arcsec
+                   has_ephem_table: flag to indicate if there is an ephemeris table attached.
     ######## Example #########
         from suncasa.utils import helioimage2fits as hf
         vis = vis = '22B-174_20221031_sun.1s.cal.ms'
@@ -455,7 +466,17 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
             usephacenter = False
 
     if (not ephem) and usephacenter:
-        ephem = read_horizons(vis=vis)
+        if geocentric:
+            # use geocentric ephemeris
+            if verbose:
+                print('Use geocentric RA & DEC')
+            ephem = read_horizons(vis=vis, observatory='500')
+        else:
+            # use topocentric ephemeris
+            if verbose:
+                print('Use topocentric RA & DEC at observatory.')
+            ephem = read_horizons(vis=vis, observatory=msinfo0['observatory'])
+
 
     if type(ras) is list:
         ra_rads = [ra['value'] for ra in ras]
@@ -675,6 +696,8 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
         helio0['ra_fld'] = ra_b  # ra of the field, used as the reference in e.g., clean
         helio0['dec_fld'] = dec_b  # dec of the field, used as the refenrence in e.g., clean
         # helio['r_sun']=np.degrees(R_sun.value/(au.value*delta0))*3600. #in arcsecs
+        ## add the tag whether an ephemeris table is attached or not
+        helio0['has_ephem_table'] = msinfo0['has_ephem_table']
         helio.append(helio0)
     return helio
 
@@ -751,7 +774,7 @@ def getbeam(imagefile=None, beamfile=None):
 
 def imreg(vis=None, imagefile=None, timerange=None,
           ephem=None, msinfo=None, fitsfile=None,
-          usephacenter=True, dopolyfit=True, reftime=None, offsetfile=None, beamfile=None,
+          usephacenter=True, geocentric=False, dopolyfit=True, reftime=None, offsetfile=None, beamfile=None,
           toTb=False, sclfactor=1.0, p_ang=False, overwrite=True,
           deletehistory=False, subregion='', docompress=False, verbose=False):
     ''' 
@@ -772,6 +795,9 @@ def imreg(vis=None, imagefile=None, timerange=None,
                usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris.
                                      Otherwise assume the phasecenter is correctly pointed to the solar disk center
                                      (EOVSA case)
+               geocentric: Bool -- if True, use geocentric RA & DEC.
+                        If False, use topocentric RA & DEC based on observatory location
+                        Default: False
                dopolyfit: Bool -- if True, fit the ephemeris from the measurement set using a polynomial fit.
                                   if False, just use linear interpolation
                ###### The following two parameters are only meant for temporary fixes ########################
@@ -826,11 +852,11 @@ def imreg(vis=None, imagefile=None, timerange=None,
         if len(reftime) != nimg:
             raise ValueError('Number of reference times does not match that of input images!')
         helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=reftime,
-                               usephacenter=usephacenter, dopolyfit=dopolyfit)
+                               usephacenter=usephacenter, geocentric=geocentric, dopolyfit=dopolyfit, verbose=verbose)
     else:
         # use the supplied timerange to register the image
         helio = ephem_to_helio(vis, ephem=ephem, msinfo=msinfo, reftime=timerange,
-                               usephacenter=usephacenter, dopolyfit=dopolyfit)
+                               usephacenter=usephacenter, geocentric=geocentric, dopolyfit=dopolyfit, verbose=verbose)
 
     if toTb:
         (bmajs, bmins, bpas, beamunits, bpaunits) = getbeam(imagefile=imagefile, beamfile=beamfile)
@@ -876,14 +902,29 @@ def imreg(vis=None, imagefile=None, timerange=None,
             # construct the standard fits header
             # RA and DEC of the reference pixel crpix1 and crpix2
             (imra, imdec) = (imsum['refval'][0], imsum['refval'][1])
-            # find out the difference of the image center to the CASA phase center
-            # RA and DEC difference in arcseconds
-            ddec = degrees((imdec - hel['dec_fld'])) * 3600.
-            dra = degrees((imra - hel['ra_fld']) * cos(hel['dec_fld'])) * 3600.
+
+            ## When (t)clean is making an image, the default center of the image is coordinates of the associated FIELD
+            ## If a new "phasecenter" is supplied in (t)clean, if
+            #       CASE A (<2014-ish): No ephemeris table is attached. The visibility phase center
+            #                              is the same as the RA and DEC of the FIELD
+            #       CASA B (>2014-ish): Ephemeris table is attached. The visibility phase center
+            #                              is the same as that from the ephemeris, and is
+            #                              different from the RA and DEC of the FIELD.
+            #### find out the difference between the image phase center and RA and DEC of the associated FIELD
+            ddec_fld = degrees(normalise(imdec - hel['dec_fld'])) * 3600. # in arcsec
+            dra_fld = degrees(normalise(imra - hel['ra_fld']) * cos(hel['dec_fld'])) * 3600. # in arcsec
+
             # Convert into image heliocentric offsets
             prad = -radians(hel['p0'])
-            dx = (-dra) * cos(prad) - ddec * sin(prad)
-            dy = (-dra) * sin(prad) + ddec * cos(prad)
+            dx_fld = (-dra_fld) * cos(prad) - ddec_fld * sin(prad)
+            dy_fld = (-dra_fld) * sin(prad) + ddec_fld * cos(prad)
+
+            #### find out the difference between the image phase center and RA and DEC of the visibility phasecenter
+            ddec_vis = degrees(normalise(imdec - hel['dec'])) * 3600. # in arcsec
+            dra_vis = degrees(normalise(imra - hel['ra']) * cos(hel['dec'])) * 3600. # in arcsec
+            # Convert into image heliocentric offsets
+            dx_vis = (-dra_vis) * cos(prad) - ddec_vis * sin(prad)
+            dy_vis = (-dra_vis) * sin(prad) + ddec_vis * cos(prad)
             if offsetfile:
                 try:
                     offset = np.load(offsetfile)
@@ -900,11 +941,20 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 xoff = hel['refx']
                 yoff = hel['refy']
             if verbose:
-                print('offset of image phase center to visibility phase center (arcsec): dx={0:.2f}, dy={1:.2f}'.format(
-                    dx, dy))
-                print('offset of visibility phase center to solar disk center (arcsec): dx={0:.2f}, dy={1:.2f}'.format(
+                print('offset of image phase center to FIELD phase center (arcsec): dx={0:.2f}, dy={1:.2f}'.format(
+                    dx_fld, dy_fld))
+                print('offset of image phase center to VISIBILITY phase center (arcsec): dx={0:.2f}, dy={1:.2f}'.format(
+                    dx_vis, dy_vis))
+                print('offset of VISIBILITY phase center to solar disk center (arcsec): dx={0:.2f}, dy={1:.2f}'.format(
                     xoff, yoff))
-            (crval1, crval2) = (xoff + dx, yoff + dy)
+            if hel['has_ephem_table']:
+                if verbose:
+                    print('This ms has an ephemeris table attached. Use ephemeris phase center as reference')
+                (crval1, crval2) = (xoff + dx_vis, yoff + dy_vis)
+            else:
+                if verbose:
+                    print('This ms does not have an ephemeris table attached. Use FIELD phase center as reference.')
+                (crval1, crval2) = (xoff + dx_fld, yoff + dy_fld)
             # update the fits header to heliocentric coordinates
 
             hdu = pyfits.open(fitsf, mode='update')
