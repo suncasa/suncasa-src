@@ -1,11 +1,10 @@
-import os
-
 __all__ = ['Dspec']
 
-import numpy as np
 import os
 import struct
+
 import matplotlib.pyplot as plt
+import numpy as np
 from astropy.time import Time
 
 try:
@@ -92,7 +91,6 @@ class Dspec:
     uvrange = None
     pol = None
 
-
     def __init__(self, fname=None, specfile=None, bl='', uvrange='', field='', scan='',
                  datacolumn='data', domedian=False, timeran=None, spw=None, timebin='0s', regridfreq=False,
                  fillnan=None, verbose=False, usetbtool=True):
@@ -160,7 +158,7 @@ class Dspec:
         date_end = tim[-1].iso
         ut = tim.mjd
         ut_int = ut.astype(np.int32)
-        ut_msec = 1000.0*86400.0*(ut-ut_int)
+        ut_msec = 1000.0 * 86400.0 * (ut - ut_int)
         ut_ms1 = ut_msec.astype(np.int32)
 
         # J is the format code for a 32 bit integer, who would have thought
@@ -172,10 +170,10 @@ class Dspec:
         tbhdu3 = fits.BinTableHDU.from_columns(cols3)
         tbhdu3.name = 'UT'
 
-        #create an HDUList object to put in header information
+        # create an HDUList object to put in header information
         hdulist = fits.HDUList([hdu, tbhdu1, tbhdu3])
 
-        #primary header
+        # primary header
         prihdr = hdulist[0].header
         prihdr.set('FILENAME', fitsfile)
         prihdr.set('ORIGIN', 'NJIT', 'Institute where file was written')
@@ -191,12 +189,13 @@ class Dspec:
         prihdr.set('POLARIZA', 'I', 'Polarizations present')
         prihdr.set('RESOLUTI', 0.0, 'Resolution value')
         # Write the file
-        hdulist.writeto(fitsfile, clobber=True)
-
+        hdulist.writeto(fitsfile, overwrite=True)
 
     def get_dspec(self, fname=None, specfile=None, bl='', uvrange='', field='', scan='',
                   datacolumn='data',
-                  domedian=False, timeran=None, spw=None, timebin='0s', regridfreq=False, fillnan=None, verbose=False,
+                  domedian=False, timeran=None, spw=None, timebin='0s', regridfreq=False,
+                  hanning=False,
+                  applyflag=False, fillnan=None, verbose=False,
                   usetbtool=True):
         if fname.endswith('/'):
             fname = fname[:-1]
@@ -225,6 +224,49 @@ class Dspec:
             except:
                 pol = []
 
+            if hanning:
+                from casatasks import hanningsmooth
+                hanningsmooth(vis=fname, datacolumn='data', field=field, outputvis=fname + '.tmpms')
+                fname = fname + '.tmpms'
+            tb.open(fname)
+            spwtb = tbtool()
+            spwtb.open(fname + '/SPECTRAL_WINDOW')
+            ptb = tbtool()
+            ptb.open(fname + '/POLARIZATION')
+            npol = ptb.getcol('NUM_CORR', 0, 1)[0]
+            ptb.close()
+
+            ms.open(fname)
+            # ms.selectinit(datadescid=0)
+            spwlist = []
+            mdata = ms.metadata()
+            nspw = mdata.nspw()
+            nbaselines = mdata.nbaselines()
+            nantennas = mdata.nantennas()
+            nscans = mdata.nscans()
+            spw_nfrq = []  # List of number of frequencies in each spw
+            for i in range(nspw):
+                spw_nfrq.append(mdata.nchan(i))
+            spw_nfrq = np.array(spw_nfrq)
+            nf = np.sum(spw_nfrq)
+            smry = mdata.summary()
+
+            scanids = sorted(smry['observationID=0']['arrayID=0'].keys())
+            ## todo find a way to determine the target fieldID if multi-fields exist
+            smryscan0 = smry['observationID=0']['arrayID=0'][scanids[0]]
+            fieldid = ''
+            for k in smryscan0.keys():
+                if k.startswith('fieldID='):
+                    fieldid = k
+                    break
+            nbl = int(smryscan0[fieldid]['0']['nrows'] / nspw)
+            if nbl == nbaselines + nantennas:
+                hasautocorr = True
+            elif nbl == nbaselines:
+                hasautocorr = False
+            else:
+                raise (ValueError('The baseline number is not correct.'))
+
             antmask = []
             if uvrange is not '' or bl is not '':
                 ms.open(fname)
@@ -238,45 +280,47 @@ class Dspec:
                 ## I need to make mask for other items.
                 a = ms.msselect(staql)
                 mdata = ms.metadata()
+                smry = mdata.summary()
                 baselines = mdata.baselines()
-                for lidx, l in enumerate(antlist):
-                    antmask.append(baselines[l][antlist[lidx:]])
+                if hasautocorr:
+                    for lidx, l in enumerate(antlist):
+                        antmask.append(baselines[l][antlist[lidx:]])
+                else:
+                    for lidx, l in enumerate(antlist):
+                        antmask.append(baselines[l][antlist[lidx + 1:]])
                 antmask = np.hstack(antmask)
                 mdata.done()
                 ms.close()
+                ms.open(fname)
 
-            tb.open(fname)
-            spwtb = tbtool()
-            spwtb.open(fname + '/SPECTRAL_WINDOW')
-            ptb = tbtool()
-            ptb.open(fname + '/POLARIZATION')
-
-            ms.open(fname)
-            spwlist = []
-            mdata = ms.metadata()
-            nspw = mdata.nspw()
-            nbl = mdata.nbaselines() + mdata.nantennas()
-            nscans = mdata.nscans()
-            spw_nfrq = []  # List of number of frequencies in each spw
-            for i in range(nspw):
-                spw_nfrq.append(mdata.nchan(i))
-            spw_nfrq = np.array(spw_nfrq)
-            nf = np.sum(spw_nfrq)
-            smry = mdata.summary()
             scan_ntimes = []  # List of number of times in each scan
-            scanids = sorted(smry['observationID=0']['arrayID=0'].keys())
+            # for iscan in range(nscans):
+            #     print(smry['observationID=0']['arrayID=0'][scanids[iscan]]['fieldID=0']['nrows'])
+            #     s = smry['observationID=0']['arrayID=0'][scanids[iscan]]['fieldID=0'].keys()
+            #     tidxs = np.sort(np.array(list(filter(lambda x: x.isdigit(), a))).astype(np.int))
+
+            nrows = []
             for iscan in range(nscans):
-                scan_ntimes.append(
-                    smry['observationID=0']['arrayID=0'][scanids[iscan]]['fieldID=0']['nrows'] / nspw / nbl)
+                smryscan = smry['observationID=0']['arrayID=0'][scanids[iscan]]
+                nrow = next(v for k, v in smryscan.items() if 'fieldID=' in k)['nrows']
+                nrows.append(nrow)
+                scan_ntimes.append(nrow / nspw / nbl)
             scan_ntimes = np.array(scan_ntimes)
             scan_ntimes_integer = scan_ntimes.astype(np.int)
             if len(np.where(scan_ntimes % scan_ntimes_integer != 0)[0]) != 0:
                 # if True:
                 scan_ntimes = []  # List of number of times in each scan
                 for iscan in range(nscans):
-                    scan_ntimes.append(
-                        len(smry['observationID=0']['arrayID=0'][scanids[iscan]]['fieldID=0'].keys()) - 6)
-                scan_ntimes = np.array(scan_ntimes)
+                    nrows_scan = []  ## get the nrows for each time. They are not always the SAME!
+                    smryscan = smry['observationID=0']['arrayID=0'][scanids[iscan]]
+                    # for k, v in smryscan['fieldID=0'].items():
+                    #     if isinstance(v,dict):
+                    #         nrows_scan.append(v['nrows'])
+                    nrows_scan.append(next(v for k, v in smryscan.items() if 'fieldID=' in k)['nrows'])
+                    scan_ntimes.append(nrows[iscan] / max(set(nrows_scan)))
+                    # scan_ntimes.append(
+                    #     len(smry['observationID=0']['arrayID=0'][scanids[iscan]]['fieldID=0'].keys()) - 6)
+                scan_ntimes = np.array(scan_ntimes).astype(np.int)
             else:
                 scan_ntimes = scan_ntimes_integer
 
@@ -288,12 +332,14 @@ class Dspec:
             elif times[nbl * nspw - 1] - times[0] != 0:
                 # This is time sort order
                 order = 't'
-            npol = ptb.getcol('NUM_CORR', 0, 1)[0]
-            ptb.close()
+            else:
+                order = 'f'
+
             freq = np.zeros(nf, float)
             times = np.zeros(nt, float)
             if order == 't':
                 specamp = np.zeros((npol, nf, nbl, nt), np.complex)
+                flagf = np.zeros((npol, nf, nbl, nt), np.int)
                 for j in range(nt):
                     fptr = 0
                     # Loop over spw
@@ -309,44 +355,63 @@ class Dspec:
                         flag = tb.getcol('FLAG', nbl * (i + nspw * j), nbl)  # Get flags for this spw
                         nfrq = len(cfrq)
                         # Apply flags
-                        if type(fillnan) in [int, float]:
-                            spec_[flag] = float(fillnan)
-                        else:
-                            spec_[flag] = np.nan
+                        # if applyflag:
+                        #     if type(fillnan) in [int, float]:
+                        #         spec_[flag] = float(fillnan)
+                        #     else:
+                        #         spec_[flag] = np.nan
                         # Insert data for this spw into larger array
                         specamp[:, fptr:fptr + nfrq, :, j] = spec_
+                        flagf[:, fptr:fptr + nfrq, :, j] = flag
                         freq[fptr:fptr + nfrq] = cfrq
                         fptr += nfrq
             else:
                 specf = np.zeros((npol, nf, nt, nbl), np.complex)  # Array indexes are swapped
+                flagf = np.zeros((npol, nf, nt, nbl), np.int)  # Array indexes are swapped
+                # ant1 = np.zeros((nt, nbl), np.int)  # Array indexes are swapped
+                # ant2 = np.zeros((nt, nbl), np.int)  # Array indexes are swapped
                 iptr = 0
                 for j in range(nscans):
                     # Loop over scans
+                    s = scan_ntimes[j]
+                    s1 = np.sum(scan_ntimes[:j])  # Start time index
+                    s2 = np.sum(scan_ntimes[:j + 1])  # End time index
                     for i in range(nspw):
                         # Loop over spectral windows
-                        s = scan_ntimes[j]
                         f = spw_nfrq[i]
-                        s1 = np.sum(scan_ntimes[:j])  # Start time index
-                        s2 = np.sum(scan_ntimes[:j + 1])  # End time index
                         f1 = np.sum(spw_nfrq[:i])  # Start freq index
                         f2 = np.sum(spw_nfrq[:i + 1])  # End freq index
+                        # try:
                         spec_ = tb.getcol('DATA', iptr, nbl * s)
+                        # if i==0:
+                        #     ant1_ = tb.getcol('ANTENNA1', iptr, nbl * s)
+                        #     ant2_ = tb.getcol('ANTENNA2', iptr, nbl * s)
                         flag = tb.getcol('FLAG', iptr, nbl * s)
                         if j == 0:
                             cfrq = spwtb.getcol('CHAN_FREQ', i, 1)[:, 0]
                             freq[f1:f2] = cfrq
                             spwlist += [i] * len(cfrq)
                         times[s1:s2] = tb.getcol('TIME', iptr, nbl * s).reshape(s, nbl)[:, 0]  # Get the times
-                        iptr += nbl * s
                         # Apply flags
-                        if type(fillnan) in [int, float]:
-                            spec_[flag] = float(fillnan)
-                        else:
-                            spec_[flag] = 0.0
+                        # if applyflag:
+                        #     if type(fillnan) in [int, float]:
+                        #         spec_[flag] = float(fillnan)
+                        #     else:
+                        #         spec_[flag] = 0.0
                         # Insert data for this spw into larger array
                         specf[:, f1:f2, s1:s2] = spec_.reshape(npol, f, s, nbl)
+                        flagf[:, f1:f2, s1:s2] = flag.reshape(npol, f, s, nbl)
+                        # if i==0:
+                        #     ant1[s1:s2] = ant1_.reshape(s, nbl)
+                        #     ant2[s1:s2] = ant2_.reshape(s, nbl)
                         # Swap the array indexes back to the desired order
+                        # except:
+                        #     print('error processing spw {}'.format(i))
+                        iptr += nbl * s
                 specamp = np.swapaxes(specf, 2, 3)
+                flagf = np.swapaxes(flagf, 2, 3)
+            if applyflag:
+                specamp = np.ma.masked_array(specamp, flagf)
             tb.close()
             spwtb.close()
             ms.close()
@@ -354,6 +419,8 @@ class Dspec:
                 specamp = specamp[:, :, np.where(antmask)[0], :]
             (npol, nfreq, nbl, ntim) = specamp.shape
             tim = times
+            if hanning:
+                os.system('rm -rf {}'.format(fname))
         else:
             # Open the ms and plot dynamic spectrum
             if verbose:
@@ -527,7 +594,7 @@ class Dspec:
             tim = specdata['tim']
             freq = specdata['freq']
             if 'pol' in specdata.keys():
-                pol= specdata['pol']
+                pol = specdata['pol']
             else:
                 pol = []
 
@@ -571,7 +638,6 @@ class Dspec:
             np.savez(specfile, **specdata)
         return specdata
 
-
     def peek(self, *args, **kwargs):
         """
         Plot dynamaic spectrum onto current axes.
@@ -594,7 +660,8 @@ class Dspec:
         plt.show()
         return ret
 
-    def plot(self, pol='I', vmin=None, vmax=None, norm=None, cmap='turbo', timerange=None, freqrange=None, ignore_gaps=True):
+    def plot(self, pol='I', vmin=None, vmax=None, norm=None, cmap='turbo', timerange=None, freqrange=None,
+             ignore_gaps=True):
         """
         timerange: format: ['2021-05-07T18:00:00','2021-05-07T19:00:00']
         freqrange: format: [1.,18.] in GHz
@@ -604,8 +671,8 @@ class Dspec:
         import matplotlib.colors as colors
         import matplotlib.pyplot as plt
         from astropy.time import Time
-        if pol not in ['RR', 'LL', 'RRLL', 'XX', 'YY', 'XXYY', 'I', 'V', 'IV']:
-            print("Please enter 'RR', 'LL', 'RRLL','XX', 'YY', 'XXYY', 'I', 'V', 'IV' for pol")
+        if pol not in ['RR', 'LL', 'RRLL', 'XX', 'YY', 'XY', 'YX', 'XXYY', 'I', 'V', 'IV']:
+            print("Please enter 'RR', 'LL', 'RRLL','XX', 'YY', 'XY', 'YX', 'XXYY', 'I', 'V', 'IV' for pol")
             return 0
 
         try:
@@ -618,7 +685,7 @@ class Dspec:
         spec = self.data
         bl = self.bl
         freq = self.freq_axis
-        pol = self.pol
+        # pol = self.pol
 
         if spec.ndim == 2:
             nfreq, ntim = len(self.freq_axis), len(self.time_axis)
@@ -662,6 +729,10 @@ class Dspec:
                         spec_plt = spec[0, b, :, :]
                     elif pol in ['LL', 'YY']:
                         spec_plt = spec[1, b, :, :]
+                    elif pol in ['XY']:
+                        spec_plt = spec[2, b, :, :]
+                    elif pol in ['YX']:
+                        spec_plt = spec[3, b, :, :]
                     elif pol == 'I':
                         if ('XX' in pol) or ('YY' in pol):
                             spec_plt = spec[0, b, :, :] + spec[1, b, :, :]
@@ -680,7 +751,7 @@ class Dspec:
                 fig = plt.figure(figsize=(8, 4), dpi=100)
                 ax = fig.add_subplot(111)
                 freqghz = freq / 1e9
-                im = ax.pcolormesh(tim_plt, freqghz, spec_plt, cmap=cmap, norm=norm, shading='auto')
+                im = ax.pcolormesh(tim_plt, freqghz, spec_plt, cmap=cmap, norm=norm, shading='auto', rasterized=True)
 
                 # make colorbar
                 divider = make_axes_locatable(ax)
@@ -696,7 +767,8 @@ class Dspec:
                     if col >= 0 and col < ntim and row >= 0 and row < nfreq:
                         timstr = tim_[col].isot
                         flux = spec_plt[row, col]
-                        return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} sfu'.format(col, timstr, y, flux)
+                        return 'time {0} = {1}, freq {2} = {3:.3f} GHz, flux = {4:.2f} sfu'.format(col, timstr, row, y,
+                                                                                                   flux)
                     else:
                         return 'x = {0}, y = {1:.3f}'.format(x, y)
 
@@ -736,7 +808,7 @@ class Dspec:
                                                     0)
                 ax1 = fig.add_subplot(211)
                 freqghz = freq / 1e9
-                im = ax1.pcolormesh(tim_plt, freqghz, spec_plt_1, cmap=cmap, norm=norm, shading='auto')
+                im = ax1.pcolormesh(tim_plt, freqghz, spec_plt_1, cmap=cmap, norm=norm, shading='auto', rasterized=True)
                 divider = make_axes_locatable(ax1)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax1, cax=cax_spec)
@@ -751,7 +823,8 @@ class Dspec:
                     if col >= 0 and col < ntim and row >= 0 and row < nfreq:
                         timstr = tim_[col].isot
                         flux = spec_plt_1[row, col]
-                        return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} sfu'.format(col, timstr, y, flux)
+                        return 'time {0} = {1}, freq {2} = {3:.3f} GHz, flux = {4:.2f} sfu'.format(col, timstr, row, y,
+                                                                                                   flux)
                     else:
                         return 'x = {0}, y = {1:.3f}'.format(x, y)
 
@@ -764,7 +837,7 @@ class Dspec:
                 ax1.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[0])
                 ax1.set_autoscale_on(False)
                 ax2 = fig.add_subplot(212)
-                im = ax2.pcolormesh(tim_plt, freqghz, spec_plt_2, cmap=cmap, norm=norm, shading='auto')
+                im = ax2.pcolormesh(tim_plt, freqghz, spec_plt_2, cmap=cmap, norm=norm, shading='auto', rasterized=True)
                 divider = make_axes_locatable(ax2)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax2, cax=cax_spec)
@@ -782,7 +855,8 @@ class Dspec:
                     if col >= 0 and col < ntim and row >= 0 and row < nfreq:
                         timstr = tim_[col].isot
                         flux = spec_plt_2[row, col]
-                        return 'time {0} = {1}, freq = {2:.3f} GHz, flux = {3:.2f} sfu'.format(col, timstr, y, flux)
+                        return 'time {0} = {1}, freq {2} = {3:.3f} GHz, flux = {4:.2f} sfu'.format(col, timstr, row, y,
+                                                                                                   flux)
                     else:
                         return 'x = {0}, y = {1:.3f}'.format(x, y)
 
