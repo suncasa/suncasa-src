@@ -281,10 +281,8 @@ def read_msinfo(vis=None, msinfofile=None, interp_to_scan=False, verbose=False):
         print('This measurement set has these fields: ', metadata.fieldnames())
     scans = ms.getscansummary()
     scanids = sorted(scans.keys(), key=lambda x: int(x))
-    nscanid = len(scanids)
-    btimes = []
-    btimestr = []
-    etimes = []
+    btimes_scan = []
+    etimes_scan = []
     fieldids = []
     inttimes = []
     dirs = []
