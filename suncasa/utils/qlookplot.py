@@ -382,15 +382,15 @@ def get_rdata_dict(rdata, ndim, stokaxis, npol_fits, icmap=None, stokes='I,V', s
             if stokes == 'I,V':
                 slc1[stokaxis] = slice(0, 1)
                 slc2[stokaxis] = slice(1, 2)
-                datas['I'] = (rdata[slc1] + rdata[slc2]) / 2.0
-                datas['V'] = (rdata[slc1] - rdata[slc2]) / (rdata[slc1] + rdata[slc2])
+                datas['I'] = (rdata[tuple(slc1)] + rdata[tuple(slc2)]) / 2.0
+                datas['V'] = (rdata[tuple(slc1)] - rdata[tuple(slc2)]) / (rdata[tuple(slc1)] + rdata[tuple(slc2)])
                 cmaps['I'] = cmap_I
                 cmaps['V'] = cmap_V
             else:
                 slc1[stokaxis] = slice(polmap[pols[0]], polmap[pols[0]] + 1)
                 slc2[stokaxis] = slice(polmap[pols[1]], polmap[pols[1]] + 1)
-                datas[pols[0]] = rdata[slc1]
-                datas[pols[1]] = rdata[slc2]
+                datas[pols[0]] = rdata[tuple(slc1)]
+                datas[pols[1]] = rdata[tuple(slc2)]
                 cmaps[pols[0]] = cmap_I
                 cmaps[pols[1]] = cmap_I
         else:
@@ -399,7 +399,7 @@ def get_rdata_dict(rdata, ndim, stokaxis, npol_fits, icmap=None, stokes='I,V', s
                 cmaps[pols[0]] = cmap_I
             else:
                 slc1[stokaxis] = slice(0, 1)
-                datas[pols[0]] = rdata[slc1]
+                datas[pols[0]] = rdata[tuple(slc1)]
                 cmaps[pols[0]] = cmap_I
     else:
         if npol_fits > 1:
@@ -407,14 +407,14 @@ def get_rdata_dict(rdata, ndim, stokaxis, npol_fits, icmap=None, stokes='I,V', s
                 slc1[stokaxis] = slice(0, 1)
                 slc2[stokaxis] = slice(1, 2)
                 if pols[0] == 'I':
-                    datas['I'] = (rdata[slc1] + rdata[slc2]) / 2.0
+                    datas['I'] = (rdata[tuple(slc1)] + rdata[tuple(slc2)]) / 2.0
                     cmaps['I'] = cmap_I
                 else:
-                    datas['V'] = (rdata[slc1] - rdata[slc2]) / (rdata[slc1] + rdata[slc2])
+                    datas['V'] = (rdata[tuple(slc1)] - rdata[tuple(slc2)]) / (rdata[tuple(slc1)] + rdata[tuple(slc2)])
                     cmaps['V'] = cmap_V
             else:
                 slc1[stokaxis] = slice(polmap[pols[0]], polmap[pols[0]] + 1)
-                datas[pols[0]] = rdata[slc1]
+                datas[pols[0]] = rdata[tuple(slc1)]
                 cmaps[pols[0]] = cmap_I
         else:
             if stokaxis is None:
@@ -422,7 +422,7 @@ def get_rdata_dict(rdata, ndim, stokaxis, npol_fits, icmap=None, stokes='I,V', s
                 cmaps[pols[0]] = cmap_I
             else:
                 slc1[stokaxis] = slice(0, 1)
-                datas[pols[0]] = rdata[slc1]
+                datas[pols[0]] = rdata[tuple(slc1)]
                 cmaps[pols[0]] = cmap_I
     if stokaxis is not None:
         if not py3:
@@ -487,7 +487,7 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
     else:
         if observatory == 'EOVSA':
             try:
-                sbeam = np.float(restoringbeam[0].replace('arcsec', ''))
+                sbeam = float(restoringbeam[0].replace('arcsec', ''))
             except:
                 sbeam = 35.
             restoringbms = mstools.get_bmsize(cfreqs, refbmsize=sbeam, reffreq=1.6, minbmsize=4.0)
@@ -1272,15 +1272,15 @@ def dspec_external(vis, workdir='./', specfile=None,ds_normalised=False):
         specfile = os.path.join(workdir, os.path.basename(vis) + '.dspec.npz')
     os.system('rm -rf {}'.format(dspecscript))
     fi = open(dspecscript, 'wb')
-    fi.write('from suncasa.utils import dspec as ds \n')
+    fi.write('from suncasa.dspec import dspec as ds \n')
     if ds_normalised==False:
         fi.write(
-        'specdata = ds.get_dspec("{0}", specfile="{1}", domedian=True, verbose=True, savespec=True, usetbtool=True) \n'.format(
+        'specdata = ds.Dspec("{0}", specfile="{1}", domedian=True, verbose=True, savespec=True, usetbtool=True) \n'.format(
             vis,
             specfile))
     else:
         fi.write(
-        'specdata = ds.get_dspec("{0}", specfile="{1}", domedian=True, verbose=True, savespec=True, usetbtool=True, ds_normalised=True) \n'.format(
+        'specdata = ds.Dspec("{0}", specfile="{1}", domedian=True, verbose=True, savespec=True, usetbtool=True, ds_normalised=True) \n'.format(
             vis,
             specfile))
     fi.close()
@@ -1310,7 +1310,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
             spw: spectral window selection following the CASA syntax.
                  Examples: spw='1:2~60' (spw id 1, channel range 2-60); spw='*:1.2~1.3GHz' (selects all channels within 1.2-1.3 GHz; note the *)
                  spw can be a list of spectral windows, i.e, ['0', '1', '2', '3', '4', '5', '6', '7']
-            specfile: supply dynamic spectrum save file (from suncasa.utils.dspec.get_dspec()). Otherwise
+            specfile: supply dynamic spectrum save file (from suncasa.dspec.dspec.Dspec()). Otherwise
                       generate a median dynamic spectrum on the fly
     Optional inputs:
             bl: baseline to generate dynamic spectrum
@@ -1785,6 +1785,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                         cmap_aia = cm_sunpy.get_cmap('sdoaia{}'.format(aiawave))
                 else:
                     cmap_aia = plt.get_cmap(acmap)
+                cmap_aia.set_bad(cmap_aia(0.0))
                 if not aiafits:
                     try:
                         if int(aiawave) in [171, 131, 94, 335, 304, 211, 193]:
@@ -1848,7 +1849,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                         restoringbms = [''] * nspws
                     else:
                         try:
-                            sbeam = np.float(restoringbeam[0].replace('arcsec', ''))
+                            sbeam = float(restoringbeam[0].replace('arcsec', ''))
                         except:
                             sbeam = 35.
                         restoringbms = mstools.get_bmsize(cfreqs, refbmsize=sbeam, reffreq=1.6, minbmsize=4.0)

@@ -375,11 +375,11 @@ def fit_diskmodel(out, bidx, rstn_flux, uvfitrange=[1, 150], angle_tolerance=np.
     # Minimize ratio of points to model
     ntries = 300
     solfac = np.linspace(1.0, 1.3, ntries)
-    d2m_eq = np.zeros(ntries, np.float)
-    d2m_pol = np.zeros(ntries, np.float)
-    d2m_all = np.zeros(ntries, np.float)
-    sfac = np.zeros(ntries, np.float)
-    sfacall = np.zeros(ntries, np.float)
+    d2m_eq = np.zeros(ntries, float)
+    d2m_pol = np.zeros(ntries, float)
+    d2m_all = np.zeros(ntries, float)
+    sfac = np.zeros(ntries, float)
+    sfacall = np.zeros(ntries, float)
     # Loop over ntries (300) models of solar disk size factor ranging from 1.0 to 1.3 r_Sun
     for k, sizfac in enumerate(solfac):
         eqpts = rstn_flux[fidx][0] * 2 * np.abs(j1(a * sizfac * zeq[ieq]) / (a * sizfac * zeq[ieq]))

@@ -1181,7 +1181,7 @@ class Stackplot:
         self.binpix *= binpix
 
     def mapcube_diff_denoise(self, log=False, vmax=None, vmin=None):
-        datacube = self.mapcube.as_array().astype(np.float)
+        datacube = self.mapcube.as_array().astype(float)
         if vmax is None:
             vmax = np.nanmax(datacube)
             if log:
@@ -1197,7 +1197,7 @@ class Stackplot:
                 else:
                     vmin = np.log10(vmin)
 
-        datacube_diff = self.mapcube_diff.as_array().astype(np.float)
+        datacube_diff = self.mapcube_diff.as_array().astype(float)
 
         if log:
             datacube[datacube < 10. ** vmin] = 10. ** vmin
@@ -1233,7 +1233,7 @@ class Stackplot:
         self.mapcube_diff = None
         # modes = {0: 'rdiff', 1: 'rratio', 2: 'bdiff', 3: 'bratio'}
         maplist = []
-        datacube = self.mapcube.as_array().astype(np.float)
+        datacube = self.mapcube.as_array().astype(float)
         if gaussfilt:
             from scipy.ndimage import gaussian_filter
             print('gaussian filtering map.....')
@@ -1258,12 +1258,12 @@ class Stackplot:
                     mapdata = datacube[:, :, idx] - datacube[:, :, sidx]
                     mapdata[np.isnan(mapdata)] = 0.0
                 elif mode == 'rratio':
-                    mapdata = datacube[:, :, idx].astype(np.float) / datacube[:, :, sidx].astype(np.float)
+                    mapdata = datacube[:, :, idx].astype(float) / datacube[:, :, sidx].astype(float)
                     mapdata[np.isnan(mapdata)] = 1.0
                 elif mode == 'bdiff':
                     mapdata = datacube[:, :, idx] - datacube[:, :, 0]
                 elif mode == 'bratio':
-                    mapdata = datacube[:, :, idx].astype(np.float) / datacube[:, :, 0].astype(np.float)
+                    mapdata = datacube[:, :, idx].astype(float) / datacube[:, :, 0].astype(float)
                 maplist[idx] = sunpy.map.Map(mapdata, maplist[idx].meta)
         elif mode == 'dtrend':
             datacube_ft = np.zeros_like(datacube)

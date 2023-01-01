@@ -838,7 +838,7 @@ def normalize_aiamap(aiamap):
     import sunpy.map as smap
     try:
         if aiamap.observatory == 'SDO' and aiamap.instrument[0:3] == 'AIA':
-            data = aiamap.data.copy().astype(np.float)
+            data = aiamap.data.copy().astype(float)
             idxpix = ~np.isnan(data)
             data[idxpix] = data[idxpix] / aiamap.exposure_time.value
             data[data < 0] = 0

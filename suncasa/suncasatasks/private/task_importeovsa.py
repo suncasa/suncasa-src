@@ -128,8 +128,8 @@ def trange2filelist(trange=[], verbose=False):
 
     sidx = np.where(
         np.logical_and(info['SOURCEID'] == 'Sun', info['PROJECTID'] == 'NormalObserving') & np.logical_and(
-            info['ST_TS'].astype(np.float) >= trange[0].lv,
-            info['ST_TS'].astype(np.float) <= trange[
+            info['ST_TS'].astype(float) >= trange[0].lv,
+            info['ST_TS'].astype(float) <= trange[
                 1].lv))
     filelist = info['FILE'][sidx]
     if verbose:
@@ -204,7 +204,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
 
     flag = np.ones((npol, nf, time_steps, npairs), dtype=bool)
     out = np.zeros((npol, nf, time_steps, npairs), dtype=np.complex64)  # Cross-correlations
-    uvwarray = np.zeros((3, time_steps, npairs), dtype=np.float)
+    uvwarray = np.zeros((3, time_steps, npairs), dtype=float)
     chan_band = ipe.get_band(sfreq=sfreq, sdf=sdf, date=Time(uv['time'], format='jd'))
     nband = len(chan_band)
 
@@ -250,7 +250,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     flag = flag.reshape(npol, nf, nrows)
     uvwarray = uvwarray.reshape(3, nrows)
     uvwarray = np.tile(uvwarray, (1, nband))
-    sigma = np.ones((4, nrows), dtype=np.float) + 1
+    sigma = np.ones((4, nrows), dtype=float) + 1
     sigma = np.tile(sigma, (1, nband))
 
     casalog.post('IDB File {0} is readed in --- {1:10.2f} seconds ---'.format(filename, (time.time() - time0)))
