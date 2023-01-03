@@ -367,10 +367,10 @@ def read_msinfo(vis=None, msinfofile=None, interp_to_scan=False, verbose=False):
     # put the relevent information into the dictionary
     btimestr = [qa.time(qa.quantity(btime, 'd'), form='fits', prec=10)[0] for btime in btimes]
     msinfo['vis'] = vis
+    msinfo['observatory'] = observatory
     msinfo['scans'] = scans
     msinfo['fieldids'] = fieldids
     msinfo['inttimes'] = inttimes
-
     msinfo['scan_start_times'] = btimes_scan
     msinfo['scan_end_times'] = etimes_scan
     msinfo['btimes'] = btimes
@@ -1124,7 +1124,7 @@ def imreg(vis=None, imagefile=None, timerange=None,
     return fitsfile
 
 
-def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=True):
+def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=True, observatory=None):
     '''
     return the phase center in RA and DEC of a given solar coordinates
 
@@ -1137,12 +1137,22 @@ def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=Tr
     midtim: mid time of the given timerange
     '''
     ms.open(vis)
-    out = ms.summary()
-    tst = Time(out['BeginTime'], format='mjd')
-    ted = Time(out['EndTime'], format='mjd')
     metadata = ms.metadata()
-    observatory = metadata.observatorynames()[0]
+    if not observatory:
+        observatory = metadata.observatorynames()[0]
+
+    try:
+        mstrange = metadata.timerangeforobs(0)
+        tst = Time(mstrange['begin']['m0']['value'], format='mjd')
+        ted = Time(mstrange['end']['m0']['value'], format='mjd')
+    except:
+        print('Something is wrong in using metadata tool. Maybe you are using an old CASA version.')
+        print('Try to use the summary outputs.')
+        out = ms.summary()
+        tst = Time(out['BeginTime'], format='mjd')
+        ted = Time(out['EndTime'], format='mjd')
     ms.close()
+    metadata.close()
     datstr = tst.iso[:10]
 
     if isinstance(timerange, Time):
@@ -1178,9 +1188,9 @@ def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=Tr
 
     midtim_mjd = (sttim.mjd + edtim.mjd) / 2.
     midtim = Time(midtim_mjd, format='mjd')
-    eph = read_horizons(t0=midtim)
+    eph = read_horizons(t0=midtim, observatory=observatory)
     if observatory == 'EOVSA' or (not usemsphacenter):
-        print('This is EOVSA data')
+        print('Phasecenter in the ms is ignored')
         # use RA and DEC from FIELD ID 0
         tb.open(vis + '/FIELD')
         phadir = tb.getcol('PHASE_DIR').flatten()
