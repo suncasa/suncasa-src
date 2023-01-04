@@ -232,36 +232,38 @@ def get_colorbar_params(fbounds, stepfactor=1):
     #     ticks = np.hstack((ticks, vmax))
     return ticks, bounds, fmax, fmin, freqmask
 
-def download_jp2(tstart,tend,wavelengths,outdir):
+
+def download_jp2(tstart, tend, wavelengths, outdir):
     from sunpy.net.helioviewer import HelioviewerClient
     from astropy import time as time_module
     from sunpy import map as smap
     hv = HelioviewerClient()
 
     for wave in wavelengths:
-        if wave!=1600 and wave!=1700:
-            tdt=time_module.TimeDelta(12,format='sec')
+        if wave != 1600 and wave != 1700:
+            tdt = time_module.TimeDelta(12, format='sec')
         else:
-            tdt=time_module.TimeDelta(24,format='sec')
-        if wave==1600 or wave==1700:
+            tdt = time_module.TimeDelta(24, format='sec')
+        if wave == 1600 or wave == 1700:
             product = 'aia.lev1_uv_24s'
         else:
             product = 'aia.lev1_euv_12s'
-        st=tstart
-        while st<=tend:
-            st.format='iso'
-            filepath=hv.download_jp2(st.value,observatory='SDO',instrument='AIA',measurement=str(int(wave)))
-            print (filepath)
-            aiamap=smap.Map(filepath)
-            head=aiamap.meta
-            tobs=head['T_OBS']
-            date=tobs[:10]
-            time=''.join(tobs[10:].split(':'))[:-1]
-            wavelength1=head['WAVELNTH']
-            filename=product+'.'+date+time+'_Z.'+str(wavelength1)+".image_lev_1.fits"
-            os.system("mv "+filepath+" "+outdir+filename)
-            st+=tdt
+        st = tstart
+        while st <= tend:
+            st.format = 'iso'
+            filepath = hv.download_jp2(st.value, observatory='SDO', instrument='AIA', measurement=str(int(wave)))
+            print(filepath)
+            aiamap = smap.Map(filepath)
+            head = aiamap.meta
+            tobs = head['T_OBS']
+            date = tobs[:10]
+            time = ''.join(tobs[10:].split(':'))[:-1]
+            wavelength1 = head['WAVELNTH']
+            filename = product + '.' + date + time + '_Z.' + str(wavelength1) + ".image_lev_1.fits"
+            os.system("mv " + filepath + " " + outdir + filename)
+            st += tdt
     return
+
 
 def downloadAIAdata(trange, wavelength=None, outdir='./'):
     if isinstance(trange, list) or isinstance(trange, tuple) or type(trange) == np.ndarray or type(trange) == Time:
@@ -333,16 +335,17 @@ def downloadAIAdata(trange, wavelength=None, outdir='./'):
                         product = 'aia.lev1_uv_24s'
                     else:
                         product = 'aia.lev1_euv_12s'
-                    jsocnamestr = product + '.' + '{}-{}-{}{}{}Z.'.format(vsonamestrs[3], vsonamestrs[4], vsonamestrs[5],
+                    jsocnamestr = product + '.' + '{}-{}-{}{}{}Z.'.format(vsonamestrs[3], vsonamestrs[4],
+                                                                          vsonamestrs[5],
                                                                           vsonamestrs[6],
                                                                           vsonamestrs[7]).upper() + vsonamestrs[2][
                                                                                                     :-1] + '.image_lev1.fits'
                     print(ll, jsocnamestr)
                     os.system('mv {} {}/{}'.format(ll, outdir, jsocnamestr))
         except:
-            download_jp2(tst,ted,wavelength,outdir)
-    if len(res)==0:
-        download_jp2(tst,ted,wavelength,outdir)
+            download_jp2(tst, ted, wavelength, outdir)
+    if len(res) == 0:
+        download_jp2(tst, ted, wavelength, outdir)
     if os.path.exists('/tmp/suds/'):
         os.system('rm -rf /tmp/suds/')
 
@@ -438,7 +441,7 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
                    sclfactor=1.0, overwrite=True, doslfcal=False, datacolumn='data',
                    phasecenter='', robust=0.0, niter=500, gain=0.1, imsize=[512], cell=['5.0arcsec'], pbcor=True,
                    reftime='', restoringbeam=[''],
-                   mask='', docompress=False,
+                   mask='', docompress=False, wrapfits=True,
                    uvrange='', subregion='', c_external=True, show_warnings=False):
     vis = [vis]
     subdir = ['/']
@@ -630,8 +633,26 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
             return None
 
     # save it for debugging purposes
-    np.savez(os.path.join(imagedir, '{}.imres.npz'.format(os.path.basename(msfile))), imres=imres)
+    imresfile = os.path.join(imagedir, '{}.imres.npz'.format(os.path.basename(msfile)))
+    np.savez(imresfile, imres=imres)
 
+    if wrapfits:
+        imres = ndfits.read_imres(imresfile)
+        nt = len(imres['plttimes'])
+        imresnew = {'images': [], 'btimes': [], 'etimes': []}
+        imresnew['btimes'] = imres['btimes'][:, 0].iso
+        imresnew['etimes'] = imres['etimes'][:, 0].iso
+        qlookallbdfitsdir = imagedir.replace('qlookfits', 'qlookallbdfits')
+        for tidx in tqdm(range(nt)):
+            fitsfiles = [os.path.join(imagedir, os.path.basename(fitsfile)) for fitsfile in imres['images'][tidx, :]]
+            outname = imres['btimes'][tidx, 0].strftime('{}%Y%m%dT%H%M%S.%f.allbd.fits'.format(observatory))
+            imresnew['images'].append(outname)
+            outfits = os.path.join(qlookallbdfitsdir, outname)
+            ndfits.wrap(fitsfiles, outfitsfile=outfits, docompress=True, imres=imres)
+        imresnewfile = os.path.join(qlookallbdfitsdir, os.path.basename(imresfile))
+        np.savez(imresnewfile, imres=imresnew)
+        os.system('rm -rf {}'.format(imagedir))
+        os.system('mv {} {}'.format(qlookallbdfitsdir, imagedir))
     return imres
 
 
@@ -642,7 +663,7 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                     nclevels=None, dmax=None, dmin=None, dcmap=None, dnorm=None, sclfactor=1.0,
                     clevels=None, aiafits='', aiadir=None, aiawave=171, plotaia=True,
                     freqbounds=None, moviename='',
-                    alpha_cont=1.0, custom_mapcubes=[], opencontour=False, movieformat='html',ds_normalised=False):
+                    alpha_cont=1.0, custom_mapcubes=[], opencontour=False, movieformat='html', ds_normalised=False):
     '''
     Required inputs:
     Important optional inputs:
@@ -911,10 +932,12 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                                                      isexists=True,
                                                      timtol=120. / 3600. / 24)
                         if not aiafile:
-                            aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True,
+                            aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime,
+                                                          isexists=True,
                                                           timtol=120. / 3600. / 24)
                         if not aiafile:
-                            aiafile = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=plttime, isexists=True,
+                            aiafile = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=plttime,
+                                                          isexists=True,
                                                           timtol=120. / 3600. / 24)
                         if aiafile is []:
                             aiafiles.append(None)
@@ -998,7 +1021,7 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                     y1_new = y0_new + v
                     # ax.set_position(mpl.transforms.Bbox([[x0_new, y0_new], [x1_new, y1_new]]))
                     ax.xaxis.set_visible(False)
-                if ds_normalised==False:
+                if ds_normalised == False:
                     divider = make_axes_locatable(ax)
                     cax_spec = divider.append_axes('right', size='3.0%', pad=0.05)
                     cax_spec.tick_params(direction='out')
@@ -1266,23 +1289,23 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
         DButil.img2movie(figdir_, outname=moviename)
 
 
-def dspec_external(vis, workdir='./', specfile=None,ds_normalised=False):
+def dspec_external(vis, workdir='./', specfile=None, ds_normalised=False):
     dspecscript = os.path.join(workdir, 'dspec.py')
     if not specfile:
         specfile = os.path.join(workdir, os.path.basename(vis) + '.dspec.npz')
     os.system('rm -rf {}'.format(dspecscript))
     fi = open(dspecscript, 'wb')
     fi.write('from suncasa.dspec import dspec as ds \n')
-    if ds_normalised==False:
+    if ds_normalised == False:
         fi.write(
-        'specdata = ds.Dspec("{0}", specfile="{1}", domedian=True, verbose=True, savespec=True, usetbtool=True) \n'.format(
-            vis,
-            specfile))
+            'specdata = ds.Dspec("{0}", specfile="{1}", domedian=True, verbose=True, savespec=True, usetbtool=True) \n'.format(
+                vis,
+                specfile))
     else:
         fi.write(
-        'specdata = ds.Dspec("{0}", specfile="{1}", domedian=True, verbose=True, savespec=True, usetbtool=True, ds_normalised=True) \n'.format(
-            vis,
-            specfile))
+            'specdata = ds.Dspec("{0}", specfile="{1}", domedian=True, verbose=True, savespec=True, usetbtool=True, ds_normalised=True) \n'.format(
+                vis,
+                specfile))
     fi.close()
     os.system('casa --nologger -c {}'.format(dspecscript))
 
@@ -1298,9 +1321,11 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
               interactive=False, usemsphacenter=True, imagefile=None, outfits='',
               imax=None, imin=None, icmap=None, inorm=None, nclevels=3,
               clevels=None, calpha=0.5, goestime=None,
-              plotaia=True, aiawave=171, aiafits=None, aiadir=None, datacolumn='data', docompress=False,
+              plotaia=True, aiawave=171, aiafits=None, aiadir=None, datacolumn='data',
+              docompress=True,
+              wrapfits=True,
               mkmovie=False, overwrite=True, ncpu=1, twidth=1, verbose=False, movieformat='html',
-              clearmshistory=False, show_warnings=False, opencontour=False, quiet=False,ds_normalised=False):
+              clearmshistory=False, show_warnings=False, opencontour=False, quiet=False, ds_normalised=False):
     '''
     Required inputs:
             vis: calibrated CASA measurement set
@@ -1561,7 +1586,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                 phasecenter = 'J2000 ' + str(newra) + 'rad ' + str(newdec) + 'rad'
             print('use phasecenter: ' + phasecenter)
             qlookfitsdir = os.path.join(workdir, 'qlookfits/')
-            qlookallbdfitsdir = os.path.join(workdir, 'qlookallbdfits/')
+            # qlookallbdfitsdir = os.path.join(workdir, 'qlookallbdfits/')
             qlookfigdir = os.path.join(workdir, 'qlookimgs/')
             imresfile = os.path.join(qlookfitsdir, '{}.imres.npz'.format(os.path.basename(vis)))
             if overwrite:
@@ -1571,6 +1596,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                                        pbcor=pbcor,
                                        reftime=reftime, restoringbeam=restoringbeam, sclfactor=sclfactor,
                                        docompress=docompress,
+                                       wrapfits=wrapfits,
                                        overwrite=overwrite,
                                        c_external=c_external,
                                        subregion=subregion,
@@ -1587,6 +1613,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                                            cell=cell, pbcor=pbcor,
                                            reftime=reftime, restoringbeam=restoringbeam, sclfactor=sclfactor,
                                            docompress=docompress,
+                                           wrapfits=wrapfits,
                                            overwrite=overwrite,
                                            c_external=c_external,
                                            subregion=subregion,
@@ -1603,7 +1630,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                             sclfactor=sclfactor,
                             aiafits=aiafits, aiawave=aiawave, aiadir=aiadir, plotaia=plotaia,
                             freqbounds=bdinfo, alpha_cont=calpha,
-                            opencontour=opencontour, movieformat=movieformat,ds_normalised=ds_normalised)
+                            opencontour=opencontour, movieformat=movieformat, ds_normalised=ds_normalised)
 
     else:
         if np.iscomplexobj(specdata.data):
