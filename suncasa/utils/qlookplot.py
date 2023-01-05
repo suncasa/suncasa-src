@@ -76,6 +76,61 @@ polmap = {'RR': 0, 'LL': 1, 'I': 0, 'V': 1, 'XX': 0, 'YY': 1}
 # warnings.warn = warn
 
 
+def read_imres(imresfile):
+    from astropy.time import Time
+    py3 = sys.version_info.major >= 3
+
+    def uniq(lst):
+        last = object()
+        nlst = []
+        for item in lst:
+            if item == last:
+                continue
+            nlst.append(item)
+            last = item
+        return nlst
+
+    imres = np.load(imresfile, encoding="latin1", allow_pickle=True)
+    imres = imres['imres'].item()
+
+    if not py3:
+        iterop_ = imres.iteritems()
+    else:
+        iterop_ = imres.items()
+    for k, v in iterop_:
+        imres[k] = list(np.array(v))
+    Spw = sorted(list(set(imres['Spw'])))
+    Spw = [str(int(sp)) for sp in Spw]
+    nspw = len(Spw)
+    imres['Freq'] = [list(ll) for ll in imres['Freq']]
+    Freq = sorted(uniq(imres['Freq']))
+
+    plttimes = list(set(imres['BeginTime']))
+    plttimes = sorted(plttimes)
+    ntime = len(plttimes)
+    # sort the imres according to time
+    images = np.array(imres['ImageName'])
+    btimes = Time(imres['BeginTime'])
+    etimes = Time(imres['EndTime'])
+    spws = np.array(imres['Spw'])
+    obs = np.array(imres['Obs'])[0]
+    vis = np.array(imres['Vis'])[0]
+    inds = btimes.argsort()
+    images_sort = images[inds].reshape(ntime, nspw)
+    btimes_sort = btimes[inds].reshape(ntime, nspw)
+    etimes_sort = etimes[inds].reshape(ntime, nspw)
+    spws_sort = spws[inds].reshape(ntime, nspw)
+    return {'images': images_sort,
+            'btimes': btimes_sort,
+            'etimes': etimes_sort,
+            'spws_sort': spws_sort,
+            'spws': Spw,
+            'freq': Freq,
+            'plttimes': Time(plttimes),
+            'obs': obs,
+            'vis': vis}
+
+
 def checkspecnan(spec):
     import matplotlib
     from pkg_resources import parse_version
@@ -265,8 +320,8 @@ def download_jp2(tstart, tend, wavelengths, outdir):
     return
 
 
-def downloadAIAdata(trange, wavelength=None, outdir='./'):
-    if isinstance(trange, list) or isinstance(trange, tuple) or type(trange) == np.ndarray or type(trange) == Time:
+def downloadAIAdata(trange, wavelength=None, cadence=None, outdir='./'):
+    if isinstance(trange, list) or isinstance(trange, tuple) or isinstance(trange,np.ndarray) or isinstance(trange,Time):
         if len(trange) != 2:
             raise ValueError('trange must be a number or a two elements array/list/tuple')
         else:
@@ -300,9 +355,15 @@ def downloadAIAdata(trange, wavelength=None, outdir='./'):
             wave1 = wave - 3.0
             wave2 = wave + 3.0
 
-            qr = Fido.search(a.Time(tst.iso, ted.iso),
-                             a.Instrument.aia,
-                             a.Wavelength(wave1 * u.AA, wave2 * u.AA))
+            if cadence is None:
+                qr = Fido.search(a.Time(tst.iso, ted.iso),
+                                 a.Instrument.aia,
+                                 a.Wavelength(wave1 * u.AA, wave2 * u.AA))
+            else:
+                qr = Fido.search(a.Time(tst.iso, ted.iso),
+                                 a.Instrument.aia,
+                                 a.Wavelength(wave1 * u.AA, wave2 * u.AA),
+                                 a.Sample(cadence))
             res = Fido.fetch(qr)
             for ll in res:
                 vsonamestrs = ll.split('_')
@@ -366,49 +427,69 @@ def trange2aiafits(trange, aiawave, aiadir):
     return aiafits
 
 
-def get_rdata_dict(rdata, ndim, stokaxis, npol_fits, icmap=None, stokes='I,V', show_warnings=False):
+def parse_rdata(rdata, meta, icmap=None, stokes='I,V', sp=None, show_warnings=False):
+    '''
+    rdata, meta: (required) data and header of a fits file readed using ndfits.read
+    icmap: (optional) colormap for plotting radio images
+    stokes: (optional) polarizations to visualizing
+    sp: (optional) the spectral window to plot, if there are multiple spectral windows in the fits file
+    Returns
+    -------
+    cmaps: A dictionary contains colormaps for the selected polarizations
+    datas: A dictionary contains image data for the selected polarizations
+    '''
     if not show_warnings:
         import warnings
         warnings.filterwarnings("ignore")
+    ndim = meta['naxis']
+    pol_axis = meta['pol_axis']
+    npol_fits = meta['npol']
     pols = stokes.split(',')
     npol_in = len(pols)
     if npol_fits != npol_in:
         warnings.warn("The input stokes setting is not matching those in the provided fitsfile.")
+    freq_axis = meta['freq_axis']
+    nfreq = meta['nfreq']
     cmap_I = plt.get_cmap(icmap)
     cmap_V = plt.get_cmap('RdBu')
     datas = {}
     cmaps = {}
     slc1 = [slice(None)] * ndim
     slc2 = [slice(None)] * ndim
+    if freq_axis is not None:
+        if sp is None:
+            pass
+        else:
+            slc1[freq_axis] = slice(sp, sp + 1)
     if npol_in > 1:
         if npol_fits > 1:
             if stokes == 'I,V':
-                slc1[stokaxis] = slice(0, 1)
-                slc2[stokaxis] = slice(1, 2)
+                slc1[pol_axis] = slice(0, 1)
+                slc2[pol_axis] = slice(1, 2)
                 datas['I'] = (rdata[tuple(slc1)] + rdata[tuple(slc2)]) / 2.0
                 datas['V'] = (rdata[tuple(slc1)] - rdata[tuple(slc2)]) / (rdata[tuple(slc1)] + rdata[tuple(slc2)])
                 cmaps['I'] = cmap_I
                 cmaps['V'] = cmap_V
             else:
-                slc1[stokaxis] = slice(polmap[pols[0]], polmap[pols[0]] + 1)
-                slc2[stokaxis] = slice(polmap[pols[1]], polmap[pols[1]] + 1)
+                slc1[pol_axis] = slice(polmap[pols[0]], polmap[pols[0]] + 1)
+                slc2[pol_axis] = slice(polmap[pols[1]], polmap[pols[1]] + 1)
                 datas[pols[0]] = rdata[tuple(slc1)]
                 datas[pols[1]] = rdata[tuple(slc2)]
                 cmaps[pols[0]] = cmap_I
                 cmaps[pols[1]] = cmap_I
         else:
-            if stokaxis is None:
-                datas[pols[0]] = rdata
+            if pol_axis is None:
+                datas[pols[0]] = rdata[tuple(slc1)]
                 cmaps[pols[0]] = cmap_I
             else:
-                slc1[stokaxis] = slice(0, 1)
+                slc1[pol_axis] = slice(0, 1)
                 datas[pols[0]] = rdata[tuple(slc1)]
                 cmaps[pols[0]] = cmap_I
     else:
         if npol_fits > 1:
             if pols[0] in ['I', 'V']:
-                slc1[stokaxis] = slice(0, 1)
-                slc2[stokaxis] = slice(1, 2)
+                slc1[pol_axis] = slice(0, 1)
+                slc2[pol_axis] = slice(1, 2)
                 if pols[0] == 'I':
                     datas['I'] = (rdata[tuple(slc1)] + rdata[tuple(slc2)]) / 2.0
                     cmaps['I'] = cmap_I
@@ -416,24 +497,24 @@ def get_rdata_dict(rdata, ndim, stokaxis, npol_fits, icmap=None, stokes='I,V', s
                     datas['V'] = (rdata[tuple(slc1)] - rdata[tuple(slc2)]) / (rdata[tuple(slc1)] + rdata[tuple(slc2)])
                     cmaps['V'] = cmap_V
             else:
-                slc1[stokaxis] = slice(polmap[pols[0]], polmap[pols[0]] + 1)
+                slc1[pol_axis] = slice(polmap[pols[0]], polmap[pols[0]] + 1)
                 datas[pols[0]] = rdata[tuple(slc1)]
                 cmaps[pols[0]] = cmap_I
         else:
-            if stokaxis is None:
-                datas[pols[0]] = rdata
-                cmaps[pols[0]] = cmap_I
-            else:
-                slc1[stokaxis] = slice(0, 1)
+            if pol_axis is None:
                 datas[pols[0]] = rdata[tuple(slc1)]
                 cmaps[pols[0]] = cmap_I
-    if stokaxis is not None:
+            else:
+                slc1[pol_axis] = slice(0, 1)
+                datas[pols[0]] = rdata[tuple(slc1)]
+                cmaps[pols[0]] = cmap_I
+    if pol_axis is not None:
         if not py3:
             iterop_ = datas.iteritems()
         else:
             iterop_ = datas.items()
         for k, v in iterop_:
-            datas[k] = np.squeeze(v, axis=stokaxis)
+            datas[k] = np.squeeze(v, axis=pol_axis)
     return cmaps, datas
 
 
@@ -464,15 +545,30 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
     # freqInfo_ravel = freqInfo.ravel()
     ms.close()
     nspw = len(spwInfo)
+
     if not spws:
         if observatory == 'EVLA':
             spws = list(np.arange(nspw).astype(str))
         if observatory == 'EOVSA':
             spws = ['1~5', '6~10', '11~15', '16~25']
     if observatory == 'EOVSA':
-        if stokes != 'XX,YY':
-            print('Provide stokes: ' + str(stokes) + '. However EOVSA has linear feeds. Force stokes to be XX,YY')
-            stokes = 'XX,YY'
+        sto = stokes.split(',')
+        try:
+            next(s for s in ['XX', 'YY'] if s in stokes)
+        except:
+            nsto = len(sto)
+            if nsto == 0:
+                stokes = 'XX'
+            elif nsto == 1:
+                stokes = 'XX'
+            elif nsto == 2:
+                stokes = 'XX,YY'
+            elif nsto == 4:
+                stokes = 'XX,YY,XY,YX'
+            else:
+                stokes = 'XX,YY'
+            print('Provide stokes: {}. However EOVSA has linear feeds. Force stokes to be {}'.format(','.join(sto),
+                                                                                                     stokes))
 
     # pdb.set_trace()
     msfilebs = os.path.basename(msfile)
@@ -619,6 +715,43 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
                           subregion=subregion,
                           weighting='briggs',
                           robust=robust)
+            ## perform a sanity check if all intended images are created.
+            ntrial = 0
+            while np.count_nonzero(np.array(res['Succeeded']) == False) > 0 and ntrial < 2:
+                print('some intended images are not created. Trying to create them again.... trial #{}'.format(ntrial))
+                res = ptclean(vis=msfile,
+                              imageprefix=imdir,
+                              imagesuffix=imagesuffix,
+                              timerange=timerange,
+                              twidth=twidth,
+                              spw=spw,
+                              uvrange=uvrange,
+                              restoringbeam=restoringbm,
+                              mask=mask,
+                              ncpu=ncpu,
+                              niter=niter,
+                              gain=gain,
+                              antenna=antenna,
+                              imsize=imsize,
+                              cell=cell,
+                              stokes=sto,
+                              doreg=True,
+                              usephacenter=True,
+                              phasecenter=phasecenter,
+                              docompress=docompress,
+                              reftime=reftime,
+                              overwrite=overwrite,
+                              toTb=toTb,
+                              sclfactor=sclfactor,
+                              datacolumn=datacolumn,
+                              pbcor=pbcor,
+                              subregion=subregion,
+                              weighting='briggs',
+                              robust=robust)
+                ntrial += 1
+            if np.count_nonzero(np.array(res['Succeeded']) == False) > 0:
+                print('Some intended images can not be created after {} trails. Preceed with missing images.'.format(
+                    ntrial))
 
         if res:
             imres['Succeeded'] += res['Succeeded']
@@ -637,23 +770,28 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
     np.savez(imresfile, imres=imres)
 
     if wrapfits:
-        imres = ndfits.read_imres(imresfile)
+        imres = read_imres(imresfile)
         nt = len(imres['plttimes'])
-        imresnew = {'images': [], 'btimes': [], 'etimes': []}
+        imresnew = {'images': [], 'btimes': [], 'etimes': [], 'spw': imres['spws'], 'vis': imres['vis'],
+                    'freq': imres['freq'], 'obs': imres['obs']}
         imresnew['btimes'] = imres['btimes'][:, 0].iso
         imresnew['etimes'] = imres['etimes'][:, 0].iso
         qlookallbdfitsdir = imagedir.replace('qlookfits', 'qlookallbdfits')
+        if not os.path.exists(qlookallbdfitsdir):
+            os.makedirs(qlookallbdfitsdir)
         for tidx in tqdm(range(nt)):
             fitsfiles = [os.path.join(imagedir, os.path.basename(fitsfile)) for fitsfile in imres['images'][tidx, :]]
-            outname = imres['btimes'][tidx, 0].strftime('{}%Y%m%dT%H%M%S.%f.allbd.fits'.format(observatory))
-            imresnew['images'].append(outname)
+            outname = imres['btimes'][tidx, 0].strftime('{}.%Y%m%dT%H%M%S.%f.allbd.fits'.format(observatory))
+            imresnew['images'].append(os.path.join(imagedir, outname))
             outfits = os.path.join(qlookallbdfitsdir, outname)
             ndfits.wrap(fitsfiles, outfitsfile=outfits, docompress=True, imres=imres)
         imresnewfile = os.path.join(qlookallbdfitsdir, os.path.basename(imresfile))
         np.savez(imresnewfile, imres=imresnew)
         os.system('rm -rf {}'.format(imagedir))
         os.system('mv {} {}'.format(qlookallbdfitsdir, imagedir))
-    return imres
+        return imresnew
+    else:
+        return imres
 
 
 def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None,
@@ -721,58 +859,82 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
         else:
             nclevels = 3
 
-    tstart, tend = timerange.split('~')
-    t_ran = Time([qa.quantity(tstart, 'd')['value'], qa.quantity(tend, 'd')['value']], format='mjd')
-    btimes = Time(imres['BeginTime'])
-    etimes = Time(imres['EndTime'])
-    tpltidxs, = np.where(np.logical_and(btimes.jd >= t_ran[0].jd, etimes.jd <= t_ran[1].jd))
-    # imres = imres['imres']
-    # if type(imres) is not dict:
-    if not py3:
-        iterop_ = imres.iteritems()
-    else:
-        iterop_ = imres.items()
-    for k, v in iterop_:
-        imres[k] = list(np.array(v)[tpltidxs])
-    if 'Obs' in imres.keys():
-        observatory = imres['Obs'][0]
-    else:
-        observatory = ''
-
     pols = stokes.split(',')
     npols = len(pols)
-    # SRL = set(['RR', 'LL'])
-    # SXY = set(['XX', 'YY', 'XY', 'YX'])
-    Spw = sorted(list(set(imres['Spw'])))
-    nspw = len(Spw)
-    # print(nspw)
-    # Freq = set(imres['Freq']) ## list is an unhashable type
-    imres['Freq'] = [list(ll) for ll in imres['Freq']]
-    Freq = sorted(uniq(imres['Freq']))
+
+    if 'images' in imres.keys():
+        wrapfits = True
+    else:
+        wrapfits = False
+    tstart, tend = timerange.split('~')
+    t_ran = Time([qa.quantity(tstart, 'd')['value'], qa.quantity(tend, 'd')['value']], format='mjd')
     cfreqs = freqbounds['cfreqs']
     cfreqs_all = freqbounds['cfreqs_all']
     freq_dist = (cfreqs - cfreqs_all[0]) / (cfreqs_all[-1] - cfreqs_all[0])
+    if wrapfits:
+        # imresnew = {'images': [], 'btimes': [], 'etimes': [], 'spw': imres['spws'], 'vis': imres['vis'],
+        # 'freq': imres['freq'], 'obs': imres['obs']}
+        btimes = Time(imres['btimes'])
+        etimes = Time(imres['etimes'])
+        print(btimes.iso, btimes.jd)
+        print(t_ran.iso, t_ran.jd)
+        # tpltidxs, = np.where(np.logical_and(btimes.jd >= t_ran[0].jd, etimes.jd <= t_ran[1].jd))
+        # btimes = btimes[tpltidxs]
+        # etimes = etimes[tpltidxs]
+        plttimes = btimes
+        ntime = len(plttimes)
+        if 'obs' in imres.keys():
+            observatory = imres['obs']
+        else:
+            observatory = ''
+        Spw = imres['spw']
+        Freq = imres['freq']
+        nspw = len(Spw)
+        images_sort = imres['images']
+    else:
+        # btimes = Time(imres['BeginTime'])
+        # etimes = Time(imres['EndTime'])
+        # tpltidxs, = np.where(np.logical_and(btimes.jd >= t_ran[0].jd, etimes.jd <= t_ran[1].jd))
+        # if not py3:
+        #     iterop_ = imres.iteritems()
+        # else:
+        #     iterop_ = imres.items()
+        # for k, v in iterop_:
+        #     imres[k] = list(np.array(v)[tpltidxs])
+        if 'Obs' in imres.keys():
+            observatory = imres['Obs'][0]
+        else:
+            observatory = ''
 
+        Spw = sorted(list(set(imres['Spw'])))
+        nspw = len(Spw)
+        imres['Freq'] = [list(ll) for ll in imres['Freq']]
+        Freq = sorted(uniq(imres['Freq']))
+
+        plttimes = list(set(imres['BeginTime']))
+        plttimes = sorted(plttimes)
+        ntime = len(plttimes)
+        # sort the imres according to time
+        images = np.array(imres['ImageName'])
+        btimes = Time(imres['BeginTime'])
+        etimes = Time(imres['EndTime'])
+        spws = np.array(imres['Spw'])
+        suc = np.array(imres['Succeeded'])
+        inds = btimes.argsort()
+        images_sort = images[inds].reshape(ntime, nspw)
+        btimes_sort = btimes[inds].reshape(ntime, nspw)
+        suc_sort = suc[inds].reshape(ntime, nspw)
+        spws_sort = spws[inds].reshape(ntime, nspw)
+        btimes = btimes_sort[:, 0]
+
+    dt = np.nanmean(np.diff(plttimes.mjd)) * 24. * 60 * 60  ## time cadence in seconds
     if custom_mapcubes:
         cmpc_plttimes_mjd = []
         for cmpc in custom_mapcubes['mapcube']:
             cmpc_plttimes_mjd.append(get_mapcube_time(cmpc).mjd)
-    plttimes = list(set(imres['BeginTime']))
-    plttimes = sorted(plttimes)
-    ntime = len(plttimes)
-    # sort the imres according to time
-    images = np.array(imres['ImageName'])
-    btimes = Time(imres['BeginTime'])
-    etimes = Time(imres['EndTime'])
-    spws = np.array(imres['Spw'])
-    suc = np.array(imres['Succeeded'])
-    inds = btimes.argsort()
-    images_sort = images[inds].reshape(ntime, nspw)
-    btimes_sort = btimes[inds].reshape(ntime, nspw)
-    suc_sort = suc[inds].reshape(ntime, nspw)
-    spws_sort = spws[inds].reshape(ntime, nspw)
-    if verbose:
-        print('{0:d} figures to plot'.format(len(tpltidxs)))
+
+    # if verbose:
+    #     print('{0:d} figures to plot'.format(len(tpltidxs)))
     plt.ioff()
     import matplotlib.gridspec as gridspec
     if np.iscomplexobj(specdata.data):
@@ -799,10 +961,6 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
     spec_tim = specdata.time_axis
     tidx, = np.where(np.logical_and(spec_tim > t_ran[0], spec_tim < t_ran[1]))
     spec_tim_plt = spec_tim.plot_date
-    if spwplt is None:
-        nspwplt = nspw
-    else:
-        nspwplt = len(spwplt)
 
     if npols == 1:
         if pol == 'RR':
@@ -898,48 +1056,40 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
 
     for ax in axs + axs_dspec:
         ax.tick_params(direction='out', axis='both')
-
     # fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
     # pdb.set_trace()
     if plotaia:
         '''check if aiafits files exist'''
-        if aiafits is '' or aiafits is None:
-            if aiadir:
+        if aiafits == '' or aiafits is None:
+            if aiadir is not None:
                 aiafiles = []
                 for i in tqdm(range(ntime)):
-                    plttime = btimes_sort[i, 0]
-                    aiafile = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime,
-                                                 isexists=True,
-                                                 timtol=120. / 3600. / 24)
+                    plttime = btimes[i]
+                    aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True,
+                                                  timtol=120. / 3600. / 24)
                     if not aiafile:
-                        aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True,
-                                                      timtol=120. / 3600. / 24)
-                    if not aiafile:
-                        aiafile = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=plttime, isexists=True,
-                                                      timtol=120. / 3600. / 24)
-                    if aiafile is []:
-                        aiafiles.append(None)
-                    else:
-                        aiafiles.append(aiafile)
-
-                if np.count_nonzero(aiafiles) < ntime / 2.0:
-                    downloadAIAdata(trange=t_ran, wavelength=aiawave)
-                    aiadir = './'
-                    aiafiles = []
-                    for i in tqdm(range(ntime)):
-                        plttime = btimes_sort[i, 0]
                         aiafile = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime,
                                                      isexists=True,
                                                      timtol=120. / 3600. / 24)
-                        if not aiafile:
-                            aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime,
-                                                          isexists=True,
-                                                          timtol=120. / 3600. / 24)
-                        if not aiafile:
-                            aiafile = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=plttime,
-                                                          isexists=True,
-                                                          timtol=120. / 3600. / 24)
-                        if aiafile is []:
+                    if not aiafile:
+                        aiafile = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=plttime, isexists=True,
+                                                      timtol=120. / 3600. / 24)
+                    if aiafile == []:
+                        aiafiles.append(None)
+                    else:
+                        aiafiles.append(aiafile)
+                    # print(i, aiafile)
+
+                if np.count_nonzero(aiafiles) == 0:
+                    aiafiles = []
+                    downloadAIAdata(trange=t_ran, wavelength=aiawave, cadence=dt * u.second)
+                    aiadir = './'
+                    for i in tqdm(range(ntime)):
+                        plttime = btimes[i]
+                        aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime,
+                                                      isexists=True,
+                                                      timtol=120. / 3600. / 24)
+                        if aiafile == []:
                             aiafiles.append(None)
                         else:
                             aiafiles.append(aiafile)
@@ -948,19 +1098,18 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
             # st = stp.Stackplot(aiafits)
             # tjd_aia = st.tplt.jd
             pass
-
     for i, plttime in enumerate(tqdm(plttimes)):
         plt.ioff()
         # plt.clf()
         for ax in axs:
             ax.cla()
-        plttime = btimes_sort[i, 0]
+        plttime = btimes[i]
         figname = observatory + '_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:19] + '.png'
         fignameful = os.path.join(figdir_, figname)
         if i > 0 and os.path.exists(fignameful):
             continue
         # tofd = plttime.mjd - np.fix(plttime.mjd)
-        suci = suc_sort[i]
+
         # if tofd < 16. / 24. or sum(
         #         suci) < nspw - 2:  # if time of the day is before 16 UT (and 24 UT), skip plotting (because the old antennas are not tracking)
         #     continue
@@ -1033,26 +1182,24 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                 xy[:, 0][np.array([0, 1, 4])] = btimes[i].plot_date
                 xy[:, 0][np.array([2, 3])] = etimes[i].plot_date
                 dspecvspans[pol].set_xy(xy)
-
         if plotaia:
             # pdb.set_trace()
             if np.count_nonzero(aiafiles) > 0:
                 try:
-                    # if aiadir:
-                    #     aiafits = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True,
-                    #                                   timtol=12. / 3600. / 24)
-                    #     if not aiafits:
-                    #         aiafits = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime,
-                    #                                      isexists=True,
-                    #                                      timtol=12. / 3600. / 24)
+                #     print(aiafiles)
                     aiafits = aiafiles[i]
                     aiamap = smap.Map(aiafits)
                     aiamap = DButil.normalize_aiamap(aiamap)
                     data = aiamap.data
                     data[data < 1.0] = 1.0
                     aiamap = smap.Map(data, aiamap.meta)
-                except:
+                except Exception as e:
                     aiamap = None
+                    if verbose:
+                        if hasattr(e, 'message'):
+                            print(e.message)
+                        else:
+                            print(e)
                     print('error in reading aiafits. Proceed without AIA')
             else:
                 aiamap = None
@@ -1061,23 +1208,37 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
         else:
             aiamap = None
 
+        if wrapfits:
+            suci_ = True
+            meta, rdata = ndfits.read(images_sort[i])
+        else:
+            suci_ = suc_sort[i]
+            meta, rdata = None, None
+
         colors_spws = icmap(freq_dist)
         spwpltCounts = 0
         for s, sp in enumerate(Spw):
             if spwplt is not None:
                 if sp not in spwplt:
                     continue
-            image = images_sort[i, s]
+
             # print(image)
             for pidx, pol in enumerate(pols):
-                if suci[s]:
-                    try:
-                        # rmap = smap.Map(image)
+                if wrapfits:
+                    suci = suci_
+                else:
+                    suci = suci_[s]
+                if suci:
+                    # try:
+                    if wrapfits:
+                        pass
+                    else:
+                        image = images_sort[i, s]
                         meta, rdata = ndfits.read(image)
-                        cmaps, datas = get_rdata_dict(rdata, meta['naxis'], meta['pol_axis'], meta['npol'], icmap=icmap,
-                                                      stokes=stokes)
-                    except:
-                        continue
+                    cmaps, datas = parse_rdata(rdata, meta, icmap=icmap,
+                                               stokes=stokes, sp=s)
+                    # except:
+                    #     continue
 
                     rmap = smap.Map(np.squeeze(datas[pol][:, :]), meta['header'])
                 else:
@@ -1410,6 +1571,8 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
     # generating dynamic spectrum
     if not os.path.exists(workdir):
         os.makedirs(workdir)
+    os.chdir(workdir)
+    workdir = './'
     if specfile:
         try:
             specdata = ds.Dspec(specfile)
@@ -2025,8 +2188,8 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                 print('radio fits file not recognized by sunpy.map. Aborting...')
                 return -1
 
-            cmaps, datas = get_rdata_dict(rdata, meta['naxis'], meta['pol_axis'], meta['npol'], icmap=icmap,
-                                          stokes=stokes)
+            cmaps, datas = parse_rdata(rdata, meta, icmap=icmap,
+                                       stokes=stokes)
 
             if not xyrange:
                 if xycen:

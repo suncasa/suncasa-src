@@ -12,58 +12,6 @@ stokesval = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3
              '-6': 'YY', '-7': 'XY', '-8': 'YX'}
 
 
-def read_imres(imresfile):
-    from astropy.time import Time
-    py3 = sys.version_info.major >= 3
-
-    def uniq(lst):
-        last = object()
-        nlst = []
-        for item in lst:
-            if item == last:
-                continue
-            nlst.append(item)
-            last = item
-        return nlst
-
-    imres = np.load(imresfile, encoding="latin1", allow_pickle=True)
-    imres = imres['imres'].item()
-
-    if not py3:
-        iterop_ = imres.iteritems()
-    else:
-        iterop_ = imres.items()
-    for k, v in iterop_:
-        imres[k] = list(np.array(v))
-    Spw = sorted(list(set(imres['Spw'])))
-    Spw = [sp.lstrip('0') for sp in Spw]
-    nspw = len(Spw)
-    imres['Freq'] = [list(ll) for ll in imres['Freq']]
-    Freq = sorted(uniq(imres['Freq']))
-
-    plttimes = list(set(imres['BeginTime']))
-    plttimes = sorted(plttimes)
-    ntime = len(plttimes)
-    # sort the imres according to time
-    images = np.array(imres['ImageName'])
-    btimes = Time(imres['BeginTime'])
-    etimes = Time(imres['EndTime'])
-    spws = np.array(imres['Spw'])
-    suc = np.array(imres['Succeeded'])
-    inds = btimes.argsort()
-    images_sort = images[inds].reshape(ntime, nspw)
-    btimes_sort = btimes[inds].reshape(ntime, nspw)
-    etimes_sort = etimes[inds].reshape(ntime, nspw)
-    suc_sort = suc[inds].reshape(ntime, nspw)
-    spws_sort = spws[inds].reshape(ntime, nspw)
-    return {'images': images_sort,
-            'btimes': btimes_sort,
-            'etimes': etimes_sort,
-            'spws_sort': spws_sort,
-            'spws': Spw,
-            'freq': Freq,
-            'plttimes': Time(plttimes)}
-
 
 def headerfix(header, PC_coor=True):
     '''
@@ -381,7 +329,7 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
                 except:
                     observatory = 'RADIO'
                     print('Failed to acquire telescope information. set as RADIO')
-            outfitsfile = Time(hdu[-1].header['DATE-OBS']).strftime('{}%Y%m%dT%H%M%S.%f.allbd.fits'.format(observatory))
+            outfitsfile = Time(hdu[-1].header['DATE-OBS']).strftime('{}.%Y%m%dT%H%M%S.%f.allbd.fits'.format(observatory))
             hdu.close()
         os.system('cp {} {}'.format(fits_exist[0], outfitsfile))
         hdu0 = fits.open(outfitsfile, mode='update')
