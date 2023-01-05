@@ -382,6 +382,7 @@ def read_msinfo(vis=None, msinfofile=None, interp_to_scan=False, verbose=False):
                  btimes=btimes, btimestr=btimestr, ras=ras, decs=decs, has_ephem_table=has_ephem_table)
     return msinfo
 
+
 def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=True,
                    usephacenter=True, geocentric=False, verbose=False):
     '''
@@ -475,17 +476,16 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
                 print('Use topocentric RA & DEC at observatory.')
             ephem = read_horizons(vis=vis, observatory=msinfo0['observatory'])
 
-
-    if type(ras) is list:
+    if isinstance(ras, list):
         ra_rads = [ra['value'] for ra in ras]
-    elif type(ras) is dict:
+    elif isinstance(ras, dict):
         ra_rads = ras['value']
     else:
         print('Type of msinfo0["ras"] unrecognized.')
         return 0
-    if type(decs) is list:
+    if isinstance(decs, list):
         dec_rads = [dec['value'] for dec in decs]
-    elif type(decs) is dict:
+    elif isinstance(decs, dict):
         dec_rads = decs['value']
     else:
         print('Type of msinfo0["decs"] unrecognized.')
@@ -496,13 +496,13 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
             print('Use polynomial fit to interpolate the ms ephemeris data')
             print('Ephemeris start and end time', btimestr[0], btimestr[-1])
             print('Number of ephemeris data points used for polyfit', len(btimes))
-        res = fp.fit_planet_positions(btimes, ras['value'], decs['value'], allowed_error=0.05)
+        res = fp.fit_planet_positions(btimes, ra_rads, dec_rads, allowed_error=0.05)
         if res[0] == 0:  # success
             reftime_poly = res[1]
             cra = np.flip(np.array(res[2]))
             cdec = np.flip(np.array(res[3]))
-            ra_diff = (np.polyval(cra, btimes - reftime_poly) - ras['value']) * 180. / np.pi * 3600.
-            dec_diff = (np.polyval(cdec, btimes - reftime_poly) - decs['value']) * 180. / np.pi * 3600.
+            ra_diff = (np.polyval(cra, btimes - reftime_poly) - ra_rads) * 180. / np.pi * 3600.
+            dec_diff = (np.polyval(cdec, btimes - reftime_poly) - dec_rads) * 180. / np.pi * 3600.
             if verbose:
                 print('Maximum deviation of the polynomial fit in RA, DEC is {0:.2f}", {1:.2f}"'.format(
                     np.nanmax(ra_diff), np.max(dec_diff)))
@@ -512,7 +512,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
     # find out phase center infomation in ms according to the input time or timerange #
     if not reftime:
         raise ValueError('Please specify a reference time of the image')
-    if type(reftime) == str:
+    if isinstance(reftime, str):
         reftime = [reftime]
     if (not isinstance(reftime, list)):
         print('input "reftime" is not a valid list. Abort...')
@@ -673,7 +673,6 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
             helio0['dec0'] = decs_ephem[0]
             helio0['p0'] = p0s_ephem[0]
 
-
         helio0['ra'] = ra  # ra of the actual phase center
         helio0['dec'] = dec  # dec of the actual phase center
         ind = bisect.bisect_left(scan_start_times, tref_d)
@@ -827,13 +826,13 @@ def imreg(vis=None, imagefile=None, timerange=None,
         raise ValueError('Please specify input image')
     if not timerange:
         raise ValueError('Please specify timerange of the input image')
-    if type(imagefile) == str:
+    if isinstance(imagefile, str):
         imagefile = [imagefile]
-    if type(timerange) == str:
+    if isinstance(timerange, str):
         timerange = [timerange]
     if not fitsfile:
         fitsfile = [img + '.fits' for img in imagefile]
-    if type(fitsfile) == str:
+    if isinstance(fitsfile, str):
         fitsfile = [fitsfile]
     nimg = len(imagefile)
     if len(timerange) != nimg:
@@ -845,7 +844,7 @@ def imreg(vis=None, imagefile=None, timerange=None,
         print(str(nimg) + ' images to process...')
 
     if reftime:  # use as reference time to find solar disk RA and DEC to register the image, but not the actual timerange associated with the image
-        if type(reftime) == str:
+        if isinstance(reftime, str):
             reftime = [reftime] * nimg
         if len(reftime) != nimg:
             raise ValueError('Number of reference times does not match that of input images!')
@@ -909,8 +908,8 @@ def imreg(vis=None, imagefile=None, timerange=None,
             #                              is the same as that from the ephemeris, and is
             #                              different from the RA and DEC of the FIELD.
             #### find out the difference between the image phase center and RA and DEC of the associated FIELD
-            ddec_fld = degrees(normalise(imdec - hel['dec_fld'])) * 3600. # in arcsec
-            dra_fld = degrees(normalise(imra - hel['ra_fld']) * cos(hel['dec_fld'])) * 3600. # in arcsec
+            ddec_fld = degrees(normalise(imdec - hel['dec_fld'])) * 3600.  # in arcsec
+            dra_fld = degrees(normalise(imra - hel['ra_fld']) * cos(hel['dec_fld'])) * 3600.  # in arcsec
 
             # Convert into image heliocentric offsets
             prad = -radians(hel['p0'])
@@ -918,8 +917,8 @@ def imreg(vis=None, imagefile=None, timerange=None,
             dy_fld = (-dra_fld) * sin(prad) + ddec_fld * cos(prad)
 
             #### find out the difference between the image phase center and RA and DEC of the visibility phasecenter
-            ddec_vis = degrees(normalise(imdec - hel['dec'])) * 3600. # in arcsec
-            dra_vis = degrees(normalise(imra - hel['ra']) * cos(hel['dec'])) * 3600. # in arcsec
+            ddec_vis = degrees(normalise(imdec - hel['dec'])) * 3600.  # in arcsec
+            dra_vis = degrees(normalise(imra - hel['ra']) * cos(hel['dec'])) * 3600.  # in arcsec
             # Convert into image heliocentric offsets
             dx_vis = (-dra_vis) * cos(prad) - ddec_vis * sin(prad)
             dy_vis = (-dra_vis) * sin(prad) + ddec_vis * cos(prad)

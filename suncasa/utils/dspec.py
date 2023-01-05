@@ -171,7 +171,7 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
             scan_ntimes.append(
                 smry['observationID=0']['arrayID=0']['scan=' + str(scannumber)]['fieldID=0']['nrows'] / nspw / nbl)
         scan_ntimes = np.array(scan_ntimes)
-        scan_ntimes_integer = scan_ntimes.astype(np.int)
+        scan_ntimes_integer = scan_ntimes.astype(int)
         if len(np.where(scan_ntimes % scan_ntimes_integer != 0)[0]) != 0:
             # if True:
             scan_ntimes = []  # List of number of times in each scan
@@ -195,8 +195,10 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
         ptb.close()
         freq = np.zeros(nf, float)
         times = np.zeros(nt, float)
+        if verbose:
+            print("npol, nf, nt, nbl:",npol, nf, nt, nbl)
         if order == 't':
-            specamp = np.zeros((npol, nf, nbl, nt), np.complex)
+            specamp = np.zeros((npol, nf, nbl, nt), complex)
             for j in range(nt):
                 fptr = 0
                 # Loop over spw
@@ -221,7 +223,9 @@ def get_dspec(vis=None, savespec=True, specfile=None, bl='', uvrange='', field='
                     freq[fptr:fptr + nfrq] = cfrq
                     fptr += nfrq
         else:
-            specf = np.zeros((npol, nf, nt, nbl), np.complex)  # Array indexes are swapped
+            if verbose:
+                print("npol, nf, nt, nbl:", npol, nf, nt, nbl)
+            specf = np.zeros((npol, nf, nt, nbl), complex)  # Array indexes are swapped
             iptr = 0
             for j, scann in enumerate(scannumbers):
                 # Loop over scans

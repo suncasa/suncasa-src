@@ -12,58 +12,6 @@ stokesval = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3
              '-6': 'YY', '-7': 'XY', '-8': 'YX'}
 
 
-def read_imres(imresfile):
-    from astropy.time import Time
-    py3 = sys.version_info.major >= 3
-
-    def uniq(lst):
-        last = object()
-        nlst = []
-        for item in lst:
-            if item == last:
-                continue
-            nlst.append(item)
-            last = item
-        return nlst
-
-    imres = np.load(imresfile, encoding="latin1", allow_pickle=True)
-    imres = imres['imres'].item()
-
-    if not py3:
-        iterop_ = imres.iteritems()
-    else:
-        iterop_ = imres.items()
-    for k, v in iterop_:
-        imres[k] = list(np.array(v))
-    Spw = sorted(list(set(imres['Spw'])))
-    Spw = [sp.lstrip('0') for sp in Spw]
-    nspw = len(Spw)
-    imres['Freq'] = [list(ll) for ll in imres['Freq']]
-    Freq = sorted(uniq(imres['Freq']))
-
-    plttimes = list(set(imres['BeginTime']))
-    plttimes = sorted(plttimes)
-    ntime = len(plttimes)
-    # sort the imres according to time
-    images = np.array(imres['ImageName'])
-    btimes = Time(imres['BeginTime'])
-    etimes = Time(imres['EndTime'])
-    spws = np.array(imres['Spw'])
-    suc = np.array(imres['Succeeded'])
-    inds = btimes.argsort()
-    images_sort = images[inds].reshape(ntime, nspw)
-    btimes_sort = btimes[inds].reshape(ntime, nspw)
-    etimes_sort = etimes[inds].reshape(ntime, nspw)
-    suc_sort = suc[inds].reshape(ntime, nspw)
-    spws_sort = spws[inds].reshape(ntime, nspw)
-    return {'images': images_sort,
-            'btimes': btimes_sort,
-            'etimes': etimes_sort,
-            'spws_sort': spws_sort,
-            'spws': Spw,
-            'freq': Freq,
-            'plttimes': Time(plttimes)}
-
 
 def headerfix(header, PC_coor=True):
     '''
@@ -120,10 +68,12 @@ def headersqueeze(header, data):
     '''
     dshape = data.shape
     ndim = data.ndim
+    ## nsdim: numbers of single-dimensional entries
+    nsdim = np.count_nonzero(np.array(dshape) == 1)
     ## nonsdim: non-single-dimensional entries
-    nonsdim = ndim - np.count_nonzero(np.array(dshape) == 1)
-    if nonsdim > 3:
-        return None, None
+    nonsdim = ndim - nsdim
+    if nsdim == 0:
+        return header, data
     else:
         keys2chng = ['NAXIS', 'CTYPE', 'CRVAL', 'CDELT', 'CRPIX', 'CUNIT']  # ,'PC01_', 'PC02_', 'PC03_', 'PC04_']
         idx_nonsdim = 0
@@ -139,7 +89,7 @@ def headersqueeze(header, data):
                     k_new = '{}{}'.format(k, idx_nonsdim)
                     header[k_new] = v
                 else:
-                    if k is 'CTYPE' and v.startswith('STOKES'):
+                    if k == 'CTYPE' and v.startswith('STOKES'):
                         header['STOKES'] = header['CRVAL{}'.format(idx + 1)]
 
         idx_nonsdim1 = 0
@@ -190,7 +140,7 @@ def get_bdinfo(freq, bw):
     return fbounds
 
 
-def read(filepath, hdus=None, memmap=None, verbose=False, **kwargs):
+def read(filepath, hdus=None, verbose=False, **kwargs):
     """
     Read a fits file.
 
@@ -216,7 +166,9 @@ def read(filepath, hdus=None, memmap=None, verbose=False, **kwargs):
     Also all comments in the original file are concatenated into a single
     "comment" key in the returned FileHeader.
     """
-    with fits.open(filepath, ignore_blank=True, memmap=memmap) as hdulist:
+    import collections
+
+    with fits.open(filepath, ignore_blank=True) as hdulist:
         if hdus is not None:
             if isinstance(hdus, int):
                 hdulist = hdulist[hdus]
@@ -349,24 +301,18 @@ def write(fname, data, header, mask=None, fix_invalid=True, filled_value=0.0, **
         return 1
 
 
-def wrap(fitsfiles, outfitsfile='output.fits', docompress=False, mask=None, fix_invalid=True, filled_value=0.0,
-         imres=None,
+def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=True, filled_value=0.0, observatory=None,
+         imres=None, verbose=False,
          **kwargs):
     '''
     wrap single frequency fits files into a multiple frequencies fits file
     '''
+    from astropy.time import Time
     if len(fitsfiles) <= 1:
         print('There is only one files in the fits file list. wrap is aborted!')
-        return 0
+        return ''
     else:
-        num_file=len(fitsfiles)
-        freqs=np.zeros(num_file)
-        for j,file1 in enumerate(fitsfiles):
-            hdu=fits.open(file1)
-            freqs[j]=hdu[0].header['CRVAL3']
-            hdu.close()
-        ind=np.argsort(freqs)
-        fitsfiles = [fitsfiles[j] for j in ind]
+        fitsfiles = sorted(fitsfiles)
         nband = len(fitsfiles)
         fits_exist = []
         idx_fits_exist = []
@@ -375,13 +321,27 @@ def wrap(fitsfiles, outfitsfile='output.fits', docompress=False, mask=None, fix_
                 fits_exist.append(fitsf)
                 idx_fits_exist.append(sidx)
         if len(fits_exist) == 0: raise ValueError('None of the input fitsfiles exists!')
+        if outfitsfile is None:
+            hdu = fits.open(fits_exist[0])
+            if observatory is None:
+                try:
+                    observatory = hdu[-1].header['TELESCOP']
+                except:
+                    observatory = 'RADIO'
+                    print('Failed to acquire telescope information. set as RADIO')
+            outfitsfile = Time(hdu[-1].header['DATE-OBS']).strftime('{}.%Y%m%dT%H%M%S.%f.allbd.fits'.format(observatory))
+            hdu.close()
         os.system('cp {} {}'.format(fits_exist[0], outfitsfile))
         hdu0 = fits.open(outfitsfile, mode='update')
         header = hdu0[-1].header
 
-        if 'XTENSION' in header.keys():
+        if header['NAXIS'] != 4:
+            if verbose:
+                print('s1')
             if imres is None:
                 cdelts = [325.e8] * nband
+                print(
+                    'Failed to read bandwidth information. Set as 325 MHz assuming this is EOVSA data. Use the value of keyword CDELT3 with caution.')
             else:
                 cdelts = np.squeeze(np.diff(np.array(imres['freq']), axis=1)) * 1e9
             stokesinfo = headerparse(header)
@@ -399,14 +359,20 @@ def wrap(fitsfiles, outfitsfile='output.fits', docompress=False, mask=None, fix_
                 hdu = fits.open(fitsf)
                 cfreqs.append(hdu[-1].header['RESTFRQ'])
                 for pidx in range(npol):
-                    if len(hdu[-1].data.shape) == 2:
+                    if hdu[-1].data.ndim == 2:
                         data[pidx, idx_fits_exist[sidx], :, :] = hdu[-1].data
-                    elif len(hdu[-1].data.shape) == 3:
+                    elif hdu[-1].data.ndim == 3:
                         data[pidx, idx_fits_exist[sidx], :, :] = hdu[-1].data[pidx, :, :]
                     else:
                         data[pidx, idx_fits_exist[sidx], :, :] = hdu[-1].data[pidx, 0, :, :]
             cfreqs = np.array(cfreqs)
             cdelts = np.array(cdelts)
+            indfreq = np.argsort(cfreqs)
+            cfreqs = cfreqs[indfreq]
+            cdelts = cdelts[indfreq]
+            for pidx in range(npol):
+                data[pidx, ...] = data[pidx, indfreq]
+
             df = np.nanmean(np.diff(cfreqs) / np.diff(idx_fits_exist))  ## in case some of the band is missing
             header['NAXIS'] = 4
             header['NAXIS3'] = nband
@@ -427,6 +393,8 @@ def wrap(fitsfiles, outfitsfile='output.fits', docompress=False, mask=None, fix_
                     print(k, v)
                     header[k] = v
         else:
+            if verbose:
+                print('s2')
             npol = int(header['NAXIS4'])
             nbd = nband
             ny = int(header['NAXIS2'])
@@ -440,7 +408,7 @@ def wrap(fitsfiles, outfitsfile='output.fits', docompress=False, mask=None, fix_
                 cdelts.append(hdu[-1].header['CDELT3'])
                 cfreqs.append(hdu[-1].header['CRVAL3'])
                 for pidx in range(npol):
-                    if len(hdu[-1].data.shape) == 2:
+                    if hdu[-1].data.ndim == 2:
                         data[pidx, idx_fits_exist[sidx], :, :] = hdu[-1].data
                     else:
                         data[pidx, idx_fits_exist[sidx], :, :] = hdu[-1].data[pidx, 0, :, :]
@@ -466,30 +434,30 @@ def wrap(fitsfiles, outfitsfile='output.fits', docompress=False, mask=None, fix_
         col1 = fits.Column(name='cfreqs', format='E', array=cfreqs)
         col2 = fits.Column(name='cdelts', format='E', array=cdelts)
         tbhdu = fits.BinTableHDU.from_columns([col1, col2])
-        if docompress:
-            dshape = data.shape
-            dim = data.ndim
-            if dim - np.count_nonzero(np.array(dshape) == 1) > 3:
-                pass
-            else:
-                if fix_invalid:
-                    data[np.isnan(data)] = filled_value
-                if kwargs is {}:
-                    kwargs.update({'compression_type': 'RICE_1', 'quantize_level': 4.0})
-                if isinstance(outfitsfile, str):
-                    outfitsfile = os.path.expanduser(outfitsfile)
 
-                header, data = headersqueeze(header, data)
+        if docompress:
+            if fix_invalid:
+                data[np.isnan(data)] = filled_value
+            if kwargs is {}:
+                kwargs.update({'compression_type': 'RICE_1', 'quantize_level': 4.0})
+            if isinstance(outfitsfile, str):
+                outfitsfile = os.path.expanduser(outfitsfile)
+
+            header, data = headersqueeze(header, data)
+            if data.ndim == 4:
+                print('only 1D, 2D, or 3D images are currently supported for compression. Aborting compression...')
+            else:
                 hdunew = fits.CompImageHDU(data=data, header=header, **kwargs)
+
                 if mask is None:
                     hdulnew = fits.HDUList([fits.PrimaryHDU(), hdunew, tbhdu])
                 else:
                     hdumask = fits.CompImageHDU(data=mask.astype(np.uint8), **kwargs)
                     hdulnew = fits.HDUList([fits.PrimaryHDU(), hdunew, tbhdu, hdumask])
                 hdulnew.writeto(outfitsfile, output_verify='fix')
-                return 1
+                return outfitsfile
 
         hdulnew = fits.HDUList([fits.PrimaryHDU(data=data, header=header), tbhdu])
         hdulnew.writeto(outfitsfile)
         print('wrapped fits written as ' + outfitsfile)
-        return 1
+        return outfitsfile
