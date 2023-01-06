@@ -490,6 +490,9 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
     else:
         print('Type of msinfo0["decs"] unrecognized.')
     # fit 2nd order polynomial fits to the RAs and DECs #
+    if usephacenter==False:
+        dopolyfit = False
+
     if dopolyfit:
         from suncasa.utils import fit_planet_position as fp
         if verbose:
