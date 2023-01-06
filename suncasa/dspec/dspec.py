@@ -313,8 +313,8 @@ class Dspec:
 
             scan_ntimes = []  # List of number of times in each scan
             nrows = []
-            for scannumber in scannumbers:
-                smryscan = smry['observationID=0']['arrayID=0'][scanids[scannumber]]
+            for s, scanid in enumerate(scanids):
+                smryscan = smry['observationID=0']['arrayID=0'][scanid]
                 nrow = next(v for k, v in smryscan.items() if 'fieldID=' in k)['nrows']
                 nrows.append(nrow)
                 scan_ntimes.append(nrow / nspw / nbl)
@@ -323,14 +323,14 @@ class Dspec:
             if len(np.where(scan_ntimes % scan_ntimes_integer != 0)[0]) != 0:
                 # if True:
                 scan_ntimes = []  # List of number of times in each scan
-                for scannumber in scannumbers:
+                for s, scanid in enumerate(scanids):
                     nrows_scan = []  ## get the nrows for each time. They are not always the SAME!
-                    smryscan = smry['observationID=0']['arrayID=0'][scanids[scannumber]]
+                    smryscan = smry['observationID=0']['arrayID=0'][scanid]
                     # for k, v in smryscan['fieldID=0'].items():
                     #     if isinstance(v,dict):
                     #         nrows_scan.append(v['nrows'])
                     nrows_scan.append(next(v for k, v in smryscan.items() if 'fieldID=' in k)['nrows'])
-                    scan_ntimes.append(nrows[scannumber] / max(set(nrows_scan)))
+                    scan_ntimes.append(nrows[s] / max(set(nrows_scan)))
                     # scan_ntimes.append(
                     #     len(smry['observationID=0']['arrayID=0'][scanids[scannumber]]['fieldID=0'].keys()) - 6)
                 scan_ntimes = np.array(scan_ntimes).astype(int)
@@ -386,7 +386,7 @@ class Dspec:
                 # ant1 = np.zeros((nt, nbl), int)  # Array indexes are swapped
                 # ant2 = np.zeros((nt, nbl), int)  # Array indexes are swapped
                 iptr = 0
-                for j, scann in enumerate(scannumbers):
+                for j, scanid in enumerate(scanids):
                     # Loop over scans
                     s = scan_ntimes[j]
                     s1 = np.sum(scan_ntimes[:j])  # Start time index
