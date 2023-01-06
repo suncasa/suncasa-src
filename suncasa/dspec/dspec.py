@@ -459,8 +459,8 @@ class Dspec:
                          uvrange=uvrange, timebin=timebin)
                 ms.close()
 
-            if verbose:
-                print('Regridding into a single spectral window...')
+            #if verbose:
+             #   print('Regridding into a single spectral window...')
                 # print('Reading data spw by spw')
 
             try:
