@@ -1653,6 +1653,26 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
             spwselec = '0~' + str(nspwall - 1)
             spw = [spwselec]
     else:
+        if 'GHz' in spw:
+            start_spw=None
+            end_spw=None
+            temp=spw.split('GHz')[0].split('~')
+            s1=int(temp[0])
+            s2=int(temp[1])
+            for i in range(nspwall):
+                if spwInfo[str(i)]['RefFreq']>s1*1e9:
+                    start_spw=str(i)
+                    break
+            if start_spw==None:
+                ms.close()
+                return -1
+            for i in range(nspwall):
+                if spwInfo[str(i)]['RefFreq']>s2*1e9:
+                    end_spw=str(i)
+                    break
+            if end_spw==None:
+                end_spw=str(nspwall-1)
+            spw=start_spw+'~'+end_spw
         if type(spw) is list:
             spwselec = ';'.join(spw)
         else:

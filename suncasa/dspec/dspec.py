@@ -459,8 +459,8 @@ class Dspec:
                          uvrange=uvrange, timebin=timebin)
                 ms.close()
 
-            if verbose:
-                print('Regridding into a single spectral window...')
+            #if verbose:
+             #   print('Regridding into a single spectral window...')
                 # print('Reading data spw by spw')
 
             try:
@@ -496,12 +496,12 @@ class Dspec:
                     if verbose:
                         print('filling up spw #{0:d}: {1:s}'.format(n, descid))
                     descid = int(descid)
-                    ms.selectinit(datadescid=descid, reset=True)
+                    ms.selectinit(datadescid=n)#, reset=True)
                     data = ms.getdata(['amplitude', 'time', 'axis_info'], ifraxis=True)
                     if verbose:
                         print('shape of this spw', data['amplitude'].shape)
                     specamp_ = data['amplitude']
-                    freq_ = data['axis_info']['freq_axis']['chan_freq']
+                    freq_ = data['axis_info']['freq_axis']['chan_freq'].squeeze()
                     if len(freq_.shape) > 1:
                         # chan_freq for each datadecid contains the info for all the spws
                         freq = freq_.transpose().flatten()
@@ -517,8 +517,11 @@ class Dspec:
                     specamp.append(specamp_)
                     time.append(time_)
                 specamp = np.concatenate(specamp, axis=1)
-                if len(freq.shape) > 1:
+                try:
+                    #if len(freq.shape) > 1:
                     freq = np.concatenate(freq, axis=0)
+                except ValueError:
+            	    pass
                 ms.selectinit(datadescid=0, reset=True)
             ms.close()
             if os.path.exists(vis_spl):
@@ -542,7 +545,12 @@ class Dspec:
             # spec_med = np.ma.filled(np.ma.median(spec_masked, axis=1), fill_value=0.)
             spec = np.abs(spec)
             if ds_normalised == False:
-                spec_med = np.nanmedian(spec, axis=1)
+            	#mask zero values before median
+                spec_masked = np.ma.masked_where(spec < 1e-9, spec)
+                spec_masked2 = np.ma.masked_invalid(spec)
+                spec_masked = np.ma.masked_array(spec, mask=np.logical_or(spec_masked.mask, spec_masked2.mask))
+                spec_med = np.ma.filled(np.ma.median(spec_masked, axis=1), fill_value=0.)
+                #spec_med = np.nanmedian(spec, axis=1)
                 nbl = 1
                 ospec = spec_med.reshape((npol, nbl, nfreq, ntim))
             else:
