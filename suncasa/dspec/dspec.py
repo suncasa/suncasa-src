@@ -21,7 +21,7 @@ except:
     ms = mstool()
     qa = qatool()
 
-from matplotlib.dates import AutoDateFormatter, AutoDateLocator
+from matplotlib.dates import AutoDateFormatter, AutoDateLocator, num2date
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 stokestype = [
@@ -125,7 +125,8 @@ class Dspec:
             self.pol = pol
 
 
-    def tofits(self, fitsfile=None, specdata=None, spectype='amp', specunit='jy'):
+    def tofits(self, fitsfile=None, specdata=None, spectype='amp', specunit='jy',
+               telescope='EOVSA', observatory='Owens Valley Radio Observatory', observer='EOVSA Team'):
         """
         @param fitsfile: Path/name of the output fits file
         @param specdata: [optional] input dictionary that is consistent with rd_dspec()
@@ -133,6 +134,9 @@ class Dspec:
         @param specunit: [optional] Specify if the input data unit is Jansky ('jy'), solar flux unit ('sfu'), or
                         brightness temperature ('k'). If 'jy', devide the amplitude by 1e4. If anything else,
                         stay unchanged.
+        @param telescope: [optional] Specify telescope from which the data is obtained
+        @param observatory: [optional] Specify observatory from which the data is obtained
+        @param observer: [optional] specify who the observer is
         @return:
         """
         from astropy.io import fits
@@ -140,7 +144,7 @@ class Dspec:
         if hasattr(self, 'data'):
             spec = self.data
             tim = self.time_axis
-            freq = self.freq_axis
+            freqghz = self.freq_axis / 1e9
 
         if specdata:
             try:
@@ -151,14 +155,14 @@ class Dspec:
 
         hdu = fits.PrimaryHDU(spec)
         # Set up the extensions: sfreq, ut
-        col1 = fits.Column(name='sfreq', format='E', array=freq)
+        col1 = fits.Column(name='sfreq', format='E', array=freqghz)
         cols1 = fits.ColDefs([col1])
         tbhdu1 = fits.BinTableHDU.from_columns(cols1)
         tbhdu1.name = 'SFREQ'
 
         # Split up mjd into days and msec
-        date_obs = tim[0].iso
-        date_end = tim[-1].iso
+        date_obs = tim[0].isot
+        date_end = tim[-1].isot
         ut = tim.mjd
         ut_int = ut.astype(int)
         ut_msec = 1000.0 * 86400.0 * (ut - ut_int)
@@ -179,16 +183,18 @@ class Dspec:
         # primary header
         prihdr = hdulist[0].header
         prihdr.set('FILENAME', fitsfile)
-        prihdr.set('ORIGIN', 'NJIT', 'Institute where file was written')
-        prihdr.set('TELESCOP', 'EOVSA', 'Expanded Owens Valley Solar Array')
+        prihdr.set('ORIGIN', 'NJIT', 'Location where file was made')
+        prihdr.set('DATE', Time.now().isot, 'Date when file was made')
+        prihdr.set('OBSERVER', observer, 'Who to appreciate/blame')
+        prihdr.set('TELESCOP', telescope, observatory)
         prihdr.set('OBJ_ID', 'SUN', 'Object ID')
         prihdr.set('TYPE', 1, 'Flare Spectrum')
         prihdr.set('DATE_OBS', date_obs, 'Start date/time of observation')
         prihdr.set('DATE_END', date_end, 'End date/time of observation')
-        prihdr.set('FREQMIN', min(freq), 'Min freq in observation (GHz)')
-        prihdr.set('FREQMAX', max(freq), 'Max freq in observation (GHz)')
-        prihdr.set('XCEN', 0.0, 'Antenna pointing in arcsec from Sun centre')
-        prihdr.set('YCEN', 0.0, 'Antenna pointing in arcsec from Sun centre')
+        prihdr.set('FREQMIN', min(freqghz), 'Min freq in observation (GHz)')
+        prihdr.set('FREQMAX', max(freqghz), 'Max freq in observation (GHz)')
+        prihdr.set('XCEN', 0.0, 'Antenna pointing in arcsec from Sun center')
+        prihdr.set('YCEN', 0.0, 'Antenna pointing in arcsec from Sun center')
         prihdr.set('POLARIZA', 'I', 'Polarizations present')
         prihdr.set('RESOLUTI', 0.0, 'Resolution value')
         # Write the file
@@ -724,6 +730,7 @@ class Dspec:
         import matplotlib.colors as colors
         import matplotlib.pyplot as plt
         from astropy.time import Time
+
         if pol not in ['RR', 'LL', 'RRLL', 'XX', 'YY', 'XY', 'YX', 'XXYY', 'I', 'V', 'IV']:
             print("Please enter 'RR', 'LL', 'RRLL','XX', 'YY', 'XY', 'YX', 'XXYY', 'I', 'V', 'IV' for pol")
             return 0
@@ -834,7 +841,10 @@ class Dspec:
                     ax.set_title('Dynamic spectrum')
                 locator = AutoDateLocator(minticks=2)
                 ax.xaxis.set_major_locator(locator)
-                ax.xaxis.set_major_formatter(AutoDateFormatter(locator))
+                formatter = AutoDateFormatter(locator)
+                formatter.scaled[1/24] = '%D %H'
+                formatter.scaled[1/(24*60)] = '%H:%M'
+                ax.xaxis.set_major_formatter(formatter)
                 ax.set_autoscale_on(False)
 
             else:
@@ -887,7 +897,11 @@ class Dspec:
 
                 locator = AutoDateLocator(minticks=2)
                 ax1.xaxis.set_major_locator(locator)
-                ax1.xaxis.set_major_formatter(AutoDateFormatter(locator))
+                #ax1.xaxis.set_major_formatter(AutoDateFormatter(locator))
+                formatter = AutoDateFormatter(locator)
+                formatter.scaled[1/24] = '%D %H'
+                formatter.scaled[1/(24*60)] = '%H:%M'
+                ax.xaxis.set_major_formatter(formatter)
                 ax1.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[0])
                 ax1.set_autoscale_on(False)
                 ax2 = fig.add_subplot(212)
@@ -901,7 +915,10 @@ class Dspec:
 
                 locator = AutoDateLocator(minticks=2)
                 ax2.xaxis.set_major_locator(locator)
-                ax2.xaxis.set_major_formatter(AutoDateFormatter(locator))
+                formatter = AutoDateFormatter(locator)
+                formatter.scaled[1/24] = '%D %H'
+                formatter.scaled[1/(24*60)] = '%H:%M'
+                ax2.xaxis.set_major_formatter(formatter)
 
                 def format_coord(x, y):
                     col = np.argmin(np.absolute(tim_plt - x))
