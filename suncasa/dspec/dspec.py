@@ -901,7 +901,7 @@ class Dspec:
                 formatter = AutoDateFormatter(locator)
                 formatter.scaled[1/24] = '%D %H'
                 formatter.scaled[1/(24*60)] = '%H:%M'
-                ax.xaxis.set_major_formatter(formatter)
+                ax1.xaxis.set_major_formatter(formatter)
                 ax1.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[0])
                 ax1.set_autoscale_on(False)
                 ax2 = fig.add_subplot(212)

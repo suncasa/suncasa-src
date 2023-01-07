@@ -104,6 +104,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     if t0:
         try:
             btime = Time(t0)
+            
         except:
             print('input time ' + str(t0) + ' not recognized')
             return -1
@@ -151,7 +152,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         observatory = '500'
 
     etime = Time(btime.mjd + dur, format='mjd')
-
+    
     try:
         cmdstr = "https://ssd.jpl.nasa.gov/api/horizons.api?format=text&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='sun'&START_TIME='".format(
             observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
@@ -1190,7 +1191,7 @@ def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=Tr
 
     midtim_mjd = (sttim.mjd + edtim.mjd) / 2.
     midtim = Time(midtim_mjd, format='mjd')
-    eph = read_horizons(t0=midtim, observatory=observatory)
+    eph = read_horizons(t0=midtim, vis=vis,observatory=observatory)
     if observatory == 'EOVSA' or (not usemsphacenter):
         print('Phasecenter in the ms is ignored')
         # use RA and DEC from FIELD ID 0
