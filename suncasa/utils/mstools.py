@@ -63,8 +63,8 @@ def get_bandinfo(msfile, spw=None, returnbdinfo=False):
                 bchan = chan_sel[0, 1]
                 espw = chan_sel[-1, 0]
                 echan = chan_sel[-1, 2]
-                bfreq = spwInfo[str(bspw)]['Chan1Freq'] + spwInfo[str(bspw)]['ChanWidth'] * bchan
-                efreq = spwInfo[str(espw)]['Chan1Freq'] + spwInfo[str(espw)]['ChanWidth'] * echan
+                bfreq = (spwInfo[str(bspw)]['Chan1Freq'] + spwInfo[str(bspw)]['ChanWidth'] * bchan) / 1e9
+                efreq = (spwInfo[str(espw)]['Chan1Freq'] + spwInfo[str(espw)]['ChanWidth'] * echan) / 1e9
                 cfreq = (bfreq + efreq) / 2.
             except ValueError:
                 print("Parsing spw {} failed. Aborting...".format(sp))

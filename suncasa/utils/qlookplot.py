@@ -2038,7 +2038,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                     imagefiles, fitsfiles = [], []
                     if restoringbeam == ['']:
                         if observatory == 'EOVSA':
-                            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=60., reffreq=1., minbmsize=4.0)
+                            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=70., reffreq=1., minbmsize=4.0)
                         else:
                             restoringbms = [''] * nspws
                     else:
@@ -2118,13 +2118,8 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                     if restoringbeam == ['']:
                         if observatory == 'EOVSA':
                             # Don't use CASA's default. Trying my best to get a good estimate of the restoring beam
-                            restoringbms = mstools.get_bmsize(cfreqs_all, refbmsize=60., reffreq=1., minbmsize=4.0)
-                            ms.open(vis)
-                            staql = {'spw': ';'.join(spw)}
-                            ms.msselect(staql, onlyparse=True)
-                            spwidx = ms.msselectedindices()['spw']
-                            ms.close()
-                            bm = str(np.mean(restoringbms[spwidx]))+'arcsec'
+                            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=70., reffreq=1., minbmsize=4.0)
+                            restoringbeam = str(np.mean(restoringbms[0]))+'arcsec'
 
                     imagename = os.path.join(workdir, visname + '.outim')
                     junks = ['.flux', '.model', '.psf', '.residual', '.mask', '.pb', '.sumwt', '.image', '.image.pbcor']
@@ -2152,7 +2147,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                            imsize=imsize,
                            cell=cell,
                            datacolumn=datacolumn,
-                           restoringbeam=bm,
+                           restoringbeam=restoringbeam,
                            weighting=weighting,
                            robust=robust,
                            phasecenter=phasecenter)
