@@ -1653,26 +1653,6 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
             spwselec = '0~' + str(nspwall - 1)
             spw = [spwselec]
     else:
-        if 'GHz' in spw:
-            start_spw=None
-            end_spw=None
-            temp=spw.split('GHz')[0].split('~')
-            s1=int(temp[0])
-            s2=int(temp[1])
-            for i in range(nspwall):
-                if spwInfo[str(i)]['RefFreq']>s1*1e9:
-                    start_spw=str(i)
-                    break
-            if start_spw==None:
-                ms.close()
-                return -1
-            for i in range(nspwall):
-                if spwInfo[str(i)]['RefFreq']>s2*1e9:
-                    end_spw=str(i)
-                    break
-            if end_spw==None:
-                end_spw=str(nspwall-1)
-            spw=start_spw+'~'+end_spw
         if type(spw) is list:
             spwselec = ';'.join(spw)
         else:
@@ -1695,6 +1675,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
     else:
         icmap = plt.get_cmap(icmap)
 
+    print('spw is', spw)
     bdinfo = mstools.get_bandinfo(vis, spw=spw, returnbdinfo=True)
     # print(freqbounds)
     cfreqs = bdinfo['cfreqs']
@@ -2056,13 +2037,15 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                 if nspws > 1:
                     imagefiles, fitsfiles = [], []
                     if restoringbeam == ['']:
-                        restoringbms = [''] * nspws
+                        if observatory == 'EOVSA':
+                            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=70., reffreq=1., minbmsize=4.0)
+                        else:
+                            restoringbms = [''] * nspws
                     else:
                         try:
-                            sbeam = float(restoringbeam[0].replace('arcsec', ''))
-                        except:
-                            sbeam = 35.
-                        restoringbms = mstools.get_bmsize(cfreqs, refbmsize=sbeam, reffreq=1.6, minbmsize=4.0)
+                            restoringbms = [float(b.replace('arcsec', '')) for b in restoringbeam]
+                        except ValueError:
+                            print('Error in reading the provided restoring beam.')
                     sto = stokes.replace(',', '')
                     print('Original phasecenter: ' + str(ra0) + str(dec0))
                     print('use phasecenter: ' + phasecenter)
@@ -2131,6 +2114,13 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                         "If the provided spw is not equally spaced, the frequency information of the fits file {} that combining {} could be a wrong. Use it with caution!".format(
                             outfits, ','.join(fitsfiles)))
                 else:
+                    # single image
+                    if restoringbeam == ['']:
+                        if observatory == 'EOVSA':
+                            # Don't use CASA's default. Trying my best to get a good estimate of the restoring beam
+                            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=70., reffreq=1., minbmsize=4.0)
+                            restoringbeam = str(np.mean(restoringbms[0]))+'arcsec'
+
                     imagename = os.path.join(workdir, visname + '.outim')
                     junks = ['.flux', '.model', '.psf', '.residual', '.mask', '.pb', '.sumwt', '.image', '.image.pbcor']
                     for junk in junks:
@@ -2140,8 +2130,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                     print('do clean for ' + timerange + ' in spw ' + ';'.join(spw) + ' stokes ' + sto)
                     print('Original phasecenter: ' + str(ra0) + str(dec0))
                     print('use phasecenter: ' + phasecenter)
-                    # if verbose:
-                    #     print('use beamsize {}'.format(restoringbeam))
+                    print('use restoringbeam {}'.format(restoringbeam))
 
                     tclean(vis=vis,
                            imagename=imagename,
