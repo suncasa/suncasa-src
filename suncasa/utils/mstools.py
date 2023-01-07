@@ -67,7 +67,8 @@ def get_bandinfo(msfile, spw=None, returnbdinfo=False):
                 efreq = spwInfo[str(espw)]['Chan1Freq'] + spwInfo[str(espw)]['ChanWidth'] * echan
                 cfreq = (bfreq + efreq) / 2.
             except ValueError:
-                print("Parsing spw failed. Aborting...")
+                print("Parsing spw {} failed. Aborting...".format(sp))
+                continue
             freqbounds_lo_spw.append(bfreq)
             freqbounds_hi_spw.append(efreq)
             cfreqs_spw.append(cfreq)
