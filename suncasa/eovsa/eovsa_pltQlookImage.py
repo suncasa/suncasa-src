@@ -59,7 +59,7 @@ def pltEmptyImage2(dpis_dict={'t': 32.0}):
 
     for l, dpi in dpis_dict.items():
         figname = 'nodata.jpg'
-        fig.savefig(figname, dpi=np.int(dpi), quality=85)
+        fig.savefig(figname, dpi=int(dpi), quality=85)
     return
 
 
@@ -101,7 +101,7 @@ def pltEmptyImage(datestr, spws, vmaxs, vmins, dpis_dict={'t': 32.0}):
 
         for l, dpi in dpis_dict.items():
             figname = os.path.join(imgoutdir, '{}_eovsa_bd{:02d}.jpg'.format(l, s + 1))
-            fig.savefig(figname, dpi=np.int(dpi), quality=85)
+            fig.savefig(figname, dpi=int(dpi), quality=85)
     return
 
 
@@ -162,7 +162,7 @@ def pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None
 
                 for l, dpi in dpis_dict.items():
                     figname = os.path.join(imgoutdir, '{}_eovsa_bd{:02d}.jpg'.format(l, s + 1))
-                    fig.savefig(figname, dpi=np.int(dpi), quality=85)
+                    fig.savefig(figname, dpi=int(dpi), quality=85)
             except Exception as err:
                 print('Fail to plot {}'.format(eofile))
                 print(err)
@@ -250,7 +250,7 @@ def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ver
 
                 for l, dpi in dpis_dict.items():
                     figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
-                    fig.savefig(figname, dpi=np.int(dpi), quality=85)
+                    fig.savefig(figname, dpi=int(dpi), quality=85)
             except Exception as err:
                 print('Fail to plot {}'.format(sdofile))
                 print(err)
@@ -375,7 +375,7 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
 
                     for l, dpi in dpis_dict.items():
                         figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
-                        fig.savefig(figname, dpi=np.int(dpi), quality=85)
+                        fig.savefig(figname, dpi=int(dpi), quality=85)
                 except Exception as err:
                     print('Fail to plot {}'.format(bbsofile))
                     print(err)
@@ -502,7 +502,7 @@ if __name__ == '__main__':
                 else:
                     clearcache = np.bool(arg)
             elif opt in ('-n', '--ndays'):
-                ndays = np.int(arg)
+                ndays = int(arg)
             elif opt in ('-e', '--ovwrite_eovsa'):
                 if arg in ['True', 'T', '1']:
                     ovwrite_eovsa = True
@@ -533,9 +533,9 @@ if __name__ == '__main__':
                     show_warning = np.bool(arg)
         nargs = len(args)
         if nargs == 3:
-            year = np.int(args[0])
-            month = np.int(args[1])
-            day = np.int(args[2])
+            year = int(args[0])
+            month = int(args[1])
+            day = int(args[2])
         else:
             year = None
             month = None

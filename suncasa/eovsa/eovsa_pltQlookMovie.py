@@ -178,7 +178,7 @@ def pltEovsaQlookImageSeries(timobjs, spws, vmaxs, vmins, aiawave, bd, fig=None,
                     transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=9)
             ax.set_xlim(-1227, 1227)
             ax.set_ylim(-1227, 1227)
-            fig.savefig(figoutname, dpi=np.int(dpi), quality=85)
+            fig.savefig(figoutname, dpi=int(dpi), quality=85)
         imgfiles.append(figoutname)
 
     return imgfiles
@@ -261,13 +261,13 @@ def main(year, month, day=None, ndays=10, bd=3, show_warning=False):
 #         else:
 #             clearcache = False
 #
-#         year = np.int(argv[0])
-#         month = np.int(argv[1])
-#         day = np.int(argv[2])
+#         year = int(argv[0])
+#         month = int(argv[1])
+#         day = int(argv[2])
 #         if len(argv) == 3:
 #             dayspan = 30
 #         else:
-#             dayspan = np.int(argv[3])
+#             dayspan = int(argv[3])
 #     except:
 #         print('Error interpreting command line argument')
 #         year = None
@@ -318,7 +318,7 @@ if __name__ == '__main__':
         print(opts, args)
         for opt, arg in opts:
             if opt in ('-n', '--ndays'):
-                ndays = np.int(arg)
+                ndays = int(arg)
             elif opt in ('-w', '--show_warning'):
                 if arg in ['True', 'T', '1']:
                     show_warning = True
@@ -328,9 +328,9 @@ if __name__ == '__main__':
                     show_warning = np.bool(arg)
         nargs = len(args)
         if nargs == 3:
-            year = np.int(args[0])
-            month = np.int(args[1])
-            day = np.int(args[2])
+            year = int(args[0])
+            month = int(args[1])
+            day = int(args[2])
         else:
             year = None
             month = None

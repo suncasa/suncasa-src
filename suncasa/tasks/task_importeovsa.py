@@ -191,7 +191,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
     inttime = np.median((times - np.roll(times, 1))[1:]) / 60  ## time in minutes
     inttimed = inttime / (24 * 60)  ## time in days
 
-    time_steps = np.round((times[-1] - times[0]) / inttime / 60).astype(np.int) + 1
+    time_steps = np.round((times[-1] - times[0]) / inttime / 60).astype(int) + 1
     # time_steps = len(timesall) / (npairs * npol)
     if len(times) != time_steps:
         ### This is to solve the timestamp glitch in idb files.
@@ -199,7 +199,7 @@ def importeovsa_iter(filelist, timebin, width, visprefix, nocreatms, modelms, do
         ### However, some idb files may miss a few timestamps in the evenly-spaced time grid.
         ### The step will map the the data to the evenly-spaced time grid.
         timesnew = np.linspace(times[0], times[-1], time_steps)
-        timesnew[np.hstack([[0], np.cumsum(np.round(np.diff(times) / 60 / inttime))]).astype(np.int)] = times
+        timesnew[np.hstack([[0], np.cumsum(np.round(np.diff(times) / 60 / inttime))]).astype(int)] = times
         times = timesnew
     durtim = int(np.round((times[-1] - times[0]) / 60 + inttime))  ## time in minutes
     time0 = time.time()

@@ -97,14 +97,14 @@ def improfile(z, xi, yi, interp='cubic'):
         if not 0 < yi[idx] < imgshape[0]:
             return np.nan
     if len(xi) == 2:
-        length = np.floor(np.hypot(np.diff(xi), np.diff(yi))[0]).astype(np.int)
+        length = np.floor(np.hypot(np.diff(xi), np.diff(yi))[0]).astype(int)
         x, y = np.linspace(xi[0], xi[1], length), np.linspace(yi[0], yi[1], length)
     else:
         x, y = xi, yi
     if interp == 'cubic':
         zi = scipy.ndimage.map_coordinates(z, np.vstack((x, y)))
     else:
-        zi = z[np.floor(y).astype(np.int), np.floor(x).astype(np.int)]
+        zi = z[np.floor(y).astype(int), np.floor(x).astype(int)]
 
     return zi
 
