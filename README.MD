@@ -72,6 +72,9 @@ and Ubuntu ([apt-get](https://help.ubuntu.com/community/AptGet/Howto)), respecti
 
 ```bash
 sudo yum install python38-devel
+```
+
+```bash
 sudo apt install python3.8 python3.8-venv python3-venv
 ```
 
