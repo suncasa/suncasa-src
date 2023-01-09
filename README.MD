@@ -105,10 +105,16 @@ pyenv install 3.8.16
 ```
 > **_Troubleshooting:_** If you encounter an error that "C compiler cannot create executables" then the simplest way to solve this is to reinstall Apple's [Xcode](https://apps.apple.com/us/app/xcode/id497799835?mt=12). Xcode is a tool created by Apple that includes all the C libraries and other tools that Python uses when it runs on MacOS. Xcode is a whopping 11 gigabytes, but you'll want to be up-to-date. You may want to run this while you're sleeping. Once it is done, just re-run the above `pyenv install 3.8.16` and it should now work.
 
-Now you can set this version of Python to be the default version of Python MacOS uses.
+Now you can set this version of Python to be the **current** version of Python MacOS uses. This setting is temporary.
 ```bash
 pyenv global 3.8.16
 ```
+
+If you want to set this version of Python to the the **default** version of Python, add the configuration command to `~/.bashrc`.
+```bash
+echo 'pyenv global 3.8.16' >> ~/.bashrc
+```
+
 [comment]: <> (When using the casampi package from modular CASA, additional MPI libraries are needed:)
 
 [comment]: <> (*   `$: sudo yum install openmpi-devel`)
