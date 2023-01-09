@@ -710,7 +710,7 @@ if prompt4.lower() == 'y':
         else:
             ms_out = ms_slfcaled + '.copy'
     else:
-        ms_out = ms_slfcale
+        ms_out = ms_slfcaled
     print('Splitting self-calibrated dataset as {}'.format(ms_out))
     split(ms_in, ms_out, spw=','.join(spws_slf), correlation=stokes, antenna=antennas, datacolumn='corrected')
 else:
