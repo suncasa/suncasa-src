@@ -32,16 +32,24 @@ In principle, suncasa an casa can be installed easily using [pip](https://pypi.o
 
 [comment]: <> (* **[Installation]&#40;#installation&#41;**)
 
-## Step 1: Python 3.8 Installation[](#installation) (adopted from [this link](https://casadocs.readthedocs.io/en/latest/notebooks/introduction.html#id1))
-
-
-A full installation of CASA including custom python environment is available as a Linux (.tar) or Mac (.dmg) file from
+Full installation instructions of the standalone CASA package (as a Linux (.tar) or Mac (.dmg) files) including the build-in Python environment are available from
 NRAO [Downloads](http://casa.nrao.edu/casa_obtaining.shtml)
 page ([http://casa.nrao.edu/casa_obtaining.shtml](http://casa.nrao.edu/casa_obtaining.shtml))
 
 The CASA 6.x series is also available as modular packages, giving users the flexibility to build CASA tools and tasks in
 their own Python environment. This includes the casatools, casatasks, and casampi modules, allowing for core data
-processing capabilities in parallel.
+processing capabilities in parallel. 
+
+<hr />
+
+**If you want to use full funtionalities provided by the standalone CASA, please go through all steps.** 
+
+**If you just want to install SUNCASA with the modular CASA option in the usual "Pythonic" manner, after Step 1 (Python installation), you can skip Step 2 and go directly to Step 3.**
+
+<hr />
+
+## Step 1: Python 3.8 Installation[](#installation) 
+(Adapted from [this tutorial](https://casadocs.readthedocs.io/en/latest/notebooks/introduction.html#id1))
 
 ### Prerequisite OS Libraries[](#Prerequisite-OS-Libraries)
 
@@ -130,7 +138,10 @@ pyenv global 3.8.16
 
 [comment]: <> (*   the run `export PATH=/opt/casa/03/bin:\$PATH`)
 
-### Step 2: CASA (Monolithic Distribution) Installation [](#Monolithic-CASA-Distribution)
+### Step 2: CASA (Standalone Monolithic Distribution) Installation [](#Monolithic-CASA-Distribution)
+
+Download the standalone CASA package (as a Linux (.tar) or Mac (.dmg) files) including the build-in Python environment following
+[http://casa.nrao.edu/casa_obtaining.shtml](http://casa.nrao.edu/casa_obtaining.shtml).
 
 **On Linux:**
 
