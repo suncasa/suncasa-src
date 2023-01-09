@@ -11,13 +11,16 @@ to 3.8 on most of the platform. More information about the compatibility of CASA
 on [CASA Compatibility](https://casadocs.readthedocs.io/en/latest/notebooks/introduction.html#Compatibility/).
 > **_NOTE:_** CASA is available ONLY on unix-based platforms, and therefore, so as for suncasa.
 
-## Table of Contents
+In principle, suncasa an casa can be installed easily using [pip](https://pypi.org/project/suncasa/), assuming the right python version is in use. However, YMMV if your do not have prerequisite environment configured.The followinig tutorial demonstrates the installation of **suncasa** in **python 3.8** environment on **MacOS 12** and **Ubuntu 18.04.6 LTS**.        
 
-* **[Installation](#installation)**
-    * [Prerequisite OS Libraries](#Prerequisite-OS-Libraries)
+[comment]: <> (## Table of Contents)
 
-For this tutorial, we demonstrate the installation of **suncasa** in **python 3.8** environment on **MacOS 12** and **
-Ubuntu 18.04.6 LTS**.
+[comment]: <> (* **[Installation]&#40;#installation&#41;**)
+
+[comment]: <> (    * [Prerequisite OS Libraries]&#40;#Prerequisite-OS-Libraries&#41;)
+
+
+
 
 [comment]: <> (## Table of Contents)
 
@@ -29,7 +32,7 @@ Ubuntu 18.04.6 LTS**.
 
 [comment]: <> (* **[Installation]&#40;#installation&#41;**)
 
-## Installation[](#installation) (adopted from [CASA installation guide](https://casadocs.readthedocs.io/en/latest/notebooks/introduction.html#id1) )
+## Installation[](#installation) (adopted from [CASA installation](https://casadocs.readthedocs.io/en/latest/notebooks/introduction.html#id1))
 
 
 A full installation of CASA including custom python environment is available as a Linux (.tar) or Mac (.dmg) file from
@@ -86,7 +89,7 @@ Clone pyenv to a local directory (e.g., `$HOME/.pyenv`):
 ```bash
 git clone https://github.com/pyenv/pyenv.git $HOME/.pyenv
 ```
-Set up your shell environment for Pyenv. Assuming you are using **bash**, add the commands to `~/.bashrc` by running the following in your terminal:
+Set up your shell environment for Pyenv. Assuming you are using **bash**, add the configuration commands to `~/.bashrc` by running the following in your terminal:
 ~~~bash
 bash
 echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
@@ -136,33 +139,36 @@ pyenv global 3.8.16
    tar -xvf casa-xyz.tar.xz
    $HOME/casa/casa-xyz/bin/casa
    ~~~ 
-3. Add casa to `PATH`. Stock Bash startup files vary widely between distributions in which of them source which, under
-   what circumstances, in what order and what additional configuration they perform. As such, the most reliable way to
-   get casa in all environments is to append casa path to both `.bashrc` (for interactive shells)
-   and the profile file that Bash would use (for login shells).
-
-    - For **bash**:
-      `~/.bashrc` by running the following in your terminal:
+3. Add casa to environment `PATH`. Assuming you are using *bash*, add the configuration commands to `~/.bashrc` by running the following in your terminal:
 
    ~~~ bash
    echo 'export CASAROOT="$HOME/casa/casa-xyz/"' >> ~/.bashrc
    echo 'export PATH="$PATH:$CASAROOT/bin"' >> ~/.bashrc
    ~~~
 
-   Then, if you have `~/.profile`, `~/.bash_profile` or `~/.bash_login`, add the commands there as well. If you have
-   none of these, add them to `~/.profile`.
+[comment]: <> (   Then, if you have `~/.profile`, `~/.bash_profile` or `~/.bash_login`, add the commands there as well. If you have)
 
-    * to add to `~/.profile`:
-   ~~~ bash
-   echo 'export CASAROOT="$HOME/casa/casa-xyz/"' >> ~/.profile
-   echo 'export PATH="$PATH:$CASAROOT/bin"' >> ~/.profile
-   ~~~
+[comment]: <> (   none of these, add them to `~/.profile`.)
 
-    * to add to `~/.bash_profile`:
-   ~~~ bash
-   echo 'export CASAROOT="$HOME/casa/casa-xyz/"' >> ~/.bash_profile
-   echo 'export PATH="$PATH:$CASAROOT/bin"' >> ~/.bash_profile
-   ~~~
+[comment]: <> (    * to add to `~/.profile`:)
+
+[comment]: <> (   ~~~ bash)
+
+[comment]: <> (   echo 'export CASAROOT="$HOME/casa/casa-xyz/"' >> ~/.profile)
+
+[comment]: <> (   echo 'export PATH="$PATH:$CASAROOT/bin"' >> ~/.profile)
+
+[comment]: <> (   ~~~)
+
+[comment]: <> (    * to add to `~/.bash_profile`:)
+
+[comment]: <> (   ~~~ bash)
+
+[comment]: <> (   echo 'export CASAROOT="$HOME/casa/casa-xyz/"' >> ~/.bash_profile)
+
+[comment]: <> (   echo 'export PATH="$PATH:$CASAROOT/bin"' >> ~/.bash_profile)
+
+[comment]: <> (   ~~~)
 
 4. Restart your shell for the `PATH` changes to take effect.
 
