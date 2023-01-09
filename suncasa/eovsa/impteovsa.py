@@ -3,8 +3,22 @@ import aipy
 import time
 import os
 import scipy.constants as constants
-from taskinit import smtool, me, casalog
 from astropy.time import Time
+
+try:
+    ## Full Installation of CASA 4, 5 and 6
+    from taskinit import smtool, me, casalog
+
+    c_external = True
+except:
+    ## Modular Installation of CASA 6
+    from casatools import simulator as smtool
+    from casatools import measures
+    from casatasks import split,casalog
+
+    me = measures()
+
+    c_external = False
 
 
 def jd2mjds(tjd=None):

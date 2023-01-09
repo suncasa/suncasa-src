@@ -1,27 +1,25 @@
-import numpy as np
-import numpy.ma as ma
-import shutil
-import os, struct
-import bisect
-from math import *
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import matplotlib.colors as colors
-import matplotlib.gridspec as gs
-from fnmatch import fnmatch
-from time import sleep
+import os
 from time import time
-from taskinit import casalog
 import multiprocessing as mprocs
 from suncasa.utils import DButil
+from suncasa.utils import helioimage2fits as hf
 
+try:
+    from taskinit import casalog
+    from taskinit import iatool, rgtool
+
+except:
+    from casatools import image as iatool
+    from casatools import regionmanager as rgtool
+    from casatasks import casalog
+
+myia = iatool()
+myrg = rgtool()
 
 def imfit_iter(imgfiles, doreg, tims, msinfofile, ephem, box, region, chans, stokes, mask, includepix, excludepix,
                residual, model, estimates, logfile, append, newestimates, complist,
                overwrite, dooff, offset, fixoffset, stretch, rms, noisefwhm, summary,
                imidx):
-    from taskinit import iatool,rgtool
-    import pdb
     try:
         from astropy.io import fits as pyfits
     except:
@@ -41,18 +39,17 @@ def imfit_iter(imgfiles, doreg, tims, msinfofile, ephem, box, region, chans, sto
             return
         try:
             tim = tims[imidx]
-            helio = vla_prep.ephem_to_helio(msinfo=msinfofile, ephem=ephem, reftime=tim)
+            helio = hf.ephem_to_helio(msinfo=msinfofile, ephem=ephem, reftime=tim)
             fitsfile = [img.replace('.image', '.fits')]
-            vla_prep.imreg(imagefile=[img], fitsfile=fitsfile, helio=helio, toTb=False, scl100=True)
+            hf.imreg(imagefile=[img], fitsfile=fitsfile, helio=helio, toTb=False, scl100=True)
             img = img.replace('.image', '.fits')
         except:
-            print 'Failure in vla_prep. Skipping this image file: ' + img
+            print('Failure in helioimage2fits. Skipping this image file: ' + img)
 
-    myia = iatool()
-    myrg = rgtool()
+
     try:
         if (not myia.open(img)):
-            raise Exception, "Cannot create image analysis tool using " + img
+            raise Exception("Cannot create image analysis tool using " + img)
         print('Processing image: ' + img)
         hdr = pyfits.getheader(img)
         pols = DButil.polsfromfitsheader(hdr)
@@ -77,7 +74,7 @@ def imfit_iter(imgfiles, doreg, tims, msinfofile, ephem, box, region, chans, sto
 
         timstr = hdr['date-obs']
         return [True, timstr, img, results]
-    except Exception, instance:
+    except Exception as instance:
         casalog.post(str('*** Error in imfit ***') + str(instance))
         # raise instance
         return [False, timstr, img, {}]
@@ -96,12 +93,12 @@ def pimfit(imagefiles, ncpu, doreg, timestamps, msinfofile, ephemfile, box, regi
     if isinstance(imagefiles, str):
         imagefiles = [imagefiles]
     if (not isinstance(imagefiles, list)):
-        print 'input "imagefiles" is not a list. Abort...'
+        print('input "imagefiles" is not a list. Abort...')
 
     if doreg:
         # check if ephemfile and msinfofile exist
         try:
-            ephem = vla_prep.read_horizons(ephemfile=ephemfile)
+            ephem = hf.read_horizons(ephemfile=ephemfile)
         except ValueError:
             print("error in reading ephemeris file")
         if not os.path.isfile(msinfofile):
@@ -155,7 +152,7 @@ def pimfit(imagefiles, ncpu, doreg, timestamps, msinfofile, ephemfile, box, regi
 
     t1 = time()
     timelapse = t1 - t0
-    print 'It took %f secs to complete' % timelapse
+    print('It took %f secs to complete' % timelapse)
     # repackage this into a single dictionary
     results = {'succeeded': [], 'timestamps': [], 'imagenames': [], 'outputs': []}
     for r in res:

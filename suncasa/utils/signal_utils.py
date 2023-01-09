@@ -102,9 +102,9 @@ def smooth(x, window_len=11, window='hanning', mode='same'):
 
     y = numpy.convolve(w / w.sum(), s, mode=mode)
     if mode == 'same':
-        return y[np.int(window_len) - 1:-np.int(window_len) + 1]
+        return y[np.int_(window_len) - 1:-np.int_(window_len) + 1]
     else:
-        return y[np.int(window_len / 2 - 1):-np.int(window_len / 2)]
+        return y[np.int_(window_len / 2 - 1):-np.int_(window_len / 2)]
 
 
 def butter_lowpass(cutoff, fs, order=5):

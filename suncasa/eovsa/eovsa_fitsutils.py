@@ -174,7 +174,7 @@ if __name__ == '__main__':
                 else:
                     clearcache = np.bool(arg)
             elif opt in ('-n', '--ndays'):
-                ndays = np.int(arg)
+                ndays = int(arg)
             elif opt in ('-o', '--overwritejp2'):
                 if arg in ['True', 'T', '1']:
                     overwritejp2 = True
@@ -191,9 +191,9 @@ if __name__ == '__main__':
                     overwritefits = np.bool(arg)
         nargs = len(args)
         if nargs == 3:
-            year = np.int(args[0])
-            month = np.int(args[1])
-            day = np.int(args[2])
+            year = int(args[0])
+            month = int(args[1])
+            day = int(args[2])
         else:
             year = None
             month = None

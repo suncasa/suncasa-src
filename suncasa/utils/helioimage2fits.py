@@ -109,20 +109,28 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         except:
             print('input time ' + str(t0) + ' not recognized')
             return -1
+
+    if observatory:
+        # If "observatory" is provided, it takes precedence
+        # turn observatory names into JPL Horizons' codes
+        if observatory == 'EVLA' or observatory == '-5':
+            observatory = '-5'
+        elif observatory == 'EOVSA' or observatory == 'FASR' or observatory == '-81':
+            observatory = '-81'
+        elif observatory == 'ALMA' or observatory == '-7':
+            observatory = '-7'
+        elif observatory == 'geocentric' or observatory == '500':
+            observatory = '500'
+        else:
+            print('Observatory {} not recognized. Assume geocentric.'.format(observatory))
+            observatory = '500'
+
     if vis:
         if not os.path.exists(vis):
             print('Input ms data ' + vis + ' does not exist! ')
             return -1
         try:
-            # ms.open(vis)
-            # summary = ms.summary()
-            # ms.close()
-            # btime = Time(summary['BeginTime'], format='mjd')
-            # etime = Time(summary['EndTime'], format='mjd')
-            ## alternative way to avoid conflicts with importeovsa, if needed -- more time consuming
-            if observatory == 'geocentric' or observatory == '500':
-                observatory = '500'
-            else:
+            if not observatory:
                 ms.open(vis)
                 metadata = ms.metadata()
                 if metadata.observatorynames()[0] == 'EVLA':
@@ -131,8 +139,12 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
                     observatory = '-81'
                 elif metadata.observatorynames()[0] == 'ALMA':
                     observatory = '-7'
+                else:
+                    print('Observatory {} not recognized. Assume geocentric.'.format(metadata.observatorynames()[0]))
+                    observatory = '500'
                 metadata.close()
                 ms.close()
+
             tb.open(vis)
             btime_vis = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
             etime_vis = Time(tb.getcell('TIME', tb.nrows() - 1) / 24. / 3600., format='mjd')
@@ -148,10 +160,11 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
             print('error in reading ms file: ' + vis + ' to obtain the ephemeris!')
             return -1
 
-    # default the observatory to geocentric, if none provided
+    # Neither observatory is defined or found through provided visibility. Assume geocentric.
     if not observatory:
         observatory = '500'
 
+    # default the observatory to geocentric, if none provided
     etime = Time(btime.mjd + dur, format='mjd')
     
     try:

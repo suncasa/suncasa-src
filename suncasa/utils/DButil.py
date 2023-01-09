@@ -534,9 +534,9 @@ def smooth(x, window_len=11, window='hanning'):
 #
 #     y = numpy.convolve(w / w.sum(), s, mode=mode)
 #     if mode == 'same':
-#         return y[np.int(window_len) - 1:-np.int(window_len) + 1]
+#         return y[np.int_(window_len) - 1:-np.int_(window_len) + 1]
 #     else:
-#         return y[np.int(window_len / 2 - 1):-np.int(window_len / 2)]
+#         return y[np.int_(window_len / 2 - 1):-np.int_(window_len / 2)]
 
 def img2movie(imgprefix='', img_ext='png', outname='movie', size=None, start_num=0, crf=15, fps=10, overwrite=False,
               crop=[], title=[], dpi=200, keeptmp=False, usetmp=False, autorotate=True):
@@ -1364,7 +1364,7 @@ def improfile(z, xi, yi, interp='cubic'):
     if interp == 'cubic':
         zi = scipy.ndimage.map_coordinates(z, np.vstack((x, y)))
     else:
-        zi = z[np.floor(y).astype(np.int), np.floor(x).astype(np.int)]
+        zi = z[np.floor(y).astype(int), np.floor(x).astype(int)]
 
     return zi
 
