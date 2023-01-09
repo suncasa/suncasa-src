@@ -1,9 +1,18 @@
 import os
 import numpy as np
-from taskinit import tb, casalog
-from concat_cli import concat_cli as concat
-from clearcal_cli import clearcal_cli as clearcal
-from split_cli import split_cli as split
+
+try:
+    ## Full Installation of CASA 4, 5 and 6
+    from taskinit import tb, casalog
+    from concat_cli import concat_cli as concat
+    from clearcal_cli import clearcal_cli as clearcal
+    from split_cli import split_cli as split
+
+except:
+    ## Modular Installation of CASA 6
+    from casatasks import split, casalog,concat,clearcal
+    from casatools import table as tbtool
+    tb = tbtool()
 
 
 def concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2rm="model,corrected", freqtol="", dirtol="", respectname=False,

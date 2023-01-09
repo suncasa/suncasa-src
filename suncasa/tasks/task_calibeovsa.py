@@ -6,18 +6,38 @@ import shutil
 import numpy as np
 from eovsapy import refcal_anal as ra
 from eovsapy.util import Time
-from taskinit import casalog, tb, ms
-from gencal_cli import gencal_cli as gencal
-from clearcal_cli import clearcal_cli as clearcal
-from applycal_cli import applycal_cli as applycal
-from clean_cli import clean_cli as clean
-from split_cli import split_cli as split
-from bandpass_cli import bandpass_cli as bandpass
-from flagdata_cli import flagdata_cli as flagdata
 from eovsapy import cal_header as ch
 from eovsapy import stateframe as stf
 from eovsapy import dbutil as db
 from eovsapy import pipeline_cal as pc
+
+try:
+    from taskinit import casalog, tb, ms
+    from tclean_cli import tclean_cli as tclean
+    from split_cli import split_cli as split
+    from gencal_cli import gencal_cli as gencal
+    from clearcal_cli import clearcal_cli as clearcal
+    from applycal_cli import applycal_cli as applycal
+    from bandpass_cli import bandpass_cli as bandpass
+    from flagdata_cli import flagdata_cli as flagdata
+except:
+    from casatools import table as tbtool
+    from casatools import ms as mstool
+    from casatools import quanta as qatool
+    from casatools import image as iatool
+
+    tb = tbtool()
+    ms = mstool()
+    qa = qatool()
+    ia = iatool()
+    from casatasks import split
+    from casatasks import tclean
+    from casatasks import casalog
+    from casatasks import gencal
+    from casatasks import clearcal
+    from casatasks import applycal
+    from casatasks import bandpass
+    from casatasks import flagdata
 
 
 def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, doflag=True, flagant='13~15',
@@ -373,7 +393,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                 imname = imagedir + '/' + os.path.basename(msfile).replace('.ms', '.bd' + bdstr)
                 print('Cleaning image: ' + imname)
                 try:
-                    clean(vis=msfile, imagename=imname, antenna=antenna, spw=bd, timerange=timerange, imsize=[512],
+                    tclean(vis=msfile, imagename=imname, antenna=antenna, spw=bd, timerange=timerange, imsize=[512],
                           cell=['5.0arcsec'], stokes=stokes,
                           niter=500)
                 except:

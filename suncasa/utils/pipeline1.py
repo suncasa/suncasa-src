@@ -40,9 +40,9 @@ if __name__ == '__main__':
         else:
             clearcache = False
         try:
-            year = np.int(argv[0])
-            month = np.int(argv[1])
-            day = np.int(argv[2])
+            year = int(argv[0])
+            month = int(argv[1])
+            day = int(argv[2])
         except:
             print('Error parsing date string in the command line argument')
             year = None

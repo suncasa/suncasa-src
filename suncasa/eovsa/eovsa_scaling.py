@@ -56,11 +56,11 @@ def mk_udbms(trange=None, outpath=None, projid='NormalObserving', srcid='Sun', d
         else:
             outfiles = ['{}.ms'.format(outpath + os.path.basename(ll)) for ll in sclist['scanlist']]
         casalog.post("{} UDB files converted to CASA measurement sets.".format(len(sclist['scanlist'])))
-        print "{} UDB files converted to CASA measurement sets.".format(len(sclist['scanlist']))
+        print("{} UDB files converted to CASA measurement sets.".format(len(sclist['scanlist'])))
         return outfiles
     else:
         casalog.post("No UDB files found. Quit.")
-        print 'No UDB files found. Quit.'
+        print('No UDB files found. Quit.')
         return None
 
         # msfiles = glob.glob('UDB*_scl.ms')

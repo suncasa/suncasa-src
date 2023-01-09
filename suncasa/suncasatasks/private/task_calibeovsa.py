@@ -1,23 +1,46 @@
 import matplotlib
-
 matplotlib.use('Agg')
 import os
 import shutil
 import numpy as np
-from eovsapy import refcal_anal as ra
+from eovsapy.util import extract as eoextract
 from eovsapy.util import Time
-from taskinit import casalog, tb, ms
-from gencal_cli import gencal_cli as gencal
-from clearcal_cli import clearcal_cli as clearcal
-from applycal_cli import applycal_cli as applycal
-from clean_cli import clean_cli as clean
-from split_cli import split_cli as split
-from bandpass_cli import bandpass_cli as bandpass
-from flagdata_cli import flagdata_cli as flagdata
 from eovsapy import cal_header as ch
-from eovsapy import stateframe as stf
 from eovsapy import dbutil as db
 from eovsapy import pipeline_cal as pc
+from eovsapy.sqlutil import sql2refcalX, sql2phacalX
+
+try:
+    from taskinit import casalog, tb, ms
+    from tclean_cli import tclean_cli as tclean
+    from split_cli import split_cli as split
+    from gencal_cli import gencal_cli as gencal
+    from clearcal_cli import clearcal_cli as clearcal
+    from applycal_cli import applycal_cli as applycal
+    from bandpass_cli import bandpass_cli as bandpass
+    from flagdata_cli import flagdata_cli as flagdata
+    from suncasa.tasks import concateovsa_cli as ce
+except:
+    from casatools import table as tbtool
+    from casatools import ms as mstool
+    from casatools import quanta as qatool
+    from casatools import image as iatool
+
+    tb = tbtool()
+    ms = mstool()
+    qa = qatool()
+    ia = iatool()
+    from casatasks import split
+    from casatasks import tclean
+    from casatasks import casalog
+    from casatasks import gencal
+    from casatasks import clearcal
+    from casatasks import applycal
+    from casatasks import bandpass
+    from casatasks import flagdata
+    # from suncasa.tasks import task_concateovsa as ce
+    # from suncasa.suncasatasks.private import task_concateovsa as ce
+    from ..private import task_concateovsa as ce
 
 
 def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, doflag=True, flagant='13~15',
@@ -107,7 +130,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
         gaintables = []
 
         if ('refpha' in caltype) or ('refamp' in caltype) or ('refcal' in caltype):
-            refcal = ra.sql2refcalX(btime)
+            refcal = sql2refcalX(btime)
             pha = refcal['pha']  # shape is 15 (nant) x 2 (npol) x 34 (nband)
             pha[np.where(refcal['flag'] == 1)] = 0.
             amp = refcal['amp']
@@ -201,7 +224,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                        spw='0~' + str(nspw - 1), parameter=para_pha)
                 tb.open(caltb_pha, nomodify=False)
                 phaflag_ = refcal['flag'][:, :, np.array(bd)]
-                phaflag_new = np.full((nant, 2, nspw), True, dtype=np.bool)
+                phaflag_new = np.full((nant, 2, nspw), True, dtype=np.bool_)
                 phaflag_new[:-1, ...] = phaflag_
                 phaflag_new = np.moveaxis(phaflag_new, 0, 2).reshape(2, 1, nant*nspw)
                 tb.putcol('FLAG', phaflag_new)
@@ -225,7 +248,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                        spw='0~' + str(nspw - 1), parameter=para_amp)
                 tb.open(caltb_amp, nomodify=False)
                 ampflag_ = refcal['flag'][:, :, np.array(bd)]
-                ampflag_new = np.full((nant, 2, nspw), True, dtype=np.bool)
+                ampflag_new = np.full((nant, 2, nspw), True, dtype=np.bool_)
                 ampflag_new[:-1, ...] = ampflag_
                 ampflag_new = np.moveaxis(ampflag_new, 0, 2).reshape(2, 1, nant*nspw)
                 tb.putcol('FLAG', ampflag_new)
@@ -235,11 +258,11 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
         # calibration for the change of delay center between refcal time and beginning of scan -- hopefully none!
         xml, buf = ch.read_calX(4, t=[t_ref, btime], verbose=False)
         if buf:
-            dly_t2 = Time(stf.extract(buf[0], xml['Timestamp']), format='lv')
-            dlycen_ns2 = stf.extract(buf[0], xml['Delaycen_ns'])[:nant - 1]
+            dly_t2 = Time(eoextract(buf[0], xml['Timestamp']), format='lv')
+            dlycen_ns2 = eoextract(buf[0], xml['Delaycen_ns'])[:nant - 1]
             xml, buf = ch.read_calX(4, t=t_ref)
-            dly_t1 = Time(stf.extract(buf, xml['Timestamp']), format='lv')
-            dlycen_ns1 = stf.extract(buf, xml['Delaycen_ns'])[:nant - 1]
+            dly_t1 = Time(eoextract(buf, xml['Timestamp']), format='lv')
+            dlycen_ns1 = eoextract(buf, xml['Delaycen_ns'])[:nant - 1]
             dlycen_ns_diff = dlycen_ns2 - dlycen_ns1
             for n in range(2):
                 dlycen_ns_diff[:, n] -= dlycen_ns_diff[0, n]
@@ -257,7 +280,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
             gaintables.append(caltb_dlycen)
 
         if 'phacal' in caltype:
-            phacals = np.array(ra.sql2phacalX([bt, et], neat=True, verbose=False))
+            phacals = np.array(sql2phacalX([bt, et], neat=True, verbose=False))
             if not phacals.any() or len(phacals) == 0:
                 print("Found no phacal records in SQL database, will skip phase calibration")
             else:
@@ -293,8 +316,8 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                     print("Selected nearest phase calibration table at " + t_phas[tbind].iso)
                     gaintables.append(caltbs_phambd[tbind])
                 if interp == 'linear':
-                    # bphacal = ra.sql2phacalX(btime)
-                    # ephacal = ra.sql2phacalX(etime,reverse=True)
+                    # bphacal = sql2phacalX(btime)
+                    # ephacal = sql2phacalX(etime,reverse=True)
                     bt_ind, = np.where(t_phas.mjd < btime.mjd)
                     et_ind, = np.where(t_phas.mjd > etime.mjd)
                     if len(bt_ind) == 0 and len(et_ind) == 0:
@@ -373,7 +396,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                 imname = imagedir + '/' + os.path.basename(msfile).replace('.ms', '.bd' + bdstr)
                 print('Cleaning image: ' + imname)
                 try:
-                    clean(vis=msfile, imagename=imname, antenna=antenna, spw=bd, timerange=timerange, imsize=[512],
+                    tclean(vis=msfile, imagename=imname, antenna=antenna, spw=bd, timerange=timerange, imsize=[512],
                           cell=['5.0arcsec'], stokes=stokes,
                           niter=500)
                 except:
@@ -415,9 +438,6 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
         outputvis = vis
 
     if doconcat:
-        # doconcat imply dosplit
-        from suncasa.tasks import concateovsa_cli as ce
-        # from suncasa.eovsa import concateovsa as ce
         if not concatvis:
             msoutdir = os.path.dirname(vis[0])
             if len(vis) == 1:
