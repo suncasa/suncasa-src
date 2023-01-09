@@ -56,25 +56,24 @@ use [yum](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux
 RHEL) or [apt-get](https://help.ubuntu.com/community/AptGet/Howto) (Ubuntu) to install the missing libraries. For
 example, for RHEL8 the following OS libraries should be installed:
 
-* `$: sudo yum install libgfortran3`
-
-* `$: sudo yum install ImageMagick*`
-
-* `$: sudo yum install xorg-x11-server-Xvfb`
-
-* `$: sudo yum install compat-libgfortran-48`
-
-* `$: sudo yum install libnsl`
-
-* `$: sudo yum install libcanberra-gtk2`
+```bash
+sudo yum install libgfortran3
+sudo yum install ImageMagick*
+sudo yum install xorg-x11-server-Xvfb
+sudo yum install compat-libgfortran-48
+sudo yum install libnsl
+sudo yum install libcanberra-gtk2
+```
 
 For modular CASA, one must supply their own Python environment. There are many, including ipython and Jupyter, here is a
 basic example for
 RHEL8 ([yum](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/system_administrators_guide/ch-yum))
 and Ubuntu ([apt-get](https://help.ubuntu.com/community/AptGet/Howto)), respectively.
 
-* `$: sudo yum install python38-devel`
-* `$: sudo apt install python3.8 python3.8-venv python3-venv`
+```bash
+sudo yum install python38-devel
+sudo apt install python3.8 python3.8-venv python3-venv
+```
 
 **On Macintosh:**
 
@@ -210,7 +209,7 @@ after reloc: Permission denied_
    which will allow you to run `casa`, `casaviewer`, `casaplotms`, etc. from any terminal command line. To do so, run
 
 ```console
-    !create-symlinks
+ !create-symlinks
 ```   
 
 ### Modular Packages[](#Modular-Packages)
@@ -219,8 +218,8 @@ Pip wheels for casatools, casatasks, as well as suncasa are available as Python 
 named `suncasaenv` under the `$HOME` directory:
 
 ```bash
-$ cd $HOME
-$ python3.8 -m venv suncasaenv
+cd $HOME
+python3.8 -m venv suncasaenv
 ```
 
 > **_NOTE:_**  We strongly recommend using a Python virtual environment to prevent breaking any packages within a pre-existing Python environment.
