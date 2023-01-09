@@ -32,7 +32,7 @@ In principle, suncasa an casa can be installed easily using [pip](https://pypi.o
 
 [comment]: <> (* **[Installation]&#40;#installation&#41;**)
 
-## Installation[](#installation) (adopted from [CASA installation](https://casadocs.readthedocs.io/en/latest/notebooks/introduction.html#id1))
+## Step 1: Python 3.8 Installation[](#installation) (adopted from [this link](https://casadocs.readthedocs.io/en/latest/notebooks/introduction.html#id1))
 
 
 A full installation of CASA including custom python environment is available as a Linux (.tar) or Mac (.dmg) file from
@@ -130,7 +130,7 @@ pyenv global 3.8.16
 
 [comment]: <> (*   the run `export PATH=/opt/casa/03/bin:\$PATH`)
 
-### Monolithic Distribution[](#Monolithic-Distribution)
+### Step 2: CASA (Monolithic Distribution) Installation [](#Monolithic-CASA-Distribution)
 
 **On Linux:**
 
@@ -215,7 +215,7 @@ after reloc: Permission denied_
  !create-symlinks
 ```   
 
-### Modular Packages[](#Modular-Packages)
+### Step 3: Install SUNCASA (along with CASA modular version) [](#Modular-Packages)
 
 Pip wheels for casatools, casatasks, as well as suncasa are available as Python 3 modules. This allows simple installation and import into standard Python environments. Make sure you have set up your machine with the _necessary prerequisite libraries_ first. Then a separate installation of desired modules (from a unix terminal window) as follows. First create a Python virtual environment
 named `suncasaenv` under the `$HOME` directory:
