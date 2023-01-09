@@ -48,8 +48,9 @@ History:
     2023-Jan-08 Bin Chen (bin.chen@njit.edu)
        Major updates for compatibility with CASA 6.5 / Python 3, along with many feature enhancements.
        This script is used for the flare self-calibration tutorial at the 2023 EOVSA/GX/FASR Workshop. 
-       Link to the script:
-            https://github.com/binchensun/eovsa-tutorial/blob/master/eovsa23/eovsa_flare_slfcal_example.py             
+       Link to this script on Github:
+            https://github.com/binchensun/suncasa/blob/master/examples/eovsa_flare_slfcal_example.py
+                         
 '''
 
 
@@ -345,9 +346,9 @@ def plt_slftable(slfcalms, slftbs, caltypes, docombine=False, markersize=2.0):
 ms_in = 'IDB20170821201800-202300.4s.corrected.ms'
 
 # define spectral windows used for self-calibration
-#spws_slf = ['3', '6', '9', '12', '15', '18', '21', '24', '27']
+spws_slf = ['3', '6', '9', '12', '15', '18', '21', '24', '27']
 # Uncomment the following to do all of them (spw 0 does not have prior calibration)
-spws_slf = [str(s+1) for s in range(30)]
+# spws_slf = [str(s+1) for s in range(30)]
 
 # ============ Prior definitions for EOVSA data ==============
 # define polarization and antennas to self-calibration (no need to change for current EOVSA)
