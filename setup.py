@@ -30,7 +30,7 @@ setup(
     extras_require=extras,
     # use_scm_version={'write_to': os.path.join('suncasa', '_version.py')},
     # version='0.1.2.9.1', ## test
-    version='1.0.3',  ## official
+    version='1.0.4',  ## official
     long_description=long_description,
     long_description_content_type='text/markdown'
     # ,
