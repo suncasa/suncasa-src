@@ -62,7 +62,7 @@ def headersqueeze(header, data):
                     k_new = '{}{}'.format(k, idx_nonsdim)
                     header[k_new] = v
                 else:
-                    if k is 'CTYPE' and v.startswith('STOKES'):
+                    if k == 'CTYPE' and v.startswith('STOKES'):
                         header['STOKES'] = header['CRVAL{}'.format(idx + 1)]
 
         idx_nonsdim1 = 0

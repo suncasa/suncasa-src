@@ -45,6 +45,7 @@ imgfitsbkdir = '/data1/workdir/synoptic_newbk/'
 #         hdulnew = fits.HDUList([fits.PrimaryHDU(), hdunew, hdumask])
 #     hdulnew.writeto(fname, output_verify='fix')
 
+
 def rewriteImageFits(datestr, verbose=False, writejp2=False, overwritejp2=False, overwritefits=False):
     dateobj = datetime.strptime(datestr, "%Y-%m-%d")
     datestrdir = dateobj.strftime("%Y/%m/%d/")
