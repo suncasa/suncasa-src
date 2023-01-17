@@ -79,7 +79,7 @@ def get_bandinfo(msfile, spw=None, returnbdinfo=False):
         bdinfo['bounds_hi'] = freqbounds_hi
         bdinfo['cfreqs'] = cfreqs
 
-    ms.close()
+    ms.done()
     if returnbdinfo:
         return bdinfo
     else:
@@ -117,7 +117,7 @@ def time2filename(msfile, timerange='', spw=''):
     ms.open(msfile)
     metadata = ms.metadata()
     observatory = metadata.observatorynames()[0]
-    ms.close()
+    ms.done()
     if timerange is None or timerange == '':
         starttim1 = starttim
         endtim1 = endtim

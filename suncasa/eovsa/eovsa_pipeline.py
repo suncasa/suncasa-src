@@ -1,17 +1,39 @@
-from ptclean3_cli import ptclean3_cli as ptclean3
-from eovsapy.util import Time
-from suncasa.tasks import task_importeovsa as timporteovsa
-from split_cli import split_cli as split
-from clean_cli import clean_cli as clean
-from delmod_cli import delmod_cli as delmod
-from clearcal_cli import clearcal_cli as clearcal
-from gaincal_cli import gaincal_cli as gaincal
-from applycal_cli import applycal_cli as applycal
-from suncasa.tasks import task_calibeovsa as calibeovsa
-from eovsapy import refcal_anal as ra
-from taskinit import ms, tb
-import os
+try:
+    from ptclean3_cli import ptclean3_cli as ptclean
+    from suncasa.tasks import task_importeovsa as timporteovsa
+    from split_cli import split_cli as split
+    from clean_cli import clean_cli as clean
+    from delmod_cli import delmod_cli as delmod
+    from clearcal_cli import clearcal_cli as clearcal
+    from gaincal_cli import gaincal_cli as gaincal
+    from applycal_cli import applycal_cli as applycal
+    from suncasa.tasks import task_calibeovsa as calibeovsa
+    from taskinit import ms, tb
+except:
+    from casatools import table as tbtool
+    from casatools import ms as mstool
+    from casatools import quanta as qatool
+    from casatools import image as iatool
+
+    tb = tbtool()
+    ms = mstool()
+    from suncasa.suncasatasks import ptclean6 as ptclean
+    from suncasa.suncasatasks import calibeovsa
+    from suncasa.suncasatasks import importeovsa
+
+    from casatasks import split
+    from casatasks import tclean
+    from casatasks import gencal
+    from casatasks import clearcal
+    from casatasks import applycal
+    from casatasks import gaincal
+    from casatasks import delmod
+
+import sys
 import numpy as np
+from eovsapy.dump_tsys import findfiles
+from eovsapy.util import Time
+import os
 from suncasa.eovsa import eovsa_diskmodel as ed
 from suncasa.utils import mstools as mstl
 
@@ -106,7 +128,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
         except:
             print('trange format not recognised. Abort....')
             return None
-    # if type(trange) == Time:
+    # if isinstance(trange,Time):
     try:
         # if single Time object, the following line would report an error
         nt = len(trange)
@@ -158,7 +180,8 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
         if os.path.exists(msfile_synoptic):
             os.system('rm -rf {}'.format(msfile_synoptic))
 
-    sclist = ra.findfiles(trange, projid='NormalObserving', srcid='Sun')
+    # sclist = ra.findfiles(trange, projid='NormalObserving', srcid='Sun')
+    sclist = findfiles(trange, projid='NormalObserving', srcid='Sun')
     udbfilelist = sclist['scanlist']
     udbfilelist = [os.path.basename(ll) for ll in udbfilelist]
 
@@ -172,16 +195,16 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
         filelist = udbfilelist_set - msfiles
         filelist = sorted(list(filelist))
         if filelist and doimport:
-            import multiprocessing as mprocs
+            # import multiprocessing as mprocs
             # ncpu = mprocs.cpu_count()
             # if ncpu > 10:
             #    ncpu = 10
             # if ncpu > len(filelist):
             #    ncpu = len(filelist)
             ncpu = 1
-            timporteovsa.importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
-                                     visprefix=outpath, nocreatms=False,
-                                     doconcat=False, modelms="", doscaling=doscaling, keep_nsclms=False, udb_corr=True)
+            importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
+                        visprefix=outpath, nocreatms=False,
+                        doconcat=False, modelms="", doscaling=doscaling, keep_nsclms=False, udb_corr=True)
 
         msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
         udbfilelist_set = set(udbfilelist)
@@ -205,7 +228,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
     if workdir is None:
         workdir = '/data1/workdir'
     os.chdir(workdir)
-    if type(trange) == Time:
+    if isinstance(trange, Time):
         mslist = trange2ms(trange=trange, doimport=False)
         invis = mslist['ms']
     if type(trange) == str:
@@ -220,7 +243,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
             invis[idx] = f[:-1]
 
     if overwrite or (invis == []):
-        if type(trange) == Time:
+        if isinstance(trange, Time):
             mslist = trange2ms(trange=trange, doimport=doimport, overwrite=overwrite)
             invis = mslist['ms']
         if type(trange) == str:
@@ -235,11 +258,11 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
                 invis[idx] = f[:-1]
 
         outputvis = os.path.join(os.path.dirname(invis[0]), os.path.basename(invis[0])[:11] + '.ms')
-        vis = calibeovsa.calibeovsa(invis, caltype=['refpha', 'phacal'], caltbdir=caltbdir, interp='nearest',
-                                    doflag=True,
-                                    flagant='13~15',
-                                    doimage=False, doconcat=True,
-                                    concatvis=outputvis, keep_orig_ms=False)
+        vis = calibeovsa(invis, caltype=['refpha', 'phacal'], caltbdir=caltbdir, interp='nearest',
+                         doflag=True,
+                         flagant='13~15',
+                         doimage=False, doconcat=True,
+                         concatvis=outputvis, keep_orig_ms=False)
     else:
         vis = invis[0]
 
@@ -279,11 +302,11 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
                       4) None -- use current date Time.now()
     '''
     antenna0 = antenna
-    if type(trange) == Time:
+    if isinstance(trange, Time):
         mslist = trange2ms(trange=trange, doimport=doimport)
         vis = mslist['ms']
         tsts = [l.to_datetime() for l in mslist['tstlist']]
-    if type(trange) == str:
+    if isinstance(trange,str):
         try:
             date = Time(trange)
             mslist = trange2ms(trange=trange, doimport=doimport)
@@ -330,11 +353,11 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
                 slfcal_img = './' + msfilebs + '.slf.spw' + spw.replace('~', '-') + '.slfimg'
                 slfcal_tb = './' + msfilebs + '.slf.spw' + spw.replace('~', '-') + '.slftb'
                 try:
-                    clean(vis=slfcalms, antenna=antenna, imagename=slfcal_img, spw=spw, mode='mfs', timerange='',
-                          imagermode='csclean',
-                          psfmode='clark', imsize=[512, 512], cell=['5arcsec'], niter=100, gain=0.05, stokes='I',
-                          weighting='natural',
-                          restoringbeam=[str(bmsz) + 'arcsec'], pbcor=False, interactive=False, usescratch=True)
+                    tclean(vis=slfcalms, antenna=antenna, imagename=slfcal_img, spw=spw, mode='mfs', timerange='',
+                           deconvolver='hogbom',
+                           imsize=[512, 512], cell=['5arcsec'], niter=100, gain=0.05, stokes='I',
+                           weighting='natural',
+                           restoringbeam=[str(bmsz) + 'arcsec'], pbcor=False, interactive=False, usescratch=True)
                 except:
                     print('error in cleaning spw: ' + spw)
                     break
@@ -367,12 +390,12 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             # else:
             #     antenna = antenna + ';!0&1'  # deselect the shortest baselines
 
-            res = ptclean3(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=twidth, uvrange=uvrange,
-                           spw=spw, ncpu=ncpu, niter=1000,
-                           gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=stokes, doreg=True,
-                           usephacenter=False, overwrite=overwrite,
-                           toTb=toTb, restoringbeam=restoringbeam, specmode="mfs", deconvolver="hogbom",
-                           datacolumn='data', pbcor=True)
+            res = ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=twidth, uvrange=uvrange,
+                          spw=spw, ncpu=ncpu, niter=1000,
+                          gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=stokes, doreg=True,
+                          usephacenter=False, overwrite=overwrite,
+                          toTb=toTb, restoringbeam=restoringbeam, specmode="mfs", deconvolver="hogbom",
+                          datacolumn='data', pbcor=True)
 
             if res:
                 imres['Succeeded'] += res['Succeeded']
@@ -390,7 +413,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
         ms.selectinit()
         timfreq = ms.getdata(['time', 'axis_info'], ifraxis=True)
         tim = timfreq['time']
-        ms.close()
+        ms.done()
 
         cfreqs = getspwfreq(msfile)
         imdir = imagedir + subdir[0]
@@ -417,12 +440,12 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
             imagesuffix = '.synoptic.spw' + spwstr.replace('~', '-')
             antenna = antenna + ';!0&1'  # deselect the shortest baselines
 
-            res = ptclean3(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=len(tim), uvrange=uvrange,
-                           spw=spw, ncpu=1, niter=0,
-                           gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=stokes, doreg=True,
-                           usephacenter=False, overwrite=overwrite,
-                           toTb=toTb, restoringbeam=restoringbeam, specmode="mfs", deconvolver="hogbom",
-                           datacolumn='data', pbcor=True)
+            res = ptclean(vis=msfile, imageprefix=imdir, imagesuffix=imagesuffix, twidth=len(tim), uvrange=uvrange,
+                          spw=spw, ncpu=1, niter=0,
+                          gain=0.05, antenna=antenna, imsize=imsize, cell=cell, stokes=stokes, doreg=True,
+                          usephacenter=False, overwrite=overwrite,
+                          toTb=toTb, restoringbeam=restoringbeam, specmode="mfs", deconvolver="hogbom",
+                          datacolumn='data', pbcor=True)
             if res:
                 imres['Synoptic']['Succeeded'] += res['Succeeded']
                 imres['Synoptic']['BeginTime'] += res['BeginTime']
@@ -656,15 +679,17 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
             os.makedirs(subdir)
         else:
             os.system('rm -rf {}/*'.format(subdir))
-        try:
-            vis_corrected = calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
-                                           workdir=subdir, clearcache=False, pols=pols)
-        except:
-            print('error in processing {}'.format(datestr))
+        # # ##debug
+        vis_corrected = calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
+                                       workdir=subdir, clearcache=False, pols=pols)
+        # try:
+        #     vis_corrected = calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
+        #                                    workdir=subdir, clearcache=False, pols=pols)
+        # except:
+        #     print('error in processing {}'.format(datestr))
         if clearcache:
             os.chdir(workdir)
             os.system('rm -rf {}'.format(subdir))
-
 
 
 if __name__ == '__main__':
@@ -699,8 +724,6 @@ if __name__ == '__main__':
     Example: 
     eovsa_pipeline.py -c True -n 1 -o True -i True 2020 06 10
     '''
-    import sys
-    import numpy as np
     import getopt
 
     year = None
@@ -711,20 +734,23 @@ if __name__ == '__main__':
     overwrite = True
     doimport = True
     pols = 'XX'
+    verbose = False
 
     try:
         argv = sys.argv[1:]
         opts, args = getopt.getopt(argv, "c:n:o:i:p:", ['clearcache=', 'ndays=', 'overwrite=', 'doimport=', 'pols='])
-        print(opts, args)
+        if verbose:
+            print(opts, args)
         for opt, arg in opts:
-            print(opt, arg, type(arg))
+            if verbose:
+                print(opt, arg, type(arg))
             if opt in ['-c', '--clearcache']:
                 if arg in ['True', 'T', '1']:
                     clearcache = True
                 elif arg in ['False', 'F', '0']:
                     clearcache = False
                 else:
-                    clearcache = np.bool(arg)
+                    clearcache = np.bool_(arg)
             elif opt in ('-n', '--ndays'):
                 ndays = int(arg)
             elif opt in ('-o', '--overwrite'):
@@ -733,14 +759,14 @@ if __name__ == '__main__':
                 elif arg in ['False', 'F', '0']:
                     overwrite = False
                 else:
-                    overwrite = np.bool(arg)
+                    overwrite = np.bool_(arg)
             elif opt in ('-i', '--doimport'):
                 if arg in ['True', 'T', '1']:
                     doimport = True
                 elif arg in ['False', 'F', '0']:
                     doimport = False
                 else:
-                    doimport = np.bool(arg)
+                    doimport = np.bool_(arg)
             elif opt in ('-p', '--pols'):
                 if arg in ['XX', 'XXYY']:
                     pols = arg
@@ -765,12 +791,24 @@ if __name__ == '__main__':
         doimport = True
         pols = 'XX'
 
+    # ##debug
+    # year = 2023
+    # month = 1
+    # day = 6
+    # ndays = 1
+    # clearcache = False
+    # overwrite = True
+    # doimport = True
+    # pols = 'XX'
+    # verbose = 1
+
     print("Running pipeline_plt for date {}-{}-{}.".format(year, month, day))
     kargs = {'ndays': ndays,
              'clearcache': clearcache,
              'overwrite': overwrite,
              'doimport': doimport,
              'pols': pols}
-    for k, v in kargs.items():
-        print(k, v)
+    if verbose:
+        for k, v in kargs.items():
+            print(k, v)
     pipeline(year, month, day, ndays=ndays, clearcache=clearcache, overwrite=overwrite, doimport=doimport, pols=pols)

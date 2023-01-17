@@ -2,7 +2,7 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from sunpy import map as smap
-import sunpy.cm.cm as cm_smap
+import sunpy
 from suncasa.utils import plot_mapX as pmX
 import astropy.units as u
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -59,7 +59,7 @@ def pltEmptyImage2(dpis_dict={'t': 32.0}):
 
     for l, dpi in dpis_dict.items():
         figname = 'nodata.jpg'
-        fig.savefig(figname, dpi=int(dpi), quality=85)
+        fig.savefig(figname, dpi=int(dpi), pil_kwargs={"quality":85})
     return
 
 
@@ -70,7 +70,7 @@ def pltEmptyImage(datestr, spws, vmaxs, vmins, dpis_dict={'t': 32.0}):
     imgindir = imgfitsdir + datestrdir
     imgoutdir = './nodata/'
 
-    cmap = cm_smap.get_cmap('sdoaia304')
+    cmap = plt.get_cmap('sdoaia304')
 
     fig, ax = plt.subplots(figsize=(8, 8))
     fig.subplots_adjust(bottom=0.0, top=1.0, left=0.0, right=1.0)
@@ -101,7 +101,7 @@ def pltEmptyImage(datestr, spws, vmaxs, vmins, dpis_dict={'t': 32.0}):
 
         for l, dpi in dpis_dict.items():
             figname = os.path.join(imgoutdir, '{}_eovsa_bd{:02d}.jpg'.format(l, s + 1))
-            fig.savefig(figname, dpi=int(dpi), quality=85)
+            fig.savefig(figname, dpi=int(dpi), pil_kwargs={"quality":85})
     return
 
 
@@ -114,7 +114,7 @@ def pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None
     imgindir = imgfitsdir + datestrdir
     imgoutdir = pltfigdir + datestrdir
 
-    cmap = cm_smap.get_cmap('sdoaia304')
+    cmap = plt.get_cmap('sdoaia304')
     cmap.set_bad(color='k')
 
     if fig is None or ax is None:
@@ -162,7 +162,7 @@ def pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None
 
                 for l, dpi in dpis_dict.items():
                     figname = os.path.join(imgoutdir, '{}_eovsa_bd{:02d}.jpg'.format(l, s + 1))
-                    fig.savefig(figname, dpi=int(dpi), quality=85)
+                    fig.savefig(figname, dpi=int(dpi), pil_kwargs={"quality":85})
             except Exception as err:
                 print('Fail to plot {}'.format(eofile))
                 print(err)
@@ -226,6 +226,31 @@ def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ver
 
             if not os.path.exists(sdofile): continue
             if not os.path.exists(imgoutdir): os.makedirs(imgoutdir)
+            # ##debug
+            # sdomap = smap.Map(sdofile)
+            # norm = colors.Normalize()
+            # sdomap_ = pmX.Sunmap(sdomap)
+            # if "HMI" in key:
+            #     cmap = plt.get_cmap('gray')
+            # else:
+            #     cmap = plt.get_cmap('sdoaia' + key.lstrip('0'))
+            # sdomap_.imshow(axes=ax, cmap=cmap, norm=norm)
+            # sdomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
+            # sdomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
+            # ax.set_xlabel('')
+            # ax.set_ylabel('')
+            # ax.set_xticklabels([])
+            # ax.set_yticklabels([])
+            # ax.text(0.02, 0.02,
+            #         '{}/{} {}  {}'.format(sdomap.observatory, sdomap.instrument.split(' ')[0], sdomap.measurement,
+            #                               sdomap.date.strftime('%d-%b-%Y %H:%M UT')),
+            #         transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=9)
+            # ax.set_xlim(-1227, 1227)
+            # ax.set_ylim(-1227, 1227)
+            #
+            # for l, dpi in dpis_dict.items():
+            #     figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
+            #     fig.savefig(figname, dpi=int(dpi), pil_kwargs={"quality": 85})
             try:
                 sdomap = smap.Map(sdofile)
                 norm = colors.Normalize()
@@ -233,7 +258,7 @@ def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ver
                 if "HMI" in key:
                     cmap = plt.get_cmap('gray')
                 else:
-                    cmap = cm_smap.get_cmap('sdoaia' + key.lstrip('0'))
+                    cmap = plt.get_cmap('sdoaia' + key.lstrip('0'))
                 sdomap_.imshow(axes=ax, cmap=cmap, norm=norm)
                 sdomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
                 sdomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
@@ -250,7 +275,7 @@ def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ver
 
                 for l, dpi in dpis_dict.items():
                     figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
-                    fig.savefig(figname, dpi=int(dpi), quality=85)
+                    fig.savefig(figname, dpi=int(dpi), pil_kwargs={"quality":85})
             except Exception as err:
                 print('Fail to plot {}'.format(sdofile))
                 print(err)
@@ -358,7 +383,7 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
                     med = np.nanmean(bbsomap.data)
                     norm = colors.Normalize(vmin=med - 1500, vmax=med + 1500)
                     bbsomap_ = pmX.Sunmap(bbsomap)
-                    cmap = cm_smap.get_cmap('sdoaia304')
+                    cmap = plt.get_cmap('sdoaia304')
                     bbsomap_.imshow(axes=ax, cmap=cmap, norm=norm)
                     bbsomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
                     bbsomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
@@ -375,7 +400,7 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
 
                     for l, dpi in dpis_dict.items():
                         figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
-                        fig.savefig(figname, dpi=int(dpi), quality=85)
+                        fig.savefig(figname, dpi=int(dpi), pil_kwargs={"quality":85})
                 except Exception as err:
                     print('Fail to plot {}'.format(bbsofile))
                     print(err)
@@ -500,7 +525,7 @@ if __name__ == '__main__':
                 elif arg in ['False', 'F', '0']:
                     clearcache = False
                 else:
-                    clearcache = np.bool(arg)
+                    clearcache = np.bool_(arg)
             elif opt in ('-n', '--ndays'):
                 ndays = int(arg)
             elif opt in ('-e', '--ovwrite_eovsa'):
@@ -509,28 +534,28 @@ if __name__ == '__main__':
                 elif arg in ['False', 'F', '0']:
                     ovwrite_eovsa = False
                 else:
-                    ovwrite_eovsa = np.bool(arg)
+                    ovwrite_eovsa = np.bool_(arg)
             elif opt in ('-s', '--ovwrite_sdo'):
                 if arg in ['True', 'T', '1']:
                     ovwrite_sdo = True
                 elif arg in ['False', 'F', '0']:
                     ovwrite_sdo = False
                 else:
-                    ovwrite_sdo = np.bool(arg)
+                    ovwrite_sdo = np.bool_(arg)
             elif opt in ('-s', '--ovwrite_bbso'):
                 if arg in ['True', 'T', '1']:
                     ovwrite_bbso = True
                 elif arg in ['False', 'F', '0']:
                     ovwrite_bbso = False
                 else:
-                    ovwrite_bbso = np.bool(arg)
+                    ovwrite_bbso = np.bool_(arg)
             elif opt in ('-w', '--show_warning'):
                 if arg in ['True', 'T', '1']:
                     show_warning = True
                 elif arg in ['False', 'F', '0']:
                     show_warning = False
                 else:
-                    show_warning = np.bool(arg)
+                    show_warning = np.bool_(arg)
         nargs = len(args)
         if nargs == 3:
             year = int(args[0])
@@ -562,6 +587,16 @@ if __name__ == '__main__':
              'show_warning': show_warning}
     for k, v in kargs.items():
         print(k, v)
+
+    # ##debug
+    # year = 2023
+    # month = 1
+    # day = 5
+    # ndays = 1
+    # clearcache = False
+    # ovwrite_eovsa = True
+    # ovwrite_sdo = True
+    # ovwrite_bbso = True
 
     main(year=year, month=month, day=day, ndays=ndays,
          clearcache=clearcache,

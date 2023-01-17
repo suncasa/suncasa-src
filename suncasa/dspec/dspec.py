@@ -94,7 +94,7 @@ class Dspec:
 
     def __init__(self, fname=None, specfile=None, bl='', uvrange='', field='', scan='',
                  datacolumn='data', domedian=False, timeran=None, spw=None, timebin='0s', regridfreq=False,
-                 fillnan=None, verbose=False, usetbtool=True,ds_normalised=False):
+                 fillnan=None, verbose=False, usetbtool=True, ds_normalised=False):
         if fname:
             if isinstance(fname, str):
                 if os.path.exists(fname):
@@ -102,12 +102,11 @@ class Dspec:
                         self.get_dspec(fname, specfile=specfile, bl=bl, uvrange=uvrange, field=field,
                                        scan=scan, datacolumn=datacolumn, domedian=domedian, timeran=timeran, spw=spw,
                                        timebin=timebin, regridfreq=regridfreq, fillnan=fillnan, verbose=verbose,
-                                       usetbtool=usetbtool,ds_normalised=ds_normalised)
+                                       usetbtool=usetbtool, ds_normalised=ds_normalised)
                     else:
                         self.read(fname)
             else:
                 self.read(fname)
-
 
     def read(self, fname):
         if fname.endswith('.fts') or fname.endswith('.fits'):
@@ -123,7 +122,6 @@ class Dspec:
             self.freq_axis = freq
             self.bl = bl
             self.pol = pol
-
 
     def tofits(self, fitsfile=None, specdata=None, spectype='amp', specunit='jy',
                telescope='EOVSA', observatory='Owens Valley Radio Observatory', observer='EOVSA Team'):
@@ -199,7 +197,6 @@ class Dspec:
         prihdr.set('RESOLUTI', 0.0, 'Resolution value')
         # Write the file
         hdulist.writeto(fitsfile, overwrite=True)
-
 
     def get_dspec(self, fname=None, specfile=None, bl='', uvrange='', field='', scan='',
                   datacolumn='data',
@@ -291,6 +288,7 @@ class Dspec:
                 hasautocorr = False
             else:
                 raise (ValueError('The baseline number is not correct.'))
+            ms.done()
 
             antmask = []
             if uvrange != '' or bl != '':
@@ -465,9 +463,9 @@ class Dspec:
                          uvrange=uvrange, timebin=timebin)
                 ms.close()
 
-            #if verbose:
-             #   print('Regridding into a single spectral window...')
-                # print('Reading data spw by spw')
+            # if verbose:
+            #   print('Regridding into a single spectral window...')
+            # print('Reading data spw by spw')
 
             try:
                 tb.open(vis_spl + '/POLARIZATION')
@@ -502,7 +500,7 @@ class Dspec:
                     if verbose:
                         print('filling up spw #{0:d}: {1:s}'.format(n, descid))
                     descid = int(descid)
-                    ms.selectinit(datadescid=n)#, reset=True)
+                    ms.selectinit(datadescid=n)  # , reset=True)
                     data = ms.getdata(['amplitude', 'time', 'axis_info'], ifraxis=True)
                     if verbose:
                         print('shape of this spw', data['amplitude'].shape)
@@ -524,10 +522,10 @@ class Dspec:
                     time.append(time_)
                 specamp = np.concatenate(specamp, axis=1)
                 try:
-                    #if len(freq.shape) > 1:
+                    # if len(freq.shape) > 1:
                     freq = np.concatenate(freq, axis=0)
                 except ValueError:
-            	    pass
+                    pass
                 ms.selectinit(datadescid=0, reset=True)
             ms.close()
             if os.path.exists(vis_spl):
@@ -551,12 +549,12 @@ class Dspec:
             # spec_med = np.ma.filled(np.ma.median(spec_masked, axis=1), fill_value=0.)
             spec = np.abs(spec)
             if ds_normalised == False:
-            	#mask zero values before median
+                # mask zero values before median
                 spec_masked = np.ma.masked_where(spec < 1e-9, spec)
                 spec_masked2 = np.ma.masked_invalid(spec)
                 spec_masked = np.ma.masked_array(spec, mask=np.logical_or(spec_masked.mask, spec_masked2.mask))
                 spec_med = np.ma.filled(np.ma.median(spec_masked, axis=1), fill_value=0.)
-                #spec_med = np.nanmedian(spec, axis=1)
+                # spec_med = np.nanmedian(spec, axis=1)
                 nbl = 1
                 ospec = spec_med.reshape((npol, nbl, nfreq, ntim))
             else:
@@ -580,7 +578,6 @@ class Dspec:
 
         self.read(specfile)
         return specfile
-
 
     def wrt_dspec(self, specfile=None, specdat=None):
         try:
@@ -608,7 +605,6 @@ class Dspec:
         with open(specdat, 'wb') as f:
             f.write(buf)
         f.close()
-
 
     def rd_dspec(self, specdata, spectype='amp', specunit='jy'):
         spectype = spectype.lower()
@@ -658,7 +654,6 @@ class Dspec:
         except:
             raise ValueError('format of specdata not recognized. Check your input')
 
-
     def concat_dspec(self, specfiles, outfile=None, savespec=False):
         '''
         concatenate a list of specfiles in time axis
@@ -695,7 +690,6 @@ class Dspec:
             np.savez(specfile, **specdata)
         return specdata
 
-
     def peek(self, *args, **kwargs):
         """
         Plot dynamaic spectrum onto current axes.
@@ -717,7 +711,6 @@ class Dspec:
         ret = self.plot(*args, **kwargs)
         plt.show()
         return ret
-
 
     def plot(self, pol='I', vmin=None, vmax=None, norm=None, cmap='turbo', timerange=None, freqrange=None,
              ignore_gaps=True):
@@ -755,6 +748,11 @@ class Dspec:
             pol = 'I'
         else:
             (npol, nbl, nfreq, ntim) = spec.shape
+            if npol == 1:
+                # todo fix bugs of pol. 1. unmatch spec size when only one stokes is providedd.
+                #  2. if pol == I, the if pol in loop always use the else ocnddition.
+                spec = np.repeat(spec, 2, axis=0)
+
 
         tim_ = self.time_axis
         tim_plt = tim_.plot_date
@@ -795,8 +793,10 @@ class Dspec:
                     elif pol in ['YX']:
                         spec_plt = spec[3, b, :, :]
                     elif pol == 'I':
-                        if ('XX' in pol) or ('YY' in pol):
+                        if ('XX' in self.pol) or ('YY' in self.pol):
                             spec_plt = spec[0, b, :, :] + spec[1, b, :, :]
+                        elif ('RR' in self.pol) or ('LL' in self.pol):
+                            spec_plt = (spec[0, b, :, :] + spec[1, b, :, :]) / 2.
                         else:
                             spec_plt = (spec[0, b, :, :] + spec[1, b, :, :]) / 2.
                     elif pol == 'V':
@@ -842,8 +842,8 @@ class Dspec:
                 locator = AutoDateLocator(minticks=2)
                 ax.xaxis.set_major_locator(locator)
                 formatter = AutoDateFormatter(locator)
-                formatter.scaled[1/24] = '%D %H'
-                formatter.scaled[1/(24*60)] = '%H:%M'
+                formatter.scaled[1 / 24] = '%D %H'
+                formatter.scaled[1 / (24 * 60)] = '%H:%M'
                 ax.xaxis.set_major_formatter(formatter)
                 ax.set_autoscale_on(False)
 
@@ -897,10 +897,10 @@ class Dspec:
 
                 locator = AutoDateLocator(minticks=2)
                 ax1.xaxis.set_major_locator(locator)
-                #ax1.xaxis.set_major_formatter(AutoDateFormatter(locator))
+                # ax1.xaxis.set_major_formatter(AutoDateFormatter(locator))
                 formatter = AutoDateFormatter(locator)
-                formatter.scaled[1/24] = '%D %H'
-                formatter.scaled[1/(24*60)] = '%H:%M'
+                formatter.scaled[1 / 24] = '%D %H'
+                formatter.scaled[1 / (24 * 60)] = '%H:%M'
                 ax1.xaxis.set_major_formatter(formatter)
                 ax1.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[0])
                 ax1.set_autoscale_on(False)
@@ -916,8 +916,8 @@ class Dspec:
                 locator = AutoDateLocator(minticks=2)
                 ax2.xaxis.set_major_locator(locator)
                 formatter = AutoDateFormatter(locator)
-                formatter.scaled[1/24] = '%D %H'
-                formatter.scaled[1/(24*60)] = '%H:%M'
+                formatter.scaled[1 / 24] = '%D %H'
+                formatter.scaled[1 / (24 * 60)] = '%H:%M'
                 ax2.xaxis.set_major_formatter(formatter)
 
                 def format_coord(x, y):
