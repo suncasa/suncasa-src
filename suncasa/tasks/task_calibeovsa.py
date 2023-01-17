@@ -221,7 +221,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                        spw='0~' + str(nspw - 1), parameter=para_pha)
                 tb.open(caltb_pha, nomodify=False)
                 phaflag_ = refcal['flag'][:, :, np.array(bd)]
-                phaflag_new = np.full((nant, 2, nspw), True, dtype=np.bool)
+                phaflag_new = np.full((nant, 2, nspw), True, dtype=np.bool_)
                 phaflag_new[:-1, ...] = phaflag_
                 phaflag_new = np.moveaxis(phaflag_new, 0, 2).reshape(2, 1, nant*nspw)
                 tb.putcol('FLAG', phaflag_new)
@@ -245,7 +245,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                        spw='0~' + str(nspw - 1), parameter=para_amp)
                 tb.open(caltb_amp, nomodify=False)
                 ampflag_ = refcal['flag'][:, :, np.array(bd)]
-                ampflag_new = np.full((nant, 2, nspw), True, dtype=np.bool)
+                ampflag_new = np.full((nant, 2, nspw), True, dtype=np.bool_)
                 ampflag_new[:-1, ...] = ampflag_
                 ampflag_new = np.moveaxis(ampflag_new, 0, 2).reshape(2, 1, nant*nspw)
                 tb.putcol('FLAG', ampflag_new)

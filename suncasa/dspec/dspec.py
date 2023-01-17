@@ -288,6 +288,7 @@ class Dspec:
                 hasautocorr = False
             else:
                 raise (ValueError('The baseline number is not correct.'))
+            ms.done()
 
             antmask = []
             if uvrange != '' or bl != '':

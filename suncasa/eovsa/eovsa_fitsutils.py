@@ -173,7 +173,7 @@ if __name__ == '__main__':
                 elif arg in ['False', 'F', '0']:
                     clearcache = False
                 else:
-                    clearcache = np.bool(arg)
+                    clearcache = np.bool_(arg)
             elif opt in ('-n', '--ndays'):
                 ndays = int(arg)
             elif opt in ('-o', '--overwritejp2'):
@@ -182,14 +182,14 @@ if __name__ == '__main__':
                 elif arg in ['False', 'F', '0']:
                     overwritejp2 = False
                 else:
-                    overwritejp2 = np.bool(arg)
+                    overwritejp2 = np.bool_(arg)
             elif opt in ('-O', '--overwritefits'):
                 if arg in ['True', 'T', '1']:
                     overwritefits = True
                 elif arg in ['False', 'F', '0']:
                     overwritefits = False
                 else:
-                    overwritefits = np.bool(arg)
+                    overwritefits = np.bool_(arg)
         nargs = len(args)
         if nargs == 3:
             year = int(args[0])
@@ -210,6 +210,15 @@ if __name__ == '__main__':
         opts = []
         overwritejp2 = False
         overwritefits = False
+
+    # ##debug
+    # year = 2023
+    # month = 1
+    # day = 5
+    # ndays = 1
+    # clearcache = False
+    # overwritejp2 = True
+    # overwritefits = True
 
     print("Running eovsa_fitsutils for date {}-{}-{}.".format(year, month, day))
     kargs = {'ndays': ndays,
