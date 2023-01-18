@@ -682,7 +682,10 @@ while n < maxnround:
             if os.path.exists(slfcaledms):
                 os.system('rm -rf ' + slfcaledms)
             split(slfcalms, slfcaledms, datacolumn='corrected')
-            success = plt_slftable(slfcalms, slftbs, caltypes, docombine=True)
+            try:
+                success = plt_slftable(slfcalms, slftbs, caltypes, docombine=True)
+            except:
+                print('somehow combining the gain tables from all rounds failed. Proceed without doing the plot.')
             outfits = '{0:s}/slfcaled_image_comb.fits'.format(imagedir_slfcaled)
             print('Final self-calibrated image is {}'.format(outfits))
             if len(fitsfiles) > 1:
