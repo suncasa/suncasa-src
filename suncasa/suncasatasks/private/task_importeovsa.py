@@ -571,7 +571,7 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
         os.system('rm -rf {}'.format(udbcorr_path))
 
     if doconcat:
-        from suncasa.tasks import concateovsa_cli as ce
+        from suncasa.suncasatasks.private import task_concateovsa as ce
         msname = os.path.basename(filelist[0])
         durtim = int(np.array(results['durtim']).sum())
         if doscaling:
