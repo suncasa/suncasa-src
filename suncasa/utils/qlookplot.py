@@ -1583,7 +1583,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                 dspec_external(vis, workdir=workdir, specfile=specfile)
                 specdata = ds.Dspec(specfile)
             else:
-                specdata = ds.Dspec(vis, specfile=specfile, domedian=True, verbose=True, usetbtool=False)
+                specdata = ds.Dspec(vis, specfile=specfile, domedian=True, verbose=True, usetbtool=True)
 
     else:
         print('Dynamic spectrum file not provided; Generating one from the visibility data')
@@ -1593,7 +1593,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
             dspec_external(vis, workdir=workdir, specfile=specfile)
             specdata = ds.Dspec(specfile)
         else:
-            specdata = ds.Dspec(vis, specfile=specfile, domedian=True, verbose=True, usetbtool=False)
+            specdata = ds.Dspec(vis, specfile=specfile, domedian=True, verbose=True, usetbtool=True)
 
     try:
         tb.open(vis + '/POINTING')
