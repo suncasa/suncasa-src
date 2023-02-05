@@ -3,11 +3,15 @@ import numpy as np
 from datetime import datetime
 import os
 import pytz
-from util import Time
-import refcal_anal as ra
+from eovsapy.util import Time
+from eovsapy.dump_tsys import findfiles
 import multiprocessing as mp
-from taskinit import casalog
-from importeovsa_cli import importeovsa_cli as importeovsa
+try:
+    from taskinit import casalog
+    from importeovsa_cli import importeovsa_cli as importeovsa
+except:
+    from suncasa.suncasatasks import importeovsa
+    from casatasks import casalog
 
 
 def mk_udbms(trange=None, outpath=None, projid='NormalObserving', srcid='Sun', doscaling=True):
@@ -37,7 +41,7 @@ def mk_udbms(trange=None, outpath=None, projid='NormalObserving', srcid='Sun', d
         outpath = '/data1/eovsa/fits/UDBms_scl/{}/'.format(tdatetime.strftime("%Y%m"))
     if not os.path.exists(outpath):
         os.makedirs(outpath)
-    sclist = ra.findfiles(trange, projid=projid, srcid=srcid)
+    sclist = findfiles(trange, projid=projid, srcid=srcid)
     ncpu = mp.cpu_count()
     if ncpu > 10:
         ncpu = 10

@@ -1,5 +1,5 @@
-from suncasa.tasks import task_importeovsa as timporteovsa
-from suncasa.tasks import task_calibeovsa as tcalibeovsa
+from suncasa.suncasatasks.private import task_importeovsa
+from suncasa.suncasatasks.private import task_calibeovsa
 
 
 def import_calib_idb(trange, workdir=None):
@@ -16,7 +16,8 @@ def import_calib_idb(trange, workdir=None):
     """
     if not workdir:
         workdir = '/data1/bchen/flare_pipeline/'
-    vis_in = timporteovsa.importeovsa(trange, visprefix=workdir, ncpu=1, doscaling=False, doconcat=True)
-    vis_out = tcalibeovsa.calibeovsa(vis_in, caltype=['refpha', 'phacal'], interp='nearest', doflag=True,
-                                     flagant='13~15', doimage=False, doconcat=False, keep_orig_ms=True)
+    vis_in = task_importeovsa.importeovsa(trange, visprefix=workdir, ncpu=1, doscaling=False, doconcat=True)
+    vis_out = task_calibeovsa.calibeovsa(vis_in, caltype=['refpha', 'phacal'], interp='nearest', doflag=True,
+                         flagant='13~15', doimage=False, doconcat=False, 
+                         dosplit=True, keep_orig_ms=True)
     return vis_out

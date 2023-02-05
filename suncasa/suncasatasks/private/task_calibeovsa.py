@@ -38,8 +38,6 @@ except:
     from casatasks import applycal
     from casatasks import bandpass
     from casatasks import flagdata
-    # from suncasa.tasks import task_concateovsa as ce
-    # from suncasa.suncasatasks.private import task_concateovsa as ce
     from ..private import task_concateovsa as ce
 
 

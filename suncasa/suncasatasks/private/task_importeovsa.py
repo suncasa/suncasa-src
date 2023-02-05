@@ -152,6 +152,10 @@ def trange2filelist(trange=[], verbose=False):
         # Both start and end times are on the same day
         info = dtsys.rd_fdb(trange[0])
 
+    # remove empty items
+    for k, v in info.items():
+        info[k] = info[k][~(info[k] == '')]
+
     sidx = np.where(
         np.logical_and(info['SOURCEID'] == 'Sun', info['PROJECTID'] == 'NormalObserving') & np.logical_and(
             info['ST_TS'].astype(float) >= trange[0].lv,
@@ -162,7 +166,7 @@ def trange2filelist(trange=[], verbose=False):
         print(
             '{} file found in the time range from {} to {}: '.format(len(filelist), t1.strftime('%Y-%m-%d %H:%M:%S UT'),
                                                                      t2.strftime('%Y-%m-%d %H:%M:%S UT')))
-    idbdir = util.get_idbdir(t1.strftime('%Y-%m-%d'))
+    idbdir = util.get_idbdir(Time(t1))
     inpath = '{}/{}/'.format(idbdir, trange[0].datetime.strftime("%Y%m%d"))
     filelist = [inpath + ll for ll in filelist]
     return filelist
@@ -567,7 +571,7 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
         os.system('rm -rf {}'.format(udbcorr_path))
 
     if doconcat:
-        from suncasa.tasks import concateovsa_cli as ce
+        from suncasa.suncasatasks.private import task_concateovsa as ce
         msname = os.path.basename(filelist[0])
         durtim = int(np.array(results['durtim']).sum())
         if doscaling:

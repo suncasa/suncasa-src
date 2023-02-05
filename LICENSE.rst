@@ -1,4 +1,4 @@
-Copyright (c) 2017-2021 The SunCASA developers
+Copyright (c) 2017-2023 The SunCASA developers
 All rights reserved.
 
 Redistribution and use in source, with or without

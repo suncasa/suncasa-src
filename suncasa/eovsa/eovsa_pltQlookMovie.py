@@ -2,7 +2,6 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from sunpy import map as smap
-import sunpy.cm.cm as cm_smap
 import astropy.units as u
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.colorbar as colorbar
@@ -75,7 +74,7 @@ def pltEovsaQlookImageSeries(timobjs, spws, vmaxs, vmins, aiawave, bd, fig=None,
         imgindir_prevday = imgfitsdir + datestrdir_prevday
 
         # if not os.path.exists(imgindir): os.makedirs(imgindir)
-        cmap = cm_smap.get_cmap('sdoaia304')
+        cmap = plt.get_cmap('sdoaia304')
 
         if verbose: print('Processing EOVSA images for date {}'.format(dateobj.strftime('%Y-%m-%d')))
         key, sourceid = aiawave, aiaDataSource[aiawave]
@@ -163,7 +162,7 @@ def pltEovsaQlookImageSeries(timobjs, spws, vmaxs, vmins, aiawave, bd, fig=None,
             if "HMI" in key:
                 cmap = plt.get_cmap('gray')
             else:
-                cmap = cm_smap.get_cmap('sdoaia' + key.lstrip('0'))
+                cmap = plt.get_cmap('sdoaia' + key.lstrip('0'))
             sdomap.plot(axes=ax, cmap=cmap, norm=norm)
             # sdomap_.imshow(axes=ax, cmap=cmap, norm=norm)
             # sdomap_.draw_limb(axes=ax, lw=0.25, alpha=0.5)

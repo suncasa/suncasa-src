@@ -1,24 +1,49 @@
+try:
+    from taskinit import ms, tb, qa
+    from taskinit import iatool
+    from taskinit import cltool
+    from delmod_cli import delmod_cli as delmod
+    from clearcal_cli import clearcal_cli as clearcal
+    from gaincal_cli import gaincal_cli as gaincal
+    from applycal_cli import applycal_cli as applycal
+    from flagdata_cli import flagdata_cli as flagdata
+    from flagmanager_cli import flagmanager_cli as flagmanager
+    from uvsub_cli import uvsub_cli as uvsub
+    from split_cli import split_cli as split
+    from tclean_cli import tclean_cli as tclean
+    from ft_cli import ft_cli as ft
+
+except:
+    from casatools import table as tbtool
+    from casatools import ms as mstool
+    from casatools import quanta as qatool
+    from casatools import image as iatool
+    from casatools import componentlist as cltool
+    tb = tbtool()
+    ms = mstool()
+    qa = qatool()
+    from casatasks import split
+    from casatasks import tclean
+    from casatasks import gencal
+    from casatasks import clearcal
+    from casatasks import applycal
+    from casatasks import flagdata
+    from casatasks import flagmanager
+    from casatasks import gaincal
+    from casatasks import delmod
+    from casatasks import uvsub
+    from casatasks import ft
+
+
+
 from tqdm import tqdm
-from taskinit import ms, tb, qa
-from taskinit import iatool
-from taskinit import cltool
-from delmod_cli import delmod_cli as delmod
-from clearcal_cli import clearcal_cli as clearcal
-from suncasa.utils import mstools as mstl
 from suncasa.utils import helioimage2fits as hf
 import shutil, os
-import sunpy.coordinates.ephemeris as eph
 import numpy as np
-from gaincal_cli import gaincal_cli as gaincal
-from applycal_cli import applycal_cli as applycal
-from flagdata_cli import flagdata_cli as flagdata
-from flagmanager_cli import flagmanager_cli as flagmanager
-from uvsub_cli import uvsub_cli as uvsub
-from split_cli import split_cli as split
-from tclean_cli import tclean_cli as tclean
-from ft_cli import ft_cli as ft
 from suncasa.utils import mstools as mstl
 
+spw2band = np.array([0, 1] + list(range(4, 52)))
+defaultfreq = 1.1 + 0.325 * (spw2band + 0.5)
 
 # def ant_trange(vis):
 #     ''' Figure out nominal times for tracking of old EOVSA antennas, and return time
@@ -42,16 +67,16 @@ def ant_trange(vis):
     ''' Figure out nominal times for tracking of old EOVSA antennas, and return time
         range in CASA format
     '''
-    import eovsa_array as ea
+    from eovsapy import eovsa_array as ea
     from astropy.time import Time
-    from taskinit import ms
 
     # Get timerange from the visibility file
     # msinfo = dict.fromkeys(['vis', 'scans', 'fieldids', 'btimes', 'btimestr', 'inttimes', 'ras', 'decs', 'observatory'])
     ms.open(vis)
     # metadata = ms.metadata()
     scans = ms.getscansummary()
-    sk = np.sort(scans.keys())
+    ms.done()
+    sk = sorted(list(scans.keys()))
     vistrange = np.array([scans[sk[0]]['0']['BeginTime'], scans[sk[-1]]['0']['EndTime']])
 
     # Get the Sun transit time, based on the date in the vis file name (must have UDByyyymmdd in the name)
@@ -92,6 +117,8 @@ def writediskxml(dsize, fdens, freq, xmlfile='SOLDISK.xml'):
 
     # create a new XML file with the results
     mydata = ET.tostring(sdk)
+    if isinstance(mydata,bytes):
+        mydata = mydata.decode()
     if os.path.exists(xmlfile):
         os.system('rm -rf {}'.format(xmlfile))
     with open(xmlfile, 'w') as sf:
@@ -143,8 +170,8 @@ def image_adddisk(eofile, diskinfo, edgeconvmode='frommergeddisk', caltbonly=Fal
     cell = (header['cdelt1'] * u.Unit(header['cunit1']) + header['cdelt2'] * u.Unit(header['cunit2'])) / 2.0
     bmsize = (bmaj + bmin) / 2.0
     data = eomap.data  # remember the data order is reversed due to the FITS convension
-    keys = header.keys()
-    values = header.values()
+    keys = list(header.keys())
+    values = list(header.values())
     mapx, mapy = eomap_.map2wcsgrids(cell=False)
     mapx = mapx[:-1, :-1]
     mapy = mapy[:-1, :-1]
@@ -263,7 +290,7 @@ def read_ms(vis):
             fg = spw['axis_info']['freq_axis']['chan_freq'][:, 0] / 1e9
             fghz = np.concatenate((fghz, fg))
             band = np.concatenate((band, np.ones_like(fg) * i))
-    ms.close()
+    ms.done()
     return {'amp': xxamp, 'phase': xxpha, 'fghz': fghz, 'band': band, 'mjd': mjd, 'uvdist': uvdist, 'uvangle': uvang}
 
 
@@ -309,9 +336,9 @@ def fit_diskmodel(out, bidx, rstn_flux, uvfitrange=[1, 150], angle_tolerance=np.
            frq, flux = rstn.rd_rstnflux(t=Time('2019-09-01'))
            rstn_flux = rstn.rstn2ant(frq, flux, out['fghz']*1000, t=Time('2019-09-01'))
     '''
-    from util import bl2ord, lobe
+    from eovsapy.util import bl2ord, lobe
     import matplotlib.pylab as plt
-    import sun_pos
+    from eovsapy import sun_pos
     from scipy.special import j1
     import scipy.constants
     mperns = scipy.constants.c / 1e9  # speed of light in m/ns
@@ -427,7 +454,7 @@ def fit_diskmodel(out, bidx, rstn_flux, uvfitrange=[1, 150], angle_tolerance=np.
 
 def fit_vs_freq(out):
     import matplotlib.pylab as plt
-    import rstn
+    from eovsapy import rstn
     from astropy.time import Time
     t = Time(out['mjd'][0], format='mjd')
     frq, flux = rstn.rd_rstnflux(t=t)
@@ -476,7 +503,14 @@ def calc_diskmodel(slashdate, nbands, freq, defaultfreq):
                             961.3, 961.0, 960.8, 960.6, 960.4, 960.2, 960.1, 960.0, 959.9, 959.8])
 
     # Get current solar distance and modify the default size accordingly
-    fac = eph.get_sunearth_distance('2019/09/03') / eph.get_sunearth_distance(slashdate)
+    try:
+        from sunpy.coordinates.sun import earth_distance
+        fac = earth_distance('2019/09/03') / earth_distance(slashdate)
+    except:
+        import sunpy.coordinates.ephemeris as eph
+        fac = eph.get_sunearth_distance('2019/09/03') / eph.get_sunearth_distance(slashdate)
+
+
     newsize = defaultsize * fac.to_value()
     if nbands == 34:
         if Time(slashdate.replace('/','-')).mjd < Time('2018-03-13').mjd:
@@ -485,7 +519,7 @@ def calc_diskmodel(slashdate, nbands, freq, defaultfreq):
         else:
             # Dates between 2018-03-13 have 33 spectral windows
             newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq[[0]+range(2,34)])
-    dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize], dtype='S12')
+    dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize], dtype='U12')
 
     # These are nominal flux densities * 2, determined on 2019/09/03
     defaultfdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
@@ -569,7 +603,10 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, xmlfile='SOLDISK
                     active=False, overwrite=True):
     # Apply size scale adjustment (default is no adjustment)
     for i in range(len(dsize)):
-        num, unit = dsize[i].split('arc')
+        dsz = dsize[i]
+        if isinstance(dsz,bytes):
+            dsz = dsz.decode()
+        num, unit = dsz.split('arc')
         dsize[i] = str(float(num) * sizescale)[:6] + 'arc' + unit
 
     msfile = vis
@@ -577,7 +614,7 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, xmlfile='SOLDISK
     ms.open(msfile)
     spwinfo = ms.getspectralwindowinfo()
     nspw = len(spwinfo.keys())
-    ms.close()
+    ms.done()
     diskcldir = 'diskcl/'
     if not os.path.exists(diskcldir):
         os.makedirs(diskcldir)
@@ -631,8 +668,6 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
     if vis.endswith('/'):
         vis = vis[:-1]
     # Use vis name to determine date, and hence number of bands
-    spw2band = np.array([0, 1] + range(4, 52))
-    defaultfreq = 1.1 + 0.325 * (spw2band + 0.5)
     # Calculate the center frequency of each spectral window
     if mstl.get_trange(vis)[0].mjd > 58536:
         # After 2019 Feb 22, the band numbers changed to 1-52, and spw from 0-49
@@ -1021,8 +1056,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                  pols='XX'):
     from astropy.io import fits
 
-    spw2band = np.array([0, 1] + range(4, 52))
-    defaultfreq = 1.1 + 0.325 * (spw2band + 0.5)
     # Use vis name to determine date, and hence number of bands
     if mstl.get_trange(vis)[0].mjd > 58536:
         # After 2019 Feb 22, the band numbers changed to 1-52, and spw from 0-49
@@ -1036,6 +1069,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     slashdate = ant_trange(vis)[:10]
 
     spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43', '44~49']
+    # ##debug
+    # spws = ['0~1']
     # bright_thresh = [6, 6, 5, 5, 5, 5, 5]
     bright_thresh = [6, 5, 4, 3, 2, 2, 2]
     active = False
@@ -1096,7 +1131,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     insertdiskmodel(vis, dsize=dsize, fdens=fdens, xmlfile=diskxmlfile, writediskinfoonly=True)
     files = outputfits
     diskinfo = readdiskxml(diskxmlfile)
-    bright = np.zeros((len(files)), dtype=np.bool)
+    bright = np.zeros((len(files)), dtype=np.bool_)
     for idx, file in enumerate(files):
         if os.path.exists(file):
             tb_disk = image_adddisk(file, diskinfo, caltbonly=True)

@@ -62,10 +62,26 @@ def ms_clearhistory(msfile):
     tb.close()
 
 
-def normalise(angle):  ### convenience function to normalise angles by 2 pi
-    ### angle in radians
-    b = int(angle / (2 * np.pi))
-    return angle - b * (2 * np.pi)
+def normalize(angle, lower=-np.pi, upper=np.pi):
+    """
+    Function to normalize any angles to between the lower limit and upper limit
+    :param angle: input angle in radians
+    :param lower: lower bound of the normalization, default to -pi
+    :param upper: upper bound of the normalization, default to pi
+    :return: normalized angle in radians
+    """
+    if lower >= upper:
+        raise ValueError("Invalid lower and upper limits: (%s, %s)" %
+                         (lower, upper))
+
+    res = angle
+    if angle > upper or angle == lower:
+        angle = lower + abs(angle + upper) % (abs(lower) + abs(upper))
+    if angle < lower or angle == upper:
+        angle = upper - abs(angle - lower) % (abs(lower) + abs(upper))
+
+    res = lower if res == upper else angle
+    return res
 
 
 def ms_restorehistory(msfile):
@@ -74,7 +90,7 @@ def ms_restorehistory(msfile):
 
 
 def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
-    '''
+    """
     This function visits JPL Horizons to retrieve J2000 topocentric RA and DEC of the solar disk center
     as a function of time.
 
@@ -98,6 +114,8 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
 
     '''
     
+=======
+    """
     if not t0 and not vis:
         t0 = Time.now()
     if not dur:
@@ -796,7 +814,7 @@ def getbeam(imagefile=None, beamfile=None):
 def imreg(vis=None, imagefile=None, timerange=None,
           ephem=None, msinfo=None, fitsfile=None,
           usephacenter=True, geocentric=False, dopolyfit=True, reftime=None, offsetfile=None, beamfile=None,
-          toTb=False, sclfactor=1.0, p_ang=False, overwrite=True,
+          toTb=False, sclfactor=1.0, p_ang=None, overwrite=True,
           deletehistory=False, subregion='', docompress=False, verbose=False):
     ''' 
     main routine to register CASA images
@@ -812,6 +830,7 @@ def imreg(vis=None, imagefile=None, timerange=None,
                fitsfile: STRING or LIST. name of the output registered fits files
                toTb: Bool. Convert the default Jy/beam to brightness temperature?
                sclfactor: scale the image values up by its value (to compensate VLA 20 dB attenuator)
+               p_ang: solar p angle in degrees. If provided, use the supplied value and ignore the empheris
                verbose: Bool. Show more diagnostic info if True.
                usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris.
                                      Otherwise assume the phasecenter is correctly pointed to the solar disk center
@@ -899,6 +918,13 @@ def imreg(vis=None, imagefile=None, timerange=None,
             continue
 
         hel = helio[n]
+        if not (p_ang is None):
+            # if p angle is provided as a keyword, overwrite the one from ephemeris
+            try:
+                p_ang = normalize(p_ang)
+                hel['p0'] = p_ang
+            except ValueError:
+                print('Provided p angle value is invalid. Use p angle from ephemeris.')
         if not os.path.exists(img):
             warnings.warn('{} does not existed!'.format(img))
         else:
@@ -931,9 +957,9 @@ def imreg(vis=None, imagefile=None, timerange=None,
             #       CASA B (>2014-ish): Ephemeris table is attached. The visibility phase center
             #                              is the same as that from the ephemeris, and is
             #                              different from the RA and DEC of the FIELD.
-            #### find out the difference between the image phase center and RA and DEC of the associated FIELD
-            ddec_fld = degrees(normalise(imdec - hel['dec_fld'])) * 3600.  # in arcsec
-            dra_fld = degrees(normalise(imra - hel['ra_fld']) * cos(hel['dec_fld'])) * 3600.  # in arcsec
+            #### find out the difference between the image phase center and RA and DEC of the associated FIELD in arrsec
+            ddec_fld = degrees(normalize(imdec - hel['dec_fld'])) * 3600.
+            dra_fld = degrees(normalize(imra - hel['ra_fld']) * cos(hel['dec_fld'])) * 3600.
 
             # Convert into image heliocentric offsets
             prad = -radians(hel['p0'])
@@ -941,8 +967,8 @@ def imreg(vis=None, imagefile=None, timerange=None,
             dy_fld = (-dra_fld) * sin(prad) + ddec_fld * cos(prad)
 
             #### find out the difference between the image phase center and RA and DEC of the visibility phasecenter
-            ddec_vis = degrees(normalise(imdec - hel['dec'])) * 3600.  # in arcsec
-            dra_vis = degrees(normalise(imra - hel['ra']) * cos(hel['dec'])) * 3600.  # in arcsec
+            ddec_vis = degrees(normalize(imdec - hel['dec'])) * 3600.  # in arcsec
+            dra_vis = degrees(normalize(imra - hel['ra']) * cos(hel['dec'])) * 3600.  # in arcsec
             # Convert into image heliocentric offsets
             dx_vis = (-dra_vis) * cos(prad) - ddec_vis * sin(prad)
             dy_vis = (-dra_vis) * sin(prad) + ddec_vis * cos(prad)
@@ -962,12 +988,14 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 xoff = hel['refx']
                 yoff = hel['refy']
             if verbose:
-                print('offset of image phase center to FIELD phase center (arcsec): dx={0:.2f}, dy={1:.2f}'.format(
-                    dx_fld, dy_fld))
-                print('offset of image phase center to VISIBILITY phase center (arcsec): dx={0:.2f}, dy={1:.2f}'.format(
-                    dx_vis, dy_vis))
-                print('offset of VISIBILITY phase center to solar disk center (arcsec): dx={0:.2f}, dy={1:.2f}'.format(
-                    xoff, yoff))
+                print('offset of image phase center to FIELD phase center in RA and DEC (arcsec): '
+                      'dx={0:.2f}, dy={1:.2f}'.format(dra_fld, ddec_fld))
+                print('offset of image phase center to FIELD phase center in helioprojective arcsec: '
+                      'dx={0:.2f}, dy={1:.2f}'.format(dx_fld, dy_fld))
+                print('offset of image phase center to VISIBILITY phase center in helioprojective arcsec: '
+                      'dx={0:.2f}, dy={1:.2f}'.format(dx_vis, dy_vis))
+                print('offset of VISIBILITY phase center to solar disk center in helioprojective arcsec: '
+                      'dx={0:.2f}, dy={1:.2f}'.format(xoff, yoff))
             if hel['has_ephem_table']:
                 if verbose:
                     print('This ms has an ephemeris table attached. Use ephemeris phase center as reference')
@@ -994,8 +1022,6 @@ def imreg(vis=None, imagefile=None, timerange=None,
             header['ctype1'] = 'HPLN-TAN'
             header['ctype2'] = 'HPLT-TAN'
             header['date-obs'] = dateobs  # begin time of the image
-            if not p_ang:
-                hel['p0'] = 0
             if tdur_s:
                 exptime = tdur_s
             else:
