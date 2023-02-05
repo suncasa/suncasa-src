@@ -113,7 +113,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     if observatory:
         # If "observatory" is provided, it takes precedence
         # turn observatory names into JPL Horizons' codes
-        if observatory == 'EVLA' or observatory == '-5':
+        if observatory == 'EVLA' or observatory == '-5' or observatory=='VLA':
             observatory = '-5'
         elif observatory == 'EOVSA' or observatory == 'FASR' or observatory == '-81':
             observatory = '-81'
@@ -652,7 +652,12 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
         p0s_ephem = ephem['p0']
 
         if usephacenter:
-            if len(times_ephem) > 1:
+            num_times_ephem=len(times_ephem)
+            num_ras_ephem=len(ras_ephem)
+            num_decs_ephem=len(decs_ephem)
+            num_p0s_ephem=len(p0s_ephem)
+            if len(times_ephem)>1 and num_times_ephem==num_ras_ephem\
+                    and num_times_ephem==num_decs_ephem and num_times_ephem==num_p0s_ephem:
                 f_ra = interp1d(times_ephem, ras_ephem, kind='linear')
                 f_dec = interp1d(times_ephem, decs_ephem, kind='linear')
                 f_p0 = interp1d(times_ephem, p0s_ephem, kind='linear')
