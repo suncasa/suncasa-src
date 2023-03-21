@@ -1,4 +1,5 @@
 import matplotlib
+
 matplotlib.use('Agg')
 import os
 import shutil
@@ -25,11 +26,13 @@ except:
     from casatools import ms as mstool
     from casatools import quanta as qatool
     from casatools import image as iatool
+    from casatools import msmetadata
 
     tb = tbtool()
     ms = mstool()
     qa = qatool()
     ia = iatool()
+    msmd = msmetadata()
     from casatasks import split
     from casatasks import tclean
     from casatasks import casalog
@@ -94,9 +97,11 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
         bdname = tb.getcol('NAME')
         bd_nchan = tb.getcol('NUM_CHAN')
         bd = [int(b[4:]) - 1 for b in bdname]
-        # nchans = tb.getcol('NUM_CHAN')
-        # reffreqs = tb.getcol('REF_FREQUENCY')
-        # cenfreqs = np.zeros((nspw))
+        reffreqs = tb.getcol('REF_FREQUENCY')
+        bandwidths = tb.getcol('TOTAL_BANDWIDTH')
+        chan_freqs_spw0 = tb.getcol('CHAN_FREQ', startrow=0, nrow=1)
+        cfreq_spw0 = np.mean(chan_freqs_spw0)
+
         tb.close()
         tb.open(msfile + '/ANTENNA')
         nant = tb.nrows()
@@ -126,6 +131,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
         t_mid = Time((btime.mjd + etime.mjd) / 2., format='mjd')
         print("This scan observed from {} to {} UTC".format(btime.iso, etime.iso))
         gaintables = []
+        spwmaps = []
 
         if ('refpha' in caltype) or ('refamp' in caltype) or ('refcal' in caltype):
             refcal = sql2refcalX(btime)
@@ -207,6 +213,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                     casalog.post(msg_prompt)
                     print(msg_prompt)
                 gaintables.append(caltb_autoamp)
+                spwmaps.append([])
             else:
                 msg_prompt = "Caution: No TPCAL is available on {}. No scaling calibration is derived for {}.".format(
                     t_mid.datetime.strftime('%b %d, %Y'), msfile)
@@ -224,7 +231,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                 phaflag_ = refcal['flag'][:, :, np.array(bd)]
                 phaflag_new = np.full((nant, 2, nspw), True, dtype=np.bool_)
                 phaflag_new[:-1, ...] = phaflag_
-                phaflag_new = np.moveaxis(phaflag_new, 0, 2).reshape(2, 1, nant*nspw)
+                phaflag_new = np.moveaxis(phaflag_new, 0, 2).reshape(2, 1, nant * nspw)
                 tb.putcol('FLAG', phaflag_new)
                 tb.close()
 
@@ -238,6 +245,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                 # tb.close()
 
             gaintables.append(caltb_pha)
+            spwmaps.append([])
         if ('refamp' in caltype) or ('refcal' in caltype):
             # caltb_amp = os.path.basename(vis).replace('.ms', '.refamp')
             caltb_amp = dirname + t_ref.isot[:-4].replace(':', '').replace('-', '') + '.refamp'
@@ -248,10 +256,11 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                 ampflag_ = refcal['flag'][:, :, np.array(bd)]
                 ampflag_new = np.full((nant, 2, nspw), True, dtype=np.bool_)
                 ampflag_new[:-1, ...] = ampflag_
-                ampflag_new = np.moveaxis(ampflag_new, 0, 2).reshape(2, 1, nant*nspw)
+                ampflag_new = np.moveaxis(ampflag_new, 0, 2).reshape(2, 1, nant * nspw)
                 tb.putcol('FLAG', ampflag_new)
                 tb.close()
             gaintables.append(caltb_amp)
+            spwmaps.append([])
 
         # calibration for the change of delay center between refcal time and beginning of scan -- hopefully none!
         xml, buf = ch.read_calX(4, t=[t_ref, btime], verbose=False)
@@ -265,6 +274,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
             for n in range(2):
                 dlycen_ns_diff[:, n] -= dlycen_ns_diff[0, n]
             print('Multi-band delay is derived from delay center difference at {} & {}'.format(dly_t1.iso, dly_t2.iso))
+            dlycen_pha0 = np.degrees(dlycen_ns_diff * 1e-9 * cfreq_spw0 * 2. * np.pi)
             # print('=====Delays relative to Ant 14=====')
             # for i, dl in enumerate(dlacen_ns_diff[:, 0] - dlacen_ns_diff[13, 0]):
             #     ant = antlist[i]
@@ -272,10 +282,17 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
             #           dlacen_ns_diff[i, 1] - dlacen_ns_diff[13, 1])
             # caltb_mbd0 = os.path.basename(vis).replace('.ms', '.mbd0')
             caltb_dlycen = dirname + dly_t2.isot[:-4].replace(':', '').replace('-', '') + '.dlycen'
+            caltb_dlycen_pha0 = dirname + dly_t2.isot[:-4].replace(':', '').replace('-', '') + '.dlycen_pha0'
             if not os.path.exists(caltb_dlycen):
                 gencal(vis=msfile, caltable=caltb_dlycen, caltype='mbd', pol='X,Y', antenna=antennas,
                        parameter=dlycen_ns_diff.flatten().tolist())
+            if not os.path.exists(caltb_dlycen_pha0):
+                gencal(vis=msfile, caltable=caltb_dlycen_pha0, caltype='ph', pol='X,Y', antenna=antennas,
+                       parameter=dlycen_pha0.flatten().tolist())
             gaintables.append(caltb_dlycen)
+            spwmaps.append(nspw*[0])
+            gaintables.append(caltb_dlycen_pha0)
+            spwmaps.append(nspw*[0])
 
         if 'phacal' in caltype:
             phacals = np.array(sql2phacalX([bt, et], neat=True, verbose=False))
@@ -289,6 +306,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                 t_phas = t_phas[sinds]
                 phacals = phacals[sinds]
                 caltbs_phambd = []
+                caltbs_phambd_pha0 = []
                 for i, phacal in enumerate(phacals):
                     # filter out phase cals with reference time stamp >30 min away from the provided refcal time
                     if (phacal['t_ref'].jd - refcal['timestamp'].jd) > 30. / 1440.:
@@ -298,7 +316,8 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                     else:
                         t_pha = phacal['t_pha']
                         phambd_ns = phacal['pslope']
-                        for n in range(2): phambd_ns[:, n] -= phambd_ns[0, n]
+                        for n in range(2):
+                            phambd_ns[:, n] -= phambd_ns[0, n]
                         # set all flagged values to be zero
                         phambd_ns[np.where(phacal['flag'] == 1)] = 0.
                         caltb_phambd = dirname + t_pha.isot[:-4].replace(':', '').replace('-', '') + '.phambd'
@@ -307,12 +326,24 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                             gencal(vis=msfile, caltable=caltb_phambd, caltype='mbd', pol='X,Y', antenna=antennas,
                                    parameter=phambd_ns.flatten().tolist())
 
-                # now decides which table to apply depending on the interpolation method ("neatest" or "linear")
+                        # When applying the multi-band delays, they are referenced to the center of spw 0
+                        # Make a corresponding calibration table for the reference phase at the center of spw 0
+                        pha0 = np.degrees(phambd_ns * 1e-9 * cfreq_spw0 * 2. * np.pi)
+                        caltb_phambd_pha0 = dirname + t_pha.isot[:-4].replace(':', '').replace('-', '') + '.phambd_pha0'
+                        caltbs_phambd_pha0.append(caltb_phambd_pha0)
+                        if not os.path.exists(caltb_phambd_pha0):
+                            gencal(vis=msfile, caltable=caltb_phambd_pha0, caltype='ph', pol='X,Y', antenna=antennas,
+                                   parameter=pha0.flatten().tolist())
+
+                # now decides which table to apply depending on the interpolation method ("nearest" or "linear")
                 if interp == 'nearest':
                     tbind = np.argmin(np.abs(t_phas.mjd - t_mid.mjd))
                     dt = np.min(np.abs(t_phas.mjd - t_mid.mjd)) * 24.
                     print("Selected nearest phase calibration table at " + t_phas[tbind].iso)
                     gaintables.append(caltbs_phambd[tbind])
+                    spwmaps.append(nspw*[0])
+                    gaintables.append(caltbs_phambd_pha0[tbind])
+                    spwmaps.append(nspw*[0])
                 if interp == 'linear':
                     # bphacal = sql2phacalX(btime)
                     # ephacal = sql2phacalX(etime,reverse=True)
@@ -323,38 +354,47 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                         print("Skipping daily phase calibration")
                     elif len(bt_ind) > 0 and len(et_ind) == 0:
                         gaintables.append(caltbs_phambd[bt_ind[-1]])
+                        spwmaps.append(nspw*[0])
+                        gaintables.append(caltbs_phambd_pha0[bt_ind[-1]])
+                        spwmaps.append(nspw*[0])
                     elif len(bt_ind) == 0 and len(et_ind) > 0:
                         gaintables.append(caltbs_phambd[et_ind[0]])
+                        spwmaps.append(nspw*[0])
+                        gaintables.append(caltbs_phambd_pha0[et_ind[0]])
+                        spwmaps.append(nspw*[0])
                     elif len(bt_ind) > 0 and len(et_ind) > 0:
                         bphacal = phacals[bt_ind[-1]]
                         ephacal = phacals[et_ind[0]]
                         # generate a new table interpolating between two daily phase calibrations
-                        t_pha_mean = Time(np.mean([bphacal['t_pha'].mjd, ephacal['t_pha'].mjd]), format='mjd')
-                        phambd_ns = (bphacal['pslope'] + ephacal['pslope']) / 2.
-                        for n in range(2): phambd_ns[:, n] -= phambd_ns[0, n]
+                        dt_obs = t_mid.mjd - bphacal['t_pha'].mjd
+                        dt_pha = ephacal['t_pha'].mjd - bphacal['t_pha'].mjd
+                        phambd_diff = ephacal['pslope'] - bphacal['pslope']
+                        phambd_ns = bphacal['pslope'] + dt_obs / dt_pha * phambd_diff
+                        for n in range(2):
+                            phambd_ns[:, n] -= phambd_ns[0, n]
                         # set all flagged values to be zero
                         phambd_ns[np.where(bphacal['flag'] == 1)] = 0.
                         phambd_ns[np.where(ephacal['flag'] == 1)] = 0.
-                        caltb_phambd_interp = dirname + t_pha_mean.isot[:-4].replace(':', '').replace('-',
+                        caltb_phambd_interp = dirname + t_mid.isot[:-4].replace(':', '').replace('-',
                                                                                                       '') + '.phambd'
+                        caltb_phambd_interp_pha0 = caltb_phambd_interp + '_pha0'
+                        pha0 = np.degrees(phambd_ns * 1e-9 * cfreq_spw0 * 2. * np.pi)
                         if not os.path.exists(caltb_phambd_interp):
                             gencal(vis=msfile, caltable=caltb_phambd_interp, caltype='mbd', pol='X,Y', antenna=antennas,
                                    parameter=phambd_ns.flatten().tolist())
+                        if not os.path.exists(caltb_phambd_interp_pha0):
+                            gencal(vis=msfile, caltable=caltb_phambd_interp_pha0, caltype='ph', pol='X,Y',
+                                   antenna=antennas, parameter=pha0.flatten().tolist())
                         print("Using phase calibration table interpolated between records at " + bphacal[
                             't_pha'].iso + ' and ' + ephacal['t_pha'].iso)
                         gaintables.append(caltb_phambd_interp)
+                        spwmaps.append(nspw*[0])
+                        gaintables.append(caltb_phambd_interp_pha0)
+                        spwmaps.append(nspw*[0])
 
         if docalib:
             clearcal(msfile)
-            applycal(vis=msfile, gaintable=gaintables, applymode='calflag', calwt=False)
-            # delete the interpolated phase calibration table
-            try:
-                caltb_phambd_interp
-            except:
-                pass
-            else:
-                if os.path.exists(caltb_phambd_interp):
-                    shutil.rmtree(caltb_phambd_interp)
+            applycal(vis=msfile, gaintable=gaintables, spwmap=spwmaps, applymode='calflag', calwt=False)
         if doflag:
             # flag zeros and NaNs
             flagdata(vis=msfile, mode='clip', clipzeros=True)
@@ -395,8 +435,8 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                 print('Cleaning image: ' + imname)
                 try:
                     tclean(vis=msfile, imagename=imname, antenna=antenna, spw=bd, timerange=timerange, imsize=[512],
-                          cell=['5.0arcsec'], stokes=stokes,
-                          niter=500)
+                           cell=['5.0arcsec'], stokes=stokes,
+                           niter=500)
                 except:
                     print('clean not successfull for band ' + str(bd))
                 else:
