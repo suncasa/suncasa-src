@@ -113,6 +113,25 @@ class FlareSelfCalib():
             print('visibility info stored in {0:s}'.format(self.vis + '.listobs'))
         else:
             print('input visibility {0:s} do not exist! Abort...'.format(self.vis))
+    
+    @property
+    def slfcal_spws(self):
+        '''
+        Rteurn the spws chosen for selfcal
+        '''    
+        return self._slfcal_spws
+
+    @slfcal_spws.setter
+    def slfcal_spws(self,value):
+        '''
+        Set the spws which will be self-calibrated and imaged
+        '''
+        self._slfcal_spws=value
+        self.maximum_spw = max(self.slfcal_spws)
+        self.minimum_spw = min(self.slfcal_spws)
+        self.slfcal_spwstr = ','.join(
+            [str(s) for s in self.slfcal_spws])  ## string format of self.spws for, e.g., split
+        self.selfcal_spw = '0~' + str(self.maximum_spw)  ## actual spw range used for self-calibration
 
     @staticmethod
     def get_img_center_heliocoords(images):
@@ -1232,8 +1251,8 @@ class FlareSelfCalib():
                         return True, True
 
             # if iteration_num>=1:
-            #	flagmanager(vis=slfcalms,mode='restore',versionname='applycal_1')
-            #	flagmanager(vis=slfcalms,mode='delete',versionname='applycal_1')
+            #   flagmanager(vis=slfcalms,mode='restore',versionname='applycal_1')
+            #   flagmanager(vis=slfcalms,mode='delete',versionname='applycal_1')
             if os.path.isdir(caltable):
                 os.system("rm -rf " + caltable)
             gaincal(vis=slfcalms, refant=self.refantenna, spw=sp, caltable=caltable, uvrange=uvrange, \
@@ -1484,6 +1503,11 @@ class FlareSelfCalib():
             time1 = timeit.default_timer()
             self.logf.write("Finding flare location took {0:d} seconds:" + str(time1 - flare_loc_timer))
 
+    def flare_ms_calib(self):
+        import eovsa_flare_calib as ec
+        out_vis=ec.import_calib_idb(self.trange)
+        self.vis=out_vis
+
     def slfcal_pipeline(self, doselfcal=True, doimaging=False):
         print("Starting the self-calibration process")
         logf = open(self.logfile, "a")
@@ -1616,7 +1640,7 @@ class FlareSelfCalib():
                     print('self-calibrated ms does not exist. Using original visibility for imaging.')
                     msname = self.vis
             xycen = self.get_img_center_heliocoords(image_list)
-
+            
             imaging_start_mjd = self.flare_peak_mjd - self.total_duration / 2
             if imaging_start_mjd < self.ms_startmjd:
                 diff = imaging_start_mjd - self.ms_startmjd
@@ -1633,9 +1657,11 @@ class FlareSelfCalib():
             else:
                 imaging_end_time = (self.flare_peak_datetime + dt.timedelta(seconds=self.total_duration / 2)).strftime(
                     "%Y/%m/%d/%H:%M:%S")
+            
             time_str = imaging_start_time + "~" + imaging_end_time
-
+            
             specfile = msname[:-3] + "_dspec.npz"
+            print (specfile)
             spws = []
             for s in self.slfcal_spws:
                 spws.append(str(s))
@@ -1650,7 +1676,7 @@ class FlareSelfCalib():
             movieformat = 'mp4'
             overwrite = False
             subregion = ''  # box[[128pix,128pix],[284pix,384pix]]'
-            qlookplot.qlookplot(specfile=specfile, vis=msname, timerange=time_str, spw=spws,
+            qlookplot.qlookplot(vis=msname, timerange=time_str, spw=spws,
                                 ncpu=1, imsize=[self.final_imsize], cell=cell_size1, restoringbeam=[self.beam_1GHz],
                                 robust=0.5, opencontour=opencontour, clevels=clevels, plotaia=plotaia,
                                 aiawave=aiawave, mkmovie=mkmovie, twidth=int(self.final_image_int),

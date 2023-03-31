@@ -112,6 +112,9 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     BC (sometime in 2014): function was first wrote, followed by a number of edits by BC and SY
     BC (2019-07-16): Added docstring documentation
 
+    '''
+    
+=======
     """
     if not t0 and not vis:
         t0 = Time.now()
@@ -120,6 +123,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     if t0:
         try:
             btime = Time(t0)
+            
         except:
             print('input time ' + str(t0) + ' not recognized')
             return -1
@@ -127,7 +131,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     if observatory:
         # If "observatory" is provided, it takes precedence
         # turn observatory names into JPL Horizons' codes
-        if observatory == 'EVLA' or observatory == '-5':
+        if observatory == 'EVLA' or observatory == '-5' or observatory=='VLA':
             observatory = '-5'
         elif observatory == 'EOVSA' or observatory == 'FASR' or observatory == '-81':
             observatory = '-81'
@@ -180,7 +184,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
 
     # default the observatory to geocentric, if none provided
     etime = Time(btime.mjd + dur, format='mjd')
-
+    
     try:
         cmdstr = "https://ssd.jpl.nasa.gov/api/horizons.api?format=text&TABLE_TYPE='OBSERVER'&QUANTITIES='1,17,20'&CSV_FORMAT='YES'&ANG_FORMAT='DEG'&CAL_FORMAT='BOTH'&SOLAR_ELONG='0,180'&CENTER='{}@399'&COMMAND='sun'&START_TIME='".format(
             observatory) + btime.iso.replace(' ', ',') + "'&STOP_TIME='" + etime.iso[:-4].replace(' ',
@@ -190,7 +194,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         #                                                                                           ',') + "'&STEP_SIZE='1m'&SKIP_DAYLT='NO'&EXTRA_PREC='YES'&APPARENT='REFRACTED'"
         cmdstr = cmdstr.replace("'", "%27")
         # print('1################')
-        # print(cmdstr)
+        
         try:
             context = ssl._create_unverified_context()
             f = urlopen(cmdstr, context=context)
@@ -200,6 +204,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         f.close()
     except:
         # todo use geocentric coordinate for the new VLA data
+        print ("here")
         import requests, collections
         params = collections.OrderedDict()
         # params['batch'] = '1'
@@ -248,7 +253,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
     if py3:
         lines = [l.decode('utf-8', 'backslashreplace') for l in lines]
 
-    # print(lines)
+    #print(lines)
     nline = len(lines)
     istart = 0
     for i in range(nline):
@@ -665,7 +670,12 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
         p0s_ephem = ephem['p0']
 
         if usephacenter:
-            if len(times_ephem) > 1:
+            num_times_ephem=len(times_ephem)
+            num_ras_ephem=len(ras_ephem)
+            num_decs_ephem=len(decs_ephem)
+            num_p0s_ephem=len(p0s_ephem)
+            if len(times_ephem)>1 and num_times_ephem==num_ras_ephem\
+                    and num_times_ephem==num_decs_ephem and num_times_ephem==num_p0s_ephem:
                 f_ra = interp1d(times_ephem, ras_ephem, kind='linear')
                 f_dec = interp1d(times_ephem, decs_ephem, kind='linear')
                 f_p0 = interp1d(times_ephem, p0s_ephem, kind='linear')
@@ -1179,7 +1189,13 @@ def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=Tr
     metadata = ms.metadata()
     if not observatory:
         observatory = metadata.observatorynames()[0]
-
+        if metadata.observatorynames()[0] == 'EVLA':
+            observatory = '-5'
+        elif metadata.observatorynames()[0] == 'EOVSA' or metadata.observatorynames()[0] == 'FASR':
+            observatory = '-81'
+        elif metadata.observatorynames()[0] == 'ALMA':
+            observatory = '-7'
+       
     try:
         mstrange = metadata.timerangeforobs(0)
         tst = Time(mstrange['begin']['m0']['value'], format='mjd')
@@ -1227,7 +1243,7 @@ def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=Tr
 
     midtim_mjd = (sttim.mjd + edtim.mjd) / 2.
     midtim = Time(midtim_mjd, format='mjd')
-    eph = read_horizons(t0=midtim, observatory=observatory)
+    eph = read_horizons(t0=midtim,observatory=observatory)
     if observatory == 'EOVSA' or (not usemsphacenter):
         print('Phasecenter in the ms is ignored')
         # use RA and DEC from FIELD ID 0
