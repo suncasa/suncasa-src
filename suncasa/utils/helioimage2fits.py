@@ -661,7 +661,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
             elif msinfo0['observatory'] == 'ALMA':
                 observatory_id = '-7'
             else:
-                print('Observatory {} not recognized. Assume geocentric.'.format(observatory_id))
+                print('Observatory {} not recognized. Assume geocentric.'.format(msinfo0['observatory']))
                 observatory_id = '500'
 
             if not ephem:
