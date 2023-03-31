@@ -660,6 +660,11 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
                 observatory_id = '-81'
             elif msinfo0['observatory'] == 'ALMA':
                 observatory_id = '-7'
+            elif observatory == 'geocentric' or observatory == '500':
+                observatory = '500'
+            else:
+                print('Observatory {} not recognized. Assume geocentric.'.format(observatory))
+                observatory = '500'
 
             if not ephem:
                 ephem = read_horizons(Time(tref_d, format='mjd'), observatory=observatory_id)
