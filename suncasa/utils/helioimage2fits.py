@@ -669,9 +669,9 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
                 f_ra = interp1d(times_ephem, ras_ephem, kind='linear')
                 f_dec = interp1d(times_ephem, decs_ephem, kind='linear')
                 f_p0 = interp1d(times_ephem, p0s_ephem, kind='linear')
-                ra0 = f_ra(tref_d)
-                dec0 = f_dec(tref_d)
-                p0 = f_p0(tref_d)
+                ra0 = f_ra([tref_d])[0]
+                dec0 = f_dec([tref_d])[0]
+                p0 = f_p0([tref_d])[0]
             else:
                 try:
                     ra0 = ras_ephem[0]
