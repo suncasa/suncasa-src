@@ -527,17 +527,17 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
     if usephacenter==False:
         dopolyfit = False
 
-    if dopolyfit:
+    if dopolyfit and (len(btimes) > 1):
         from suncasa.utils import fit_planet_position as fp
         if verbose:
             print('Use polynomial fit to interpolate the ms ephemeris data')
             print('Ephemeris start and end time', btimestr[0], btimestr[-1])
             print('Number of ephemeris data points used for polyfit', len(btimes))
-        res = fp.fit_planet_positions(btimes, ra_rads, dec_rads, allowed_error=0.05)
-        if res[0] == 0:  # success
-            reftime_poly = res[1]
-            cra = np.flip(np.array(res[2]))
-            cdec = np.flip(np.array(res[3]))
+        poly_res = fp.fit_planet_positions(btimes, ra_rads, dec_rads, allowed_error=0.05)
+        if poly_res[0] == 0:  # success
+            reftime_poly = poly_res[1]
+            cra = np.flip(np.array(poly_res[2]))
+            cdec = np.flip(np.array(poly_res[3]))
             ra_diff = (np.polyval(cra, btimes - reftime_poly) - ra_rads) * 180. / np.pi * 3600.
             dec_diff = (np.polyval(cdec, btimes - reftime_poly) - dec_rads) * 180. / np.pi * 3600.
             if verbose:
@@ -640,7 +640,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
                 dt = 0.
             else:
                 raise ValueError('Reference time does not fall into the provided ephemeris record')
-        if dopolyfit:
+        if dopolyfit and (len(btimes) > 1) and poly_res[0] == 0:
             ra = np.polyval(cra, tref_d - reftime_poly)
             dec = np.polyval(cdec, tref_d - reftime_poly)
         else:
@@ -660,6 +660,9 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
                 observatory_id = '-81'
             elif msinfo0['observatory'] == 'ALMA':
                 observatory_id = '-7'
+            else:
+                print('Observatory {} not recognized. Assume geocentric.'.format(msinfo0['observatory']))
+                observatory_id = '500'
 
             if not ephem:
                 ephem = read_horizons(Time(tref_d, format='mjd'), observatory=observatory_id)
@@ -679,9 +682,9 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
                 f_ra = interp1d(times_ephem, ras_ephem, kind='linear')
                 f_dec = interp1d(times_ephem, decs_ephem, kind='linear')
                 f_p0 = interp1d(times_ephem, p0s_ephem, kind='linear')
-                ra0 = f_ra(tref_d)
-                dec0 = f_dec(tref_d)
-                p0 = f_p0(tref_d)
+                ra0 = f_ra([tref_d])[0]
+                dec0 = f_dec([tref_d])[0]
+                p0 = f_p0([tref_d])[0]
             else:
                 try:
                     ra0 = ras_ephem[0]
@@ -693,8 +696,8 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
                 ra0 += 2. * np.pi
 
             # RA and DEC offset in arcseconds
-            decoff = degrees((dec - dec0)) * 3600.
-            raoff = degrees((ra - ra0) * cos(dec)) * 3600.
+            decoff = degrees(normalize(dec - dec0)) * 3600.
+            raoff = degrees(normalize(ra - ra0) * cos(dec)) * 3600.
             # Convert into heliocentric offsets
             prad = -radians(p0)
             refx = (-raoff) * cos(prad) - decoff * sin(prad)
@@ -949,6 +952,8 @@ def imreg(vis=None, imagefile=None, timerange=None,
             # construct the standard fits header
             # RA and DEC of the reference pixel crpix1 and crpix2
             (imra, imdec) = (imsum['refval'][0], imsum['refval'][1])
+            if imra < 0:
+                imra += 2. * np.pi
 
             ## When (t)clean is making an image, the default center of the image is coordinates of the associated FIELD
             ## If a new "phasecenter" is supplied in (t)clean, if
