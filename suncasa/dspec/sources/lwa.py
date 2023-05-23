@@ -19,9 +19,11 @@ def read_data(filename, stokes='I', verbose=True, timerange=[], freqrange=[], ti
     freqs = data['Observation1']['Tuning1']['freq'][:]
     ts = data['Observation1']['time'][:]
     times_mjd = Time([datetime.datetime.fromtimestamp(t[0]+t[1]) for t in ts]).mjd
+    idx, = np.where(times_mjd > 50000.) # filter out those prior to 1995 (obviously wrong for OVRO-LWA)
     if verbose:
-        print('Data time range is from {0:s} to {1:s}'.format(Time(times_mjd[0], format='mjd').isot, Time(times_mjd[-1], format='mjd').isot))
-        print('Data has {0:d} time stamps and {1:d} frequency channels'.format(len(times_mjd), len(freqs)))
+        print('Data time range is from {0:s} to {1:s}'.format(Time(times_mjd[idx][0], format='mjd').isot, 
+            Time(times_mjd[idx][-1], format='mjd').isot))
+        print('Data has {0:d} time stamps and {1:d} frequency channels'.format(len(times_mjd[idx]), len(freqs)))
 
     # Select time range
     if len(timerange) > 0:
@@ -80,13 +82,18 @@ def read_data(filename, stokes='I', verbose=True, timerange=[], freqrange=[], ti
     if stokes == 'YY':
         spec = data['Observation1']['Tuning1']['YY'][ti0:ti1, fi0:fi1]
     if stokes == 'I':
-        spec = data['Observation1']['Tuning1']['XX'][ti0:ti1, fi0:fi1] + data['Observation1']['Tuning1']['YY'][ti0:ti1, fi0:fi1]
+        spec = data['Observation1']['Tuning1']['XX'][ti0:ti1, fi0:fi1] + \
+               data['Observation1']['Tuning1']['YY'][ti0:ti1, fi0:fi1]
     if stokes == 'V':
         spec = 2 * data['Observation1']['Tuning1']['XY_imag'][ti0:ti1, fi0:fi1]
     if stokes == 'Q':
-        spec = data['Observation1']['Tuning1']['XX'][ti0:ti1, fi0:fi1] - data['Observation1']['Tuning1']['YY'][ti0:ti1, fi0:fi1]
+        spec = data['Observation1']['Tuning1']['XX'][ti0:ti1, fi0:fi1] - \
+                data['Observation1']['Tuning1']['YY'][ti0:ti1, fi0:fi1]
     if stokes == 'U':
         spec = 2 * data['Observation1']['Tuning1']['XY_real'][ti0:ti1, fi0:fi1]
+
+    times_mjd = times_mjd[idx]
+    spec = spec[idx]
 
     nt, nf = spec.shape
     nt_new, nf_new = (nt // timebin, nf // freqbin)
@@ -95,6 +102,6 @@ def read_data(filename, stokes='I', verbose=True, timerange=[], freqrange=[], ti
     times_mjd_new = rebin1d(times_mjd[:nt_new * timebin], nt_new)
     freqs_new = rebin1d(freqs[:nf_new * freqbin], nf_new)
     if verbose:
-        print('Selected time range is from {0:s} to {1:s}'.format(Time(times_mjd[0], format='mjd').isot, Time(times_mjd[-1], format='mjd').isot))
+        print('Selected time range is from {0:s} to {1:s}'.format(Time(times_mjd_new[0], format='mjd').isot, Time(times_mjd_new[-1], format='mjd').isot))
         print('Output data has {0:d} time stamps and {1:d} frequency channels'.format(len(times_mjd_new), len(freqs_new)))
     return spec_new.T/1e4, times_mjd_new, freqs_new, stokes
