@@ -164,7 +164,7 @@ def read_compressed_image_fits(fname, verbose=False):
             if stokaxis is not None:
                 slc[stokaxis] = slice(0, 1)
             hdu.data[np.isnan(hdu.data)] = 0.0
-            rmap = smap.Map(np.squeeze(hdu.data[slc]), hdu.header)
+            rmap = smap.Map(np.squeeze(hdu.data[tuple(slc)]), hdu.header)
             rdata = hdu.data.copy()
             rheader = hdu.header.copy()
             break
