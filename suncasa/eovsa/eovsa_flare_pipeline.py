@@ -13,7 +13,10 @@ import timeit
 from sunpy.time import parse_time
 import matplotlib
 
-matplotlib.use('Agg')
+import platform
+import matplotlib
+if platform.system()=='Linux':
+    matplotlib.use('Agg')
 
 start = timeit.default_timer()
 ia = image()

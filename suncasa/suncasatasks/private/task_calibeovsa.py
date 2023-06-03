@@ -1,6 +1,7 @@
+import platform
 import matplotlib
-
-matplotlib.use('Agg')
+if platform.system() == 'Linux':
+    matplotlib.use('Agg')
 import os
 import shutil
 import numpy as np
@@ -26,13 +27,11 @@ except:
     from casatools import ms as mstool
     from casatools import quanta as qatool
     from casatools import image as iatool
-    from casatools import msmetadata
 
     tb = tbtool()
     ms = mstool()
     qa = qatool()
     ia = iatool()
-    msmd = msmetadata()
     from casatasks import split
     from casatasks import tclean
     from casatasks import casalog

@@ -137,7 +137,9 @@ def pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None
             ax.cla()
             spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
             eofile = imgindir + 'eovsa_{}.spw{}.tb.disk.fits'.format(dateobj.strftime('%Y%m%d'), spwstr)
-            if not os.path.exists(eofile): continue
+            if not os.path.exists(eofile):
+                print('Fail to plot {} as it does not exist'.format(eofile))
+                continue
             if not os.path.exists(imgoutdir): os.makedirs(imgoutdir)
             try:
                 eomap = smap.Map(eofile)
@@ -163,6 +165,7 @@ def pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None
                 for l, dpi in dpis_dict.items():
                     figname = os.path.join(imgoutdir, '{}_eovsa_bd{:02d}.jpg'.format(l, s + 1))
                     fig.savefig(figname, dpi=int(dpi), pil_kwargs={"quality":85})
+                    print('EOVSA image saved to {}'.format(figname))
             except Exception as err:
                 print('Fail to plot {}'.format(eofile))
                 print(err)

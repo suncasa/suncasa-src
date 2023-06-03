@@ -137,7 +137,7 @@ def map2wcsgrids(snpmap, cell=True, antialiased=True):
     return mapx, mapy
 
 
-def readsdofile(datadir=None, wavelength=None, trange=None, isexists=False, timtol=1):
+def readsdofile(datadir=None, wavelength=None, trange=None, isexists=False, timtol=1, ignoreymdpath=False, suffix = 'image_lev1'):
     '''
     read sdo file from local database
     :param datadir:
@@ -170,9 +170,13 @@ def readsdofile(datadir=None, wavelength=None, trange=None, isexists=False, timt
             delta = d2 - d1
             for i in range(delta.days + 1):
                 ymd = d1 + td(days=i)
-                sdofitspathtmp = glob.glob(
-                    datadir + '/{:04d}/{:02d}/{:02d}/aia.lev1_*Z.{}.image_lev1.fits'.format(ymd.year, ymd.month,
-                                                                                            ymd.day, wavelength))
+                if ignoreymdpath:
+                    sdofitspathtmp = glob.glob(
+                        os.path.join(datadir,'aia.lev1_*Z.{}.{}.fits'.format(wavelength,suffix)))
+                else:
+                    sdofitspathtmp = glob.glob(
+                        datadir + '/{:04d}/{:02d}/{:02d}/aia.lev1_*Z.{}.{}.fits'.format(ymd.year, ymd.month,
+                                                                                                ymd.day, wavelength,suffix))
                 if len(sdofitspathtmp) > 0:
                     sdofitspath = sdofitspath + sdofitspathtmp
             if len(sdofitspath) == 0:
@@ -202,8 +206,12 @@ def readsdofile(datadir=None, wavelength=None, trange=None, isexists=False, timt
     else:
         jdtimstr = trange.iso
         ymd = jdtimstr.split(' ')[0].split('-')
-        sdofitspath = glob.glob(
-            datadir + '/{}/{}/{}/aia.lev1_*Z.{}.image_lev1.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
+        if ignoreymdpath:
+            sdofitspath = glob.glob(
+                os.path.join(datadir,'aia.lev1_*Z.{}.{}.fits'.format(wavelength,suffix)))
+        else:
+            sdofitspath = glob.glob(
+                datadir + '/{}/{}/{}/aia.lev1_*Z.{}.{}.fits'.format(ymd[0], ymd[1], ymd[2], wavelength,suffix))
         if len(sdofitspath) == 0:
             return []  # raise ValueError('No SDO file found under {}.'.format(datadir))
         sdofits = [os.path.basename(ll) for ll in sdofitspath]

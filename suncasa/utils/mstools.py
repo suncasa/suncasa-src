@@ -48,7 +48,7 @@ def get_bandinfo(msfile, spw=None, returnbdinfo=False):
     nchans = np.array(nchans)
     cfreqs = reffreqs + bdwds / 2.0 - chanwds / 2.0
     bdinfo = {'bounds_all': np.hstack((reffreqs, reffreqs[-1] + bdwds[-1])), 'cfreqs_all': cfreqs,
-              'bounds_all_lo': reffreqs, 'bounds_all_hi': reffreqs + bdwds}
+              'bounds_all_lo': reffreqs, 'bounds_all_hi': reffreqs + bdwds,'nchans':nchans}
     if spw:
         freqbounds_lo_spw = []
         freqbounds_hi_spw = []

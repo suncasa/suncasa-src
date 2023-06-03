@@ -1,6 +1,7 @@
 import os
 import sys
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import sunpy
 import sunpy.map as smap
@@ -11,6 +12,17 @@ from ..dspec import dspec as ds
 from ..utils import helioimage2fits as hf
 from ..utils import mstools
 import copy
+import platform
+
+systemname = platform.system()
+
+# if systemname=='Darwin':
+#     try:
+#         mpl.use('MacOSX')
+#     except:
+#         mpl.use('QtAgg')
+
+
 
 sunpy1 = sunpy.version.major >= 1
 sunpy3 = sunpy.version.major >= 3
@@ -1485,6 +1497,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
               plotaia=True, aiawave=171, aiafits=None, aiadir=None, datacolumn='data',
               docompress=True,
               wrapfits=True,
+              cleartmpfits=True,
               mkmovie=False, overwrite=True, ncpu=1, twidth=1, verbose=False, movieformat='html',
               clearmshistory=False, show_warnings=False, opencontour=False, quiet=False, ds_normalised=False):
     '''
@@ -2110,6 +2123,9 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                         outfits = mstools.time2filename(vis, timerange=timerange) + '.image.fits'
 
                     ndfits.wrap(fitsfiles, outfitsfile=outfits, docompress=docompress)
+                    if cleartmpfits:
+                        for junk in imagefiles+fitsfiles:
+                            os.system('rm -rf {}'.format(junk))
                     warnings.warn(
                         "If the provided spw is not equally spaced, the frequency information of the fits file {} that combining {} could be a wrong. Use it with caution!".format(
                             outfits, ','.join(fitsfiles)))

@@ -1,6 +1,7 @@
+import platform
 import matplotlib
-
-matplotlib.use('Agg')
+if platform.system()=='Linux':
+    matplotlib.use('Agg')
 import os
 import shutil
 import numpy as np

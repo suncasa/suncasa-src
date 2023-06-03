@@ -6,7 +6,7 @@ import bisect
 from astropy.time import Time
 import astropy.units as u
 import warnings
-from suncasa.utils import fitsutils as fu
+from suncasa.io import ndfits
 import ssl
 from scipy.interpolate import interp1d
 
@@ -1147,8 +1147,13 @@ def imreg(vis=None, imagefile=None, timerange=None,
                             data[:, i, :, :] *= jy_to_si / beam_area / factor * factor2
                         if faxis == '4':
                             data[i, :, :, :] *= jy_to_si / beam_area / factor * factor2
-
-            header = fu.headerfix(header)
+            else:
+                ## added on 2023 Feb 15
+                if faxis == '3':
+                    data[:, i, :, :] *= sclfactor
+                if faxis == '4':
+                    data[i, :, :, :] *= sclfactor
+            header = ndfits.headerfix(header)
             hdu.flush()
             hdu.close()
 
@@ -1170,7 +1175,7 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 hdu[0].verify('fix')
                 header = hdu[0].header
                 data = hdu[0].data
-                fu.write_compressed_image_fits(fitsf, data, header, compression_type='RICE_1',
+                ndfits.write(fitsf, data, header, compression_type='RICE_1',
                                                quantize_level=4.0)
                 os.system("rm -rf {}".format(fitsftmp))
     if deletehistory:
