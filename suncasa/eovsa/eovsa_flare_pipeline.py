@@ -1366,7 +1366,7 @@ class FlareSelfCalib():
                 #### implementing a check where I ensure that I will never average more
                 #### more than 0.5 times the central frequency
                 if abs(self.freqs_ms[max_spw] - self.freqs_ms[min_spw]) > self.max_frac_freq_avg * self.freqs_ms[s]:
-                    self.logf.write("Did not a suitable averaging range in frequency.",
+                    self.logf.write("Did not a suitable averaging range in frequency.\n"+
                                     "Trying with maximum possible frequency bandwidth.\n")
                     break
                 if s - avg_spw == min_spw - 1 and s + avg_spw == max_spw:
