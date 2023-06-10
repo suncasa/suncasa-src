@@ -25,6 +25,7 @@ tb = table()
 class FlareSelfCalib():
     def __init__(self, vis=None, workpath='./', logfile=None):
         ##========================= initial setups =================================
+        self.workpath = workpath
         self.vis = vis
         if not logfile:
             logfile = workpath + "selfcal_{0:s}.log".format(Time.now().isot[:-4].replace(':', '').replace('-', ''))
@@ -50,7 +51,7 @@ class FlareSelfCalib():
         # ============ declaring the working directories ============
         ### remember / is necessary in all the folder names
         # self.workpath = '/data1/bchen/flare_pipeline/tmp/'  ## / is needed at the end of all paths
-        self.workpath = workpath
+        
         self.slfcaldir = self.workpath + 'slfcal/'  # place to put all selfcalibration products
         self.imagedir = self.slfcaldir + 'images/'  # place to put all selfcalibration images
         self.caltbdir = self.slfcaldir + 'caltables/'  # place to put calibration tables
@@ -100,12 +101,14 @@ class FlareSelfCalib():
         value: full path for the input visibility data
         -------
         """
-        if value:
-            if not os.path.exists(value):
+        
+        if type(value)==str:
+            if os.path.isdir(value)==False:
                 raise ValueError('input visibility {0:s} does not exist! Please supply a valid one.'.format(value))
+            else:
+                self._vis = value
         else:
-            print("No visibility provided. Please supply a valid one by FlareSelfCalib.vis = 'your visibility'")
-        self._vis = value
+            self._vis=self.flare_ms_calib(value)
 
     def vis_info(self):
         if os.path.exists(self.vis):
@@ -133,6 +136,7 @@ class FlareSelfCalib():
             [str(s) for s in self.slfcal_spws])  ## string format of self.spws for, e.g., split
         self.selfcal_spw = '0~' + str(self.maximum_spw)  ## actual spw range used for self-calibration
 
+    
     @staticmethod
     def get_img_center_heliocoords(images):
         """
@@ -1503,10 +1507,10 @@ class FlareSelfCalib():
             time1 = timeit.default_timer()
             self.logf.write("Finding flare location took {0:d} seconds:" + str(time1 - flare_loc_timer))
 
-    def flare_ms_calib(self):
-        import eovsa_flare_calib as ec
-        out_vis=ec.import_calib_idb(self.trange)
-        self.vis=out_vis
+    def flare_ms_calib(self,value):
+        from . import eovsa_flare_calib as ec
+        out_vis=ec.import_calib_idb(value, workdir=self.workpath)
+        return out_vis
 
     def slfcal_pipeline(self, doselfcal=True, doimaging=False):
         print("Starting the self-calibration process")
