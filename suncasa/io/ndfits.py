@@ -358,7 +358,17 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
         print('There is only one files in the fits file list. wrap is aborted!')
         return ''
     else:
-        fitsfiles = sorted(fitsfiles)
+        try:
+            num_files=len(fitsfiles)
+            freqs=np.zeros(num_files)
+            for i in range(num_files):
+                head=fits.getheader(fitsfiles[i])
+                freqs[i]=head['CRVAL3']
+                del head
+            pos=np.argsort(freqs)
+            fitsfiles=fitsfiles[pos]
+        except:
+            fitsfiles = sorted(fitsfiles)
         nband = len(fitsfiles)
         fits_exist = []
         idx_fits_exist = []
@@ -366,7 +376,7 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
             if os.path.exists(fitsf):
                 fits_exist.append(fitsf)
                 idx_fits_exist.append(sidx)
-        if len(fits_exist) == 0: raise ValueError('None of the input fitsfiles exists!')
+        if len(fits_exist) == 0: raise ValueError('None of the input fitsfiles exists!')    
         if outfitsfile is None:
             hdu = fits.open(fits_exist[0])
             if observatory is None:

@@ -137,6 +137,8 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
             observatory = '-81'
         elif observatory == 'ALMA' or observatory == '-7':
             observatory = '-7'
+        elif observatory == 'GMRT' or observatory == 'uGMRT' or observatory == '399':
+            observatory = '399'
         elif observatory == 'geocentric' or observatory == '500':
             observatory = '500'
         else:
@@ -157,6 +159,8 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
                     observatory = '-81'
                 elif metadata.observatorynames()[0] == 'ALMA':
                     observatory = '-7'
+                elif metadata.observatorynames()[0] == 'GMRT' or metadata.observatorynames()[0] == 'uGMRT':
+                    observatory = '-399'
                 else:
                     print('Observatory {} not recognized. Assume geocentric.'.format(metadata.observatorynames()[0]))
                     observatory = '500'
@@ -576,6 +580,7 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
                 if tbg_d < 1.:
                     tbg_d += int(btimes[0])
                 tref_d = (tbg_d + tend_d) / 2.
+            
             except:
                 print('Error in converting the input reftime: ' + str(reftime0) + '. Aborting...')
         else:
@@ -660,10 +665,12 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
                 observatory_id = '-81'
             elif msinfo0['observatory'] == 'ALMA':
                 observatory_id = '-7'
+            elif msinfo0['observatory'] == 'GMRT' or msinfo0['observatory'] == 'uGMRT':
+                observatory_id = '399'
             else:
                 print('Observatory {} not recognized. Assume geocentric.'.format(msinfo0['observatory']))
                 observatory_id = '500'
-
+                
             if not ephem:
                 ephem = read_horizons(Time(tref_d, format='mjd'), observatory=observatory_id)
 
@@ -952,9 +959,10 @@ def imreg(vis=None, imagefile=None, timerange=None,
             # construct the standard fits header
             # RA and DEC of the reference pixel crpix1 and crpix2
             (imra, imdec) = (imsum['refval'][0], imsum['refval'][1])
+            
             if imra < 0:
                 imra += 2. * np.pi
-
+                
             ## When (t)clean is making an image, the default center of the image is coordinates of the associated FIELD
             ## If a new "phasecenter" is supplied in (t)clean, if
             #       CASE A (<2014-ish): No ephemeris table is attached. The visibility phase center
@@ -1205,6 +1213,8 @@ def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=Tr
             observatory = '-81'
         elif metadata.observatorynames()[0] == 'ALMA':
             observatory = '-7'
+        elif metadata.observatorynames()[0] == 'GMRT' or metadata.observatorynames()[0] == 'uGMRT':
+                observatory_id = '399'
        
     try:
         mstrange = metadata.timerangeforobs(0)

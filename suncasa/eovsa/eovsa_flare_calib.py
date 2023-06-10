@@ -6,17 +6,21 @@ import sys
 from casatasks import split
 from eovsapy.read_idb import get_trange_files
 from eovsapy.util import Time
+from eovsapy import util
 import numpy as np
 import os
+from eovsapy import dump_tsys as dt
+
 
 
 def import_calib_idb(trange, workdir=None, ncpu=1, timebin='0s', width=1):
+
     """
     Script to import and calibrate IDB data based on an input time range
     Parameters
     ----------
-    trange: [begin_time, end_time], in astropy.time.Time format.
-        Example: Time(['2022-11-12T17:55', '2022-11-12T18:10'])
+    trange: [begin_time, end_time], in eovsa.util Time format.
+        Example: Time(['2022-11-12 17:55:00', '2022-11-12 18:10:00'])
     workdir: specify where the working directory is. Default to current path
     Returns
     -------
@@ -29,11 +33,44 @@ def import_calib_idb(trange, workdir=None, ncpu=1, timebin='0s', width=1):
     if os.path.exists(workdir) == False:
         os.makedirs(workdir)
 
-    files = get_trange_files(trange)
-    msfile = importeovsa(idbfiles=files, ncpu=ncpu, timebin=timebin, width=width, \
-                         visprefix=workdir, nocreatms=False, doconcat=True, \
-                         modelms='', doscaling=False, keep_nsclms=False, \
-                         udb_corr=True)
-    vis_out = calibeovsa(msfile, caltype=['refpha', 'phacal'], interp='linear', \
-                         doimage=False, doconcat=True, dosplit=True, keep_orig_ms=False)
-    return vis_out
+
+    os.chdir(workdir)
+
+    namesuffix = '_' + trange[0].to_datetime().strftime('%H%M') + '-' + trange[1].to_datetime().strftime('%H%M')
+
+    idbdir = util.get_idbdir(trange[0])
+
+    info = dt.rd_fdb(Time(trange[0].to_datetime().strftime('%Y-%m-%d')))
+    idxs, = np.where(info['SOURCEID'] == '')
+    for k, v in info.items():
+        info[k] = info[k][~(info[k] == '')]
+    sidx = np.where(
+        np.logical_and(info['SOURCEID'] == 'Sun', info['PROJECTID'] == 'NormalObserving') & np.logical_and(
+            info['ST_TS'].astype(np.float_) >= trange[0].lv,
+            info['ST_TS'].astype(np.float_) <= trange[1].lv))
+    filelist = info['FILE'][sidx]
+    # filelist = filelist[np.array([0, 2, 3, 4, 5, 6, 7, 8])]
+    # filelist = filelist[np.array([0, 2])]
+
+    outpath = 'msdata/'
+    if not os.path.exists(outpath):
+        os.makedirs(outpath)
+    inpath = idbdir + '{}/'.format(trange[0].datetime.strftime("%Y%m%d"))
+    ncpu = 1
+
+    msfiles = importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin=timebin, width=width,
+                                       visprefix=outpath,
+                                       nocreatms=False, doconcat=False,
+                                       modelms="", doscaling=False, keep_nsclms=False, udb_corr=True,
+                                       use_exist_udbcorr=True)
+    # msfiles = [outpath + ll + '.ms' for ll in filelist]
+    concatvis = os.path.basename(msfiles[0])[:11] + namesuffix + '.ms'
+    vis = calibeovsa(msfiles, caltype=['refpha', 'phacal'], interp='nearest', doflag=True, flagant='13~15',
+                                doimage=False, doconcat=True,
+                                concatvis=concatvis, keep_orig_ms=False)
+    
+                   
+
+    return concatvis
+
+
