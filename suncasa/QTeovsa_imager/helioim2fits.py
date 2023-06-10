@@ -12,7 +12,7 @@ from sunpy import sun, coordinates
 import astropy.units as u
 import warnings
 #from suncasa.utils 
-import fitsutils as fu
+from suncasa.io import ndfits
 
 ms = mstool()
 tb = table()
@@ -835,7 +835,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                         if faxis == '4':
                             data[i, :, :, :] *= jy_to_si / beam_area / factor * factor2
 
-            header = fu.headerfix(header)
+            header = ndfits.headerfix(header)
             hdu.flush()
             hdu.close()
 
@@ -856,7 +856,7 @@ def imreg(vis=None, ephem=None, msinfo=None, imagefile=None, timerange=None, ref
                 hdu[0].verify('fix')
                 header = hdu[0].header
                 data = hdu[0].data
-                fu.write_compressed_image_fits(fitsf, data, header, compression_type='RICE_1',
+                ndfits.write(fitsf, data, header, compression_type='RICE_1',
                                              quantize_level=4.0)
                 os.system("rm -rf {}".format(fitsftmp))
     if deletehistory:

@@ -48,7 +48,7 @@ def get_bandinfo(msfile, spw=None, returnbdinfo=False):
     nchans = np.array(nchans)
     cfreqs = reffreqs + bdwds / 2.0 - chanwds / 2.0
     bdinfo = {'bounds_all': np.hstack((reffreqs, reffreqs[-1] + bdwds[-1])), 'cfreqs_all': cfreqs,
-              'bounds_all_lo': reffreqs, 'bounds_all_hi': reffreqs + bdwds}
+              'bounds_all_lo': reffreqs, 'bounds_all_hi': reffreqs + bdwds, 'nchans': nchans}
     if spw:
         freqbounds_lo_spw = []
         freqbounds_hi_spw = []
@@ -107,7 +107,7 @@ def get_trange(msfile):
     return Time(tr, format='mjd')
 
 
-def time2filename(msfile, timerange='', spw=''):
+def time2filename(msfile, timerange='', spw='', desc=False):
     from astropy.time import Time
     tb.open(msfile)
     starttim = Time(tb.getcell('TIME', 0) / 24. / 3600., format='mjd')
@@ -129,9 +129,12 @@ def time2filename(msfile, timerange='', spw=''):
         else:
             starttim1 = Time(qa.quantity(tstart, 'd')['value'], format='mjd')
             endtim1 = Time(qa.quantity(tend, 'd')['value'], format='mjd')
-    midtime = Time((starttim1.mjd + endtim1.mjd) / 2., format='mjd')
-
-    tstr = midtime.to_datetime().strftime('{}_%Y%m%dT%H%M%S.%f'.format(observatory))
+    if desc:
+        tstr = starttim1.to_datetime().strftime(
+            '{}_%Y%m%dT%H%M%S.%f'.format(observatory)) + endtim1.to_datetime().strftime('-%H%M%S.%f')
+    else:
+        midtime = Time((starttim1.mjd + endtim1.mjd) / 2., format='mjd')
+        tstr = midtime.to_datetime().strftime('{}_%Y%m%dT%H%M%S.%f'.format(observatory))
 
     if spw:
         spstr = 'spw{}'.format(spw.replace('~', '-'))

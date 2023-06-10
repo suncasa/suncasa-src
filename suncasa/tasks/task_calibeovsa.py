@@ -1,6 +1,7 @@
+import platform
 import matplotlib
-
-matplotlib.use('Agg')
+if platform.system()=='Linux':
+    matplotlib.use('Agg')
 import os
 import shutil
 import numpy as np
@@ -254,7 +255,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
 
         # calibration for the change of delay center between refcal time and beginning of scan -- hopefully none!
         xml, buf = ch.read_calX(4, t=[t_ref, btime], verbose=False)
-        if buf:
+        if buf is not None:
             dly_t2 = Time(stf.extract(buf[0], xml['Timestamp']), format='lv')
             dlycen_ns2 = stf.extract(buf[0], xml['Delaycen_ns'])[:nant - 1]
             xml, buf = ch.read_calX(4, t=t_ref)

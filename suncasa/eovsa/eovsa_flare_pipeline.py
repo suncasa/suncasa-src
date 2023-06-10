@@ -13,7 +13,11 @@ import timeit
 from sunpy.time import parse_time
 import matplotlib
 
-matplotlib.use('Agg')
+import platform
+import matplotlib
+
+if platform.system() == 'Linux':
+    matplotlib.use('Agg')
 
 start = timeit.default_timer()
 ia = image()
@@ -116,20 +120,20 @@ class FlareSelfCalib():
             print('visibility info stored in {0:s}'.format(self.vis + '.listobs'))
         else:
             print('input visibility {0:s} do not exist! Abort...'.format(self.vis))
-    
+
     @property
     def slfcal_spws(self):
         '''
         Rteurn the spws chosen for selfcal
-        '''    
+        '''
         return self._slfcal_spws
 
     @slfcal_spws.setter
-    def slfcal_spws(self,value):
+    def slfcal_spws(self, value):
         '''
         Set the spws which will be self-calibrated and imaged
         '''
-        self._slfcal_spws=value
+        self._slfcal_spws = value
         self.maximum_spw = max(self.slfcal_spws)
         self.minimum_spw = min(self.slfcal_spws)
         self.slfcal_spwstr = ','.join(
@@ -399,11 +403,48 @@ class FlareSelfCalib():
         return nspws
 
     @staticmethod
+    def get_descids(visibility):
+        '''
+        Retrieve actual descids from the DATA_DESCRIPTION table.
+        Unusually, the DATA_DESCRIPTION table may contain duplicated rows featuring
+        the same SPECTRAL_WINDOW_ID, yet pointing to null or dummy data.
+        This can cause a KeyError: 'axis_info' when attempting to read the 'data' variable in calc_cellsize,
+        as the loop iterating over 'i' in ms.selectinit(datadescid=i) within calc_cellsize
+        fails to locate the corresponding data due to its non-existence.
+
+        :param visibility:
+        :return:
+        '''
+        import pandas as pd
+        tb.open(os.path.join(visibility, 'DATA_DESCRIPTION'))
+        data = {}
+        nrows = tb.nrows()
+        for k in tb.colnames():
+            data[k] = tb.getcol(k)
+        df = pd.DataFrame(data)
+        # sorted_df = df.sort_values(by=['POLARIZATION_ID', 'SPECTRAL_WINDOW_ID'])
+        # Sort the DataFrame by POLARIZATION_ID and then by SPECTRAL_WINDOW_ID
+        # nrows_sorted = len(sorted_df)
+        # # Convert sorted_df to a dictionary
+        # sorted_data = sorted_df.to_dict(orient='list')
+        # if nrows>nrows_sorted:
+        #     nrows2rm = np.arange(nrows_sorted,nrows)
+        #     tb.removerows(nrows2rm)
+        # # for k in tb.colnames():
+        # #     tb.putcol(k, sorted_data[k])
+        tb.close()
+        ##todo this correction only apply to 1 polarization. If multiple polarizations are involved, the way of striping the anomoous polarization id shall be revised.
+        return np.int_(df[df['POLARIZATION_ID'] == 0].index)
+
+    @staticmethod
     def calc_cellsize(visibility):
         nspws = FlareSelfCalib.get_spw_num(visibility)
         beams = []
         ms.open(visibility)
-        for i in range(nspws):
+        descids = FlareSelfCalib.get_descids(visibility)
+        if len(descids) != nspws:
+            descids = range(nspws)
+        for i in descids:
             ms.selectinit(datadescid=0, reset=True)
             ms.selectinit(datadescid=i)
             data = ms.getdata(['u', 'v', 'axis_info'], ifraxis=True)
@@ -781,7 +822,7 @@ class FlareSelfCalib():
 
         ms.open(self.vis)
         # for sp in range(self.minimum_spw, self.maximum_spw + 1):
-        for sp in self.slfcal_spws:
+        for s, sp in enumerate(self.slfcal_spws):
             print('processing spw ', sp)
             ms.selectinit(datadescid=0, reset=True)
             ms.selectinit(datadescid=sp)
@@ -1367,7 +1408,7 @@ class FlareSelfCalib():
                 #### implementing a check where I ensure that I will never average more
                 #### more than 0.5 times the central frequency
                 if abs(self.freqs_ms[max_spw] - self.freqs_ms[min_spw]) > self.max_frac_freq_avg * self.freqs_ms[s]:
-                    self.logf.write("Did not a suitable averaging range in frequency.",
+                    self.logf.write("Did not a suitable averaging range in frequency.\n" +
                                     "Trying with maximum possible frequency bandwidth.\n")
                     break
                 if s - avg_spw == min_spw - 1 and s + avg_spw == max_spw:
@@ -1471,6 +1512,9 @@ class FlareSelfCalib():
 
         nspw_slfcal = FlareSelfCalib.get_spw_num(tmpms)
         freqs_slfcal = FlareSelfCalib.get_ref_freqlist(tmpms)
+        descids = FlareSelfCalib.get_descids(tmpms)
+        if len(descids) != nspw_slfcal:
+            descids = range(nspw_slfcal)
         cell_vals = []
         uvranges = []
         if self.calc_cell:
@@ -1497,6 +1541,7 @@ class FlareSelfCalib():
         self.nspw_ms = nspw_ms
         self.freqs_ms = freqs_ms
         self.nspw_slfcal = nspw_slfcal
+        self.descids = descids
         os.system('rm -rf {0:s}'.format(tmpms))
 
         ## ======= find flare location and change phase center ========
@@ -1506,6 +1551,7 @@ class FlareSelfCalib():
             self.find_phasecenter()
             time1 = timeit.default_timer()
             self.logf.write("Finding flare location took {0:d} seconds:" + str(time1 - flare_loc_timer))
+
 
     def flare_ms_calib(self,value):
         from . import eovsa_flare_calib as ec
@@ -1560,7 +1606,7 @@ class FlareSelfCalib():
                         split(vis=self.vis, outputvis=slfcalms, datacolumn='data', timerange=current_trange,
                               correlation='XX', spw=self.selfcal_spw)
                     if self.identify_data_gap:
-                        self.flag_data_gap(slfcalms, s)
+                        self.flag_data_gap(slfcalms, self.descids[j])
 
                     print('Processing ' + current_trange)
                     success = self.calling_do_selfcal(slfcalms, s, uvrange=uvrange, cell_val=cell_val)
@@ -1644,7 +1690,7 @@ class FlareSelfCalib():
                     print('self-calibrated ms does not exist. Using original visibility for imaging.')
                     msname = self.vis
             xycen = self.get_img_center_heliocoords(image_list)
-            
+
             imaging_start_mjd = self.flare_peak_mjd - self.total_duration / 2
             if imaging_start_mjd < self.ms_startmjd:
                 diff = imaging_start_mjd - self.ms_startmjd
@@ -1661,11 +1707,11 @@ class FlareSelfCalib():
             else:
                 imaging_end_time = (self.flare_peak_datetime + dt.timedelta(seconds=self.total_duration / 2)).strftime(
                     "%Y/%m/%d/%H:%M:%S")
-            
+
             time_str = imaging_start_time + "~" + imaging_end_time
-            
+
             specfile = msname[:-3] + "_dspec.npz"
-            print (specfile)
+            print(specfile)
             spws = []
             for s in self.slfcal_spws:
                 spws.append(str(s))

@@ -1,8 +1,8 @@
 from suncasa.suncasatasks import importeovsa
 from suncasa.suncasatasks import calibeovsa
 import sys
-#import importeovsa
-#import calibeovsa
+# import importeovsa
+# import calibeovsa
 from casatasks import split
 from eovsapy.read_idb import get_trange_files
 from eovsapy.util import Time
@@ -13,7 +13,8 @@ from eovsapy import dump_tsys as dt
 
 
 
-def import_calib_idb(trange, workdir=None, get_tp=False):
+def import_calib_idb(trange, workdir=None, ncpu=1, timebin='0s', width=1):
+
     """
     Script to import and calibrate IDB data based on an input time range
     Parameters
@@ -27,14 +28,12 @@ def import_calib_idb(trange, workdir=None, get_tp=False):
     """
     if not workdir:
         workdir = os.getcwd()
-        if workdir[-1]!='/':
-            workdir+='/'
-    if os.path.exists(workdir)==False:
+        if workdir[-1] != '/':
+            workdir += '/'
+    if os.path.exists(workdir) == False:
         os.makedirs(workdir)
- 
-    
-                       
-    
+
+
     os.chdir(workdir)
 
     namesuffix = '_' + trange[0].to_datetime().strftime('%H%M') + '-' + trange[1].to_datetime().strftime('%H%M')
@@ -59,7 +58,7 @@ def import_calib_idb(trange, workdir=None, get_tp=False):
     inpath = idbdir + '{}/'.format(trange[0].datetime.strftime("%Y%m%d"))
     ncpu = 1
 
-    msfiles = importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
+    msfiles = importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin=timebin, width=width,
                                        visprefix=outpath,
                                        nocreatms=False, doconcat=False,
                                        modelms="", doscaling=False, keep_nsclms=False, udb_corr=True,
@@ -73,3 +72,5 @@ def import_calib_idb(trange, workdir=None, get_tp=False):
                    
 
     return concatvis
+
+
