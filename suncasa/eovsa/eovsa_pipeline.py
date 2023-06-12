@@ -679,14 +679,14 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
             os.makedirs(subdir)
         else:
             os.system('rm -rf {}/*'.format(subdir))
-        # # ##debug
-        vis_corrected = calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
-                                       workdir=subdir, clearcache=False, pols=pols)
-        # try:
-        #     vis_corrected = calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
-        #                                    workdir=subdir, clearcache=False, pols=pols)
-        # except:
-        #     print('error in processing {}'.format(datestr))
+        # ##debug
+        # vis_corrected = calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
+        #                                workdir=subdir, clearcache=False, pols=pols)
+        try:
+            vis_corrected = calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
+                                           workdir=subdir, clearcache=False, pols=pols)
+        except:
+            print('error in processing {}'.format(datestr))
         if clearcache:
             os.chdir(workdir)
             os.system('rm -rf {}'.format(subdir))

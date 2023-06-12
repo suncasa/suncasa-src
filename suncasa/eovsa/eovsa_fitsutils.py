@@ -5,7 +5,7 @@ from datetime import datetime
 from glob import glob
 import numpy as np
 from astropy.time import Time
-from suncasa.utils import fitsutils as fu
+from suncasa.io import ndfits
 
 imgfitsdir = '/data1/eovsa/fits/synoptic/'
 # imgfitsbkdir = '/data1/workdir/synoptic_bk/'
@@ -81,7 +81,7 @@ def rewriteImageFits(datestr, verbose=False, writejp2=False, overwritejp2=False,
                 os.system('rm -f {}'.format(fl))
         if not os.path.exists(fl):
             data[np.isnan(data)] = 0.0
-            fu.write_compressed_image_fits(fl, data, hdu.header, compression_type='RICE_1', quantize_level=4.0)
+            ndfits.write(fl, data, hdu.header, compression_type='RICE_1', quantize_level=4.0)
 
         fj2name = fl.replace('.fits', '.jp2')
         if writejp2:
@@ -91,7 +91,7 @@ def rewriteImageFits(datestr, verbose=False, writejp2=False, overwritejp2=False,
             if not os.path.exists(fj2name):
                 data = np.squeeze(hdu.data).copy()
                 data[np.isnan(data)] = 0.0
-                fu.write_j2000_image(fj2name, data[::-1, :], hdu.header)
+                ndfits.write_j2000_image(fj2name, data[::-1, :], hdu.header)
     return
 
 

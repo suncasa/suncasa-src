@@ -5,7 +5,7 @@
 [suncasa](https://github.com/suncasa/suncasa-src) is a Python wrapper around [CASA](https://casa.nrao.edu/) for
 importing, calibrating, synthesis imaging and visualizing solar spectral imaging data. CASA is one of the leading
 software tools for "supporting the data post-processing needs of the next generation of radio astronomical telescopes
-such as ALMA and VLA", an international effort led by
+such as ALMA and VLA, an international effort led by
 the [National Radio Astronomy Observatory (NRAO)](https://public.nrao.edu/). The current version of CASA uses Python 3.6
 to 3.8 on most of the platform. More information about the compatibility of CASA can be found
 on [CASA Compatibility](https://casadocs.readthedocs.io/en/latest/notebooks/introduction.html#Compatibility/).
