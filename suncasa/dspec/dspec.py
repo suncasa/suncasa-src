@@ -94,7 +94,7 @@ class Dspec:
 
     def __init__(self, fname=None, specfile=None, bl='', uvrange='', field='', scan='',
                  datacolumn='data', domedian=False, timeran=None, spw=None, timebin='0s', regridfreq=False,
-                 fillnan=None, verbose=False, usetbtool=True,ds_normalised=False):
+                 fillnan=None, verbose=False, usetbtool=True, ds_normalised=False):
         if fname:
             if isinstance(fname, str):
                 if os.path.exists(fname):
@@ -102,15 +102,27 @@ class Dspec:
                         self.get_dspec(fname, specfile=specfile, bl=bl, uvrange=uvrange, field=field,
                                        scan=scan, datacolumn=datacolumn, domedian=domedian, timeran=timeran, spw=spw,
                                        timebin=timebin, regridfreq=regridfreq, fillnan=fillnan, verbose=verbose,
-                                       usetbtool=usetbtool,ds_normalised=ds_normalised)
+                                       usetbtool=usetbtool, ds_normalised=ds_normalised)
                     else:
                         self.read(fname)
             else:
                 self.read(fname)
 
+    def read(self, fname, source=None, *args, **kwargs):
+        ## todo The existing implementation of the mapping between extensions and instruments requires refinement and sophistication. Explore potential optimization strategies to improve this process.
 
-    def read(self, fname, obstype='suncasa', *args, **kwargs):
-        if obstype.lower() == 'eovsa':
+        _known_extensions = {
+            ('fts', 'fits'): 'fits',
+            ('npz'): 'suncasa',
+            ('hdf5'): 'lwa'
+        }
+        for extension, readername in _known_extensions.items():
+            if fname.lower().endswith(extension):
+                source = readername
+        if source is None:
+            raise ValueError(f"The filetype provided ({os.path.basename(fname)}) is not supported")
+
+        if source.lower() == 'fits':
             if fname.endswith('.fts') or fname.endswith('.fits'):
                 from .sources import eovsa
                 s = eovsa.get_dspec(fname, doplot=False)
@@ -118,7 +130,7 @@ class Dspec:
                 self.time_axis = Time(s['time_axis'], format='mjd')
                 self.freq_axis = s['spectrum_axis'] * 1e9
 
-        if obstype.lower() == 'suncasa':
+        if source.lower() == 'suncasa':
             spec, tim, freq, bl, pol = self.rd_dspec(fname, spectype='amp', specunit='jy')
             self.data = spec
             self.time_axis = Time(tim / 24 / 3600, format='mjd')
@@ -126,14 +138,13 @@ class Dspec:
             self.bl = bl
             self.pol = pol
 
-        if obstype.lower() == 'lwa':
+        if source.lower() == 'lwa':
             from .sources import lwa
             spec, tim, freq, pol = lwa.read_data(fname, **kwargs)
             self.data = spec
             self.time_axis = Time(tim, format='mjd')
             self.freq_axis = freq
             self.pol = pol
-
 
     def tofits(self, fitsfile=None, specdata=None, spectype='amp', specunit='jy',
                telescope='EOVSA', observatory='Owens Valley Radio Observatory', observer='EOVSA Team'):
@@ -209,7 +220,6 @@ class Dspec:
         prihdr.set('RESOLUTI', 0.0, 'Resolution value')
         # Write the file
         hdulist.writeto(fitsfile, overwrite=True)
-
 
     def get_dspec(self, fname=None, specfile=None, bl='', uvrange='', field='', scan='',
                   datacolumn='data',
@@ -475,9 +485,9 @@ class Dspec:
                          uvrange=uvrange, timebin=timebin)
                 ms.close()
 
-            #if verbose:
-             #   print('Regridding into a single spectral window...')
-                # print('Reading data spw by spw')
+            # if verbose:
+            #   print('Regridding into a single spectral window...')
+            # print('Reading data spw by spw')
 
             try:
                 tb.open(vis_spl + '/POLARIZATION')
@@ -512,7 +522,7 @@ class Dspec:
                     if verbose:
                         print('filling up spw #{0:d}: {1:s}'.format(n, descid))
                     descid = int(descid)
-                    ms.selectinit(datadescid=n)#, reset=True)
+                    ms.selectinit(datadescid=n)  # , reset=True)
                     data = ms.getdata(['amplitude', 'time', 'axis_info'], ifraxis=True)
                     if verbose:
                         print('shape of this spw', data['amplitude'].shape)
@@ -534,10 +544,10 @@ class Dspec:
                     time.append(time_)
                 specamp = np.concatenate(specamp, axis=1)
                 try:
-                    #if len(freq.shape) > 1:
+                    # if len(freq.shape) > 1:
                     freq = np.concatenate(freq, axis=0)
                 except ValueError:
-            	    pass
+                    pass
                 ms.selectinit(datadescid=0, reset=True)
             ms.close()
             if os.path.exists(vis_spl):
@@ -561,12 +571,12 @@ class Dspec:
             # spec_med = np.ma.filled(np.ma.median(spec_masked, axis=1), fill_value=0.)
             spec = np.abs(spec)
             if ds_normalised == False:
-            	#mask zero values before median
+                # mask zero values before median
                 spec_masked = np.ma.masked_where(spec < 1e-9, spec)
                 spec_masked2 = np.ma.masked_invalid(spec)
                 spec_masked = np.ma.masked_array(spec, mask=np.logical_or(spec_masked.mask, spec_masked2.mask))
                 spec_med = np.ma.filled(np.ma.median(spec_masked, axis=1), fill_value=0.)
-                #spec_med = np.nanmedian(spec, axis=1)
+                # spec_med = np.nanmedian(spec, axis=1)
                 nbl = 1
                 ospec = spec_med.reshape((npol, nbl, nfreq, ntim))
             else:
@@ -590,7 +600,6 @@ class Dspec:
 
         self.read(specfile)
         return specfile
-
 
     def wrt_dspec(self, specfile=None, specdat=None):
         try:
@@ -618,7 +627,6 @@ class Dspec:
         with open(specdat, 'wb') as f:
             f.write(buf)
         f.close()
-
 
     def rd_dspec(self, specdata, spectype='amp', specunit='jy'):
         spectype = spectype.lower()
@@ -668,7 +676,6 @@ class Dspec:
         except:
             raise ValueError('format of specdata not recognized. Check your input')
 
-
     def concat_dspec(self, specfiles, outfile=None, savespec=False):
         '''
         concatenate a list of specfiles in time axis
@@ -705,7 +712,6 @@ class Dspec:
             np.savez(specfile, **specdata)
         return specdata
 
-
     def peek(self, *args, **kwargs):
         """
         Plot dynamaic spectrum onto current axes.
@@ -727,7 +733,6 @@ class Dspec:
         ret = self.plot(*args, **kwargs)
         plt.show()
         return ret
-
 
     def plot(self, pol='I', vmin=None, vmax=None, norm='log', cmap='turbo', timerange=None, freqrange=None,
              ignore_gaps=True, freq_unit='GHz'):
@@ -760,7 +765,6 @@ class Dspec:
         if not isinstance(norm, object):
             print('color normalization is not defined as matplotlib.colors. Use default LogNorm.')
             norm = colors.LogNorm(vmax=vmax, vmin=vmin)
-
 
         spec = self.data
         bl = self.bl
@@ -858,8 +862,9 @@ class Dspec:
                     if col >= 0 and col < ntim and row >= 0 and row < nfreq:
                         timstr = tim_[col].isot
                         flux = spec_plt[row, col]
-                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, flux = {5:.2f} sfu'.format(col, timstr, row, y, freq_unit,
-                                                                                                   flux)
+                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, flux = {5:.2f} sfu'.format(col, timstr, row,
+                                                                                                     y, freq_unit,
+                                                                                                     flux)
                     else:
                         return 'x = {0}, y = {1:.3f}'.format(x, y)
 
@@ -872,8 +877,8 @@ class Dspec:
                 locator = AutoDateLocator(minticks=2)
                 ax.xaxis.set_major_locator(locator)
                 formatter = AutoDateFormatter(locator)
-                formatter.scaled[1/24] = '%D %H'
-                formatter.scaled[1/(24*60)] = '%H:%M'
+                formatter.scaled[1 / 24] = '%D %H'
+                formatter.scaled[1 / (24 * 60)] = '%H:%M'
                 ax.xaxis.set_major_formatter(formatter)
                 ax.set_autoscale_on(False)
 
@@ -907,7 +912,8 @@ class Dspec:
                     freq_plt = freq / 1e6
                 if freq_unit.lower() == 'khz':
                     freq_plt = freq / 1e3
-                im = ax1.pcolormesh(tim_plt, freq_plt, spec_plt_1, cmap=cmap, norm=norm, shading='auto', rasterized=True)
+                im = ax1.pcolormesh(tim_plt, freq_plt, spec_plt_1, cmap=cmap, norm=norm, shading='auto',
+                                    rasterized=True)
                 divider = make_axes_locatable(ax1)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax1, cax=cax_spec)
@@ -922,8 +928,9 @@ class Dspec:
                     if col >= 0 and col < ntim and row >= 0 and row < nfreq:
                         timstr = tim_[col].isot
                         flux = spec_plt_1[row, col]
-                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, flux = {5:.2f} sfu'.format(col, timstr, row, y, freq_unit,
-                                                                                                   flux)
+                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, flux = {5:.2f} sfu'.format(col, timstr, row,
+                                                                                                     y, freq_unit,
+                                                                                                     flux)
                     else:
                         return 'x = {0}, y = {1:.3f}'.format(x, y)
 
@@ -932,15 +939,16 @@ class Dspec:
 
                 locator = AutoDateLocator(minticks=2)
                 ax1.xaxis.set_major_locator(locator)
-                #ax1.xaxis.set_major_formatter(AutoDateFormatter(locator))
+                # ax1.xaxis.set_major_formatter(AutoDateFormatter(locator))
                 formatter = AutoDateFormatter(locator)
-                formatter.scaled[1/24] = '%D %H'
-                formatter.scaled[1/(24*60)] = '%H:%M'
+                formatter.scaled[1 / 24] = '%D %H'
+                formatter.scaled[1 / (24 * 60)] = '%H:%M'
                 ax1.xaxis.set_major_formatter(formatter)
                 ax1.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[0])
                 ax1.set_autoscale_on(False)
                 ax2 = fig.add_subplot(212)
-                im = ax2.pcolormesh(tim_plt, freq_plt, spec_plt_2, cmap=cmap, norm=norm, shading='auto', rasterized=True)
+                im = ax2.pcolormesh(tim_plt, freq_plt, spec_plt_2, cmap=cmap, norm=norm, shading='auto',
+                                    rasterized=True)
                 divider = make_axes_locatable(ax2)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax2, cax=cax_spec)
@@ -951,8 +959,8 @@ class Dspec:
                 locator = AutoDateLocator(minticks=2)
                 ax2.xaxis.set_major_locator(locator)
                 formatter = AutoDateFormatter(locator)
-                formatter.scaled[1/24] = '%D %H'
-                formatter.scaled[1/(24*60)] = '%H:%M'
+                formatter.scaled[1 / 24] = '%D %H'
+                formatter.scaled[1 / (24 * 60)] = '%H:%M'
                 ax2.xaxis.set_major_formatter(formatter)
 
                 def format_coord(x, y):
@@ -961,8 +969,9 @@ class Dspec:
                     if col >= 0 and col < ntim and row >= 0 and row < nfreq:
                         timstr = tim_[col].isot
                         flux = spec_plt_2[row, col]
-                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, flux = {5:.2f} sfu'.format(col, timstr, row, y, freq_unit,
-                                                                                                   flux)
+                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, flux = {5:.2f} sfu'.format(col, timstr, row,
+                                                                                                     y, freq_unit,
+                                                                                                     flux)
                     else:
                         return 'x = {0}, y = {1:.3f}'.format(x, y)
 
