@@ -9,7 +9,7 @@ such as ALMA and VLA, an international effort led by
 the [National Radio Astronomy Observatory (NRAO)](https://public.nrao.edu/). The current version of CASA uses Python 3.6
 to 3.8 on most of the platform. More information about the compatibility of CASA can be found
 on [CASA Compatibility](https://casadocs.readthedocs.io/en/latest/notebooks/introduction.html#Compatibility/).
-> **_NOTE:_** CASA is available ONLY on unix-based platforms, and therefore, so as for suncasa.
+> **_NOTE:_** CASA is available ONLY on unix-based platforms, and therefore, so as for suncasa. CASA software is compatible with multiple LINUX and Mac computer operating systems, as well as multiple versions of Python. Please refer to the [Compatibility Matrix (https://casadocs.readthedocs.io/en/latest/notebooks/introduction.html#Compatibility) for detailed information on the Operating Systems and Python versions expected to work with current and future versions of CASA.
 
 In principle, suncasa an casa can be installed easily using [pip](https://pypi.org/project/suncasa/), assuming the right
 python version is in use. However, YMMV if your do not have prerequisite environment configured.The followinig tutorial
