@@ -1031,7 +1031,7 @@ class FlareSelfCalib():
             max_pix, min_pix, rms = self.get_img_stat(imagename)
             if max_pix / rms > 10:
                 j += 1
-                flare_loc_available = True
+                self.flare_loc_available = True
                 pos = imstat(imagename + ".image")['maxposf']
                 temp = pos.split(',')
                 ra_str = temp[0].split(':')
@@ -1054,7 +1054,7 @@ class FlareSelfCalib():
             else:
                 os.system("rm -rf " + imagename + ".*")
 
-        if flare_loc_available == True:
+        if self.flare_loc_available == True:
             ra_final = np.median(np.array(ra))
             dec_final = np.median(np.array(dec))
             phasecenter = 'J2000 ' + str(ra_final) + "deg " + str(dec_final) + "deg"
