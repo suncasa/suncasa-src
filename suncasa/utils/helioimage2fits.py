@@ -1096,7 +1096,11 @@ def imreg(vis=None, imagefile=None, timerange=None,
 
             # intensity units to brightness temperature
             # which axis is frequency?
+            keys = list(header.keys())
+            values = list(header.values())
             faxis = keys[values.index('FREQ')][-1]
+            faxis_ind = ndim - int(faxis)
+            data = hdu[0].data  # remember the data order is reversed due to the FITS convension
             if toTb:
                 # get restoring beam info
                 bmaj = bmajs[n]
@@ -1157,10 +1161,11 @@ def imreg(vis=None, imagefile=None, timerange=None,
                             data[i, :, :, :] *= jy_to_si / beam_area / factor * factor2
             else:
                 ## added on 2023 Feb 15
-                if faxis == '3':
-                    data[:, i, :, :] *= sclfactor
-                if faxis == '4':
-                    data[i, :, :, :] *= sclfactor
+                for i in range(dshape[faxis_ind]):
+                    if faxis == '3':
+                        data[:, i, :, :] *= sclfactor
+                    if faxis == '4':
+                        data[i, :, :, :] *= sclfactor
             header = ndfits.headerfix(header)
             hdu.flush()
             hdu.close()
