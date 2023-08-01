@@ -236,7 +236,11 @@ def readsdofile(datadir=None, wavelength=None, trange=None, isexists=False, timt
 def get_map_corner_coord(sunpymap):
     bottom_left_coord = sunpymap.bottom_left_coord
     top_right_coord = sunpymap.top_right_coord
-    x0, y0 = bottom_left_coord.Tx, bottom_left_coord.Ty
-    x1, y1 = top_right_coord.Tx, top_right_coord.Ty
+    if hasattr(sunpymap.top_right_coord, 'Tx'):
+        x0, y0 = bottom_left_coord.Tx, bottom_left_coord.Ty
+        x1, y1 = top_right_coord.Tx, top_right_coord.Ty
+    else:
+        x0, y0 = bottom_left_coord.lon, bottom_left_coord.lat
+        x1, y1 = top_right_coord.lon, top_right_coord.lat
     unit = x0.unit
     return np.array([x0.value, x1.value, y0.value, y1.value]) * unit

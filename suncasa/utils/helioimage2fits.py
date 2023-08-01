@@ -1095,6 +1095,8 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 stokenum = 1
 
             # intensity units to brightness temperature
+            # which axis is frequency?
+            faxis = keys[values.index('FREQ')][-1]
             if toTb:
                 # get restoring beam info
                 bmaj = bmajs[n]
@@ -1105,8 +1107,6 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 data = hdu[0].data  # remember the data order is reversed due to the FITS convension
                 keys = list(header.keys())
                 values = list(header.values())
-                # which axis is frequency?
-                faxis = keys[values.index('FREQ')][-1]
                 faxis_ind = ndim - int(faxis)
                 # find out the polarization of this image
                 k_b = qa.constants('k')['value']
