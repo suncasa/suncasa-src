@@ -959,10 +959,10 @@ def imreg(vis=None, imagefile=None, timerange=None,
             # construct the standard fits header
             # RA and DEC of the reference pixel crpix1 and crpix2
             (imra, imdec) = (imsum['refval'][0], imsum['refval'][1])
-            
+
             if imra < 0:
                 imra += 2. * np.pi
-                
+
             ## When (t)clean is making an image, the default center of the image is coordinates of the associated FIELD
             ## If a new "phasecenter" is supplied in (t)clean, if
             #       CASE A (<2014-ish): No ephemeris table is attached. The visibility phase center
@@ -1095,8 +1095,7 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 stokenum = 1
 
             # intensity units to brightness temperature
-            # which axis is frequency?
-            faxis = keys[values.index('FREQ')][-1]
+            data = hdu[0].data  # remember the data order is reversed due to the FITS convension
             if toTb:
                 # get restoring beam info
                 bmaj = bmajs[n]
@@ -1104,9 +1103,10 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 beamunit = beamunits[n]
                 bpa = bpas[n]
                 bpaunit = bpaunits[n]
-                data = hdu[0].data  # remember the data order is reversed due to the FITS convension
                 keys = list(header.keys())
                 values = list(header.values())
+                # which axis is frequency?
+                faxis = keys[values.index('FREQ')][-1]
                 faxis_ind = ndim - int(faxis)
                 # find out the polarization of this image
                 k_b = qa.constants('k')['value']
@@ -1148,19 +1148,11 @@ def imreg(vis=None, imagefile=None, timerange=None,
                         factor = const * nu ** 2  # SI unit
                         jy_to_si = 1e-26
                         # print(nu/1e9, beam_area, factor)
-                        factor2 = sclfactor
-                        # if sclfactor:
-                        #     factor2 = 100.
                         if faxis == '3':
-                            data[:, i, :, :] *= jy_to_si / beam_area / factor * factor2
+                            data[:, i, :, :] *= jy_to_si / beam_area / factor
                         if faxis == '4':
-                            data[i, :, :, :] *= jy_to_si / beam_area / factor * factor2
-            else:
-                ## added on 2023 Feb 15
-                if faxis == '3':
-                    data[:, i, :, :] *= sclfactor
-                if faxis == '4':
-                    data[i, :, :, :] *= sclfactor
+                            data[i, :, :, :] *= jy_to_si / beam_area / factor
+            data *= sclfactor
             header = ndfits.headerfix(header)
             hdu.flush()
             hdu.close()
@@ -1184,7 +1176,7 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 header = hdu[0].header
                 data = hdu[0].data
                 ndfits.write(fitsf, data, header, compression_type='RICE_1',
-                                               quantize_level=4.0)
+                             quantize_level=4.0)
                 os.system("rm -rf {}".format(fitsftmp))
     if deletehistory:
         ms_restorehistory(vis)
