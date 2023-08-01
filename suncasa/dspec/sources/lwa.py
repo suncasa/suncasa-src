@@ -19,11 +19,11 @@ def read_data(filename, stokes='I', verbose=True, timerange=[], freqrange=[], ti
     freqs = data['Observation1']['Tuning1']['freq'][:]
     ts = data['Observation1']['time'][:]
     times_mjd = Time([datetime.datetime.fromtimestamp(t[0]+t[1]) for t in ts]).mjd
-    idx, = np.where(times_mjd > 50000.) # filter out those prior to 1995 (obviously wrong for OVRO-LWA)
+    idx0, = np.where(times_mjd > 50000.) # filter out those prior to 1995 (obviously wrong for OVRO-LWA)
     if verbose:
-        print('Data time range is from {0:s} to {1:s}'.format(Time(times_mjd[idx][0], format='mjd').isot, 
-            Time(times_mjd[idx][-1], format='mjd').isot))
-        print('Data has {0:d} time stamps and {1:d} frequency channels'.format(len(times_mjd[idx]), len(freqs)))
+        print('Data time range is from {0:s} to {1:s}'.format(Time(times_mjd[idx0][0], format='mjd').isot, 
+            Time(times_mjd[idx0][-1], format='mjd').isot))
+        print('Data has {0:d} time stamps and {1:d} frequency channels'.format(len(times_mjd[idx0]), len(freqs)))
 
     # Select time range
     if len(timerange) > 0:
@@ -92,13 +92,14 @@ def read_data(filename, stokes='I', verbose=True, timerange=[], freqrange=[], ti
     if stokes == 'U':
         spec = 2 * data['Observation1']['Tuning1']['XY_real'][ti0:ti1, fi0:fi1]
 
+    idx, = np.where(times_mjd > 50000.) # filter out those prior to 1995 (obviously wrong for OVRO-LWA)
     times_mjd = times_mjd[idx]
     spec = spec[idx]
 
     nt, nf = spec.shape
     nt_new, nf_new = (nt // timebin, nf // freqbin)
     # TODO: for now I have just ignored the rest of the data that falls outside of the whole factor of timebin * nt_new or freqbin * nf_new 
-    spec_new = rebin2d(spec[:nt_new*timebin, :nf_new*timebin], (nt_new, nf_new))
+    spec_new = rebin2d(spec[:nt_new*timebin, :nf_new*freqbin], (nt_new, nf_new))
     times_mjd_new = rebin1d(times_mjd[:nt_new * timebin], nt_new)
     freqs_new = rebin1d(freqs[:nf_new * freqbin], nf_new)
     if verbose:
