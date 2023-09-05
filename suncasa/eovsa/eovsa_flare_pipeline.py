@@ -88,6 +88,11 @@ class FlareSelfCalib():
         self.phasecenter = ''  ### phasecenter of the flare in RA and DEC
         self.flare_time_available = False  ### Flag on whether the flare time (peak and duration) is available
         self.flare_loc_available = False  ### Flag on whether the flare location is available
+        
+        # ============ Output files ============
+        self.outfits_list = []  ### Output fits files
+        self.outmovie = ''  ### Output fits files
+
 
     @property
     def vis(self):
@@ -1562,6 +1567,7 @@ class FlareSelfCalib():
         print("Starting the self-calibration process")
         logf = open(self.logfile, "a")
         self.logf = logf
+        self.outfits = []
 
         ## ====== perform flare detection, initialize the pipeline ============
         self.slfcal_init()
@@ -1726,7 +1732,7 @@ class FlareSelfCalib():
             movieformat = 'mp4'
             overwrite = False
             subregion = ''  # box[[128pix,128pix],[284pix,384pix]]'
-            qlookplot.qlookplot(vis=msname, timerange=time_str, spw=spws,
+            outfits, outfits_list, outmovie =qlookplot.qlookplot(vis=msname, timerange=time_str, spw=spws,
                                 ncpu=1, imsize=[self.final_imsize], cell=cell_size1, restoringbeam=[self.beam_1GHz],
                                 robust=0.5, opencontour=opencontour, clevels=clevels, plotaia=plotaia,
                                 aiawave=aiawave, mkmovie=mkmovie, twidth=int(self.final_image_int),
@@ -1735,5 +1741,80 @@ class FlareSelfCalib():
                                 niter=300, overwrite=overwrite, xycen=xycen, fov=[256, 256])
             final_clean_timer = timeit.default_timer()
             self.logf.write("Final clean done in seconds:" + str(final_clean_timer - imaging_timer))
+            self.outfits_list=outfits_list
+            self.outmovie=outmovie
 
         self.logf.close()
+
+    def rename_move_files(self, workdir_web_tp, dorename=False, domove=False, dormworkdir=False):
+        """
+        Rename EOVSA FITS files and move them to the web folder.
+        'EOVSA.lev1_mbd_10s.2021-05-07T190150Z.image.fits'
+        'EOVSA.lev1_mbd_10s.2021-05-07T190150Z.mp4'
+        Args:
+            workdir_web_tp (str): The base directory where files will be moved to.
+            dorename (bool, optional): Whether to rename the FITS files. Default is False.
+            domove (bool, optional): Whether to move the files to the web folder. Default is False.
+            dormworkdir (bool, optional): Whether to delete all files in workdir folder. Default is False.
+        Example:
+            rename_move_files('./tmp2/',dorename=False, domove=False, dormworkdir=False)
+        """
+        import os
+        import glob
+        from astropy.io import fits
+        import shutil
+
+        workdir=self.workpath
+        eofits_tot = self.outfits_list
+        eofits_dir = os.path.split(eofits_tot[0])[0]
+        eomovie = self.outmovie
+        eomovie_dir = os.path.split(eomovie)[0]
+
+        eofits = fits.open(eofits_tot[0])
+        eodate = (eofits[1].header['DATE-OBS']).split('T')[0]
+        year, month, day = eodate.split('-')
+
+        file_tot=[]
+
+        if dorename:
+            for f in eofits_tot:
+                eofits = fits.open(f)
+                eodate = (eofits[1].header['DATE-OBS']).split('T')[0]
+                eotime = ((eofits[1].header['DATE-OBS']).split('T')[1]).split('.')[0]
+                eotime = eotime.replace(':', '')
+                src = f
+                dst = os.path.join(eofits_dir, f'{eofits[1].header["TELESCOP"]}.lev1_mbd_{str(self.final_image_int)}s.{eodate}T{eotime}Z.image.fits')
+                try:
+                    os.rename(src, dst)
+                except FileNotFoundError:
+                    print(f"File not found: {src}")
+                file_tot.append(dst)
+            src = eomovie
+            dst = os.path.join(eomovie_dir, f'{eofits[1].header["TELESCOP"]}.lev1_mbd_{str(self.final_image_int)}s.{eodate}T{eotime}Z.mp4')
+            try:
+                os.rename(src, dst)
+            except FileNotFoundError:
+                print(f"File not found: {src}")
+            file_tot.append(dst)
+            print("Rename the .fits and .mp4 files")
+
+        if domove:
+            workdir_web = os.path.join(workdir_web_tp, year, month, day)
+            if not os.path.exists(workdir_web):
+                os.makedirs(workdir_web)
+            for i in file_tot:  
+                shutil.move(i, workdir_web)            
+            if len(file_tot) < 1:
+                print("ERRORs: no files to move")
+            else:
+                print("Move the .fits & .mp4 to: " + workdir_web)
+
+        if dormworkdir:
+            if len(file_tot) < 1:
+                print("ERRORs: no files have been moved")
+                return -1
+            else:
+                os.system("rm -rf " + workdir + "*")
+                print("Delete all files from: " + workdir)
+
+        return
