@@ -538,6 +538,7 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
                    uvrange='', subregion='', c_external=True, show_warnings=False):
     vis = [vis]
     subdir = ['/']
+    outfits_list=[]
 
     for idx, f in enumerate(vis):
         if f[-1] == '/':
@@ -797,13 +798,15 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
             imresnew['images'].append(os.path.join(imagedir, outname))
             outfits = os.path.join(qlookallbdfitsdir, outname)
             ndfits.wrap(fitsfiles, outfitsfile=outfits, docompress=True, imres=imres)
+            outfits_list.append(outfits)
         imresnewfile = os.path.join(qlookallbdfitsdir, os.path.basename(imresfile))
         np.savez(imresnewfile, imres=imresnew)
         os.system('rm -rf {}'.format(imagedir))
         os.system('mv {} {}'.format(qlookallbdfitsdir, imagedir))
-        return imresnew
+        outfits_list = [item.replace(qlookallbdfitsdir, imagedir) for item in outfits_list]
+        return imresnew, outfits_list
     else:
-        return imres
+        return imres, outfits_list
 
 
 def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None,
@@ -873,6 +876,7 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
 
     pols = stokes.split(',')
     npols = len(pols)
+    outmovie = ''
 
     if 'images' in imres.keys():
         wrapfits = True
@@ -1460,6 +1464,8 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
         DButil.img2html_movie(figdir_, outname=moviename)
     else:
         DButil.img2movie(figdir_, outname=moviename)
+    outmovie=figdir+moviename+'.'+movieformat
+    return outmovie
 
 
 def dspec_external(vis, workdir='./', specfile=None, ds_normalised=False):
@@ -1767,7 +1773,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
             qlookfigdir = os.path.join(workdir, 'qlookimgs/')
             imresfile = os.path.join(qlookfitsdir, '{}.imres.npz'.format(os.path.basename(vis)))
             if overwrite:
-                imres = mk_qlook_image(vis, timerange=timerange, spws=spw, twidth=twidth, ncpu=ncpu,
+                imres, outfits_list = mk_qlook_image(vis, timerange=timerange, spws=spw, twidth=twidth, ncpu=ncpu,
                                        imagedir=qlookfitsdir, phasecenter=phasecenter, stokes=stokes, mask=mask,
                                        uvrange=uvrange, robust=robust, niter=niter, gain=gain, imsize=imsize, cell=cell,
                                        pbcor=pbcor,
@@ -1784,7 +1790,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                     imres = imres['imres'].item()
                 else:
                     print('Image results file not found; Creating new images.')
-                    imres = mk_qlook_image(vis, timerange=timerange, spws=spw, twidth=twidth, ncpu=ncpu,
+                    imres, outfits_list = mk_qlook_image(vis, timerange=timerange, spws=spw, twidth=twidth, ncpu=ncpu,
                                            imagedir=qlookfitsdir, phasecenter=phasecenter, stokes=stokes, mask=mask,
                                            uvrange=uvrange, robust=robust, niter=niter, gain=gain, imsize=imsize,
                                            cell=cell, pbcor=pbcor,
@@ -1797,7 +1803,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                                            show_warnings=show_warnings)
             if not os.path.exists(qlookfigdir):
                 os.makedirs(qlookfigdir)
-            plt_qlook_image(imres, timerange=timerange, spwplt=spwplt, figdir=qlookfigdir, specdata=specdata,
+            outmovie=plt_qlook_image(imres, timerange=timerange, spwplt=spwplt, figdir=qlookfigdir, specdata=specdata,
                             verbose=verbose,
                             stokes=stokes, fov=xyrange,
                             amax=amax, amin=amin, acmap=acmap, anorm=anorm,
@@ -2454,4 +2460,4 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
             fig.show()
     if clearmshistory:
         ms_restorehistory(vis)
-    return outfits
+    return outfits, outfits_list, outmovie
