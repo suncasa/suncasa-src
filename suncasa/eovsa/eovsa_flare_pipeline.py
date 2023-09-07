@@ -51,6 +51,8 @@ class FlareSelfCalib():
         self.beam_1GHz = '89.7arcsec'  ### beam size at 1 GHz (and scales with 1/nu)
         self.cell_size = 2.  ### cell size of the final images
         self.final_imsize = 512  ### number of pixels for the final images
+        self.imaging_start_isot=None
+        self.imaging_end_isot=None
 
         # ============ declaring the working directories ============
         ### remember / is necessary in all the folder names
@@ -1697,22 +1699,32 @@ class FlareSelfCalib():
                     msname = self.vis
             xycen = self.get_img_center_heliocoords(image_list)
 
-            imaging_start_mjd = self.flare_peak_mjd - self.total_duration / 2
-            if imaging_start_mjd < self.ms_startmjd:
-                diff = imaging_start_mjd - self.ms_startmjd
-                imaging_start_time = (self.flare_peak_datetime - dt.timedelta(seconds=diff)).strftime(
-                    "%Y/%m/%d/%H:%M:%S")
+            if self.imaging_start_isot is None:
+                self.imaging_start_mjd = self.flare_peak_mjd - self.total_duration / 2
             else:
-                imaging_start_time = (
-                        self.flare_peak_datetime - dt.timedelta(seconds=self.total_duration / 2)).strftime(
-                    "%Y/%m/%d/%H:%M:%S")
-            imaging_end_mjd = self.flare_peak_mjd + self.total_duration / 2
-            if imaging_end_mjd > self.ms_endmjd:
-                diff = self.ms_endmjd - imaging_start_mjd
-                imaging_end_time = (self.flare_peak_datetime + dt.timedelta(seconds=diff)).strftime("%Y/%m/%d/%H:%M:%S")
+                self.imaging_start_mjd=Time(self.imaging_start_isot,format='isot').mjd*86400 # in mjd seconds
+                
+            if self.imaging_start_mjd < self.ms_startmjd:
+                self.logf.write("Start time given for imaging is before the start time of MS. Resetting to first time of MS.")
+                self.imaging_start_mjd=self.ms_startmjd
+            
+            if self.imaging_end_isot is None:
+                self.imaging_end_mjd = self.flare_peak_mjd - self.total_duration / 2 
             else:
-                imaging_end_time = (self.flare_peak_datetime + dt.timedelta(seconds=self.total_duration / 2)).strftime(
+                self.imaging_end_mjd=Time(self.imaging_end_isot,format='isot').mjd*86400 ### in mjd seconds
+            
+            if self.imaging_end_mjd > self.ms_endmjd:
+                self.logf.write("End time given for imaging is after the end time of MS. Resetting to last time of MS.")
+                self.imaging_end_mjd=self.ms_endmjd
+            
+            
+            imaging_start_time=Time(self.imaging_start_mjd/86400,format='mjd').datetime.strftime(
+                    "%Y/%m/%d/%H:%M:%S")   
+                    
+            imaging_end_time=Time(self.imaging_end_mjd/86400,format='mjd').datetime.strftime(
                     "%Y/%m/%d/%H:%M:%S")
+                    
+            
 
             time_str = imaging_start_time + "~" + imaging_end_time
 
