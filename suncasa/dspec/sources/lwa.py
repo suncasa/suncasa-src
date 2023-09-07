@@ -2,6 +2,8 @@ import h5py
 import numpy as np
 import datetime
 from astropy.time import Time
+import itertools
+from astropy import units as u
 
 def rebin1d(arr, new_len):
     shape = (new_len, len(arr) // new_len)
@@ -13,12 +15,23 @@ def rebin2d(arr, new_shape):
              new_shape[1], arr.shape[1] // new_shape[1])
     return arr.reshape(shape).mean(-1).mean(1)
 
+def timestamp_to_mjd(times):
+    # This is from Ivey Davis's BeamTools.py
+    t_flat = np.array(list(itertools.chain(*times)))
+    ts_inds = np.linspace(0, len(times)-1, len(times), dtype  = int)*2
+    other_inds = ts_inds + 1
+    ts = Time(t_flat[ts_inds],format = 'unix') + t_flat[other_inds]* u.s
+    ts = ts.mjd
+    return ts
+
 
 def read_data(filename, stokes='I', verbose=True, timerange=[], freqrange=[], timebin=10, freqbin=1):
     data = h5py.File(filename, 'r')
     freqs = data['Observation1']['Tuning1']['freq'][:]
     ts = data['Observation1']['time'][:]
-    times_mjd = Time([datetime.datetime.fromtimestamp(t[0]+t[1]) for t in ts]).mjd
+    # The following line works the same way as timestamp_to_mjd(), but a bit too slow
+    # times_mjd = np.array([(Time(t[0], format='unix') + TimeDelta(t[1], format='sec')).mjd for t in ts])
+    times_mjd = timestamp_to_mjd(ts)
     idx0, = np.where(times_mjd > 50000.) # filter out those prior to 1995 (obviously wrong for OVRO-LWA)
     if verbose:
         print('Data time range is from {0:s} to {1:s}'.format(Time(times_mjd[idx0][0], format='mjd').isot, 
