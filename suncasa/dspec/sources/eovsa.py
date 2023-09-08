@@ -105,4 +105,5 @@ def get_dspec(filename, doplot=False, vmax=None, vmin=None, norm=None, cmap=None
         ax.format_coord = format_coord
         fig.tight_layout()
         plt.show()
+    hdulist.close()
     return {'spectrogram': spec, 'spectrum_axis': fghz, 'time_axis': tmjd}
