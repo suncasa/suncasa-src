@@ -45,8 +45,8 @@ class FlareSelfCalib():
 
         ##===================== final imaging parameters ===========================
         self.total_duration = 480.  ### seconds to image; time will be centred on detected flare peak
-        self.final_image_cadence = 10  ### Cadence of the images after final self-calibration
-        self.final_image_int = 10  ### Integration time of final images
+        self.final_image_cadence = 12  ### Cadence of the images after final self-calibration
+        self.final_image_int = 12  ### Integration time of final images
         self.min_restoring_beam = 6.  ### minimum size of the restoring beam in arcsec
         self.beam_1GHz = '89.7arcsec'  ### beam size at 1 GHz (and scales with 1/nu)
         self.cell_size = 2.  ### cell size of the final images
@@ -1758,18 +1758,12 @@ class FlareSelfCalib():
 
         self.logf.close()
 
-    def rename_move_files(self, workdir_web_tp, dorename=False, domove=False, dormworkdir=False):
+    def rename_move_files(self, flare_id, fitsdir_web_tp, movdir_web_tp, dorename_fits=False, domove_fits=False, 
+        dorename_mov=False, domove_mov=False, dormworkdir=False):
         """
         Rename EOVSA FITS files and move them to the web folder.
-        'EOVSA.lev1_mbd_10s.2021-05-07T190150Z.image.fits'
-        'EOVSA.lev1_mbd_10s.2021-05-07T190150Z.mp4'
-        Args:
-            workdir_web_tp (str): The base directory where files will be moved to.
-            dorename (bool, optional): Whether to rename the FITS files. Default is False.
-            domove (bool, optional): Whether to move the files to the web folder. Default is False.
-            dormworkdir (bool, optional): Whether to delete all files in workdir folder. Default is False.
-        Example:
-            rename_move_files('./tmp2/',dorename=False, domove=False, dormworkdir=False)
+        'eovsa.lev1_mbd_12s.2022-11-12T180524Z.image.fits'
+        'eovsa.lev1_mbd_12s.flare_id_20221112180524.mp4'
         """
         import os
         import glob
@@ -1786,44 +1780,59 @@ class FlareSelfCalib():
         eodate = (eofits[1].header['DATE-OBS']).split('T')[0]
         year, month, day = eodate.split('-')
 
-        file_tot=[]
+        file_fits_tot=[]
+        file_mov_tot=[]
 
-        if dorename:
+        if dorename_fits:
             for f in eofits_tot:
                 eofits = fits.open(f)
                 eodate = (eofits[1].header['DATE-OBS']).split('T')[0]
                 eotime = ((eofits[1].header['DATE-OBS']).split('T')[1]).split('.')[0]
                 eotime = eotime.replace(':', '')
                 src = f
-                dst = os.path.join(eofits_dir, f'{eofits[1].header["TELESCOP"]}.lev1_mbd_{str(self.final_image_int)}s.{eodate}T{eotime}Z.image.fits')
+                dst = os.path.join(eofits_dir, f'{(eofits[1].header["TELESCOP"]).lower()}.lev1_mbd_{str(self.final_image_int)}s.{eodate}T{eotime}Z.image.fits')
                 try:
                     os.rename(src, dst)
                 except FileNotFoundError:
                     print(f"File not found: {src}")
-                file_tot.append(dst)
+                file_fits_tot.append(dst)
+            print("Rename the .fits files")
+
+        if dorename_mov:
             src = eomovie
-            dst = os.path.join(eomovie_dir, f'{eofits[1].header["TELESCOP"]}.lev1_mbd_{str(self.final_image_int)}s.{eodate}T{eotime}Z.mp4')
+            dst = os.path.join(eomovie_dir, f'{(eofits[1].header["TELESCOP"]).lower()}.lev1_mbd_{str(self.final_image_int)}s.flare_id_{flare_id}.mp4')
             try:
                 os.rename(src, dst)
             except FileNotFoundError:
                 print(f"File not found: {src}")
-            file_tot.append(dst)
-            print("Rename the .fits and .mp4 files")
+            file_mov_tot.append(dst)
+            print("Rename the .mp4 files")
 
-        if domove:
-            workdir_web = os.path.join(workdir_web_tp, year, month, day)
+        if domove_fits:
+            workdir_web = os.path.join(fitsdir_web_tp, year, month, day, flare_id)
             if not os.path.exists(workdir_web):
                 os.makedirs(workdir_web)
-            for i in file_tot:  
+            for i in file_fits_tot:  
                 shutil.move(i, workdir_web)            
-            if len(file_tot) < 1:
+            if len(file_fits_tot) < 1:
                 print("ERRORs: no files to move")
             else:
-                print("Move the .fits & .mp4 to: " + workdir_web)
+                print("Move .fits to: " + workdir_web)
+
+        if domove_mov:
+            workdir_web = os.path.join(movdir_web_tp, year, month, day)
+            if not os.path.exists(workdir_web):
+                os.makedirs(workdir_web)
+            for i in file_mov_tot:  
+                shutil.move(i, workdir_web)            
+            if len(file_mov_tot) < 1:
+                print("ERRORs: no files to move")
+            else:
+                print("Move .mp4 to: " + workdir_web)
 
         if dormworkdir:
-            if len(file_tot) < 1:
-                print("ERRORs: no files have been moved")
+            if len(file_fits_tot) < 1:
+                print("ERRORs: no fits files have been moved")
                 return -1
             else:
                 os.system("rm -rf " + workdir + "*")
