@@ -1709,7 +1709,7 @@ class FlareSelfCalib():
                 self.imaging_start_mjd=self.ms_startmjd
             
             if self.imaging_end is None:
-                self.imaging_end_mjd = self.flare_peak_mjd - self.total_duration / 2 
+                self.imaging_end_mjd = self.flare_peak_mjd + self.total_duration / 2 
             else:
                 self.imaging_end_mjd=Time(self.imaging_end).mjd*86400 ### in mjd seconds
             
