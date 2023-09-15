@@ -1702,21 +1702,24 @@ class FlareSelfCalib():
             if self.imaging_start is None:
                 self.imaging_start_mjd = self.flare_peak_mjd - self.total_duration / 2
             else:
-                self.imaging_start_mjd=Time(self.imaging_start).mjd*86400 # in mjd seconds
+                self.imaging_start_mjd = Time(self.imaging_start).mjd*86400 # in mjd seconds
                 
             if self.imaging_start_mjd < self.ms_startmjd:
                 self.logf.write("Start time given for imaging is before the start time of MS. Resetting to first time of MS.")
-                self.imaging_start_mjd=self.ms_startmjd
+                self.imaging_start_mjd = self.ms_startmjd
             
             if self.imaging_end is None:
-                self.imaging_end_mjd = self.flare_peak_mjd - self.total_duration / 2 
+                self.imaging_end_mjd = self.flare_peak_mjd + self.total_duration / 2 
             else:
-                self.imaging_end_mjd=Time(self.imaging_end).mjd*86400 ### in mjd seconds
+                self.imaging_end_mjd = Time(self.imaging_end).mjd*86400 ### in mjd seconds
             
+            if self.imaging_end_mjd < self.ms_startmjd:
+                self.logf.write("End time given for imaging is before the start time of MS. Resetting to last time of MS.")
+                self.imaging_end_mjd = self.ms_endmjd
+
             if self.imaging_end_mjd > self.ms_endmjd:
                 self.logf.write("End time given for imaging is after the end time of MS. Resetting to last time of MS.")
-                self.imaging_end_mjd=self.ms_endmjd
-            
+                self.imaging_end_mjd = self.ms_endmjd
             
             imaging_start_time=Time(self.imaging_start_mjd/86400,format='mjd').datetime.strftime(
                     "%Y/%m/%d/%H:%M:%S")   
@@ -1725,7 +1728,6 @@ class FlareSelfCalib():
                     "%Y/%m/%d/%H:%M:%S")
                     
             
-
             time_str = imaging_start_time + "~" + imaging_end_time
 
             specfile = msname[:-3] + "_dspec.npz"
