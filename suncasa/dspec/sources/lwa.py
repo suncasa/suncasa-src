@@ -26,7 +26,17 @@ def timestamp_to_mjd(times):
     return ts
 
 
-def read_data(filename, stokes='I', verbose=True, timerange=[], freqrange=[], timebin=1, freqbin=1):
+def read_data(filename, stokes='I', timerange=[], freqrange=[], timebin=1, freqbin=1, verbose=True):
+    '''
+    filename: name of the OVRO-LWA hdf5 beamforming file
+    stokes: currently supporting 'XX', 'YY', 'I', 'Q', 'U', 'V', 'IV' 
+    timerange: list of [start_time, end_time], start_time and end_time should be recognized by astropy.time.Time
+            e.g., ['2023-09-22T18:00', '2023-09-22T18:10']
+    freqrange: list of [start_frequency, end_frequency] in MHz. Example: [23, 82]
+    timebin: number to bin in time
+    freqbin: number to bin in frequency
+    verbose: if True, print extra information
+    '''
     data = h5py.File(filename, 'r')
     freqs = data['Observation1']['Tuning1']['freq'][:]
     ts = data['Observation1']['time'][:]
@@ -85,7 +95,7 @@ def read_data(filename, stokes='I', verbose=True, timerange=[], freqrange=[], ti
     freqs = freqs[fi0:fi1] 
 
     # select stokes
-    stokes_valid = ['XX', 'YY', 'RR', 'LL', 'I', 'Q', 'U', 'V', 'IV']
+    stokes_valid = ['XX', 'YY', 'I', 'Q', 'U', 'V', 'IV']
     if verbose:
         print('Reading dynamic spectrum for stokes {0:s}'.format(stokes))
 
