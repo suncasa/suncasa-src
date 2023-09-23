@@ -15,6 +15,7 @@ def rebin2d(arr, new_shape):
              new_shape[1], arr.shape[1] // new_shape[1])
     return arr.reshape(shape).mean(-1).mean(1)
 
+
 def timestamp_to_mjd(times):
     # This is from Ivey Davis's BeamTools.py
     t_flat = np.array(list(itertools.chain(*times)))
@@ -84,7 +85,7 @@ def read_data(filename, stokes='I', verbose=True, timerange=[], freqrange=[], ti
     freqs = freqs[fi0:fi1] 
 
     # select stokes
-    stokes_valid = ['XX', 'YY', 'RR', 'LL', 'I', 'Q', 'U', 'V']
+    stokes_valid = ['XX', 'YY', 'RR', 'LL', 'I', 'Q', 'U', 'V', 'IV']
     if verbose:
         print('Reading dynamic spectrum for stokes {0:s}'.format(stokes))
 
@@ -105,17 +106,37 @@ def read_data(filename, stokes='I', verbose=True, timerange=[], freqrange=[], ti
     if stokes == 'U':
         spec = 2 * data['Observation1']['Tuning1']['XY_real'][ti0:ti1, fi0:fi1]
 
+    # Multiple polarizations
+    if stokes.upper() == 'IV':
+        spec_I = data['Observation1']['Tuning1']['XX'][ti0:ti1, fi0:fi1] + \
+               data['Observation1']['Tuning1']['YY'][ti0:ti1, fi0:fi1]
+        spec_V = 2 * data['Observation1']['Tuning1']['XY_imag'][ti0:ti1, fi0:fi1]
+        spec = np.stack((spec_I, spec_V), axis=2)
+        stokes = ['I', 'V']
+
     idx, = np.where(times_mjd > 50000.) # filter out those prior to 1995 (obviously wrong for OVRO-LWA)
     times_mjd = times_mjd[idx]
     spec = spec[idx]
 
-    nt, nf = spec.shape
-    nt_new, nf_new = (nt // timebin, nf // freqbin)
-    # TODO: for now I have just ignored the rest of the data that falls outside of the whole factor of timebin * nt_new or freqbin * nf_new 
-    spec_new = rebin2d(spec[:nt_new*timebin, :nf_new*freqbin], (nt_new, nf_new))
+    if spec.ndim == 2:
+        # TODO: for now I have just ignored the rest of the data that falls outside of the whole factor of timebin * nt_new or freqbin * nf_new 
+        nt, nf = spec.shape
+        npol = 1
+        nt_new, nf_new = (nt // timebin, nf // freqbin)
+        spec_new = rebin2d(spec[:nt_new*timebin, :nf_new*freqbin], (nt_new, nf_new))
+    if spec.ndim == 3:
+        nt, nf, npol = spec.shape
+        spec_new_ = [] 
+        for i in range(npol):
+            nt_new, nf_new = (nt // timebin, nf // freqbin)
+            spec_ = spec[:, :, i]
+            spec_new_.append(rebin2d(spec_[:nt_new*timebin, :nf_new*freqbin], (nt_new, nf_new)))
+        spec_new = np.stack(spec_new_, axis=2)
+        
+    spec_new = np.transpose(spec_new).reshape((npol, 1, nf_new, nt_new)) / 1e4
     times_mjd_new = rebin1d(times_mjd[:nt_new * timebin], nt_new)
     freqs_new = rebin1d(freqs[:nf_new * freqbin], nf_new)
     if verbose:
         print('Selected time range is from {0:s} to {1:s}'.format(Time(times_mjd_new[0], format='mjd').isot, Time(times_mjd_new[-1], format='mjd').isot))
         print('Output data has {0:d} time stamps and {1:d} frequency channels'.format(len(times_mjd_new), len(freqs_new)))
-    return spec_new.T/1e4, times_mjd_new, freqs_new, stokes
+    return spec_new, times_mjd_new, freqs_new, stokes

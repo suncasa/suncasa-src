@@ -85,7 +85,8 @@ class Dspec:
     data = None
     time_axis = None
     freq_axis = None
-    instrument = None
+    telescope = None
+    observatory = None
     t_label = None
     f_label = None
     bl = None
@@ -109,7 +110,8 @@ class Dspec:
                 self.read(fname)
 
     def read(self, fname, source=None, *args, **kwargs):
-        ## todo The existing implementation of the mapping between extensions and instruments requires refinement and sophistication. Explore potential optimization strategies to improve this process.
+        ##TODO The existing implementation of the mapping between extensions and instruments requires refinement and sophistication. 
+        # Explore potential optimization strategies to improve this process.
 
         _known_extensions = {
             ('fts', 'fits'): 'fits',
@@ -129,6 +131,8 @@ class Dspec:
                 self.data = s['spectrogram']
                 self.time_axis = Time(s['time_axis'], format='mjd')
                 self.freq_axis = s['spectrum_axis'] * 1e9
+                self.telescope = 'EOVSA'
+                self.observatory = 'OVRO'
 
         if source.lower() == 'suncasa':
             spec, tim, freq, bl, pol = self.rd_dspec(fname, spectype='amp', specunit='jy')
@@ -137,6 +141,8 @@ class Dspec:
             self.freq_axis = freq
             self.bl = bl
             self.pol = pol
+            self.telescope = ''
+            self.observatory = ''
 
         if source.lower() == 'lwa':
             from .sources import lwa
@@ -145,6 +151,8 @@ class Dspec:
             self.time_axis = Time(tim, format='mjd')
             self.freq_axis = freq
             self.pol = pol
+            self.telescope = 'LWA'
+            self.observatory = 'OVRO'
 
     def tofits(self, fitsfile=None, specdata=None, spectype='amp', specunit='jy',
                telescope='EOVSA', observatory='Owens Valley Radio Observatory', observer='EOVSA Team'):
@@ -735,11 +743,18 @@ class Dspec:
         return ret
 
     def plot(self, pol='I', vmin=None, vmax=None, norm='log', cmap='viridis', timerange=None, freqrange=None,
-             ignore_gaps=True, freq_unit='GHz'):
+             ignore_gaps=True, freq_unit='GHz', cmap2='viridis', vmin2=None, vmax2=None):
         """
+        pol: polarization for plotting
         timerange: format: ['2021-05-07T18:00:00','2021-05-07T19:00:00']
         freqrange: format: [1.,18.] in freq_unit 
+        freq_unit: 'kHz', 'MHz', or 'GHz'
         norm: 'linear', 'log', or any normalization from matplotlib.colors
+        cmap: matplotlib's colormap name or instance
+        cmap2: Optional. This is used for plotting the second polarization. Ignored if pol only uses one polarization. 
+        vmin, vmax: When using scalar data and no explicit norm, vmin and vmax define the data range that the colormap covers. 
+            By default, the colormap covers the complete value range of the supplied data. 
+        vmin2, vmax2: Optional. This is used for plotting the second polarization. Ignored if pol only uses one polarization. 
         """
 
         # Set up variables
@@ -747,8 +762,8 @@ class Dspec:
         import matplotlib.pyplot as plt
         from astropy.time import Time
 
-        if pol not in ['RR', 'LL', 'RRLL', 'XX', 'YY', 'XY', 'YX', 'XXYY', 'I', 'V', 'IV']:
-            print("Please enter 'RR', 'LL', 'RRLL','XX', 'YY', 'XY', 'YX', 'XXYY', 'I', 'V', 'IV' for pol")
+        if pol not in ['RR', 'LL', 'RRLL', 'XX', 'YY', 'XY', 'YX', 'XXYY', 'I', 'V', 'IV', 'IP']:
+            print("Please enter 'RR', 'LL', 'RRLL','XX', 'YY', 'XY', 'YX', 'XXYY', 'I', 'V', 'IV', or 'IP' for pol")
             return 0
 
         try:
@@ -769,15 +784,17 @@ class Dspec:
         spec = self.data
         bl = self.bl
         freq = self.freq_axis
-        # pol = self.pol
 
         if spec.ndim == 2:
             nfreq, ntim = len(self.freq_axis), len(self.time_axis)
             npol = 1
             nbl = 1
-            pol = 'I'
+            polnames = self.pol 
         else:
             (npol, nbl, nfreq, ntim) = spec.shape
+            polnames = self.pol
+            if len(polnames) != npol:
+                print('The polarization dimension in the data {0:d} does not match the names {1:d}. Abort.'.format(npol, len(polnames)))
 
         tim_ = self.time_axis
         tim_plt = tim_.plot_date
@@ -810,7 +827,7 @@ class Dspec:
         print('ploting dynamic spectrum...')
 
         for b in range(nbl):
-            if pol not in ['RRLL', 'IV', 'XXYY']:
+            if pol not in ['RRLL', 'XXYY', 'IV', 'IP']:
                 if spec.ndim == 2:
                     spec_plt = spec
                 else:
@@ -823,15 +840,20 @@ class Dspec:
                     elif pol in ['YX']:
                         spec_plt = spec[3, b, :, :]
                     elif pol == 'I':
-                        if ('XX' in pol) or ('YY' in pol):
+                        if ('XX' in polnames) and ('YY' in polnames):
                             spec_plt = spec[0, b, :, :] + spec[1, b, :, :]
-                        else:
+                        elif ('RR' in polnames) and ('LL' in polnames):
                             spec_plt = (spec[0, b, :, :] + spec[1, b, :, :]) / 2.
+                        elif ('I' in polnames):
+                            spec_plt = spec[0, b, :, :]
                     elif pol == 'V':
-                        if ('XX' in pol) or ('YY' in pol):
+                        if ('XX' in polnames) and ('YY' in polnames):
+                            #TODO: This does not seem to be correct. @Sijie Yu, could you please check?
                             spec_plt = spec[0, b, :, :] - spec[1, b, :, :]
-                        else:
+                        elif ('RR' in polnames) and ('LL' in polnames):
                             spec_plt = (spec[0, b, :, :] - spec[1, b, :, :]) / 2.
+                        elif ('V' in polnames):
+                            spec_plt = spec[1, b, :, :]
                 if ignore_gaps:
                     for n, fb in enumerate(fbreak):
                         loc = fb + n + 1
@@ -846,6 +868,19 @@ class Dspec:
                     freq_plt = freq / 1e6
                 if freq_unit.lower() == 'khz':
                     freq_plt = freq / 1e3
+
+                # Change the default for Stokes V
+                if pol == 'V':
+                    cmap = 'gray'
+                    if (vmax is None) and (vmin is None):
+                        vmax = np.nanmax(np.abs(spec_plt))
+                        vmin = -vmax
+                    elif (vmax is None) and not (vmin is None):
+                        vmax = -vmin
+                    elif not (vmax is None) and (vmin is None):
+                        vmin = -vmax
+                    norm = colors.Normalize(vmax=vmax, vmin=vmin)
+
                 im = ax.pcolormesh(tim_plt, freq_plt, spec_plt, cmap=cmap, norm=norm, shading='auto', rasterized=True)
 
                 # make colorbar
@@ -871,9 +906,11 @@ class Dspec:
                 ax.format_coord = format_coord
                 ax.set_ylabel('Frequency ({0:s})'.format(freq_unit))
                 if bl:
-                    ax.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + pol)
+                    ax.set_title('{0:s}-{1:s} dynamic spectrum @ bl {2:s} for pol {3:s}'.
+                                  format(self.observatory, self.telescope, bl.split(';')[b], pol))
                 else:
-                    ax.set_title('Dynamic spectrum')
+                    ax.set_title('{0:s}-{1:s} dynamic spectrum for pol {2:s}'.
+                                  format(self.observatory, self.telescope, pol))
                 locator = AutoDateLocator(minticks=2)
                 ax.xaxis.set_major_locator(locator)
                 formatter = AutoDateFormatter(locator)
@@ -884,19 +921,45 @@ class Dspec:
 
             else:
                 fig = plt.figure(figsize=(8, 6), dpi=100)
-                R_plot = np.absolute(spec[0, b, :, :])
-                L_plot = np.absolute(spec[1, b, :, :])
-                I_plot = (R_plot + L_plot) / 2.
-                V_plot = (R_plot - L_plot) / 2.
+                if ('RR' in polnames) and ('LL' in polnames):
+                    R_plot = np.absolute(spec[0, b, :, :])
+                    L_plot = np.absolute(spec[1, b, :, :])
+                    I_plot = (R_plot + L_plot) / 2.
+                    V_plot = (R_plot - L_plot) / 2.
+                if ('I' in polnames) and ('V' in polnames):
+                    I_plot = spec[0, b, :, :]
+                    V_plot = spec[1, b, :, :]
+                    R_plot = I_plot + V_plot
+                    L_plot = I_plot - V_plot
                 if pol in ['RRLL', 'XXYY']:
                     spec_plt_1 = R_plot
                     spec_plt_2 = L_plot
                     polstr = [pol[:2], pol[2:]]
-                # elif pol in ['IV']:
-                else:
+                elif pol == 'IV':
                     spec_plt_1 = I_plot
                     spec_plt_2 = V_plot
+                    cmap2 = 'gray'
+                    if (vmax2 is None) and (vmin2 is None):
+                        vmax2 = np.nanmax(np.abs(spec_plt_2))
+                        vmin2 = -vmax2
+                    elif (vmax2 is None) and not (vmin2 is None):
+                        vmax2 = -vmin2
+                    elif not (vmax2 is None) and (vmin2 is None):
+                        vmin2 = -vmax2
                     polstr = ['I', 'V']
+                elif pol == 'IP':
+                    # this is for Stokes I + polarization degree
+                    spec_plt_1 = I_plot
+                    spec_plt_2 = V_plot / I_plot
+                    cmap2 = 'gray'
+                    if (vmax2 is None) and (vmin2 is None):
+                        vmax2 = 1.
+                        vmin2 = -1.
+                    elif (vmax2 is None) and not (vmin2 is None):
+                        vmax2 = -vmin2
+                    elif not (vmax2 is None) and (vmin2 is None):
+                        vmin2 = -vmax2
+                    polstr = ['I', 'P']
 
                 if ignore_gaps:
                     for n, fb in enumerate(fbreak):
@@ -944,10 +1007,24 @@ class Dspec:
                 formatter.scaled[1 / 24] = '%D %H'
                 formatter.scaled[1 / (24 * 60)] = '%H:%M'
                 ax1.xaxis.set_major_formatter(formatter)
-                ax1.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[0])
+                if bl:
+                    ax1.set_title('{0:s}-{1:s} dynamic spectrum @ bl {2:s} for pol {3:s}'.\
+                                  format(self.observatory, self.telescope, bl.split(';')[b], polstr[0]))
+                else:
+                    ax1.set_title('{0:s}-{1:s} dynamic spectrum for pol {2:s}'.\
+                                  format(self.observatory, self.telescope, polstr[0]))
+
                 ax1.set_autoscale_on(False)
-                ax2 = fig.add_subplot(212)
-                im = ax2.pcolormesh(tim_plt, freq_plt, spec_plt_2, cmap=cmap, norm=norm, shading='auto',
+
+                ax2 = fig.add_subplot(212, sharex=ax1, sharey=ax1)
+                if cmap2 is None:
+                    cmap2 = cmap
+                if vmin2 is None:
+                    vmin2 = vmin
+                if vmax2 is None:
+                    vmax2 = vmax
+                norm2 = colors.Normalize(vmax=vmax2, vmin=vmin2)
+                im = ax2.pcolormesh(tim_plt, freq_plt, spec_plt_2, cmap=cmap2, norm=norm2, shading='auto',
                                     rasterized=True)
                 divider = make_axes_locatable(ax2)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
@@ -977,7 +1054,13 @@ class Dspec:
 
                 ax2.format_coord = format_coord
                 ax2.set_ylabel('Frequency ({0:s})'.format(freq_unit))
-                ax2.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[1])
+                if bl:
+                    ax2.set_title('{0:s}-{1:s} dynamic spectrum @ bl {2:s} for pol {3:s}'.\
+                                  format(self.observatory, self.telescope, bl.split(';')[b], polstr[1]))
+                else:
+                    ax2.set_title('{0:s}-{1:s} dynamic spectrum for pol {2:s}'.\
+                                  format(self.observatory, self.telescope, polstr[1]))
+
                 ax2.set_autoscale_on(False)
 
             fig.tight_layout()
