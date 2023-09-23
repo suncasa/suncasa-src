@@ -26,7 +26,7 @@ def timestamp_to_mjd(times):
     return ts
 
 
-def read_data(filename, stokes='I', verbose=True, timerange=[], freqrange=[], timebin=10, freqbin=1):
+def read_data(filename, stokes='I', verbose=True, timerange=[], freqrange=[], timebin=1, freqbin=1):
     data = h5py.File(filename, 'r')
     freqs = data['Observation1']['Tuning1']['freq'][:]
     ts = data['Observation1']['time'][:]
