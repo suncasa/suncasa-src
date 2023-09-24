@@ -734,7 +734,7 @@ class Dspec:
         plt.show()
         return ret
 
-    def plot(self, pol='I', vmin=None, vmax=None, norm='log', cmap='turbo', timerange=None, freqrange=None,
+    def plot(self, pol='I', vmin=None, vmax=None, norm='log', cmap='viridis', timerange=None, freqrange=None,
              ignore_gaps=True, freq_unit='GHz'):
         """
         timerange: format: ['2021-05-07T18:00:00','2021-05-07T19:00:00']
