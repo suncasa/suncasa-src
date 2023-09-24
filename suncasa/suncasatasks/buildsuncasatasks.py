@@ -6,7 +6,7 @@
 import os
 from glob import glob
 
-xmlfiles = glob('ptclean6*.xml')
+xmlfiles = glob('importeovsa*.xml')
 
 for xmlfile in xmlfiles:
     # os.system("buildmytasks --upgrade {}".format(xmlfile)) ## this only need to be run once.
