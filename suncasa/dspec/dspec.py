@@ -114,16 +114,16 @@ class Dspec:
         ##TODO The existing implementation of the mapping between extensions and instruments requires refinement and sophistication. 
         # Explore potential optimization strategies to improve this process.
 
-        _known_extensions = {
-            ('fts', 'fits'): 'fits',
-            ('npz'): 'suncasa',
-            ('hdf5'): 'lwa'
-        }
-        for extension, readername in _known_extensions.items():
-            if fname.lower().endswith(extension):
-                source = readername
-        if source is None:
-            raise ValueError(f"The filetype provided ({os.path.basename(fname)}) is not supported")
+        if type(fname) is str: 
+            _known_extensions = {
+                ('fts', 'fits'): 'fits',
+                ('npz'): 'suncasa',
+            }
+            for extension, readername in _known_extensions.items():
+                if fname.lower().endswith(extension):
+                    source = readername
+            if source is None:
+                raise ValueError(f"The filetype provided ({os.path.basename(fname)}) is not supported")
 
         if source.lower() == 'fits':
             if fname.endswith('.fts') or fname.endswith('.fits'):
