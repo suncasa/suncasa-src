@@ -1755,7 +1755,7 @@ class FlareSelfCalib():
                     print('self-calibrated ms does not exist. Using original visibility for imaging.')
                     msname = self.vis
             if self.flare_location is None:
-            	image_list = glob.glob(imgprefix + "*_helio.fits")
+                image_list = glob.glob(imgprefix + "*_helio.fits")
                 xycen = self.get_img_center_heliocoords(image_list)
             else:
                 xycen=self.flare_location
