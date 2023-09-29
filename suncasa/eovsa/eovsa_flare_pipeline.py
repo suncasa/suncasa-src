@@ -12,6 +12,7 @@ from suncasa.utils import helioimage2fits as hf
 import timeit
 from sunpy.time import parse_time
 import matplotlib
+from casatasks import imhead,listobs
 
 import platform
 import matplotlib
@@ -31,6 +32,7 @@ class FlareSelfCalib():
         ##========================= initial setups =================================
         self.workpath = workpath
         self.vis = vis
+        self.num_spws=50
         if not logfile:
             logfile = workpath + "selfcal_{0:s}.log".format(Time.now().isot[:-4].replace(':', '').replace('-', ''))
         self.logfile = logfile
@@ -63,16 +65,16 @@ class FlareSelfCalib():
         self.caltbdir = self.slfcaldir + 'caltables/'  # place to put calibration tables
         self.maskdir = self.slfcaldir + 'masks/'  # place to put masks
         self.imagedir_slfcaled = self.slfcaldir + 'images_slfcal'  # place to put all selfcalibrated images
+        self.redo_selfcal=True
 
-        if os.path.exists(self.slfcaldir):
-            print("{0:s} already exists. Re-initialize it.".format(self.slfcaldir))
-            os.system('rm -rf {0:s}'.format(self.slfcaldir))
-
-        os.makedirs(self.slfcaldir)
-        os.makedirs(self.imagedir)
-        os.makedirs(self.caltbdir)
-        os.makedirs(self.maskdir)
-        os.makedirs(self.imagedir_slfcaled)
+        try:
+            os.makedirs(self.slfcaldir)
+            os.makedirs(self.imagedir)
+            os.makedirs(self.caltbdir)
+            os.makedirs(self.maskdir)
+            os.makedirs(self.imagedir_slfcaled)
+        except OSError:
+            pass
 
         # ============ selfcal parameters ===============
         self.refantenna = '0'  ### reference antenna
@@ -90,6 +92,8 @@ class FlareSelfCalib():
         self.phasecenter = ''  ### phasecenter of the flare in RA and DEC
         self.flare_time_available = False  ### Flag on whether the flare time (peak and duration) is available
         self.flare_loc_available = False  ### Flag on whether the flare location is available
+        self.flare_location=None ## flare location in solar coords [solar-X, solar-Y]arcsec
+        self.flare_peaktime=''  ### should be in '2021/05/07/19:10:00~2021/05/07/19:11:00' format
         
         # ============ Output files ============
         self.outfits_list = []  ### Output fits files
@@ -974,6 +978,29 @@ class FlareSelfCalib():
         self.flare_peak_datetime = Time(peak_time / 3600. / 24., format='mjd').datetime
         self.ms_startmjd = ms_startmjd
         self.ms_endmjd = ms_endmjd
+    
+    def produce_required_inputs_from_flare_time(self,num_spws):
+        self.flare_times=[self.flare_peaktime]*num_spws
+        self.found_flares=[True]*num_spws
+        temp=self.flare_peaktime.split('~')
+        self.flare_start_datetime=[dt.datetime(int(temp[0][0:4]),int(temp[0][5:7]), int(temp[0][8:10]),\
+                                    int(temp[0][11:13]), int(temp[0][14:16]), int(temp[0][17:19]))]*num_spws
+        self.flare_end_datetime=[dt.datetime(int(temp[1][0:4]),int(temp[1][5:7]), int(temp[1][8:10]),\
+                                    int(temp[1][11:13]), int(temp[1][14:16]), int(temp[1][17:19]))]*num_spws
+        
+        start_mjd=Time(self.flare_start_datetime[0]).mjd
+        end_mjd=Time(self.flare_end_datetime[0]).mjd
+        self.flare_peak_mjd=(end_mjd+start_mjd)/2.0*86400
+        self.flare_peak_datetime=Time(self.flare_peak_mjd/86400.0,format='mjd').datetime
+        
+        ms.open(self.vis)
+        ms.selectinit(datadescid=0)
+        data = ms.getdata(['axis_info'], ifraxis=True)
+        ms.close()
+        ms_startmjd = data['axis_info']['time_axis']['MJDseconds'][0]
+        ms_endmjd = data['axis_info']['time_axis']['MJDseconds'][-1]
+        self.ms_startmjd = ms_startmjd
+        self.ms_endmjd = ms_endmjd
 
     def find_previous_image(self, spw):
         imgprefix = self.imagedir + "selfcal"
@@ -1020,64 +1047,69 @@ class FlareSelfCalib():
         -------
         Updates self.phasecenter (in J2000 RA and DEC) to be the flare location
         """
-        imagename = self.workpath + "tmpimg"
-        ra = []
-        dec = []
-        ###TODO: spw range is hard coded to use up to the first 3 spws of the supplied spw list,
-        ### It could fail if they do not have a clear flare response. Need to be more adaptive.
-        for j, s in enumerate(self.slfcal_spws):
-            if j == 4:
-                break
-            current_trange = self.flare_times[j]
+        
+        if self.flare_location is None:
+            print ("Finding phasecenter from images")
+            imagename = self.workpath + "tmpimg"
+            ra = []
+            dec = []
+            ###TODO: spw range is hard coded to use up to the first 3 spws of the supplied spw list,
+            ### It could fail if they do not have a clear flare response. Need to be more adaptive.
+            for j, s in enumerate(self.slfcal_spws):
+                if j == 4:
+                    break
+                current_trange = self.flare_times[j]
 
-            tclean(vis=self.vis, imagename=imagename, timerange=current_trange, spw=str(s), uvrange=self.uvranges[j],
-                   imsize=4096, cell=self.cell_vals[j], niter=0, gain=0.05, cyclefactor=10,
-                   weighting='briggs', robust=0.0, savemodel='none', pbcor=False,
-                   pblimit=0.01, stokes='XX')
+                tclean(vis=self.vis, imagename=imagename, timerange=current_trange, spw=str(s), uvrange=self.uvranges[j],
+                       imsize=4096, cell=self.cell_vals[j], niter=0, gain=0.05, cyclefactor=10,
+                       weighting='briggs', robust=0.0, savemodel='none', pbcor=False,
+                       pblimit=0.01, stokes='XX')
 
-            max_pix, min_pix, rms = self.get_img_stat(imagename)
-            if max_pix / rms > 10:
-                j += 1
+                max_pix, min_pix, rms = self.get_img_stat(imagename)
+                if max_pix / rms > 10:
+                    j += 1
+                    self.flare_loc_available = True
+                    pos = imstat(imagename + ".image")['maxposf']
+                    temp = pos.split(',')
+                    ra_str = temp[0].split(':')
+                    dec_str = temp[1].split('.')
+                    ra.append((abs(int(ra_str[0])) + int(ra_str[1]) / 60.0 + float(ra_str[2]) / 3600.) * 15)
+                    sign = 1
+                    if '-' in ra_str[0]:
+                        sign = -1
+                    ra[-1] = ra[-1] * sign
+                    sign = 1
+                    if '-' in dec_str[0]:
+                        sign = -1
+                    try:
+                        dec.append(abs(int(dec_str[0])) + int(dec_str[1]) / 60.0 + float(
+                            dec_str[2] + '0.' + dec_str[3]) / 3600.)
+                    except IndexError:
+                        dec.append(abs(int(dec_str[0])) + int(dec_str[1]) / 60.0 + float(dec_str[2]) / 3600.)
+                    dec[-1] = dec[-1] * sign
+                    os.system("rm -rf " + imagename + ".*")
+                else:
+                    os.system("rm -rf " + imagename + ".*")
+
+            if self.flare_loc_available == True:
+                ra_final = np.median(np.array(ra))
+                dec_final = np.median(np.array(dec))
+                phasecenter = 'J2000 ' + str(ra_final) + "deg " + str(dec_final) + "deg"
+                self.phasecenter = phasecenter
                 self.flare_loc_available = True
-                pos = imstat(imagename + ".image")['maxposf']
-                temp = pos.split(',')
-                ra_str = temp[0].split(':')
-                dec_str = temp[1].split('.')
-                ra.append((abs(int(ra_str[0])) + int(ra_str[1]) / 60.0 + float(ra_str[2]) / 3600.) * 15)
-                sign = 1
-                if '-' in ra_str[0]:
-                    sign = -1
-                ra[-1] = ra[-1] * sign
-                sign = 1
-                if '-' in dec_str[0]:
-                    sign = -1
-                try:
-                    dec.append(abs(int(dec_str[0])) + int(dec_str[1]) / 60.0 + float(
-                        dec_str[2] + '0.' + dec_str[3]) / 3600.)
-                except IndexError:
-                    dec.append(abs(int(dec_str[0])) + int(dec_str[1]) / 60.0 + float(dec_str[2]) / 3600.)
-                dec[-1] = dec[-1] * sign
+                print(phasecenter)
+                # logf.write("Phasecenter:{}\n".format(phasecenter))
                 os.system("rm -rf " + imagename + ".*")
+            
             else:
-                os.system("rm -rf " + imagename + ".*")
-
-        if self.flare_loc_available == True:
-            ra_final = np.median(np.array(ra))
-            dec_final = np.median(np.array(dec))
-            phasecenter = 'J2000 ' + str(ra_final) + "deg " + str(dec_final) + "deg"
-            self.phasecenter = phasecenter
-            self.flare_loc_available = True
-            print(phasecenter)
-            # logf.write("Phasecenter:{}\n".format(phasecenter))
-            os.system("rm -rf " + imagename + ".*")
-        else:
-            # logf.write("Appropriate phase center could not be found." + \
-            #           "Please restart after providing an appropriate one.\n")
-            print("Appropriate phase center could not be found." +
-                  "Please restart after providing one manually by." +
-                  "setting FlareSelfCalib.phasecenter='J2000 00h00m00s +00d00m00s'. ")
-            self.phasecenter = ''
-            self.flare_loc_available = False
+                # logf.write("Appropriate phase center could not be found." + \
+                #           "Please restart after providing an appropriate one.\n")
+                print("Appropriate phase center could not be found." +
+                      "Please restart after providing one manually by." +
+                      "setting FlareSelfCalib.phasecenter='J2000 00h00m00s +00d00m00s'. ")
+                self.phasecenter = ''
+                self.flare_loc_available = False
+        
 
     def do_selfcal(self, slfcalms, sp, spwran, uvrange='', cell_val='2arcsec', imsize=2048, ref_image='',
                    make_shifted_mask=False, combine_spws=False):
@@ -1102,14 +1134,23 @@ class FlareSelfCalib():
                 tclean(vis=slfcalms, imagename=imagename, uvrange=uvrange, spw=spwran, imsize=imsize, \
                        cell=cell_val, niter=1, gain=0.05, cyclefactor=10, weighting='briggs', stokes='XX', \
                        robust=0.0, savemodel='none', pbcor=False, pblimit=0.001, phasecenter=self.phasecenter)
+                
+                max_psf_val=imstat(imagename + ".psf")['max'][0] ### this can be 0 in case all data are flagged
 
                 # print ("Check if image produced or not")
-                if os.path.isdir(imagename + ".image") == False:
+                if os.path.isdir(imagename + ".image") == False or max_psf_val<0.5:
                     # print ("image not produced")
                     self.logf.write("spw=" + str(sp).zfill(2) + " Image not produced\n")
                     os.system('rm -rf ' + self.caltbdir + '*_spw_' + sp.zfill(2) + '*')
                     os.system('rm -rf ' + self.imagedir + '*spw_' + sp.zfill(2) + '*')
                     return False, False
+                major=imhead(imagename+".psf")['restoringbeam']['major']['value']
+                if major<1e-4:
+                    self.logf.write("spw=" + str(sp).zfill(2) + " PSF is junk\n")
+                    os.system('rm -rf ' + self.caltbdir + '*_spw_' + sp.zfill(2) + '*')
+                    os.system('rm -rf ' + self.imagedir + '*spw_' + sp.zfill(2) + '*')
+                    return False, False                
+                
                 # print ("Getting image statistics")
                 self.logf.write("spw=" + str(sp).zfill(2) + " Getting image statistics\n")
                 max_pix, min_pix, rms = self.get_img_stat(imagename)
@@ -1495,6 +1536,14 @@ class FlareSelfCalib():
         return success
 
     def slfcal_init(self):
+        if os.path.exists(self.slfcaldir) and self.redo_selfcal:
+                print("{0:s} already exists. Re-initialize it.".format(self.slfcaldir))
+                os.system('rm -rf {0:s}'.format(self.slfcaldir))
+                os.makedirs(self.slfcaldir)
+                os.makedirs(self.imagedir)
+                os.makedirs(self.caltbdir)
+                os.makedirs(self.maskdir)
+                os.makedirs(self.imagedir_slfcaled)    
         ##=========== Obtain information from the input visibility =======
         nspw_ms = FlareSelfCalib.get_spw_num(self.vis)
         freqs_ms = FlareSelfCalib.get_ref_freqlist(self.vis)
@@ -1509,7 +1558,10 @@ class FlareSelfCalib():
             self.flare_finder()
             time1 = timeit.default_timer()
             self.logf.write("Finding flare time took {0:d} seconds:" + str(time1 - flare_finder_timer))
-
+        else:
+            self.produce_required_inputs_from_flare_time(nspw_ms)
+        
+            
         tmpms = self.workpath + 'temp_ms.ms'
         if os.path.exists(tmpms):
             os.system('rm -rf {0:s}'.format(tmpms))
@@ -1558,6 +1610,11 @@ class FlareSelfCalib():
             self.find_phasecenter()
             time1 = timeit.default_timer()
             self.logf.write("Finding flare location took {0:d} seconds:" + str(time1 - flare_loc_timer))
+        else: 
+            print ("Finding phasecenter from the given flare location")
+            self.phasecenter,midtim=hf.calc_phasecenter_from_solxy(self.vis, timerange=Time(self.flare_peak_datetime),\
+                            xycen=self.flare_location, usemsphacenter=False)
+        
 
 
     def flare_ms_calib(self,value):
@@ -1690,14 +1747,18 @@ class FlareSelfCalib():
             imaging_timer = timeit.default_timer()
             ##TODO: the following relies on the completion of the prior self-calibration produced images.
             ## Need to remove such dependence if these images are not available.
-            image_list = glob.glob(imgprefix + "*_helio.fits")
+            
             if hasattr(self, 'final_ms'):
                 if os.path.exists(self.final_ms):
                     msname = self.final_ms
                 else:
                     print('self-calibrated ms does not exist. Using original visibility for imaging.')
                     msname = self.vis
-            xycen = self.get_img_center_heliocoords(image_list)
+            if self.flare_location is None:
+            	image_list = glob.glob(imgprefix + "*_helio.fits")
+                xycen = self.get_img_center_heliocoords(image_list)
+            else:
+                xycen=self.flare_location
 
             if self.imaging_start is None:
                 self.imaging_start_mjd = self.flare_peak_mjd - self.total_duration / 2
