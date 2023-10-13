@@ -155,9 +155,9 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
                 metadata = ms.metadata()
                 if metadata.observatorynames()[0] == 'EVLA':
                     observatory = '-5'
-                elif observatory == 'EOVSA' or observatory == 'FASR' or observatory == 'OVRO_MMA':
+                elif metadata.observatorynames()[0] == 'EOVSA' or metadata.observatorynames()[0] == 'FASR' or metadata.observatorynames()[0] == 'OVRO_MMA':
                     observatory = '-81'
-                elif observatory == 'GMRT' or observatory == 'uGMRT':
+                elif metadata.observatorynames()[0] == 'GMRT' or metadata.observatorynames()[0] == 'uGMRT':
                     observatory = '399'
                 elif metadata.observatorynames()[0] == 'ALMA':
                     observatory = '-7'
