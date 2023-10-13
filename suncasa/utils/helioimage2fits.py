@@ -6,7 +6,7 @@ import bisect
 from astropy.time import Time
 import astropy.units as u
 import warnings
-from suncasa.utils import fitsutils as fu
+from suncasa.io import ndfits
 import ssl
 from scipy.interpolate import interp1d
 
@@ -137,6 +137,8 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
             observatory = '-81'
         elif observatory == 'ALMA' or observatory == '-7':
             observatory = '-7'
+        elif observatory == 'GMRT' or observatory == 'uGMRT' or observatory == '399':
+            observatory = '399'
         elif observatory == 'geocentric' or observatory == '500':
             observatory = '500'
         else:
@@ -155,6 +157,8 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
                     observatory = '-5'
                 elif observatory == 'EOVSA' or observatory == 'FASR' or observatory == 'OVRO_MMA':
                     observatory = '-81'
+                elif observatory == 'GMRT' or observatory == 'uGMRT':
+                    observatory = '399'
                 elif metadata.observatorynames()[0] == 'ALMA':
                     observatory = '-7'
                 else:
@@ -658,8 +662,10 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
             # Do not need to read the information from the measurement set
             if msinfo0['observatory'] == 'EVLA':
                 observatory_id = '-5'
-            elif msinfo0['observatory'] == 'EOVSA' or msinfo0['observatory'] == 'FASR':
+            elif msinfo0['observatory'] == 'EOVSA' or msinfo0['observatory'] == 'FASR' or msinfo0['observatory'] == 'OVRO_MMA':
                 observatory_id = '-81'
+            elif msinfo0['observatory'] == 'GMRT' or msinfo0['observatory'] == 'uGMRT':
+                observatory_id = '399'
             elif msinfo0['observatory'] == 'ALMA':
                 observatory_id = '-7'
             else:
@@ -1122,6 +1128,7 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 print('STOKES Information does not seem to exist! Assuming Stokes I')
                 stokenum = 1
 
+            data = hdu[0].data  # remember the data order is reversed due to the FITS convension
             # intensity units to brightness temperature
             if toTb:
                 # get restoring beam info
@@ -1130,7 +1137,6 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 beamunit = beamunits[n]
                 bpa = bpas[n]
                 bpaunit = bpaunits[n]
-                data = hdu[0].data  # remember the data order is reversed due to the FITS convension
                 keys = list(header.keys())
                 values = list(header.values())
                 # which axis is frequency?
@@ -1176,13 +1182,10 @@ def imreg(vis=None, imagefile=None, timerange=None,
                         factor = const * nu ** 2  # SI unit
                         jy_to_si = 1e-26
                         # print(nu/1e9, beam_area, factor)
-                        factor2 = sclfactor
-                        # if sclfactor:
-                        #     factor2 = 100.
                         if faxis == '3':
-                            data[:, i, :, :] *= jy_to_si / beam_area / factor * factor2
+                            data[:, i, :, :] *= jy_to_si / beam_area / factor
                         if faxis == '4':
-                            data[i, :, :, :] *= jy_to_si / beam_area / factor * factor2
+                            data[i, :, :, :] *= jy_to_si / beam_area / factor
 
             try:
                 header.append(('hel_reg', True))
@@ -1190,7 +1193,9 @@ def imreg(vis=None, imagefile=None, timerange=None,
             except:
                 header.set('hel_reg', True)
                 header.set('history', 'Converted by helioimage2fits.py')
-            header = fu.headerfix(header)
+
+            data *= sclfactor
+            header = ndfits.headerfix(header)
             hdu.flush()
             hdu.close()
 
@@ -1212,7 +1217,7 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 hdu[0].verify('fix')
                 header = hdu[0].header
                 data = hdu[0].data
-                fu.write_compressed_image_fits(fitsf, data, header, compression_type='RICE_1',
+                ndfits.write_compressed_image_fits(fitsf, data, header, compression_type='RICE_1',
                                                quantize_level=4.0)
                 os.system("rm -rf {}".format(fitsftmp))
     if deletehistory:
@@ -1238,8 +1243,10 @@ def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=Tr
         observatory = metadata.observatorynames()[0]
         if metadata.observatorynames()[0] == 'EVLA':
             observatory = '-5'
-        elif metadata.observatorynames()[0] == 'EOVSA' or metadata.observatorynames()[0] == 'FASR':
+        elif metadata.observatorynames()[0] == 'EOVSA' or metadata.observatorynames()[0] == 'FASR' or metadata.observatorynames()[0] == 'OVRO_MMA':
             observatory = '-81'
+        elif metadata.observatorynames()[0] == 'GMRT' or metadata.observatorynames()[0] == 'uGMRT':
+            observatory_id = '399'
         elif metadata.observatorynames()[0] == 'ALMA':
             observatory = '-7'
        
