@@ -1217,7 +1217,7 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 hdu[0].verify('fix')
                 header = hdu[0].header
                 data = hdu[0].data
-                ndfits.write_compressed_image_fits(fitsf, data, header, compression_type='RICE_1',
+                ndfits.write(fitsf, data, header, compression_type='RICE_1',
                                                quantize_level=4.0)
                 os.system("rm -rf {}".format(fitsftmp))
     if deletehistory:
