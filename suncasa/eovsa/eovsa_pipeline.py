@@ -683,7 +683,7 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
         # vis_corrected = calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
         #                                workdir=subdir, clearcache=False, pols=pols)
         try:
-            vis_corrected = calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
+            vis_corrected = calib_pipeline(t1, overwrite=overwrite, doimport=doimport,
                                            workdir=subdir, clearcache=False, pols=pols)
         except:
             print('error in processing {}'.format(datestr))
