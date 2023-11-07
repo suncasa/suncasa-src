@@ -133,7 +133,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
         # turn observatory names into JPL Horizons' codes
         if observatory == 'EVLA' or observatory == '-5' or observatory=='VLA':
             observatory = '-5'
-        elif observatory == 'EOVSA' or observatory == 'FASR' or observatory == '-81':
+        elif observatory == 'EOVSA' or observatory == 'FASR' or observatory == 'OVRO_MMA' or observatory == '-81':
             observatory = '-81'
         elif observatory == 'ALMA' or observatory == '-7':
             observatory = '-7'
@@ -155,12 +155,12 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False):
                 metadata = ms.metadata()
                 if metadata.observatorynames()[0] == 'EVLA':
                     observatory = '-5'
-                elif metadata.observatorynames()[0] == 'EOVSA' or metadata.observatorynames()[0] == 'FASR':
+                elif metadata.observatorynames()[0] == 'EOVSA' or metadata.observatorynames()[0] == 'FASR' or metadata.observatorynames()[0] == 'OVRO_MMA':
                     observatory = '-81'
+                elif metadata.observatorynames()[0] == 'GMRT' or metadata.observatorynames()[0] == 'uGMRT':
+                    observatory = '399'
                 elif metadata.observatorynames()[0] == 'ALMA':
                     observatory = '-7'
-                elif metadata.observatorynames()[0] == 'GMRT' or metadata.observatorynames()[0] == 'uGMRT':
-                    observatory = '-399'
                 else:
                     print('Observatory {} not recognized. Assume geocentric.'.format(metadata.observatorynames()[0]))
                     observatory = '500'
@@ -580,7 +580,6 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
                 if tbg_d < 1.:
                     tbg_d += int(btimes[0])
                 tref_d = (tbg_d + tend_d) / 2.
-            
             except:
                 print('Error in converting the input reftime: ' + str(reftime0) + '. Aborting...')
         else:
@@ -633,9 +632,11 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
             scanlen = 10.  # radom value
             dt = 0.
         if ind < 1:
-            print('Warning!!! The provided reference time falls BEFORE the first ephemeris record.')
-            print('           Trying if it is within the integration time of the first record.')
             if np.abs((tref_d - btimes[0]) * 24 * 3600) < inttime / 2.0:
+                if verbose:
+                    print('The provided reference time {0:s} falls BEFORE the first ephemeris record {1:s}.'\
+                            .format(Time(tref_d, format='mjd').isot, Time(btimes[0], format='mjd').isot))
+                    print('However it is within 1/2 of the integration time {0:.1f}s w.r.t. the first record. I am ignoring this.'.format(inttime))
                 ind = 1
                 ra_b = ra_rads[ind - 1]
                 ra_e = ra_b
@@ -661,16 +662,16 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
             # Do not need to read the information from the measurement set
             if msinfo0['observatory'] == 'EVLA':
                 observatory_id = '-5'
-            elif msinfo0['observatory'] == 'EOVSA' or msinfo0['observatory'] == 'FASR':
+            elif msinfo0['observatory'] == 'EOVSA' or msinfo0['observatory'] == 'FASR' or msinfo0['observatory'] == 'OVRO_MMA':
                 observatory_id = '-81'
-            elif msinfo0['observatory'] == 'ALMA':
-                observatory_id = '-7'
             elif msinfo0['observatory'] == 'GMRT' or msinfo0['observatory'] == 'uGMRT':
                 observatory_id = '399'
+            elif msinfo0['observatory'] == 'ALMA':
+                observatory_id = '-7'
             else:
                 print('Observatory {} not recognized. Assume geocentric.'.format(msinfo0['observatory']))
                 observatory_id = '500'
-                
+
             if not ephem:
                 ephem = read_horizons(Time(tref_d, format='mjd'), observatory=observatory_id)
 
@@ -884,7 +885,18 @@ def imreg(vis=None, imagefile=None, timerange=None,
     if isinstance(timerange, str):
         timerange = [timerange]
     if not fitsfile:
-        fitsfile = [img + '.fits' for img in imagefile]
+        fitsfile = []
+        for img in imagefile:
+            if os.path.isdir(img):
+                # input is CASA image
+                fitsfile.append(img + '.fits')
+            else:
+                # input is not CASA image. Assuming FITS 
+                if overwrite:
+                    fitsfile.append(img)
+                else:
+                    fitsfile.append(img.replace('.fits', '.helio.fits'))
+
     if isinstance(fitsfile, str):
         fitsfile = [fitsfile]
     nimg = len(imagefile)
@@ -939,13 +951,29 @@ def imreg(vis=None, imagefile=None, timerange=None,
             warnings.warn('{} does not existed!'.format(img))
         else:
             if os.path.exists(fitsf) and not overwrite:
-                raise ValueError('Specified fits file already exists and overwrite is set to False. Aborting...')
+                print('Specified fits file already exists and overwrite is set to False. I will do nothing...')
+                continue
             else:
+                # check if the input image is already helioimage2fits registered
+                if not os.path.isdir(img):
+                    hdu = pyfits.open(img)
+                    if 'hel_reg' in hdu[0].header:
+                        if hdu[0].header['hel_reg']:
+                            print('The input image has already been processed by helioimage2fits.py. I will do nothing..')
+                        else:
+                            print('The input image has already been processed by helioimage2fits.py, but somehow unsuccessful.')
+                            print('Please use the original image and redo it...')
+                        continue
+                    else:
+                        if verbose:
+                            print('Input image is probably a fits file. Will try to proceed.')
+                    hdu.close()
                 p0 = hel['p0']
-                tb.open(img + '/logtable', nomodify=False)
-                nobs = tb.nrows()
-                tb.removerows([i + 1 for i in range(nobs - 1)])
-                tb.close()
+                if os.path.exists(img + '/logtable'):
+                    tb.open(img + '/logtable', nomodify=False)
+                    nobs = tb.nrows()
+                    tb.removerows([i + 1 for i in range(nobs - 1)])
+                    tb.close()
                 ia.open(img)
                 imr = ia.rotate(pa=str(-p0) + 'deg')
                 if subregion != '':
@@ -959,9 +987,15 @@ def imreg(vis=None, imagefile=None, timerange=None,
             # construct the standard fits header
             # RA and DEC of the reference pixel crpix1 and crpix2
             (imra, imdec) = (imsum['refval'][0], imsum['refval'][1])
-
             if imra < 0:
                 imra += 2. * np.pi
+            if verbose:
+                print('image ra', imra)
+                print('visibility ra', hel['ra'])
+                print('field ra', hel['ra_fld'])
+                print('image dec', imdec)
+                print('visibility dec', hel['dec'])
+                print('field dec', hel['dec_fld'])
 
             ## When (t)clean is making an image, the default center of the image is coordinates of the associated FIELD
             ## If a new "phasecenter" is supplied in (t)clean, if
@@ -1094,8 +1128,8 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 print('STOKES Information does not seem to exist! Assuming Stokes I')
                 stokenum = 1
 
-            # intensity units to brightness temperature
             data = hdu[0].data  # remember the data order is reversed due to the FITS convension
+            # intensity units to brightness temperature
             if toTb:
                 # get restoring beam info
                 bmaj = bmajs[n]
@@ -1152,6 +1186,14 @@ def imreg(vis=None, imagefile=None, timerange=None,
                             data[:, i, :, :] *= jy_to_si / beam_area / factor
                         if faxis == '4':
                             data[i, :, :, :] *= jy_to_si / beam_area / factor
+
+            try:
+                header.append(('hel_reg', True))
+                header.append(('history', 'Converted by helioimage2fits.py'))
+            except:
+                header.set('hel_reg', True)
+                header.set('history', 'Converted by helioimage2fits.py')
+
             data *= sclfactor
             header = ndfits.headerfix(header)
             hdu.flush()
@@ -1176,7 +1218,7 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 header = hdu[0].header
                 data = hdu[0].data
                 ndfits.write(fitsf, data, header, compression_type='RICE_1',
-                             quantize_level=4.0)
+                                               quantize_level=4.0)
                 os.system("rm -rf {}".format(fitsftmp))
     if deletehistory:
         ms_restorehistory(vis)
@@ -1201,12 +1243,12 @@ def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=Tr
         observatory = metadata.observatorynames()[0]
         if metadata.observatorynames()[0] == 'EVLA':
             observatory = '-5'
-        elif metadata.observatorynames()[0] == 'EOVSA' or metadata.observatorynames()[0] == 'FASR':
+        elif metadata.observatorynames()[0] == 'EOVSA' or metadata.observatorynames()[0] == 'FASR' or metadata.observatorynames()[0] == 'OVRO_MMA':
             observatory = '-81'
+        elif metadata.observatorynames()[0] == 'GMRT' or metadata.observatorynames()[0] == 'uGMRT':
+            observatory_id = '399'
         elif metadata.observatorynames()[0] == 'ALMA':
             observatory = '-7'
-        elif metadata.observatorynames()[0] == 'GMRT' or metadata.observatorynames()[0] == 'uGMRT':
-                observatory_id = '399'
        
     try:
         mstrange = metadata.timerangeforobs(0)
