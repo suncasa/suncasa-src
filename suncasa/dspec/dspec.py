@@ -108,7 +108,7 @@ class Dspec:
                     else:
                         self.read(fname)
                 else:
-                    raise FileNotFoundError(f"The file {fname} does not exist.")
+                    raise FileNotFoundError(f"The file {fname} does not exist. Please check your file path.")
             else:
                 self.read(fname)
 
