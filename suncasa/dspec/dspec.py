@@ -95,6 +95,7 @@ class Dspec:
     def __init__(self, fname=None, specfile=None, bl='', uvrange='', field='', scan='',
                  datacolumn='data', domedian=False, timeran=None, spw=None, timebin='0s', regridfreq=False,
                  fillnan=None, verbose=False, usetbtool=True, ds_normalised=False):
+        ## todo need to add a warning if the file does not exists
         if fname:
             if isinstance(fname, str):
                 if os.path.exists(fname):
@@ -944,7 +945,10 @@ class Dspec:
                 formatter.scaled[1 / 24] = '%D %H'
                 formatter.scaled[1 / (24 * 60)] = '%H:%M'
                 ax1.xaxis.set_major_formatter(formatter)
-                ax1.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[0])
+                if bl:
+                    ax1.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[0])
+                else:
+                    ax1.set_title(f'Dynamic spectrum {polstr[0]}')
                 ax1.set_autoscale_on(False)
                 ax2 = fig.add_subplot(212)
                 im = ax2.pcolormesh(tim_plt, freq_plt, spec_plt_2, cmap=cmap, norm=norm, shading='auto',
@@ -977,7 +981,10 @@ class Dspec:
 
                 ax2.format_coord = format_coord
                 ax2.set_ylabel('Frequency ({0:s})'.format(freq_unit))
-                ax2.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[1])
+                if bl:
+                    ax2.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[1])
+                else:
+                    ax2.set_title(f'Dynamic spectrum {polstr[1]}')
                 ax2.set_autoscale_on(False)
 
             fig.tight_layout()

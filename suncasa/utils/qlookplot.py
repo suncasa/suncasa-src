@@ -1542,6 +1542,8 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
     Example:
     '''
 
+    outfits_list = None
+    outmovie = None
     from importlib import reload
     reload(mstools)
     if not show_warnings:
