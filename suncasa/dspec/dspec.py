@@ -85,17 +85,18 @@ class Dspec:
     data = None
     time_axis = None
     freq_axis = None
-    instrument = None
+    telescope = None
+    observatory = None
     t_label = None
     f_label = None
     bl = None
     uvrange = None
     pol = None
+    spec_unit = 'sfu'
 
     def __init__(self, fname=None, specfile=None, bl='', uvrange='', field='', scan='',
                  datacolumn='data', domedian=False, timeran=None, spw=None, timebin='0s', regridfreq=False,
                  fillnan=None, verbose=False, usetbtool=True, ds_normalised=False):
-        ## todo need to add a warning if the file does not exists
         if fname:
             if isinstance(fname, str):
                 if os.path.exists(fname):
@@ -106,22 +107,25 @@ class Dspec:
                                        usetbtool=usetbtool, ds_normalised=ds_normalised)
                     else:
                         self.read(fname)
+                else:
+                    raise FileNotFoundError(f"The file {fname} does not exist.")
             else:
                 self.read(fname)
 
     def read(self, fname, source=None, *args, **kwargs):
-        ## todo The existing implementation of the mapping between extensions and instruments requires refinement and sophistication. Explore potential optimization strategies to improve this process.
+        ##TODO The existing implementation of the mapping between extensions and instruments requires refinement and sophistication.
+        # Explore potential optimization strategies to improve this process.
 
-        _known_extensions = {
-            ('fts', 'fits'): 'fits',
-            ('npz'): 'suncasa',
-            ('hdf5'): 'lwa'
-        }
-        for extension, readername in _known_extensions.items():
-            if fname.lower().endswith(extension):
-                source = readername
-        if source is None:
-            raise ValueError(f"The filetype provided ({os.path.basename(fname)}) is not supported")
+        if type(fname) is str:
+            _known_extensions = {
+                ('fts', 'fits'): 'fits',
+                ('npz'): 'suncasa',
+            }
+            for extension, readername in _known_extensions.items():
+                if fname.lower().endswith(extension):
+                    source = readername
+            if source is None:
+                raise ValueError(f"The filetype provided ({os.path.basename(fname)}) is not supported")
 
         if source.lower() == 'fits':
             if fname.endswith('.fts') or fname.endswith('.fits'):
@@ -130,14 +134,20 @@ class Dspec:
                 self.data = s['spectrogram']
                 self.time_axis = Time(s['time_axis'], format='mjd')
                 self.freq_axis = s['spectrum_axis'] * 1e9
+                self.spec_unit = 'sfu'
+                self.telescope = 'EOVSA'
+                self.observatory = 'OVRO'
 
         if source.lower() == 'suncasa':
-            spec, tim, freq, bl, pol = self.rd_dspec(fname, spectype='amp', specunit='jy')
+            spec, tim, freq, bl, pol, spec_unit = self.rd_dspec(fname, spectype='amp', spec_unit='jy')
             self.data = spec
             self.time_axis = Time(tim / 24 / 3600, format='mjd')
             self.freq_axis = freq
             self.bl = bl
             self.pol = pol
+            self.spec_unit = spec_unit
+            self.telescope = ''
+            self.observatory = ''
 
         if source.lower() == 'lwa':
             from .sources import lwa
@@ -146,14 +156,17 @@ class Dspec:
             self.time_axis = Time(tim, format='mjd')
             self.freq_axis = freq
             self.pol = pol
+            self.spec_unit = 'sfu'
+            self.telescope = 'LWA'
+            self.observatory = 'OVRO'
 
-    def tofits(self, fitsfile=None, specdata=None, spectype='amp', specunit='jy',
+    def tofits(self, fitsfile=None, specdata=None, spectype='amp', spec_unit='jy',
                telescope='EOVSA', observatory='Owens Valley Radio Observatory', observer='EOVSA Team'):
         """
         @param fitsfile: Path/name of the output fits file
         @param specdata: [optional] input dictionary that is consistent with rd_dspec()
         @param spectype: [optional] Specify if the 3rd axis is amplitude or something else (phase)
-        @param specunit: [optional] Specify if the input data unit is Jansky ('jy'), solar flux unit ('sfu'), or
+        @param spec_unit: [optional] Specify if the input data unit is Jansky ('jy'), solar flux unit ('sfu'), or
                         brightness temperature ('k'). If 'jy', devide the amplitude by 1e4. If anything else,
                         stay unchanged.
         @param telescope: [optional] Specify telescope from which the data is obtained
@@ -170,7 +183,7 @@ class Dspec:
 
         if specdata:
             try:
-                spec, tim, freq, bl, pol = self.rd_dspec(specdata, spectype=spectype, specunit=specunit)
+                spec, tim, freq, bl, pol, spec_unit = self.rd_dspec(specdata, spectype=spectype, spec_unit=spec_unit)
                 tim = Time(tim / 24 / 3600, format='mjd')
             except:
                 print('Something is wrong with the input specdata.')
@@ -629,7 +642,7 @@ class Dspec:
             f.write(buf)
         f.close()
 
-    def rd_dspec(self, specdata, spectype='amp', specunit='jy'):
+    def rd_dspec(self, specdata, spectype='amp', spec_unit='jy'):
         spectype = spectype.lower()
         if type(specdata) is str:
             try:
@@ -639,25 +652,25 @@ class Dspec:
         try:
             if np.iscomplexobj(specdata['spec']):
                 if spectype == 'amp':
-                    if specunit.lower() == 'jy':
+                    if spec_unit.lower() == 'jy':
                         spec = np.abs(specdata['spec']) / 1.e4
-                    elif specunit.lower() == 'sfu' or specunit.lower() == 'k':
+                    elif spec_unit.lower() == 'sfu' or spec_unit.lower() == 'k':
                         spec = np.abs(specdata['spec'])
                     else:
-                        raise ValueError("Input specunit is {}. "
-                                         "If spectype = 'amp', specunit must be 'jy', 'sfu', or 'k'".format(specunit))
+                        raise ValueError("Input spec_unit is {}. "
+                                         "If spectype = 'amp', spec_unit must be 'jy', 'sfu', or 'k'".format(spec_unit))
                 elif spectype == 'phase':
                     spec = np.angle(specdata['spec'])
                 else:
                     raise ValueError('spectype must be amp or phase!')
             else:
-                if specunit.lower() == 'jy':
+                if spec_unit.lower() == 'jy':
                     spec = specdata['spec'] / 1.e4
-                elif specunit.lower() == 'sfu' or specunit.lower() == 'k':
+                elif spec_unit.lower() == 'sfu' or spec_unit.lower() == 'k':
                     spec = specdata['spec']
                 else:
-                    raise ValueError("Input specunit is {}. "
-                                     "If spectype = 'amp', specunit must be 'jy', 'sfu', or 'k'".format(specunit))
+                    raise ValueError("Input spec_unit is {}. "
+                                     "If spectype = 'amp', spec_unit must be 'jy', 'sfu', or 'k'".format(spec_unit))
             if 'bl' in specdata.keys():
                 try:
                     bl = specdata['bl'].item()
@@ -673,7 +686,7 @@ class Dspec:
             else:
                 pol = []
 
-            return spec, tim, freq, bl, pol
+            return spec, tim, freq, bl, pol, spec_unit
         except:
             raise ValueError('format of specdata not recognized. Check your input')
 
@@ -735,12 +748,20 @@ class Dspec:
         plt.show()
         return ret
 
-    def plot(self, pol='I', vmin=None, vmax=None, norm='log', cmap='viridis', timerange=None, freqrange=None,
-             ignore_gaps=True, freq_unit='GHz'):
+    def plot(self, pol='I', vmin=None, vmax=None, norm='log', cmap='viridis', cmap2='viridis', vmin2=None, vmax2=None,
+             timerange=None, freqrange=None, ignore_gaps=True, freq_unit='GHz', spec_unit=None):
         """
+        pol: polarization for plotting
         timerange: format: ['2021-05-07T18:00:00','2021-05-07T19:00:00']
         freqrange: format: [1.,18.] in freq_unit 
+        freq_unit: 'kHz', 'MHz', or 'GHz'
         norm: 'linear', 'log', or any normalization from matplotlib.colors
+        cmap: matplotlib's colormap name or instance
+        cmap2: Optional. This is used for plotting the second polarization. Ignored if pol only uses one polarization.
+        vmin, vmax: When using scalar data and no explicit norm, vmin and vmax define the data range that the colormap covers.
+            By default, the colormap covers the complete value range of the supplied data.
+        vmin2, vmax2: Optional. This is used for plotting the second polarization. Ignored if pol only uses one polarization.
+        spec_unit: Optional. Default to self.spec_unit. If different, try to convert (can only go from sfu to Jy or Jy to sfu).
         """
 
         # Set up variables
@@ -748,8 +769,8 @@ class Dspec:
         import matplotlib.pyplot as plt
         from astropy.time import Time
 
-        if pol not in ['RR', 'LL', 'RRLL', 'XX', 'YY', 'XY', 'YX', 'XXYY', 'I', 'V', 'IV']:
-            print("Please enter 'RR', 'LL', 'RRLL','XX', 'YY', 'XY', 'YX', 'XXYY', 'I', 'V', 'IV' for pol")
+        if pol not in ['RR', 'LL', 'RRLL', 'XX', 'YY', 'XY', 'YX', 'XXYY', 'I', 'V', 'IV', 'IP']:
+            print("Please enter 'RR', 'LL', 'RRLL','XX', 'YY', 'XY', 'YX', 'XXYY', 'I', 'V', 'IV', or 'IP' for pol")
             return 0
 
         try:
@@ -770,15 +791,35 @@ class Dspec:
         spec = self.data
         bl = self.bl
         freq = self.freq_axis
-        # pol = self.pol
+        if spec_unit is None:
+            spec_unit = self.spec_unit
+        elif spec_unit.lower() != self.spec_unit.lower():
+            if spec_unit.lower() == 'sfu' and self.spec_unit.lower() == 'jy':
+                spec = np.copy(self.data) / 1e4
+            elif spec_unit.lower() == 'jy' and self.spec_unit.lower() == 'sfu':
+                spec = np.copy(self.data) * 1e4
+            else:
+                print('Spectrum unit conversion from {0:s} to {1:s} not supported'.format(self.spec_unit, spec_unit))
+                print('Use the original one.')
+                spec_unit = self.spec_unit
+        # The following is only for the plots
+        if spec_unit.lower() == 'jy':
+            spec_unit_print = 'Jy'
+        if spec_unit.lower() == 'k':
+            spec_unit_print = 'K'
+        if spec_unit.lower() == 'sfu':
+            spec_unit_print = 's.f.u'
 
         if spec.ndim == 2:
             nfreq, ntim = len(self.freq_axis), len(self.time_axis)
             npol = 1
             nbl = 1
-            pol = 'I'
+            polnames = self.pol
         else:
             (npol, nbl, nfreq, ntim) = spec.shape
+            polnames = self.pol
+            if len(polnames) != npol:
+                print('The polarization dimension in the data {0:d} does not match the names {1:d}. Abort.'.format(npol, len(polnames)))
 
         tim_ = self.time_axis
         tim_plt = tim_.plot_date
@@ -811,7 +852,7 @@ class Dspec:
         print('ploting dynamic spectrum...')
 
         for b in range(nbl):
-            if pol not in ['RRLL', 'IV', 'XXYY']:
+            if pol not in ['RRLL', 'XXYY', 'IV', 'IP']:
                 if spec.ndim == 2:
                     spec_plt = spec
                 else:
@@ -824,15 +865,20 @@ class Dspec:
                     elif pol in ['YX']:
                         spec_plt = spec[3, b, :, :]
                     elif pol == 'I':
-                        if ('XX' in pol) or ('YY' in pol):
+                        if ('XX' in polnames) and ('YY' in polnames):
                             spec_plt = spec[0, b, :, :] + spec[1, b, :, :]
-                        else:
+                        elif ('RR' in polnames) and ('LL' in polnames):
                             spec_plt = (spec[0, b, :, :] + spec[1, b, :, :]) / 2.
+                        elif ('I' in polnames):
+                            spec_plt = spec[0, b, :, :]
                     elif pol == 'V':
-                        if ('XX' in pol) or ('YY' in pol):
+                        if ('XX' in polnames) and ('YY' in polnames):
+                            #TODO: This does not seem to be correct. @Sijie Yu, could you please check?
                             spec_plt = spec[0, b, :, :] - spec[1, b, :, :]
-                        else:
+                        elif ('RR' in polnames) and ('LL' in polnames):
                             spec_plt = (spec[0, b, :, :] - spec[1, b, :, :]) / 2.
+                        elif ('V' in polnames):
+                            spec_plt = spec[1, b, :, :]
                 if ignore_gaps:
                     for n, fb in enumerate(fbreak):
                         loc = fb + n + 1
@@ -847,13 +893,26 @@ class Dspec:
                     freq_plt = freq / 1e6
                 if freq_unit.lower() == 'khz':
                     freq_plt = freq / 1e3
+
+                # Change the default for Stokes V
+                if pol == 'V':
+                    cmap = 'gray'
+                    if (vmax is None) and (vmin is None):
+                        vmax = np.nanmax(np.abs(spec_plt))
+                        vmin = -vmax
+                    elif (vmax is None) and not (vmin is None):
+                        vmax = -vmin
+                    elif not (vmax is None) and (vmin is None):
+                        vmin = -vmax
+                    norm = colors.Normalize(vmax=vmax, vmin=vmin)
+
                 im = ax.pcolormesh(tim_plt, freq_plt, spec_plt, cmap=cmap, norm=norm, shading='auto', rasterized=True)
 
                 # make colorbar
                 divider = make_axes_locatable(ax)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax, cax=cax_spec)
-                clb_spec.set_label('Flux [sfu]')
+                clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
                 ax.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
                 ax.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
 
@@ -863,18 +922,20 @@ class Dspec:
                     if col >= 0 and col < ntim and row >= 0 and row < nfreq:
                         timstr = tim_[col].isot
                         flux = spec_plt[row, col]
-                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, flux = {5:.2f} sfu'.format(col, timstr, row,
+                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, flux = {5:.2f} {6:s}'.format(col, timstr, row,
                                                                                                      y, freq_unit,
-                                                                                                     flux)
+                                                                                                     flux, spec_unit_print)
                     else:
                         return 'x = {0}, y = {1:.3f}'.format(x, y)
 
                 ax.format_coord = format_coord
                 ax.set_ylabel('Frequency ({0:s})'.format(freq_unit))
                 if bl:
-                    ax.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + pol)
+                    ax.set_title('{0:s}-{1:s} dynamic spectrum @ bl {2:s} for pol {3:s}'.
+                                  format(self.observatory, self.telescope, bl.split(';')[b], pol))
                 else:
-                    ax.set_title('Dynamic spectrum')
+                    ax.set_title('{0:s}-{1:s} dynamic spectrum for pol {2:s}'.
+                                  format(self.observatory, self.telescope, pol))
                 locator = AutoDateLocator(minticks=2)
                 ax.xaxis.set_major_locator(locator)
                 formatter = AutoDateFormatter(locator)
@@ -885,19 +946,45 @@ class Dspec:
 
             else:
                 fig = plt.figure(figsize=(8, 6), dpi=100)
-                R_plot = np.absolute(spec[0, b, :, :])
-                L_plot = np.absolute(spec[1, b, :, :])
-                I_plot = (R_plot + L_plot) / 2.
-                V_plot = (R_plot - L_plot) / 2.
+                if ('RR' in polnames) and ('LL' in polnames):
+                    R_plot = np.absolute(spec[0, b, :, :])
+                    L_plot = np.absolute(spec[1, b, :, :])
+                    I_plot = (R_plot + L_plot) / 2.
+                    V_plot = (R_plot - L_plot) / 2.
+                if ('I' in polnames) and ('V' in polnames):
+                    I_plot = spec[0, b, :, :]
+                    V_plot = spec[1, b, :, :]
+                    R_plot = I_plot + V_plot
+                    L_plot = I_plot - V_plot
                 if pol in ['RRLL', 'XXYY']:
                     spec_plt_1 = R_plot
                     spec_plt_2 = L_plot
                     polstr = [pol[:2], pol[2:]]
-                # elif pol in ['IV']:
-                else:
+                elif pol == 'IV':
                     spec_plt_1 = I_plot
                     spec_plt_2 = V_plot
+                    cmap2 = 'gray'
+                    if (vmax2 is None) and (vmin2 is None):
+                        vmax2 = np.nanmax(np.abs(spec_plt_2))
+                        vmin2 = -vmax2
+                    elif (vmax2 is None) and not (vmin2 is None):
+                        vmax2 = -vmin2
+                    elif not (vmax2 is None) and (vmin2 is None):
+                        vmin2 = -vmax2
                     polstr = ['I', 'V']
+                elif pol == 'IP':
+                    # this is for Stokes I + polarization degree
+                    spec_plt_1 = I_plot
+                    spec_plt_2 = V_plot / I_plot
+                    cmap2 = 'gray'
+                    if (vmax2 is None) and (vmin2 is None):
+                        vmax2 = 1.
+                        vmin2 = -1.
+                    elif (vmax2 is None) and not (vmin2 is None):
+                        vmax2 = -vmin2
+                    elif not (vmax2 is None) and (vmin2 is None):
+                        vmin2 = -vmax2
+                    polstr = ['I', 'P']
 
                 if ignore_gaps:
                     for n, fb in enumerate(fbreak):
@@ -918,7 +1005,7 @@ class Dspec:
                 divider = make_axes_locatable(ax1)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax1, cax=cax_spec)
-                clb_spec.set_label('Flux [sfu]')
+                clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
 
                 ax1.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
                 ax1.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
@@ -929,9 +1016,9 @@ class Dspec:
                     if col >= 0 and col < ntim and row >= 0 and row < nfreq:
                         timstr = tim_[col].isot
                         flux = spec_plt_1[row, col]
-                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, flux = {5:.2f} sfu'.format(col, timstr, row,
+                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, value = {5:.2f} {6:s}'.format(col, timstr, row,
                                                                                                      y, freq_unit,
-                                                                                                     flux)
+                                                                                                     flux, spec_unit_print)
                     else:
                         return 'x = {0}, y = {1:.3f}'.format(x, y)
 
@@ -946,17 +1033,28 @@ class Dspec:
                 formatter.scaled[1 / (24 * 60)] = '%H:%M'
                 ax1.xaxis.set_major_formatter(formatter)
                 if bl:
-                    ax1.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[0])
+                    ax1.set_title('{0:s}-{1:s} dynamic spectrum @ bl {2:s} for pol {3:s}'.\
+                                  format(self.observatory, self.telescope, bl.split(';')[b], polstr[0]))
                 else:
-                    ax1.set_title(f'Dynamic spectrum {polstr[0]}')
+                    ax1.set_title('{0:s}-{1:s} dynamic spectrum for pol {2:s}'.\
+                                  format(self.observatory, self.telescope, polstr[0]))
+
                 ax1.set_autoscale_on(False)
-                ax2 = fig.add_subplot(212)
-                im = ax2.pcolormesh(tim_plt, freq_plt, spec_plt_2, cmap=cmap, norm=norm, shading='auto',
+
+                ax2 = fig.add_subplot(212, sharex=ax1, sharey=ax1)
+                if cmap2 is None:
+                    cmap2 = cmap
+                if vmin2 is None:
+                    vmin2 = vmin
+                if vmax2 is None:
+                    vmax2 = vmax
+                norm2 = colors.Normalize(vmax=vmax2, vmin=vmin2)
+                im = ax2.pcolormesh(tim_plt, freq_plt, spec_plt_2, cmap=cmap2, norm=norm2, shading='auto',
                                     rasterized=True)
                 divider = make_axes_locatable(ax2)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax2, cax=cax_spec)
-                clb_spec.set_label('Flux [sfu]')
+                clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
                 ax2.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
                 ax2.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
 
@@ -973,18 +1071,21 @@ class Dspec:
                     if col >= 0 and col < ntim and row >= 0 and row < nfreq:
                         timstr = tim_[col].isot
                         flux = spec_plt_2[row, col]
-                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, flux = {5:.2f} sfu'.format(col, timstr, row,
+                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, value = {5:.2f} {6:s}'.format(col, timstr, row,
                                                                                                      y, freq_unit,
-                                                                                                     flux)
+                                                                                                     flux, spec_unit_print)
                     else:
                         return 'x = {0}, y = {1:.3f}'.format(x, y)
 
                 ax2.format_coord = format_coord
                 ax2.set_ylabel('Frequency ({0:s})'.format(freq_unit))
                 if bl:
-                    ax2.set_title('Dynamic spectrum @ bl ' + bl.split(';')[b] + ', pol ' + polstr[1])
+                    ax2.set_title('{0:s}-{1:s} dynamic spectrum @ bl {2:s} for pol {3:s}'.\
+                                  format(self.observatory, self.telescope, bl.split(';')[b], polstr[1]))
                 else:
-                    ax2.set_title(f'Dynamic spectrum {polstr[1]}')
+                    ax2.set_title('{0:s}-{1:s} dynamic spectrum for pol {2:s}'.\
+                                  format(self.observatory, self.telescope, polstr[1]))
+
                 ax2.set_autoscale_on(False)
 
             fig.tight_layout()
