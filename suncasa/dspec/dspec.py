@@ -107,14 +107,16 @@ class Dspec:
                                        usetbtool=usetbtool, ds_normalised=ds_normalised)
                     else:
                         self.read(fname)
+                else:
+                    raise FileNotFoundError(f"The file {fname} does not exist. Please check your file path.")
             else:
                 self.read(fname)
 
     def read(self, fname, source=None, *args, **kwargs):
-        ##TODO The existing implementation of the mapping between extensions and instruments requires refinement and sophistication. 
+        ##TODO The existing implementation of the mapping between extensions and instruments requires refinement and sophistication.
         # Explore potential optimization strategies to improve this process.
 
-        if type(fname) is str: 
+        if type(fname) is str:
             _known_extensions = {
                 ('fts', 'fits'): 'fits',
                 ('npz'): 'suncasa',
@@ -143,7 +145,7 @@ class Dspec:
             self.freq_axis = freq
             self.bl = bl
             self.pol = pol
-            self.spec_unit = spec_unit 
+            self.spec_unit = spec_unit
             self.telescope = ''
             self.observatory = ''
 
@@ -746,7 +748,7 @@ class Dspec:
         plt.show()
         return ret
 
-    def plot(self, pol='I', vmin=None, vmax=None, norm='log', cmap='viridis', cmap2='viridis', vmin2=None, vmax2=None, 
+    def plot(self, pol='I', vmin=None, vmax=None, norm='log', cmap='viridis', cmap2='viridis', vmin2=None, vmax2=None,
              timerange=None, freqrange=None, ignore_gaps=True, freq_unit='GHz', spec_unit=None):
         """
         pol: polarization for plotting
@@ -755,10 +757,10 @@ class Dspec:
         freq_unit: 'kHz', 'MHz', or 'GHz'
         norm: 'linear', 'log', or any normalization from matplotlib.colors
         cmap: matplotlib's colormap name or instance
-        cmap2: Optional. This is used for plotting the second polarization. Ignored if pol only uses one polarization. 
-        vmin, vmax: When using scalar data and no explicit norm, vmin and vmax define the data range that the colormap covers. 
-            By default, the colormap covers the complete value range of the supplied data. 
-        vmin2, vmax2: Optional. This is used for plotting the second polarization. Ignored if pol only uses one polarization. 
+        cmap2: Optional. This is used for plotting the second polarization. Ignored if pol only uses one polarization.
+        vmin, vmax: When using scalar data and no explicit norm, vmin and vmax define the data range that the colormap covers.
+            By default, the colormap covers the complete value range of the supplied data.
+        vmin2, vmax2: Optional. This is used for plotting the second polarization. Ignored if pol only uses one polarization.
         spec_unit: Optional. Default to self.spec_unit. If different, try to convert (can only go from sfu to Jy or Jy to sfu).
         """
 
@@ -812,7 +814,7 @@ class Dspec:
             nfreq, ntim = len(self.freq_axis), len(self.time_axis)
             npol = 1
             nbl = 1
-            polnames = self.pol 
+            polnames = self.pol
         else:
             (npol, nbl, nfreq, ntim) = spec.shape
             polnames = self.pol
