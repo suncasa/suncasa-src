@@ -248,6 +248,12 @@ def read(filepath, hdus=None, verbose=False, **kwargs):
                       'Ignore the original version with equal spacings.')
             meta['ref_cfreqs'] = np.array(hdulist[-1].data['cfreqs'])
             meta['ref_freqdelts'] = np.array(hdulist[-1].data['cdelts'])
+
+        if hasattr(hdulist[-1].data, 'cbmaj'):
+            meta['cbmaj'] = np.array(hdulist[-1].data['cbmaj'])
+            meta['cbmin'] = np.array(hdulist[-1].data['cbmin'])
+            meta['cbpa'] = np.array(hdulist[-1].data['cbpa'])
+
         else:
             if verbose:
                 print('FITS file does not have an additional frequency axis. '
