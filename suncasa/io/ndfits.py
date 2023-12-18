@@ -348,8 +348,7 @@ def write_j2000_image(fname, data, header):
 
 
 def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=True, filled_value=0.0, observatory=None,
-         imres=None, verbose=False,
-         **kwargs):
+        imres=None, verbose=False, **kwargs):
     '''
     wrap single frequency fits files into a multiple frequencies fits file
     '''
@@ -459,17 +458,30 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
             data = np.zeros((npol, nbd, ny, nx))
             cdelts = []
             cfreqs = []
+            cbmaj = []
+            cbmin = []
+            cbpa = []
             for sidx, fitsf in enumerate(fits_exist):
                 hdu = fits.open(fitsf)
+                
                 cdelts.append(hdu[-1].header['CDELT3'])
-                cfreqs.append(hdu[-1].header['CRVAL3'])
+                cfreqs.append(hdu[-1].header['CRVAL3'])    
+                cbmaj.append(hdu[-1].header['BMAJ'])
+                cbmin.append(hdu[-1].header['BMIN'])
+                cbpa.append(hdu[-1].header['BPA'])
+
                 for pidx in range(npol):
                     if hdu[-1].data.ndim == 2:
                         data[pidx, idx_fits_exist[sidx], :, :] = hdu[-1].data
                     else:
                         data[pidx, idx_fits_exist[sidx], :, :] = hdu[-1].data[pidx, 0, :, :]
+            
             cfreqs = np.array(cfreqs)
             cdelts = np.array(cdelts)
+            cbmaj = np.array(cbmaj)
+            cbmin = np.array(cbmin)
+            cbpa = np.array(cbpa)
+            
             df = np.nanmean(np.diff(cfreqs) / np.diff(idx_fits_exist))  ## in case some of the band is missing
             header['cdelt3'] = df
             header['NAXIS3'] = nband
@@ -489,7 +501,11 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
 
         col1 = fits.Column(name='cfreqs', format='E', array=cfreqs)
         col2 = fits.Column(name='cdelts', format='E', array=cdelts)
-        tbhdu = fits.BinTableHDU.from_columns([col1, col2])
+        col3 = fits.Column(name='cbmaj', format='E', array=cbmaj)
+        col4 = fits.Column(name='cbmin', format='E', array=cbmin)
+        col5 = fits.Column(name='cbpa', format='E', array=cbpa)
+    
+        tbhdu = fits.BinTableHDU.from_columns([col1, col2, col3, col4, col5])
 
         if docompress:
             if fix_invalid:
