@@ -664,10 +664,10 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
 def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrite=True, doimport=True, pols='XX'):
     workdir = '/data1/workdir/'
     os.chdir(workdir)
-    # Set to run 5 days earlier than the current date
+    # Set to run 1 days earlier than the current date
     if year is None:
         mjdnow = Time.now().mjd
-        t = Time(mjdnow - 2, format='mjd')
+        t = Time(mjdnow - 1, format='mjd')
     else:
         # Uncomment below and set date to run for a given date
         t = Time('{}-{:02d}-{:02d} 20:00'.format(year, month, day))
