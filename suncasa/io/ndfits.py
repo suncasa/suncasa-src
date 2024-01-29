@@ -249,10 +249,10 @@ def read(filepath, hdus=None, verbose=False, **kwargs):
             meta['ref_cfreqs'] = np.array(hdulist[-1].data['cfreqs'])
             meta['ref_freqdelts'] = np.array(hdulist[-1].data['cdelts'])
 
-        if hasattr(hdulist[-1].data, 'cbmaj'):
-            meta['cbmaj'] = np.array(hdulist[-1].data['cbmaj'])
-            meta['cbmin'] = np.array(hdulist[-1].data['cbmin'])
-            meta['cbpa'] = np.array(hdulist[-1].data['cbpa'])
+        if hasattr(hdulist[-1].data, 'bmaj'):
+            meta['bmaj'] = np.array(hdulist[-1].data['bmaj'])
+            meta['bmin'] = np.array(hdulist[-1].data['bmin'])
+            meta['bpa'] = np.array(hdulist[-1].data['bpa'])
 
         else:
             if verbose:
@@ -507,9 +507,9 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
 
         col1 = fits.Column(name='cfreqs', format='E', array=cfreqs)
         col2 = fits.Column(name='cdelts', format='E', array=cdelts)
-        col3 = fits.Column(name='cbmaj', format='E', array=cbmaj)
-        col4 = fits.Column(name='cbmin', format='E', array=cbmin)
-        col5 = fits.Column(name='cbpa', format='E', array=cbpa)
+        col3 = fits.Column(name='bmaj', format='E', array=cbmaj)
+        col4 = fits.Column(name='bmin', format='E', array=cbmin)
+        col5 = fits.Column(name='bpa', format='E', array=cbpa)
     
         tbhdu = fits.BinTableHDU.from_columns([col1, col2, col3, col4, col5])
 
