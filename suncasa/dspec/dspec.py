@@ -1093,14 +1093,21 @@ class Dspec:
                 if vmax2 is None:
                     vmax2 = vmax
                 norm2 = colors.Normalize(vmax=vmax2, vmin=vmin2)
-                im = ax2.pcolormesh(tim_plt, freq_plt, spec_plt_2, cmap=cmap2, norm=norm2, shading='auto',
+
+                if plot_fast:
+                    im = ax2.imshow(spec_plt_2, cmap=cmap2, norm=norm2, aspect='auto', origin='lower',
+                        extent=[tim_plt[tidx[0]], tim_plt[tidx[-1]], freq_plt[fidx[0]], freq_plt[fidx[-1]]] )
+                else:
+                    im = ax2.pcolormesh(tim_plt, freq_plt, spec_plt_2, cmap=cmap2, norm=norm2, shading='auto',
                                     rasterized=True)
+                    
+                    ax2.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
+                    ax2.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
+                    
                 divider = make_axes_locatable(ax2)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax2, cax=cax_spec)
                 clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
-                ax2.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
-                ax2.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
 
                 locator = AutoDateLocator(minticks=2)
                 ax2.xaxis.set_major_locator(locator)
