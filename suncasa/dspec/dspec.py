@@ -1036,8 +1036,8 @@ class Dspec:
 
                 if minmaxpercentile:
                     if percentile[0] > 0 and percentile[1] < 100 and percentile[0] < percentile[1]:
-                        norm.vmax = np.nanpercentile(spec_plt, percentile[1])
-                        norm.vmin = np.nanpercentile(spec_plt, percentile[0])
+                        norm.vmax = np.nanpercentile(spec_plt_1, percentile[1])
+                        norm.vmin = np.nanpercentile(spec_plt_1, percentile[0])
                 if plot_fast:
                                 # compress in time (idx1)
                     ds_shape = spec_plt_1.shape
@@ -1104,10 +1104,6 @@ class Dspec:
                 norm2 = colors.Normalize(vmax=vmax2, vmin=vmin2)
 
 
-                if minmaxpercentile:
-                    if percentile[0] > 0 and percentile[1] < 100 and percentile[0] < percentile[1]:
-                        norm.vmax = np.nanpercentile(spec_plt, percentile[1])
-                        norm.vmin = np.nanpercentile(spec_plt, percentile[0])
                 if plot_fast:
                     im = ax2.imshow(spec_plt_2, cmap=cmap2, norm=norm2, aspect='auto', origin='lower',
                         extent=[tim_plt[tidx[0]], tim_plt[tidx[-1]], freq_plt[fidx[0]], freq_plt[fidx[-1]]] )
