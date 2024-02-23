@@ -1018,25 +1018,43 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
         spec_plt = [spec_plt]
         print('plot the dynamic spectrum in pol ' + pol)
 
-        hnspw = max(nspw // 2, 1)
-        ncols = hnspw
-        nrows = 2 + 2  # 1 image: 1x1, 1 dspec:2x4
+        # hnspw = max(nspw // 2, 1)
+        # ncols = hnspw
+        # nrows = 2 + 2  # 1 image: 1x1, 1 dspec:2x4
+        # fig = plt.figure(figsize=(10, 10))
+        # gs = gridspec.GridSpec(nrows, ncols, height_ratios=[4, 4, 1, 1])
+        # if nspw <= 1 or plotaia:
+        #     axs = [plt.subplot(gs[:2, :hnspw])]
+        # else:
+        #     axs = [plt.subplot(gs[0, 0])]
+        #     for ll in range(1, nspw):
+        #         axs.append(plt.subplot(gs[ll // hnspw, ll % hnspw], sharex=axs[0], sharey=axs[0]))
+        #     # for ll in range(nspw):
+        #     #     axs.append(plt.subplot(gs[ll // hnspw + 2, ll % hnspw], sharex=axs[0], sharey=axs[0]))
         fig = plt.figure(figsize=(10, 10))
-        gs = gridspec.GridSpec(nrows, ncols, height_ratios=[4, 4, 1, 1])
         if nspw <= 1 or plotaia:
+            hnspw = max(nspw // 2, 1)
+            ncols = hnspw
+            nrows = 2 + 2  # 1 image: 1x1, 1 dspec:2x4
+            gs = gridspec.GridSpec(nrows, ncols, height_ratios=[4, 4, 1, 1])
             axs = [plt.subplot(gs[:2, :hnspw])]
         else:
+            hnspw = nspw // 2 + nspw % 2
+            ncols = hnspw
+            nrows = 2 + 2  # 1 image: 1x1, 1 dspec:2x4
+            gs = gridspec.GridSpec(nrows, ncols, height_ratios=[4, 4, 1, 1])
             axs = [plt.subplot(gs[0, 0])]
             for ll in range(1, nspw):
                 axs.append(plt.subplot(gs[ll // hnspw, ll % hnspw], sharex=axs[0], sharey=axs[0]))
-            for ll in range(nspw):
-                axs.append(plt.subplot(gs[ll // hnspw + 2, ll % hnspw], sharex=axs[0], sharey=axs[0]))
+
         axs_dspec = [plt.subplot(gs[2:, :])]
         cmaps = [plt.get_cmap(dcmap)]
         if dmax is None:
             dmax = np.nanmax(spec_plt)
+            dmax = np.percentile(np.array(spec_plt).flatten(), 99)
         if dmin is None:
             dmin = np.nanmin(spec_plt)
+            dmin = np.percentile(np.array(spec_plt).flatten(), 1)
         dranges = [[dmin, dmax]]
         iranges = [[imin, imax]]
     elif npols == 2:
@@ -1336,28 +1354,37 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                     else:
                         ax = axs[s]
                 rmap_ = pmX.Sunmap(rmap)
-                if aiamap:
-                    if anorm is None:
-                        if amax is None:
-                            amax = np.nanmax(aiamap.data)
-                        if amin is None:
-                            amin = 1.0
-                        anorm = colors.LogNorm(vmin=amin, vmax=amax)
-                    if acmap is None:
-                        acmap = 'gray_r'
+                if plotaia:
+                    if aiamap:
+                        if anorm is None:
+                            if amax is None:
+                                amax = np.nanmax(aiamap.data)
+                            if amin is None:
+                                amin = 1.0
+                            anorm = colors.LogNorm(vmin=amin, vmax=amax)
+                        if acmap is None:
+                            acmap = 'gray_r'
 
-                    if nspw > 1:
-                        if spwpltCounts == 0:
+                        if nspw > 1:
+                            if spwpltCounts == 0:
+                                aiamap_ = pmX.Sunmap(aiamap)
+                                aiamap_.imshow(axes=ax, cmap=acmap,
+                                               norm=anorm,
+                                               interpolation='nearest')
+                        else:
                             aiamap_ = pmX.Sunmap(aiamap)
                             aiamap_.imshow(axes=ax, cmap=acmap,
                                            norm=anorm,
                                            interpolation='nearest')
                     else:
-                        aiamap_ = pmX.Sunmap(aiamap)
-                        aiamap_.imshow(axes=ax, cmap=acmap,
-                                       norm=anorm,
-                                       interpolation='nearest')
-                    # print(clevels)
+                        rmap_blank = sunpy.map.Map(np.full_like(rmap.data, np.nan), rmap.meta)
+                        rmap_blank_ = pmX.Sunmap(rmap_blank)
+                        if nspw > 1:
+                            if spwpltCounts == 0:
+                                rmap_blank_.imshow(axes=ax)
+                        else:
+                            rmap_blank_.imshow(axes=ax)
+
                     try:
                         clevels1 = np.linspace(iranges[pidx][0], iranges[pidx][1], nclevels)
                     except:
@@ -1417,8 +1444,8 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                 if spwpltCounts == 0 and pidx == 0:
                     timetext = ax.text(0.99, 0.98, '', color='w', fontweight='bold', fontsize=9, ha='right', va='top',
                                        transform=ax.transAxes)
-                timetext.set_text(plttime.iso[:19])
-                if nspw <= 1:
+                    timetext.set_text(plttime.iso[:19])
+                if nspw <= 1 or plotaia == False:
                     # if nspw <= 10:
                     #     try:
                     #         ax.text(0.98, 0.01 + 0.05 * s,
@@ -1431,9 +1458,8 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                     #                 fontweight='bold', ha='right')
                     # else:
                     try:
-                        ax.text(0.98, 0.01, '{1} @ {0:.1f} GHz'.format(rmap.meta['RESTFRQ'] / 1e9, pol),
-                                color='w',
-                                transform=ax.transAxes, fontweight='bold', ha='right')
+                        ax.text(0.98, 0.01, '{1} @ {0:.1f} GHz'.format(cfreqs[s], pol),
+                                color='w',transform=ax.transAxes, fontweight='bold', ha='right')
                     except:
                         ax.text(0.98, 0.01, '{1} @ {0:.1f} GHz'.format(0., pol), color='w',
                                 transform=ax.transAxes, fontweight='bold',
@@ -1443,7 +1469,7 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                 # ax.xaxis.set_visible(False)
                 # ax.yaxis.set_visible(False)
             spwpltCounts += 1
-        if i == 0:
+        if i == 0 and plotaia == True:
             if nspw > 1:
                 import matplotlib.colorbar as colorbar
                 ticks, bounds, fmax, fmin, freqmask = get_colorbar_params(freqbounds)
