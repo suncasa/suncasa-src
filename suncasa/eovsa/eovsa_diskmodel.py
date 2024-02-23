@@ -19,6 +19,7 @@ except:
     from casatools import quanta as qatool
     from casatools import image as iatool
     from casatools import componentlist as cltool
+
     tb = tbtool()
     ms = mstool()
     qa = qatool()
@@ -34,8 +35,6 @@ except:
     from casatasks import uvsub
     from casatasks import ft
 
-
-
 from tqdm import tqdm
 from suncasa.utils import helioimage2fits as hf
 import shutil, os
@@ -44,6 +43,7 @@ from suncasa.utils import mstools as mstl
 
 spw2band = np.array([0, 1] + list(range(4, 52)))
 defaultfreq = 1.1 + 0.325 * (spw2band + 0.5)
+
 
 # def ant_trange(vis):
 #     ''' Figure out nominal times for tracking of old EOVSA antennas, and return time
@@ -117,7 +117,7 @@ def writediskxml(dsize, fdens, freq, xmlfile='SOLDISK.xml'):
 
     # create a new XML file with the results
     mydata = ET.tostring(sdk)
-    if isinstance(mydata,bytes):
+    if isinstance(mydata, bytes):
         mydata = mydata.decode()
     if os.path.exists(xmlfile):
         os.system('rm -rf {}'.format(xmlfile))
@@ -305,13 +305,13 @@ def im2cl(imname, clname, convol=True, verbose=False):
     bmsize = (qa.convert(qa.quantity(bm['major']), 'arcsec')['value'] +
               qa.convert(qa.quantity(bm['minor']), 'arcsec')['value']) / 2.0
     if convol:
-        im2 = ia.sepconvolve(types=['gaussian', 'gaussian'], widths="{0:}arcsec {0:}arcsec".format(2.5*bmsize),
+        im2 = ia.sepconvolve(types=['gaussian', 'gaussian'], widths="{0:}arcsec {0:}arcsec".format(2.5 * bmsize),
                              overwrite=True)
         ia2.done()
     else:
         im2 = ia
     cl = cltool()
-    srcs = im2.findsources(point=False, cutoff=0.3, width=int(np.ceil(bmsize/2.5)))
+    srcs = im2.findsources(point=False, cutoff=0.3, width=int(np.ceil(bmsize / 2.5)))
     # srcs = ia.findsources(point=False, cutoff=0.1, width=5)
     if verbose:
         for k, v in srcs.iteritems():
@@ -510,15 +510,14 @@ def calc_diskmodel(slashdate, nbands, freq, defaultfreq):
         import sunpy.coordinates.ephemeris as eph
         fac = eph.get_sunearth_distance('2019/09/03') / eph.get_sunearth_distance(slashdate)
 
-
     newsize = defaultsize * fac.to_value()
     if nbands == 34:
-        if Time(slashdate.replace('/','-')).mjd < Time('2018-03-13').mjd:
+        if Time(slashdate.replace('/', '-')).mjd < Time('2018-03-13').mjd:
             # Interpolate size to 31 spectral windows (bands 4-34 -> spw 0-30)
             newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq[3:])
         else:
             # Dates between 2018-03-13 have 33 spectral windows
-            newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq[[0]+range(2,34)])
+            newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq[[0] + range(2, 34)])
     dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize], dtype='U12')
 
     # These are nominal flux densities * 2, determined on 2019/09/03
@@ -533,12 +532,12 @@ def calc_diskmodel(slashdate, nbands, freq, defaultfreq):
                              10023598, 8896671])
     fdens = defaultfdens
     if nbands == 34:
-        if Time(slashdate.replace('/','-')).mjd < Time('2018-03-13').mjd:
+        if Time(slashdate.replace('/', '-')).mjd < Time('2018-03-13').mjd:
             # Interpolate size to 31 spectal windows (bands 4-34 -> spw 0-30)
             fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq[3:])
         else:
             # Dates between 2018-03-13 have 33 spectral windows
-            fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq[[0]+range(2,34)])
+            fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq[[0] + range(2, 34)])
     return dsize, fdens
 
 
@@ -604,7 +603,7 @@ def insertdiskmodel(vis, sizescale=1.0, fdens=None, dsize=None, xmlfile='SOLDISK
     # Apply size scale adjustment (default is no adjustment)
     for i in range(len(dsize)):
         dsz = dsize[i]
-        if isinstance(dsz,bytes):
+        if isinstance(dsz, bytes):
             dsz = dsz.decode()
         num, unit = dsz.split('arc')
         dsize[i] = str(float(num) * sizescale)[:6] + 'arc' + unit
@@ -697,7 +696,6 @@ def disk_slfcal(vis, slfcaltbdir='./', active=False, clearcache=False, pols='XX'
 
     if not active:
         clearcal(vis)
-
 
     dsize, fdens = calc_diskmodel(slashdate, nbands, freq, defaultfreq)
     diskxmlfile = vis + '.SOLDISK.xml'
@@ -879,7 +877,8 @@ def fd_images(vis, cleanup=False, niter=None, spws=['0~1', '2~5', '6~10', '11~20
     return fitsfile
 
 
-def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30', '31~49'], slfcaltbdir='./',
+def feature_slfcal(vis, niter=200, uvrange='>1.5Klambda', spws=['0~1', '2~5', '6~10', '11~20', '21~30', '31~49'],
+                   slfcaltbdir='./',
                    bright=None, pols='XX'):
     ''' Uses images from disk-selfcaled data as model for further self-calibration of outer antennas.
         This is only a good idea if there are bright active regions that provide strong signal on the
@@ -925,11 +924,11 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
             # if pols == 'XXYY':
             #     mstl.modeltransfer(vis, spw=sp)
     if pols == 'XXYY':
-        mstl.gaincalXY(vis=vis, caltable=caltb, pols=pols, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
+        mstl.gaincalXY(vis=vis, caltable=caltb, pols=pols, selectdata=True, timerange=trange, uvrange=uvrange,
                        combine="scan", antenna='0~12&0~12', refant='0', refantmode="strict", solint='inf', gaintype='G',
                        minsnr=1.0, calmode='p', append=False)
     else:
-        gaincal(vis=vis, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
+        gaincal(vis=vis, caltable=caltb, selectdata=True, timerange=trange, uvrange=uvrange,
                 combine="scan", antenna='0~12&0~12', refant='0', refantmode="strict", solint='inf', gaintype='G',
                 minsnr=1.0, calmode='p', append=False)
     # Apply the corrections to the data and split to a new ms
@@ -970,11 +969,11 @@ def feature_slfcal(vis, niter=200, spws=['0~1', '2~5', '6~10', '11~20', '21~30',
             # if pols == 'XXYY':
             #     mstl.modeltransfer(vis1, spw=sp)
     if pols == 'XXYY':
-        mstl.gaincalXY(vis=vis1, caltable=caltb, pols=pols, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
+        mstl.gaincalXY(vis=vis1, caltable=caltb, pols=pols, selectdata=True, timerange=trange, uvrange=uvrange,
                        combine="scan", antenna='0~12&0~12', refant='0', solint='10min', refantmode="strict",
                        gaintype='G', minsnr=1.0, calmode='p', append=False)
     else:
-        gaincal(vis=vis1, caltable=caltb, selectdata=True, timerange=trange, uvrange='>1.5Klambda',
+        gaincal(vis=vis1, caltable=caltb, selectdata=True, timerange=trange, uvrange=uvrange,
                 combine="scan", antenna='0~12&0~12', refant='0', solint='10min', refantmode="strict", gaintype='G',
                 minsnr=1.0, calmode='p', append=False)
     # Apply the corrections to the data and split to a new ms
@@ -1105,7 +1104,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     # Copy original ms to local directory
     if os.path.exists(os.path.basename(vis)):
         shutil.rmtree(os.path.basename(vis))
-    print('Copy {} to working directory {}.'.format(vis, os.getcwd()))
+    print('Copy {} to working directory {}/'.format(vis, os.getcwd()))
     shutil.copytree(vis, os.path.basename(vis))
     vis = os.path.basename(vis)
     # Generate calibrated visibility by self calibrating on the solar disk
@@ -1140,11 +1139,29 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             if np.nanmax(data) > bright_thresh[idx] * tb_disk: bright[idx] = True
 
     if any(bright):
-        print('spw {} have bright features on disk.'.format(';'.join(np.array(spws)[np.where(bright)[0]])))
+        print('SPWs {} have bright features on disk.'.format(';'.join(np.array(spws)[np.where(bright)[0]])))
         active = True
         # A bright source exists, so do feature self-calibration
-        ms_slfcaled2 = feature_slfcal(vis, niter=200, slfcaltbdir=slfcaltbdir, spws=spws, bright=bright, pols=pols)
-        vis = ms_slfcaled2
+        try:
+            # Attempt feature self-calibration starting with a uvrange > 1.5 klambda.
+            ms_slfcaled2 = feature_slfcal(vis, niter=200, uvrange='>1.5Klambda', slfcaltbdir=slfcaltbdir, spws=spws,
+                                          bright=bright, pols=pols)
+            vis = ms_slfcaled2
+        except:
+            try:
+                # If the first attempt fails, try again with no uvrange condition.
+                ms_slfcaled2 = feature_slfcal(vis, niter=200, uvrange='', slfcaltbdir=slfcaltbdir, spws=spws,
+                                              bright=bright,
+                                              pols=pols)
+                vis = ms_slfcaled2
+            except:
+                # If the second attempt fails, skip feature self-calibration and continue.
+                print(
+                    'feature_cal failed on SPWs {}. Proceeding without feature_slfcal. \nPlease review the results carefully.'.format(
+                        ';'.join(np.array(spws)[np.where(bright)[0]])))
+                ## reset active and bright
+                active = False
+                bright[:] = False
     else:
         if os.path.exists('images_init'):
             os.system('rm -rf images_init')
