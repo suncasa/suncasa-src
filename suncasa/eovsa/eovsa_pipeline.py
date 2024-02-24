@@ -128,7 +128,14 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
         except:
             print('trange format not recognised. Abort....')
             return None
-    # if isinstance(trange,Time):
+
+    # # in case of a single Time object was passed, adjusting the time range to start at the local beginning of the day.
+    # # Initially, 'trange' is set to start at 20:00:00 UTC of the given day.
+    # # After adjustment, 'trange' spans from 08:00:00 UTC of the same day (start of the local day)
+    # # to 08:00:00 UTC of the following day, covering the entire local day.
+    # # Example of change:
+    # # Before: trange = "yyyy-mm-dd 20:00:00.000" (single starting point)
+    # # After:  trange = ["yyyy-mm-dd 08:00:00.000", "yyyy-mm-dd+1 08:00:00.000"] (full day range)
     try:
         # if single Time object, the following line would report an error
         nt = len(trange)
@@ -664,12 +671,13 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
 def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrite=True, doimport=True, pols='XX'):
     workdir = '/data1/workdir/'
     os.chdir(workdir)
-    # Set to run 5 days earlier than the current date
     if year is None:
-        mjdnow = Time.now().mjd
-        t = Time(mjdnow - 2, format='mjd')
+        # Default behavior: Process data from one day prior to the current date.
+        # Calculate the Modified Julian Date (MJD) for yesterday.
+        mjdnow = Time.now().mjd - 1
+        # Convert MJD to a datetime object and format it to start processing at 20:00 UT.
+        t = Time(Time(mjdnow, format='mjd').to_datetime().strftime('%Y-%m-%dT20:00'))
     else:
-        # Uncomment below and set date to run for a given date
         t = Time('{}-{:02d}-{:02d} 20:00'.format(year, month, day))
     for d in range(ndays):
         t1 = Time(t.mjd - d, format='mjd')

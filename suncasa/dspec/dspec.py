@@ -24,6 +24,8 @@ except:
 from matplotlib.dates import AutoDateFormatter, AutoDateLocator, num2date
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+from .sources.lwa import rebin1d, rebin2d
+
 stokestype = [
     'Undefined',
     # undefined value = 0
@@ -749,7 +751,8 @@ class Dspec:
         return ret
 
     def plot(self, pol='I', vmin=None, vmax=None, norm='log', cmap='viridis', cmap2='viridis', vmin2=None, vmax2=None,
-             timerange=None, freqrange=None, ignore_gaps=True, freq_unit='GHz', spec_unit=None):
+             timerange=None, freqrange=None, ignore_gaps=True, freq_unit='GHz', spec_unit=None,
+             plot_fast=False):
         """
         pol: polarization for plotting
         timerange: format: ['2021-05-07T18:00:00','2021-05-07T19:00:00']
@@ -884,6 +887,9 @@ class Dspec:
                         loc = fb + n + 1
                         spec_plt = np.concatenate((spec_plt[:loc], np.zeros((1, ntim)) + np.nan, spec_plt[loc:]), 0)
 
+                if plot_fast:
+                    spec_plt = spec_plt[fidx, :][:, tidx]
+
                 fig = plt.figure(figsize=(8, 4), dpi=100)
                 ax = fig.add_subplot(111)
 
@@ -906,15 +912,32 @@ class Dspec:
                         vmin = -vmax
                     norm = colors.Normalize(vmax=vmax, vmin=vmin)
 
-                im = ax.pcolormesh(tim_plt, freq_plt, spec_plt, cmap=cmap, norm=norm, shading='auto', rasterized=True)
+
+                if plot_fast:
+                    # rebin the data to speed up plotting
+                    ds_shape = spec_plt.shape
+                    if ds_shape[1] > 2100:
+
+                        pix_rebin = ds_shape[1] // 2048
+                        new_len = (ds_shape[1] // pix_rebin) 
+                        new_len_total = new_len * pix_rebin
+
+                        spec_plt = rebin2d(spec_plt[:,0:new_len_total], (ds_shape[0], new_len)) 
+                        #tim_plt = rebin1d(tim_plt[0:new_len_total], 2048)
+                        
+                    im = ax.imshow(spec_plt, cmap=cmap, norm=norm, aspect='auto', origin='lower',
+                        extent=[tim_plt[tidx[0]], tim_plt[tidx[-1]], freq_plt[fidx[0]], freq_plt[fidx[-1]]] )
+                    
+                else:
+                    im = ax.pcolormesh(tim_plt, freq_plt, spec_plt, cmap=cmap, norm=norm, shading='auto', rasterized=True)
+                    ax.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
+                    ax.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
 
                 # make colorbar
                 divider = make_axes_locatable(ax)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax, cax=cax_spec)
                 clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
-                ax.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
-                ax.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
 
                 def format_coord(x, y):
                     col = np.argmin(np.absolute(tim_plt - x))
@@ -993,6 +1016,11 @@ class Dspec:
                                                     0)
                         spec_plt_2 = np.concatenate((spec_plt_2[:loc], np.zeros((1, ntim)) + np.nan, spec_plt_2[loc:]),
                                                     0)
+
+                if plot_fast:
+                    spec_plt_1 = spec_plt_1[fidx, :][:, tidx]
+                    spec_plt_2 = spec_plt_2[fidx, :][:, tidx]
+
                 ax1 = fig.add_subplot(211)
                 if freq_unit.lower() == 'ghz':
                     freq_plt = freq / 1e9
@@ -1000,15 +1028,31 @@ class Dspec:
                     freq_plt = freq / 1e6
                 if freq_unit.lower() == 'khz':
                     freq_plt = freq / 1e3
-                im = ax1.pcolormesh(tim_plt, freq_plt, spec_plt_1, cmap=cmap, norm=norm, shading='auto',
-                                    rasterized=True)
+
+                if plot_fast:
+                                # compress in time (idx1)
+                    ds_shape = spec_plt_1.shape
+                    if ds_shape[1] > 2100:
+                            pix_rebin = ds_shape[1] // 2048
+                            new_len = (ds_shape[1] // pix_rebin) 
+                            new_len_total = new_len * pix_rebin
+            
+                            spec_plt_1 = rebin2d(spec_plt_1[:,0:new_len_total], (ds_shape[0], new_len)) 
+                            spec_plt_2 = rebin2d(spec_plt_2[:,0:new_len_total], (ds_shape[0], new_len)) 
+                            #tim_plt = rebin1d(tim_plt[0:new_len_total], new_len)
+
+                    im = ax1.imshow(spec_plt_1, cmap=cmap, norm=norm, aspect='auto', origin='lower', 
+                            extent=[tim_plt[tidx[0]], tim_plt[tidx[-1]], freq_plt[fidx[0]], freq_plt[fidx[-1]]] )
+                else:
+                    im = ax1.pcolormesh(tim_plt, freq_plt, spec_plt_1, cmap=cmap, norm=norm, shading='auto',
+                                            rasterized=True)
+                    ax1.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
+                    ax1.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
                 divider = make_axes_locatable(ax1)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax1, cax=cax_spec)
                 clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
 
-                ax1.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
-                ax1.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
 
                 def format_coord(x, y):
                     col = np.argmin(np.absolute(tim_plt - x))

@@ -13,6 +13,33 @@ from ..utils import helioimage2fits as hf
 from ..utils import mstools
 import copy
 import platform
+import re
+
+import re
+
+
+def validate_and_reset_restoringbeam(restoringbm):
+    """
+    Validates the format of the restoringbeam string. If the format is incorrect,
+    it prints an error message and resets the value to an empty string.
+
+    Parameters:
+    - restoringbeam (str): The restoring beam size to validate.
+
+    Returns:
+    - str: The original restoringbeam if valid, or an empty string if invalid.
+    """
+    # Pattern to match: optionally a plus sign, followed by one or more digits,
+    # optionally followed by a decimal point with more digits, and ending with 'arcsec'
+    pattern = r'^\+?\d+(\.\d+)?arcsec$'
+
+    # Check if the string matches the pattern
+    if not re.match(pattern, restoringbm):
+        print(
+            'Error in the format of the provided restoringbeam, which should be in the format of "100arcsec". Resetting to "".')
+        return ''  # Reset to an empty string if the format is incorrect
+    else:
+        return restoringbm  # Return the original string if the format is correct
 
 systemname = platform.system()
 
@@ -21,7 +48,6 @@ systemname = platform.system()
 #         mpl.use('MacOSX')
 #     except:
 #         mpl.use('QtAgg')
-
 
 
 sunpy1 = sunpy.version.major >= 1
@@ -333,7 +359,8 @@ def download_jp2(tstart, tend, wavelengths, outdir):
 
 
 def downloadAIAdata(trange, wavelength=None, cadence=None, outdir='./'):
-    if isinstance(trange, list) or isinstance(trange, tuple) or isinstance(trange,np.ndarray) or isinstance(trange,Time):
+    if isinstance(trange, list) or isinstance(trange, tuple) or isinstance(trange, np.ndarray) or isinstance(trange,
+                                                                                                             Time):
         if len(trange) != 2:
             raise ValueError('trange must be a number or a two elements array/list/tuple')
         else:
@@ -534,11 +561,12 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
                    sclfactor=1.0, overwrite=True, doslfcal=False, datacolumn='data',
                    phasecenter='', robust=0.0, niter=500, gain=0.1, imsize=[512], cell=['5.0arcsec'], pbcor=True,
                    reftime='', restoringbeam=[''],
+                   refbmsize=70., reffreq=1.0, minbmsize=4.0,
                    mask='', docompress=False, wrapfits=True,
                    uvrange='', subregion='', c_external=True, show_warnings=False):
     vis = [vis]
     subdir = ['/']
-    outfits_list=[]
+    outfits_list = []
 
     for idx, f in enumerate(vis):
         if f[-1] == '/':
@@ -598,11 +626,7 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
         restoringbms = [''] * nspw
     else:
         if observatory == 'EOVSA':
-            try:
-                sbeam = float(restoringbeam[0].replace('arcsec', ''))
-            except:
-                sbeam = 35.
-            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=sbeam, reffreq=1.6, minbmsize=4.0)
+            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=refbmsize, reffreq=reffreq, minbmsize=minbmsize)
         else:
             restoringbms = [''] * nspw
     for sp, spw in enumerate(spws):
@@ -994,25 +1018,43 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
         spec_plt = [spec_plt]
         print('plot the dynamic spectrum in pol ' + pol)
 
-        hnspw = max(nspw // 2, 1)
-        ncols = hnspw
-        nrows = 2 + 2  # 1 image: 1x1, 1 dspec:2x4
+        # hnspw = max(nspw // 2, 1)
+        # ncols = hnspw
+        # nrows = 2 + 2  # 1 image: 1x1, 1 dspec:2x4
+        # fig = plt.figure(figsize=(10, 10))
+        # gs = gridspec.GridSpec(nrows, ncols, height_ratios=[4, 4, 1, 1])
+        # if nspw <= 1 or plotaia:
+        #     axs = [plt.subplot(gs[:2, :hnspw])]
+        # else:
+        #     axs = [plt.subplot(gs[0, 0])]
+        #     for ll in range(1, nspw):
+        #         axs.append(plt.subplot(gs[ll // hnspw, ll % hnspw], sharex=axs[0], sharey=axs[0]))
+        #     # for ll in range(nspw):
+        #     #     axs.append(plt.subplot(gs[ll // hnspw + 2, ll % hnspw], sharex=axs[0], sharey=axs[0]))
         fig = plt.figure(figsize=(10, 10))
-        gs = gridspec.GridSpec(nrows, ncols, height_ratios=[4, 4, 1, 1])
         if nspw <= 1 or plotaia:
+            hnspw = max(nspw // 2, 1)
+            ncols = hnspw
+            nrows = 2 + 2  # 1 image: 1x1, 1 dspec:2x4
+            gs = gridspec.GridSpec(nrows, ncols, height_ratios=[4, 4, 1, 1])
             axs = [plt.subplot(gs[:2, :hnspw])]
         else:
+            hnspw = nspw // 2 + nspw % 2
+            ncols = hnspw
+            nrows = 2 + 2  # 1 image: 1x1, 1 dspec:2x4
+            gs = gridspec.GridSpec(nrows, ncols, height_ratios=[4, 4, 1, 1])
             axs = [plt.subplot(gs[0, 0])]
             for ll in range(1, nspw):
                 axs.append(plt.subplot(gs[ll // hnspw, ll % hnspw], sharex=axs[0], sharey=axs[0]))
-            for ll in range(nspw):
-                axs.append(plt.subplot(gs[ll // hnspw + 2, ll % hnspw], sharex=axs[0], sharey=axs[0]))
+
         axs_dspec = [plt.subplot(gs[2:, :])]
         cmaps = [plt.get_cmap(dcmap)]
         if dmax is None:
             dmax = np.nanmax(spec_plt)
+            dmax = np.percentile(np.array(spec_plt).flatten(), 99)
         if dmin is None:
             dmin = np.nanmin(spec_plt)
+            dmin = np.percentile(np.array(spec_plt).flatten(), 1)
         dranges = [[dmin, dmax]]
         iranges = [[imin, imax]]
     elif npols == 2:
@@ -1202,7 +1244,7 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
             # pdb.set_trace()
             if np.count_nonzero(aiafiles) > 0:
                 try:
-                #     print(aiafiles)
+                    #     print(aiafiles)
                     aiafits = aiafiles[i]
                     aiamap = smap.Map(aiafits)
                     aiamap = DButil.normalize_aiamap(aiamap)
@@ -1312,28 +1354,37 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                     else:
                         ax = axs[s]
                 rmap_ = pmX.Sunmap(rmap)
-                if aiamap:
-                    if anorm is None:
-                        if amax is None:
-                            amax = np.nanmax(aiamap.data)
-                        if amin is None:
-                            amin = 1.0
-                        anorm = colors.LogNorm(vmin=amin, vmax=amax)
-                    if acmap is None:
-                        acmap = 'gray_r'
+                if plotaia:
+                    if aiamap:
+                        if anorm is None:
+                            if amax is None:
+                                amax = np.nanmax(aiamap.data)
+                            if amin is None:
+                                amin = 1.0
+                            anorm = colors.LogNorm(vmin=amin, vmax=amax)
+                        if acmap is None:
+                            acmap = 'gray_r'
 
-                    if nspw > 1:
-                        if spwpltCounts == 0:
+                        if nspw > 1:
+                            if spwpltCounts == 0:
+                                aiamap_ = pmX.Sunmap(aiamap)
+                                aiamap_.imshow(axes=ax, cmap=acmap,
+                                               norm=anorm,
+                                               interpolation='nearest')
+                        else:
                             aiamap_ = pmX.Sunmap(aiamap)
                             aiamap_.imshow(axes=ax, cmap=acmap,
                                            norm=anorm,
                                            interpolation='nearest')
                     else:
-                        aiamap_ = pmX.Sunmap(aiamap)
-                        aiamap_.imshow(axes=ax, cmap=acmap,
-                                       norm=anorm,
-                                       interpolation='nearest')
-                    # print(clevels)
+                        rmap_blank = sunpy.map.Map(np.full_like(rmap.data, np.nan), rmap.meta)
+                        rmap_blank_ = pmX.Sunmap(rmap_blank)
+                        if nspw > 1:
+                            if spwpltCounts == 0:
+                                rmap_blank_.imshow(axes=ax)
+                        else:
+                            rmap_blank_.imshow(axes=ax)
+
                     try:
                         clevels1 = np.linspace(iranges[pidx][0], iranges[pidx][1], nclevels)
                     except:
@@ -1393,8 +1444,8 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                 if spwpltCounts == 0 and pidx == 0:
                     timetext = ax.text(0.99, 0.98, '', color='w', fontweight='bold', fontsize=9, ha='right', va='top',
                                        transform=ax.transAxes)
-                timetext.set_text(plttime.iso[:19])
-                if nspw <= 1:
+                    timetext.set_text(plttime.iso[:19])
+                if nspw <= 1 or plotaia == False:
                     # if nspw <= 10:
                     #     try:
                     #         ax.text(0.98, 0.01 + 0.05 * s,
@@ -1407,9 +1458,8 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                     #                 fontweight='bold', ha='right')
                     # else:
                     try:
-                        ax.text(0.98, 0.01, '{1} @ {0:.1f} GHz'.format(rmap.meta['RESTFRQ'] / 1e9, pol),
-                                color='w',
-                                transform=ax.transAxes, fontweight='bold', ha='right')
+                        ax.text(0.98, 0.01, '{1} @ {0:.1f} GHz'.format(cfreqs[s], pol),
+                                color='w',transform=ax.transAxes, fontweight='bold', ha='right')
                     except:
                         ax.text(0.98, 0.01, '{1} @ {0:.1f} GHz'.format(0., pol), color='w',
                                 transform=ax.transAxes, fontweight='bold',
@@ -1419,7 +1469,7 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                 # ax.xaxis.set_visible(False)
                 # ax.yaxis.set_visible(False)
             spwpltCounts += 1
-        if i == 0:
+        if i == 0 and plotaia == True:
             if nspw > 1:
                 import matplotlib.colorbar as colorbar
                 ticks, bounds, fmax, fmin, freqmask = get_colorbar_params(freqbounds)
@@ -1464,7 +1514,7 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
         DButil.img2html_movie(figdir_, outname=moviename)
     else:
         DButil.img2movie(figdir_, outname=moviename)
-    outmovie=figdir+moviename+'.'+movieformat
+    outmovie = figdir + moviename + '.' + movieformat
     return outmovie
 
 
@@ -1490,56 +1540,116 @@ def dspec_external(vis, workdir='./', specfile=None, ds_normalised=False):
 
 
 def qlookplot(vis, timerange=None, spw='', spwplt=None,
-              workdir='./', specfile=None, uvrange='', stokes='RR,LL',
-              dmin=None, dmax=None, dcmap=None, dnorm=None,
-              amax=None, amin=None, acmap=None, anorm=None,
-              reftime='', xycen=None, fov=[500., 500.], xyrange=None, restoringbeam=[''], robust=0.0,
-              weighting='briggs', niter=500, sclfactor=1.0,
+              workdir='./', specfile=None,
+              xycen=None, fov=[500., 500.], xyrange=None,
+              restoringbeam=[''],
+              refbmsize=70., reffreq=1.0, minbmsize=4.0,
+              antenna='', uvrange='', stokes='RR,LL',
+              robust=0.0,
+              weighting='briggs', niter=500,
               imsize=[512], cell=['5.0arcsec'], mask='', gain=0.1, pbcor=True,
-              antenna='', toTb=True, subregion='',
-              interactive=False, usemsphacenter=True, imagefile=None, outfits='',
-              imax=None, imin=None, icmap=None, inorm=None, nclevels=3,
-              clevels=None, calpha=0.5, goestime=None,
-              plotaia=True, aiawave=171, aiafits=None, aiadir=None, datacolumn='data',
+              interactive=False, datacolumn='data',
+              reftime='',
+              toTb=True, sclfactor=1.0, subregion='',
+              usemsphacenter=True,
+              imagefile=None, outfits='',
               docompress=True,
               wrapfits=True,
-              cleartmpfits=True,
-              mkmovie=False, overwrite=True, ncpu=1, twidth=1, verbose=False, movieformat='html',
-              clearmshistory=False, show_warnings=False, opencontour=False, quiet=False, ds_normalised=False):
+              nclevels=3,
+              clevels=None, calpha=0.5, opencontour=False,
+              imax=None, imin=None, icmap=None, inorm=None,
+              dmin=None, dmax=None, dcmap=None, dnorm=None,
+              plotaia=True, aiawave=171, aiafits=None, aiadir=None,
+              amax=None, amin=None, acmap=None, anorm=None,
+              goestime=None,
+              mkmovie=False, ncpu=1, twidth=1, movieformat='html',
+              cleartmpfits=True, overwrite=True,
+              clearmshistory=False, show_warnings=False, verbose=False, quiet=False, ds_normalised=False):
     '''
     Required inputs:
-            vis: calibrated CASA measurement set
+            vis: The path to the calibrated CASA measurement set
     Important optional inputs:
-            timerange: timerange for clean. Standard CASA time selection format.
-                       If not provided, use the entire range (*BE CAREFUL, COULD BE VERY SLOW*)
-            spw: spectral window selection following the CASA syntax.
+            timerange: Timerange for analysis in standard CASA format. Defaults to entire range, which can be slow.
+            spw: spectral window (SPW) selection following the CASA syntax.
                  Examples: spw='1:2~60' (spw id 1, channel range 2-60); spw='*:1.2~1.3GHz' (selects all channels within 1.2-1.3 GHz; note the *)
                  spw can be a list of spectral windows, i.e, ['0', '1', '2', '3', '4', '5', '6', '7']
-            specfile: supply dynamic spectrum save file (from suncasa.dspec.dspec.Dspec()). Otherwise
-                      generate a median dynamic spectrum on the fly
+            spwplt: Subset of SPW to display, defaults to all specified in `spw`.
+            workdir: Working directory for temporary files, defaults to current directory.
+            specfile: Path to a saved dynamic spectrum file (from suncasa.dspec.dspec.Dspec())
+                        6or generate a median dynamic spectrum on the fly if not provided.
     Optional inputs:
-            bl: baseline to generate dynamic spectrum
-            uvrange: uvrange to select baselines for generating dynamic spectrum
-            stokes: polarization of the clean image, can be 'RR,LL' or 'I,V'
-            dmin,dmax: range of color scale for radio dynamic spectrum
             goestime: goes plot time, example ['2016/02/18 18:00:00','2016/02/18 23:00:00']
-            rhessisav: rhessi savefile
-            reftime: reftime for the image
             xycen: center of the image in helioprojective coordinates (HPLN/HPLT), in arcseconds. Example: [900, -150.]
-            mask: only accept CASA region format (https://casaguides.nrao.edu/index.php/CASA_Region_Format)
             fov: field of view in arcsecs. Example: [500., 500.]
             xyrange: field of view in solar XY coordinates. Format: [[x1,x2],[y1,y2]]. Example: [[900., 1200.],[0,300]]
                      ***NOTE: THIS PARAMETER OVERWRITES XYCEN AND FOV***
-            sclfactor: scale the image values up by its value (to compensate VLA 20 dB attenuator)
-            aiawave: wave length of aia file in a
-            imagefile: if imagefile provided, use it. Otherwise do clean and generate a new one.
-            outfits: if outfits provided, use it. Otherwise generate a new one
-            imax,imin: range of color scale for radio image
-            icmap: str or Colormap. Color map for radio images/contours
-            dcmap: str or Colormap. Color map for radio dynamic spectrum
-            acmap: str or Colormap. Color map for AIA images
-            clevels: clevels for the contours
-    Example:
+
+            Restoring Beam Parameters:
+                restoringbeam: A list specifying the sizes of the restoring beam explicitly in arc seconds (e.g., ['100arcsec', '80arcsec', '50arcsec', ...]).
+                                Must match the number of SPWs if not ['']. If specified, these values override automatic beam size calculations for each SPW.
+
+                refbmsize:      The reference beam size in arc seconds. This parameter is used in conjunction with `reffreq` to calculate the beam size for all SPWs,
+                                assuming the beam size is inversely proportional to the frequency.
+                                The parameters `refbmsize`,`reffreq` and `minbmsize` are only used if `restoringbeam` is set to [''].
+
+                reffreq:        The reference frequency in GHz, used together with `refbmsize` to calculate the beam sizes for SPWs.
+
+                minbmsize:      Minimum beam size in arcseconds, overrides smaller calculated sizes.
+
+            CASA tclean parameters: refer to CASA tclean documentation for more details.
+                antenna: baseline to generate dynamic spectrum
+                uvrange: uvrange to select baselines for generating dynamic spectrum
+                stokes: polarization of the clean image, can be 'RR,LL' or 'I,V'
+                robust:
+                weighting:
+                niter:
+                imsize:
+                cell:
+                mask: only accept CASA region format (https://casaguides.nrao.edu/index.php/CASA_Region_Format)
+                gain:
+                pbcor:
+                interactive:
+                datacolumn:
+            image registration parameters:
+                reftime: Reference time for image alignment.
+                toTb: Bool. Convert the default Jy/beam to brightness temperature?
+                sclfactor: scale the image values by its value (e.g., sclfactor = 100 to compensate VLA 20 dB attenuator)
+                subregion: only write the data within the sub-region selection. See 'help par.region' for details.
+                usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris.
+                     Otherwise assume the phasecenter is correctly pointed to the solar disk center
+                     (EOVSA case)
+                imagefile: Use specified CASA radio image file for registration; otherwise, generate anew.
+                outfits: Use specified FITS file of a radio image for output; otherwise, generate anew.
+                docompress: if compress the outfits
+                wrapfits: if wrap the fits files of multiple spectral windows at one given time interval into a combined fits file.
+                overwrite: if overwrite the existed outfits file (default: True).
+
+            radio image plotting parameters:
+                nclevels: Number of contour levels for radio image plots.
+                clevels: Specific contour levels for radio image plots.
+                opencontour: Boolean. Plots open contours if True; filled contours otherwise.
+                icmap: Color map (string or Colormap object) for radio images/contours.
+                imax, imin: Color scale range, defining normalization before color mapping.
+                inorm: Normalization method (string or Normalize object), overriding imax and imin.
+
+            radio dynamic spectrum plotting parameters:
+                dcmap: Color map (string or Colormap object) for the dynamic spectrum.
+                dmin, dmax: Color scale range for dynamic spectrum normalization before color mapping.
+                dnorm: Normalization method (string or Normalize object), overriding dmax and dmin.
+
+            SDO/AIA image plotting parameters:
+                plotaia: Boolean. Downloads and plots AIA image at specified aiawave if True.
+                aiawave: AIA image passband to download and display.
+                aiafits: Directly plots AIA image from provided FITS file, skipping download. (note: users can provide any solar image FITS file for plotting).
+                aiadir: Searches this directory for AIA image files to skip download.
+                acmap: Color map (string or Colormap object) for AIA images.
+                amin, amax: Color scale range for AIA image normalization before color mapping.
+                anorm: Normalization method (string or Normalize object), overriding amax and amin.
+            movie parameters:
+                mkmovie: Boolean. Generates a movie from radio images over multiple time intervals if True.
+                ncpu: Number of CPUs for parallel clean operations with ptclean.
+                twidth: Time pixel averaging width (default: 1).
+                movieformat: Output movie format, either 'html' or 'mp4'.
     '''
 
     outfits_list = None
@@ -1776,16 +1886,18 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
             imresfile = os.path.join(qlookfitsdir, '{}.imres.npz'.format(os.path.basename(vis)))
             if overwrite:
                 imres, outfits_list = mk_qlook_image(vis, timerange=timerange, spws=spw, twidth=twidth, ncpu=ncpu,
-                                       imagedir=qlookfitsdir, phasecenter=phasecenter, stokes=stokes, mask=mask,
-                                       uvrange=uvrange, robust=robust, niter=niter, gain=gain, imsize=imsize, cell=cell,
-                                       pbcor=pbcor,
-                                       reftime=reftime, restoringbeam=restoringbeam, sclfactor=sclfactor,
-                                       docompress=docompress,
-                                       wrapfits=wrapfits,
-                                       overwrite=overwrite,
-                                       c_external=c_external,
-                                       subregion=subregion,
-                                       show_warnings=show_warnings)
+                                                     imagedir=qlookfitsdir, phasecenter=phasecenter, stokes=stokes,
+                                                     mask=mask,
+                                                     uvrange=uvrange, robust=robust, niter=niter, gain=gain,
+                                                     imsize=imsize, cell=cell,
+                                                     pbcor=pbcor,
+                                                     reftime=reftime, restoringbeam=restoringbeam, sclfactor=sclfactor,
+                                                     docompress=docompress,
+                                                     wrapfits=wrapfits,
+                                                     overwrite=overwrite,
+                                                     c_external=c_external,
+                                                     subregion=subregion,
+                                                     show_warnings=show_warnings)
             else:
                 if os.path.exists(imresfile):
                     imres = np.load(imresfile, allow_pickle=True)
@@ -1793,29 +1905,32 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                 else:
                     print('Image results file not found; Creating new images.')
                     imres, outfits_list = mk_qlook_image(vis, timerange=timerange, spws=spw, twidth=twidth, ncpu=ncpu,
-                                           imagedir=qlookfitsdir, phasecenter=phasecenter, stokes=stokes, mask=mask,
-                                           uvrange=uvrange, robust=robust, niter=niter, gain=gain, imsize=imsize,
-                                           cell=cell, pbcor=pbcor,
-                                           reftime=reftime, restoringbeam=restoringbeam, sclfactor=sclfactor,
-                                           docompress=docompress,
-                                           wrapfits=wrapfits,
-                                           overwrite=overwrite,
-                                           c_external=c_external,
-                                           subregion=subregion,
-                                           show_warnings=show_warnings)
+                                                         imagedir=qlookfitsdir, phasecenter=phasecenter, stokes=stokes,
+                                                         mask=mask,
+                                                         uvrange=uvrange, robust=robust, niter=niter, gain=gain,
+                                                         imsize=imsize,
+                                                         cell=cell, pbcor=pbcor,
+                                                         reftime=reftime, restoringbeam=restoringbeam,
+                                                         sclfactor=sclfactor,
+                                                         docompress=docompress,
+                                                         wrapfits=wrapfits,
+                                                         overwrite=overwrite,
+                                                         c_external=c_external,
+                                                         subregion=subregion,
+                                                         show_warnings=show_warnings)
             if not os.path.exists(qlookfigdir):
                 os.makedirs(qlookfigdir)
-            outmovie=plt_qlook_image(imres, timerange=timerange, spwplt=spwplt, figdir=qlookfigdir, specdata=specdata,
-                            verbose=verbose,
-                            stokes=stokes, fov=xyrange,
-                            amax=amax, amin=amin, acmap=acmap, anorm=anorm,
-                            imax=imax, imin=imin, icmap=icmap, inorm=inorm,
-                            nclevels=nclevels, clevels=clevels,
-                            dmax=dmax, dmin=dmin, dcmap=dcmap, dnorm=dnorm,
-                            sclfactor=sclfactor,
-                            aiafits=aiafits, aiawave=aiawave, aiadir=aiadir, plotaia=plotaia,
-                            freqbounds=bdinfo, alpha_cont=calpha,
-                            opencontour=opencontour, movieformat=movieformat, ds_normalised=ds_normalised)
+            outmovie = plt_qlook_image(imres, timerange=timerange, spwplt=spwplt, figdir=qlookfigdir, specdata=specdata,
+                                       verbose=verbose,
+                                       stokes=stokes, fov=xyrange,
+                                       amax=amax, amin=amin, acmap=acmap, anorm=anorm,
+                                       imax=imax, imin=imin, icmap=icmap, inorm=inorm,
+                                       nclevels=nclevels, clevels=clevels,
+                                       dmax=dmax, dmin=dmin, dcmap=dcmap, dnorm=dnorm,
+                                       sclfactor=sclfactor,
+                                       aiafits=aiafits, aiawave=aiawave, aiadir=aiadir, plotaia=plotaia,
+                                       freqbounds=bdinfo, alpha_cont=calpha,
+                                       opencontour=opencontour, movieformat=movieformat, ds_normalised=ds_normalised)
 
     else:
         if np.iscomplexobj(specdata.data):
@@ -2059,14 +2174,20 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                     imagefiles, fitsfiles = [], []
                     if restoringbeam == ['']:
                         if observatory == 'EOVSA':
-                            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=70., reffreq=1., minbmsize=4.0)
+                            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=refbmsize, reffreq=reffreq, minbmsize=minbmsize)
                         else:
                             restoringbms = [''] * nspws
                     else:
                         try:
                             restoringbms = [float(b.replace('arcsec', '')) for b in restoringbeam]
-                        except ValueError:
-                            print('Error in reading the provided restoring beam.')
+                        except:
+                            print('Error encountered while processing the provided restoring beam sizes. '
+                                  'They should be specified in the format "numberarcsec" (e.g., "100arcsec").'
+                                  'Falling back to using circular beams calculated as proportional to 1/freq,'
+                                  'based on provided reference beam size, reference frequency,'
+                                  'and minimum beam size settings.')
+                            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=refbmsize, reffreq=reffreq,
+                                                              minbmsize=minbmsize)
                     sto = stokes.replace(',', '')
                     print('Original phasecenter: ' + str(ra0) + str(dec0))
                     print('use phasecenter: ' + phasecenter)
@@ -2132,7 +2253,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
 
                     ndfits.wrap(fitsfiles, outfitsfile=outfits, docompress=docompress)
                     if cleartmpfits:
-                        for junk in imagefiles+fitsfiles:
+                        for junk in imagefiles + fitsfiles:
                             os.system('rm -rf {}'.format(junk))
                     warnings.warn(
                         "If the provided spw is not equally spaced, the frequency information of the fits file {} that combining {} could be a wrong. Use it with caution!".format(
@@ -2142,8 +2263,11 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                     if restoringbeam == ['']:
                         if observatory == 'EOVSA':
                             # Don't use CASA's default. Trying my best to get a good estimate of the restoring beam
-                            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=70., reffreq=1., minbmsize=4.0)
-                            restoringbeam = str(np.mean(restoringbms[0]))+'arcsec'
+                            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=refbmsize, reffreq=reffreq, minbmsize=minbmsize)
+                            restoringbeam = str(np.mean(restoringbms[0])) + 'arcsec'
+                    else:
+                        restoringbeam = restoringbeam[0]
+                        restoringbeam = validate_and_reset_restoringbeam(restoringbeam)
 
                     imagename = os.path.join(workdir, visname + '.outim')
                     junks = ['.flux', '.model', '.psf', '.residual', '.mask', '.pb', '.sumwt', '.image', '.image.pbcor']
