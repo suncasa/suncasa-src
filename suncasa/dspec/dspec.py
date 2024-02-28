@@ -752,7 +752,7 @@ class Dspec:
 
     def plot(self, pol='I', vmin=None, vmax=None, norm='log', cmap='viridis', cmap2='viridis', vmin2=None, vmax2=None,
              timerange=None, freqrange=None, ignore_gaps=True, freq_unit='GHz', spec_unit=None,
-             plot_fast=False):
+             plot_fast=False, percentile=[1,99], minmaxpercentile=False, **kwargs):
         """
         pol: polarization for plotting
         timerange: format: ['2021-05-07T18:00:00','2021-05-07T19:00:00']
@@ -776,6 +776,8 @@ class Dspec:
             print("Please enter 'RR', 'LL', 'RRLL','XX', 'YY', 'XY', 'YX', 'XXYY', 'I', 'V', 'IV', or 'IP' for pol")
             return 0
 
+        spec = self.data
+
         try:
             cmap = copy(plt.get_cmap(cmap))
         except:
@@ -791,7 +793,6 @@ class Dspec:
             print('color normalization is not defined as matplotlib.colors. Use default LogNorm.')
             norm = colors.LogNorm(vmax=vmax, vmin=vmin)
 
-        spec = self.data
         bl = self.bl
         freq = self.freq_axis
         if spec_unit is None:
@@ -912,7 +913,10 @@ class Dspec:
                         vmin = -vmax
                     norm = colors.Normalize(vmax=vmax, vmin=vmin)
 
-
+                if minmaxpercentile:
+                    if percentile[0] > 0 and percentile[1] < 100 and percentile[0] < percentile[1]:
+                        norm.vmax = np.nanpercentile(spec_plt, percentile[1])
+                        norm.vmin = np.nanpercentile(spec_plt, percentile[0])
                 if plot_fast:
                     # rebin the data to speed up plotting
                     ds_shape = spec_plt.shape
@@ -1029,6 +1033,11 @@ class Dspec:
                 if freq_unit.lower() == 'khz':
                     freq_plt = freq / 1e3
 
+
+                if minmaxpercentile:
+                    if percentile[0] > 0 and percentile[1] < 100 and percentile[0] < percentile[1]:
+                        norm.vmax = np.nanpercentile(spec_plt_1, percentile[1])
+                        norm.vmin = np.nanpercentile(spec_plt_1, percentile[0])
                 if plot_fast:
                                 # compress in time (idx1)
                     ds_shape = spec_plt_1.shape
@@ -1093,14 +1102,22 @@ class Dspec:
                 if vmax2 is None:
                     vmax2 = vmax
                 norm2 = colors.Normalize(vmax=vmax2, vmin=vmin2)
-                im = ax2.pcolormesh(tim_plt, freq_plt, spec_plt_2, cmap=cmap2, norm=norm2, shading='auto',
+
+
+                if plot_fast:
+                    im = ax2.imshow(spec_plt_2, cmap=cmap2, norm=norm2, aspect='auto', origin='lower',
+                        extent=[tim_plt[tidx[0]], tim_plt[tidx[-1]], freq_plt[fidx[0]], freq_plt[fidx[-1]]] )
+                else:
+                    im = ax2.pcolormesh(tim_plt, freq_plt, spec_plt_2, cmap=cmap2, norm=norm2, shading='auto',
                                     rasterized=True)
+                    
+                    ax2.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
+                    ax2.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
+                    
                 divider = make_axes_locatable(ax2)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax2, cax=cax_spec)
                 clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
-                ax2.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
-                ax2.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
 
                 locator = AutoDateLocator(minticks=2)
                 ax2.xaxis.set_major_locator(locator)
