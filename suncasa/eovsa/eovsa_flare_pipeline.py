@@ -16,6 +16,8 @@ from casatasks import imhead,listobs
 
 import platform
 import matplotlib
+import matplotlib.colors as colors
+import random
 
 if platform.system() == 'Linux':
     matplotlib.use('Agg')
@@ -37,13 +39,15 @@ class FlareSelfCalib():
             logfile = workpath + "selfcal_{0:s}.log".format(Time.now().isot[:-4].replace(':', '').replace('-', ''))
         self.logfile = logfile
         self.identify_data_gap = True
-        self.slfcal_spws = [3, 5, 8, 10, 15, 20, 24, 30, 35, 40, 42, 45]
+        self.slfcal_spws = [3, 5, 8, 10, 15, 20, 24, 30, 35, 40]
         # self.slfcal_spws = [15, 24]  ## spw used for flare finding and final imaging
         self.maximum_spw = max(self.slfcal_spws)
         self.minimum_spw = min(self.slfcal_spws)
         self.slfcal_spwstr = ','.join(
             [str(s) for s in self.slfcal_spws])  ## string format of self.spws for, e.g., split
         self.selfcal_spw = '0~' + str(self.maximum_spw)  ## actual spw range used for self-calibration
+        self.imaging_spw = []
+        self.min_DR_threshold = 10.
 
         ##===================== final imaging parameters ===========================
         self.total_duration = 480.  ### seconds to image; time will be centred on detected flare peak
@@ -1696,6 +1700,8 @@ class FlareSelfCalib():
                         os.system("rm -rf " + image + "*" + str1)
                     os.system("rm -rf " + caltable + "*.gcal")
                     self.gen_blank_cal(sp)
+                # else:
+                #     self.imaging_spw.append(s)
 
                 caltables = glob.glob(caltable + "*.gcal")
                 num_caltable = len(caltables)
@@ -1710,6 +1716,13 @@ class FlareSelfCalib():
                         os.system("rm -rf " + image + "_" + str(i).zfill(2) + str1)
                 final_img = image + "_" + str(num_img - 1).zfill(2) + ".image"
                 print(self.vis, current_trange)
+
+                if os.path.exists(final_img):
+                    max_pix,min_pix,rms=self.get_img_stat(final_img[:-6])
+                    dyn_range=max_pix/rms
+                    if dyn_range>self.min_DR_threshold and max_pix>2*abs(min_pix):
+                        self.imaging_spw.append(s)
+
                 hf.imreg(vis=self.vis, imagefile=final_img, timerange=current_trange,
                          fitsfile=final_img[:-6] + "_helio.fits", \
                          usephacenter=False, verbose=False)  ### converting final image to heliocentric coordinates
@@ -1722,6 +1735,8 @@ class FlareSelfCalib():
                 # print('Calibration done in {0:s}'.format(slfcalms))
                 os.system("rm -rf " + slfcalms + "*")
 
+
+
             selfcal_timer = timeit.default_timer()
             self.logf.write("Time taken for selfcal in seconds is " + str(selfcal_timer - start))
 
@@ -1729,7 +1744,7 @@ class FlareSelfCalib():
             print(final_ms, self.vis)
             print("Applying caltables")
             if os.path.isdir(final_ms) == False:
-                for s in self.slfcal_spws:
+                for s in self.imaging_spw:
                     caltable = self.caltbdir + 'final_cal_spw_' + str(s).zfill(2) + '.gcal'
                     if os.path.isdir(caltable) == False:
                         continue
@@ -1794,7 +1809,7 @@ class FlareSelfCalib():
             specfile = msname[:-3] + "_dspec.npz"
             print(specfile)
             spws = []
-            for s in self.slfcal_spws:
+            for s in self.imaging_spw:
                 spws.append(str(s))
             cell_size1 = [str(self.cell_size) + "arcsec"]
             stokes = 'XX'
@@ -1811,7 +1826,7 @@ class FlareSelfCalib():
                                 ncpu=1, imsize=[self.final_imsize], cell=cell_size1, restoringbeam=[self.beam_1GHz],
                                 robust=0.5, opencontour=opencontour, clevels=clevels, plotaia=plotaia,
                                 aiawave=aiawave, mkmovie=mkmovie, twidth=int(self.final_image_int),
-                                docompress=docompress,
+                                docompress=docompress,dnorm=colors.LogNorm(vmin=0.1, vmax=10),
                                 stokes=stokes, movieformat=movieformat, uvrange='',
                                 niter=300, overwrite=overwrite, xycen=xycen, fov=[256, 256])
             final_clean_timer = timeit.default_timer()
@@ -1822,7 +1837,7 @@ class FlareSelfCalib():
         self.logf.close()
 
     def rename_move_files(self, flare_id, fitsdir_web_tp, movdir_web_tp, dorename_fits=False, domove_fits=False, 
-        dorename_mov=False, domove_mov=False, dormworkdir=False):
+        dorename_mov=False, domove_mov=False, dormworkdir=False, docopy=False):
         """
         Rename EOVSA FITS files and move them to the web folder.
         'eovsa.lev1_mbd_12s.2022-11-12T180524Z.image.fits'
@@ -1875,8 +1890,10 @@ class FlareSelfCalib():
             workdir_web = os.path.join(fitsdir_web_tp, year, month, day, flare_id)
             if not os.path.exists(workdir_web):
                 os.makedirs(workdir_web)
-            for i in file_fits_tot:  
-                shutil.move(i, workdir_web)            
+            for i in file_fits_tot:
+                if os.path.exists(os.path.join(workdir_web, os.path.basename(i))):
+                    os.remove(os.path.join(workdir_web, os.path.basename(i)))
+                shutil.move(i, workdir_web)    
             if len(file_fits_tot) < 1:
                 print("ERRORs: no files to move")
             else:
@@ -1886,8 +1903,10 @@ class FlareSelfCalib():
             workdir_web = os.path.join(movdir_web_tp, year, month, day)
             if not os.path.exists(workdir_web):
                 os.makedirs(workdir_web)
-            for i in file_mov_tot:  
-                shutil.move(i, workdir_web)            
+            for i in file_mov_tot:
+                if os.path.exists(os.path.join(workdir_web, os.path.basename(i))):
+                    os.remove(os.path.join(workdir_web, os.path.basename(i)))
+                shutil.move(i, workdir_web)  
             if len(file_mov_tot) < 1:
                 print("ERRORs: no files to move")
             else:
@@ -1900,5 +1919,14 @@ class FlareSelfCalib():
             else:
                 os.system("rm -rf " + workdir + "*")
                 print("Delete all files from: " + workdir)
+
+        if docopy:
+            file_mov_new=[os.path.basename(m) for m in file_mov_tot]
+            movdir_web_copy=os.path.join(movdir_web_tp, '2021', '00')
+            for i in file_mov_new:
+                if os.path.exists(os.path.join(movdir_web_copy, i)):
+                    os.remove(os.path.join(movdir_web_copy, i))
+                shutil.copy(os.path.join(workdir_web, i), movdir_web_copy)
+                print("Copy .mp4 from " + workdir_web + " to: " + movdir_web_copy)
 
         return

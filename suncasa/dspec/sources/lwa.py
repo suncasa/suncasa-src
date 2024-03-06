@@ -61,7 +61,11 @@ def read_data(filename, stokes='I', timerange=[], freqrange=[], timebin=1, freqb
     for n, file in enumerate(filelist):
         if verbose:
             print('Processing {0:d} of {1:d} files'.format(n+1, len(filelist)))
-        data = h5py.File(file, 'r')
+        try:
+            data = h5py.File(file, 'r')
+        except:
+            print('Cannot read {0:s}. Skip this file.'.format(file))
+            continue
         freqs = data['Observation1']['Tuning1']['freq'][:]
         ts = data['Observation1']['time'][:]
         # The following line works the same way as timestamp_to_mjd(), but a bit too slow
