@@ -254,6 +254,11 @@ def read(filepath, hdus=None, verbose=False, **kwargs):
             meta['bmin'] = np.array(hdulist[-1].data['bmin'])
             meta['bpa'] = np.array(hdulist[-1].data['bpa'])
 
+        if hasattr(hdulist[-1].data, 'cbmaj'):
+            meta['bmaj'] = np.array(hdulist[-1].data['cbmaj'])
+            meta['bmin'] = np.array(hdulist[-1].data['cbmin'])
+            meta['bpa'] = np.array(hdulist[-1].data['cbpa'])
+
         else:
             if verbose:
                 print('FITS file does not have an additional frequency axis. '
