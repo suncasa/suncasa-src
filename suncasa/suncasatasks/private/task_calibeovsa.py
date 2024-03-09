@@ -5,12 +5,20 @@ if platform.system() == 'Linux':
 import os
 import shutil
 import numpy as np
+def some_function_requiring_eovsapy(*args, **kwargs):
+    try:
+        import eovsapy
+    except ImportError:
+        raise ImportError("The 'eovsapy' package is required to use this function. Please install 'eovsapy' to proceed.")
+some_function_requiring_eovsapy()
+
 from eovsapy.util import extract as eoextract
 from eovsapy.util import Time
 from eovsapy import cal_header as ch
 from eovsapy import dbutil as db
 from eovsapy import pipeline_cal as pc
 from eovsapy.sqlutil import sql2refcalX, sql2phacalX
+
 
 try:
     from taskinit import casalog, tb, ms
