@@ -1,3 +1,22 @@
+def check_dependencies():
+    missing_packages = []
+    try:
+        import aipy
+    except ImportError:
+        missing_packages.append("aipy-eovsa")
+
+    try:
+        import eovsapy
+    except ImportError:
+        missing_packages.append("eovsapy")
+
+    if missing_packages:
+        raise ImportError(
+            "The following package(s) are required to use this function: {}. "
+            "Please install them to proceed.".format(", ".join(missing_packages))
+        )
+
+check_dependencies()
 import platform
 import matplotlib
 if platform.system() == 'Linux':
@@ -5,12 +24,6 @@ if platform.system() == 'Linux':
 import os
 import shutil
 import numpy as np
-def some_function_requiring_eovsapy(*args, **kwargs):
-    try:
-        import eovsapy
-    except ImportError:
-        raise ImportError("The 'eovsapy' package is required to use this function. Please install 'eovsapy' to proceed.")
-some_function_requiring_eovsapy()
 
 from eovsapy.util import extract as eoextract
 from eovsapy.util import Time

@@ -1,5 +1,3 @@
-import sys
-
 def check_dependencies():
     missing_packages = []
     try:
@@ -19,6 +17,7 @@ def check_dependencies():
         )
 
 check_dependencies()
+import sys
 import os
 import numpy as np
 import numpy.ma as ma
