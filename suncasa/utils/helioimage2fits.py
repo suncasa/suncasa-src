@@ -840,7 +840,7 @@ def imreg(vis=None, imagefile=None, timerange=None,
                       If not provided, query JPL Horizons based on time info of the vis (internet connection required)
                fitsfile: STRING or LIST. name of the output registered fits files
                toTb: Bool. Convert the default Jy/beam to brightness temperature?
-               sclfactor: scale the image values up by its value (to compensate VLA 20 dB attenuator)
+               sclfactor: scale the image values up by its value (e.g., sclfactor = 100 to compensate VLA 20 dB attenuator)
                p_ang: solar p angle in degrees. If provided, use the supplied value and ignore the empheris
                verbose: Bool. Show more diagnostic info if True.
                usephacenter: Bool -- if True, correct for the RA and DEC in the ms file based on solar empheris.
@@ -857,7 +857,7 @@ def imreg(vis=None, imagefile=None, timerange=None,
                         Each element should be in CASA standard time format, e.g., '2012/03/03/12:00:00'
                offsetfile: optionally provide an offset with a series of solar x and y offsets with timestamps
                ###############################################################################################
-               subregion: Region selection. See 'help par.region' for details.
+               subregion: only write the data within the sub-region selection. See 'help par.region' for details.
     Usage:
     >>> from suncasa.utils import helioimage2fits as hf
     >>> hf.imreg(vis='mydata.ms', imagefile='myimage.image', fitsfile='myimage.fits',
