@@ -1,15 +1,33 @@
+def check_dependencies():
+    missing_packages = []
+    try:
+        import aipy
+    except ImportError:
+        missing_packages.append("aipy-eovsa")
+
+    try:
+        import eovsapy
+    except ImportError:
+        missing_packages.append("eovsapy")
+
+    if missing_packages:
+        raise ImportError(
+            "The following package(s) are required to use this function: {}. "
+            "Please install them to proceed.".format(", ".join(missing_packages))
+        )
+
+check_dependencies()
+import sys
 import os
 import numpy as np
 import numpy.ma as ma
 import scipy.constants as constants
 import time
-import aipy
-import sys
-from suncasa.eovsa import impteovsa as ipe
 from astropy.time import Time
 from eovsapy import util
 from eovsapy import dump_tsys as dtsys
-
+import aipy
+from suncasa.eovsa import impteovsa as ipe
 
 py3 = sys.version_info.major >= 3
 

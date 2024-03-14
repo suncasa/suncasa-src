@@ -5,9 +5,11 @@ import numpy
 from casatools.typecheck import CasaValidator as _val_ctor
 _pc = _val_ctor( )
 from casatools.coercetype import coerce as _coerce
+from casatools.errors import create_error_string
 from .private.task_calibeovsa import calibeovsa as _calibeovsa_t
 from casatasks.private.task_logging import start_log as _start_log
 from casatasks.private.task_logging import end_log as _end_log
+from casatasks.private.task_logging import except_log as _except_log
 
 class _calibeovsa:
     """
@@ -104,9 +106,17 @@ class _calibeovsa:
     def __call__( self, vis='', caltype=[  ], caltbdir='', interp='nearest', docalib=True, doflag=True, flagant='13~15', doimage=False, imagedir='.', antenna='0~12', timerange='', spw='1~3', stokes='XX', dosplit=False, outputvis='', doconcat=False, concatvis='', keep_orig_ms=True ):
         schema = {'vis': {'anyof': [{'type': 'cStr', 'coerce': _coerce.to_str}, {'type': 'cStrVec', 'coerce': [_coerce.to_list,_coerce.to_strvec]}]}, 'caltype': {'anyof': [{'type': 'cStr', 'coerce': _coerce.to_str}, {'type': 'cStrVec', 'coerce': [_coerce.to_list,_coerce.to_strvec]}]}, 'caltbdir': {'type': 'cStr', 'coerce': _coerce.to_str}, 'interp': {'type': 'cStr', 'coerce': _coerce.to_str}, 'docalib': {'type': 'cBool'}, 'doflag': {'type': 'cBool'}, 'flagant': {'type': 'cStr', 'coerce': _coerce.to_str}, 'doimage': {'type': 'cBool'}, 'imagedir': {'type': 'cStr', 'coerce': _coerce.to_str}, 'antenna': {'type': 'cStr', 'coerce': _coerce.to_str}, 'timerange': {'type': 'cStr', 'coerce': _coerce.to_str}, 'spw': {'type': 'cStr', 'coerce': _coerce.to_str}, 'stokes': {'type': 'cStr', 'coerce': _coerce.to_str}, 'dosplit': {'type': 'cBool'}, 'outputvis': {'anyof': [{'type': 'cStr', 'coerce': _coerce.to_str}, {'type': 'cStrVec', 'coerce': [_coerce.to_list,_coerce.to_strvec]}]}, 'doconcat': {'type': 'cBool'}, 'concatvis': {'type': 'cStr', 'coerce': _coerce.to_str}, 'keep_orig_ms': {'type': 'cBool'}}
         doc = {'vis': vis, 'caltype': caltype, 'caltbdir': caltbdir, 'interp': interp, 'docalib': docalib, 'doflag': doflag, 'flagant': flagant, 'doimage': doimage, 'imagedir': imagedir, 'antenna': antenna, 'timerange': timerange, 'spw': spw, 'stokes': stokes, 'dosplit': dosplit, 'outputvis': outputvis, 'doconcat': doconcat, 'concatvis': concatvis, 'keep_orig_ms': keep_orig_ms}
-        assert _pc.validate(doc,schema), str(_pc.errors)
+        assert _pc.validate(doc,schema), create_error_string(_pc.errors)
         _logging_state_ = _start_log( 'calibeovsa', [ 'vis=' + repr(_pc.document['vis']), 'caltype=' + repr(_pc.document['caltype']), 'caltbdir=' + repr(_pc.document['caltbdir']), 'interp=' + repr(_pc.document['interp']), 'docalib=' + repr(_pc.document['docalib']), 'doflag=' + repr(_pc.document['doflag']), 'flagant=' + repr(_pc.document['flagant']), 'doimage=' + repr(_pc.document['doimage']), 'imagedir=' + repr(_pc.document['imagedir']), 'antenna=' + repr(_pc.document['antenna']), 'timerange=' + repr(_pc.document['timerange']), 'spw=' + repr(_pc.document['spw']), 'stokes=' + repr(_pc.document['stokes']), 'dosplit=' + repr(_pc.document['dosplit']), 'outputvis=' + repr(_pc.document['outputvis']), 'doconcat=' + repr(_pc.document['doconcat']), 'concatvis=' + repr(_pc.document['concatvis']), 'keep_orig_ms=' + repr(_pc.document['keep_orig_ms']) ] )
-        return _end_log( _logging_state_, 'calibeovsa', _calibeovsa_t( _pc.document['vis'], _pc.document['caltype'], _pc.document['caltbdir'], _pc.document['interp'], _pc.document['docalib'], _pc.document['doflag'], _pc.document['flagant'], _pc.document['doimage'], _pc.document['imagedir'], _pc.document['antenna'], _pc.document['timerange'], _pc.document['spw'], _pc.document['stokes'], _pc.document['dosplit'], _pc.document['outputvis'], _pc.document['doconcat'], _pc.document['concatvis'], _pc.document['keep_orig_ms'] ) )
+        task_result = None
+        try:
+            task_result = _calibeovsa_t( _pc.document['vis'], _pc.document['caltype'], _pc.document['caltbdir'], _pc.document['interp'], _pc.document['docalib'], _pc.document['doflag'], _pc.document['flagant'], _pc.document['doimage'], _pc.document['imagedir'], _pc.document['antenna'], _pc.document['timerange'], _pc.document['spw'], _pc.document['stokes'], _pc.document['dosplit'], _pc.document['outputvis'], _pc.document['doconcat'], _pc.document['concatvis'], _pc.document['keep_orig_ms'] )
+        except Exception as exc:
+            _except_log('calibeovsa', exc)
+            raise
+        finally:
+            task_result = _end_log( _logging_state_, 'calibeovsa', task_result )
+        return task_result
 
 calibeovsa = _calibeovsa( )
 

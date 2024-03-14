@@ -140,6 +140,9 @@ class _calibeovsa:
         output = [ ]
         addon = ''
         first_addon = True
+        if len(description) == 0:
+            out.write(param_prefix + " #\n")
+            return
         while len(description) > 0:
             ## starting a new line.....................................................................
             if len(output) == 0:
@@ -314,103 +317,193 @@ class _calibeovsa:
 
     #--------- subparam inp output ----------------------------------------------------
     def __vis_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__vis_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return ''
         description = ''
         value = self.__vis( self.__globals_( ) )
-        (pre,post) = ('','') if self.__validate_({'vis': value},{'vis': self.__schema['vis']}) else ('\x1B[91m','\x1B[0m')
+        (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'vis': value},{'vis': self.__schema['vis']}) else ('\x1B[91m','\x1B[0m')
         self.__do_inp_output('%-15.15s = %s%-23s%s' % ('vis',pre,self.__to_string_(value),post),description,0+len(pre)+len(post))
     def __caltype_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__caltype_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return [  ]
         description = ''
         value = self.__caltype( self.__globals_( ) )
-        (pre,post) = ('','') if self.__validate_({'caltype': value},{'caltype': self.__schema['caltype']}) else ('\x1B[91m','\x1B[0m')
+        (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'caltype': value},{'caltype': self.__schema['caltype']}) else ('\x1B[91m','\x1B[0m')
         self.__do_inp_output('%-15.15s = %s%-23s%s' % ('caltype',pre,self.__to_string_(value),post),description,0+len(pre)+len(post))
     def __caltbdir_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__caltbdir_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return ''
         description = ''
         value = self.__caltbdir( self.__globals_( ) )
-        (pre,post) = ('','') if self.__validate_({'caltbdir': value},{'caltbdir': self.__schema['caltbdir']}) else ('\x1B[91m','\x1B[0m')
+        (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'caltbdir': value},{'caltbdir': self.__schema['caltbdir']}) else ('\x1B[91m','\x1B[0m')
         self.__do_inp_output('%-15.15s = %s%-23s%s' % ('caltbdir',pre,self.__to_string_(value),post),description,0+len(pre)+len(post))
     def __interp_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__interp_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return 'nearest'
         description = ''
         value = self.__interp( self.__globals_( ) )
-        (pre,post) = ('','') if self.__validate_({'interp': value},{'interp': self.__schema['interp']}) else ('\x1B[91m','\x1B[0m')
+        (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'interp': value},{'interp': self.__schema['interp']}) else ('\x1B[91m','\x1B[0m')
         self.__do_inp_output('%-15.15s = %s%-23s%s' % ('interp',pre,self.__to_string_(value),post),description,0+len(pre)+len(post))
     def __docalib_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__docalib_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return True
         description = ''
         value = self.__docalib( self.__globals_( ) )
-        (pre,post) = ('','') if self.__validate_({'docalib': value},{'docalib': self.__schema['docalib']}) else ('\x1B[91m','\x1B[0m')
+        (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'docalib': value},{'docalib': self.__schema['docalib']}) else ('\x1B[91m','\x1B[0m')
         self.__do_inp_output('%-15.15s = %s%-23s%s' % ('docalib',pre,self.__to_string_(value),post),description,0+len(pre)+len(post))
     def __doflag_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__doflag_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return True
         description = ''
         value = self.__doflag( self.__globals_( ) )
-        (pre,post) = ('','') if self.__validate_({'doflag': value},{'doflag': self.__schema['doflag']}) else ('\x1B[91m','\x1B[0m')
+        (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'doflag': value},{'doflag': self.__schema['doflag']}) else ('\x1B[91m','\x1B[0m')
         self.__do_inp_output('\x1B[1m\x1B[47m%-15.15s =\x1B[0m %s%-23s%s' % ('doflag',pre,self.__to_string_(value),post),description,13+len(pre)+len(post))
     def __flagant_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__flagant_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return '13~15'
         if self.__flagant_dflt( self.__globals_( ) ) is not None:
              description = ''
              value = self.__flagant( self.__globals_( ) )
-             (pre,post) = ('','') if self.__validate_({'flagant': value},{'flagant': self.__schema['flagant']}) else ('\x1B[91m','\x1B[0m')
+             (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'flagant': value},{'flagant': self.__schema['flagant']}) else ('\x1B[91m','\x1B[0m')
              self.__do_inp_output('   \x1B[92m%-12.12s =\x1B[0m %s%-23s%s' % ('flagant',pre,self.__to_string_(value),post),description,9+len(pre)+len(post))
     def __doimage_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__doimage_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return False
         description = ''
         value = self.__doimage( self.__globals_( ) )
-        (pre,post) = ('','') if self.__validate_({'doimage': value},{'doimage': self.__schema['doimage']}) else ('\x1B[91m','\x1B[0m')
+        (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'doimage': value},{'doimage': self.__schema['doimage']}) else ('\x1B[91m','\x1B[0m')
         self.__do_inp_output('\x1B[1m\x1B[47m%-15.15s =\x1B[0m %s%-23s%s' % ('doimage',pre,self.__to_string_(value),post),description,13+len(pre)+len(post))
     def __imagedir_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__imagedir_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return '.'
         if self.__imagedir_dflt( self.__globals_( ) ) is not None:
              description = ''
              value = self.__imagedir( self.__globals_( ) )
-             (pre,post) = ('','') if self.__validate_({'imagedir': value},{'imagedir': self.__schema['imagedir']}) else ('\x1B[91m','\x1B[0m')
+             (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'imagedir': value},{'imagedir': self.__schema['imagedir']}) else ('\x1B[91m','\x1B[0m')
              self.__do_inp_output('   \x1B[92m%-12.12s =\x1B[0m %s%-23s%s' % ('imagedir',pre,self.__to_string_(value),post),description,9+len(pre)+len(post))
     def __antenna_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__antenna_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return '0~12'
         if self.__antenna_dflt( self.__globals_( ) ) is not None:
              description = ''
              value = self.__antenna( self.__globals_( ) )
-             (pre,post) = ('','') if self.__validate_({'antenna': value},{'antenna': self.__schema['antenna']}) else ('\x1B[91m','\x1B[0m')
+             (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'antenna': value},{'antenna': self.__schema['antenna']}) else ('\x1B[91m','\x1B[0m')
              self.__do_inp_output('   \x1B[92m%-12.12s =\x1B[0m %s%-23s%s' % ('antenna',pre,self.__to_string_(value),post),description,9+len(pre)+len(post))
     def __timerange_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__timerange_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return ''
         if self.__timerange_dflt( self.__globals_( ) ) is not None:
              description = ''
              value = self.__timerange( self.__globals_( ) )
-             (pre,post) = ('','') if self.__validate_({'timerange': value},{'timerange': self.__schema['timerange']}) else ('\x1B[91m','\x1B[0m')
+             (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'timerange': value},{'timerange': self.__schema['timerange']}) else ('\x1B[91m','\x1B[0m')
              self.__do_inp_output('   \x1B[92m%-12.12s =\x1B[0m %s%-23s%s' % ('timerange',pre,self.__to_string_(value),post),description,9+len(pre)+len(post))
     def __spw_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__spw_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return '1~3'
         if self.__spw_dflt( self.__globals_( ) ) is not None:
              description = ''
              value = self.__spw( self.__globals_( ) )
-             (pre,post) = ('','') if self.__validate_({'spw': value},{'spw': self.__schema['spw']}) else ('\x1B[91m','\x1B[0m')
+             (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'spw': value},{'spw': self.__schema['spw']}) else ('\x1B[91m','\x1B[0m')
              self.__do_inp_output('   \x1B[92m%-12.12s =\x1B[0m %s%-23s%s' % ('spw',pre,self.__to_string_(value),post),description,9+len(pre)+len(post))
     def __stokes_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__stokes_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return 'XX'
         if self.__stokes_dflt( self.__globals_( ) ) is not None:
              description = ''
              value = self.__stokes( self.__globals_( ) )
-             (pre,post) = ('','') if self.__validate_({'stokes': value},{'stokes': self.__schema['stokes']}) else ('\x1B[91m','\x1B[0m')
+             (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'stokes': value},{'stokes': self.__schema['stokes']}) else ('\x1B[91m','\x1B[0m')
              self.__do_inp_output('   \x1B[92m%-12.12s =\x1B[0m %s%-23s%s' % ('stokes',pre,self.__to_string_(value),post),description,9+len(pre)+len(post))
     def __dosplit_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__dosplit_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return False
         description = ''
         value = self.__dosplit( self.__globals_( ) )
-        (pre,post) = ('','') if self.__validate_({'dosplit': value},{'dosplit': self.__schema['dosplit']}) else ('\x1B[91m','\x1B[0m')
+        (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'dosplit': value},{'dosplit': self.__schema['dosplit']}) else ('\x1B[91m','\x1B[0m')
         self.__do_inp_output('\x1B[1m\x1B[47m%-15.15s =\x1B[0m %s%-23s%s' % ('dosplit',pre,self.__to_string_(value),post),description,13+len(pre)+len(post))
     def __outputvis_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__outputvis_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return ''
         if self.__outputvis_dflt( self.__globals_( ) ) is not None:
              description = ''
              value = self.__outputvis( self.__globals_( ) )
-             (pre,post) = ('','') if self.__validate_({'outputvis': value},{'outputvis': self.__schema['outputvis']}) else ('\x1B[91m','\x1B[0m')
+             (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'outputvis': value},{'outputvis': self.__schema['outputvis']}) else ('\x1B[91m','\x1B[0m')
              self.__do_inp_output('   \x1B[92m%-12.12s =\x1B[0m %s%-23s%s' % ('outputvis',pre,self.__to_string_(value),post),description,9+len(pre)+len(post))
     def __doconcat_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__doconcat_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return False
         description = ''
         value = self.__doconcat( self.__globals_( ) )
-        (pre,post) = ('','') if self.__validate_({'doconcat': value},{'doconcat': self.__schema['doconcat']}) else ('\x1B[91m','\x1B[0m')
+        (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'doconcat': value},{'doconcat': self.__schema['doconcat']}) else ('\x1B[91m','\x1B[0m')
         self.__do_inp_output('\x1B[1m\x1B[47m%-15.15s =\x1B[0m %s%-23s%s' % ('doconcat',pre,self.__to_string_(value),post),description,13+len(pre)+len(post))
     def __concatvis_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__concatvis_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return ''
         if self.__concatvis_dflt( self.__globals_( ) ) is not None:
              description = ''
              value = self.__concatvis( self.__globals_( ) )
-             (pre,post) = ('','') if self.__validate_({'concatvis': value},{'concatvis': self.__schema['concatvis']}) else ('\x1B[91m','\x1B[0m')
+             (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'concatvis': value},{'concatvis': self.__schema['concatvis']}) else ('\x1B[91m','\x1B[0m')
              self.__do_inp_output('   \x1B[92m%-12.12s =\x1B[0m %s%-23s%s' % ('concatvis',pre,self.__to_string_(value),post),description,9+len(pre)+len(post))
     def __keep_orig_ms_inp(self):
+        def xml_default( ):
+            ## play the crazy subparameter shell game
+            dflt = self.__keep_orig_ms_dflt( self.__globals_( ) )
+            if dflt is not None: return dflt
+            return True
         if self.__keep_orig_ms_dflt( self.__globals_( ) ) is not None:
              description = ''
              value = self.__keep_orig_ms( self.__globals_( ) )
-             (pre,post) = ('','') if self.__validate_({'keep_orig_ms': value},{'keep_orig_ms': self.__schema['keep_orig_ms']}) else ('\x1B[91m','\x1B[0m')
+             (pre,post) = (('','') if value == xml_default( ) else ('\x1B[34m','\x1B[0m')) if self.__validate_({'keep_orig_ms': value},{'keep_orig_ms': self.__schema['keep_orig_ms']}) else ('\x1B[91m','\x1B[0m')
              self.__do_inp_output('   \x1B[92m%-12.12s =\x1B[0m %s%-23s%s' % ('keep_orig_ms',pre,self.__to_string_(value),post),description,9+len(pre)+len(post))
 
     #--------- global default implementation-------------------------------------------
@@ -463,25 +556,65 @@ class _calibeovsa:
 
     #--------- tget function ----------------------------------------------------------
     @static_var('state', __sf__('casa_inp_go_state'))
-    def tget(self,file=None):
+    def tget(self,savefile=None):
         from casashell.private.stack_manip import find_frame
         from runpy import run_path
-        filename = None
-        if file is None:
-            if os.path.isfile("calibeovsa.last"):
-                filename = "calibeovsa.last"
-        elif isinstance(file, str):
-            if os.path.isfile(file):
-                filename = file
-        if filename is not None:
+        filename = savefile
+        if filename is None:
+            filename = "calibeovsa.last" if os.path.isfile("calibeovsa.last") else "calibeovsa.saved"
+        if os.path.isfile(filename):
             glob = find_frame( )
             newglob = run_path( filename, init_globals={ } )
             for i in newglob:
                 glob[i] = newglob[i]
             self.tget.state['last'] = self
         else:
-            print("could not find last file, setting defaults instead...")
+            print("could not find last file: %s\nsetting defaults instead..." % filename)
             self.set_global_defaults( )
+
+    #--------- tput function ----------------------------------------------------------
+    def tput(self,outfile=None):
+        def noobj(s):
+           if s.startswith('<') and s.endswith('>'):
+               return "None"
+           else:
+               return s
+
+        _postfile = outfile if outfile is not None else os.path.realpath('calibeovsa.last')
+
+        _invocation_parameters = OrderedDict( )
+        _invocation_parameters['vis'] = self.__vis( self.__globals_( ) )
+        _invocation_parameters['caltype'] = self.__caltype( self.__globals_( ) )
+        _invocation_parameters['caltbdir'] = self.__caltbdir( self.__globals_( ) )
+        _invocation_parameters['interp'] = self.__interp( self.__globals_( ) )
+        _invocation_parameters['docalib'] = self.__docalib( self.__globals_( ) )
+        _invocation_parameters['doflag'] = self.__doflag( self.__globals_( ) )
+        _invocation_parameters['flagant'] = self.__flagant( self.__globals_( ) )
+        _invocation_parameters['doimage'] = self.__doimage( self.__globals_( ) )
+        _invocation_parameters['imagedir'] = self.__imagedir( self.__globals_( ) )
+        _invocation_parameters['antenna'] = self.__antenna( self.__globals_( ) )
+        _invocation_parameters['timerange'] = self.__timerange( self.__globals_( ) )
+        _invocation_parameters['spw'] = self.__spw( self.__globals_( ) )
+        _invocation_parameters['stokes'] = self.__stokes( self.__globals_( ) )
+        _invocation_parameters['dosplit'] = self.__dosplit( self.__globals_( ) )
+        _invocation_parameters['outputvis'] = self.__outputvis( self.__globals_( ) )
+        _invocation_parameters['doconcat'] = self.__doconcat( self.__globals_( ) )
+        _invocation_parameters['concatvis'] = self.__concatvis( self.__globals_( ) )
+        _invocation_parameters['keep_orig_ms'] = self.__keep_orig_ms( self.__globals_( ) )
+
+        try:
+            with open(_postfile,'w') as _f:
+                for _i in _invocation_parameters:
+                    _f.write("%-12s = %s\n" % (_i,noobj(repr(_invocation_parameters[_i]))))
+                _f.write("#calibeovsa( ")
+                count = 0
+                for _i in _invocation_parameters:
+                    _f.write("%s=%s" % (_i,noobj(repr(_invocation_parameters[_i]))))
+                    count += 1
+                    if count < len(_invocation_parameters): _f.write(",")
+                _f.write(" )\n")
+        except: return False
+        return True
 
     def __call__( self, vis=None, caltype=None, caltbdir=None, interp=None, docalib=None, doflag=None, flagant=None, doimage=None, imagedir=None, antenna=None, timerange=None, spw=None, stokes=None, dosplit=None, outputvis=None, doconcat=None, concatvis=None, keep_orig_ms=None ):
         def noobj(s):
