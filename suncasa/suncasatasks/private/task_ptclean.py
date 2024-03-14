@@ -1,3 +1,6 @@
+## This code is obsolete. It is replaced by task_ptclean6.py
+
+
 import os
 import numpy as np
 import shutil
@@ -5,25 +8,27 @@ from functools import partial
 from time import time
 import glob
 import sys
-from suncasa.utils import helioimage2fits as hf
+from ...utils import helioimage2fits as hf
+from ...casa_compat import get_casa_tools
 
-pversion = sys.version_info.major
-if pversion<3:
-    ## CASA version < 6
-    from taskinit import ms, tb, qa, casalog
-    from tclean_cli import tclean_cli as tclean
-    is_casa6=False
-else:
-    ## CASA version >= 6
-    from casatasks import casalog, tclean
-    from casatools import table as tbtool
-    from casatools import ms as mstool
-    from casatools import quanta as qatool
+casa_components = get_casa_tools(['tbtool', 'mstool', 'qatool'])
+tbtool = casa_components['tbtool']
+mstool = casa_components['mstool']
+qatool = casa_components['qatool']
+tb = tbtool()
+ms = mstool()
+qa = qatool()
 
-    tb = tbtool()
-    ms = mstool()
-    qa = qatool()
-    is_casa6 = True
+try:
+    # Attempt to import CASA 6+ specific tasks from casatasks. In modular CASA 6 installations,
+    # casatasks module are used to access and manage various CASA tasks.
+    from casatasks import split, tclean, casalog
+except:
+    # Fallback for monolithic CASA installations (versions 4/5/6). In these versions,
+    # tasks like split, tclean, and casalog are integrated directly into the CASA environment.
+    pass
+
+c_external = False
 
 
 def clean_iter(tim, vis, imageprefix, imagesuffix,

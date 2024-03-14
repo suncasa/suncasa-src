@@ -1,29 +1,27 @@
 import os
 import shutil
 import numpy as np
-from suncasa.utils import signal_utils as su
+from ...utils import signal_utils as su
 import sys
 
-if sys.version_info.major > 2:
-    from casatools import ms, quanta, msmetadata
+
+try:
+    ## in modular installation imports for CASA 6 and beyond, where components are accessed via casatools and casatasks.
     from casatasks import casalog
+except:
+    ## in monolithic installations, these tasks are built-in CASA tasks.
+    # CASA 6 introduces InputRejected exceptions for attempts to modify built-in CASA values
+    pass
 
-    casalog.showconsole(True)
-    datams = ms()
-    ms_in = ms()
-    datamsmd = msmetadata()
-    qa = quanta()
-else:
-    from taskinit import ms, qa, mstool, msmdtool, casalog
-
-    datams = mstool()
-    ms_in = mstool()
-    datamsmd = msmdtool()
-
-
-# from taskinit import *
-# from callibrary import *
-# import pdb
+from ...casa_compat import get_casa_tools
+casa_components = get_casa_tools(['mstool', 'msmdtool', 'qatool'])
+mstool = casa_components['mstool']
+msmdtool = casa_components['msmdtool']
+qatool = casa_components['qatool']
+datams = mstool()
+ms_in = mstool()
+datamsmd = msmdtool()
+qa = qatool()
 
 def subvs(vis=None, outputvis=None, timerange='', spw='',
            mode='linear', subtime1='', subtime2='',

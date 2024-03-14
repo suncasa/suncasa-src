@@ -361,6 +361,10 @@ def header_to_xml(header):
 
 
 def write_j2000_image(fname, data, header):
+    ## todo: write scaled data to jp2. so hv doesn't have to to scale.
+    ## todo: add date and time to filename following 2024_03_06__14_18_45_343__EOVSA_1.5GHz.jp2
+    ## todo: flare iamges: do similar thing as the CME tag for ccmc data, eOVSa provide movie links to hv. hv will show flare tag
+    ## on the solar image and include movie as a external link
     import glymur
     datamax = np.max(data)
     datamin = np.min(data)

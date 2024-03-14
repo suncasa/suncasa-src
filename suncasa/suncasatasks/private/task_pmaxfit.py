@@ -2,13 +2,23 @@ import numpy as np
 import numpy.ma as ma
 import os, struct
 from time import time
-from taskinit import casalog
 import multiprocessing as mprocs
 from suncasa.utils import DButil
+try:
+    # Attempt to import CASA 6+ specific tasks from casatasks. In modular CASA 6 installations,
+    # casatasks module are used to access and manage various CASA tasks.
+    from casatasks import casalog
+except:
+    # Fallback for monolithic CASA installations (versions 4/5/6). In these versions,
+    # tasks like split, tclean, and casalog are integrated directly into the CASA environment.
+    pass
+from ...casa_compat import get_casa_tools
 
+casa_components = get_casa_tools(['iatool', 'rgtool'])
+iatool = casa_components['iatool']
+rgtool = casa_components['rgtool']
 
 def maxfit_iter(imgfiles, box, width, imidx):
-    from taskinit import iatool, rgtool
     myia = iatool()
     myrg = rgtool()
     try:
@@ -22,7 +32,7 @@ def maxfit_iter(imgfiles, box, width, imidx):
 
     try:
         if (not myia.open(img)):
-            raise Exception, "Cannot create image analysis tool using " + img
+            raise Exception("Cannot create image analysis tool using " + img)
         print('Processing image: ' + img)
         hdulist = pyfits.open(img)
         hdu = hdulist[0]
@@ -64,7 +74,7 @@ def maxfit_iter(imgfiles, box, width, imidx):
         # update timestamp
         timstr = hdr['date-obs']
         return [True, timstr, img, results]
-    except Exception, instance:
+    except Exception as instance:
         casalog.post(str('*** Error in imfit ***') + str(instance))
         # raise instance
         return [False, timstr, img, {}]
@@ -79,7 +89,7 @@ def pmaxfit(imagefiles, ncpu, box, width):
     if isinstance(imagefiles, str):
         imagefiles = [imagefiles]
     if (not isinstance(imagefiles, list)):
-        print 'input "imagefiles" is not a list. Abort...'
+        print('input "imagefiles" is not a list. Abort...')
 
     # check file existence
     imgfiles = []
@@ -116,7 +126,7 @@ def pmaxfit(imagefiles, ncpu, box, width):
 
     t1 = time()
     timelapse = t1 - t0
-    print 'It took %f secs to complete' % timelapse
+    print('It took %f secs to complete' % timelapse)
     # repackage this into a single dictionary
     results = {'succeeded': [], 'timestamps': [], 'imagenames': [], 'outputs': []}
     for r in res:

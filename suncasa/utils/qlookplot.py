@@ -17,6 +17,60 @@ import re
 
 import re
 
+systemname = platform.system()
+
+sunpy1 = sunpy.version.major >= 1
+sunpy3 = sunpy.version.major >= 3
+py3 = sys.version_info.major >= 3
+if py3:
+    # For Python 3.0 and later
+    from urllib.request import urlopen
+else:
+    # Fall back to Python 2's urllib2
+    from urllib2 import urlopen
+
+from ..suncasatasks import ptclean6 as ptclean
+from ..casa_compat import get_casa_tools
+casa_components = get_casa_tools(['tbtool', 'mstool', 'qatool'])
+
+tbtool = casa_components['tbtool']
+mstool = casa_components['mstool']
+qatool = casa_components['qatool']
+tb = tbtool()
+ms = mstool()
+qa = qatool()
+
+try:
+    # Attempt to import CASA 6+ specific tasks from casatasks. In modular CASA 6 installations,
+    # casatasks module are used to access and manage various CASA tasks.
+    from casatasks import split, tclean, casalog
+except:
+    # Fallback for monolithic CASA installations (versions 4/5/6). In these versions,
+    # tasks like split, tclean, and casalog are integrated directly into the CASA environment.
+    pass
+
+
+c_external = False
+from matplotlib.dates import DateFormatter
+from astropy.coordinates import SkyCoord
+import matplotlib as mpl
+
+import matplotlib.colors as colors
+import matplotlib.patches as patches
+from ..utils import DButil
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from suncasa.utils import plot_mapX as pmX
+from suncasa.io import ndfits
+from tqdm import tqdm
+
+sunpy1 = sunpy.version.major >= 1
+if sunpy1:
+    from sunpy.coordinates import sun
+else:
+    from sunpy import sun
+    import sunpy.cm.cm as cm_sunpy
+
+polmap = {'RR': 0, 'LL': 1, 'I': 0, 'V': 1, 'XX': 0, 'YY': 1}
 
 def validate_and_reset_restoringbeam(restoringbm):
     """
@@ -40,78 +94,6 @@ def validate_and_reset_restoringbeam(restoringbm):
         return ''  # Reset to an empty string if the format is incorrect
     else:
         return restoringbm  # Return the original string if the format is correct
-
-systemname = platform.system()
-
-# if systemname=='Darwin':
-#     try:
-#         mpl.use('MacOSX')
-#     except:
-#         mpl.use('QtAgg')
-
-
-sunpy1 = sunpy.version.major >= 1
-sunpy3 = sunpy.version.major >= 3
-py3 = sys.version_info.major >= 3
-if py3:
-    # For Python 3.0 and later
-    from urllib.request import urlopen
-else:
-    # Fall back to Python 2's urllib2
-    from urllib2 import urlopen
-
-try:
-    ## Full Installation of CASA 4, 5 and 6
-    from split_cli import split_cli as split
-    from ptclean3_cli import ptclean3_cli as ptclean
-    from taskinit import ms, tb, qa, iatool
-    from tclean_cli import tclean_cli as tclean
-
-    c_external = True
-except:
-    ## Modular Installation of CASA 6
-    from casatools import table as tbtool
-    from casatools import ms as mstool
-    from casatools import quanta as qatool
-    from casatools import image as iatool
-
-    tb = tbtool()
-    ms = mstool()
-    qa = qatool()
-    ia = iatool()
-    from casatasks import tclean
-    from casatasks import split
-    from ..suncasatasks import ptclean6 as ptclean
-
-    c_external = False
-
-from matplotlib.dates import DateFormatter
-from astropy.coordinates import SkyCoord
-import matplotlib as mpl
-
-import matplotlib.colors as colors
-import matplotlib.patches as patches
-from ..utils import DButil
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from suncasa.utils import plot_mapX as pmX
-from suncasa.io import ndfits
-from tqdm import tqdm
-
-sunpy1 = sunpy.version.major >= 1
-if sunpy1:
-    from sunpy.coordinates import sun
-else:
-    from sunpy import sun
-    import sunpy.cm.cm as cm_sunpy
-
-polmap = {'RR': 0, 'LL': 1, 'I': 0, 'V': 1, 'XX': 0, 'YY': 1}
-
-
-# def warn(*args, **kwargs):
-#     pass
-#
-#
-# warnings.warn = warn
 
 
 def read_imres(imresfile):

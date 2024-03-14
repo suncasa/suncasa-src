@@ -5,14 +5,18 @@ from suncasa.utils import DButil
 from suncasa.utils import helioimage2fits as hf
 
 try:
-    from taskinit import casalog
-    from taskinit import iatool, rgtool
-
+    ## in modular installation imports for CASA 6 and beyond, where components are accessed via casatools and casatasks.
+    from casatasks import split, tclean, casalog, gencal, clearcal, applycal, bandpass, flagdata
 except:
-    from casatools import image as iatool
-    from casatools import regionmanager as rgtool
-    from casatasks import casalog
+    ## in monolithic installations, these tasks are built-in CASA tasks.
+    # CASA 6 introduces InputRejected exceptions for attempts to modify built-in CASA values
+    pass
 
+from ...casa_compat import get_casa_tools
+casa_components = get_casa_tools(['iatool', 'rgtool'])
+
+iatool = casa_components['iatool']
+rgtool = casa_components['rgtool']
 myia = iatool()
 myrg = rgtool()
 

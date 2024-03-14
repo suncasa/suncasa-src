@@ -1,19 +1,20 @@
 import os
 import numpy as np
 
+
 try:
-    ## Full Installation of CASA 4, 5 and 6
-    from taskinit import tb, casalog
-    from concat_cli import concat_cli as concat
-    from clearcal_cli import clearcal_cli as clearcal
-    from split_cli import split_cli as split
-
-except:
-    ## Modular Installation of CASA 6
+    ## in modular installation imports for CASA 6 and beyond, where components are accessed via casatools and casatasks.
     from casatasks import split, casalog, concat, clearcal
-    from casatools import table as tbtool
+except:
+    ## in monolithic installations, these tasks are built-in CASA tasks.
+    # CASA 6 introduces InputRejected exceptions for attempts to modify built-in CASA values
+    pass
 
-    tb = tbtool()
+from ...casa_compat import get_casa_tools
+casa_components = get_casa_tools(['tbtool'])
+
+tbtool = casa_components['tbtool']
+tb = tbtool()
 
 
 def concateovsa(vis, concatvis, datacolumn='corrected', keep_orig_ms=True, cols2rm="model,corrected", freqtol="",

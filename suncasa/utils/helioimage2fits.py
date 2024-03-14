@@ -18,20 +18,18 @@ else:
     ## CASA version < 6
     from urllib2 import urlopen
 
-try:
-    ## Full Installation of CASA 4, 5 and 6
-    from taskinit import ms, tb, qa, iatool
+from ..casa_compat import get_casa_tools
+casa_components = get_casa_tools(['tbtool', 'mstool', 'qatool', 'iatool'])
 
-    ia = iatool()
-except:
-    ## Modular Installation of CASA 6
-    from casatools import ms as mstool
-    from casatools import table, quanta, image
+tbtool = casa_components['tbtool']
+mstool = casa_components['mstool']
+qatool = casa_components['qatool']
+iatool = casa_components['iatool']
+tb = tbtool()
+ms = mstool()
+qa = qatool()
+ia = iatool()
 
-    ms = mstool()
-    tb = table()
-    qa = quanta()
-    ia = image()
 
 import sunpy
 
@@ -52,7 +50,6 @@ except:
 
 
 def ms_clearhistory(msfile):
-    from taskinit import tb
     tb_history = msfile + '/HISTORY'
     os.system('cp -r {0} {0}_bk'.format(tb_history))
     tb.open(tb_history, nomodify=False)
@@ -417,7 +414,7 @@ def read_msinfo(vis=None, msinfofile=None, interp_to_scan=False, verbose=False):
     msinfo['decs'] = decs
     if msinfofile:
         np.savez(msinfofile, vis=vis, observatory=observatory, scans=scans, fieldids=fieldids, inttimes=inttimes,
-                 btimes=btimes, btimestr=btimestr, ras=ras, decs=decs, has_ephem_table=has_ephem_table)
+                 btimes=btimes, btimestr=btimestr, ras=ras, decs=decs, has_ephem_table=msinfo['has_ephem_table'])
     return msinfo
 
 

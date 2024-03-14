@@ -31,38 +31,27 @@ from eovsapy import cal_header as ch
 from eovsapy import dbutil as db
 from eovsapy import pipeline_cal as pc
 from eovsapy.sqlutil import sql2refcalX, sql2phacalX
-
+from .. import concateovsa as ce
 
 try:
-    from taskinit import casalog, tb, ms
-    from tclean_cli import tclean_cli as tclean
-    from split_cli import split_cli as split
-    from gencal_cli import gencal_cli as gencal
-    from clearcal_cli import clearcal_cli as clearcal
-    from applycal_cli import applycal_cli as applycal
-    from bandpass_cli import bandpass_cli as bandpass
-    from flagdata_cli import flagdata_cli as flagdata
-    from suncasa.tasks import concateovsa_cli as ce
+    ## in modular installation imports for CASA 6 and beyond, where components are accessed via casatools and casatasks.
+    from casatasks import split, tclean, casalog, gencal, clearcal, applycal, bandpass, flagdata
 except:
-    from casatools import table as tbtool
-    from casatools import ms as mstool
-    from casatools import quanta as qatool
-    from casatools import image as iatool
+    ## in monolithic installations, these tasks are built-in CASA tasks.
+    # CASA 6 introduces InputRejected exceptions for attempts to modify built-in CASA values
+    pass
 
-    tb = tbtool()
-    ms = mstool()
-    qa = qatool()
-    ia = iatool()
-    from casatasks import split
-    from casatasks import tclean
-    from casatasks import casalog
-    from casatasks import gencal
-    from casatasks import clearcal
-    from casatasks import applycal
-    from casatasks import bandpass
-    from casatasks import flagdata
-    from ..private import task_concateovsa as ce
+from ...casa_compat import get_casa_tools
+casa_components = get_casa_tools(['tbtool', 'mstool', 'qatool', 'iatool'])
 
+tbtool = casa_components['tbtool']
+mstool = casa_components['mstool']
+qatool = casa_components['qatool']
+iatool = casa_components['iatool']
+tb = tbtool()
+ms = mstool()
+qa = qatool()
+ia = iatool()
 
 def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, doflag=True, flagant='13~15',
                doimage=False, imagedir=None, antenna=None, timerange=None, spw=None, stokes=None, dosplit=False,

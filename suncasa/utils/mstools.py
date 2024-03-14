@@ -1,22 +1,33 @@
-try:
-    ## Full Installation of CASA 4, 5 and 6
-    from taskinit import ms, tb, qa
-    from clearcal_cli import clearcal_cli as clearcal
-    from split_cli import split_cli as split
-except:
-    ## Modular Installation of CASA 6
-    from casatools import table as tbtool
-    from casatools import ms as mstool
-    from casatools import quanta as qatool
-    from casatasks import split, clearcal
-
-    tb = tbtool()
-    ms = mstool()
-    qa = qatool()
-
 import numpy as np
 from tqdm import tqdm
 import os
+
+try:
+    # Attempt to import CASA 6+ specific tasks from casatasks. In modular CASA 6 installations,
+    # casatasks module are used to access and manage various CASA tasks.
+    from casatasks import split, tclean, casalog, clearcal, gaincal
+except:
+    # Fallback for monolithic CASA installations (versions 4/5/6). In these versions,
+    # tasks like split, tclean, and casalog are integrated directly into the CASA environment.
+    pass
+
+from ..casa_compat import get_casa_tools
+casa_components = get_casa_tools(['tbtool', 'mstool', 'qatool'])
+tbtool = casa_components['tbtool']
+mstool = casa_components['mstool']
+qatool = casa_components['qatool']
+tb = tbtool()
+ms = mstool()
+qa = qatool()
+
+try:
+    # Attempt to import CASA 6+ specific tasks from casatasks. In modular CASA 6 installations,
+    # casatasks module are used to access and manage various CASA tasks.
+    from casatasks import split, tclean, casalog
+except:
+    # Fallback for monolithic CASA installations (versions 4/5/6). In these versions,
+    # tasks like split, tclean, and casalog are integrated directly into the CASA environment.
+    pass
 
 
 def get_bandinfo(msfile, spw=None, returnbdinfo=False):
@@ -280,7 +291,6 @@ def flagcaltboutliers(caltable, limit=[]):
 
 
 def modeltransfer(msfile, spw='', reference='XX', transfer='YY'):
-    from taskinit import mstool
     pol_dict = {'XX': 0, 'YY': 1, 'XY': 2, 'YX': 3}
     refidx = pol_dict[reference]
     trfidx = pol_dict[transfer]
@@ -353,7 +363,6 @@ def concat_slftb(tb_in=[], tb_out=None):
 
 
 def gaincalXY(vis=None, caltable=None, pols='XXYY', msfileXY=None, gaintableXY=None, **kwargs):
-    from gaincal_cli import gaincal_cli as gaincal
     if pols == 'XXYY':
         pols = 'XX,YY'
     pols_ = pols.split(',')

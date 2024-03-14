@@ -1,15 +1,8 @@
-import sys
-py3 = sys.version_info.major >= 3
+from ..casa_compat import get_casa_tools
+casa_components = get_casa_tools(['tbtool'])
 
-if py3:
-    from casatools import table as tbtool
-    from casatools import ms as mstool
-    from casatools import quanta as qatool
-    tb = tbtool()
-    ms = mstool()
-    qa = qatool()
-else:
-    from taskinit import tb, qa, ms
+tbtool = casa_components['tbtool']
+tb = tbtool()
 
 
 def getAntennaPosition(vis):
@@ -19,7 +12,6 @@ def getAntennaPosition(vis):
     antenna = tb.getcol('NAME')
     tb.close()
     return position, diameter, antenna
-
 
 def getObservatoryName(ms):
     """

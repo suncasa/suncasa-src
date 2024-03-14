@@ -32,25 +32,28 @@ from suncasa.eovsa import impteovsa as ipe
 py3 = sys.version_info.major >= 3
 
 try:
-    ## Full Installation of CASA 4, 5 and 6
-    from split_cli import split_cli as split
-    from taskinit import ms, tb, qa, iatool, casalog
-
-    c_external = True
-except:
-    ## Modular Installation of CASA 6
-    from casatools import table as tbtool
-    from casatools import ms as mstool
-    from casatools import quanta as qatool
-    from casatools import image as iatool
-
-    tb = tbtool()
-    ms = mstool()
-    qa = qatool()
-    ia = iatool()
+    ## in modular installation imports for CASA 6 and beyond, where components are accessed via casatools and casatasks.
     from casatasks import split, casalog
+except:
+    ## in monolithic installations, these tasks are built-in CASA tasks.
+    # CASA 6 introduces InputRejected exceptions for attempts to modify built-in CASA values
+    pass
 
-    c_external = False
+from ...casa_compat import get_casa_tools
+casa_components = get_casa_tools(['tbtool', 'mstool', 'qatool', 'iatool'])
+
+tbtool = casa_components['tbtool']
+mstool = casa_components['mstool']
+qatool = casa_components['qatool']
+iatool = casa_components['iatool']
+tb = tbtool()
+ms = mstool()
+qa = qatool()
+ia = iatool()
+
+
+
+c_external = False
 
 # idbdir = os.getenv('EOVSAIDB')
 #
