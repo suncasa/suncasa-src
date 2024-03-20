@@ -2,33 +2,23 @@ import numpy as np
 from tqdm import tqdm
 import os
 
-try:
-    # Attempt to import CASA 6+ specific tasks from casatasks. In modular CASA 6 installations,
-    # casatasks module are used to access and manage various CASA tasks.
-    from casatasks import split, tclean, casalog, clearcal, gaincal
-except:
-    # Fallback for monolithic CASA installations (versions 4/5/6). In these versions,
-    # tasks like split, tclean, and casalog are integrated directly into the CASA environment.
-    pass
 
-from ..casa_compat import get_casa_tools
-casa_components = get_casa_tools(['tbtool', 'mstool', 'qatool'])
-tbtool = casa_components['tbtool']
-mstool = casa_components['mstool']
-qatool = casa_components['qatool']
+from ..casa_compat import import_casatools,import_casatasks
+
+tasks = import_casatasks('split', 'tclean', 'casalog', 'clearcal', 'gaincal')
+split = tasks.get('split')
+tclean = tasks.get('tclean')
+casalog = tasks.get('casalog')
+clearcal = tasks.get('clearcal')
+gaincal = tasks.get('gaincal')
+
+tools = import_casatools(['tbtool', 'mstool', 'qatool'])
+tbtool = tools['tbtool']
+mstool = tools['mstool']
+qatool = tools['qatool']
 tb = tbtool()
 ms = mstool()
 qa = qatool()
-
-try:
-    # Attempt to import CASA 6+ specific tasks from casatasks. In modular CASA 6 installations,
-    # casatasks module are used to access and manage various CASA tasks.
-    from casatasks import split, tclean, casalog
-except:
-    # Fallback for monolithic CASA installations (versions 4/5/6). In these versions,
-    # tasks like split, tclean, and casalog are integrated directly into the CASA environment.
-    pass
-
 
 def get_bandinfo(msfile, spw=None, returnbdinfo=False):
     '''

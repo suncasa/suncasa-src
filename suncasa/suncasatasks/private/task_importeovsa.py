@@ -31,29 +31,24 @@ from suncasa.eovsa import impteovsa as ipe
 
 py3 = sys.version_info.major >= 3
 
-try:
-    ## in modular installation imports for CASA 6 and beyond, where components are accessed via casatools and casatasks.
-    from casatasks import split, casalog
-except:
-    ## in monolithic installations, these tasks are built-in CASA tasks.
-    # CASA 6 introduces InputRejected exceptions for attempts to modify built-in CASA values
-    pass
+from ...casa_compat import import_casatools, import_casatasks
 
-from ...casa_compat import get_casa_tools
-casa_components = get_casa_tools(['tbtool', 'mstool', 'qatool', 'iatool'])
+tasks = import_casatasks('split', 'casalog')
+split = tasks.get('split')
+casalog = tasks.get('casalog')
 
-tbtool = casa_components['tbtool']
-mstool = casa_components['mstool']
-qatool = casa_components['qatool']
-iatool = casa_components['iatool']
+tools = import_casatools(['tbtool', 'mstool', 'qatool', 'iatool'])
+tbtool = tools['tbtool']
+mstool = tools['mstool']
+qatool = tools['qatool']
+iatool = tools['iatool']
 tb = tbtool()
 ms = mstool()
 qa = qatool()
 ia = iatool()
 
-
-
 c_external = False
+
 
 # idbdir = os.getenv('EOVSAIDB')
 #
@@ -110,7 +105,7 @@ def udb_corr_external(filelist, udbcorr_path, use_exist_udbcorr=False):
         fi.write(b' \n')
         # fi.write('setenv PYTHONPATH "/home/user/test_svn/python:/common/python/current:/common/python" \n')
         fi.write(b'source /home/user/.cshrc \n')
-        line ='/common/anaconda2/bin/python {} \n'.format(udbcorr_script)
+        line = '/common/anaconda2/bin/python {} \n'.format(udbcorr_script)
         fi.write(line.encode())
         fi.close()
 
@@ -528,8 +523,6 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
         else:
             filelist = filelist_tmp
         # filelist = udb_corr_external(filelist, udbcorr_path, use_exist_udbcorr)
-
-
 
     if not modelms:
         if nocreatms:

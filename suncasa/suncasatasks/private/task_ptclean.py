@@ -9,24 +9,20 @@ from time import time
 import glob
 import sys
 from ...utils import helioimage2fits as hf
-from ...casa_compat import get_casa_tools
+from ...casa_compat import import_casatools, import_casatasks
 
-casa_components = get_casa_tools(['tbtool', 'mstool', 'qatool'])
-tbtool = casa_components['tbtool']
-mstool = casa_components['mstool']
-qatool = casa_components['qatool']
+tasks = import_casatasks('split', 'tclean', 'casalog')
+split = tasks.get('split')
+tclean = tasks.get('tclean')
+casalog = tasks.get('casalog')
+
+tools = import_casatools(['tbtool', 'mstool', 'qatool'])
+tbtool = tools['tbtool']
+mstool = tools['mstool']
+qatool = tools['qatool']
 tb = tbtool()
 ms = mstool()
 qa = qatool()
-
-try:
-    # Attempt to import CASA 6+ specific tasks from casatasks. In modular CASA 6 installations,
-    # casatasks module are used to access and manage various CASA tasks.
-    from casatasks import split, tclean, casalog
-except:
-    # Fallback for monolithic CASA installations (versions 4/5/6). In these versions,
-    # tasks like split, tclean, and casalog are integrated directly into the CASA environment.
-    pass
 
 c_external = False
 
@@ -43,7 +39,6 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
                usemask, mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold,
                smoothfactor, minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart,
                savemodel, calcres, calcpsf, parallel, subregion, tmpdir, btidx):
-
     bt = btidx  # 0
     if bt + twidth < len(tim) - 1:
         et = btidx + twidth - 1
@@ -67,7 +62,6 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
 
     image0 = btstr.replace(':', '').replace('-', '')
     imname = imageprefix + image0 + imagesuffix
-
 
     if overwrite or (len(glob.glob(imname + '*')) == 0):
         os.system('rm -rf {}*'.format(imname))
@@ -145,17 +139,17 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
 
 
 def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, sclfactor, subregion,
-             docompress,
-             overwrite, selectdata, field, spw, timerange, uvrange, antenna, scan, observation, intent, datacolumn,
-             imsize, cell, phasecenter,
-             stokes, projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
-             interpolation, gridder, facets, chanchunks, wprojplanes, vptable, usepointing, mosweight, aterm, psterm,
-             wbawp, conjbeams, cfcache, computepastep, rotatepastep, pblimit, normtype, deconvolver, scales, nterms,
-             smallscalebias, restoration, restoringbeam, pbcor, outlierfile, weighting, robust, npixels, uvtaper, niter,
-             gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive, usemask,
-             mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold, smoothfactor,
-             minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart, savemodel,
-             calcres, calcpsf, parallel):
+            docompress,
+            overwrite, selectdata, field, spw, timerange, uvrange, antenna, scan, observation, intent, datacolumn,
+            imsize, cell, phasecenter,
+            stokes, projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
+            interpolation, gridder, facets, chanchunks, wprojplanes, vptable, usepointing, mosweight, aterm, psterm,
+            wbawp, conjbeams, cfcache, computepastep, rotatepastep, pblimit, normtype, deconvolver, scales, nterms,
+            smallscalebias, restoration, restoringbeam, pbcor, outlierfile, weighting, robust, npixels, uvtaper, niter,
+            gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive, usemask,
+            mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold, smoothfactor,
+            minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart, savemodel,
+            calcres, calcpsf, parallel):
     if not (type(ncpu) is int):
         casalog.post('ncpu should be an integer')
         ncpu = 8

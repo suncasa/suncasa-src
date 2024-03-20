@@ -18,13 +18,13 @@ else:
     ## CASA version < 6
     from urllib2 import urlopen
 
-from ..casa_compat import get_casa_tools
-casa_components = get_casa_tools(['tbtool', 'mstool', 'qatool', 'iatool'])
+from ..casa_compat import import_casatools
+tools = import_casatools(['tbtool', 'mstool', 'qatool', 'iatool'])
 
-tbtool = casa_components['tbtool']
-mstool = casa_components['mstool']
-qatool = casa_components['qatool']
-iatool = casa_components['iatool']
+tbtool = tools['tbtool']
+mstool = tools['mstool']
+qatool = tools['qatool']
+iatool = tools['iatool']
 tb = tbtool()
 ms = mstool()
 qa = qatool()

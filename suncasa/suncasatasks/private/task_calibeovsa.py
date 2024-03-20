@@ -33,21 +33,25 @@ from eovsapy import pipeline_cal as pc
 from eovsapy.sqlutil import sql2refcalX, sql2phacalX
 from .. import concateovsa as ce
 
-try:
-    ## in modular installation imports for CASA 6 and beyond, where components are accessed via casatools and casatasks.
-    from casatasks import split, tclean, casalog, gencal, clearcal, applycal, bandpass, flagdata
-except:
-    ## in monolithic installations, these tasks are built-in CASA tasks.
-    # CASA 6 introduces InputRejected exceptions for attempts to modify built-in CASA values
-    pass
 
-from ...casa_compat import get_casa_tools
-casa_components = get_casa_tools(['tbtool', 'mstool', 'qatool', 'iatool'])
+from ...casa_compat import import_casatools, import_casatasks
 
-tbtool = casa_components['tbtool']
-mstool = casa_components['mstool']
-qatool = casa_components['qatool']
-iatool = casa_components['iatool']
+tasks = import_casatasks('split', 'tclean', 'gencal', 'clearcal', 'applycal', 'flagdata', 'casalog', 'bandpass')
+split = tasks.get('split')
+tclean = tasks.get('tclean')
+gencal = tasks.get('gencal')
+clearcal = tasks.get('clearcal')
+applycal = tasks.get('applycal')
+flagdata = tasks.get('flagdata')
+casalog = tasks.get('casalog')
+bandpass = tasks.get('bandpass')
+
+tools = import_casatools(['tbtool', 'mstool', 'qatool', 'iatool'])
+
+tbtool = tools['tbtool']
+mstool = tools['mstool']
+qatool = tools['qatool']
+iatool = tools['iatool']
 tb = tbtool()
 ms = mstool()
 qa = qatool()
@@ -299,9 +303,9 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                 gencal(vis=msfile, caltable=caltb_dlycen_pha0, caltype='ph', pol='X,Y', antenna=antennas,
                        parameter=dlycen_pha0.flatten().tolist())
             gaintables.append(caltb_dlycen)
-            spwmaps.append(nspw*[0])
+            spwmaps.append(nspw * [0])
             gaintables.append(caltb_dlycen_pha0)
-            spwmaps.append(nspw*[0])
+            spwmaps.append(nspw * [0])
 
         if 'phacal' in caltype:
             phacals = np.array(sql2phacalX([bt, et], neat=True, verbose=False))
@@ -350,9 +354,9 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                     dt = np.min(np.abs(t_phas.mjd - t_mid.mjd)) * 24.
                     print("Selected nearest phase calibration table at " + t_phas[tbind].iso)
                     gaintables.append(caltbs_phambd[tbind])
-                    spwmaps.append(nspw*[0])
+                    spwmaps.append(nspw * [0])
                     gaintables.append(caltbs_phambd_pha0[tbind])
-                    spwmaps.append(nspw*[0])
+                    spwmaps.append(nspw * [0])
                 if interp == 'linear':
                     # bphacal = sql2phacalX(btime)
                     # ephacal = sql2phacalX(etime,reverse=True)
@@ -363,14 +367,14 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                         print("Skipping daily phase calibration")
                     elif len(bt_ind) > 0 and len(et_ind) == 0:
                         gaintables.append(caltbs_phambd[bt_ind[-1]])
-                        spwmaps.append(nspw*[0])
+                        spwmaps.append(nspw * [0])
                         gaintables.append(caltbs_phambd_pha0[bt_ind[-1]])
-                        spwmaps.append(nspw*[0])
+                        spwmaps.append(nspw * [0])
                     elif len(bt_ind) == 0 and len(et_ind) > 0:
                         gaintables.append(caltbs_phambd[et_ind[0]])
-                        spwmaps.append(nspw*[0])
+                        spwmaps.append(nspw * [0])
                         gaintables.append(caltbs_phambd_pha0[et_ind[0]])
-                        spwmaps.append(nspw*[0])
+                        spwmaps.append(nspw * [0])
                     elif len(bt_ind) > 0 and len(et_ind) > 0:
                         bphacal = phacals[bt_ind[-1]]
                         ephacal = phacals[et_ind[0]]
@@ -385,7 +389,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                         phambd_ns[np.where(bphacal['flag'] == 1)] = 0.
                         phambd_ns[np.where(ephacal['flag'] == 1)] = 0.
                         caltb_phambd_interp = dirname + t_mid.isot[:-4].replace(':', '').replace('-',
-                                                                                                      '') + '.phambd'
+                                                                                                 '') + '.phambd'
                         caltb_phambd_interp_pha0 = caltb_phambd_interp + '_pha0'
                         pha0 = np.degrees(phambd_ns * 1e-9 * cfreq_spw0 * 2. * np.pi)
                         if not os.path.exists(caltb_phambd_interp):
@@ -397,9 +401,9 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                         print("Using phase calibration table interpolated between records at " + bphacal[
                             't_pha'].iso + ' and ' + ephacal['t_pha'].iso)
                         gaintables.append(caltb_phambd_interp)
-                        spwmaps.append(nspw*[0])
+                        spwmaps.append(nspw * [0])
                         gaintables.append(caltb_phambd_interp_pha0)
-                        spwmaps.append(nspw*[0])
+                        spwmaps.append(nspw * [0])
 
         if docalib:
             clearcal(msfile)

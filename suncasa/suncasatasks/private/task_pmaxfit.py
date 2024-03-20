@@ -4,19 +4,14 @@ import os, struct
 from time import time
 import multiprocessing as mprocs
 from suncasa.utils import DButil
-try:
-    # Attempt to import CASA 6+ specific tasks from casatasks. In modular CASA 6 installations,
-    # casatasks module are used to access and manage various CASA tasks.
-    from casatasks import casalog
-except:
-    # Fallback for monolithic CASA installations (versions 4/5/6). In these versions,
-    # tasks like split, tclean, and casalog are integrated directly into the CASA environment.
-    pass
-from ...casa_compat import get_casa_tools
 
-casa_components = get_casa_tools(['iatool', 'rgtool'])
-iatool = casa_components['iatool']
-rgtool = casa_components['rgtool']
+from ...casa_compat import import_casatools, import_casatasks
+tasks = import_casatasks('casalog')
+casalog = tasks.get('casalog')
+
+tools = import_casatools(['iatool', 'rgtool'])
+iatool = tools['iatool']
+rgtool = tools['rgtool']
 
 def maxfit_iter(imgfiles, box, width, imidx):
     myia = iatool()

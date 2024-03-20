@@ -4,19 +4,21 @@ import multiprocessing as mprocs
 from suncasa.utils import DButil
 from suncasa.utils import helioimage2fits as hf
 
-try:
-    ## in modular installation imports for CASA 6 and beyond, where components are accessed via casatools and casatasks.
-    from casatasks import split, tclean, casalog, gencal, clearcal, applycal, bandpass, flagdata
-except:
-    ## in monolithic installations, these tasks are built-in CASA tasks.
-    # CASA 6 introduces InputRejected exceptions for attempts to modify built-in CASA values
-    pass
+from ...casa_compat import import_casatools, import_casatasks
+tasks = import_casatasks('split','tclean','gencal','clearcal','applycal','flagdata','casalog','bandpass')
+split = tasks.get('split')
+tclean = tasks.get('tclean')
+gencal = tasks.get('gencal')
+clearcal = tasks.get('clearcal')
+applycal = tasks.get('applycal')
+flagdata = tasks.get('flagdata')
+casalog = tasks.get('casalog')
+bandpass = tasks.get('bandpass')
 
-from ...casa_compat import get_casa_tools
-casa_components = get_casa_tools(['iatool', 'rgtool'])
+tools = import_casatools(['iatool', 'rgtool'])
 
-iatool = casa_components['iatool']
-rgtool = casa_components['rgtool']
+iatool = tools['iatool']
+rgtool = tools['rgtool']
 myia = iatool()
 myrg = rgtool()
 

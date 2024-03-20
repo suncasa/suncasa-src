@@ -6,24 +6,20 @@ from time import time
 import glob
 import sys
 from ...utils import helioimage2fits as hf
-from ...casa_compat import get_casa_tools
+from ...casa_compat import import_casatools, import_casatasks
 
-casa_components = get_casa_tools(['tbtool', 'mstool', 'qatool'])
-tbtool = casa_components['tbtool']
-mstool = casa_components['mstool']
-qatool = casa_components['qatool']
+tasks = import_casatasks('split', 'tclean', 'casalog')
+split = tasks.get('split')
+tclean = tasks.get('tclean')
+casalog = tasks.get('casalog')
+
+tools = import_casatools(['tbtool', 'mstool', 'qatool'])
+tbtool = tools['tbtool']
+mstool = tools['mstool']
+qatool = tools['qatool']
 tb = tbtool()
 ms = mstool()
 qa = qatool()
-
-try:
-    # Attempt to import CASA 6+ specific tasks from casatasks. In modular CASA 6 installations,
-    # casatasks module are used to access and manage various CASA tasks.
-    from casatasks import split, tclean, casalog
-except:
-    # Fallback for monolithic CASA installations (versions 4/5/6). In these versions,
-    # tasks like split, tclean, and casalog are integrated directly into the CASA environment.
-    pass
 
 c_external = False
 

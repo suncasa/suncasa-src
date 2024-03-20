@@ -10,10 +10,11 @@ except:
     # CASA 6 introduces InputRejected exceptions for attempts to modify built-in CASA values
     pass
 
-from ...casa_compat import get_casa_tools
-casa_components = get_casa_tools(['tbtool'])
+from ...casa_compat import import_casatools, import_casatasks
 
-tbtool = casa_components['tbtool']
+tools = import_casatools(['tbtool'])
+
+tbtool = tools['tbtool']
 tb = tbtool()
 
 

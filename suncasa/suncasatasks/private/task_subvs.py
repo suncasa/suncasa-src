@@ -4,20 +4,15 @@ import numpy as np
 from ...utils import signal_utils as su
 import sys
 
+from ...casa_compat import import_casatools, import_casatasks
 
-try:
-    ## in modular installation imports for CASA 6 and beyond, where components are accessed via casatools and casatasks.
-    from casatasks import casalog
-except:
-    ## in monolithic installations, these tasks are built-in CASA tasks.
-    # CASA 6 introduces InputRejected exceptions for attempts to modify built-in CASA values
-    pass
+tasks = import_casatasks('casalog')
+casalog = tasks.get('casalog')
 
-from ...casa_compat import get_casa_tools
-casa_components = get_casa_tools(['mstool', 'msmdtool', 'qatool'])
-mstool = casa_components['mstool']
-msmdtool = casa_components['msmdtool']
-qatool = casa_components['qatool']
+tools = import_casatools(['mstool', 'msmdtool', 'qatool'])
+mstool = tools['mstool']
+msmdtool = tools['msmdtool']
+qatool = tools['qatool']
 datams = mstool()
 ms_in = mstool()
 datamsmd = msmdtool()

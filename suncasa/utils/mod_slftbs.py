@@ -2,10 +2,10 @@ import os
 import numpy as np
 import sys
 
-from ..casa_compat import get_casa_tools
-casa_components = get_casa_tools(['tbtool'])
+from ..casa_compat import import_casatools
+tools = import_casatools(['tbtool'])
 
-tbtool = casa_components['tbtool']
+tbtool = tools['tbtool']
 tb = tbtool()
 
 

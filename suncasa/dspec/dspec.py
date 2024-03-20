@@ -8,13 +8,16 @@ import numpy as np
 from astropy.time import Time
 from copy import copy
 
-from ..casa_compat import get_casa_tools
+from ..casa_compat import import_casatools, import_casatasks
+tasks = import_casatasks('split','hanningsmooth')
+split = tasks.get('split')
+hanningsmooth = tasks.get('hanningsmooth')
 
-casa_components = get_casa_tools(['tbtool', 'mstool', 'qatool'])
+tools = import_casatools(['tbtool', 'mstool', 'qatool'])
 
-tbtool = casa_components['tbtool']
-mstool = casa_components['mstool']
-qatool = casa_components['qatool']
+tbtool = tools['tbtool']
+mstool = tools['mstool']
+qatool = tools['qatool']
 tb = tbtool()
 ms = mstool()
 qa = qatool()
@@ -277,7 +280,6 @@ class Dspec:
                 pol = []
 
             if hanning:
-                from casatasks import hanningsmooth
                 hanningsmooth(vis=fname, datacolumn='data', field=field, outputvis=fname + '.tmpms')
                 fname = fname + '.tmpms'
             tb.open(fname)
@@ -488,10 +490,6 @@ class Dspec:
             #       uvrange=uvrange, timebin=timebin, datacolumn=datacolumn)
 
             try:
-                try:
-                    from casatasks import split
-                except:
-                    pass
                 split(vis=msfile, outputvis=vis_spl, datacolumn=datacolumn, timerange=timeran, spw=spw, antenna=bl,
                       field=field, scan=scan, uvrange=uvrange, timebin=timebin)
             except:

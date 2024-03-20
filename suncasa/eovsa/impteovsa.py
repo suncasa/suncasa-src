@@ -14,10 +14,10 @@ except:
     # CASA 6 introduces InputRejected exceptions for attempts to modify built-in CASA values
     pass
 
-from ..casa_compat import get_casa_tools
-casa_components = get_casa_tools(['smtool', 'metool'])
-smtool = casa_components['smtool']
-metool = casa_components['metool']
+from ..casa_compat import import_casatools
+tools = import_casatools(['smtool', 'metool'])
+smtool = tools['smtool']
+metool = tools['metool']
 
 me = metool()
 
