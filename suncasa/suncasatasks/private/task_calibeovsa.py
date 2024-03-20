@@ -1,22 +1,6 @@
-def check_dependencies():
-    missing_packages = []
-    try:
-        import aipy
-    except ImportError:
-        missing_packages.append("aipy-eovsa")
-
-    try:
-        import eovsapy
-    except ImportError:
-        missing_packages.append("eovsapy")
-
-    if missing_packages:
-        raise ImportError(
-            "The following package(s) are required to use this function: {}. "
-            "Please install them to proceed.".format(", ".join(missing_packages))
-        )
-
+from ...casa_compat import check_dependencies
 check_dependencies()
+
 import platform
 import matplotlib
 if platform.system() == 'Linux':
