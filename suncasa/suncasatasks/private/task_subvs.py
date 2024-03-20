@@ -1,29 +1,22 @@
 import os
 import shutil
 import numpy as np
-from suncasa.utils import signal_utils as su
+from ...utils import signal_utils as su
 import sys
 
-if sys.version_info.major > 2:
-    from casatools import ms, quanta, msmetadata
-    from casatasks import casalog
+from ...casa_compat import import_casatools, import_casatasks
 
-    casalog.showconsole(True)
-    datams = ms()
-    ms_in = ms()
-    datamsmd = msmetadata()
-    qa = quanta()
-else:
-    from taskinit import ms, qa, mstool, msmdtool, casalog
+tasks = import_casatasks('casalog')
+casalog = tasks.get('casalog')
 
-    datams = mstool()
-    ms_in = mstool()
-    datamsmd = msmdtool()
-
-
-# from taskinit import *
-# from callibrary import *
-# import pdb
+tools = import_casatools(['mstool', 'msmdtool', 'qatool'])
+mstool = tools['mstool']
+msmdtool = tools['msmdtool']
+qatool = tools['qatool']
+datams = mstool()
+ms_in = mstool()
+datamsmd = msmdtool()
+qa = qatool()
 
 def subvs(vis=None, outputvis=None, timerange='', spw='',
            mode='linear', subtime1='', subtime2='',

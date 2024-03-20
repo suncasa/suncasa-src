@@ -200,13 +200,13 @@ def read(filepath, hdus=None, verbose=False, **kwargs):
                         npol = header['NAXIS{}'.format(idx + 1)]
                 if freq_axis is not None:
                     slc[freq_axis] = slice(0, 1)
-                    meta['ref_cfreqs'] = (hdu.header['CRVAL{}'.format(ndim - freq_axis)] + hdu.header[
+                    meta['freqs'] = (hdu.header['CRVAL{}'.format(ndim - freq_axis)] + hdu.header[
                         'CDELT{}'.format(ndim - freq_axis)] * np.arange(
                         hdu.header['NAXIS{}'.format(ndim - freq_axis)]))
-                    meta['ref_freqdelts'] = np.ones_like(meta['ref_cfreqs']) \
+                    meta['freqs_delt'] = np.ones_like(meta['freqs']) \
                                             * hdu.header['CDELT{}'.format(ndim - freq_axis)]
                 else:
-                    meta['ref_cfreqs'] = np.array([hdu.header['RESTFRQ']])
+                    meta['freqs'] = np.array([hdu.header['RESTFRQ']])
 
                 if pol_axis is not None:
                     slc[pol_axis] = slice(0, 1)
@@ -246,8 +246,8 @@ def read(filepath, hdus=None, verbose=False, **kwargs):
                 print('FITS file contains an additional frequency axis. '
                       'Update the frequency information in cfreqs and cdelts. '
                       'Ignore the original version with equal spacings.')
-            meta['ref_cfreqs'] = np.array(hdulist[-1].data['cfreqs'])
-            meta['ref_freqdelts'] = np.array(hdulist[-1].data['cdelts'])
+            meta['freqs'] = np.array(hdulist[-1].data['cfreqs'])
+            meta['freqs_delt'] = np.array(hdulist[-1].data['cdelts'])
 
         if hasattr(hdulist[-1].data, 'bmaj'):
             meta['bmaj'] = np.array(hdulist[-1].data['bmaj'])
@@ -365,6 +365,10 @@ def header_to_xml(header):
 
 
 def write_j2000_image(fname, data, header):
+    ## todo: write scaled data to jp2. so hv doesn't have to to scale.
+    ## todo: add date and time to filename following 2024_03_06__14_18_45_343__EOVSA_1.5GHz.jp2
+    ## todo: flare iamges: do similar thing as the CME tag for ccmc data, eOVSa provide movie links to hv. hv will show flare tag
+    ## on the solar image and include movie as a external link
     import glymur
     datamax = np.max(data)
     datamin = np.min(data)
@@ -548,7 +552,6 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
         col3 = fits.Column(name='bmaj', format='E', array=cbmaj)
         col4 = fits.Column(name='bmin', format='E', array=cbmin)
         col5 = fits.Column(name='bpa', format='E', array=cbpa)
-
         tbhdu = fits.BinTableHDU.from_columns([col1, col2, col3, col4, col5])
 
         if docompress:

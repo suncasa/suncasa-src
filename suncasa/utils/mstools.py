@@ -1,23 +1,24 @@
-try:
-    ## Full Installation of CASA 4, 5 and 6
-    from taskinit import ms, tb, qa
-    from clearcal_cli import clearcal_cli as clearcal
-    from split_cli import split_cli as split
-except:
-    ## Modular Installation of CASA 6
-    from casatools import table as tbtool
-    from casatools import ms as mstool
-    from casatools import quanta as qatool
-    from casatasks import split, clearcal
-
-    tb = tbtool()
-    ms = mstool()
-    qa = qatool()
-
 import numpy as np
 from tqdm import tqdm
 import os
 
+
+from ..casa_compat import import_casatools,import_casatasks
+
+tasks = import_casatasks('split', 'tclean', 'casalog', 'clearcal', 'gaincal')
+split = tasks.get('split')
+tclean = tasks.get('tclean')
+casalog = tasks.get('casalog')
+clearcal = tasks.get('clearcal')
+gaincal = tasks.get('gaincal')
+
+tools = import_casatools(['tbtool', 'mstool', 'qatool'])
+tbtool = tools['tbtool']
+mstool = tools['mstool']
+qatool = tools['qatool']
+tb = tbtool()
+ms = mstool()
+qa = qatool()
 
 def get_bandinfo(msfile, spw=None, returnbdinfo=False):
     '''
@@ -280,7 +281,6 @@ def flagcaltboutliers(caltable, limit=[]):
 
 
 def modeltransfer(msfile, spw='', reference='XX', transfer='YY'):
-    from taskinit import mstool
     pol_dict = {'XX': 0, 'YY': 1, 'XY': 2, 'YX': 3}
     refidx = pol_dict[reference]
     trfidx = pol_dict[transfer]
@@ -353,7 +353,6 @@ def concat_slftb(tb_in=[], tb_out=None):
 
 
 def gaincalXY(vis=None, caltable=None, pols='XXYY', msfileXY=None, gaintableXY=None, **kwargs):
-    from gaincal_cli import gaincal_cli as gaincal
     if pols == 'XXYY':
         pols = 'XX,YY'
     pols_ = pols.split(',')

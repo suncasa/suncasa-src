@@ -5,26 +5,23 @@ from functools import partial
 from time import time
 import glob
 import sys
-from suncasa.utils import helioimage2fits as hf
+from ...utils import helioimage2fits as hf
+from ...casa_compat import import_casatools, import_casatasks
 
-pversion = sys.version_info.major
-if pversion < 3:
-    ## CASA version < 6
-    from taskinit import ms, tb, qa, casalog
-    from tclean_cli import tclean_cli as tclean
+tasks = import_casatasks('split', 'tclean', 'casalog')
+split = tasks.get('split')
+tclean = tasks.get('tclean')
+casalog = tasks.get('casalog')
 
-    is_casa6 = False
-else:
-    ## CASA version >= 6
-    from casatasks import casalog, tclean
-    from casatools import table as tbtool
-    from casatools import ms as mstool
-    from casatools import quanta as qatool
+tools = import_casatools(['tbtool', 'mstool', 'qatool'])
+tbtool = tools['tbtool']
+mstool = tools['mstool']
+qatool = tools['qatool']
+tb = tbtool()
+ms = mstool()
+qa = qatool()
 
-    tb = tbtool()
-    ms = mstool()
-    qa = qatool()
-    is_casa6 = True
+c_external = False
 
 
 def clean_iter(tim, vis, imageprefix, imagesuffix,
@@ -224,7 +221,6 @@ def ptclean6(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
                 etidx = len(tim) - 1
         except ValueError:
             print("keyword 'timerange' has a wrong format")
-
 
     btstr = qa.time(qa.quantity(tim[btidx], 's'), prec=9, form='fits')[0]
     etstr = qa.time(qa.quantity(tim[etidx], 's'), prec=9, form='fits')[0]
