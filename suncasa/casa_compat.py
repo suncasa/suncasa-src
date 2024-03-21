@@ -43,6 +43,24 @@ tool_mapping = {
     'cltool': 'componentlist',
 }
 
+def check_dependencies():
+    missing_packages = []
+    try:
+        import aipy
+    except ImportError:
+        missing_packages.append("aipy-eovsa")
+
+    try:
+        import eovsapy
+    except ImportError:
+        missing_packages.append("eovsapy")
+
+    if missing_packages:
+        raise ImportError(
+            "The following package(s) are required to use this function: {}. "
+            "Please install them to proceed.".format(", ".join(missing_packages))
+        )
+
 
 def import_casatools(alias_list=['tbtool', 'mstool', 'qatool', 'iatool', 'rgtool', 'msmdtool', 'smtool', 'metool']):
     """

@@ -12,6 +12,15 @@ stokesval = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3
              '-6': 'YY', '-7': 'XY', '-8': 'YX'}
 
 
+def is_compressed_fits(fitsfile):
+    '''
+    Function to check if the FITS file contains compressed data
+    '''
+    with fits.open(fitsfile) as hdul:
+        for hdu in hdul:
+            if isinstance(hdu, fits.hdu.CompImageHDU):
+                return True
+        return False
 
 def headerfix(header, PC_coor=True):
     '''
@@ -200,13 +209,13 @@ def read(filepath, hdus=None, verbose=False, **kwargs):
                         npol = header['NAXIS{}'.format(idx + 1)]
                 if freq_axis is not None:
                     slc[freq_axis] = slice(0, 1)
-                    meta['freqs'] = (hdu.header['CRVAL{}'.format(ndim - freq_axis)] + hdu.header[
+                    meta['ref_cfreqs'] = (hdu.header['CRVAL{}'.format(ndim - freq_axis)] + hdu.header[
                         'CDELT{}'.format(ndim - freq_axis)] * np.arange(
                         hdu.header['NAXIS{}'.format(ndim - freq_axis)]))
-                    meta['freqs_delt'] = np.ones_like(meta['freqs']) \
+                    meta['ref_freqdelts'] = np.ones_like(meta['ref_cfreqs']) \
                                             * hdu.header['CDELT{}'.format(ndim - freq_axis)]
                 else:
-                    meta['freqs'] = np.array([hdu.header['RESTFRQ']])
+                    meta['ref_cfreqs'] = np.array([hdu.header['RESTFRQ']])
 
                 if pol_axis is not None:
                     slc[pol_axis] = slice(0, 1)
@@ -246,8 +255,8 @@ def read(filepath, hdus=None, verbose=False, **kwargs):
                 print('FITS file contains an additional frequency axis. '
                       'Update the frequency information in cfreqs and cdelts. '
                       'Ignore the original version with equal spacings.')
-            meta['freqs'] = np.array(hdulist[-1].data['cfreqs'])
-            meta['freqs_delt'] = np.array(hdulist[-1].data['cdelts'])
+            meta['ref_cfreqs'] = np.array(hdulist[-1].data['cfreqs'])
+            meta['ref_freqdelts'] = np.array(hdulist[-1].data['cdelts'])
 
         if hasattr(hdulist[-1].data, 'bmaj'):
             meta['bmaj'] = np.array(hdulist[-1].data['bmaj'])
@@ -580,3 +589,74 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
         hdulnew.writeto(outfitsfile)
         print('wrapped fits written as ' + outfitsfile)
         return outfitsfile
+
+
+def update(fitsfile, new_columns=None, new_header_entries=None):
+    """
+    Updates a FITS file by optionally adding new columns to the first BinTableHDU and/or updating the header
+    of the first image HDU (CompImageHDU for compressed or PrimaryHDU for uncompressed FITS files).
+
+    Parameters:
+    - fitsfile (str): The path to the FITS file to be modified.
+    - new_columns (list of astropy.io.fits.Column, optional): A list of new columns to be added to the
+      first BinTableHDU. Defaults to None, in which case no columns are added.
+    - new_header_entries (dict, optional): A dictionary where the keys are header keywords to be updated or added
+      in the first image HDU (CompImageHDU or PrimaryHDU), and the values are the corresponding values for these
+      keywords. Defaults to None, in which case no header updates are made.
+
+    Returns:
+    - bool: True if the operation(s) were successful, False otherwise.
+
+    The function checks the compression status of the FITS file to determine the correct HDU types for updating.
+    It updates the header of the first relevant image HDU and adds new columns to the first BinTableHDU found,
+    if applicable. If both new_columns and new_header_entries are None, it prints a message indicating no updates
+    were made.
+    """
+    if new_columns is None and new_header_entries is None:
+        print("No updates to perform: both new_columns and new_header_entries are None.")
+        return False
+
+    if is_compressed_fits(fitsfile):
+        imagehdutype = fits.hdu.CompImageHDU
+    else:
+        imagehdutype = fits.hdu.PrimaryHDU
+
+    try:
+        with fits.open(fitsfile, mode='update') as hdul:
+            if new_header_entries is None:
+                comp_image_updated = True
+                ## skip updating header
+            else:
+                comp_image_updated = False
+                for hdu in hdul:
+                    if isinstance(hdu, imagehdutype):
+                        for key, value in new_header_entries.items():
+                            if key == "HISTORY":
+                                hdu.header.add_history(value)
+                            else:
+                                hdu.header[key] = value
+                        comp_image_updated = True
+                        break  # Updating only the first relevant image HDU
+
+            if new_columns is None:
+                bintable_updated = True
+                ## skip updating bintable
+            else:
+                # Add new columns to the first BinTableHDU
+                bintable_updated = False
+                for idx, hdu in enumerate(hdul):
+                    if isinstance(hdu, imagehdutype):
+                        continue  # Skip compressed image HDUs
+                    if isinstance(hdu, fits.hdu.BinTableHDU):
+                        combined_columns = fits.ColDefs(hdu.columns) + fits.ColDefs(new_columns)
+                        new_tbhdu = fits.BinTableHDU.from_columns(combined_columns)
+                        hdul[idx] = new_tbhdu
+                        bintable_updated = True
+                        break  # Updating only the first BinTableHDU
+            if not comp_image_updated and not bintable_updated:
+                print("Failed to perform updates: check the FITS file structure.")
+                return False
+            return True
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return False
