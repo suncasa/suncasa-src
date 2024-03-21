@@ -591,29 +591,31 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
         return outfitsfile
 
 
-def update(fitsfile, new_columns=None, new_header_entries=None):
+def update(fitsfile, new_data = None, new_columns=None, new_header_entries=None):
     """
-    Updates a FITS file by optionally adding new columns to the first BinTableHDU and/or updating the header
-    of the first image HDU (CompImageHDU for compressed or PrimaryHDU for uncompressed FITS files).
+    Updates a FITS file by optionally replacing its primary or compressed image data, adding new columns to the
+    first binary table (BinTableHDU), and/or updating header entries in the first image HDU (PrimaryHDU for
+    uncompressed or CompImageHDU for compressed FITS files).
 
     Parameters:
-    - fitsfile (str): The path to the FITS file to be modified.
-    - new_columns (list of astropy.io.fits.Column, optional): A list of new columns to be added to the
-      first BinTableHDU. Defaults to None, in which case no columns are added.
-    - new_header_entries (dict, optional): A dictionary where the keys are header keywords to be updated or added
-      in the first image HDU (CompImageHDU or PrimaryHDU), and the values are the corresponding values for these
-      keywords. Defaults to None, in which case no header updates are made.
+    - fitsfile (str): Path to the FITS file to be updated.
+    - new_data (np.ndarray, optional): New data array to replace the existing data in the first image HDU.
+      Defaults to None, which means the data will not be updated.
+    - new_columns (list of astropy.io.fits.Column, optional): New columns to be added to the first BinTableHDU.
+      Defaults to None, which means no columns will be added.
+    - new_header_entries (dict, optional): Header entries to update or add in the first image HDU. Each key-value
+      pair represents a header keyword and its new value. Defaults to None, which means no header updates will be made.
 
     Returns:
-    - bool: True if the operation(s) were successful, False otherwise.
+    - bool: True if any of the specified updates were successfully applied, False otherwise.
 
-    The function checks the compression status of the FITS file to determine the correct HDU types for updating.
-    It updates the header of the first relevant image HDU and adds new columns to the first BinTableHDU found,
-    if applicable. If both new_columns and new_header_entries are None, it prints a message indicating no updates
-    were made.
+    The function determines whether the FITS file is compressed to properly handle the image HDU type. It attempts
+    to update the image HDU's data, the BinTableHDU's columns, and the image HDU's header based on the provided
+    arguments. If all input parameters are None, indicating no updates are specified, the function will print a message
+    and return False.
     """
-    if new_columns is None and new_header_entries is None:
-        print("No updates to perform: both new_columns and new_header_entries are None.")
+    if new_data is None and new_columns is None and new_header_entries is None:
+        print("No updates to perform: all new_data new_columns and new_header_entries are None.")
         return False
 
     if is_compressed_fits(fitsfile):
@@ -624,10 +626,10 @@ def update(fitsfile, new_columns=None, new_header_entries=None):
     try:
         with fits.open(fitsfile, mode='update') as hdul:
             if new_header_entries is None:
-                comp_image_updated = True
+                header_updated = True
                 ## skip updating header
             else:
-                comp_image_updated = False
+                header_updated = False
                 for hdu in hdul:
                     if isinstance(hdu, imagehdutype):
                         for key, value in new_header_entries.items():
@@ -635,9 +637,18 @@ def update(fitsfile, new_columns=None, new_header_entries=None):
                                 hdu.header.add_history(value)
                             else:
                                 hdu.header[key] = value
-                        comp_image_updated = True
+                        header_updated = True
                         break  # Updating only the first relevant image HDU
 
+            if new_data is None:
+                data_updated = True
+            else:
+                data_updated = False
+                for hdu in hdul:
+                    if isinstance(hdu, imagehdutype):
+                        hdu.data = new_data
+                        data_updated = True
+                        break
             if new_columns is None:
                 bintable_updated = True
                 ## skip updating bintable
@@ -653,8 +664,13 @@ def update(fitsfile, new_columns=None, new_header_entries=None):
                         hdul[idx] = new_tbhdu
                         bintable_updated = True
                         break  # Updating only the first BinTableHDU
-            if not comp_image_updated and not bintable_updated:
-                print("Failed to perform updates: check the FITS file structure.")
+            if not header_updated:
+                print("Header update failed.")
+            if not bintable_updated:
+                print("BinTable update failed.")
+            if not data_updated:
+                print("Data update failed.")
+            if not header_updated and not bintable_updated and not data_updated:
                 return False
             return True
     except Exception as e:

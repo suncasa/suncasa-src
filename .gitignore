@@ -141,6 +141,9 @@ venv.bak/
 # test files
 tests/**
 
+# egg-info
+suncasa.egg-info/**
+
 # mypy
 .mypy_cache/
 .dmypy.json
