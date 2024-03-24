@@ -8,18 +8,19 @@ import numpy as np
 from astropy.time import Time
 from copy import copy
 
-try:
-    ## Full Installation of CASA 4, 5 and 6
-    from taskinit import ms, tb, qa
-except:
-    ## Modular Installation of CASA 6
-    from casatools import table as tbtool
-    from casatools import ms as mstool
-    from casatools import quanta as qatool
+from ..casa_compat import import_casatools, import_casatasks
+tasks = import_casatasks('split','hanningsmooth')
+split = tasks.get('split')
+hanningsmooth = tasks.get('hanningsmooth')
 
-    tb = tbtool()
-    ms = mstool()
-    qa = qatool()
+tools = import_casatools(['tbtool', 'mstool', 'qatool'])
+
+tbtool = tools['tbtool']
+mstool = tools['mstool']
+qatool = tools['qatool']
+tb = tbtool()
+ms = mstool()
+qa = qatool()
 
 from matplotlib.dates import AutoDateFormatter, AutoDateLocator, num2date
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -279,7 +280,6 @@ class Dspec:
                 pol = []
 
             if hanning:
-                from casatasks import hanningsmooth
                 hanningsmooth(vis=fname, datacolumn='data', field=field, outputvis=fname + '.tmpms')
                 fname = fname + '.tmpms'
             tb.open(fname)
@@ -490,10 +490,8 @@ class Dspec:
             #       uvrange=uvrange, timebin=timebin, datacolumn=datacolumn)
 
             try:
-                from split_cli import split_cli as split
                 split(vis=msfile, outputvis=vis_spl, datacolumn=datacolumn, timerange=timeran, spw=spw, antenna=bl,
-                      field=field,
-                      scan=scan, uvrange=uvrange, timebin=timebin)
+                      field=field, scan=scan, uvrange=uvrange, timebin=timebin)
             except:
                 ms.open(msfile, nomodify=True)
                 ms.split(outputms=vis_spl, whichcol=datacolumn, time=timeran, spw=spw, baseline=bl, field=field,
@@ -752,7 +750,7 @@ class Dspec:
 
     def plot(self, pol='I', vmin=None, vmax=None, norm='log', cmap='viridis', cmap2='viridis', vmin2=None, vmax2=None,
              timerange=None, freqrange=None, ignore_gaps=True, freq_unit='GHz', spec_unit=None,
-             plot_fast=False):
+             plot_fast=False, percentile=[1, 99], minmaxpercentile=False, **kwargs):
         """
         pol: polarization for plotting
         timerange: format: ['2021-05-07T18:00:00','2021-05-07T19:00:00']
@@ -776,6 +774,8 @@ class Dspec:
             print("Please enter 'RR', 'LL', 'RRLL','XX', 'YY', 'XY', 'YX', 'XXYY', 'I', 'V', 'IV', or 'IP' for pol")
             return 0
 
+        spec = self.data
+
         try:
             cmap = copy(plt.get_cmap(cmap))
         except:
@@ -791,7 +791,6 @@ class Dspec:
             print('color normalization is not defined as matplotlib.colors. Use default LogNorm.')
             norm = colors.LogNorm(vmax=vmax, vmin=vmin)
 
-        spec = self.data
         bl = self.bl
         freq = self.freq_axis
         if spec_unit is None:
@@ -822,7 +821,8 @@ class Dspec:
             (npol, nbl, nfreq, ntim) = spec.shape
             polnames = self.pol
             if len(polnames) != npol:
-                print('The polarization dimension in the data {0:d} does not match the names {1:d}. Abort.'.format(npol, len(polnames)))
+                print('The polarization dimension in the data {0:d} does not match the names {1:d}. Abort.'.format(npol,
+                                                                                                                   len(polnames)))
 
         tim_ = self.time_axis
         tim_plt = tim_.plot_date
@@ -876,7 +876,7 @@ class Dspec:
                             spec_plt = spec[0, b, :, :]
                     elif pol == 'V':
                         if ('XX' in polnames) and ('YY' in polnames):
-                            #TODO: This does not seem to be correct. @Sijie Yu, could you please check?
+                            # TODO: This does not seem to be correct. @Sijie Yu, could you please check?
                             spec_plt = spec[0, b, :, :] - spec[1, b, :, :]
                         elif ('RR' in polnames) and ('LL' in polnames):
                             spec_plt = (spec[0, b, :, :] - spec[1, b, :, :]) / 2.
@@ -912,24 +912,27 @@ class Dspec:
                         vmin = -vmax
                     norm = colors.Normalize(vmax=vmax, vmin=vmin)
 
-
+                if minmaxpercentile:
+                    if percentile[0] > 0 and percentile[1] < 100 and percentile[0] < percentile[1]:
+                        norm.vmax = np.nanpercentile(spec_plt, percentile[1])
+                        norm.vmin = np.nanpercentile(spec_plt, percentile[0])
                 if plot_fast:
                     # rebin the data to speed up plotting
                     ds_shape = spec_plt.shape
                     if ds_shape[1] > 2100:
-
                         pix_rebin = ds_shape[1] // 2048
-                        new_len = (ds_shape[1] // pix_rebin) 
+                        new_len = (ds_shape[1] // pix_rebin)
                         new_len_total = new_len * pix_rebin
 
-                        spec_plt = rebin2d(spec_plt[:,0:new_len_total], (ds_shape[0], new_len)) 
-                        #tim_plt = rebin1d(tim_plt[0:new_len_total], 2048)
-                        
+                        spec_plt = rebin2d(spec_plt[:, 0:new_len_total], (ds_shape[0], new_len))
+                        # tim_plt = rebin1d(tim_plt[0:new_len_total], 2048)
+
                     im = ax.imshow(spec_plt, cmap=cmap, norm=norm, aspect='auto', origin='lower',
-                        extent=[tim_plt[tidx[0]], tim_plt[tidx[-1]], freq_plt[fidx[0]], freq_plt[fidx[-1]]] )
-                    
+                                   extent=[tim_plt[tidx[0]], tim_plt[tidx[-1]], freq_plt[fidx[0]], freq_plt[fidx[-1]]])
+
                 else:
-                    im = ax.pcolormesh(tim_plt, freq_plt, spec_plt, cmap=cmap, norm=norm, shading='auto', rasterized=True)
+                    im = ax.pcolormesh(tim_plt, freq_plt, spec_plt, cmap=cmap, norm=norm, shading='auto',
+                                       rasterized=True)
                     ax.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
                     ax.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
 
@@ -946,8 +949,9 @@ class Dspec:
                         timstr = tim_[col].isot
                         flux = spec_plt[row, col]
                         return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, flux = {5:.2f} {6:s}'.format(col, timstr, row,
-                                                                                                     y, freq_unit,
-                                                                                                     flux, spec_unit_print)
+                                                                                                       y, freq_unit,
+                                                                                                       flux,
+                                                                                                       spec_unit_print)
                     else:
                         return 'x = {0}, y = {1:.3f}'.format(x, y)
 
@@ -955,10 +959,10 @@ class Dspec:
                 ax.set_ylabel('Frequency ({0:s})'.format(freq_unit))
                 if bl:
                     ax.set_title('{0:s}-{1:s} dynamic spectrum @ bl {2:s} for pol {3:s}'.
-                                  format(self.observatory, self.telescope, bl.split(';')[b], pol))
+                                 format(self.observatory, self.telescope, bl.split(';')[b], pol))
                 else:
                     ax.set_title('{0:s}-{1:s} dynamic spectrum for pol {2:s}'.
-                                  format(self.observatory, self.telescope, pol))
+                                 format(self.observatory, self.telescope, pol))
                 locator = AutoDateLocator(minticks=2)
                 ax.xaxis.set_major_locator(locator)
                 formatter = AutoDateFormatter(locator)
@@ -1029,23 +1033,27 @@ class Dspec:
                 if freq_unit.lower() == 'khz':
                     freq_plt = freq / 1e3
 
+                if minmaxpercentile:
+                    if percentile[0] > 0 and percentile[1] < 100 and percentile[0] < percentile[1]:
+                        norm.vmax = np.nanpercentile(spec_plt_1, percentile[1])
+                        norm.vmin = np.nanpercentile(spec_plt_1, percentile[0])
                 if plot_fast:
-                                # compress in time (idx1)
+                    # compress in time (idx1)
                     ds_shape = spec_plt_1.shape
                     if ds_shape[1] > 2100:
-                            pix_rebin = ds_shape[1] // 2048
-                            new_len = (ds_shape[1] // pix_rebin) 
-                            new_len_total = new_len * pix_rebin
-            
-                            spec_plt_1 = rebin2d(spec_plt_1[:,0:new_len_total], (ds_shape[0], new_len)) 
-                            spec_plt_2 = rebin2d(spec_plt_2[:,0:new_len_total], (ds_shape[0], new_len)) 
-                            #tim_plt = rebin1d(tim_plt[0:new_len_total], new_len)
+                        pix_rebin = ds_shape[1] // 2048
+                        new_len = (ds_shape[1] // pix_rebin)
+                        new_len_total = new_len * pix_rebin
 
-                    im = ax1.imshow(spec_plt_1, cmap=cmap, norm=norm, aspect='auto', origin='lower', 
-                            extent=[tim_plt[tidx[0]], tim_plt[tidx[-1]], freq_plt[fidx[0]], freq_plt[fidx[-1]]] )
+                        spec_plt_1 = rebin2d(spec_plt_1[:, 0:new_len_total], (ds_shape[0], new_len))
+                        spec_plt_2 = rebin2d(spec_plt_2[:, 0:new_len_total], (ds_shape[0], new_len))
+                        # tim_plt = rebin1d(tim_plt[0:new_len_total], new_len)
+
+                    im = ax1.imshow(spec_plt_1, cmap=cmap, norm=norm, aspect='auto', origin='lower',
+                                    extent=[tim_plt[tidx[0]], tim_plt[tidx[-1]], freq_plt[fidx[0]], freq_plt[fidx[-1]]])
                 else:
                     im = ax1.pcolormesh(tim_plt, freq_plt, spec_plt_1, cmap=cmap, norm=norm, shading='auto',
-                                            rasterized=True)
+                                        rasterized=True)
                     ax1.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
                     ax1.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
                 divider = make_axes_locatable(ax1)
@@ -1053,16 +1061,17 @@ class Dspec:
                 clb_spec = plt.colorbar(im, ax=ax1, cax=cax_spec)
                 clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
 
-
                 def format_coord(x, y):
                     col = np.argmin(np.absolute(tim_plt - x))
                     row = np.argmin(np.absolute(freq_plt - y))
                     if col >= 0 and col < ntim and row >= 0 and row < nfreq:
                         timstr = tim_[col].isot
                         flux = spec_plt_1[row, col]
-                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, value = {5:.2f} {6:s}'.format(col, timstr, row,
-                                                                                                     y, freq_unit,
-                                                                                                     flux, spec_unit_print)
+                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, value = {5:.2f} {6:s}'.format(col, timstr,
+                                                                                                        row,
+                                                                                                        y, freq_unit,
+                                                                                                        flux,
+                                                                                                        spec_unit_print)
                     else:
                         return 'x = {0}, y = {1:.3f}'.format(x, y)
 
@@ -1077,10 +1086,10 @@ class Dspec:
                 formatter.scaled[1 / (24 * 60)] = '%H:%M'
                 ax1.xaxis.set_major_formatter(formatter)
                 if bl:
-                    ax1.set_title('{0:s}-{1:s} dynamic spectrum @ bl {2:s} for pol {3:s}'.\
+                    ax1.set_title('{0:s}-{1:s} dynamic spectrum @ bl {2:s} for pol {3:s}'. \
                                   format(self.observatory, self.telescope, bl.split(';')[b], polstr[0]))
                 else:
-                    ax1.set_title('{0:s}-{1:s} dynamic spectrum for pol {2:s}'.\
+                    ax1.set_title('{0:s}-{1:s} dynamic spectrum for pol {2:s}'. \
                                   format(self.observatory, self.telescope, polstr[0]))
 
                 ax1.set_autoscale_on(False)
@@ -1093,14 +1102,21 @@ class Dspec:
                 if vmax2 is None:
                     vmax2 = vmax
                 norm2 = colors.Normalize(vmax=vmax2, vmin=vmin2)
-                im = ax2.pcolormesh(tim_plt, freq_plt, spec_plt_2, cmap=cmap2, norm=norm2, shading='auto',
-                                    rasterized=True)
+
+                if plot_fast:
+                    im = ax2.imshow(spec_plt_2, cmap=cmap2, norm=norm2, aspect='auto', origin='lower',
+                                    extent=[tim_plt[tidx[0]], tim_plt[tidx[-1]], freq_plt[fidx[0]], freq_plt[fidx[-1]]])
+                else:
+                    im = ax2.pcolormesh(tim_plt, freq_plt, spec_plt_2, cmap=cmap2, norm=norm2, shading='auto',
+                                        rasterized=True)
+
+                    ax2.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
+                    ax2.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
+
                 divider = make_axes_locatable(ax2)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax2, cax=cax_spec)
                 clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
-                ax2.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
-                ax2.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
 
                 locator = AutoDateLocator(minticks=2)
                 ax2.xaxis.set_major_locator(locator)
@@ -1115,19 +1131,21 @@ class Dspec:
                     if col >= 0 and col < ntim and row >= 0 and row < nfreq:
                         timstr = tim_[col].isot
                         flux = spec_plt_2[row, col]
-                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, value = {5:.2f} {6:s}'.format(col, timstr, row,
-                                                                                                     y, freq_unit,
-                                                                                                     flux, spec_unit_print)
+                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, value = {5:.2f} {6:s}'.format(col, timstr,
+                                                                                                        row,
+                                                                                                        y, freq_unit,
+                                                                                                        flux,
+                                                                                                        spec_unit_print)
                     else:
                         return 'x = {0}, y = {1:.3f}'.format(x, y)
 
                 ax2.format_coord = format_coord
                 ax2.set_ylabel('Frequency ({0:s})'.format(freq_unit))
                 if bl:
-                    ax2.set_title('{0:s}-{1:s} dynamic spectrum @ bl {2:s} for pol {3:s}'.\
+                    ax2.set_title('{0:s}-{1:s} dynamic spectrum @ bl {2:s} for pol {3:s}'. \
                                   format(self.observatory, self.telescope, bl.split(';')[b], polstr[1]))
                 else:
-                    ax2.set_title('{0:s}-{1:s} dynamic spectrum for pol {2:s}'.\
+                    ax2.set_title('{0:s}-{1:s} dynamic spectrum for pol {2:s}'. \
                                   format(self.observatory, self.telescope, polstr[1]))
 
                 ax2.set_autoscale_on(False)

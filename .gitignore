@@ -138,6 +138,12 @@ venv.bak/
 # mkdocs documentation
 /site
 
+# test files
+tests/**
+
+# egg-info
+suncasa.egg-info/**
+
 # mypy
 .mypy_cache/
 .dmypy.json
@@ -157,4 +163,7 @@ cython_debug/
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+.idea/
+
+# Ignore Mac OS X .DS_Store files
+.DS_Store

@@ -2,20 +2,12 @@ import os
 import numpy as np
 import sys
 
-py3 = sys.version_info.major >= 3
-try:
-    # from taskinit import gentools, qa, casalog
-    from taskinit import tbtool
-    # from taskinit import me
-    # me = gentools(['me'])[0]
-except:
-    from casatools import table as tbtool
-    # from casatools import ms as mstool
-    # from casatools import quanta as qatool
-    # from casatools import measures as metool
-    # from casatasks import casalog
+from ..casa_compat import import_casatools
+tools = import_casatools(['tbtool'])
 
+tbtool = tools['tbtool']
 tb = tbtool()
+
 
 def cpxx2yy(tb_in=[]):
     if not tb_in:

@@ -4,15 +4,21 @@ import multiprocessing as mprocs
 from suncasa.utils import DButil
 from suncasa.utils import helioimage2fits as hf
 
-try:
-    from taskinit import casalog
-    from taskinit import iatool, rgtool
+from ...casa_compat import import_casatools, import_casatasks
+tasks = import_casatasks('split','tclean','gencal','clearcal','applycal','flagdata','casalog','bandpass')
+split = tasks.get('split')
+tclean = tasks.get('tclean')
+gencal = tasks.get('gencal')
+clearcal = tasks.get('clearcal')
+applycal = tasks.get('applycal')
+flagdata = tasks.get('flagdata')
+casalog = tasks.get('casalog')
+bandpass = tasks.get('bandpass')
 
-except:
-    from casatools import image as iatool
-    from casatools import regionmanager as rgtool
-    from casatasks import casalog
+tools = import_casatools(['iatool', 'rgtool'])
 
+iatool = tools['iatool']
+rgtool = tools['rgtool']
 myia = iatool()
 myrg = rgtool()
 
