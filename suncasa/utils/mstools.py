@@ -1,7 +1,7 @@
 import numpy as np
 from tqdm import tqdm
 import os
-
+from shutil import rmtree
 
 from ..casa_compat import import_casatools,import_casatasks
 
@@ -190,49 +190,62 @@ def clearflagrow(msfile, mode='clear'):
 
 def splitX(vis, datacolumn2='MODEL_DATA', **kwargs):
     import os
-    '''
+    """
+    Splits specific data columns from a CASA measurement set (MS) into a new MS file,
+    overcoming the limitation of splitting multiple data columns directly with CASA's standard split function.
 
-    :param msfile:
-    :param datacolumn:
-    :param datacolumn2:
-    :return:
-    '''
-    kwargs2 = kwargs.copy()
+    A temporary MS is used during processing to ensure the additional column (the `datacolumn2`) has the same shape as
+    the data/corrected column in the output MS. This temporary file is removed at the end.
+
+    :param str vis: Path to the original measurement set.
+    :param str datacolumn2: The name of the additional data column to be included in the split. Defaults to 'MODEL_DATA'.
+    :param kwargs: Additional keyword arguments to be passed to the CASA `split` task.
+    :return: Path to the output measurement set with the specified columns split.
+    :rtype: str
+    """
+
     datacolumn2 = datacolumn2.upper()
+    outmsfile = kwargs.get('outputvis', '').rstrip('/')
 
-    outmsfile = kwargs['outputvis']
-    if outmsfile.endswith('/'):
-        outmsfile = outmsfile[:-1]
+    # Clean up the output directory and associated flag versions
     if os.path.exists(outmsfile):
-        os.system('rm -rf {}'.format(outmsfile))
-    if os.path.exists('{}.flagversions'.format(outmsfile)):
-        os.system('rm -rf {}.flagversions'.format(outmsfile))
-    split(vis, **kwargs)
+        rmtree(outmsfile)
+    flagversions_path = f"{outmsfile}.flagversions"
+    if os.path.exists(flagversions_path):
+        rmtree(flagversions_path)
 
-    for k in ['datacolumn', 'outputvis']:
-        if k in kwargs2:
-            kwargs2.pop(k)
+    # Perform the initial split to create the output MS with the data/corrected column into the data column
+    split(vis=vis, **kwargs)
 
-    kwargs2['outputvis'] = 'tmpms.ms'
-    kwargs2['datacolumn'] = datacolumn2.replace('_DATA', '')
-    if os.path.exists('tmpms.ms'):
-        os.system('rm -rf tmpms.ms')
-    split(vis, **kwargs2)
+    # Prepare for the second split
+    kwargs2 = {k: v for k, v in kwargs.items() if k not in ['datacolumn', 'outputvis']}
+    kwargs2.update({'outputvis': 'tmpms.ms', 'datacolumn': datacolumn2.replace('_DATA', '')})
 
-    tb.open('tmpms.ms')
+    # Ensure temporary MS is removed if it exists
+    tmpms_file = 'tmpms.ms'
+    if os.path.exists(tmpms_file):
+        rmtree(tmpms_file)
+
+    # Perform the second split to temporary MS
+    split(vis=vis, **kwargs2)
+
+    # Process the additional column from the temporary MS
+    tb.open(tmpms_file)
     nrows = tb.nrows()
     data = []
-    for row in tqdm(range(nrows), desc='getting {} column'.format(datacolumn2), ascii=True):
+    for row in tqdm(range(nrows), desc=f'Extracting {datacolumn2} column', ascii=True):
         data.append(tb.getcell('DATA', row))
     tb.close()
 
+    # Add additional data column to the output MS
     clearcal(outmsfile, addmodel=True)
     tb.open(outmsfile, nomodify=False)
-    for row in tqdm(range(nrows), desc='writing {} column'.format(datacolumn2), ascii=True):
+    for row in tqdm(range(nrows), desc=f'writing {datacolumn2} column', ascii=True):
         tb.putcell(datacolumn2, row, data[row])
     tb.close()
 
-    os.system('rm -rf tmpms.ms')
+    # Cleanup
+    rmtree(tmpms_file)
     return outmsfile
 
 
