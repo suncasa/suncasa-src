@@ -24,6 +24,7 @@ extensions = [
     'sphinx.ext.githubpages',
     'sphinx.ext.graphviz',
     'sphinx.ext.imgmath',
+    'sphinx_gallery.gen_gallery',
     'sphinx_gallery',
     'autoapi.extension'
     # Add any other Sphinx extensions here.
