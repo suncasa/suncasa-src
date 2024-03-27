@@ -1,16 +1,17 @@
 # conf.py
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath('../suncasa'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'SUNCASA'
+project = 'suncasa'
 author = 'EOVSA Team'
+coypright = '2024, EOVSA Team'
 
 # The full version, including alpha/beta/rc tags
 release = '1.0.6'
-
 
 # -- General configuration ---------------------------------------------------
 
@@ -19,11 +20,12 @@ extensions = [
     'sphinx.ext.napoleon',  # Support for Google-style docstrings
     'sphinx.ext.viewcode',  # Add links to source code from documentation
     'sphinx.ext.mathjax',  # Render math via JavaScript
-    'sphinx.ext.autosummary', # Automatically generates summary tables from the docstrings.
+    'sphinx.ext.autosummary',  # Automatically generates summary tables from the docstrings.
     'sphinx.ext.githubpages',
     'sphinx.ext.graphviz',
     'sphinx.ext.imgmath',
     'sphinx_gallery',
+    'autoapi.extension'
     # Add any other Sphinx extensions here.
 ]
 
@@ -58,3 +60,13 @@ html_sidebars = {
         'donate.html',
     ]
 }
+
+# -- Options for sphinx.ext.autodoc -------------------------------------------
+autoapi_type = 'python'
+autoapi_dirs = ['../suncasa']
+autoapi_ignore = [
+    'tests/*',
+    'suncasatasks/private/*',
+    'suncasatasks/gotasks/*',
+    'utils/grff/*'
+]
