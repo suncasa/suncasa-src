@@ -929,7 +929,7 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
         Freq = sorted(uniq(imres['Freq']))
 
         plttimes = list(set(imres['BeginTime']))
-        plttimes = sorted(plttimes)
+        plttimes = Time(sorted(plttimes))
         ntime = len(plttimes)
         # sort the imres according to time
         images = np.array(imres['ImageName'])
@@ -1543,8 +1543,9 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
               cleartmpfits=True, overwrite=True,
               clearmshistory=False, show_warnings=False, verbose=False, quiet=False, ds_normalised=False):
     '''
+    Generate quick-look plots and dynamic spectra for solar radio observations.
     Required inputs:
-            vis: The path to the calibrated CASA measurement set
+               :param vis: Path to the calibrated CASA measurement set.
     Important optional inputs:
             timerange: Timerange for analysis in standard CASA format. Defaults to entire range, which can be slow.
             spw: spectral window (SPW) selection following the CASA syntax.
