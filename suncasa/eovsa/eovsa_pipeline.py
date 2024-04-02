@@ -800,9 +800,9 @@ if __name__ == '__main__':
         pols = 'XX'
 
     # ##debug
-    # year = 2023
-    # month = 1
-    # day = 6
+    # year = 2024
+    # month = 3
+    # day = 29
     # ndays = 1
     # clearcache = False
     # overwrite = True
