@@ -22,6 +22,36 @@ import argparse
 logging.basicConfig(level=logging.INFO, format='EOVSA pipeline: [%(levelname)s] - %(asctime)s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 
+tasks = import_casatasks('gaincal', 'applycal', 'clearcal', 'delmod', 'ft', 'uvsub', 'split', 'concat', 'flagmanager',
+                         'flagdata', 'tclean', 'hanningsmooth', 'imhead')
+gaincal = tasks.get('gaincal')
+applycal = tasks.get('applycal')
+clearcal = tasks.get('clearcal')
+delmod = tasks.get('delmod')
+ft = tasks.get('ft')
+uvsub = tasks.get('uvsub')
+split = tasks.get('split')
+concat = tasks.get('concat')
+flagmanager = tasks.get('flagmanager')
+flagdata = tasks.get('flagdata')
+tclean = tasks.get('tclean')
+hanningsmooth = tasks.get('hanningsmooth')
+imhead = tasks.get('imhead')
+
+from suncasa.casa_compat import import_casatools
+
+tools = import_casatools(['qatool', 'iatool', 'cltool', 'mstool', 'tbtool'])
+qatool = tools['qatool']
+iatool = tools['iatool']
+cltool = tools['cltool']
+mstool = tools['mstool']
+tbtool = tools['tbtool']
+qa = qatool()
+ia = iatool()
+ms = mstool()
+tb = tbtool()
+
+
 
 def log_print(level, message):
     # Get the caller's stack frame and extract information
@@ -51,36 +81,6 @@ def log_print(level, message):
         logger.critical(full_message)
     else:
         logger.info(full_message)  # Default to INFO if an unsupported level is given
-
-
-tasks = import_casatasks('gaincal', 'applycal', 'clearcal', 'delmod', 'ft', 'uvsub', 'split', 'concat', 'flagmanager',
-                         'flagdata', 'tclean', 'hanningsmooth', 'imhead')
-gaincal = tasks.get('gaincal')
-applycal = tasks.get('applycal')
-clearcal = tasks.get('clearcal')
-delmod = tasks.get('delmod')
-ft = tasks.get('ft')
-uvsub = tasks.get('uvsub')
-split = tasks.get('split')
-concat = tasks.get('concat')
-flagmanager = tasks.get('flagmanager')
-flagdata = tasks.get('flagdata')
-tclean = tasks.get('tclean')
-hanningsmooth = tasks.get('hanningsmooth')
-imhead = tasks.get('imhead')
-
-from suncasa.casa_compat import import_casatools
-
-tools = import_casatools(['qatool', 'iatool', 'cltool', 'mstool', 'tbtool'])
-qatool = tools['qatool']
-iatool = tools['iatool']
-cltool = tools['cltool']
-mstool = tools['mstool']
-tbtool = tools['tbtool']
-qa = qatool()
-ia = iatool()
-ms = mstool()
-tb = tbtool()
 
 
 def is_factor_of_60_minutes(tdt):

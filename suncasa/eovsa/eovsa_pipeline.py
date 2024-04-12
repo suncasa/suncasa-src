@@ -1,33 +1,9 @@
-try:
-    from ptclean3_cli import ptclean3_cli as ptclean
-    from suncasa.tasks import task_importeovsa as timporteovsa
-    from split_cli import split_cli as split
-    from clean_cli import clean_cli as clean
-    from delmod_cli import delmod_cli as delmod
-    from clearcal_cli import clearcal_cli as clearcal
-    from gaincal_cli import gaincal_cli as gaincal
-    from applycal_cli import applycal_cli as applycal
-    from suncasa.tasks import task_calibeovsa as calibeovsa
-    from taskinit import ms, tb
-except:
-    from casatools import table as tbtool
-    from casatools import ms as mstool
-    from casatools import quanta as qatool
-    from casatools import image as iatool
-
-    tb = tbtool()
-    ms = mstool()
-    from suncasa.suncasatasks import ptclean6 as ptclean
-    from suncasa.suncasatasks import calibeovsa
-    from suncasa.suncasatasks import importeovsa
-
-    from casatasks import split
-    from casatasks import tclean
-    from casatasks import gencal
-    from casatasks import clearcal
-    from casatasks import applycal
-    from casatasks import gaincal
-    from casatasks import delmod
+import argparse
+from datetime import datetime, timedelta
+from astropy.time import Time
+from suncasa.suncasatasks import ptclean6 as ptclean
+from suncasa.suncasatasks import calibeovsa
+from suncasa.suncasatasks import importeovsa
 
 import sys
 import numpy as np
@@ -36,6 +12,27 @@ from eovsapy.util import Time
 import os
 from suncasa.eovsa import eovsa_diskmodel as ed
 from suncasa.utils import mstools as mstl
+
+from suncasa.casa_compat import import_casatasks,import_casatools
+tasks = import_casatasks('calibeovsa', 'importeovsa', 'split', 'tclean', 'gencal', 'clearcal', 'applycal', 'gaincal', 'delmod')
+calibeovsa = tasks.get('calibeovsa')
+importeovsa = tasks.get('importeovsa')
+split = tasks.get('split')
+tclean = tasks.get('tclean')
+gencal = tasks.get('gencal')
+clearcal = tasks.get('clearcal')
+applycal = tasks.get('applycal')
+gaincal = tasks.get('gaincal')
+delmod = tasks.get('delmod')
+
+tools = import_casatools(['qatool', 'iatool', 'mstool', 'tbtool'])
+qatool = tools['qatool']
+iatool = tools['iatool']
+mstool = tools['mstool']
+tbtool = tools['tbtool']
+ms = mstool()
+tb = tbtool()
+
 
 udbmsdir = os.getenv('EOVSAUDBMS')
 udbmsscldir = os.getenv('EOVSAUDBMSSCL')
@@ -224,7 +221,8 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
                 'tedlist': sclist['tedlist']}
 
 
-def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearcache=False, verbose=False, pols='XX', version='v1.0'):
+def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearcache=False, verbose=False, pols='XX',
+                   version='v1.0'):
     ''' 
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
@@ -285,7 +283,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
     if not os.path.exists(figoutdir):
         os.makedirs(figoutdir)
 
-    if version== 'v1.0':
+    if version == 'v1.0':
         output_file_path = outpath + os.path.basename(invis[0])[:11] + '.ms'
     else:
         output_file_path = outpath + os.path.basename(invis[0])[:11] + f'.{version}.ms.'
@@ -299,7 +297,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
                'slfcaltbdir': slfcaltbdir_path,
                'imgoutdir': imgoutdir,
                'figoutdir': figoutdir})
-    if version== 'v1.0':
+    if version == 'v1.0':
         vis = ed.pipeline_run(vis, outputvis=output_file_path,
                               workdir=workdir,
                               slfcaltbdir=slfcaltbdir_path,
@@ -327,7 +325,7 @@ def mk_qlook_image(trange, doimport=False, docalib=False, ncpu=10, twidth=12, st
         mslist = trange2ms(trange=trange, doimport=doimport)
         vis = mslist['ms']
         tsts = [l.to_datetime() for l in mslist['tstlist']]
-    if isinstance(trange,str):
+    if isinstance(trange, str):
         try:
             date = Time(trange)
             mslist = trange2ms(trange=trange, doimport=doimport)
@@ -682,7 +680,55 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
     #     # plt_qlook_image(imres_allbd, figdir=figdir + 'FullBD/', verbose=True, synoptic=True)
 
 
-def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrite=True, doimport=True, pols='XX'):
+def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrite=True, doimport=True, pols='XX',
+             version='v1.0'):
+    """
+    Main pipeline for importing and calibrating EOVSA visibility data.
+
+    Name:
+        eovsa_pipeline --- main pipeline for importing and calibrating EOVSA visibility data.
+
+    Synopsis:
+        eovsa_pipeline.py [options]... [DATE_IN_YY_MM_DD]
+
+    Description:
+        Import and calibrate EOVSA visibility data of the date specified
+        by DATE_IN_YY_MM_DD (or from ndays before the DATE_IN_YY_MM_DD if option --ndays/-n is provided).
+        If DATE_IN_YY_MM_DD is omitted, it will be set to 2 days before now by default.
+        There are no mandatory arguments in this command.
+
+    :param year: The year for which data should be processed, defaults to None.
+    :type year: int, optional
+    :param month: The month for which data should be processed, defaults to None.
+    :type month: int, optional
+    :param day: The day for which data should be processed, defaults to None.
+    :type day: int, optional
+    :param ndays: Number of days before the specified date to include in the processing, defaults to 1.
+    :type ndays: int, optional
+    :param clearcache: Whether to clear cache after processing, defaults to True.
+    :type clearcache: bool, optional
+    :param overwrite: Whether to overwrite existing files, defaults to True.
+    :type overwrite: bool, optional
+    :param doimport: Whether to perform the import step, defaults to True.
+    :type doimport: bool, optional
+    :param pols: Polarizations to process, can be 'XX' or 'XXYY', defaults to 'XX'.
+    :type pols: str, optional
+    :param version: Version of the pipeline to use, choices are 'v1.0' or 'v2.0', defaults to 'v1.0'.
+    :type version: str, optional
+
+    :raises ValueError: Raises an exception if the date parameters are out of the valid Gregorian calendar range.
+
+    Example:
+    --------
+    To process data for June 10th, 2020 using version 2.0 of the pipeline, clearing the cache,
+    with the import step, and processing for 1 day before the specified date:
+
+    >>> python eovsa_pipeline.py --clearcache True --ndays 1 --overwrite True --doimport True --pols XX --version v2.0 2020 06 10
+
+    if you want to see the help message, you can run:
+
+    >>> python eovsa_pipeline.py -h
+    """
     workdir = '/data1/workdir/'
     os.chdir(workdir)
     if year is None:
@@ -706,7 +752,7 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
         #                                workdir=subdir, clearcache=False, pols=pols)
         try:
             vis_corrected = calib_pipeline(t1, overwrite=overwrite, doimport=doimport,
-                                           workdir=subdir, clearcache=False, pols=pols)
+                                           workdir=subdir, clearcache=False, pols=pols, version=version)
         except:
             print('error in processing {}'.format(datestr))
         if clearcache:
@@ -715,122 +761,30 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
 
 
 if __name__ == '__main__':
-    '''
-    Name: 
-    eovsa_pipeline --- main pipeline for importing and calibrating EOVSA visibility data.
-    
-    Synopsis:
-    eovsa_pipeline.py [options]... [DATE_IN_YY_MM_DD]
-    
-    Description:
-    Import and calibrate EOVSA visibility data of the date specified
-    by DATE_IN_YY_MM_DD (or from ndays before the DATE_IN_YY_MM_DD if option --ndays/-n is provided).
-    If DATE_IN_YY_MM_DD is omitted, it will be set to 2 days before now by default. 
-    The are no mandatory arguments in this command.
-    
-    -c, --clearcache
-            Remove temporary files
-            
-    -n, --ndays
-            Processing the date spanning from DATE_IN_YY_MM_DD-ndays to DATE_IN_YY_MM_DD. Default is 30.
-            
-    -o, --overwrite
-            If True, overwrite imported and calibrated ms. Reprocess the date from scratch.
-            Syntax: True, False, T, F, 1, 0
-            
-    -i, --doimport
-            If False, skip the import step. overwrite the calibrated ms. Reprocess the date from the imported ms.
-            Syntax: True, False, T, F, 1, 0
-                      
-    
-    Example: 
-    eovsa_pipeline.py -c True -n 1 -o True -i True 2020 06 10
-    '''
-    import getopt
+    # Define the parser
+    parser = argparse.ArgumentParser(description='EOVSA Pipeline for importing and calibrating visibility data.')
+    # Default date is set to one day before the current date, formatted as YYYY-MM-DDT20:00
+    default_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%dT20:00')
+    parser.add_argument('--date', type=str, default=default_date,
+                        help='Date to process in YYYY-MM-DDT20:00 format, defaults to 20:00 UT of one day before the current date.')
+    parser.add_argument('--clearcache', action='store_true', default=False, help='Remove temporary files after processing')
+    parser.add_argument('--ndays', type=int, default=1,
+                        help='Process data from DATE_IN_YY_MM_DD-ndays to DATE_IN_YY_MM_DD, default is 1.')
+    parser.add_argument('--overwrite', action='store_true', default=False, help='Overwrite existing processed data')
+    parser.add_argument('--doimport', action='store_true', default=True, help='Perform import step before processing')
+    parser.add_argument('--pols', type=str, default='XX', choices=['XX', 'XXYY'], help='Polarizations to process')
+    parser.add_argument('--version', type=str, default='v1.0', choices=['v1.0', 'v2.0'],
+                        help='Version of the EOVSA pipeline to use')
 
-    year = None
-    month = None
-    day = None
-    ndays = 1
-    clearcache = True
-    overwrite = True
-    doimport = True
-    pols = 'XX'
-    verbose = False
+    # Parse the arguments
+    args = parser.parse_args()
 
-    try:
-        argv = sys.argv[1:]
-        opts, args = getopt.getopt(argv, "c:n:o:i:p:", ['clearcache=', 'ndays=', 'overwrite=', 'doimport=', 'pols='])
-        if verbose:
-            print(opts, args)
-        for opt, arg in opts:
-            if verbose:
-                print(opt, arg, type(arg))
-            if opt in ['-c', '--clearcache']:
-                if arg in ['True', 'T', '1']:
-                    clearcache = True
-                elif arg in ['False', 'F', '0']:
-                    clearcache = False
-                else:
-                    clearcache = np.bool_(arg)
-            elif opt in ('-n', '--ndays'):
-                ndays = int(arg)
-            elif opt in ('-o', '--overwrite'):
-                if arg in ['True', 'T', '1']:
-                    overwrite = True
-                elif arg in ['False', 'F', '0']:
-                    overwrite = False
-                else:
-                    overwrite = np.bool_(arg)
-            elif opt in ('-i', '--doimport'):
-                if arg in ['True', 'T', '1']:
-                    doimport = True
-                elif arg in ['False', 'F', '0']:
-                    doimport = False
-                else:
-                    doimport = np.bool_(arg)
-            elif opt in ('-p', '--pols'):
-                if arg in ['XX', 'XXYY']:
-                    pols = arg
-        nargs = len(args)
-        if nargs == 3:
-            year = int(args[0])
-            month = int(args[1])
-            day = int(args[2])
-        else:
-            year = None
-            month = None
-            day = None
-    except getopt.GetoptError as err:
-        print(err)
-        print('Error interpreting command line argument')
-        year = None
-        month = None
-        day = None
-        ndays = 1
-        clearcache = True
-        overwrite = True
-        doimport = True
-        pols = 'XX'
+    # Convert --date argument to an astropy Time object to ensure consistency in time handling
+    t = Time(args.date)
 
-    # ##debug
-    # year = 2024
-    # month = 3
-    # day = 29
-    # ndays = 1
-    # clearcache = False
-    # overwrite = True
-    # doimport = True
-    # pols = 'XX'
-    # verbose = 1
+    # Extract year, month, day from the --date argument
+    year, month, day = t.datetime.year, t.datetime.month, t.datetime.day
 
-    print("Running pipeline_plt for date {}-{}-{}.".format(year, month, day))
-    kargs = {'ndays': ndays,
-             'clearcache': clearcache,
-             'overwrite': overwrite,
-             'doimport': doimport,
-             'pols': pols}
-    if verbose:
-        for k, v in kargs.items():
-            print(k, v)
-    pipeline(year, month, day, ndays=ndays, clearcache=clearcache, overwrite=overwrite, doimport=doimport, pols=pols)
+    # Run the main pipeline function
+    pipeline(year, month, day, args.ndays, args.clearcache, args.overwrite, args.doimport, args.pols,
+             args.version)
