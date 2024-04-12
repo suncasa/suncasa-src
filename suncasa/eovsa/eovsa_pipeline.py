@@ -757,7 +757,8 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
         if not os.path.exists(subdir):
             os.makedirs(subdir)
         else:
-            os.system('rm -rf {}/*'.format(subdir))
+            if overwrite:
+                os.system('rm -rf {}/*'.format(subdir))
         # ##debug
         # vis_corrected = calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
         #                                workdir=subdir, clearcache=False, pols=pols)
