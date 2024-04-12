@@ -224,7 +224,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
 
 
 def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearcache=False, verbose=False, pols='XX',
-                   version='v1.0'):
+                   version='v1.0', ncpu='auto'):
     ''' 
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
@@ -309,7 +309,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
         vis = esip.pipeline_run(vis, outputvis=output_file_path,
                                 workdir=workdir,
                                 slfcaltbdir=slfcaltbdir_path,
-                                imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols)
+                                imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols,ncpu=ncpu)
     return vis
 
 
@@ -683,7 +683,7 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
 
 
 def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrite=True, doimport=True, pols='XX',
-             version='v1.0'):
+             version='v1.0', ncpu='auto'):
     """
     Main pipeline for importing and calibrating EOVSA visibility data.
 
@@ -753,7 +753,7 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
         #                                workdir=subdir, clearcache=False, pols=pols)
         try:
             vis_corrected = calib_pipeline(t1, overwrite=overwrite, doimport=doimport,
-                                           workdir=subdir, clearcache=False, pols=pols, version=version)
+                                           workdir=subdir, clearcache=False, pols=pols, version=version, ncpu=ncpu)
         except:
             print('error in processing {}'.format(datestr))
         if clearcache:
@@ -774,6 +774,7 @@ if __name__ == '__main__':
     parser.add_argument('--overwrite', action='store_true', default=False, help='Overwrite existing processed data')
     parser.add_argument('--doimport', action='store_true', default=True, help='Perform import step before processing')
     parser.add_argument('--pols', type=str, default='XX', choices=['XX', 'XXYY'], help='Polarizations to process')
+    parser.add_argument('--ncpu', type=int, default='auto', help='Number of CPUs to use for processing')
     parser.add_argument('--version', type=str, default='v1.0', choices=['v1.0', 'v2.0'],
                         help='Version of the EOVSA pipeline to use')
 
@@ -788,4 +789,4 @@ if __name__ == '__main__':
 
     # Run the main pipeline function
     pipeline(year, month, day, args.ndays, args.clearcache, args.overwrite, args.doimport, args.pols,
-             args.version)
+             args.version, args.ncpu)
