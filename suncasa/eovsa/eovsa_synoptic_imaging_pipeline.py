@@ -1774,7 +1774,7 @@ from functools import partial
 
 
 def process_time_block(tidx_ted_tbg, msfile_in, msname, subdir, total_blocks, tdt, tdtstr, spws, niter_init,
-                       reftime_master, do_diskslfcal, disk_params, pols='XX', do_sbdcal=False):
+                       reftime_master, do_diskslfcal, disk_params, pols='XX', do_sbdcal=False, overwrite=False):
     ## todo unify the overwrite input for all the functions
     tidx, (tbg, ted) = tidx_ted_tbg
     if isinstance(msfile_in, list):
@@ -1788,7 +1788,7 @@ def process_time_block(tidx_ted_tbg, msfile_in, msname, subdir, total_blocks, td
     combined_vis_sub = os.path.join(subdir, f'{msname}_shift_corrected.block{tidx + 1}.seg{tdtstr}.ms')
 
     tr_series = generate_trange_series(tbg, ted, tdt)
-    mmsfiles = split_mms(msfile, tr_series, workdir=subdir, overwrite=False, verbose=True)
+    mmsfiles = split_mms(msfile, tr_series, workdir=subdir, overwrite=overwrite, verbose=True)
 
     log_print('INFO', f"Dry run to check if the final FITS images exist for {timerange} ...")
     fitsfile, imagefile = fd_images(msfile,
@@ -1805,7 +1805,7 @@ def process_time_block(tidx_ted_tbg, msfile_in, msname, subdir, total_blocks, td
     fits_ref, img_ref = fd_images(msfile,
                                   timerange=timerange,
                                   cleanup=False,
-                                  overwrite=False,
+                                  overwrite=overwrite,
                                   pbcor=False,
                                   image_marker='init',
                                   niter=niter_init, spws=spws,
@@ -1815,15 +1815,15 @@ def process_time_block(tidx_ted_tbg, msfile_in, msname, subdir, total_blocks, td
     img_ref_model_fits = [f'{l}.model.fits' for l in img_ref_name]
 
     hf.imreg(vis=msfile, imagefile=img_ref, fitsfile=fits_ref, timerange=[timerange] * len(spws), toTb=False,
-             usephacenter=False, overwrite=False, docompress=True)
+             usephacenter=False, overwrite=overwrite, docompress=True)
 
     hf.imreg(vis=msfile, imagefile=img_ref_model, fitsfile=img_ref_model_fits,
              timerange=[timerange] * len(spws),
-             toTb=False, usephacenter=False, overwrite=False, docompress=True)
+             toTb=False, usephacenter=False, overwrite=overwrite, docompress=True)
 
     mmsfiles_rot = shift_corr(mmsfiles, tr_series, spws, img_ref_model, img_ref_model_fits, reftime_master,
                               workdir=subdir, do_featureslfcal=True, pols=pols,
-                              overwrite=True, do_diskslfcal=do_diskslfcal, disk_params=disk_params, do_sbdcal=do_sbdcal,
+                              overwrite=overwrite, do_diskslfcal=do_diskslfcal, disk_params=disk_params, do_sbdcal=do_sbdcal,
                               verbose=True)
 
     if os.path.isdir(combined_vis_sub):
@@ -1834,7 +1834,7 @@ def process_time_block(tidx_ted_tbg, msfile_in, msname, subdir, total_blocks, td
     return combined_vis_sub
 
 
-def process_imaging_timerange(tbg_ted, msfile_in, spws, subdir):
+def process_imaging_timerange(tbg_ted, msfile_in, spws, subdir, overwrite):
     tidx, (tbg, ted) = tbg_ted
     if isinstance(msfile_in, list):
         ## this is for running the code on pipeline server
@@ -1847,7 +1847,7 @@ def process_imaging_timerange(tbg_ted, msfile_in, spws, subdir):
     fitsfile, imagefile = fd_images(msfile,
                                     timerange=timerange,
                                     pbcor=False,
-                                    overwrite=False,
+                                    overwrite=overwrite,
                                     cleanup=False,
                                     niter=5000, spws=spws,
                                     imgoutdir=subdir,
@@ -1856,7 +1856,7 @@ def process_imaging_timerange(tbg_ted, msfile_in, spws, subdir):
 
 
 def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None, figoutdir=None, clearcache=False,
-                 pols='XX', mergeFITSonly=False, verbose=True, do_diskslfcal=True, niter_init=200, ncpu='auto',
+                 pols='XX', mergeFITSonly=False, verbose=True, do_diskslfcal=True, overwrite=False, niter_init=200, ncpu='auto',
                  tr_series_imaging=None,
                  spws_imaging=None, hanning=False, do_sbdcal=False):
     """
@@ -1884,6 +1884,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     :type verbose: bool, optional
     :param do_diskslfcal: If True, performs disk self-calibration, defaults to True.
     :type do_diskslfcal: bool, optional
+    :param overwrite: If True, overwrites existing files, defaults to False.
+    :type overwrite: bool, optional
     :param niter_init: Initial number of iterations for imaging, defaults to 200.
     :type niter_init: int, optional
     :param ncpu: Specifies the number of CPUs for parallel processing, defaults to 'auto'.
@@ -2024,13 +2026,13 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                                       reftime_master=reftime_master,
                                                       do_diskslfcal=do_diskslfcal,
                                                       disk_params=disk_params, pols=pols,
-                                                      do_sbdcal=do_sbdcal)
+                                                      do_sbdcal=do_sbdcal, overwrite=overwrite)
                 mmsfiles_rot_all.append(combined_vis_sub)
         else:
             log_print('INFO', f"Using {ncpu} CPUs for parallel processing ...")
             if is_on_server:
                 log_print('INFO', f"Running on pipeline server. Using 1 CPU for splitting ...")
-                mmsfiles = split_mms(msfile, tr_series_master, workdir=subdir, overwrite=False, verbose=True)
+                mmsfiles = split_mms(msfile, tr_series_master, workdir=subdir, overwrite=overwrite, verbose=True)
                 msfile2proc = mmsfiles
             else:
                 msfile2proc = msfile
@@ -2046,7 +2048,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                              reftime_master=reftime_master,
                              do_diskslfcal=do_diskslfcal,
                              disk_params=disk_params, pols=pols,
-                             do_sbdcal=do_sbdcal)
+                             do_sbdcal=do_sbdcal, overwrite=overwrite)
 
             with Pool(ncpu) as pool:
                 results = pool.map(worker, enumerate(tr_series_master))
@@ -2101,7 +2103,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 fitsfile, imagefile = fd_images(combined_vis,
                                                 timerange=timerange,
                                                 pbcor=False,
-                                                overwrite=False,
+                                                overwrite=overwrite,
                                                 cleanup=False,
                                                 niter=5000, spws=spws_imaging,
                                                 # usemask='user', ## toggle this for single band imaging
@@ -2113,7 +2115,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 msfiles_in = combined_vis
             # Prepare partial function with pre-filled arguments
             process_with_params = partial(process_imaging_timerange, combined_vis=msfiles_in, spws=spws_imaging,
-                                          subdir=subdir)
+                                          subdir=subdir, overwrite=overwrite)
 
             with Pool(ncpu) as p:
                 p.map(process_with_params, enumerate(tr_series_imaging))

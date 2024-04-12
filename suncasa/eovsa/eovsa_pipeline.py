@@ -301,7 +301,10 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
                'workdir': workdir,
                'slfcaltbdir': slfcaltbdir_path,
                'imgoutdir': imgoutdir,
-               'figoutdir': figoutdir})
+               'figoutdir': figoutdir,
+               'overwrite':overwrite,
+               'clearcache':clearcache,
+               'pols':pols,'ncpu':ncpu})
     if version == 'v1.0':
         vis = ed.pipeline_run(vis, outputvis=output_file_path,
                               workdir=workdir,
@@ -312,7 +315,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
         vis = esip.pipeline_run(vis, outputvis=output_file_path,
                                 workdir=workdir,
                                 slfcaltbdir=slfcaltbdir_path,
-                                imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols, ncpu=ncpu)
+                                imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols, ncpu=ncpu,overwrite=overwrite)
     return vis
 
 
