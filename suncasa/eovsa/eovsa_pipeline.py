@@ -224,7 +224,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
                 'tedlist': sclist['tedlist']}
 
 
-def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearcache=False, verbose=False, pols='XX'):
+def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearcache=False, verbose=False, pols='XX', version='v1.0'):
     ''' 
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
@@ -284,18 +284,32 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
     figoutdir = os.path.join(synopticfigdir, tdate.datetime.strftime("%Y/"))
     if not os.path.exists(figoutdir):
         os.makedirs(figoutdir)
+
+    if version== 'v1.0':
+        output_file_path = outpath + os.path.basename(invis[0])[:11] + '.ms'
+    else:
+        output_file_path = outpath + os.path.basename(invis[0])[:11] + f'.{version}.ms.'
+    slfcaltbdir_path = os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/'
+
     if verbose:
         print('input of pipeline_run:')
         print({'vis': vis,
-               'outputvis': outpath + os.path.basename(invis[0])[:11] + '.ms',
+               'outputvis': output_file_path,
                'workdir': workdir,
-               'slfcaltbdir': os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/',
+               'slfcaltbdir': slfcaltbdir_path,
                'imgoutdir': imgoutdir,
                'figoutdir': figoutdir})
-    vis = ed.pipeline_run(vis, outputvis=outpath + os.path.basename(invis[0])[:11] + '.ms',
-                          workdir=workdir,
-                          slfcaltbdir=os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/',
-                          imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols)
+    if version== 'v1.0':
+        vis = ed.pipeline_run(vis, outputvis=output_file_path,
+                              workdir=workdir,
+                              slfcaltbdir=slfcaltbdir_path,
+                              imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols)
+    else:
+        from suncasa.eovsa import eovsa_synoptic_imaging_pipeline as esip
+        vis = esip.pipeline_run(vis, outputvis=output_file_path,
+                                workdir=workdir,
+                                slfcaltbdir=slfcaltbdir_path,
+                                imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols)
     return vis
 
 

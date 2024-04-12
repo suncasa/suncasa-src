@@ -218,11 +218,12 @@ def splitX(vis, datacolumn2='MODEL_DATA', **kwargs):
     split(vis=vis, **kwargs)
 
     # Prepare for the second split
+    tmpms_file = f'{vis}.tmpms'
     kwargs2 = {k: v for k, v in kwargs.items() if k not in ['datacolumn', 'outputvis']}
-    kwargs2.update({'outputvis': 'tmpms.ms', 'datacolumn': datacolumn2.replace('_DATA', '')})
+    kwargs2.update({'outputvis': tmpms_file, 'datacolumn': datacolumn2.replace('_DATA', '')})
 
     # Ensure temporary MS is removed if it exists
-    tmpms_file = 'tmpms.ms'
+
     if os.path.exists(tmpms_file):
         rmtree(tmpms_file)
 
