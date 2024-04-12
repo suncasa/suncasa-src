@@ -18,6 +18,9 @@ from suncasa.io import ndfits
 import logging
 import inspect
 import argparse
+import socket
+
+hostname = socket.gethostname()
 
 logging.basicConfig(level=logging.INFO, format='EOVSA pipeline: [%(levelname)s] - %(asctime)s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
@@ -50,7 +53,6 @@ qa = qatool()
 ia = iatool()
 ms = mstool()
 tb = tbtool()
-
 
 
 def log_print(level, message):
@@ -1769,10 +1771,15 @@ from multiprocessing import Pool
 from functools import partial
 
 
-def process_time_block(tidx_ted_tbg, msfile, msname, subdir, total_blocks, tdt, tdtstr, spws, niter_init,
+def process_time_block(tidx_ted_tbg, msfile_in, msname, subdir, total_blocks, tdt, tdtstr, spws, niter_init,
                        reftime_master, do_diskslfcal, disk_params, pols='XX', do_sbdcal=False):
     ## todo unify the overwrite input for all the functions
     tidx, (tbg, ted) = tidx_ted_tbg
+    if isinstance(msfile_in, list):
+        ## this is for running the code on pipeline server
+        msfile = msfile_in[tidx]
+    else:
+        msfile = msfile_in
     timerange = trange2timerange([tbg, ted])
 
     log_print('INFO', f"Processing time block {tidx + 1} of {total_blocks} (Time range: {timerange}) ... ")
@@ -1825,10 +1832,17 @@ def process_time_block(tidx_ted_tbg, msfile, msname, subdir, total_blocks, tdt, 
     return combined_vis_sub
 
 
-def process_imaging_timerange(tbg_ted, combined_vis, spws, subdir):
+def process_imaging_timerange(tbg_ted, msfile_in, spws, subdir):
     tidx, (tbg, ted) = tbg_ted
+    if isinstance(msfile_in, list):
+        ## this is for running the code on pipeline server
+        msfile = msfile_in[tidx]
+    else:
+        msfile = msfile_in
+    if msfile is None:
+        return None, None
     timerange = trange2timerange([tbg, ted])
-    fitsfile, imagefile = fd_images(combined_vis,
+    fitsfile, imagefile = fd_images(msfile,
                                     timerange=timerange,
                                     pbcor=False,
                                     overwrite=False,
@@ -1837,6 +1851,7 @@ def process_imaging_timerange(tbg_ted, combined_vis, spws, subdir):
                                     imgoutdir=subdir,
                                     compress=True)
     return fitsfile, imagefile
+
 
 def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None, figoutdir=None, clearcache=False,
                  pols='XX', mergeFITSonly=False, verbose=True, do_diskslfcal=True, niter_init=200, ncpu='auto',
@@ -1922,8 +1937,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     date_str = tbg_master.strftime('%Y%m%d')
     tdtmst_str = f'{int(tdt_master.total_seconds() / 60)}m'
     subdir = tbg_master.strftime('temp_%Y%m%d')
-    msname, _ = os.path.splitext(msfile)
-    msname = os.path.basename(msname)
     freq_setup = FrequencySetup(Time(tbg_master))
     spws = freq_setup.spws
     defaultfreq = freq_setup.defaultfreq
@@ -1937,12 +1950,10 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     if os.path.isdir(subdir) == False:
         os.makedirs(subdir)
 
+    msname, _ = os.path.splitext(msfile)
+    msname = os.path.basename(msname)
     combined_vis = os.path.join(subdir, f'{msname}_shift_corrected.b{tdtmststr}.s{tdtstr}.ms')
     # combined_vis_disk = os.path.join(subdir, f'{msname}_shift_corrected.b{tdtmststr}.s{tdtstr}.disk.ms')
-
-    total_blocks = len(tr_series_master)
-    if verbose:
-        log_print('INFO', f"Processing {msfile} into {total_blocks} time blocks based on the viz time ranges...")
 
     ### --------------------------------------------------------------###
     ## pre-processing block. flagging, hanning smoothing...
@@ -1980,11 +1991,14 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     ### --------------------------------------------------------------###
     ## shift correction block.
     ### --------------------------------------------------------------###
+
+    total_blocks = len(tr_series_master)
+    if verbose:
+        log_print('INFO', f"Processing {msfile} into {total_blocks} time blocks based on the viz time ranges...")
     run_start_time_shift_corr = datetime.now()
 
     if ncpu == 'auto':
         ncpu = total_blocks
-
     if not mergeFITSonly:
         mmsfiles_rot_all = []
         if ncpu == 1:
@@ -2006,8 +2020,14 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 mmsfiles_rot_all.append(combined_vis_sub)
         else:
             log_print('INFO', f"Using {ncpu} CPUs for parallel processing ...")
+            if hostname == 'pipeline':
+                log_print('INFO', f"Running on pipeline server. Using 1 CPU for splitting ...")
+                mmsfiles = split_mms(msfile, tr_series_master, workdir=subdir, overwrite=False, verbose=True)
+                msfile2proc = mmsfiles
+            else:
+                msfile2proc = msfile
             worker = partial(process_time_block,
-                             msfile=msfile,
+                             msfile=msfile2proc,
                              msname=msname,
                              subdir=subdir,
                              total_blocks=total_blocks,
@@ -2020,12 +2040,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                              disk_params=disk_params, pols=pols,
                              do_sbdcal=do_sbdcal)
 
-            # with Pool(ncpu) as pool:
-            #     results = pool.map(worker, enumerate(tr_series_master))
             with Pool(ncpu) as pool:
-                # Using map_async instead of map
-                result_object = pool.map_async(worker, enumerate(tr_series_master))
-                results = result_object.get()
+                results = pool.map(worker, enumerate(tr_series_master))
+            # with Pool(ncpu) as pool:
+            #     # Using map_async instead of map
+            #     result_object = pool.map_async(worker, enumerate(tr_series_master))
+            #     results = result_object.get()
             mmsfiles_rot_all = [res for res in results if res is not None]
 
         if os.path.isdir(combined_vis) == True:
@@ -2033,10 +2053,10 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
         concat(vis=[l for l in mmsfiles_rot_all if l is not None], concatvis=combined_vis)
 
-        ## remove the intermediate ms files
-        for i in mmsfiles_rot_all:
-            if os.path.isdir(i):
-                shutil.rmtree(i, ignore_errors=True)
+        # ## remove the intermediate ms files
+        # for i in mmsfiles_rot_all:
+        #     if os.path.isdir(i):
+        #         shutil.rmtree(i, ignore_errors=True)
 
         add_disk_before_imaging = False
         if add_disk_before_imaging:
@@ -2079,8 +2099,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                                 # usemask='user', ## toggle this for single band imaging
                                                 imgoutdir=subdir)
         else:
+            if hostname == 'pipeline':
+                msfiles_in = mmsfiles_rot_all
+            else:
+                msfiles_in = combined_vis
             # Prepare partial function with pre-filled arguments
-            process_with_params = partial(process_imaging_timerange, combined_vis=combined_vis, spws=spws_imaging,
+            process_with_params = partial(process_imaging_timerange, combined_vis=msfiles_in, spws=spws_imaging,
                                           subdir=subdir)
 
             with Pool(ncpu) as p:
