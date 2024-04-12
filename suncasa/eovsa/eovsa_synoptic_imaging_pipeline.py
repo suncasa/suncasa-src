@@ -2005,7 +2005,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         ncpu = total_blocks
     else:
         try:
-            ncpu = int(args.ncpu)
+            ncpu = int(ncpu)
         except ValueError:
             raise ValueError("ncpu must be an integer or 'auto'.")
 
