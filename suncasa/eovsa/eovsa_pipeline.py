@@ -33,6 +33,8 @@ tbtool = tools['tbtool']
 ms = mstool()
 tb = tbtool()
 
+import socket
+hostname = socket.gethostname()
 
 udbmsdir = os.getenv('EOVSAUDBMS')
 udbmsscldir = os.getenv('EOVSAUDBMSSCL')
@@ -64,13 +66,13 @@ if not udbdir:
 
 if not qlookfitsdir:
     qlookfitsdir = '/data1/eovsa/fits/synoptic/'
-    if not os.path.exists(qlookfitsdir): os.makedirs(qlookfitsdir)
+    if hostname=='pipeline' and not os.path.exists(qlookfitsdir): os.makedirs(qlookfitsdir)
 if not qlookfigdir:
     qlookfigdir = '/common/webplots/qlookimg_10m/'
-    if not os.path.exists(qlookfigdir): os.makedirs(qlookfigdir)
+    if hostname=='pipeline' and not os.path.exists(qlookfigdir): os.makedirs(qlookfigdir)
 if not synopticfigdir:
     synopticfigdir = '/common/webplots/SynopticImg/'
-    if not os.path.exists(synopticfigdir): os.makedirs(synopticfigdir)
+    if hostname=='pipeline' and not os.path.exists(synopticfigdir): os.makedirs(synopticfigdir)
 
 if not caltbdir:
     print('Task calibeovsa')
@@ -720,12 +722,11 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
 
     Example:
     --------
-    To process data for June 10th, 2020 using version 2.0 of the pipeline, clearing the cache,
-    with the import step, and processing for 1 day before the specified date:
+    To process data for November 24th, 2021 using version 2.0 of the pipeline, with all options enabled:
 
-    >>> python eovsa_pipeline.py --clearcache True --ndays 1 --overwrite True --doimport True --pols XX --version v2.0 2020 06 10
+    >>> python eovsa_pipeline.py --date 2021-11-24T20:00 --clearcache --overwrite --doimport --pols XXYY --version v2.0 --ndays 2
 
-    if you want to see the help message, you can run:
+    If you want to see the help message, you can run:
 
     >>> python eovsa_pipeline.py -h
     """

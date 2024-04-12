@@ -2020,8 +2020,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                              disk_params=disk_params, pols=pols,
                              do_sbdcal=do_sbdcal)
 
+            # with Pool(ncpu) as pool:
+            #     results = pool.map(worker, enumerate(tr_series_master))
             with Pool(ncpu) as pool:
-                results = pool.map(worker, enumerate(tr_series_master))
+                # Using map_async instead of map
+                result_object = pool.map_async(worker, enumerate(tr_series_master))
+                results = result_object.get()
             mmsfiles_rot_all = [res for res in results if res is not None]
 
         if os.path.isdir(combined_vis) == True:
