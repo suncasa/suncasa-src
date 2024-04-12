@@ -1999,6 +1999,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
     if ncpu == 'auto':
         ncpu = total_blocks
+    else:
+        try:
+            ncpu = int(args.ncpu)
+        except ValueError:
+            raise ValueError("ncpu must be an integer or 'auto'.")
+
     if not mergeFITSonly:
         mmsfiles_rot_all = []
         if ncpu == 1:
