@@ -13,8 +13,10 @@ import os
 from suncasa.eovsa import eovsa_diskmodel as ed
 from suncasa.utils import mstools as mstl
 
-from suncasa.casa_compat import import_casatasks,import_casatools
-tasks = import_casatasks('calibeovsa', 'importeovsa', 'split', 'tclean', 'gencal', 'clearcal', 'applycal', 'gaincal', 'delmod')
+from suncasa.casa_compat import import_casatasks, import_casatools
+
+tasks = import_casatasks('calibeovsa', 'importeovsa', 'split', 'tclean', 'gencal', 'clearcal', 'applycal', 'gaincal',
+                         'delmod')
 calibeovsa = tasks.get('calibeovsa')
 importeovsa = tasks.get('importeovsa')
 split = tasks.get('split')
@@ -34,6 +36,7 @@ ms = mstool()
 tb = tbtool()
 
 import socket
+
 hostname = socket.gethostname()
 
 udbmsdir = os.getenv('EOVSAUDBMS')
@@ -66,13 +69,13 @@ if not udbdir:
 
 if not qlookfitsdir:
     qlookfitsdir = '/data1/eovsa/fits/synoptic/'
-    if hostname=='pipeline' and not os.path.exists(qlookfitsdir): os.makedirs(qlookfitsdir)
+    if hostname == 'pipeline' and not os.path.exists(qlookfitsdir): os.makedirs(qlookfitsdir)
 if not qlookfigdir:
     qlookfigdir = '/common/webplots/qlookimg_10m/'
-    if hostname=='pipeline' and not os.path.exists(qlookfigdir): os.makedirs(qlookfigdir)
+    if hostname == 'pipeline' and not os.path.exists(qlookfigdir): os.makedirs(qlookfigdir)
 if not synopticfigdir:
     synopticfigdir = '/common/webplots/SynopticImg/'
-    if hostname=='pipeline' and not os.path.exists(synopticfigdir): os.makedirs(synopticfigdir)
+    if hostname == 'pipeline' and not os.path.exists(synopticfigdir): os.makedirs(synopticfigdir)
 
 if not caltbdir:
     print('Task calibeovsa')
@@ -309,7 +312,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
         vis = esip.pipeline_run(vis, outputvis=output_file_path,
                                 workdir=workdir,
                                 slfcaltbdir=slfcaltbdir_path,
-                                imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols,ncpu=ncpu)
+                                imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols, ncpu=ncpu)
     return vis
 
 
@@ -683,7 +686,7 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
 
 
 def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrite=True, doimport=True, pols='XX',
-             version='v1.0', ncpu='auto'):
+             version='v1.0', ncpu='auto', debugging=False):
     """
     Main pipeline for importing and calibrating EOVSA visibility data.
 
@@ -717,6 +720,10 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
     :type pols: str, optional
     :param version: Version of the pipeline to use, choices are 'v1.0' or 'v2.0', defaults to 'v1.0'.
     :type version: str, optional
+    :param ncpu: Number of CPUs to use for processing, defaults to 'auto'.
+    :type ncpu: str, optional
+    :param debugging: Whether to run the pipeline in debugging mode, defaults to False.
+    :type debugging: bool, optional
 
     :raises ValueError: Raises an exception if the date parameters are out of the valid Gregorian calendar range.
 
@@ -751,11 +758,16 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
         # ##debug
         # vis_corrected = calib_pipeline(datestr, overwrite=overwrite, doimport=doimport,
         #                                workdir=subdir, clearcache=False, pols=pols)
-        try:
+
+        if debugging:
             vis_corrected = calib_pipeline(t1, overwrite=overwrite, doimport=doimport,
                                            workdir=subdir, clearcache=False, pols=pols, version=version, ncpu=ncpu)
-        except:
-            print('error in processing {}'.format(datestr))
+        else:
+            try:
+                vis_corrected = calib_pipeline(t1, overwrite=overwrite, doimport=doimport,
+                                               workdir=subdir, clearcache=False, pols=pols, version=version, ncpu=ncpu)
+            except Exception as e:
+                print(f'error in processing {datestr}. Error message: {e}')
         if clearcache:
             os.chdir(workdir)
             os.system('rm -rf {}'.format(subdir))
@@ -768,7 +780,8 @@ if __name__ == '__main__':
     default_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%dT20:00')
     parser.add_argument('--date', type=str, default=default_date,
                         help='Date to process in YYYY-MM-DDT20:00 format, defaults to 20:00 UT of one day before the current date.')
-    parser.add_argument('--clearcache', action='store_true', default=False, help='Remove temporary files after processing')
+    parser.add_argument('--clearcache', action='store_true', default=False,
+                        help='Remove temporary files after processing')
     parser.add_argument('--ndays', type=int, default=1,
                         help='Process data from DATE_IN_YY_MM_DD-ndays to DATE_IN_YY_MM_DD, default is 1.')
     parser.add_argument('--overwrite', action='store_true', default=False, help='Overwrite existing processed data')
@@ -777,6 +790,7 @@ if __name__ == '__main__':
     parser.add_argument('--ncpu', type=str, default='auto', help='Number of CPUs to use for processing')
     parser.add_argument('--version', type=str, default='v1.0', choices=['v1.0', 'v2.0'],
                         help='Version of the EOVSA pipeline to use')
+    parser.add_argument('--debugging', action='store_true', default=False, help='Run the pipeline in debugging mode')
 
     # Parse the arguments
     args = parser.parse_args()
@@ -789,4 +803,4 @@ if __name__ == '__main__':
 
     # Run the main pipeline function
     pipeline(year, month, day, args.ndays, args.clearcache, args.overwrite, args.doimport, args.pols,
-             args.version, args.ncpu)
+             args.version, args.ncpu, args.debugging)

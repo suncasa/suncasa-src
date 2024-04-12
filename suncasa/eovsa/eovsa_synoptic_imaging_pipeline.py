@@ -21,6 +21,8 @@ import argparse
 import socket
 
 hostname = socket.gethostname()
+if hostname in ['pipeline', 'inti.hpcnet.campus.njit.edu']:
+    is_on_server = True
 
 logging.basicConfig(level=logging.INFO, format='EOVSA pipeline: [%(levelname)s] - %(asctime)s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
@@ -2026,7 +2028,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 mmsfiles_rot_all.append(combined_vis_sub)
         else:
             log_print('INFO', f"Using {ncpu} CPUs for parallel processing ...")
-            if hostname == 'pipeline':
+            if is_on_server:
                 log_print('INFO', f"Running on pipeline server. Using 1 CPU for splitting ...")
                 mmsfiles = split_mms(msfile, tr_series_master, workdir=subdir, overwrite=False, verbose=True)
                 msfile2proc = mmsfiles
@@ -2105,7 +2107,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                                 # usemask='user', ## toggle this for single band imaging
                                                 imgoutdir=subdir)
         else:
-            if hostname == 'pipeline':
+            if is_on_server:
                 msfiles_in = mmsfiles_rot_all
             else:
                 msfiles_in = combined_vis
