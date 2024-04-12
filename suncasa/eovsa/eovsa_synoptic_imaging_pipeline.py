@@ -1843,7 +1843,7 @@ def process_imaging_timerange(tbg_ted, msfile_in, spws, subdir, overwrite):
         msfile = msfile_in
     if msfile is None:
         return None, None
-    timerange = trange2timerange([tbg, ted])
+    timerange = trange2timerange((tbg, ted))
     fitsfile, imagefile = fd_images(msfile,
                                     timerange=timerange,
                                     pbcor=False,
@@ -2009,13 +2009,13 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         except ValueError:
             raise ValueError("ncpu must be an integer or 'auto'.")
 
+    mmsfiles_rot_all = []
     if not mergeFITSonly:
-        mmsfiles_rot_all = []
         if ncpu == 1:
             log_print('INFO', f"Using 1 CPU for serial processing ...")
             for tidx, (tbg, ted) in enumerate(tr_series_master):
                 combined_vis_sub = process_time_block((tidx, (tbg, ted)),
-                                                      msfile=msfile,
+                                                      msfile_in=msfile,
                                                       msname=msname,
                                                       subdir=subdir,
                                                       total_blocks=total_blocks,
@@ -2037,7 +2037,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             else:
                 msfile2proc = msfile
             worker = partial(process_time_block,
-                             msfile=msfile2proc,
+                             msfile_in=msfile2proc,
                              msname=msname,
                              subdir=subdir,
                              total_blocks=total_blocks,
@@ -2097,7 +2097,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     if not mergeFITSonly:
         if ncpu == 1:
             for tidx, (tbg, ted) in enumerate(tr_series_imaging):
-                timerange = trange2timerange([tbg, ted])
+                timerange = trange2timerange((tbg, ted))
                 log_print('INFO',
                           f"Imaging time block {tidx + 1} of {total_blocks_imaging} (Time range: {timerange}) ... ")
                 fitsfile, imagefile = fd_images(combined_vis,
@@ -2114,7 +2114,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             else:
                 msfiles_in = combined_vis
             # Prepare partial function with pre-filled arguments
-            process_with_params = partial(process_imaging_timerange, combined_vis=msfiles_in, spws=spws_imaging,
+            process_with_params = partial(process_imaging_timerange, msfile_in=msfiles_in, spws=spws_imaging,
                                           subdir=subdir, overwrite=overwrite)
 
             with Pool(ncpu) as p:

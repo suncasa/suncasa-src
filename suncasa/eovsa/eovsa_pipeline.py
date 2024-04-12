@@ -688,7 +688,7 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
     #     # plt_qlook_image(imres_allbd, figdir=figdir + 'FullBD/', verbose=True, synoptic=True)
 
 
-def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrite=True, doimport=True, pols='XX',
+def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrite=False, doimport=True, pols='XX',
              version='v1.0', ncpu='auto', debugging=False):
     """
     Main pipeline for importing and calibrating EOVSA visibility data.
