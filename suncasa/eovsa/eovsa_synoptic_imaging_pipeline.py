@@ -2191,7 +2191,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         eofiles_rot_disk = []
         for eofile in eofiles_rot:
             datetimestr = os.path.basename(eofile).split('_')[1]
-            synfitsfile = os.path.join(subdir, f"eovsa.synoptic_{tdtmst_str}.{datetimestr}_UTC.s{spwstr}.tb.fits")
+            synfitsfile = os.path.join(imgoutdir, f"eovsa.synoptic_{tdtmst_str}.{datetimestr}_UTC.s{spwstr}.tb.fits")
             eomap_disk, tb_disk, eofile_disk = image_adddisk(eofile, diskinfo)
             if eofile_disk is not None:
                 shutil.move(eofile_disk, synfitsfile)
@@ -2201,6 +2201,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         syndaily_fitsfile = os.path.join(imgoutdir, f"eovsa.synoptic_daily.{date_str}T200000_UTC.s{spwstr}.tb.fits")
         merge_FITSfiles(eofiles_rot_disk, syndaily_fitsfile, exptime_weight=True)
         syndaily_fitsfiles.append(syndaily_fitsfiles)
+        ## todo synoptic_60m FITS images currently align to 20 UT. Need to rotate them to better reflect actual observation times. Also, the FITS files need to be compressed.
 
     ## remove the intermediate ms files
     for i in mmsfiles_rot_all:
