@@ -36,59 +36,42 @@ ms = mstool()
 tb = tbtool()
 
 import socket
-
 hostname = socket.gethostname()
+import os
 
-udbmsdir = os.getenv('EOVSAUDBMS')
-udbmsscldir = os.getenv('EOVSAUDBMSSCL')
-udbmsslfcaleddir = os.getenv('EOVSAUDBMSSLFCALED')
-udbdir = os.getenv('EOVSAUDB')
-caltbdir = os.getenv('EOVSACAL')
-slfcaltbdir = os.getenv('EOVSASLFCAL')
-qlookfitsdir = os.getenv('EOVSAQLOOKFITS')
-qlookfigdir = os.getenv('EOVSAQLOOKFIG')
-synopticfigdir = os.getenv('EOVSASYNOPTICFIG')
+class Path_config:
+    def __init__(self):
+        self.udbmsdir = self._get_env_var('EOVSAUDBMS', '/data1/eovsa/fits/UDBms/')
+        self.udbmsscldir = self._get_env_var('EOVSAUDBMSSCL', '/data1/eovsa/fits/UDBms_scl/')
+        self.udbmsslfcaleddir = self._get_env_var('EOVSAUDBMSSLFCALED', '/data1/eovsa/fits/UDBms_slfcaled/')
+        self.udbdir = self._get_env_var('EOVSAUDB', '/data1/eovsa/fits/UDB/')
+        self.caltbdir = self._get_env_var('EOVSACAL', '/data1/eovsa/caltable/')
+        self.slfcaltbdir = self._get_env_var('EOVSASLFCAL', '/data1/eovsa/slfcaltable/')
+        self.qlookfitsdir = self._get_env_var('EOVSAQLOOKFITS', '/data1/eovsa/fits/synoptic/')
+        self.qlookfigdir = self._get_env_var('EOVSAQLOOKFIG', '/common/webplots/qlookimg_10m/')
+        self.synopticfigdir = self._get_env_var('EOVSASYNOPTICFIG', '/common/webplots/SynopticImg/')
 
-if not udbmsdir:
-    print('Environmental variable for EOVSA udbms path not defined')
-    print('Use default path on pipeline')
-    udbmsdir = '/data1/eovsa/fits/UDBms/'
-if not udbmsscldir:
-    print('Environmental variable for scaled EOVSA udbms path not defined')
-    print('Use default path on pipeline')
-    udbmsscldir = '/data1/eovsa/fits/UDBms_scl/'
-if not udbmsslfcaleddir:
-    print('Environmental variable for EOVSA udbms path not defined')
-    print('Use default path on pipeline')
-    udbmsslfcaleddir = '/data1/eovsa/fits/UDBms_slfcaled/'
-if not udbdir:
-    print('Environmental variable for EOVSA udb path not defined')
-    print('Use default path on pipeline')
-    udbdir = '/data1/eovsa/fits/UDB/'
-# check if the calibration table directory is defined
+    def _get_env_var(self, env_var, default_path):
+        path = os.getenv(env_var) or default_path
+        if not os.path.exists(path):
+            if hostname!='pipeline':
+                path = os.path.basename(default_path.rstrip('/')) + '/'
+            os.makedirs(path)
+        return path
 
-if not qlookfitsdir:
-    qlookfitsdir = '/data1/eovsa/fits/synoptic/'
-    if hostname == 'pipeline' and not os.path.exists(qlookfitsdir): os.makedirs(qlookfitsdir)
-if not qlookfigdir:
-    qlookfigdir = '/common/webplots/qlookimg_10m/'
-    if hostname == 'pipeline' and not os.path.exists(qlookfigdir): os.makedirs(qlookfigdir)
-if not synopticfigdir:
-    synopticfigdir = '/common/webplots/SynopticImg/'
-    if hostname == 'pipeline' and not os.path.exists(synopticfigdir): os.makedirs(synopticfigdir)
+# Usage
+pathconfig = Path_config()
+print(pathconfig.udbmsdir)  # Accessing the directory path
 
-if not caltbdir:
-    print('Task calibeovsa')
-    caltbdir = '/data1/eovsa/caltable/'
-    print('Environmental variable for EOVSA calibration table path not defined')
-    print('Use default path on pipeline ' + caltbdir)
-
-if not slfcaltbdir:
-    print('Task calibeovsa')
-    slfcaltbdir = '/data1/eovsa/slfcaltable/'
-    print('Environmental variable for EOVSA disk calibration table path not defined')
-    print('Use default path on pipeline ' + slfcaltbdir)
-
+udbmsdir = pathconfig.udbmsdir
+udbmsscldir = pathconfig.udbmsscldir
+udbmsslfcaleddir = pathconfig.udbmsslfcaleddir
+udbdir = pathconfig.udbdir
+caltbdir = pathconfig.caltbdir
+slfcaltbdir = pathconfig.slfcaltbdir
+qlookfitsdir = pathconfig.qlookfitsdir
+qlookfigdir = pathconfig.qlookfigdir
+synopticfigdir = pathconfig.synopticfigdir
 
 def getspwfreq(vis):
     '''

@@ -23,6 +23,8 @@ import socket
 hostname = socket.gethostname()
 if hostname in ['pipeline', 'inti.hpcnet.campus.njit.edu']:
     is_on_server = True
+else:
+    is_on_server = False
 
 logging.basicConfig(level=logging.INFO, format='EOVSA pipeline: [%(levelname)s] - %(asctime)s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
@@ -1775,16 +1777,17 @@ from functools import partial
 
 def process_time_block(tidx_ted_tbg, msfile_in, msname, subdir, total_blocks, tdt, tdtstr, spws, niter_init,
                        reftime_master, do_diskslfcal, disk_params, pols='XX', do_sbdcal=False, overwrite=False):
-    ## todo unify the overwrite input for all the functions
     tidx, (tbg, ted) = tidx_ted_tbg
-    if isinstance(msfile_in, list):
-        ## this is for running the code on pipeline server
-        msfile = msfile_in[tidx]
-    else:
-        msfile = msfile_in
     timerange = trange2timerange([tbg, ted])
 
-    log_print('INFO', f"Processing time block {tidx + 1} of {total_blocks} (Time range: {timerange}) ... ")
+    if isinstance(msfile_in, list):
+        msfile = msfile_in[tidx]
+        log_print('INFO',
+                  f"msfile_in is a list. Processing time block {tidx + 1} of {total_blocks} (Time range: {timerange}) ... ")
+    else:
+        msfile = msfile_in
+        log_print('INFO',
+                  f"msfile_in is a file. Processing time block {tidx + 1} of {total_blocks} (Time range: {timerange}) ... ")
     combined_vis_sub = os.path.join(subdir, f'{msname}_shift_corrected.block{tidx + 1}.seg{tdtstr}.ms')
 
     tr_series = generate_trange_series(tbg, ted, tdt)
@@ -1823,7 +1826,8 @@ def process_time_block(tidx_ted_tbg, msfile_in, msname, subdir, total_blocks, td
 
     mmsfiles_rot = shift_corr(mmsfiles, tr_series, spws, img_ref_model, img_ref_model_fits, reftime_master,
                               workdir=subdir, do_featureslfcal=True, pols=pols,
-                              overwrite=overwrite, do_diskslfcal=do_diskslfcal, disk_params=disk_params, do_sbdcal=do_sbdcal,
+                              overwrite=overwrite, do_diskslfcal=do_diskslfcal, disk_params=disk_params,
+                              do_sbdcal=do_sbdcal,
                               verbose=True)
 
     if os.path.isdir(combined_vis_sub):
@@ -1856,7 +1860,8 @@ def process_imaging_timerange(tbg_ted, msfile_in, spws, subdir, overwrite):
 
 
 def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None, figoutdir=None, clearcache=False,
-                 pols='XX', mergeFITSonly=False, verbose=True, do_diskslfcal=True, overwrite=False, niter_init=200, ncpu='auto',
+                 pols='XX', mergeFITSonly=False, verbose=True, do_diskslfcal=True, overwrite=False, niter_init=200,
+                 ncpu='auto',
                  tr_series_imaging=None,
                  spws_imaging=None, hanning=False, do_sbdcal=False):
     """
@@ -1914,9 +1919,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     """
 
     msfile = vis.rstrip('/')
-    outputvis = outputvis.rstrip('/')
     if workdir is None:
-        workdir = '/data1/workdir'
+        workdir = './'
     os.chdir(workdir)
     if slfcaltbdir is None:
         slfcaltbdir = workdir + '/'
@@ -1956,7 +1960,15 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
     msname, _ = os.path.splitext(msfile)
     msname = os.path.basename(msname)
+
+    msfile_copy = os.path.join(subdir, f'{msname}.ms')
+    shutil.copytree(msfile, msfile_copy)
+    msfile_copy
+
     combined_vis = os.path.join(subdir, f'{msname}_shift_corrected.b{tdtmststr}.s{tdtstr}.ms')
+    if outputvis == '':
+        outputvis = os.path.join(workdir, f'{msname}.b{tdtmststr}.s{tdtstr}.shift_corr.ms')
+    outputvis = outputvis.rstrip('/')
     # combined_vis_disk = os.path.join(subdir, f'{msname}_shift_corrected.b{tdtmststr}.s{tdtstr}.disk.ms')
 
     ### --------------------------------------------------------------###
@@ -2199,15 +2211,47 @@ if __name__ == '__main__':
     This code is built on python 3.8.
     '''
     description = 'this code is trying to address the issue of smearing effect in all-day synthesis images. Description of the issue: https://www.ovsa.njit.edu/wiki/index.php/All-Day_Synthesis_Issues. This code is built on python 3.8.'
-    parser = argparse.ArgumentParser(description=description)
-    # Add the arguments
-    parser.add_argument('datestr', type=str, help='The date string in the format of "YYYYMMDD".')
+    parser = argparse.ArgumentParser(
+        description="Executes the EOVSA data processing pipeline for solar observation data.")
+    parser.add_argument('vis', type=str, help='Path to the input measurement set (MS) data.')
+    parser.add_argument('--outputvis', type=str, default='', help='Output path for the processed MS.')
+    parser.add_argument('--workdir', type=str, help='Working directory for intermediate data.')
+    parser.add_argument('--slfcaltbdir', type=str, help='Directory for storing calibration tables.')
+    parser.add_argument('--imgoutdir', type=str, help='Output directory for image files.')
+    parser.add_argument('--figoutdir', type=str, help='Output directory for figures.')
+    parser.add_argument('--clearcache', action='store_true', help='Clears the cache after processing.')
+    parser.add_argument('--pols', type=str, default='XX', help='Polarization types to process.')
+    parser.add_argument('--mergeFITSonly', action='store_true', help='Skips processing and only merges FITS files.')
+    parser.add_argument('--verbose', action='store_true', help='Enables verbose output during processing.')
+    parser.add_argument('--do_diskslfcal', action='store_true', help='Performs disk self-calibration.')
+    parser.add_argument('--overwrite', action='store_true', help='Overwrites existing files.')
+    parser.add_argument('--niter_init', type=int, default=200, help='Initial number of iterations for imaging.')
     parser.add_argument('--ncpu', type=str, default='auto',
-                        help='The number of CPUs to use for parallel processing. Default is "auto".')
-    parser.add_argument('--mergeFITSonly', action='store_true',
-                        help='Will skip the pipeline. Only merging the FITS files.')
+                        help="Specifies the number of CPUs for parallel processing.")
+    parser.add_argument('--tr_series_imaging', nargs='*', help='Time ranges for imaging, expects a list of tuples.')
+    parser.add_argument('--spws_imaging', nargs='*', help='Spectral windows selected for imaging.')
+    parser.add_argument('--hanning', action='store_true', help='Applies Hanning smoothing to the data.')
+    parser.add_argument('--do_sbdcal', action='store_true', help='Perform single-band delay calibration.')
 
-    # Parse the arguments
     args = parser.parse_args()
 
-    pipeline_run(args.datestr, ncpu=args.ncpu, mergeFITSonly=args.mergeFITSonly)
+    pipeline_run(
+        vis=args.vis,
+        outputvis=args.outputvis,
+        workdir=args.workdir,
+        slfcaltbdir=args.slfcaltbdir,
+        imgoutdir=args.imgoutdir,
+        figoutdir=args.figoutdir,
+        clearcache=args.clearcache,
+        pols=args.pols,
+        mergeFITSonly=args.mergeFITSonly,
+        verbose=args.verbose,
+        do_diskslfcal=args.do_diskslfcal,
+        overwrite=args.overwrite,
+        niter_init=args.niter_init,
+        ncpu=args.ncpu,
+        tr_series_imaging=args.tr_series_imaging,
+        spws_imaging=args.spws_imaging,
+        hanning=args.hanning,
+        do_sbdcal=args.do_sbdcal
+    )
