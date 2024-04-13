@@ -15,10 +15,8 @@ from suncasa.utils import mstools as mstl
 
 from suncasa.casa_compat import import_casatasks, import_casatools
 
-tasks = import_casatasks('calibeovsa', 'importeovsa', 'split', 'tclean', 'gencal', 'clearcal', 'applycal', 'gaincal',
+tasks = import_casatasks('split', 'tclean', 'gencal', 'clearcal', 'applycal', 'gaincal',
                          'delmod')
-calibeovsa = tasks.get('calibeovsa')
-importeovsa = tasks.get('importeovsa')
 split = tasks.get('split')
 tclean = tasks.get('tclean')
 gencal = tasks.get('gencal')
