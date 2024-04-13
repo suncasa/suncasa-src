@@ -87,7 +87,7 @@ def get_bandinfo(msfile, spw=None, returnbdinfo=False):
         return cfreqs
 
 
-def get_bmsize(cfreq, refbmsize=30.0, reffreq=1.6, minbmsize=4.0):
+def get_bmsize(cfreq, refbmsize=70.0, reffreq=1.0, minbmsize=4.0):
     '''
     get beamsize at frequencies definded by cfreq based on refbmsize at reffreq
     cfreq: input frequencies at GHz

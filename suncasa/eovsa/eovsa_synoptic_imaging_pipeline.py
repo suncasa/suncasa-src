@@ -286,6 +286,38 @@ def solar_diff_rot_image(in_map, newtime, out_image, showplt=False):
     return out_image
 
 
+def get_bmsize(cfreq, refbmsize=70.0, reffreq=1.0, minbmsize=4.0):
+    """
+    Calculate the beam size at given frequencies based on a reference beam size at a reference frequency.
+    This function supports both single frequency values and lists of frequencies.
+
+    :param cfreq: Input frequencies in GHz, can be a float or a list of floats.
+    :type cfreq: float or list
+    :param refbmsize: Reference beam size in arcsec, defaults to 70.0.
+    :type refbmsize: float, optional
+    :param reffreq: Reference frequency in GHz, defaults to 1.0.
+    :type reffreq: float, optional
+    :param minbmsize: Minimum beam size in arcsec, defaults to 4.0.
+    :type minbmsize: float, optional
+    :return: Beam size at the given frequencies, same type as input (float or numpy array).
+    :rtype: float or numpy.ndarray
+    """
+    # Ensure cfreq is an array for uniform processing
+    cfreq = np.array(cfreq, dtype=float)
+
+    # Calculate beam size
+    bmsize = refbmsize * reffreq / cfreq
+
+    # Enforce minimum beam size
+    bmsize = np.maximum(bmsize, minbmsize)
+
+    # If the original input was a single float, return a single float
+    if bmsize.size == 1:
+        return bmsize.item()  # Convert numpy scalar to Python float
+    else:
+        return bmsize
+
+
 def calc_diskmodel(slashdate, nbands, freq, defaultfreq):
     from astropy.time import Time
     # Default disk size measured for 2019/09/03
@@ -1214,6 +1246,7 @@ def run_tclean_automasking(vis, sp, trange, uvrange, datacolumn, imname,
                            pbcor,
                            savemodel,
                            usemask,
+                           restoringbeam,
                            sidelobethreshold,
                            noisethreshold,
                            lownoisethreshold,
@@ -1238,6 +1271,7 @@ def run_tclean_automasking(vis, sp, trange, uvrange, datacolumn, imname,
     :param bool pbcor: Specifies whether to perform primary beam correction.
     :param str savemodel: Specifies whether to save the model.
     :param bool usemask: Specifies whether to use auto-masking.
+    :param list restoringbeam: Restoring beam parameters.
     :param float sidelobethreshold: Side lobe threshold for auto-masking.
     :param float noisethreshold: Noise threshold for auto-masking.
     :param float lownoisethreshold: Low noise threshold for auto-masking.
@@ -1260,6 +1294,7 @@ def run_tclean_automasking(vis, sp, trange, uvrange, datacolumn, imname,
         f'pbcor={format_param(pbcor)}',
         f'savemodel={format_param(savemodel)}',
         f'usemask={format_param(usemask)}',
+        f'restoringbeam={format_param(restoringbeam)}',
         f'sidelobethreshold={format_param(sidelobethreshold)}',
         f'noisethreshold={format_param(noisethreshold)}',
         f'lownoisethreshold={format_param(lownoisethreshold)}',
@@ -1284,6 +1319,7 @@ def run_tclean_automasking(vis, sp, trange, uvrange, datacolumn, imname,
            pbcor=pbcor,
            veltype='radio',
            outframe='TOPO',
+           restoringbeam=restoringbeam,
            usemask=usemask, pbmask=0.0,
            sidelobethreshold=sidelobethreshold,
            noisethreshold=noisethreshold,
@@ -1530,34 +1566,40 @@ def fd_images(vis,
                       f'Processing tclean for SPW {spwstr} -- (timerange: {timerange}) image_marker: {image_marker}')
             if os.path.exists(imname + imext):
                 rm_imname_extensions(imname)
-            try:
-                if os.path.isdir(imname + '.init.image'):
-                    ## if the init.image already exists, get the beam size from the existing image
-                    bmaj, bmin, bpa, beamunit, bpaunit = hf.getbeam(imagefile=[imname + '.init.image'])
-                else:
-                    ## use multiscale to make high quality images
-                    ## do an initial hogbom clean with niter=0 to determine the beam size
-                    tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
-                           uvrange='',
-                           antenna="0~12&0~12",
-                           datacolumn=datacolumn, imagename=imname, imsize=imsize, cell=cell,
-                           stokes=stokes, projection="SIN", specmode="mfs", interpolation="linear",
-                           deconvolver="hogbom",
-                           weighting="briggs", robust=0,
-                           niter=0, gain=0.05, savemodel="none")
-                    bmaj, bmin, bpa, beamunit, bpaunit = hf.getbeam(imagefile=[imname + '.image'])
-                bmsz = np.nanmean([bmaj, bmin])
-                if bmsz < 5.0:
-                    bmsz = 5.0
-                scalesfactor = [0, 1, 3]  ## [ 0, 1xbeam, 3xbeam]
-                scales = [np.ceil(l * bmsz / cellvalue) for l in scalesfactor]
-                log_print('INFO',
-                          f'Applying scales {scales} for multiscale clean, determined by initial beam size assessment.')
-            except:
-                scales = [0, 5, 15]
-                log_print('WARNING:',
-                          f'Unable to determine beam size from initial clean. Applying default scales {scales} for multiscale clean.')
-
+            # try:
+            #     if os.path.isdir(imname + '.init.image'):
+            #         ## if the init.image already exists, get the beam size from the existing image
+            #         bmaj, bmin, bpa, beamunit, bpaunit = hf.getbeam(imagefile=[imname + '.init.image'])
+            #     else:
+            #         ## use multiscale to make high quality images
+            #         ## do an initial hogbom clean with niter=0 to determine the beam size
+            #         tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
+            #                uvrange='',
+            #                antenna="0~12&0~12",
+            #                datacolumn=datacolumn, imagename=imname, imsize=imsize, cell=cell,
+            #                stokes=stokes, projection="SIN", specmode="mfs", interpolation="linear",
+            #                deconvolver="hogbom",
+            #                weighting="briggs", robust=0,
+            #                niter=0, gain=0.05, savemodel="none")
+            #         bmaj, bmin, bpa, beamunit, bpaunit = hf.getbeam(imagefile=[imname + '.image'])
+            #     bmsz = np.nanmean([bmaj, bmin])
+            #     if bmsz < 5.0:
+            #         bmsz = 5.0
+            #     scalesfactor = [0, 1, 3]  ## [ 0, 1xbeam, 3xbeam]
+            #     scales = [np.ceil(l * bmsz / cellvalue) for l in scalesfactor]
+            #     log_print('INFO',
+            #               f'Applying scales {scales} for multiscale clean, determined by initial beam size assessment.')
+            # except:
+            #     scales = [0, 5, 15]
+            #     log_print('WARNING:',
+            #               f'Unable to determine beam size from initial clean. Applying default scales {scales} for multiscale clean.')
+            reffreq, cdelt4_real = freq_setup.get_reffreq_and_cdelt(sp)
+            bmsz = get_bmsize(float(reffreq.rstrip('GHz')), minbmsize=5.0)
+            scalesfactor = [0, 1, 3]  ## [ 0, 1xbeam, 3xbeam]
+            scales = [np.ceil(l * bmsz / cellvalue) for l in scalesfactor]
+            log_print('INFO',
+                      f'Applying scales {scales} for multiscale clean, determined by pre-defined beam size.')
+            restoringbeam = [f'{bmsz:.3f}arcsec']
             try:
                 initial_params = {'sidelobethreshold': 1.5, 'noisethreshold': 2.5, 'lownoisethreshold': 1.5,
                                   'minbeamfrac': 0.3,
@@ -1575,15 +1617,12 @@ def fd_images(vis,
                 log_print('INFO', 'Initial tclean run')
                 rm_imname_extensions(imname)
                 # if len(eofreq) > 0:
-                reffreq, cdelt4_real = freq_setup.get_reffreq_and_cdelt(sp)
-                #     # reffreq, cdelt4_real = get_reffreq(sp, eofreq, bandwidth)
-                # else:
-                #     reffreq, cdelt4_real = '', ''
                 run_tclean_automasking(vis, sp, trange, uvrange, datacolumn, imname, imsize, cell, stokes, scales,
                                        niter, reffreq,
                                        pbcor,
                                        savemodel,
                                        usemask,
+                                       restoringbeam,
                                        **initial_params)
 
                 if check_image_zeros(imname + imext):
@@ -1594,6 +1633,7 @@ def fd_images(vis,
                                            pbcor,
                                            savemodel,
                                            usemask,
+                                           restoringbeam,
                                            **secondary_params)
 
                 if check_image_zeros(imname + imext):
@@ -1603,6 +1643,7 @@ def fd_images(vis,
                                            niter, reffreq,
                                            pbcor,
                                            usemask,
+                                           restoringbeam,
                                            savemodel, **final_params)
                 if check_image_zeros(imname + imext):
                     log_print('INFO', 'tclean run failed with automasking. Trying without automasking...')
@@ -1952,8 +1993,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     nbands = freq_setup.nbands
     slashdate = tbg_master.strftime('%Y/%m/%d')
     dsize, fdens = calc_diskmodel(slashdate, nbands, freq, defaultfreq)
-    diskxmlfile = msfile + '.SOLDISK.xml'
-    disk_params = {'dsize': dsize, 'fdens': fdens, 'freq': freq, 'diskxmlfile': diskxmlfile}
 
     if os.path.isdir(subdir) == False:
         os.makedirs(subdir)
@@ -1962,8 +2001,11 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     msname = os.path.basename(msname)
 
     msfile_copy = os.path.join(subdir, f'{msname}.ms')
-    shutil.copytree(msfile, msfile_copy)
-    msfile_copy
+    if not os.path.exists(msfile_copy):
+        shutil.copytree(msfile, msfile_copy)
+    msfile = msfile_copy
+    diskxmlfile = msfile + '.SOLDISK.xml'
+    disk_params = {'dsize': dsize, 'fdens': fdens, 'freq': freq, 'diskxmlfile': diskxmlfile}
 
     combined_vis = os.path.join(subdir, f'{msname}_shift_corrected.b{tdtmststr}.s{tdtstr}.ms')
     if outputvis == '':
@@ -2075,11 +2117,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
         concat(vis=[l for l in mmsfiles_rot_all if l is not None], concatvis=combined_vis)
 
-        # ## remove the intermediate ms files
-        # for i in mmsfiles_rot_all:
-        #     if os.path.isdir(i):
-        #         shutil.rmtree(i, ignore_errors=True)
-
         add_disk_before_imaging = False
         if add_disk_before_imaging:
             ## insert disk back
@@ -2165,6 +2202,25 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         merge_FITSfiles(eofiles_rot_disk, syndaily_fitsfile, exptime_weight=True)
         syndaily_fitsfiles.append(syndaily_fitsfiles)
 
+    ## remove the intermediate ms files
+    for i in mmsfiles_rot_all:
+        if os.path.isdir(i):
+            shutil.rmtree(i, ignore_errors=True)
+
+    if outputvis:
+        if os.path.exists(outputvis):
+            shutil.rmtree(outputvis)
+        shutil.move(combined_vis, outputvis)
+        combined_vis = outputvis
+
+        newdiskxmlfile = '{}.SOLDISK.xml'.format(outputvis)
+        if os.path.exists(newdiskxmlfile):
+            shutil.rmtree(newdiskxmlfile)
+        shutil.move(diskxmlfile, newdiskxmlfile)
+
+    if clearcache:
+        shutil.rmtree(subdir, ignore_errors=True)
+
     run_end_time_post_proc = datetime.now()
     elapsed_time = run_end_time_post_proc - run_start_time_post_proc
     elapsed_time_post_proc = elapsed_time.total_seconds() / 60
@@ -2187,20 +2243,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     # Log the time taken for each step
     for step, tim in time_dict.items():
         log_print('INFO', f"    --> {step}: {tim:.1f} minutes.")
-
-    if outputvis:
-        if os.path.exists(outputvis):
-            shutil.rmtree(outputvis)
-        shutil.move(combined_vis, outputvis)
-        combined_vis = outputvis
-
-        newdiskxmlfile = '{}.SOLDISK.xml'.format(outputvis)
-        if os.path.exists(newdiskxmlfile):
-            shutil.rmtree(newdiskxmlfile)
-        shutil.move(diskxmlfile, newdiskxmlfile)
-
-    if clearcache:
-        shutil.rmtree(subdir, ignore_errors=True)
     return combined_vis
 
 
@@ -2222,8 +2264,8 @@ if __name__ == '__main__':
     parser.add_argument('--clearcache', action='store_true', help='Clears the cache after processing.')
     parser.add_argument('--pols', type=str, default='XX', help='Polarization types to process.')
     parser.add_argument('--mergeFITSonly', action='store_true', help='Skips processing and only merges FITS files.')
-    parser.add_argument('--verbose', action='store_true', help='Enables verbose output during processing.')
-    parser.add_argument('--do_diskslfcal', action='store_true', help='Performs disk self-calibration.')
+    # parser.add_argument('--verbose', action='store_true', help='Enables verbose output during processing.')
+    # parser.add_argument('--do_diskslfcal', action='store_true', help='Performs disk self-calibration.')
     parser.add_argument('--overwrite', action='store_true', help='Overwrites existing files.')
     parser.add_argument('--niter_init', type=int, default=200, help='Initial number of iterations for imaging.')
     parser.add_argument('--ncpu', type=str, default='auto',
@@ -2245,8 +2287,8 @@ if __name__ == '__main__':
         clearcache=args.clearcache,
         pols=args.pols,
         mergeFITSonly=args.mergeFITSonly,
-        verbose=args.verbose,
-        do_diskslfcal=args.do_diskslfcal,
+        # verbose=args.verbose,
+        # do_diskslfcal=args.do_diskslfcal,
         overwrite=args.overwrite,
         niter_init=args.niter_init,
         ncpu=args.ncpu,
