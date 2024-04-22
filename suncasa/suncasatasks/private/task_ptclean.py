@@ -1,3 +1,6 @@
+## This code is obsolete. It is replaced by task_ptclean6.py
+
+
 import os
 import numpy as np
 import shutil
@@ -5,25 +8,23 @@ from functools import partial
 from time import time
 import glob
 import sys
-from suncasa.utils import helioimage2fits as hf
+from ...utils import helioimage2fits as hf
+from ...casa_compat import import_casatools, import_casatasks
 
-pversion = sys.version_info.major
-if pversion<3:
-    ## CASA version < 6
-    from taskinit import ms, tb, qa, casalog
-    from tclean_cli import tclean_cli as tclean
-    is_casa6=False
-else:
-    ## CASA version >= 6
-    from casatasks import casalog, tclean
-    from casatools import table as tbtool
-    from casatools import ms as mstool
-    from casatools import quanta as qatool
+tasks = import_casatasks('split', 'tclean', 'casalog')
+split = tasks.get('split')
+tclean = tasks.get('tclean')
+casalog = tasks.get('casalog')
 
-    tb = tbtool()
-    ms = mstool()
-    qa = qatool()
-    is_casa6 = True
+tools = import_casatools(['tbtool', 'mstool', 'qatool'])
+tbtool = tools['tbtool']
+mstool = tools['mstool']
+qatool = tools['qatool']
+tb = tbtool()
+ms = mstool()
+qa = qatool()
+
+c_external = False
 
 
 def clean_iter(tim, vis, imageprefix, imagesuffix,
@@ -38,7 +39,6 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
                usemask, mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold,
                smoothfactor, minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart,
                savemodel, calcres, calcpsf, parallel, subregion, tmpdir, btidx):
-
     bt = btidx  # 0
     if bt + twidth < len(tim) - 1:
         et = btidx + twidth - 1
@@ -62,7 +62,6 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
 
     image0 = btstr.replace(':', '').replace('-', '')
     imname = imageprefix + image0 + imagesuffix
-
 
     if overwrite or (len(glob.glob(imname + '*')) == 0):
         os.system('rm -rf {}*'.format(imname))
@@ -140,17 +139,17 @@ def clean_iter(tim, vis, imageprefix, imagesuffix,
 
 
 def ptclean(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, reftime, toTb, sclfactor, subregion,
-             docompress,
-             overwrite, selectdata, field, spw, timerange, uvrange, antenna, scan, observation, intent, datacolumn,
-             imsize, cell, phasecenter,
-             stokes, projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
-             interpolation, gridder, facets, chanchunks, wprojplanes, vptable, usepointing, mosweight, aterm, psterm,
-             wbawp, conjbeams, cfcache, computepastep, rotatepastep, pblimit, normtype, deconvolver, scales, nterms,
-             smallscalebias, restoration, restoringbeam, pbcor, outlierfile, weighting, robust, npixels, uvtaper, niter,
-             gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive, usemask,
-             mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold, smoothfactor,
-             minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart, savemodel,
-             calcres, calcpsf, parallel):
+            docompress,
+            overwrite, selectdata, field, spw, timerange, uvrange, antenna, scan, observation, intent, datacolumn,
+            imsize, cell, phasecenter,
+            stokes, projection, startmodel, specmode, reffreq, nchan, start, width, outframe, veltype, restfreq,
+            interpolation, gridder, facets, chanchunks, wprojplanes, vptable, usepointing, mosweight, aterm, psterm,
+            wbawp, conjbeams, cfcache, computepastep, rotatepastep, pblimit, normtype, deconvolver, scales, nterms,
+            smallscalebias, restoration, restoringbeam, pbcor, outlierfile, weighting, robust, npixels, uvtaper, niter,
+            gain, threshold, nsigma, cycleniter, cyclefactor, minpsffraction, maxpsffraction, interactive, usemask,
+            mask, pbmask, sidelobethreshold, noisethreshold, lownoisethreshold, negativethreshold, smoothfactor,
+            minbeamfrac, cutthreshold, growiterations, dogrowprune, minpercentchange, verbose, restart, savemodel,
+            calcres, calcpsf, parallel):
     if not (type(ncpu) is int):
         casalog.post('ncpu should be an integer')
         ncpu = 8

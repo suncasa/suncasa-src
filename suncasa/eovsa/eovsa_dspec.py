@@ -10,46 +10,48 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 def get_dspec(filename, doplot=False, vmax=None, vmin=None, norm=None, cmap=None):
     """
-    Read EOVSA Dynamic Spectrum FITS file <filename> and return a spectrogram dictionary.
-    Optionally show an overview plot if doplot switch is set.
+    Reads and optionally plots an EOVSA Dynamic Spectrum from a FITS file.
 
-    Example:
-    --------
-    >>> from suncasa.eovsa import eovsa_dspec as ds
-    >>> from astropy.time import Time
-    >>> from matplotlib.colors import LogNorm
-    ## Read EOVSA Dynamic Spectrum FITS file <filename>
-    >>> filename = 'EOVSA_TPall_20170713.fts'
-    >>> s = ds.get_dspec(filename, doplot=True, cmap='gist_heat', norm=LogNorm(vmax=2.1e3, vmin=40))
-    ## To access the data in the spectrogram object, use
-    >>> spec = s['spectrogram']                    ## (Array of amplitudes in SFU, of size nfreq,ntimes)
-    >>> fghz = s['spectrum_axis']                  ## (Array of frequencies in GHz, of size nfreq)
-    >>> tim = Time(s['time_axis'], format='mjd')   ## (Array of UT times in astropy.time object, of size ntimes)
+    This function reads a FITS file containing EOVSA dynamic spectrum data, returning the data as a dictionary. If requested, it also generates a plot of the dynamic spectrum.
 
     Parameters
     ----------
-    filename :   filename of the spectrogram fits file
-
-    doplot : Boolean, optional
-
-    vmin, vmax : scalar, optional
-    When using scalar data and no explicit norm, vmin and vmax
-    define the data range that the colormap covers. By default,
-    the colormap covers the complete value range of the supplied data.
-    vmin, vmax are ignored if the norm parameter is used.
-
-    norm : `matplotib.colors Normalization object` or str, optional
-    The Normalize instance used to scale scalar data to the [0, 1]
-    range before mapping to colors using cmap. By default, a linear
-    scaling mapping the lowest value to 0 and the highest to 1 is used.
-    This parameter is ignored for RGB(A) data.
-
-    cmap : `matplotib.colors.Colormap` or str
-    A colormap instance or the name of a registered colormap.
+    filename : str
+        Path and name of the EOVSA dynamic spectrum FITS file to read.
+    doplot : bool, optional
+        If True, generates a plot of the dynamic spectrum. Default is False.
+    vmin : float, optional
+        Minimum value for the color scale. Ignored if `norm` is provided. Default is None, which autoscales.
+    vmax : float, optional
+        Maximum value for the color scale. Ignored if `norm` is provided. Default is None, which autoscales.
+    norm : `matplotlib.colors.Normalize` or None, optional
+        Normalization for the color scale of the plot. If None, a linear scaling is used. Default is None.
+    cmap : str or `matplotlib.colors.Colormap`, optional
+        Colormap for the dynamic spectrum plot. Can be a colormap name or an instance. Default is None, which uses the default colormap.
 
     Returns
     -------
-    spectrogram : dictionary
+    dict
+        A dictionary containing the dynamic spectrum data (`spectrogram`), frequency axis (`spectrum_axis` in GHz), and time axis (`time_axis` in modified Julian date).
+
+    Example
+    -------
+    ::
+
+        from suncasa.eovsa import eovsa_dspec as ds
+        from astropy.time import Time
+        from matplotlib.colors import LogNorm
+
+        # Read EOVSA Dynamic Spectrum FITS file <filename>
+        filename = 'EOVSA_TPall_20170713.fts'
+        s = ds.get_dspec(filename, doplot=True, cmap='gist_heat', norm=LogNorm(vmax=2.1e3, vmin=40))
+
+        # To access the data in the spectrogram object, use
+        spec = s['spectrogram']  # Array of amplitudes in SFU, of size nfreq,ntimes
+        fghz = s['spectrum_axis']  # Array of frequencies in GHz, of size nfreq
+        tim = Time(s['time_axis'], format='mjd')   # Array of UT times in astropy.time object, of size ntimes
+
+
     """
 
     hdulist = fits.open(filename)

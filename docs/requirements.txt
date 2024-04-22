@@ -1,3 +1,4 @@
 Sphinx
 sphinx-rtd-theme
 sphinx-gallery
+sphinx-autoapi

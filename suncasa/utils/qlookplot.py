@@ -17,6 +17,55 @@ import re
 
 import re
 
+systemname = platform.system()
+
+sunpy1 = sunpy.version.major >= 1
+sunpy3 = sunpy.version.major >= 3
+py3 = sys.version_info.major >= 3
+if py3:
+    # For Python 3.0 and later
+    from urllib.request import urlopen
+else:
+    # Fall back to Python 2's urllib2
+    from urllib2 import urlopen
+
+from ..suncasatasks import ptclean6 as ptclean
+from ..casa_compat import import_casatools, import_casatasks
+tasks = import_casatasks('split', 'tclean', 'casalog')
+split = tasks.get('split')
+tclean = tasks.get('tclean')
+casalog = tasks.get('casalog')
+
+tools = import_casatools(['tbtool', 'mstool', 'qatool'])
+
+tbtool = tools['tbtool']
+mstool = tools['mstool']
+qatool = tools['qatool']
+tb = tbtool()
+ms = mstool()
+qa = qatool()
+
+c_external = False
+from matplotlib.dates import DateFormatter
+from astropy.coordinates import SkyCoord
+import matplotlib as mpl
+
+import matplotlib.colors as colors
+import matplotlib.patches as patches
+from ..utils import DButil
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from suncasa.utils import plot_mapX as pmX
+from suncasa.io import ndfits
+from tqdm import tqdm
+
+sunpy1 = sunpy.version.major >= 1
+if sunpy1:
+    from sunpy.coordinates import sun
+else:
+    from sunpy import sun
+    import sunpy.cm.cm as cm_sunpy
+
+polmap = {'RR': 0, 'LL': 1, 'I': 0, 'V': 1, 'XX': 0, 'YY': 1}
 
 def validate_and_reset_restoringbeam(restoringbm):
     """
@@ -40,78 +89,6 @@ def validate_and_reset_restoringbeam(restoringbm):
         return ''  # Reset to an empty string if the format is incorrect
     else:
         return restoringbm  # Return the original string if the format is correct
-
-systemname = platform.system()
-
-# if systemname=='Darwin':
-#     try:
-#         mpl.use('MacOSX')
-#     except:
-#         mpl.use('QtAgg')
-
-
-sunpy1 = sunpy.version.major >= 1
-sunpy3 = sunpy.version.major >= 3
-py3 = sys.version_info.major >= 3
-if py3:
-    # For Python 3.0 and later
-    from urllib.request import urlopen
-else:
-    # Fall back to Python 2's urllib2
-    from urllib2 import urlopen
-
-try:
-    ## Full Installation of CASA 4, 5 and 6
-    from split_cli import split_cli as split
-    from ptclean3_cli import ptclean3_cli as ptclean
-    from taskinit import ms, tb, qa, iatool
-    from tclean_cli import tclean_cli as tclean
-
-    c_external = True
-except:
-    ## Modular Installation of CASA 6
-    from casatools import table as tbtool
-    from casatools import ms as mstool
-    from casatools import quanta as qatool
-    from casatools import image as iatool
-
-    tb = tbtool()
-    ms = mstool()
-    qa = qatool()
-    ia = iatool()
-    from casatasks import tclean
-    from casatasks import split
-    from ..suncasatasks import ptclean6 as ptclean
-
-    c_external = False
-
-from matplotlib.dates import DateFormatter
-from astropy.coordinates import SkyCoord
-import matplotlib as mpl
-
-import matplotlib.colors as colors
-import matplotlib.patches as patches
-from ..utils import DButil
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from suncasa.utils import plot_mapX as pmX
-from suncasa.io import ndfits
-from tqdm import tqdm
-
-sunpy1 = sunpy.version.major >= 1
-if sunpy1:
-    from sunpy.coordinates import sun
-else:
-    from sunpy import sun
-    import sunpy.cm.cm as cm_sunpy
-
-polmap = {'RR': 0, 'LL': 1, 'I': 0, 'V': 1, 'XX': 0, 'YY': 1}
-
-
-# def warn(*args, **kwargs):
-#     pass
-#
-#
-# warnings.warn = warn
 
 
 def read_imres(imresfile):
@@ -952,7 +929,7 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
         Freq = sorted(uniq(imres['Freq']))
 
         plttimes = list(set(imres['BeginTime']))
-        plttimes = sorted(plttimes)
+        plttimes = Time(sorted(plttimes))
         ntime = len(plttimes)
         # sort the imres according to time
         images = np.array(imres['ImageName'])
@@ -1566,8 +1543,9 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
               cleartmpfits=True, overwrite=True,
               clearmshistory=False, show_warnings=False, verbose=False, quiet=False, ds_normalised=False):
     '''
+    Generate quick-look plots and dynamic spectra for solar radio observations.
     Required inputs:
-            vis: The path to the calibrated CASA measurement set
+               :param vis: Path to the calibrated CASA measurement set.
     Important optional inputs:
             timerange: Timerange for analysis in standard CASA format. Defaults to entire range, which can be slow.
             spw: spectral window (SPW) selection following the CASA syntax.

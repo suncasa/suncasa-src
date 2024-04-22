@@ -138,6 +138,12 @@ venv.bak/
 # mkdocs documentation
 /site
 
+# test files
+tests/**
+
+# egg-info
+suncasa.egg-info/**
+
 # mypy
 .mypy_cache/
 .dmypy.json

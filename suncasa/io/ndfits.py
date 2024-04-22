@@ -12,6 +12,15 @@ stokesval = {'1': 'I', '2': 'Q', '3': 'U', '4': 'V', '-1': 'RR', '-2': 'LL', '-3
              '-6': 'YY', '-7': 'XY', '-8': 'YX'}
 
 
+def is_compressed_fits(fitsfile):
+    '''
+    Function to check if the FITS file contains compressed data
+    '''
+    with fits.open(fitsfile) as hdul:
+        for hdu in hdul:
+            if isinstance(hdu, fits.hdu.CompImageHDU):
+                return True
+        return False
 
 def headerfix(header, PC_coor=True):
     '''
@@ -259,6 +268,10 @@ def read(filepath, hdus=None, verbose=False, **kwargs):
             meta['bmin'] = np.array(hdulist[-1].data['cbmin'])
             meta['bpa'] = np.array(hdulist[-1].data['cbpa'])
 
+        if hasattr(hdulist[-1].data, 'refra_shift_x'):
+            meta['refra_shift_x'] = np.array(hdulist[-1].data['refra_shift_x'])
+            meta['refra_shift_y'] = np.array(hdulist[-1].data['refra_shift_y'])
+
         else:
             if verbose:
                 print('FITS file does not have an additional frequency axis. '
@@ -361,6 +374,10 @@ def header_to_xml(header):
 
 
 def write_j2000_image(fname, data, header):
+    ## todo: write scaled data to jp2. so hv doesn't have to to scale.
+    ## todo: add date and time to filename following 2024_03_06__14_18_45_343__EOVSA_1.5GHz.jp2
+    ## todo: flare iamges: do similar thing as the CME tag for ccmc data, eOVSa provide movie links to hv. hv will show flare tag
+    ## on the solar image and include movie as a external link
     import glymur
     datamax = np.max(data)
     datamin = np.min(data)
@@ -544,7 +561,6 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
         col3 = fits.Column(name='bmaj', format='E', array=cbmaj)
         col4 = fits.Column(name='bmin', format='E', array=cbmin)
         col5 = fits.Column(name='bpa', format='E', array=cbpa)
-
         tbhdu = fits.BinTableHDU.from_columns([col1, col2, col3, col4, col5])
 
         if docompress:
@@ -573,3 +589,90 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
         hdulnew.writeto(outfitsfile)
         print('wrapped fits written as ' + outfitsfile)
         return outfitsfile
+
+
+def update(fitsfile, new_data = None, new_columns=None, new_header_entries=None):
+    """
+    Updates a FITS file by optionally replacing its primary or compressed image data, adding new columns to the
+    first binary table (BinTableHDU), and/or updating header entries in the first image HDU (PrimaryHDU for
+    uncompressed or CompImageHDU for compressed FITS files).
+
+    Parameters:
+    - fitsfile (str): Path to the FITS file to be updated.
+    - new_data (np.ndarray, optional): New data array to replace the existing data in the first image HDU.
+      Defaults to None, which means the data will not be updated.
+    - new_columns (list of astropy.io.fits.Column, optional): New columns to be added to the first BinTableHDU.
+      Defaults to None, which means no columns will be added.
+    - new_header_entries (dict, optional): Header entries to update or add in the first image HDU. Each key-value
+      pair represents a header keyword and its new value. Defaults to None, which means no header updates will be made.
+
+    Returns:
+    - bool: True if any of the specified updates were successfully applied, False otherwise.
+
+    The function determines whether the FITS file is compressed to properly handle the image HDU type. It attempts
+    to update the image HDU's data, the BinTableHDU's columns, and the image HDU's header based on the provided
+    arguments. If all input parameters are None, indicating no updates are specified, the function will print a message
+    and return False.
+    """
+    if new_data is None and new_columns is None and new_header_entries is None:
+        print("No updates to perform: all new_data new_columns and new_header_entries are None.")
+        return False
+
+    if is_compressed_fits(fitsfile):
+        imagehdutype = fits.hdu.CompImageHDU
+    else:
+        imagehdutype = fits.hdu.PrimaryHDU
+
+    try:
+        with fits.open(fitsfile, mode='update') as hdul:
+            if new_header_entries is None:
+                header_updated = True
+                ## skip updating header
+            else:
+                header_updated = False
+                for hdu in hdul:
+                    if isinstance(hdu, imagehdutype):
+                        for key, value in new_header_entries.items():
+                            if key == "HISTORY":
+                                hdu.header.add_history(value)
+                            else:
+                                hdu.header[key] = value
+                        header_updated = True
+                        break  # Updating only the first relevant image HDU
+
+            if new_data is None:
+                data_updated = True
+            else:
+                data_updated = False
+                for hdu in hdul:
+                    if isinstance(hdu, imagehdutype):
+                        hdu.data = new_data
+                        data_updated = True
+                        break
+            if new_columns is None:
+                bintable_updated = True
+                ## skip updating bintable
+            else:
+                # Add new columns to the first BinTableHDU
+                bintable_updated = False
+                for idx, hdu in enumerate(hdul):
+                    if isinstance(hdu, imagehdutype):
+                        continue  # Skip compressed image HDUs
+                    if isinstance(hdu, fits.hdu.BinTableHDU):
+                        combined_columns = fits.ColDefs(hdu.columns) + fits.ColDefs(new_columns)
+                        new_tbhdu = fits.BinTableHDU.from_columns(combined_columns)
+                        hdul[idx] = new_tbhdu
+                        bintable_updated = True
+                        break  # Updating only the first BinTableHDU
+            if not header_updated:
+                print("Header update failed.")
+            if not bintable_updated:
+                print("BinTable update failed.")
+            if not data_updated:
+                print("Data update failed.")
+            if not header_updated and not bintable_updated and not data_updated:
+                return False
+            return True
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return False

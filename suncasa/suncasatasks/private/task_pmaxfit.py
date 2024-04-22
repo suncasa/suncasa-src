@@ -2,13 +2,18 @@ import numpy as np
 import numpy.ma as ma
 import os, struct
 from time import time
-from taskinit import casalog
 import multiprocessing as mprocs
 from suncasa.utils import DButil
 
+from ...casa_compat import import_casatools, import_casatasks
+tasks = import_casatasks('casalog')
+casalog = tasks.get('casalog')
+
+tools = import_casatools(['iatool', 'rgtool'])
+iatool = tools['iatool']
+rgtool = tools['rgtool']
 
 def maxfit_iter(imgfiles, box, width, imidx):
-    from taskinit import iatool, rgtool
     myia = iatool()
     myrg = rgtool()
     try:
@@ -22,7 +27,7 @@ def maxfit_iter(imgfiles, box, width, imidx):
 
     try:
         if (not myia.open(img)):
-            raise Exception, "Cannot create image analysis tool using " + img
+            raise Exception("Cannot create image analysis tool using " + img)
         print('Processing image: ' + img)
         hdulist = pyfits.open(img)
         hdu = hdulist[0]
@@ -64,7 +69,7 @@ def maxfit_iter(imgfiles, box, width, imidx):
         # update timestamp
         timstr = hdr['date-obs']
         return [True, timstr, img, results]
-    except Exception, instance:
+    except Exception as instance:
         casalog.post(str('*** Error in imfit ***') + str(instance))
         # raise instance
         return [False, timstr, img, {}]
@@ -79,7 +84,7 @@ def pmaxfit(imagefiles, ncpu, box, width):
     if isinstance(imagefiles, str):
         imagefiles = [imagefiles]
     if (not isinstance(imagefiles, list)):
-        print 'input "imagefiles" is not a list. Abort...'
+        print('input "imagefiles" is not a list. Abort...')
 
     # check file existence
     imgfiles = []
@@ -116,7 +121,7 @@ def pmaxfit(imagefiles, ncpu, box, width):
 
     t1 = time()
     timelapse = t1 - t0
-    print 'It took %f secs to complete' % timelapse
+    print('It took %f secs to complete' % timelapse)
     # repackage this into a single dictionary
     results = {'succeeded': [], 'timestamps': [], 'imagenames': [], 'outputs': []}
     for r in res:

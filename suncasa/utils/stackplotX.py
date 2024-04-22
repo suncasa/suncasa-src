@@ -41,6 +41,8 @@ import sunpy.map
 from sunpy.physics.solar_rotation import mapsequence_solar_derotate
 from sunpy.map.mapsequence import MapSequence
 
+
+## todo maybe add this to sunkit-image
 if pversion.parse(sunpy.version.version) >= pversion.parse('2.1'):
     from aiapy.calibrate import register, update_pointing
 

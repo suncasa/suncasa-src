@@ -1,22 +1,6 @@
-def check_dependencies():
-    missing_packages = []
-    try:
-        import aipy
-    except ImportError:
-        missing_packages.append("aipy-eovsa")
-
-    try:
-        import eovsapy
-    except ImportError:
-        missing_packages.append("eovsapy")
-
-    if missing_packages:
-        raise ImportError(
-            "The following package(s) are required to use this function: {}. "
-            "Please install them to proceed.".format(", ".join(missing_packages))
-        )
-
+from ...casa_compat import check_dependencies
 check_dependencies()
+
 import sys
 import os
 import numpy as np
@@ -31,26 +15,24 @@ from suncasa.eovsa import impteovsa as ipe
 
 py3 = sys.version_info.major >= 3
 
-try:
-    ## Full Installation of CASA 4, 5 and 6
-    from split_cli import split_cli as split
-    from taskinit import ms, tb, qa, iatool, casalog
+from ...casa_compat import import_casatools, import_casatasks
 
-    c_external = True
-except:
-    ## Modular Installation of CASA 6
-    from casatools import table as tbtool
-    from casatools import ms as mstool
-    from casatools import quanta as qatool
-    from casatools import image as iatool
+tasks = import_casatasks('split', 'casalog')
+split = tasks.get('split')
+casalog = tasks.get('casalog')
 
-    tb = tbtool()
-    ms = mstool()
-    qa = qatool()
-    ia = iatool()
-    from casatasks import split, casalog
+tools = import_casatools(['tbtool', 'mstool', 'qatool', 'iatool'])
+tbtool = tools['tbtool']
+mstool = tools['mstool']
+qatool = tools['qatool']
+iatool = tools['iatool']
+tb = tbtool()
+ms = mstool()
+qa = qatool()
+ia = iatool()
 
-    c_external = False
+c_external = False
+
 
 # idbdir = os.getenv('EOVSAIDB')
 #
@@ -107,7 +89,7 @@ def udb_corr_external(filelist, udbcorr_path, use_exist_udbcorr=False):
         fi.write(b' \n')
         # fi.write('setenv PYTHONPATH "/home/user/test_svn/python:/common/python/current:/common/python" \n')
         fi.write(b'source /home/user/.cshrc \n')
-        line ='/common/anaconda2/bin/python {} \n'.format(udbcorr_script)
+        line = '/common/anaconda2/bin/python {} \n'.format(udbcorr_script)
         fi.write(line.encode())
         fi.close()
 
@@ -525,8 +507,6 @@ def importeovsa(idbfiles=None, ncpu=None, timebin=None, width=None, visprefix=No
         else:
             filelist = filelist_tmp
         # filelist = udb_corr_external(filelist, udbcorr_path, use_exist_udbcorr)
-
-
 
     if not modelms:
         if nocreatms:
