@@ -228,19 +228,19 @@ class Dspec:
         """
         ##TODO The existing implementation of the mapping between extensions and instruments requires refinement and sophistication.
         # Explore potential optimization strategies to improve this process.
+        from astropy.io import fits
 
         if type(fname) is str:
             _known_extensions = {
-                ('fts', 'fits'): 'fits',
                 ('npz'): 'suncasa',
             }
             for extension, readername in _known_extensions.items():
                 if fname.lower().endswith(extension):
                     source = readername
-            if source is None:
+            if source is None and (not fname.lower().startswith('eovsa')):
                 raise ValueError(f"The filetype provided ({os.path.basename(fname)}) is not supported")
 
-        if source.lower() == 'fits':
+        if source.lower() == 'eovsa' or fname.lower().startswith('eovsa'):
             if fname.endswith('.fts') or fname.endswith('.fits'):
                 from .sources import eovsa
                 s = eovsa.get_dspec(fname, doplot=False)
@@ -263,15 +263,27 @@ class Dspec:
             self.observatory = ''
 
         if source.lower() == 'lwa':
-            from .sources import lwa
-            spec, tim, freq, pol = lwa.read_data(fname, **kwargs)
-            self.data = spec
-            self.time_axis = Time(tim, format='mjd')
-            self.freq_axis = freq
-            self.pol = pol
-            self.spec_unit = 'sfu'
-            self.telescope = 'LWA'
-            self.observatory = 'OVRO'
+            if fname.endswith('.fits'):
+                hdu = fits.open(fname) 
+                self.data = hdu[0].data
+                tim = hdu[2].data
+                tmjd = np.array(tim['mjd']) + np.array(tim['time']) / 24. / 3600 / 1000
+                self.time_axis = Time(tmjd, format='mjd')
+                self.freq_axis = hdu[1].data['sfreq'] * 1e9
+                self.pol = [hdu[0].header['POLARIZA']]
+                self.spec_unit = 'sfu'
+                self.telescope = 'LWA'
+                self.observatory = 'OVRO'
+            else:
+                from .sources import lwa
+                spec, tim, freq, pol = lwa.read_data(fname, **kwargs)
+                self.data = spec
+                self.time_axis = Time(tim, format='mjd')
+                self.freq_axis = freq
+                self.pol = pol
+                self.spec_unit = 'sfu'
+                self.telescope = 'LWA'
+                self.observatory = 'OVRO'
 
     def tofits(self, fitsfile=None, specdata=None, spectype='amp', spec_unit='jy',
                telescope='EOVSA', observatory='Owens Valley Radio Observatory', observer='EOVSA Team'):

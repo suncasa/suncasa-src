@@ -5,6 +5,8 @@ import datetime
 from astropy.time import Time
 import itertools
 from astropy import units as u
+import pandas as pd
+from astropy.coordinates import SkyCoord, EarthLocation, get_body, AltAz
 
 def rebin1d(arr, new_len):
     shape = (new_len, len(arr) // new_len)
@@ -27,22 +29,28 @@ def timestamp_to_mjd(times):
     return ts
 
 
-def read_data(filename, stokes='I', timerange=[], freqrange=[], timebin=1, freqbin=1, verbose=True):
+def read_data(filename, stokes='I', timerange=[], freqrange=[], timebin=1, freqbin=1, verbose=True, 
+              flux_factor_file=None, bkg_file=None, do_pb_correction=False):
     '''
-    filename: name of the OVRO-LWA hdf5 beamforming file; 
+    :param filename: name of the OVRO-LWA hdf5 beamforming file; 
               This can be a string (single file) or a list of strings (multiple files)
-    stokes: currently supporting 'XX', 'YY', 'I', 'Q', 'U', 'V', 'IV' 
-    timerange: list of [start_time, end_time], start_time and end_time should be recognized by astropy.time.Time
+    :param stokes: currently supporting 'XX', 'YY', 'I', 'Q', 'U', 'V', 'IV' 
+    :param timerange: list of [start_time, end_time], start_time and end_time should be recognized by astropy.time.Time
             e.g., ['2023-09-22T18:00', '2023-09-22T18:10']
-    freqrange: list of [start_frequency, end_frequency] in MHz. Example: [23, 82]
-    timebin: number to bin in time
-    freqbin: number to bin in frequency
-    verbose: if True, print extra information
+    :param freqrange: list of [start_frequency, end_frequency] in MHz. Example: [23, 82]
+    :param timebin: number to bin in time
+    :param freqbin: number to bin in frequency
+    :param verbose: if True, print extra information
+    :param flux_factor_file: Path to the csv file that contains the flux correction factors
+    :param bkg_file: Path to the csv file that contains the raw background (off-Sun scan) measurements (before scaling); 
+            currently it only contains Stokes I.
+    :param do_pb_correction: if True, apply primary beam correction. Currently only use the analytical form in Stokes I only.
     '''
     # Check the input filename
     if type(filename) == str:
         filename = [filename]
 
+    obs = EarthLocation.of_site('ovro')
     filelist = []
     for ll in filename:
         if not os.path.exists(ll):
@@ -72,6 +80,31 @@ def read_data(filename, stokes='I', timerange=[], freqrange=[], timebin=1, freqb
         # times_mjd = np.array([(Time(t[0], format='unix') + TimeDelta(t[1], format='sec')).mjd for t in ts])
         times_mjd = timestamp_to_mjd(ts)
         idx0, = np.where(times_mjd > 50000.) # filter out those prior to 1995 (obviously wrong for OVRO-LWA)
+
+        # read the flux factors file if provided
+        if not (flux_factor_file is None): 
+            try:
+                out = pd.read_csv(flux_factor_file)
+                calfac_x = np.array(out['calfac_x'])
+                calfac_y = np.array(out['calfac_y'])
+            except:
+                print('Failed in reading the flux factor csv file. Setting correction factors to unity.')
+        else:
+            print('Flux factor csv file does not exist. Setting correction factors to unity.')
+            calfac_x = np.ones_like(freqs)
+            calfac_y = np.ones_like(freqs)
+
+        # read background flux file if provided
+        if not (bkg_file is None): 
+            try:
+                out = pd.read_csv(bkg_file)
+                bkg_flux = out['bkg_flux']
+                print('Using the provided raw aackground flux csv file.')
+            except:
+                print('Failed in reading the background flux csv file. Setting background flux to zero.')
+        else:
+            print('No background csv file provided. Setting background flux to zero.')
+            bkg_flux = np.zeros_like(freqs)
 
         if verbose:
             print('Data time range is from {0:s} to {1:s}'.format(Time(times_mjd[idx0][0], format='mjd').isot, 
@@ -139,30 +172,71 @@ def read_data(filename, stokes='I', timerange=[], freqrange=[], timebin=1, freqb
         if verbose:
             print('Reading dynamic spectrum for stokes {0:s}'.format(stokes))
 
+
+
         if stokes not in stokes_valid:
             raise Exception("Provided Stokes {0:s} is not in 'XX, YY, RR, LL, I, Q, U, V'".format(stokes))
-        if stokes == 'XX':
-            spec = data['Observation1']['Tuning1']['XX'][ti0:ti1, fi0:fi1]
-        if stokes == 'YY':
-            spec = data['Observation1']['Tuning1']['YY'][ti0:ti1, fi0:fi1]
-        if stokes == 'I':
-            spec = data['Observation1']['Tuning1']['XX'][ti0:ti1, fi0:fi1] + \
-                   data['Observation1']['Tuning1']['YY'][ti0:ti1, fi0:fi1]
-        if stokes == 'V':
-            spec = 2 * data['Observation1']['Tuning1']['XY_imag'][ti0:ti1, fi0:fi1]
-        if stokes == 'Q':
-            spec = data['Observation1']['Tuning1']['XX'][ti0:ti1, fi0:fi1] - \
-                    data['Observation1']['Tuning1']['YY'][ti0:ti1, fi0:fi1]
-        if stokes == 'U':
-            spec = 2 * data['Observation1']['Tuning1']['XY_real'][ti0:ti1, fi0:fi1]
+        if stokes.upper() == 'XX':
+            spec = data['Observation1']['Tuning1']['XX'][ti0:ti1, fi0:fi1] / calfac_x[None, fi0:fi1]
+            stokes_out = ['XX']
+        if stokes.upper() == 'YY':
+            spec = data['Observation1']['Tuning1']['YY'][ti0:ti1, fi0:fi1] / calfac_y[None, fi0:fi1]
+            stokes_out = ['YY']
+        if stokes.upper() == 'I' or stokes.upper() == 'IV':
+            spec_I = (data['Observation1']['Tuning1']['XX'][ti0:ti1, fi0:fi1] / calfac_x[None, fi0:fi1] + \
+                   data['Observation1']['Tuning1']['YY'][ti0:ti1, fi0:fi1] / calfac_y[None, fi0:fi1]) / 2. - \
+                   bkg_flux[None, fi0:fi1] / ((calfac_x[None, fi0:fi1] + calfac_y[None, fi0:fi1]) / 2.) 
+            if verbose:
+                print('Median of the subtracted background flux (Jy)', np.median(bkg_flux[None, fi0:fi1] / ((calfac_x[None, fi0:fi1] + calfac_y[None, fi0:fi1]) / 2.)))
+                print('RMS of the subtracted background flux (Jy)', np.std(bkg_flux[None, fi0:fi1] / ((calfac_x[None, fi0:fi1] + calfac_y[None, fi0:fi1]) / 2.)))
+            if do_pb_correction:
+                pbfacs = np.ones_like(times_mjd)
+                t0 = times_mjd[0]
+                t1 = times_mjd[-1]
+                if t1-t0 > 5./1440.:
+                    nstep = int((t1-t0)/(5./1440.))
+                    ts_ref = np.linspace(t0, t1, nstep)
+                    pbfacs_ref = np.ones_like(ts_ref) 
+                    print('Duration of the file is {0:.1f} hours, interpolating into {1:d} steps.'.format((t1-t0)*24., nstep))
+                    for i, t_ref in enumerate(ts_ref):
+                        sun_loc = get_body('sun', Time(t_ref, format='mjd'), location=obs)
+                        alt = sun_loc.transform_to(AltAz(obstime=Time(t_ref, format='mjd'), location=obs)).alt.radian
+                        if np.degrees(alt) > 5.:
+                            pbfacs_ref[i]=np.sin(alt)**1.6
+                        else:
+                            print('Warning! Calculated solar altitude is lower than 5 degrees. Something is wrong with the data (non-solar)?') 
+                            pbfacs_ref[i]=np.sin(np.radians(5.))**1.6
 
-        # Multiple polarizations
-        if stokes.upper() == 'IV':
-            spec_I = data['Observation1']['Tuning1']['XX'][ti0:ti1, fi0:fi1] + \
-                   data['Observation1']['Tuning1']['YY'][ti0:ti1, fi0:fi1]
-            spec_V = 2 * data['Observation1']['Tuning1']['XY_imag'][ti0:ti1, fi0:fi1]
-            spec = np.stack((spec_I, spec_V), axis=2)
-            stokes_out = ['I', 'V']
+                    pbfacs = np.interp(times_mjd, ts_ref, pbfacs_ref)
+                else:
+                    print('Duration of the file is {0:.1f} minutes, no interpolation will be done.'.format((t1-t0)*24.*60.))
+                    t_ref = (t0+t1)/2.
+                    sun_loc = get_body('sun', Time(t_ref, format='mjd'), location=obs)
+                    alt = sun_loc.transform_to(AltAz(obstime=Time(t_ref, format='mjd'), location=obs)).alt.radian
+                    if np.degrees(alt) > 5.:
+                        pbfacs *= np.sin(alt)**1.6
+                    else:
+                        print('Warning! Calculated solar altitude is lower than 5 degrees. Something is wrong with the data (non-solar)?') 
+                        pbfacs *= np.sin(np.radians(5.))**1.6
+                spec_I /= pbfacs[:, None]
+
+            if stokes.upper() == 'IV':
+                spec_V = data['Observation1']['Tuning1']['XY_imag'][ti0:ti1, fi0:fi1] / ((calfac_x[None, fi0:fi1] + calfac_y[None, fi0:fi1]) / 2.)
+                spec = np.stack((spec_I, spec_V), axis=2)
+                stokes_out = ['I', 'V']
+            else:
+                spec = spec_I
+                stokes_out = ['I'] 
+        if stokes == 'V':
+            spec = data['Observation1']['Tuning1']['XY_imag'][ti0:ti1, fi0:fi1] / ((calfac_x[None, fi0:fi1] + calfac_y[None, fi0:fi1]) / 2.)
+            stokes_out = ['V'] 
+        if stokes == 'Q':
+            spec = (data['Observation1']['Tuning1']['XX'][ti0:ti1, fi0:fi1] / calfac_x[None, fi0:fi1] - \
+                    data['Observation1']['Tuning1']['YY'][ti0:ti1, fi0:fi1] / calfac_y[None, fi0:fi1]) / 2. 
+            stokes_out = ['Q'] 
+        if stokes == 'U':
+            spec = data['Observation1']['Tuning1']['XY_real'][ti0:ti1, fi0:fi1] / ((calfac_x[None, fi0:fi1] + calfac_y[None, fi0:fi1]) / 2.)
+            stokes_out = ['U'] 
 
         idx, = np.where(times_mjd > 50000.) # filter out those prior to 1995 (obviously wrong for OVRO-LWA)
         times_mjd = times_mjd[idx]
