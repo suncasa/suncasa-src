@@ -30,7 +30,8 @@ def timestamp_to_mjd(times):
 
 
 def read_data(filename, stokes='I', timerange=[], freqrange=[], timebin=1, freqbin=1, verbose=True, 
-              flux_factor_file=None, bkg_file=None, do_pb_correction=False):
+            flux_factor_file=None, bkg_file=None,  do_pb_correction=False, 
+            flux_factor_calfac_x = None, flux_factor_calfac_y = None, bkg_flux_arr = None):
     '''
     :param filename: name of the OVRO-LWA hdf5 beamforming file; 
               This can be a string (single file) or a list of strings (multiple files)
@@ -45,6 +46,9 @@ def read_data(filename, stokes='I', timerange=[], freqrange=[], timebin=1, freqb
     :param bkg_file: Path to the csv file that contains the raw background (off-Sun scan) measurements (before scaling); 
             currently it only contains Stokes I.
     :param do_pb_correction: if True, apply primary beam correction. Currently only use the analytical form in Stokes I only.
+    :param flux_factor_calfac_x: user input correction factor for the X polarization
+    :param flux_factor_calfac_y: user input correction factor for the Y polarization
+    :param bkg_flux_arr: user input background flux in Jy
     '''
     # Check the input filename
     if type(filename) == str:
@@ -70,7 +74,7 @@ def read_data(filename, stokes='I', timerange=[], freqrange=[], timebin=1, freqb
         if verbose:
             print('Processing {0:d} of {1:d} files'.format(n+1, len(filelist)))
         try:
-            data = h5py.File(file, 'r')
+            data = h5py.File(file, 'r',swmr=True)
         except:
             print('Cannot read {0:s}. Skip this file.'.format(file))
             continue
@@ -93,6 +97,15 @@ def read_data(filename, stokes='I', timerange=[], freqrange=[], timebin=1, freqb
             print('Flux factor csv file does not exist. Setting correction factors to unity.')
             calfac_x = np.ones_like(freqs)
             calfac_y = np.ones_like(freqs)
+
+        if not (flux_factor_calfac_x is None) and not (flux_factor_calfac_y is None):
+            # user input correction factor
+            calfac_x = calfac_x*flux_factor_calfac_x
+            calfac_y = calfac_y*flux_factor_calfac_y
+        
+        if not (bkg_flux_arr is None):
+            # add the user input background flux
+            bkg_flux += bkg_flux_arr
 
         # read background flux file if provided
         if not (bkg_file is None): 
@@ -138,7 +151,6 @@ def read_data(filename, stokes='I', timerange=[], freqrange=[], timebin=1, freqb
             ti1=len(times_mjd)
 
         firstset_read = True
-
         times_mjd = times_mjd[ti0:ti1] 
 
         # Select frequency range
@@ -171,8 +183,6 @@ def read_data(filename, stokes='I', timerange=[], freqrange=[], timebin=1, freqb
         stokes_valid = ['XX', 'YY', 'I', 'Q', 'U', 'V', 'IV']
         if verbose:
             print('Reading dynamic spectrum for stokes {0:s}'.format(stokes))
-
-
 
         if stokes not in stokes_valid:
             raise Exception("Provided Stokes {0:s} is not in 'XX, YY, RR, LL, I, Q, U, V'".format(stokes))
@@ -281,6 +291,6 @@ def read_data(filename, stokes='I', timerange=[], freqrange=[], timebin=1, freqb
         if verbose:
             print('Output time range is from {0:s} to {1:s}'.format(Time(times_mjd_out[0], format='mjd').isot, Time(times_mjd_out[-1], format='mjd').isot))
             print('Output data has {0:d} time stamps and {1:d} frequency channels'.format(len(times_mjd_out), len(freqs_out)))
-        return spec_out, times_mjd_out, freqs_out, stokes_out
+        return spec_out, times_mjd_out, freqs_out, stokes_out, calfac_x, calfac_y, bkg_flux
     else:
         return False
