@@ -1195,7 +1195,7 @@ class Dspec:
                     polstr = [pol[:2], pol[2:]]
                 elif pol == 'IV':
                     spec_plt_1 = I_plot
-                    spec_plt_2 = V_plot
+                    spec_plt_2 = V_plot/I_plot
                     cmap2 = 'gray'
                     if (vmax2 is None) and (vmin2 is None):
                         vmax2 = np.nanmax(np.abs(spec_plt_2))
@@ -1322,6 +1322,8 @@ class Dspec:
                 divider = make_axes_locatable(ax2)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax2, cax=cax_spec)
+                if pol == 'IV':
+                    clb_spec.set_label('V/I')
                 clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
 
                 locator = AutoDateLocator(minticks=2)
