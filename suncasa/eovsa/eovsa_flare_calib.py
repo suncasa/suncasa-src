@@ -54,14 +54,20 @@ def import_calib_idb(trange, workdir=None, ncpu=1, timebin='0s', width=1):
 
     term2_ind = []
     term3_ind = []
-
     for i in range(len(st_ts_float) - 1):
-        if term1[i] and (st_ts_float[i] <= trange[0].lv <= st_ts_float[i + 1]):
+        if st_ts_float[i] <= trange[0].lv <= st_ts_float[i + 1]:
             term2_ind.append(i)
-        if term1[i] and (st_ts_float[i] <= trange[1].lv <= st_ts_float[i + 1]):
+        if st_ts_float[i] <= trange[1].lv <= st_ts_float[i + 1]:
             term3_ind.append(i)
+    if term2_ind == [] or term3_ind == []:
+        print("Error: No available IDB list during the indicated time range.")
 
     sidx = list(range(term2_ind[0], term3_ind[0] + 1))
+    # Filter out indices where term1 is not true
+    sidx = [i for i in sidx if term1[i]]
+    if sidx == []:
+        print("Error: No available IDB list for the Sun during the indicated time range.")
+
 
     filelist = info['FILE'][sidx]
     # filelist = filelist[np.array([0, 2, 3, 4, 5, 6, 7, 8])]
