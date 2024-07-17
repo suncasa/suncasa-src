@@ -280,7 +280,7 @@ class Dspec:
 
         Parameters
         ----------
-        fname : str
+        fname : str or list of str
             The file name to read the dynamic spectrum data from.
         source : str, optional
             Specifies the data source ('fits', 'suncasa', or 'lwa') to determine the appropriate reader.
@@ -302,50 +302,56 @@ class Dspec:
             if source is None and (not fname.lower().startswith('eovsa')):
                 raise ValueError(f"The filetype provided ({os.path.basename(fname)}) is not supported")
 
-        if source.lower() == 'eovsa' or fname.lower().startswith('eovsa'):
-            if fname.endswith('.fts') or fname.endswith('.fits'):
-                from .sources import eovsa
-                s = eovsa.get_dspec(fname, doplot=False)
-                self.data = s['spectrogram']
-                self.time_axis = Time(s['time_axis'], format='mjd')
-                self.freq_axis = s['spectrum_axis'] * 1e9
-                self.spec_unit = 'sfu'
-                self.telescope = 'EOVSA'
-                self.observatory = 'OVRO'
+            if source.lower() == 'eovsa' or fname.lower().startswith('eovsa'):
+                if fname.endswith('.fts') or fname.endswith('.fits'):
+                    from .sources import eovsa
+                    s = eovsa.get_dspec(fname, doplot=False)
+                    self.data = s['spectrogram']
+                    self.time_axis = Time(s['time_axis'], format='mjd')
+                    self.freq_axis = s['spectrum_axis'] * 1e9
+                    self.spec_unit = 'sfu'
+                    self.telescope = 'EOVSA'
+                    self.observatory = 'OVRO'
 
-        if source.lower() == 'suncasa':
-            spec, tim, freq, bl, pol, spec_unit = self.rd_dspec(fname, spectype='amp', spec_unit='jy')
-            self.data = spec
-            self.time_axis = Time(tim / 24 / 3600, format='mjd')
-            self.freq_axis = freq
-            self.bl = bl
-            self.pol = pol
-            self.spec_unit = spec_unit
-            self.telescope = ''
-            self.observatory = ''
-
-        if source.lower() == 'lwa':
-            if fname.endswith('.fits'):
-                hdu = fits.open(fname) 
-                self.data = hdu[0].data
-                tim = hdu[2].data
-                tmjd = np.array(tim['mjd']) + np.array(tim['time']) / 24. / 3600 / 1000
-                self.time_axis = Time(tmjd, format='mjd')
-                self.freq_axis = hdu[1].data['sfreq'] * 1e9
-                self.pol = [hdu[0].header['POLARIZA']]
-                self.spec_unit = 'sfu'
-                self.telescope = 'LWA'
-                self.observatory = 'OVRO'
-            else:
-                from .sources import lwa
-                spec, tim, freq, pol = lwa.read_data(fname, **kwargs)
+            if source.lower() == 'suncasa':
+                spec, tim, freq, bl, pol, spec_unit = self.rd_dspec(fname, spectype='amp', spec_unit='jy')
                 self.data = spec
-                self.time_axis = Time(tim, format='mjd')
+                self.time_axis = Time(tim / 24 / 3600, format='mjd')
                 self.freq_axis = freq
+                self.bl = bl
                 self.pol = pol
-                self.spec_unit = 'sfu'
-                self.telescope = 'LWA'
-                self.observatory = 'OVRO'
+                self.spec_unit = spec_unit
+                self.telescope = ''
+                self.observatory = ''
+
+            if source.lower() == 'lwa' and fname.endswith('.fits'):
+                    hdu = fits.open(fname) 
+                    self.data = hdu[0].data
+                    tim = hdu[2].data
+                    tmjd = np.array(tim['mjd']) + np.array(tim['time']) / 24. / 3600 / 1000
+                    self.time_axis = Time(tmjd, format='mjd')
+                    self.freq_axis = hdu[1].data['sfreq'] * 1e9
+                    self.pol = [hdu[0].header['POLARIZA']]
+                    self.spec_unit = 'sfu'
+                    self.telescope = 'LWA'
+                    self.observatory = 'OVRO'
+
+        elif source.lower() == 'lwa' and type(fname) is list:
+            from .sources import lwa
+            spec, tim, freq, pol, calfac_x, calfac_y, bkg_flux = lwa.read_data(fname, **kwargs)
+            self.data = spec
+            self.time_axis = Time(tim, format='mjd')
+            self.freq_axis = freq
+            self.pol = pol
+            self.calfac_x = calfac_x # correction factor for X pol, same shape as freq
+            self.calfac_y = calfac_y # correction factor for Y pol, same shape as freq
+            self.bkg_flux = bkg_flux
+            self.spec_unit = 'sfu'
+            self.telescope = 'LWA'
+            self.observatory = 'OVRO'
+
+        else:
+            raise ValueError(f"Unsupported data source or type provided: {source}")
 
     def tofits(self, fitsfile=None, specdata=None, spectype='amp', spec_unit='jy',
                telescope='EOVSA', observatory='Owens Valley Radio Observatory', observer='EOVSA Team'):
@@ -429,8 +435,20 @@ class Dspec:
         tbhdu3 = fits.BinTableHDU.from_columns(cols3)
         tbhdu3.name = 'UT'
 
+        if hasattr(self, 'calfac_x') and hasattr(self, 'calfac_y') and hasattr(self, 'bkg_flux'):
+            # add calfac_x _y to FREQ_CAL
+            col5 = fits.Column(name='calfac_x', format='E', array=self.calfac_x)
+            col6 = fits.Column(name='calfac_y', format='E', array=self.calfac_y)
+            col7 = fits.Column(name='bkg_flux', format='E', array=self.bkg_flux)
+            cols5 = fits.ColDefs([col5, col6, col7])
+            tbhdu5 = fits.BinTableHDU.from_columns(cols5)
+            tbhdu5.name = 'FREQ_CAL'
+        else:
+            tbhdu5 = fits.BinTableHDU.from_columns([])
+            tbhdu5.name = 'FREQ_CAL'
+            
         # create an HDUList object to put in header information
-        hdulist = fits.HDUList([hdu, tbhdu1, tbhdu3])
+        hdulist = fits.HDUList([hdu, tbhdu1, tbhdu3, tbhdu5])
 
         # primary header
         prihdr = hdulist[0].header
@@ -1286,7 +1304,7 @@ class Dspec:
                         vmax2 = -vmin2
                     elif not (vmax2 is None) and (vmin2 is None):
                         vmin2 = -vmax2
-                    polstr = ['I', 'P']
+                    polstr = ['I', 'V/I']
 
                 if ignore_gaps:
                     for n, fb in enumerate(fbreak):
@@ -1416,7 +1434,10 @@ class Dspec:
                 divider = make_axes_locatable(ax2)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax2, cax=cax_spec)
-                clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
+                if pol == 'IP':
+                    clb_spec.set_label(polstr[1])
+                else:
+                    clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
 
                 locator = AutoDateLocator(minticks=2)
                 ax2.xaxis.set_major_locator(locator)

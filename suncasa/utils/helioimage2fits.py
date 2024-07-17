@@ -1337,3 +1337,53 @@ def calc_phasecenter_from_solxy(vis, timerange='', xycen=None, usemsphacenter=Tr
         newdec = dec0 + decoff
         phasecenter = 'J2000 ' + str(newra) + 'rad ' + str(newdec) + 'rad'
     return phasecenter, midtim
+
+
+from astropy.coordinates import SkyCoord, EarthLocation
+from astropy import units as u
+from astropy.io import fits
+import sunpy.map
+from sunpy.coordinates import frames, sun
+
+def radec_fits_to_helio(fits_in, helio_sunpy_fits_name =None, obs_loc = EarthLocation(lat=37.232259*u.deg, lon=-118.28479*u.deg)):
+    """
+        composing a sunpy compatible fits from a fits file with RA and DEC in the header
+        using location of OVSA as example
+
+
+        :param fits_in: input fits file
+        :param helio_sunpy_fits_name: output fits file name, if None, the output file will be named as fits_in.replace('.fits', '_heliosunpy.fits')
+        :param obs_loc: location of the observer, default is OVSA
+    """
+
+    hdu = fits.open(fits_in)
+    header = hdu[0].header
+    obstime = Time(header['date-obs'])
+
+    data = hdu[0].data[0, 0, :, :]
+    frequency = header['crval3']*u.Hz
+    obs_gcrs = SkyCoord(obs_loc.get_gcrs(obstime))
+    reference_coord = SkyCoord(header['crval1']*u.Unit(header['cunit1']),
+            header['crval2']*u.Unit(header['cunit2']),frame='gcrs',obstime=obstime,
+            obsgeoloc=obs_gcrs.cartesian, obsgeovel=obs_gcrs.velocity.to_cartesian(),
+            distance=obs_gcrs.hcrs.distance)
+    reference_coord_arcsec = reference_coord.transform_to(frames.Helioprojective(observer=obs_gcrs))
+    cdelt1 = (np.abs(header['cdelt1'])*u.deg).to(u.arcsec)
+    cdelt2 = (np.abs(header['cdelt2'])*u.deg).to(u.arcsec)
+    P1 = sun.P(obstime)
+    new_header = sunpy.map.make_fitswcs_header(data, reference_coord_arcsec,
+        reference_pixel=u.Quantity([header['crpix1']-1, header['crpix2']-1]*u.pixel),
+        scale=u.Quantity([cdelt1, cdelt2]*u.arcsec/u.pix), wavelength=3e8/frequency.to(u.Hz).value*u.m,
+        rotation_angle=-P1, observatory='obs')
+    obsview_map = sunpy.map.Map(data, new_header)
+    fov_x = new_header["naxis1"]*cdelt1
+    fov_y = new_header["naxis2"]*cdelt2
+
+    obsview_map_rotate = obsview_map.rotate()
+    bl = SkyCoord(-fov_x/2, -fov_y/2, frame=obsview_map_rotate.coordinate_frame)
+    tr = SkyCoord(fov_x/2,  fov_y/2,  frame=obsview_map_rotate.coordinate_frame)
+    obsview_submap = obsview_map_rotate.submap(bl, top_right=tr)
+
+    if helio_sunpy_fits_name is None:
+        helio_sunpy_fits_name = fits_in.replace('.fits', '_heliosunpy.fits')
+    obsview_submap.save(helio_sunpy_fits_name, overwrite=True)
