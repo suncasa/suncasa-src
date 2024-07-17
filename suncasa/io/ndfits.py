@@ -441,6 +441,7 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
         return ''
     else:
         try:
+            fitsfiles = np.array(fitsfiles)
             num_files = len(fitsfiles)
             freqs = np.zeros(num_files)
             for i in range(num_files):
