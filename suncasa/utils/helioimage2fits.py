@@ -761,6 +761,13 @@ def getbeam(imagefile=None, beamfile=None):
     nimg = len(imagefile)
     for n in range(nimg):
         img = imagefile[n]
+        if img is None:
+            bmaj.append(None)
+            bmin.append(None)
+            bpa.append(None)
+            beamunit.append(None)
+            bpaunit.append(None)
+            chans.append(None)
         bmaj_ = []
         bmin_ = []
         bpa_ = []
@@ -884,6 +891,9 @@ def imreg(vis=None, imagefile=None, timerange=None,
     if not fitsfile:
         fitsfile = []
         for img in imagefile:
+            if img is None:
+                fitsfile.append(None)
+                continue
             if os.path.isdir(img):
                 # input is CASA image
                 fitsfile.append(img + '.fits')
@@ -923,6 +933,8 @@ def imreg(vis=None, imagefile=None, timerange=None,
     for n, img in enumerate(imagefile):
         if verbose:
             print('processing image #' + str(n) + ' ' + img)
+        if img is None:
+            continue
         fitsf = fitsfile[n]
         timeran = timerange[n]
         # obtain duration of the image as FITS header exptime
@@ -1125,6 +1137,16 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 print('STOKES Information does not seem to exist! Assuming Stokes I')
                 stokenum = 1
 
+            keys = list(header.keys())
+            values = list(header.values())
+            # which axis is frequency?
+            faxis = keys[values.index('FREQ')][-1]
+            faxis_ind = ndim - int(faxis)
+            # insert the frequency axis information into the header as they may be stripped off if FITS compressed.
+            header['REFFRQ'] = header['CRVAL' + faxis]
+            header['DLTFRQ'] = header['CDELT' + faxis]
+            header['FQUNIT'] = header['CUNIT' + faxis]
+
             data = hdu[0].data  # remember the data order is reversed due to the FITS convension
             # intensity units to brightness temperature
             if toTb:
@@ -1134,11 +1156,6 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 beamunit = beamunits[n]
                 bpa = bpas[n]
                 bpaunit = bpaunits[n]
-                keys = list(header.keys())
-                values = list(header.values())
-                # which axis is frequency?
-                faxis = keys[values.index('FREQ')][-1]
-                faxis_ind = ndim - int(faxis)
                 # find out the polarization of this image
                 k_b = qa.constants('k')['value']
                 c_l = qa.constants('c')['value']
@@ -1215,7 +1232,7 @@ def imreg(vis=None, imagefile=None, timerange=None,
                 header = hdu[0].header
                 data = hdu[0].data
                 ndfits.write(fitsf, data, header, compression_type='RICE_1',
-                                               quantize_level=4.0)
+                             quantize_level=4.0)
                 os.system("rm -rf {}".format(fitsftmp))
     if deletehistory:
         ms_restorehistory(vis)

@@ -84,6 +84,68 @@ for k, v in zip(range(len(stokestype)), stokestype):
     stokesenum[k] = v
 
 
+def calc_bkg_dspec(spec, tim, bkgtim, interp_method='linear'):
+    """
+    Calculate the background spectrum.
+
+    This function computes the background spectrum from a given spectrogram
+    over specified time intervals. The background spectrum can be interpolated
+    using various methods.
+
+    :param spec: A 2D array of shape (nfreq, ntime) representing the spectrogram.
+    :type spec: ndarray
+    :param tim: A time object with the time axis of shape (ntime,).
+    :type tim: astropy.time.Time
+    :param bkgtim: Background time interval(s). It can be a single time interval (list of two strings)
+        or multiple time intervals (list of lists of two strings each).
+        Example: ['2024-06-11T19:41:00', '2024-06-11T20:40:58']
+                 [['2024-06-11T19:41:00', '2024-06-11T20:40:58'], ['2024-06-11T21:41:00', '2024-06-11T22:40:58']]
+    :type bkgtim: list or list of lists
+    :param interp_method: The method of interpolation to use. Default is 'linear'.
+        Can be any method supported by scipy.interpolate.interp1d.
+    :type interp_method: str, optional
+    :return: A 2D array of shape (nfreq, ntime) representing the interpolated background spectrum.
+    :rtype: ndarray
+
+    :example:
+    >>> from astropy.time import Time
+    >>> import numpy as np
+    >>> spec = np.random.random((100, 200))
+    >>> tim = Time(['2024-06-11T19:00:00']*200, scale='utc')
+    >>> bkgtim = ['2024-06-11T19:41:00', '2024-06-11T20:40:58']
+    >>> calc_bkg_dspec(spec, tim, bkgtim)
+    array([[0.52203423, 0.52203423, 0.52203423, ..., 0.52203423, 0.52203423, 0.52203423],
+           [0.48498126, 0.48498126, 0.48498126, ..., 0.48498126, 0.48498126, 0.48498126],
+           ...,
+           [0.49162387, 0.49162387, 0.49162387, ..., 0.49162387, 0.49162387, 0.49162387]])
+    """
+    from scipy.interpolate import interp1d
+    from astropy.time import Time
+
+    # Ensure tim is an array of julian dates
+    tim_jd = tim.jd
+    bkgtim_jd = Time(bkgtim).jd
+
+    if isinstance(bkgtim[0], str):
+        # Single time interval
+        tidx_bkg, = np.where((tim_jd >= bkgtim_jd[0]) & (tim_jd <= bkgtim_jd[1]))
+        spec_bkg = np.nanmean(spec[:, tidx_bkg], axis=1)[:, np.newaxis]
+    else:
+        # Multiple time intervals
+        all_spec_bkg = []
+        for bkgtjd in bkgtim_jd:
+            tidx_bkg, = np.where((tim_jd >= bkgtjd[0]) & (tim_jd <= bkgtjd[1]))
+            all_spec_bkg.append(np.nanmean(spec[:, tidx_bkg], axis=1))
+
+        # Combine all background spectra
+        all_spec_bkg = np.array(all_spec_bkg)  # Shape will be (nfreq, n_intervals)
+        bkg_times = np.nanmean(bkgtim_jd,axis=1)
+
+        interp_func = interp1d(bkg_times, all_spec_bkg, kind=interp_method, axis=0, fill_value="extrapolate")
+        spec_bkg = interp_func(tim_jd).T  # Shape will be (nfreq, ntime)
+
+    return spec_bkg
+
 class Dspec:
     """
     A class to handle dynamic spectra from radio observations.
@@ -878,6 +940,8 @@ class Dspec:
             np.savez(specfile, **specdata)
         return specdata
 
+
+
     def peek(self, *args, **kwargs):
         """
         Plot dynamaic spectrum onto current axes.
@@ -900,59 +964,68 @@ class Dspec:
         plt.show()
         return ret
 
-    def plot(self, pol='I', vmin=None, vmax=None, norm='log', cmap='viridis', cmap2='viridis', vmin2=None, vmax2=None,
-             timerange=None, freqrange=None, ignore_gaps=True, freq_unit='GHz', spec_unit=None,
-             plot_fast=False, percentile=[1, 99], minmaxpercentile=False, **kwargs):
+    def plot(self, pol='I', vmin=None, vmax=None, norm='log', cmap='viridis', cmap2='viridis', vmin2=None, vmax2=None, figsize=None,
+             timerange=None, freqrange=None, bkgtim=None, interp_method='linear',  ignore_gaps=True, freq_unit='GHz', spec_unit=None,
+             plot_fast=False, percentile=[1, 99], minmaxpercentile=False, axes=None, **kwargs):
         """
         Plots the dynamic spectrum for a given polarization.
 
         This method generates a plot of the dynamic spectrum, allowing for customization of the visualization through various parameters such as color maps, normalization, and value ranges.
 
-        Parameters
-        ----------
-        pol : str, optional
-            Polarization for plotting. Default is 'I'.
-        vmin, vmax : float, optional
-            Minimum and maximum intensity values for the color scale. Defaults to None, which auto-scales.
-        norm : str or `matplotlib.colors.Normalize`, optional
-            Normalization of the color scale. Can be 'linear', 'log', or a custom normalization. Default is 'log'.
-        cmap, cmap2 : str, optional
-            Matplotlib colormap names or instances for the plot and, optionally, a second polarization. Default is 'viridis'.
-        vmin2, vmax2 : float, optional
-            Minimum and maximum values for the color scale of the second polarization. Only used if a second polarization is plotted.
-        timerange : list of str, optional
-            Time range to plot, formatted as ['start_time', 'end_time']. Times should be in ISO format. Defaults to None, which plots the entire range.
-        freqrange : list of float, optional
-            Frequency range to plot, in units specified by `freq_unit`. Defaults to None, which plots the entire range.
-        ignore_gaps : bool, optional
-            If True, ignores gaps in the frequency axis. Default is True.
-        freq_unit : str, optional
-            Unit for the frequency axis ('kHz', 'MHz', 'GHz'). Default is 'GHz'.
-        spec_unit : str, optional
-            Unit for the spectrum data ('sfu', 'Jy', or 'K'). If not specified, uses the unit from the Dspec object.
-        plot_fast : bool, optional
-            If True, uses a faster plotting method which may reduce detail. Default is False.
-        percentile : list of float, optional
-            Percentile values to use for auto-scaling the color range. Default is [1, 99].
-        minmaxpercentile : bool, optional
-            If True, uses percentile for vmin and vmax. Default is False.
+        :param pol: Polarization for plotting. Default is 'I'.
+        :type pol: str, optional
+        :param vmin: Minimum intensity value for the color scale. Default is None, which auto-scales.
+        :type vmin: float, optional
+        :param vmax: Maximum intensity value for the color scale. Default is None, which auto-scales.
+        :type vmax: float, optional
+        :param norm: Normalization of the color scale. Can be 'linear', 'log', or a custom normalization. Default is 'log'.
+        :type norm: str or `matplotlib.colors.Normalize`, optional
+        :param cmap: Matplotlib colormap name or instance for the plot. Default is 'viridis'.
+        :type cmap: str, optional
+        :param cmap2: Matplotlib colormap name or instance for the second polarization plot. Default is 'viridis'.
+        :type cmap2: str, optional
+        :param vmin2: Minimum intensity value for the color scale of the second polarization. Default is None.
+        :type vmin2: float, optional
+        :param vmax2: Maximum intensity value for the color scale of the second polarization. Default is None.
+        :type vmax2: float, optional
+        :param timerange: Time range to plot, formatted as ['start_time', 'end_time']. Times should be in ISO format. Defaults to None, which plots the entire range.
+        :type timerange: list of str, optional
+        :param freqrange: Frequency range to plot, in units specified by `freq_unit`. Defaults to None, which plots the entire range.
+        :type freqrange: list of float, optional
+        :param bkgtim: Background time interval(s). It can be a single time interval (list of two strings)
+            or multiple time intervals (list of lists of two strings each).
+            Example: ['2024-06-11T19:41:00', '2024-06-11T20:40:58']
+                     [['2024-06-11T19:41:00', '2024-06-11T20:40:58'], ['2024-06-11T21:41:00', '2024-06-11T22:40:58']]
+        :type bkgtim: list or list of lists
+        :param interp_method: The method of interpolation to use. Default is 'linear'.
+            Can be any method supported by scipy.interpolate.interp1d.
+        :type interp_method: str, optional
+        :param ignore_gaps: If True, ignores gaps in the frequency axis. Default is True.
+        :type ignore_gaps: bool, optional
+        :param freq_unit: Unit for the frequency axis ('kHz', 'MHz', 'GHz'). Default is 'GHz'.
+        :type freq_unit: str, optional
+        :param spec_unit: Unit for the spectrum data ('sfu', 'Jy', or 'K'). If not specified, uses the unit from the Dspec object.
+        :type spec_unit: str, optional
+        :param plot_fast: If True, uses a faster plotting method which may reduce detail. Default is False.
+        :type plot_fast: bool, optional
+        :param percentile: Percentile values to use for auto-scaling the color range. Default is [1, 99].
+        :type percentile: list of float, optional
+        :param minmaxpercentile: If True, uses percentile for vmin and vmax. Default is False.
+        :type minmaxpercentile: bool, optional
+        :param kwargs: Any additional plot arguments that should be used when plotting.
+        :type kwargs: dict
 
-        Returns
-        -------
-        fig : `matplotlib.figure.Figure`
-            The matplotlib figure object containing the plot.
+        :return: The matplotlib figure object containing the plot.
+        :rtype: `matplotlib.figure.Figure`
 
-        Examples
-        --------
+        :example:
         >>> dspec = Dspec()
         >>> fig = dspec.plot(pol='I', vmin=0.1, vmax=5, cmap='hot', freqrange=[1, 2], timerange=['2021-01-01T00:00:00', '2021-01-01T01:00:00'])
         >>> plt.show()
 
-        Notes
-        -----
+        :notes:
         For dual-polarization plots (e.g., 'RRLL'), `cmap2` along with `vmin2` and `vmax2` can be specified to customize the appearance of the second polarization.
         """
-
         # Set up variables
         import matplotlib.colors as colors
         import matplotlib.pyplot as plt
@@ -1078,8 +1151,17 @@ class Dspec:
                 if plot_fast:
                     spec_plt = spec_plt[fidx, :][:, tidx]
 
-                fig = plt.figure(figsize=(8, 4), dpi=100)
-                ax = fig.add_subplot(111)
+                if bkgtim:
+                    spec_plt -=calc_bkg_dspec(spec_plt, tim_[tidx], bkgtim, interp_method=interp_method)
+
+                if figsize is None:
+                    figsize = (8, 4)
+                if axes:
+                    ax = axes
+                    fig=None
+                else:
+                    fig = plt.figure(figsize=figsize, dpi=100)
+                    ax = fig.add_subplot(111)
 
                 if freq_unit.lower() == 'ghz':
                     freq_plt = freq / 1e9
@@ -1124,27 +1206,30 @@ class Dspec:
                     ax.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
                     ax.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
 
+                    def format_coord(x, y):
+                        col = np.argmin(np.absolute(tim_plt - x))
+                        row = np.argmin(np.absolute(freq_plt - y))
+                        if col >= 0 and col < ntim and row >= 0 and row < nfreq:
+                            timstr = tim_[col].isot
+                            flux = spec_plt[row, col]
+                            return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, flux = {5:.2f} {6:s}'.format(col, timstr,
+                                                                                                           row,
+                                                                                                           y, freq_unit,
+                                                                                                           flux,
+                                                                                                           spec_unit_print)
+                        else:
+                            return 'x = {0}, y = {1:.3f}'.format(x, y)
+
+                    ax.format_coord = format_coord
+
                 # make colorbar
                 divider = make_axes_locatable(ax)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax, cax=cax_spec)
                 clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
 
-                def format_coord(x, y):
-                    col = np.argmin(np.absolute(tim_plt - x))
-                    row = np.argmin(np.absolute(freq_plt - y))
-                    if col >= 0 and col < ntim and row >= 0 and row < nfreq:
-                        timstr = tim_[col].isot
-                        flux = spec_plt[row, col]
-                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, flux = {5:.2f} {6:s}'.format(col, timstr, row,
-                                                                                                       y, freq_unit,
-                                                                                                       flux,
-                                                                                                       spec_unit_print)
-                    else:
-                        return 'x = {0}, y = {1:.3f}'.format(x, y)
 
-                ax.format_coord = format_coord
-                ax.set_ylabel('Frequency ({0:s})'.format(freq_unit))
+                ax.set_ylabel('Frequency [{0:s}]'.format(freq_unit))
                 if bl:
                     ax.set_title('{0:s}-{1:s} dynamic spectrum @ bl {2:s} for pol {3:s}'.
                                  format(self.observatory, self.telescope, bl.split(';')[b], pol))
@@ -1160,13 +1245,15 @@ class Dspec:
                 ax.set_autoscale_on(False)
 
             else:
-                fig = plt.figure(figsize=(8, 6), dpi=100)
+                if figsize is None:
+                    figsize = (8, 6)
+                fig = plt.figure(figsize=figsize, dpi=100)
                 if ('RR' in polnames) and ('LL' in polnames):
                     R_plot = np.absolute(spec[0, b, :, :])
                     L_plot = np.absolute(spec[1, b, :, :])
                     I_plot = (R_plot + L_plot) / 2.
                     V_plot = (R_plot - L_plot) / 2.
-                if ('I' in polnames) and ('V' in polnames):
+                if ('I' in polnames) and ('V' in polnames or 'P' in polnames) :
                     I_plot = spec[0, b, :, :]
                     V_plot = spec[1, b, :, :]
                     R_plot = I_plot + V_plot
@@ -1213,6 +1300,10 @@ class Dspec:
                     spec_plt_1 = spec_plt_1[fidx, :][:, tidx]
                     spec_plt_2 = spec_plt_2[fidx, :][:, tidx]
 
+                if bkgtim:
+                    spec_plt_1 -= calc_bkg_dspec(spec_plt_1, tim_[tidx], bkgtim, interp_method=interp_method)
+                    spec_plt_2 -= calc_bkg_dspec(spec_plt_2, tim_[tidx], bkgtim, interp_method=interp_method)
+
                 ax1 = fig.add_subplot(211)
                 if freq_unit.lower() == 'ghz':
                     freq_plt = freq / 1e9
@@ -1244,27 +1335,31 @@ class Dspec:
                                         rasterized=True)
                     ax1.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
                     ax1.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
+
+                    def format_coord(x, y):
+                        col = np.argmin(np.absolute(tim_plt - x))
+                        row = np.argmin(np.absolute(freq_plt - y))
+                        if col >= 0 and col < ntim and row >= 0 and row < nfreq:
+                            timstr = tim_[col].isot
+                            flux = spec_plt_1[row, col]
+                            return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, value = {5:.2f} {6:s}'.format(col, timstr,
+                                                                                                            row,
+                                                                                                            y,
+                                                                                                            freq_unit,
+                                                                                                            flux,
+                                                                                                            spec_unit_print)
+                        else:
+                            return 'x = {0}, y = {1:.3f}'.format(x, y)
+
+                    ax1.format_coord = format_coord
+
                 divider = make_axes_locatable(ax1)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax1, cax=cax_spec)
                 clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
 
-                def format_coord(x, y):
-                    col = np.argmin(np.absolute(tim_plt - x))
-                    row = np.argmin(np.absolute(freq_plt - y))
-                    if col >= 0 and col < ntim and row >= 0 and row < nfreq:
-                        timstr = tim_[col].isot
-                        flux = spec_plt_1[row, col]
-                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, value = {5:.2f} {6:s}'.format(col, timstr,
-                                                                                                        row,
-                                                                                                        y, freq_unit,
-                                                                                                        flux,
-                                                                                                        spec_unit_print)
-                    else:
-                        return 'x = {0}, y = {1:.3f}'.format(x, y)
 
-                ax1.format_coord = format_coord
-                ax1.set_ylabel('Frequency ({0:s})'.format(freq_unit))
+                ax1.set_ylabel('Frequency [{0:s}]'.format(freq_unit))
 
                 locator = AutoDateLocator(minticks=2)
                 ax1.xaxis.set_major_locator(locator)
@@ -1291,12 +1386,29 @@ class Dspec:
                     vmax2 = vmax
                 norm2 = colors.Normalize(vmax=vmax2, vmin=vmin2)
 
+
+
                 if plot_fast:
                     im = ax2.imshow(spec_plt_2, cmap=cmap2, norm=norm2, aspect='auto', origin='lower',
                                     extent=[tim_plt[tidx[0]], tim_plt[tidx[-1]], freq_plt[fidx[0]], freq_plt[fidx[-1]]])
                 else:
                     im = ax2.pcolormesh(tim_plt, freq_plt, spec_plt_2, cmap=cmap2, norm=norm2, shading='auto',
                                         rasterized=True)
+                    def format_coord(x, y):
+                        col = np.argmin(np.absolute(tim_plt - x))
+                        row = np.argmin(np.absolute(freq_plt - y))
+                        if col >= 0 and col < ntim and row >= 0 and row < nfreq:
+                            timstr = tim_[col].isot
+                            flux = spec_plt_2[row, col]
+                            return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, value = {5:.2f} {6:s}'.format(col, timstr,
+                                                                                                            row,
+                                                                                                            y,
+                                                                                                            freq_unit,
+                                                                                                            flux,
+                                                                                                            spec_unit_print)
+                        else:
+                            return 'x = {0}, y = {1:.3f}'.format(x, y)
+                    ax2.format_coord = format_coord
 
                     ax2.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
                     ax2.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
@@ -1313,22 +1425,7 @@ class Dspec:
                 formatter.scaled[1 / (24 * 60)] = '%H:%M'
                 ax2.xaxis.set_major_formatter(formatter)
 
-                def format_coord(x, y):
-                    col = np.argmin(np.absolute(tim_plt - x))
-                    row = np.argmin(np.absolute(freq_plt - y))
-                    if col >= 0 and col < ntim and row >= 0 and row < nfreq:
-                        timstr = tim_[col].isot
-                        flux = spec_plt_2[row, col]
-                        return 'time {0} = {1}, freq {2} = {3:.3f} {4:s}, value = {5:.2f} {6:s}'.format(col, timstr,
-                                                                                                        row,
-                                                                                                        y, freq_unit,
-                                                                                                        flux,
-                                                                                                        spec_unit_print)
-                    else:
-                        return 'x = {0}, y = {1:.3f}'.format(x, y)
-
-                ax2.format_coord = format_coord
-                ax2.set_ylabel('Frequency ({0:s})'.format(freq_unit))
+                ax2.set_ylabel('Frequency [{0:s}]'.format(freq_unit))
                 if bl:
                     ax2.set_title('{0:s}-{1:s} dynamic spectrum @ bl {2:s} for pol {3:s}'. \
                                   format(self.observatory, self.telescope, bl.split(';')[b], polstr[1]))
@@ -1338,5 +1435,6 @@ class Dspec:
 
                 ax2.set_autoscale_on(False)
 
-            fig.tight_layout()
+            if fig:
+                fig.tight_layout()
         return fig

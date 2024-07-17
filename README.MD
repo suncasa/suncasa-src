@@ -247,6 +247,12 @@ suncasa can be kept on a single machine in different environments. In addition, 
 standard python 3.8 libraries (backward compatible) which can be replicated with a fresh venv, keeping the libraries
 needed for suncasa isolated from other libraries which may already be installed on your machine.
 
+Note that you need to have `ipython` installed in your environment to run the above commands. If you don't have it, run
+
+```bash
+pip install ipython
+```
+
 **Add EOVSA to CASA observatories list**
 
 The following command creates a configuration file to define the EOVSA instrument so that CASA is aware of it. We plan

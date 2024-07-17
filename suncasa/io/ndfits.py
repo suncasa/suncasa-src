@@ -22,6 +22,7 @@ def is_compressed_fits(fitsfile):
                 return True
         return False
 
+
 def headerfix(header, PC_coor=True):
     '''
 	this code fixes the header problem of fits out from CASA 5.4+ which leads to a streched solar image.
@@ -69,40 +70,59 @@ def headerparse(header):
 
 
 def headersqueeze(header, data):
-    '''
-        Only 1D, 2D, or 3D images are currently supported by
-        the astropy fits compression.
-        This code remove single-dimensional entries from the n-dimensional
-        image data array and update fits header
-    '''
+    """
+    Squeezes single-dimensional entries from an n-dimensional FITS image data array and updates the FITS header accordingly.
+
+    This function is useful for preparing image data for astropy fits compression, which only supports 1D, 2D, or 3D images. It removes
+    any single-dimensional entries from the shape of the data array and updates the corresponding FITS header keys to reflect the
+    new dimensions.
+
+    :param header: FITS header object containing the metadata of the image.
+    :type header: astropy.io.fits.Header
+    :param data: n-dimensional image data array.
+    :type data: numpy.ndarray
+
+    :return: A tuple of the updated header object and the squeezed data array.
+    :rtype: (astropy.io.fits.Header, numpy.ndarray)
+
+    .. note::
+        This function only updates the header keys related to dimensions, coordinate types, values, increments, reference pixels,
+        and units. Any specific header keys related to coordinate transformations (e.g., PC matrix) for dimensions higher than
+        the third are also updated if necessary. The function does not handle higher-order WCS transformations beyond simple axis
+        permutations and squeezes.
+    """
     dshape = data.shape
     ndim = data.ndim
-    ## nsdim: numbers of single-dimensional entries
+    # Count single-dimensional entries in the data shape
     nsdim = np.count_nonzero(np.array(dshape) == 1)
-    ## nonsdim: non-single-dimensional entries
+    # Calculate the number of non-single-dimensional entries
     nonsdim = ndim - nsdim
+
+    # If there are no single-dimensional entries, return the original header and data
     if nsdim == 0:
         return header, data
     else:
+        # Define header keys that might need to be changed due to squeezing
         keys2chng = ['NAXIS', 'CTYPE', 'CRVAL', 'CDELT', 'CRPIX', 'CUNIT']  # ,'PC01_', 'PC02_', 'PC03_', 'PC04_']
+
         idx_nonsdim = 0
         for idx, dim in enumerate(dshape[::-1]):
             # if dim>1: continue
             if dim > 1:
                 idx_nonsdim = idx_nonsdim + 1
             for k in keys2chng:
-                k_ = '{}{}'.format(k, idx + 1)
+                k_ = f'{k}{idx + 1}'
                 v = header[k_]
                 header.remove(k_)
                 if dim > 1:
-                    k_new = '{}{}'.format(k, idx_nonsdim)
+                    k_new = f'{k}{idx_nonsdim}'
                     header[k_new] = v
                 else:
                     if k == 'CTYPE' and v.startswith('STOKES'):
-                        header['STOKES'] = header['CRVAL{}'.format(idx + 1)]
+                        header['STOKES'] = header[f'CRVAL{idx + 1}']
 
         idx_nonsdim1 = 0
-
+        # Update PC matrix keys for non-single-dimensional entries
         for idx1, dim1 in enumerate(dshape[::-1]):
             if dim1 > 1:
                 idx_nonsdim1 = idx_nonsdim1 + 1
@@ -110,12 +130,12 @@ def headersqueeze(header, data):
             for idx2, dim2 in enumerate(dshape[::-1]):
                 if dim2 > 1:
                     idx_nonsdim2 = idx_nonsdim2 + 1
-                k_ = 'PC{:02d}_{:d}'.format(idx1 + 1, idx2 + 1)
+                k_ = f'PC{idx1 + 1:02d}_{idx2 + 1}'
                 if k_ in header.keys():
                     v = header[k_]
                     header.remove(k_)
                     if dim1 > 1 and dim2 > 1:
-                        k_new = 'PC{:02d}_{:d}'.format(idx_nonsdim1, idx_nonsdim2)
+                        k_new = f'PC{idx_nonsdim1:02d}_{idx_nonsdim2}'
                         header[k_new] = v
 
         header['NAXIS'] = nonsdim
@@ -281,7 +301,7 @@ def read(filepath, hdus=None, verbose=False, **kwargs):
         return meta, data
 
 
-def write(fname, data, header, mask=None, fix_invalid=True, filled_value=0.0, **kwargs):
+def write(fname, data, header, mask=None, fix_invalid=True, filled_value=0.0, overwrite=True, **kwargs):
     """
     Take a data header pair and write a compressed FITS file.
     Caveat: only 1D, 2D, or 3D images are currently supported by Astropy fits compression.
@@ -314,6 +334,12 @@ def write(fname, data, header, mask=None, fix_invalid=True, filled_value=0.0, **
         if isinstance(fname, str):
             fname = os.path.expanduser(fname)
 
+        if os.path.exists(fname):
+            if overwrite:
+                os.system('rm -rf {}'.format(fname))
+            else:
+                print('File exists. Set overwrite=True to overwrite the file.')
+                return 0
         header, data = headersqueeze(header, data)
         hdunew = fits.CompImageHDU(data=data, header=header, **kwargs)
         if mask is None:
@@ -405,7 +431,7 @@ def write_j2000_image(fname, data, header):
 
 
 def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=True, filled_value=0.0, observatory=None,
-        imres=None, verbose=False, **kwargs):
+         imres=None, verbose=False, **kwargs):
     '''
     wrap single frequency fits files into a multiple frequencies fits file
     '''
@@ -415,15 +441,15 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
         return ''
     else:
         try:
-            fitsfiles=np.array(fitsfiles)
-            num_files=len(fitsfiles)
-            freqs=np.zeros(num_files)
+            fitsfiles = np.array(fitsfiles)
+            num_files = len(fitsfiles)
+            freqs = np.zeros(num_files)
             for i in range(num_files):
-                head=fits.getheader(fitsfiles[i])
-                freqs[i]=head['CRVAL3']
+                head = fits.getheader(fitsfiles[i])
+                freqs[i] = head['CRVAL3']
                 del head
-            pos=np.argsort(freqs)
-            fitsfiles=fitsfiles[pos]
+            pos = np.argsort(freqs)
+            fitsfiles = fitsfiles[pos]
         except:
             fitsfiles = sorted(fitsfiles)
         nband = len(fitsfiles)
@@ -442,7 +468,8 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
                 except:
                     observatory = 'RADIO'
                     print('Failed to acquire telescope information. set as RADIO')
-            outfitsfile = Time(hdu[-1].header['DATE-OBS']).strftime('{}.%Y%m%dT%H%M%S.%f.allbd.fits'.format(observatory))
+            outfitsfile = Time(hdu[-1].header['DATE-OBS']).strftime(
+                '{}.%Y%m%dT%H%M%S.%f.allbd.fits'.format(observatory))
             hdu.close()
         os.system('cp {} {}'.format(fits_exist[0], outfitsfile))
         hdu0 = fits.open(outfitsfile, mode='update')
@@ -592,7 +619,7 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
         return outfitsfile
 
 
-def update(fitsfile, new_data = None, new_columns=None, new_header_entries=None):
+def update(fitsfile, new_data=None, new_columns=None, new_header_entries=None):
     """
     Updates a FITS file by optionally replacing its primary or compressed image data, adding new columns to the
     first binary table (BinTableHDU), and/or updating header entries in the first image HDU (PrimaryHDU for

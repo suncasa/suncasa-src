@@ -1,4 +1,5 @@
 import gc
+import json
 import multiprocessing as mp
 import os
 import pickle
@@ -7,6 +8,7 @@ from copy import deepcopy
 from functools import partial
 
 import astropy.units as u
+import h5py
 import matplotlib.cm as cm
 import matplotlib.colors as colors
 import matplotlib.dates as mdates
@@ -15,7 +17,7 @@ import numpy as np
 import numpy.ma as ma
 import sunpy
 from astropy.time import Time
-from matplotlib.widgets import Slider, Button
+from matplotlib.widgets import Button, Slider
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 # import pdb
 from packaging import version as pversion
@@ -40,7 +42,6 @@ else:
 import sunpy.map
 from sunpy.physics.solar_rotation import mapsequence_solar_derotate
 from sunpy.map.mapsequence import MapSequence
-
 
 ## todo maybe add this to sunkit-image
 if pversion.parse(sunpy.version.version) >= pversion.parse('2.1'):
@@ -755,29 +756,31 @@ class SpaceTimeSlitBuilder:
 
     def select_distance_along_a_slice(self, ixx):
         'select points more accurately by doing it on a distance-flux plot'
-        cur_time = self.dspec['x'][0] + (ixx/3600./24.)
+        cur_time = self.dspec['x'][0] + (ixx / 3600. / 24.)
         cur_idx = np.argmin(np.abs(self.dspec['x'] - cur_time))
         fig_sdas, axes_sdas = plt.subplots(nrows=1, ncols=1)
-        axes_sdas.plot(self.dspec['y'][1:], self.dspec['dspec'][:,cur_idx])
+        axes_sdas.plot(self.dspec['y'][1:], self.dspec['dspec'][:, cur_idx])
         axes_sdas.set_xlabel(self.dspec['ytitle'])
         axes_sdas.set_ylabel('Flux')
         axes_sdas.set_title('Close to save the last choice')
-        tmp_selected_distance_list=[]
+        tmp_selected_distance_list = []
 
         def sdas_on_click(event):
             if event.button == 1:
                 tmp_selected_distance_list.append(event.xdata)
-                axes_sdas.axvspan(tmp_selected_distance_list[-1],tmp_selected_distance_list[-1]+1,facecolor='r',edgecolor='r')
+                axes_sdas.axvspan(tmp_selected_distance_list[-1], tmp_selected_distance_list[-1] + 1, facecolor='r',
+                                  edgecolor='r')
                 axes_sdas.figure.canvas.draw()
             else:
                 print('Only left clicking is supported')
 
         def sdas_close_figure(event):
-            if len(tmp_selected_distance_list)> 1.e-9:
+            if len(tmp_selected_distance_list) > 1.e-9:
                 self.yy.append(tmp_selected_distance_list[-1])
                 self.clickedpoints.set_data(self.xx, self.yy)
                 self.clickedpoints.figure.canvas.draw()
                 self.update()
+
         plt.connect('button_press_event', sdas_on_click)
         plt.connect('close_event', sdas_close_figure)
 
@@ -940,7 +943,7 @@ class Stackplot:
         if 'wavelength' in title:
             titletext = titletext + ' {}'.format(smap.wavelength)
         if 'time' in title:
-            titletext = titletext + ' {}'.format(smap.meta['date-obs'])
+            titletext = titletext + ' {}'.format(smap.date.iso)
         return titletext
 
     def plot_map(self, smap, dspec=None, diff=False, norm=None, cmap=None, SymLogNorm=False, linthresh=0.5,
@@ -1130,7 +1133,8 @@ class Stackplot:
                 return ax  # ax.autoscale(True, 'both', True)  # ax.autoscale_view(True, True, True)  # ax.relim(visible_only=True)
 
     def make_mapseq(self, trange, outfile=None, fov=None, wavelength='171', binpix=1, dt_data=1, derotate=False,
-                    tosave=True, superpixel=False, aia_prep=False, mapinterp=False, overwrite=False, dtype=None,
+                    tosave=True, hdf5=False, superpixel=False, aia_prep=False, mapinterp=False, overwrite=False,
+                    dtype=None,
                     normalize=True):
         if not overwrite:
             if outfile is not None:
@@ -1237,54 +1241,111 @@ class Stackplot:
                 if os.path.exists(outfile):
                     if not os.path.exists(outfile + '_{}'.format(ll)):
                         outfile = outfile + '_{}'.format(ll)
-            self.mapseq_tofile(outfile)
+            self.mapseq_tofile(outfile, hdf5=hdf5)
         gc.collect()
 
     def mapseq_fromfile(self, infile):
         t0 = time.time()
-        with open(infile, 'rb') as sf:
-            print('Loading mapseq....')
-            tmp = pickle.load(sf, encoding='latin1')
-            if isinstance(tmp, dict):
-                isMapseq, islist = isinstance(tmp['mp'], MapSequence), isinstance(tmp['mp'], list)
-                if not (isMapseq or islist):
-                    print('Load failed. mapseq must be a instance of list or MapSequence')
-                    return
-                if isMapseq:
-                    self.mapseq = tmp['mp']
+        if infile.endswith('.h5'):
+            with h5py.File(infile, 'r') as hf:
+                # Load the map sequence
+                map_group = hf['map_sequence']
+                mapseq = []
+                for i in range(len(map_group)):
+                    # print(f'Loading map_{i}....')
+                    if f'map_{i}' not in map_group: continue
+                    subgroup = map_group[f'map_{i}']
+                    data = subgroup['data'][:]
+                    # Deserialize JSON string to dictionary
+                    meta = json.loads(subgroup.attrs['meta'])
+                    # Convert meta back to the correct types as needed
+                    for key, val in meta.items():
+                        try:
+                            # Attempt to interpret stringified numbers properly
+                            meta[key] = eval(val)
+                        except:
+                            continue
+                    mapseq.append(sunpy.map.Map(data, meta))
+                self.mapseq = sunpy.map.Map(mapseq, sequence=True)
+
+                # Load additional information
+                if 'additional_info' in hf.keys():
+                    info_group = hf['additional_info']
+                    self.dt_data = info_group.attrs.get('dt_data', None)
+                    self.fitsfile = info_group.attrs.get('fitsfile', None)
+                    self.exptime_orig = np.array(info_group.attrs.get('exptime_orig', []))
+                    self.fov = info_group.attrs.get('fov', None)
+                    self.binpix = info_group.attrs.get('binpix', None)
+        else:
+            with open(infile, 'rb') as sf:
+                print('Loading mapseq....')
+                tmp = pickle.load(sf, encoding='latin1')
+                if isinstance(tmp, dict):
+                    isMapseq, islist = isinstance(tmp['mp'], MapSequence), isinstance(tmp['mp'], list)
+                    if not (isMapseq or islist):
+                        print('Load failed. mapseq must be a instance of list or MapSequence')
+                        return
+                    if isMapseq:
+                        self.mapseq = tmp['mp']
+                    else:
+                        self.mapseq = MapSequence(tmp['mp'])
+                    self.dt_data = tmp['dt_data']
+                    self.fitsfile = tmp['fitsfile']
+                    if 'exptime_orig' in tmp.keys():
+                        self.exptime_orig = tmp['exptime_orig']
+                    else:
+                        self.exptime_orig = []
                 else:
-                    self.mapseq = MapSequence(tmp['mp'])
-                self.dt_data = tmp['dt_data']
-                self.fitsfile = tmp['fitsfile']
-                if 'exptime_orig' in tmp.keys():
-                    self.exptime_orig = tmp['exptime_orig']
-                else:
-                    self.exptime_orig = []
-            else:
-                isMapseq, islist = isinstance(tmp, MapSequence), isinstance(tmp, list)
-                if not (isMapseq or islist):
-                    print('Load failed. mapseq must be a instance of list MapSequence')
-                    return
-                if isMapseq:
-                    self.mapseq = tmp
-                else:
-                    self.mapseq = MapSequence(tmp)
-            self.mapseq_info()
+                    isMapseq, islist = isinstance(tmp, MapSequence), isinstance(tmp, list)
+                    if not (isMapseq or islist):
+                        print('Load failed. mapseq must be a instance of list MapSequence')
+                        return
+                    if isMapseq:
+                        self.mapseq = tmp
+                    else:
+                        self.mapseq = MapSequence(tmp)
+
+        self.mapseq_info()
         print('It took {} to load the mapseq.'.format(time.time() - t0))
 
-    def mapseq_tofile(self, outfile=None, mapseq=None):
+    def mapseq_tofile(self, outfile=None, mapseq=None, hdf5=False):
         t0 = time.time()
         if not mapseq:
             mapseq = self.mapseq
         mp_info = self.mapseq_info(mapseq)
+        ext = 'h5' if hdf5 else 'mapseq'
         if not outfile:
-            outfile = 'mapseq_{0}_{1}_{2}.mapseq'.format(mapseq[0].meta['wavelnth'],
-                                                         self.trange[0].isot[:-4].replace(':', ''),
-                                                         self.trange[1].isot[:-4].replace(':', ''))
-        with open(outfile, 'wb') as sf:
-            print('Saving mapseq to {}'.format(outfile))
-            pickle.dump({'mp': mapseq, 'trange': mp_info['trange'], 'fov': mp_info['fov'], 'binpix': mp_info['binpix'],
-                         'dt_data': self.dt_data, 'fitsfile': self.fitsfile, 'exptime_orig': self.exptime_orig}, sf)
+            outfile = 'mapseq_{0}_{1}_{2}.{3}'.format(mapseq[0].meta['wavelnth'],
+                                                      self.trange[0].isot[:-4].replace(':', ''),
+                                                      self.trange[1].isot[:-4].replace(':', ''),
+                                                      ext)
+        if hdf5:
+            with h5py.File(outfile, 'w') as hf:
+                # Create a group for the map sequence
+                map_group = hf.create_group('map_sequence')
+                for i, smap in enumerate(mapseq):
+                    subgroup = map_group.create_group(f'map_{i}')
+                    subgroup.create_dataset('data', data=smap.data, compression='gzip', compression_opts=9)
+                    # Serialize meta dictionary into JSON and store as a string in a single attribute
+                    meta_str = json.dumps({key: str(value) for key, value in smap.meta.items()})
+                    subgroup.attrs['meta'] = meta_str
+
+                # Store additional information
+                info_group = hf.create_group('additional_info')
+                if self.fitsfile is None: self.fitsfile = ''
+                info = {'trange': mp_info['trange'].iso.astype('S'), 'fov': mp_info['fov'], 'binpix': mp_info['binpix'],
+                        'dt_data': self.dt_data, 'fitsfile': self.fitsfile, 'exptime_orig': self.exptime_orig}
+                for key, value in info.items():
+                    if isinstance(value, (np.ndarray, list)):  # Handle list and arrays specifically
+                        info_group.create_dataset(key, data=value)
+                    else:
+                        info_group.attrs[key] = value
+        else:
+            with open(outfile, 'wb') as sf:
+                print('Saving mapseq to {}'.format(outfile))
+                pickle.dump(
+                    {'mp': mapseq, 'trange': mp_info['trange'], 'fov': mp_info['fov'], 'binpix': mp_info['binpix'],
+                     'dt_data': self.dt_data, 'fitsfile': self.fitsfile, 'exptime_orig': self.exptime_orig}, sf)
         print('It took {} to save the mapseq.'.format(time.time() - t0))
 
     def mapseq_drot(self):
@@ -1335,7 +1396,7 @@ class Stackplot:
         return mapseq_diff
 
     def mapseq_mkdiff(self, mode='rdiff', dt=36., medfilt=None, gaussfilt=None, bfilter=False, lowcut=1 / 10 / 60.,
-                      highcut=1 / 1 / 60., window=[None, None], outfile=None, tosave=False, dtype=None):
+                      highcut=1 / 1 / 60., window=[None, None], outfile=None, tosave=False, dtype=None, hdf5=False):
         '''
 
         :param mode: accept modes: rdiff, rratio, bdiff, bratio, dtrend, dtrend_diff, dtrend_ratio
@@ -1443,7 +1504,7 @@ class Stackplot:
                                                                                       ':', ''),
                                                                                   self.binpix, self.dt_data,
                                                                                   mode)
-            self.mapseq_tofile(outfile=outfile, mapseq=mapseq_diff)
+            self.mapseq_tofile(outfile=outfile, mapseq=mapseq_diff, hdf5=hdf5)
         self.mapseq_diff = mapseq_diff
         return mapseq_diff
 
@@ -1570,8 +1631,11 @@ class Stackplot:
                     im1.set_data(smap.data)
                     if smap.meta.has_key('t_obs'):
                         tstr = smap.meta['t_obs']
+                    elif smap.meta.has_key('time_obs'):
+                        tstr = Time(smap.meta['date_obs'].replace('/', '-') + ' ' + smap.meta['time_obs'])
+                        smap.meta['date-obs'] = tstr.iso
                     else:
-                        tstr = smap.meta['date-obs']
+                        tstr = smap.date.iso
                     ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
                     t_map = Time(tstr)
                     fig_mapseq.canvas.draw()
@@ -1857,7 +1921,6 @@ class Stackplot:
                                               get_peak=get_peak, trackslit_diffrot=trackslit_diffrot, negval=negval,
                                               movingcut=movingcut)
 
-
         if layout_vert:
             fig_mapseq = plt.figure(figsize=(7, 7))
         else:
@@ -1976,7 +2039,7 @@ class Stackplot:
                     if smap.meta.has_key('t_obs'):
                         tstr = smap.meta['t_obs']
                     else:
-                        tstr = smap.meta['date-obs']
+                        tstr = smap.date.iso
                     ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
                     vspan_xy = vspan.get_xy()
                     vspan_xy[np.array([0, 1, 4]), 0] = self.tplt[frm].plot_date
@@ -2029,7 +2092,7 @@ class Stackplot:
             nfrms = len(self.tplt)
 
             def update_slit(frm):
-                if movingcut!=[]:
+                if movingcut != []:
                     cuttraj.set_xdata(cutslitplt['xcen'] - movingcut[0][frm])
                     cuttraj.set_ydata(cutslitplt['ycen'] - movingcut[1][frm])
                     cuttrajs1.set_xdata(cutslitplt['xs0'] - movingcut[0][frm])
@@ -2046,7 +2109,7 @@ class Stackplot:
                     if smap.meta.has_key('t_obs'):
                         tstr = smap.meta['t_obs']
                     else:
-                        tstr = smap.meta['date-obs']
+                        tstr = smap.date.iso
                     ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
                     vspan_xy = vspan.get_xy()
                     vspan_xy[np.array([0, 1, 4]), 0] = self.tplt[frm].plot_date
@@ -2109,7 +2172,8 @@ class Stackplot:
             self.blghtcurv = Button(axlghtcurv, 'lightcurve')
 
             def stackplt_lghtcurv(event):
-                self.stackplt_lghtcurv_fromfile(self.stackplt_wrap(), frm_range=frm_range, cmap=cmap, norm=norm, gamma=gamma)
+                self.stackplt_lghtcurv_fromfile(self.stackplt_wrap(), frm_range=frm_range, cmap=cmap, norm=norm,
+                                                gamma=gamma)
 
             self.blghtcurv.on_clicked(stackplt_lghtcurv)
 
@@ -2242,8 +2306,7 @@ class Stackplot:
                     return None
 
         for idx, smap in enumerate(mapseq):
-            tstr = smap.meta[key]
-            t.append(tstr)
+            t.append(smap.date)
         t = Time(t)
         if key == 't_obs':
             t = Time(t.mjd - self.exptime_orig / 2.0 / 24. / 3600., format='mjd')
