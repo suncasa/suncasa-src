@@ -715,7 +715,7 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
     --------
     To process data for November 24th, 2021 using version 2.0 of the pipeline, with all options enabled:
 
-    >>> python eovsa_pipeline.py --date 2021-11-24T20:00 --clearcache --overwrite --doimport --pols XXYY --version v2.0 --ndays 2
+    >>> python eovsa_pipeline.py --date 2021-11-24T20:00 --clearcache --overwrite --doimport --pols XX --version v2.0 --ndays 2
 
     If you want to see the help message, you can run:
 

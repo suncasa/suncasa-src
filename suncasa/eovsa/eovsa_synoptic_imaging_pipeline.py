@@ -343,7 +343,7 @@ def calc_diskmodel(slashdate, nbands, freq, defaultfreq):
             newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq[3:])
         else:
             # Dates between 2018-03-13 have 33 spectral windows
-            newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq[[0] + range(2, 34)])
+            newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq[[0] + list(range(2, 34))])
     dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize], dtype='U12')
 
     # These are nominal flux densities * 2, determined on 2019/09/03
@@ -363,7 +363,7 @@ def calc_diskmodel(slashdate, nbands, freq, defaultfreq):
             fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq[3:])
         else:
             # Dates between 2018-03-13 have 33 spectral windows
-            fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq[[0] + range(2, 34)])
+            fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq[[0] + list(range(2, 34))])
     return dsize, fdens
 
 

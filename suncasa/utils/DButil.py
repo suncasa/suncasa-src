@@ -1295,15 +1295,20 @@ def polyfit(x, y, length, deg, keepxorder=False):
 
 
 def htfit_warren2011(x, y, cutlength):
+    '''
+    reference: https://ui.adsabs.harvard.edu/abs/2011ApJ...742...92W/abstract
+    '''
     from scipy.optimize import curve_fit
 
     def fit_func(t, h0, vt, a0, tau):
         return h0 + vt * t + a0 * tau ** 2 * (np.exp(-t / tau) - 1)
 
+    print(x,y)
     x0 = x[0]
     params = curve_fit(fit_func, x - x0, y)
 
     [h0, vt, a0, tau] = params[0]
+    print([h0, vt, a0, tau])
     xs = np.linspace(np.nanmin(x), np.nanmax(x), cutlength)
     ys = fit_func(xs - x0, h0, vt, a0, tau)
     grads = get_curve_grad(xs, ys)
