@@ -2448,6 +2448,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                 aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=anorm, interpolation='nearest')
 
                 axs = [[ax4, ax5], [ax6, ax7]]
+                draw_limb_grid_flag = True
                 for s, sp in enumerate(spw):
                     if spwplt is not None:
                         if sp not in spwplt:
@@ -2460,6 +2461,10 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                         else:
                             rmap_plt = smap.Map(np.squeeze(datas[pol]), meta['header'])
                         rmap_plt_ = pmX.Sunmap(rmap_plt)
+                        rmap_data_max = np.nanmax(rmap_plt.data)
+                        if rmap_data_max <=0.0 or rmap_data_max is np.nan:
+                            print(f'Warning: the max value of the map is {rmap_data_max}. Skip plotting this map.')
+                            continue
                         if nspws > 1:
                             if opencontour:
                                 rmap_plt_.contour(axes=[axs[pidx][0], axs[pidx][1]], colors=rcmap,
@@ -2470,9 +2475,10 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                         else:
                             rmap_plt_.contour(axes=[axs[pidx][0], axs[pidx][1]], cmap=cmaps[pol],
                                               levels=clvls[pol] * np.nanmax(rmap_plt.data), alpha=calpha)
-                        rmap_plt_.draw_limb(axes=[axs[pidx][0], axs[pidx][1]])
-                        rmap_plt_.draw_grid(axes=[axs[pidx][0], axs[pidx][1]])
-                        if s == 0:
+                        if draw_limb_grid_flag:
+                            rmap_plt_.draw_limb(axes=[axs[pidx][0], axs[pidx][1]])
+                            rmap_plt_.draw_grid(axes=[axs[pidx][0], axs[pidx][1]])
+                            draw_limb_grid_flag = False
                             if nspws < 2:
                                 title = title0 + ' + {0} {1:6.3f} GHz'.format(observatory, (bfreqghz + efreqghz) / 2.0)
                             else:
