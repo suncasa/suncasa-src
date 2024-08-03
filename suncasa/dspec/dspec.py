@@ -1207,6 +1207,8 @@ class Dspec:
                         norm.vmin = np.nanpercentile(spec_plt, percentile[0])
 
                 spec_plt = spec_plt[fidx, :][:, tidx]
+                tim_plt = tim_plt[tidx]
+                freq_plt = freq_plt[fidx]
 
                 if plot_fast:
                     # rebin the data to speed up plotting
@@ -1220,13 +1222,13 @@ class Dspec:
                         # tim_plt = rebin1d(tim_plt[0:new_len_total], 2048)
 
                     im = ax.imshow(spec_plt, cmap=cmap, norm=norm, aspect='auto', origin='lower',
-                                   extent=[tim_plt[tidx[0]], tim_plt[tidx[-1]], freq_plt[fidx[0]], freq_plt[fidx[-1]]])
+                                   extent=[tim_plt[0], tim_plt[0], freq_plt[0], freq_plt[-1]])
 
                 else:
                     im = ax.pcolormesh(tim_plt, freq_plt, spec_plt, cmap=cmap, norm=norm, shading='auto',
                                        rasterized=True)
-                    ax.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
-                    ax.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
+                    ax.set_xlim(tim_plt[0], tim_plt[0])
+                    ax.set_ylim(freq_plt[0], freq_plt[-1])
 
                     def format_coord(x, y):
                         col = np.argmin(np.absolute(tim_plt - x))
@@ -1318,9 +1320,6 @@ class Dspec:
                         spec_plt_2 = np.concatenate((spec_plt_2[:loc], np.zeros((1, ntim)) + np.nan, spec_plt_2[loc:]),
                                                     0)
 
-                if plot_fast:
-                    spec_plt_1 = spec_plt_1[fidx, :][:, tidx]
-                    spec_plt_2 = spec_plt_2[fidx, :][:, tidx]
 
                 if bkgtim:
                     spec_plt_1 -= calc_bkg_dspec(spec_plt_1, tim_[tidx], bkgtim, interp_method=interp_method)
@@ -1338,6 +1337,11 @@ class Dspec:
                     if percentile[0] > 0 and percentile[1] < 100 and percentile[0] < percentile[1]:
                         norm.vmax = np.nanpercentile(spec_plt_1, percentile[1])
                         norm.vmin = np.nanpercentile(spec_plt_1, percentile[0])
+                spec_plt_1 = spec_plt_1[fidx, :][:, tidx]
+                spec_plt_2 = spec_plt_2[fidx, :][:, tidx]
+                tim_plt = tim_plt[tidx]
+                freq_plt = freq_plt[fidx]
+
                 if plot_fast:
                     # compress in time (idx1)
                     ds_shape = spec_plt_1.shape
@@ -1351,12 +1355,12 @@ class Dspec:
                         # tim_plt = rebin1d(tim_plt[0:new_len_total], new_len)
 
                     im = ax1.imshow(spec_plt_1, cmap=cmap, norm=norm, aspect='auto', origin='lower',
-                                    extent=[tim_plt[tidx[0]], tim_plt[tidx[-1]], freq_plt[fidx[0]], freq_plt[fidx[-1]]])
+                                    extent=[tim_plt[0], tim_plt[-1], freq_plt[0], freq_plt[-1]])
                 else:
                     im = ax1.pcolormesh(tim_plt, freq_plt, spec_plt_1, cmap=cmap, norm=norm, shading='auto',
                                         rasterized=True)
-                    ax1.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
-                    ax1.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
+                    ax1.set_xlim(tim_plt[0], tim_plt[-1])
+                    ax1.set_ylim(freq_plt[0], freq_plt[-1])
 
                     def format_coord(x, y):
                         col = np.argmin(np.absolute(tim_plt - x))
@@ -1412,7 +1416,7 @@ class Dspec:
 
                 if plot_fast:
                     im = ax2.imshow(spec_plt_2, cmap=cmap2, norm=norm2, aspect='auto', origin='lower',
-                                    extent=[tim_plt[tidx[0]], tim_plt[tidx[-1]], freq_plt[fidx[0]], freq_plt[fidx[-1]]])
+                                    extent=[tim_plt[0], tim_plt[-1], freq_plt[0], freq_plt[-1]])
                 else:
                     im = ax2.pcolormesh(tim_plt, freq_plt, spec_plt_2, cmap=cmap2, norm=norm2, shading='auto',
                                         rasterized=True)
@@ -1432,8 +1436,8 @@ class Dspec:
                             return 'x = {0}, y = {1:.3f}'.format(x, y)
                     ax2.format_coord = format_coord
 
-                    ax2.set_xlim(tim_plt[tidx[0]], tim_plt[tidx[-1]])
-                    ax2.set_ylim(freq_plt[fidx[0]], freq_plt[fidx[-1]])
+                    ax2.set_xlim(tim_plt[0], tim_plt[-1])
+                    ax2.set_ylim(freq_plt[0], freq_plt[-1])
 
                 divider = make_axes_locatable(ax2)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
