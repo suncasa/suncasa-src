@@ -2,15 +2,17 @@ import os
 from datetime import datetime, timedelta
 import astropy.units as u
 from matplotlib.dates import AutoDateFormatter, MinuteLocator
+from matplotlib.dates import AutoDateLocator, AutoDateFormatter
 
 # Function to format the y-axis as integer frequencies
 def int_formatter(x, pos):
     return f"{int(x)}"
 
-# Function to set up the plot formatting
-def setup_time_axis(ax, start, end):
+
+def setup_time_axis(ax, start, end, minticks=5, maxticks=10):
     """
-    Set up the time axis for a plot with dynamic tick intervals based on the time range.
+    Set up the time axis for a plot with specific tick intervals based on the time range,
+    ensuring a minimum and maximum number of ticks.
 
     :param ax: The axis to set up the time axis for.
     :type ax: matplotlib.axes.Axes
@@ -18,47 +20,37 @@ def setup_time_axis(ax, start, end):
     :type start: astropy.time.Time
     :param end: The end time of the plot.
     :type end: astropy.time.Time
+    :param minticks: Minimum number of major ticks desired.
+    :type minticks: int
+    :param maxticks: Maximum number of major ticks desired.
+    :type maxticks: int
     """
-    # Calculate the total time range in hours
-    total_hours = (end - start).to(u.hour).value
-
-    # Set default tick intervals
-    major_tick_interval = 1  # Default to 1-hour major ticks
-    minor_tick_interval = 10  # Default to 10-minute minor ticks
-
-    # Adjust tick intervals for time ranges
-    if total_hours < 1:
-        # For durations less than an hour
-        major_tick_interval = max(total_hours / 3, 1 / 6)  # At least 3 major ticks, not less than every 10 minutes
-        minor_tick_interval = major_tick_interval / 10  # Ensure 10 minor ticks between major ticks
-    elif total_hours < 5:
-        # For durations less than 5 hours
-        major_tick_interval = max(total_hours / 3, 0.5)  # At least 3 major ticks, not less than every 30 minutes
-        minor_tick_interval = major_tick_interval / 10  # Ensure 10 minor ticks between major ticks
+    # Calculate the total time range in minutes
+    total_minutes = (end - start).to(u.min).value
 
     # Create locator for major ticks
-    major_locator = MinuteLocator(interval=int(major_tick_interval * 60))
+    major_locator = AutoDateLocator(minticks=minticks, maxticks=maxticks)
     ax.xaxis.set_major_locator(major_locator)
 
     # Create formatter for major ticks
     formatter = AutoDateFormatter(major_locator)
-    if total_hours < 1:
-        formatter.scaled[1.0] = '%H:%M:%S'  # For intervals less than 1 hour, show seconds
-        formatter.scaled[1 / 24] = '%H:%M:%S'
+    if total_minutes < 1:
+        formatter.scaled[1.0] = '%H:%M:%S.%f'  # Show milliseconds for very short durations
+    elif total_minutes < 60:
+        formatter.scaled[1.0] = '%H:%M:%S'     # Show seconds for short durations
     else:
-        formatter.scaled[1.0] = '%H:%M'  # For intervals of 1 hour or more
-        formatter.scaled[1 / 24] = '%H:%M'
-    formatter.scaled[1 / (24 * 60)] = '%H:%M'  # For intervals of 1 minute
-    formatter.scaled[1 / (24 * 60 * 60)] = '%H:%M:%S'  # For intervals of 1 second
+        formatter.scaled[1.0] = '%H:%M'        # For longer durations, show only hours and minutes
+    formatter.scaled[1 / 24] = '%H:%M'
+    formatter.scaled[1 / (24 * 60)] = '%H:%M'
+    formatter.scaled[1 / (24 * 60 * 60)] = '%H:%M:%S'
     ax.xaxis.set_major_formatter(formatter)
 
     # Create locator for minor ticks
-    minor_locator = MinuteLocator(interval=int(minor_tick_interval * 60))
+    minor_locator = AutoDateLocator(minticks=minticks*5, maxticks=minticks*5)  # More minor ticks
     ax.xaxis.set_minor_locator(minor_locator)
 
     # Set x-axis limits
     ax.set_xlim(start.plot_date, end.plot_date)
-
 
 
 def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', combine=True,
@@ -95,6 +87,10 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
     # Example 2: Plotting OVRO-LWA and EOVSA spectrograms along with STIX and GOES light curves for a specific time range
     ovsp.plot(timerange=[datetime(2024, 7, 31, 17, 20), datetime(2024, 7, 31, 20, 40)],
         figdir='/data1/workdir/', combine=True, fast_plot=True, clip=[5, 99.995])
+
+    # Example 3: Plotting OVRO-LWA and EOVSA spectrograms along with STIX and GOES light curves for a specific time range with full resolution
+    ovsp.plot(timerange=[datetime(2024, 7, 31, 18, 10), datetime(2024, 7, 31, 19, 0)],
+        figdir='/data1/workdir/', combine=True, fast_plot=False, clip=[5, 99.995])
     """
     import time
     t0 = time.time()
