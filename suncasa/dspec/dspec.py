@@ -1189,6 +1189,10 @@ class Dspec:
                 if freq_unit.lower() == 'khz':
                     freq_plt = freq / 1e3
 
+                spec_plt = spec_plt[fidx, :][:, tidx]
+                tim_plt = tim_plt[tidx]
+                freq_plt = freq_plt[fidx]
+
                 # Change the default for Stokes V
                 if pol == 'V':
                     cmap = 'gray'
@@ -1205,10 +1209,6 @@ class Dspec:
                     if percentile[0] > 0 and percentile[1] < 100 and percentile[0] < percentile[1]:
                         norm.vmax = np.nanpercentile(spec_plt, percentile[1])
                         norm.vmin = np.nanpercentile(spec_plt, percentile[0])
-
-                spec_plt = spec_plt[fidx, :][:, tidx]
-                tim_plt = tim_plt[tidx]
-                freq_plt = freq_plt[fidx]
 
                 if plot_fast:
                     # rebin the data to speed up plotting
@@ -1333,14 +1333,15 @@ class Dspec:
                 if freq_unit.lower() == 'khz':
                     freq_plt = freq / 1e3
 
-                if minmaxpercentile:
-                    if percentile[0] > 0 and percentile[1] < 100 and percentile[0] < percentile[1]:
-                        norm.vmax = np.nanpercentile(spec_plt_1, percentile[1])
-                        norm.vmin = np.nanpercentile(spec_plt_1, percentile[0])
                 spec_plt_1 = spec_plt_1[fidx, :][:, tidx]
                 spec_plt_2 = spec_plt_2[fidx, :][:, tidx]
                 tim_plt = tim_plt[tidx]
                 freq_plt = freq_plt[fidx]
+
+                if minmaxpercentile:
+                    if percentile[0] > 0 and percentile[1] < 100 and percentile[0] < percentile[1]:
+                        norm.vmax = np.nanpercentile(spec_plt_1, percentile[1])
+                        norm.vmin = np.nanpercentile(spec_plt_1, percentile[0])
 
                 if plot_fast:
                     # compress in time (idx1)
