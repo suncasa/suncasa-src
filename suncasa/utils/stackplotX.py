@@ -2028,7 +2028,8 @@ class Stackplot:
                 print('Saving movie to {}'.format(out_dir))
                 Writer = animation.writers['ffmpeg']
                 writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
-                ani.save('{0}/Stackplot-{2}{1}.mp4'.format(out_dir, mapseq_plot[0].meta['wavelnth'],
+
+                ani.save('{0}/Stackplot-{2}{1}.mp4'.format(out_dir, mapseq_plot[0].wavelength,
                                                            mapseq_plot[0].detector), writer=writer)
             else:
                 plt.ioff()

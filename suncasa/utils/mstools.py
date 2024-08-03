@@ -55,8 +55,10 @@ def get_bandinfo(msfile, spw=None, returnbdinfo=False):
         freqbounds_hi_spw = []
         cfreqs_spw = []
         for sp in spw:
+            print(f'Parsing spw {sp}...')
             try:
                 staql = {'spw': sp}
+                ms.selectinit(reset=True)
                 ms.msselect(staql, onlyparse=True)
                 ndx = ms.msselectedindices()
                 chan_sel = ndx['channel']

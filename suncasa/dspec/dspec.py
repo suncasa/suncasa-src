@@ -1166,11 +1166,12 @@ class Dspec:
                         loc = fb + n + 1
                         spec_plt = np.concatenate((spec_plt[:loc], np.zeros((1, ntim)) + np.nan, spec_plt[loc:]), 0)
 
-                if plot_fast:
-                    spec_plt = spec_plt[fidx, :][:, tidx]
 
                 if bkgtim:
                     spec_plt -=calc_bkg_dspec(spec_plt, tim_[tidx], bkgtim, interp_method=interp_method)
+
+                # if plot_fast:
+
 
                 if figsize is None:
                     figsize = (8, 4)
@@ -1204,6 +1205,9 @@ class Dspec:
                     if percentile[0] > 0 and percentile[1] < 100 and percentile[0] < percentile[1]:
                         norm.vmax = np.nanpercentile(spec_plt, percentile[1])
                         norm.vmin = np.nanpercentile(spec_plt, percentile[0])
+
+                spec_plt = spec_plt[fidx, :][:, tidx]
+
                 if plot_fast:
                     # rebin the data to speed up plotting
                     ds_shape = spec_plt.shape
