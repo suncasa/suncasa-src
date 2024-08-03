@@ -1222,12 +1222,12 @@ class Dspec:
                         # tim_plt = rebin1d(tim_plt[0:new_len_total], 2048)
 
                     im = ax.imshow(spec_plt, cmap=cmap, norm=norm, aspect='auto', origin='lower',
-                                   extent=[tim_plt[0], tim_plt[0], freq_plt[0], freq_plt[-1]])
+                                   extent=[tim_plt[0], tim_plt[-1], freq_plt[0], freq_plt[-1]])
 
                 else:
                     im = ax.pcolormesh(tim_plt, freq_plt, spec_plt, cmap=cmap, norm=norm, shading='auto',
                                        rasterized=True)
-                    ax.set_xlim(tim_plt[0], tim_plt[0])
+                    ax.set_xlim(tim_plt[0], tim_plt[-1])
                     ax.set_ylim(freq_plt[0], freq_plt[-1])
 
                     def format_coord(x, y):
