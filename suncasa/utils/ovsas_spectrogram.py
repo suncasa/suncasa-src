@@ -1,8 +1,8 @@
 import os
 from datetime import datetime, timedelta
 
-def spec_plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', combine=True,
-                           clip=[10, 99.995], add_logo=False, fast_plot=True, interactive=False):
+def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', combine=True,
+         clip=[10, 99.995], add_logo=False, fast_plot=True, interactive=False):
     """
     Plot the OVRO-LWA and EOVSA spectrograms along with STIX and GOES light curves for a given timestamp or time range.
 
@@ -27,11 +27,12 @@ def spec_plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/
 
     Examples:
     ---------
+    from suncasa.uitls import ovsas_spectrogram ovsp
     # Example 1: Plotting OVRO-LWA and EOVSA spectrograms along with STIX and GOES light curves for a specific timestamp
-    spec_plot(datetime(2024, 7, 31), figdir='/data1/workdir/', combine=True)
+    ovsp.plot(datetime(2024, 7, 31), figdir='/data1/workdir/', combine=True)
 
     # Example 2: Plotting OVRO-LWA and EOVSA spectrograms along with STIX and GOES light curves for a specific time range
-    spec_plot(timerange=[datetime(2024, 7, 31, 17, 20), datetime(2024, 7, 31, 20, 40)],
+    ovsp.plot(timerange=[datetime(2024, 7, 31, 17, 20), datetime(2024, 7, 31, 20, 40)],
         figdir='/data1/workdir/', combine=True, fast_plot=True, clip=[5, 99.995])
     """
     import time
