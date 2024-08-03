@@ -207,17 +207,20 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
         overall_start = min(ovro_lwa_start, eovsa_start)
         overall_end = max(ovro_lwa_end, eovsa_end)
     else:
-        ## if timerange is provided, override the overall time range
-        overall_start = Time(timerange[0])
-        overall_end = Time(timerange[1])
-        figname_eovsa = os.path.join(figdir,
-                                     f'fig-eovsa_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
-        figname_ovrolwa = os.path.join(figdir,
-                                       f'fig-ovrolwa_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
-        figname_stix = os.path.join(figdir,
-                                    f'fig-stix_lc_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
-        figname_goes = os.path.join(figdir,
-                                    f'fig-goes_lc_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
+        if combine:
+            figname = os.path.join(figdir,f'fig-OVSAs_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
+        else:
+            ## if timerange is provided, override the overall time range
+            overall_start = Time(timerange[0])
+            overall_end = Time(timerange[1])
+            figname_eovsa = os.path.join(figdir,
+                                         f'fig-eovsa_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
+            figname_ovrolwa = os.path.join(figdir,
+                                           f'fig-ovrolwa_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
+            figname_stix = os.path.join(figdir,
+                                        f'fig-stix_lc_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
+            figname_goes = os.path.join(figdir,
+                                        f'fig-goes_lc_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
 
     print(f'processing STIX light curves for {timestamp.strftime("%Y-%m-%d")}')
     # Load STIX light curves
