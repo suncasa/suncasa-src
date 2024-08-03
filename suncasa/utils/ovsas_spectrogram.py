@@ -27,7 +27,7 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
 
     Examples:
     ---------
-    from suncasa.uitls import ovsas_spectrogram ovsp
+    from suncasa.uitls import ovsas_spectrogram as ovsp
     # Example 1: Plotting OVRO-LWA and EOVSA spectrograms along with STIX and GOES light curves for a specific timestamp
     ovsp.plot(datetime(2024, 7, 31), figdir='/data1/workdir/', combine=True)
 
