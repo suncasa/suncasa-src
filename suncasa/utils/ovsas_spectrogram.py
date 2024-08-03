@@ -105,56 +105,56 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
         return f"{int(x)}"
 
     # Function to set up the plot formatting
-def setup_time_axis(ax, start, end):
-    """
-    Set up the time axis for a plot with dynamic tick intervals based on the time range.
+    def setup_time_axis(ax, start, end):
+        """
+        Set up the time axis for a plot with dynamic tick intervals based on the time range.
 
-    :param ax: The axis to set up the time axis for.
-    :type ax: matplotlib.axes.Axes
-    :param start: The start time of the plot.
-    :type start: astropy.time.Time
-    :param end: The end time of the plot.
-    :type end: astropy.time.Time
-    """
-    # Calculate the total time range in hours
-    total_hours = (end - start).to(u.hour).value
+        :param ax: The axis to set up the time axis for.
+        :type ax: matplotlib.axes.Axes
+        :param start: The start time of the plot.
+        :type start: astropy.time.Time
+        :param end: The end time of the plot.
+        :type end: astropy.time.Time
+        """
+        # Calculate the total time range in hours
+        total_hours = (end - start).to(u.hour).value
 
-    # Set default tick intervals
-    major_tick_interval = 1  # Default to 1-hour major ticks
-    minor_tick_interval = 10  # Default to 10-minute minor ticks
+        # Set default tick intervals
+        major_tick_interval = 1  # Default to 1-hour major ticks
+        minor_tick_interval = 10  # Default to 10-minute minor ticks
 
-    # Adjust tick intervals for time ranges
-    if total_hours < 1:
-        # For durations less than an hour
-        major_tick_interval = max(total_hours / 3, 1 / 6)  # At least 3 major ticks, not less than every 10 minutes
-        minor_tick_interval = major_tick_interval / 10     # Ensure 10 minor ticks between major ticks
-    elif total_hours < 5:
-        # For durations less than 5 hours
-        major_tick_interval = max(total_hours / 3, 0.5)    # At least 3 major ticks, not less than every 30 minutes
-        minor_tick_interval = major_tick_interval / 10     # Ensure 10 minor ticks between major ticks
+        # Adjust tick intervals for time ranges
+        if total_hours < 1:
+            # For durations less than an hour
+            major_tick_interval = max(total_hours / 3, 1 / 6)  # At least 3 major ticks, not less than every 10 minutes
+            minor_tick_interval = major_tick_interval / 10     # Ensure 10 minor ticks between major ticks
+        elif total_hours < 5:
+            # For durations less than 5 hours
+            major_tick_interval = max(total_hours / 3, 0.5)    # At least 3 major ticks, not less than every 30 minutes
+            minor_tick_interval = major_tick_interval / 10     # Ensure 10 minor ticks between major ticks
 
-    # Create locator for major ticks
-    major_locator = MinuteLocator(interval=int(major_tick_interval * 60))
-    ax.xaxis.set_major_locator(major_locator)
+        # Create locator for major ticks
+        major_locator = MinuteLocator(interval=int(major_tick_interval * 60))
+        ax.xaxis.set_major_locator(major_locator)
 
-    # Create formatter for major ticks
-    formatter = AutoDateFormatter(major_locator)
-    if total_hours < 1:
-        formatter.scaled[1.0] = '%H:%M:%S'  # For intervals less than 1 hour, show seconds
-        formatter.scaled[1 / 24] = '%H:%M:%S'
-    else:
-        formatter.scaled[1.0] = '%H:%M'  # For intervals of 1 hour or more
-        formatter.scaled[1 / 24] = '%H:%M'
-    formatter.scaled[1 / (24 * 60)] = '%H:%M'  # For intervals of 1 minute
-    formatter.scaled[1 / (24 * 60 * 60)] = '%H:%M:%S'  # For intervals of 1 second
-    ax.xaxis.set_major_formatter(formatter)
+        # Create formatter for major ticks
+        formatter = AutoDateFormatter(major_locator)
+        if total_hours < 1:
+            formatter.scaled[1.0] = '%H:%M:%S'  # For intervals less than 1 hour, show seconds
+            formatter.scaled[1 / 24] = '%H:%M:%S'
+        else:
+            formatter.scaled[1.0] = '%H:%M'  # For intervals of 1 hour or more
+            formatter.scaled[1 / 24] = '%H:%M'
+        formatter.scaled[1 / (24 * 60)] = '%H:%M'  # For intervals of 1 minute
+        formatter.scaled[1 / (24 * 60 * 60)] = '%H:%M:%S'  # For intervals of 1 second
+        ax.xaxis.set_major_formatter(formatter)
 
-    # Create locator for minor ticks
-    minor_locator = MinuteLocator(interval=int(minor_tick_interval * 60))
-    ax.xaxis.set_minor_locator(minor_locator)
+        # Create locator for minor ticks
+        minor_locator = MinuteLocator(interval=int(minor_tick_interval * 60))
+        ax.xaxis.set_minor_locator(minor_locator)
 
-    # Set x-axis limits
-    ax.set_xlim(start.plot_date, end.plot_date)
+        # Set x-axis limits
+        ax.set_xlim(start.plot_date, end.plot_date)
 
 
     if combine:
