@@ -81,16 +81,16 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
     ---------
     from suncasa.utils import ovsas_spectrogram as ovsp
     from datetime import datetime
-    # Example 1: Plotting OVRO-LWA and EOVSA spectrograms along with STIX and GOES light curves for a specific timestamp
-    ovsp.plot(datetime(2024, 7, 31), figdir='/data1/workdir/', combine=True)
+    # Example 1: Plotting the synoptic spectrogram for 2024 July 31
+    ovsp.plot(datetime(2024, 7, 31), figdir='/data1/workdir/')
 
-    # Example 2: Plotting OVRO-LWA and EOVSA spectrograms along with STIX and GOES light curves for a specific time range
+    # Example 2: Plotting the synoptic spectrogram for a specific time interval on 2024 July 31
     ovsp.plot(timerange=[datetime(2024, 7, 31, 17, 20), datetime(2024, 7, 31, 20, 40)],
-        figdir='/data1/workdir/', combine=True, fast_plot=True, clip=[5, 99.995])
+        figdir='/data1/workdir/', fast_plot=True, clip=[5, 99.995])
 
-    # Example 3: Plotting OVRO-LWA and EOVSA spectrograms along with STIX and GOES light curves for a specific time range with full resolution
-    ovsp.plot(timerange=[datetime(2024, 7, 31, 18, 10), datetime(2024, 7, 31, 19, 0)],
-        figdir='/data1/workdir/', combine=True, fast_plot=False, clip=[5, 99.995])
+    # Example 3: Plotting the synoptic spectrogram for a specific time interval on 2024 July 31  in full resolution
+    ovsp.plot(timerange=[datetime(2024, 7, 31, 18, 20), datetime(2024, 7, 31, 18, 40)],
+        figdir='/data1/workdir/', fast_plot=False, clip=[5, 99.995])
     """
     import time
     t0 = time.time()
@@ -130,7 +130,7 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
                 fast_plot = False
         else:
             # Set the current timestamp if none is provided
-            timestamp = datetime.utcnow()
+            timestamp = datetime.utcnow() - timedelta(days=1)
 
     # Ensure the output directory exists
     os.makedirs(figdir, exist_ok=True)
@@ -286,7 +286,7 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
     goes_files = Fido.fetch(goes_query)
     if goes_files:
         goes = ts.TimeSeries(goes_files)
-        goes.plot(axes=ax_goes, title=False)
+        goes.plot(axes=ax_goes)
         ax_goes.set_yscale('log')
         ax_goes.set_ylabel('Flux [W/m²]')
     else:
