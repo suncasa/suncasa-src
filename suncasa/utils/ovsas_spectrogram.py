@@ -154,9 +154,6 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
     default_start_time = Time(timestamp.replace(hour=14, minute=0, second=0))
     default_end_time = Time((timestamp + timedelta(days=1)).replace(hour=2, minute=0, second=0))
 
-
-
-
     if combine:
         fig, axs = plt.subplots(4, 1, figsize=(12, 12), sharex=True, height_ratios=[2, 2, 3, 4])
         ax_goes, ax_stix, ax_eovsa, ax_ovrolwa = axs
