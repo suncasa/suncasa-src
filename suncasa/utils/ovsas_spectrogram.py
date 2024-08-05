@@ -1,8 +1,11 @@
 import os
+import sys
+import time
 from datetime import datetime, timedelta
+
 import astropy.units as u
-from matplotlib.dates import AutoDateFormatter, MinuteLocator
-from matplotlib.dates import AutoDateLocator, AutoDateFormatter
+from matplotlib.dates import AutoDateFormatter, AutoDateLocator
+
 
 # Function to format the y-axis as integer frequencies
 def int_formatter(x, pos):
@@ -37,16 +40,16 @@ def setup_time_axis(ax, start, end, minticks=5, maxticks=10):
     if total_minutes < 1:
         formatter.scaled[1.0] = '%H:%M:%S.%f'  # Show milliseconds for very short durations
     elif total_minutes < 60:
-        formatter.scaled[1.0] = '%H:%M:%S'     # Show seconds for short durations
+        formatter.scaled[1.0] = '%H:%M:%S'  # Show seconds for short durations
     else:
-        formatter.scaled[1.0] = '%H:%M'        # For longer durations, show only hours and minutes
+        formatter.scaled[1.0] = '%H:%M'  # For longer durations, show only hours and minutes
     formatter.scaled[1 / 24] = '%H:%M'
     formatter.scaled[1 / (24 * 60)] = '%H:%M'
     formatter.scaled[1 / (24 * 60 * 60)] = '%H:%M:%S'
     ax.xaxis.set_major_formatter(formatter)
 
     # Create locator for minor ticks
-    minor_locator = AutoDateLocator(minticks=minticks*5, maxticks=minticks*5)  # More minor ticks
+    minor_locator = AutoDateLocator(minticks=minticks * 5, maxticks=minticks * 5)  # More minor ticks
     ax.xaxis.set_minor_locator(minor_locator)
 
     # Set x-axis limits
@@ -92,7 +95,6 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
     ovsp.plot(timerange=[datetime(2024, 7, 31, 18, 20), datetime(2024, 7, 31, 18, 40)],
         figdir='/data1/workdir/', fast_plot=False, clip=[5, 99.995])
     """
-    import time
     t0 = time.time()
 
     import numpy as np
@@ -122,6 +124,17 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
             print(f'Error: {e}')
             print('Failed to set the backend to Agg. Use default backend.')
         plt.ioff()
+    else:
+        try:
+            if os.name == 'posix':
+                if sys.platform == 'darwin':
+                    matplotlib.use('MacOSX')
+                else:
+                    matplotlib.use('QtAgg')
+        except Exception as e:
+            print(f'Error: {e}')
+            print('Failed to set the specified backend. Using default backend.')
+        plt.ion()
 
     if timestamp is None:
         if timerange is not None:
@@ -247,7 +260,8 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
         overall_start = Time(timerange[0])
         overall_end = Time(timerange[1])
         if combine:
-            figname = os.path.join(figdir,f'fig-OVSAs_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
+            figname = os.path.join(figdir,
+                                   f'fig-OVSAs_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
         else:
             figname_eovsa = os.path.join(figdir,
                                          f'fig-eovsa_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
@@ -282,13 +296,27 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
 
     print(f'processing GOES X-ray light curves for {timestamp.strftime("%Y-%m-%d")}')
     # Download GOES X-ray light curves
-    goes_query = Fido.search(a.Time(overall_start.datetime, overall_end.datetime), a.Instrument('XRS'))
+    try:
+        goes_query = Fido.search(a.Time(overall_start.datetime, overall_end.datetime), a.Instrument('XRS'),
+                                 a.Resolution("flx1s"), a.goes.SatelliteNumber(18))
+    except Exception as e:
+        print(f'Error: {e}. Loose search for GOES data')
+        goes_query = Fido.search(a.Time(overall_start.datetime, overall_end.datetime), a.Instrument('XRS'))
     goes_files = Fido.fetch(goes_query)
     if goes_files:
         goes = ts.TimeSeries(goes_files)
-        goes.plot(axes=ax_goes)
-        ax_goes.set_yscale('log')
-        ax_goes.set_ylabel('Flux [W/m²]')
+        if isinstance(goes, list):
+            df_comb = goes[0].to_dataframe()
+            df_comb = df_comb[(df_comb["xrsa_quality"] == 0) & (df_comb["xrsb_quality"] == 0)]
+            for g in goes[1:]:
+                df = g.to_dataframe()
+                df = df[(df["xrsa_quality"] == 0) & (df["xrsb_quality"] == 0)]
+                df_comb = pd.concat([df_comb, df])
+        else:
+            df_comb = goes.to_dataframe()
+        units = dict([("xrsa", u.W / u.m ** 2), ("xrsb", u.W / u.m ** 2)])
+        meta = dict({"instrument": "GOES X-ray sensor", "measurements": "primary", "type": "quicklook"})
+        goes_ts = ts.TimeSeries(df_comb[['xrsa', 'xrsb']], meta, units, source="xrs")
     else:
         goes_json_data = pd.read_json("https://services.swpc.noaa.gov/json/goes/primary/xrays-7-day.json")
         # This will get us the short wavelength data.
@@ -309,19 +337,13 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
         }, index=filtered_time_array.datetime)
         units = dict([("xrsa", u.W / u.m ** 2), ("xrsb", u.W / u.m ** 2)])
         meta = dict({"instrument": "GOES X-ray sensor", "measurements": "primary", "type": "quicklook"})
-        # goes_data = pd.DataFrame({"xrsa": goes_short["flux"].values, "xrsb": goes_long["flux"].values},
-        #                          index=time_array.datetime)
-
         goes_ts = ts.TimeSeries(goes_data, meta, units, source="xrs")
-        goes_ts.plot(axes=ax_goes)
-        # ax_goes.plot([], [])
-        # ax_goes.text(0.5, 0.5, 'No GOES data available', transform=ax_goes.transAxes,
-        #              ha='center', va='center', fontsize=12, color='gray')
-        ax_goes.set_ylabel('Flux [W/m²]')
-        # ax_goes.set_ylim(1e-9, 1e-3)
-        divider = make_axes_locatable(ax_goes)
-        cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
-        cax_spec.set_visible(False)
+    goes_ts.plot(axes=ax_goes)
+    ax_goes.set_ylabel('Flux [W/m²]')
+
+    divider = make_axes_locatable(ax_goes)
+    cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
+    cax_spec.set_visible(False)
     ax_goes.set_title(f'GOES X-ray Light Curves')
     if combine:
         pass
@@ -336,7 +358,6 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
 
     for ax in [ax_ovrolwa, ax_eovsa, ax_stix, ax_goes]:
         ax.set_xlabel(f'Time [UTC, {timestamp.strftime("%Y %b %d")}]')
-
 
     if combine:
         for ax in axs[:-1]:
@@ -359,7 +380,7 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
             ax_logo2.axis('off')
         fig.savefig(figname, dpi=300)
         print(f'Saved combined figure to {figname}')
-        figout=[figname]
+        figout = [figname]
     else:
         if add_logo:
             for fig in [fig_ovrolwa, fig_eovsa, fig_stix, fig_goes]:
@@ -384,7 +405,7 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
         print(f'Saved OVRO-LWA figure to {figname_ovrolwa}')
         print(f'Saved STIX figure to {figname_stix}')
         print(f'Saved GOES figure to {figname_goes}')
-        figout=[figname_eovsa, figname_ovrolwa, figname_stix, figname_goes]
+        figout = [figname_eovsa, figname_ovrolwa, figname_stix, figname_goes]
     #
     # plt.show()  # Optionally show all figures
     if not interactive:
