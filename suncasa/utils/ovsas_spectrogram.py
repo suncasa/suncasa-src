@@ -150,6 +150,10 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
 
     if combine:
         figname = os.path.join(figdir, f'fig-OVSAs_spec_{timestamp.strftime("%Y%m%d")}.png')
+        if os.path.exists(figname):
+            # If the combined figure already exists, skip plotting individual figures
+            print(f'Combined figure for {timestamp.strftime("%Y-%m-%d")} already exists. Skipping individual figures.')
+            return [figname]
     else:
         # Define file names for each figure
         figname_eovsa = os.path.join(figdir, f'fig-eovsa_spec_{timestamp.strftime("%Y%m%d")}.png')
@@ -228,6 +232,9 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
         bkgspec = np.nanpercentile(data, 1, axis=1)
         d_eovsa.data = data - bkgspec[:, np.newaxis]
         d_eovsa.data[d_eovsa.data < 0] = 0
+        fghz_eovsa = d_eovsa.freq_axis/1e9
+        bad_fghz = [1.7425, 2.72]
+        d_eovsa.data[np.logical_and(fghz_eovsa > bad_fghz[0], fghz_eovsa < bad_fghz[1])] = np.nan
         vmax = np.nanpercentile(d_eovsa.data, 99.995)
         vmin = np.nanpercentile(d_eovsa.data, 5)
         norm_I_eovsa = mcolors.LogNorm(vmin=vmin, vmax=vmax)
@@ -297,48 +304,56 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
     print(f'processing GOES X-ray light curves for {timestamp.strftime("%Y-%m-%d")}')
     # Download GOES X-ray light curves
     try:
-        goes_query = Fido.search(a.Time(overall_start.datetime, overall_end.datetime), a.Instrument('XRS'),
-                                 a.Resolution("flx1s"), a.goes.SatelliteNumber(18))
-    except Exception as e:
-        print(f'Error: {e}. Loose search for GOES data')
-        goes_query = Fido.search(a.Time(overall_start.datetime, overall_end.datetime), a.Instrument('XRS'))
-    goes_files = Fido.fetch(goes_query)
-    if goes_files:
-        goes = ts.TimeSeries(goes_files)
-        if isinstance(goes, list):
-            df_comb = goes[0].to_dataframe()
-            df_comb = df_comb[(df_comb["xrsa_quality"] == 0) & (df_comb["xrsb_quality"] == 0)]
-            for g in goes[1:]:
-                df = g.to_dataframe()
-                df = df[(df["xrsa_quality"] == 0) & (df["xrsb_quality"] == 0)]
-                df_comb = pd.concat([df_comb, df])
+        try:
+            goes_query = Fido.search(a.Time(overall_start.datetime, overall_end.datetime), a.Instrument('XRS'),
+                                     a.Resolution("flx1s"), a.goes.SatelliteNumber(18))
+        except Exception as e:
+            print(f'Error: {e}. Loose search for GOES data')
+            goes_query = Fido.search(a.Time(overall_start.datetime, overall_end.datetime), a.Instrument('XRS'))
+        goes_files = Fido.fetch(goes_query)
+        if goes_files:
+            goes = ts.TimeSeries(goes_files)
+            if isinstance(goes, list):
+                df_comb = goes[0].to_dataframe()
+                df_comb = df_comb[(df_comb["xrsa_quality"] == 0) & (df_comb["xrsb_quality"] == 0)]
+                for g in goes[1:]:
+                    df = g.to_dataframe()
+                    df = df[(df["xrsa_quality"] == 0) & (df["xrsb_quality"] == 0)]
+                    df_comb = pd.concat([df_comb, df])
+            else:
+                df_comb = goes.to_dataframe()
+            units = dict([("xrsa", u.W / u.m ** 2), ("xrsb", u.W / u.m ** 2)])
+            meta = dict({"instrument": "GOES X-ray sensor", "measurements": "primary", "type": "quicklook"})
+            goes_ts = ts.TimeSeries(df_comb[['xrsa', 'xrsb']], meta, units, source="xrs")
         else:
-            df_comb = goes.to_dataframe()
-        units = dict([("xrsa", u.W / u.m ** 2), ("xrsb", u.W / u.m ** 2)])
-        meta = dict({"instrument": "GOES X-ray sensor", "measurements": "primary", "type": "quicklook"})
-        goes_ts = ts.TimeSeries(df_comb[['xrsa', 'xrsb']], meta, units, source="xrs")
-    else:
-        goes_json_data = pd.read_json("https://services.swpc.noaa.gov/json/goes/primary/xrays-7-day.json")
-        # This will get us the short wavelength data.
-        goes_short = goes_json_data[goes_json_data["energy"] == "0.05-0.4nm"]
-        # This will get us the long wavelength data.
-        goes_long = goes_json_data[goes_json_data["energy"] == "0.1-0.8nm"]
+            goes_json_data = pd.read_json("https://services.swpc.noaa.gov/json/goes/primary/xrays-7-day.json")
+            # This will get us the short wavelength data.
+            goes_short = goes_json_data[goes_json_data["energy"] == "0.05-0.4nm"]
+            # This will get us the long wavelength data.
+            goes_long = goes_json_data[goes_json_data["energy"] == "0.1-0.8nm"]
 
-        time_array = parse_time(goes_short["time_tag"])
-        filtered_indices = (time_array >= overall_start) & (time_array <= overall_end)
-        filtered_short = goes_short[filtered_indices]
-        filtered_long = goes_long[filtered_indices]
+            time_array = parse_time(goes_short["time_tag"])
+            filtered_indices = (time_array >= overall_start) & (time_array <= overall_end)
+            filtered_short = goes_short[filtered_indices]
+            filtered_long = goes_long[filtered_indices]
 
-        # Create a DataFrame with the filtered data
-        filtered_time_array = time_array[filtered_indices]
-        goes_data = pd.DataFrame({
-            "xrsa": filtered_short["flux"].values,
-            "xrsb": filtered_long["flux"].values
-        }, index=filtered_time_array.datetime)
-        units = dict([("xrsa", u.W / u.m ** 2), ("xrsb", u.W / u.m ** 2)])
-        meta = dict({"instrument": "GOES X-ray sensor", "measurements": "primary", "type": "quicklook"})
-        goes_ts = ts.TimeSeries(goes_data, meta, units, source="xrs")
-    goes_ts.plot(axes=ax_goes)
+            # Create a DataFrame with the filtered data
+            filtered_time_array = time_array[filtered_indices]
+            goes_data = pd.DataFrame({
+                "xrsa": filtered_short["flux"].values,
+                "xrsb": filtered_long["flux"].values
+            }, index=filtered_time_array.datetime)
+            units = dict([("xrsa", u.W / u.m ** 2), ("xrsb", u.W / u.m ** 2)])
+            meta = dict({"instrument": "GOES X-ray sensor", "measurements": "primary", "type": "quicklook"})
+            goes_ts = ts.TimeSeries(goes_data, meta, units, source="xrs")
+        goes_ts.plot(axes=ax_goes)
+    except Exception as e:
+        print(f'Error: {e}. Proceeding without GOES data.')
+        ax_goes.plot([], [])
+        ax_goes.set_ylim(1e-9, 1e-2)
+        ax_goes.text(0.5, 0.5, 'No GOES data available', transform=ax_goes.transAxes,
+                     ha='center', va='center', fontsize=12, color='gray')
+        ax_goes.set_yscale('log')
     ax_goes.set_ylabel('Flux [W/m²]')
 
     divider = make_axes_locatable(ax_goes)
