@@ -233,7 +233,7 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
         d_eovsa.data = data - bkgspec[:, np.newaxis]
         d_eovsa.data[d_eovsa.data < 0] = 0
         fghz_eovsa = d_eovsa.freq_axis/1e9
-        bad_fghz = [1.7425, 2.72]
+        bad_fghz = [1.742, 2.72]
         d_eovsa.data[np.logical_and(fghz_eovsa > bad_fghz[0], fghz_eovsa < bad_fghz[1])] = np.nan
         vmax = np.nanpercentile(d_eovsa.data, 99.995)
         vmin = np.nanpercentile(d_eovsa.data, 5)
