@@ -151,9 +151,10 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
     if combine:
         figname = os.path.join(figdir, f'fig-OVSAs_spec_{timestamp.strftime("%Y%m%d")}.png')
         if os.path.exists(figname):
-            # If the combined figure already exists, skip plotting individual figures
-            print(f'Combined figure for {timestamp.strftime("%Y-%m-%d")} already exists. Skipping individual figures.')
-            return [figname]
+            if timerange is None:
+                # If the combined figure already exists, skip plotting individual figures
+                print(f'Combined figure for {timestamp.strftime("%Y-%m-%d")} already exists. Skipping individual figures.')
+                return [figname]
     else:
         # Define file names for each figure
         figname_eovsa = os.path.join(figdir, f'fig-eovsa_spec_{timestamp.strftime("%Y%m%d")}.png')
