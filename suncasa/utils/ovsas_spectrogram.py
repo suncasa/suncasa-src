@@ -56,7 +56,7 @@ def setup_time_axis(ax, start, end, minticks=5, maxticks=10):
     ax.set_xlim(start.plot_date, end.plot_date)
 
 
-def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', combine=True,
+def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', figname=None, combine=True,
          clip=[10, 99.995], add_logo=False, fast_plot=True, interactive=False):
     """
     Plot the OVRO-LWA and EOVSA spectrograms along with STIX and GOES light curves for a given timestamp or time range.
@@ -67,6 +67,8 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
     :type timerange: list of datetime.datetime, optional
     :param figdir: Directory where the figures will be saved, defaults to '/common/lwa/spec_v2/daily/'.
     :type figdir: str, optional
+    :param figname: The file name for the combined figure. If not provided, it is generated based on the timestamp.
+    :type figname: str, optional
     :param combine: If True, combine all plots into a single figure, defaults to True. Otherwise, save each plot (OVRO-LWA, EOVSA, STIX, GOES) separately.
     :type combine: bool, optional
     :param clip: The percentile values for clipping the color scale of EOVSA and OVRO-LWA spectrograms, defaults to [10, 99.995].
@@ -149,7 +151,9 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', co
     os.makedirs(figdir, exist_ok=True)
 
     if combine:
-        figname = os.path.join(figdir, f'fig-OVSAs_spec_{timestamp.strftime("%Y%m%d")}.png')
+        if figname is None:
+            # Define the file name for the combined figure
+            figname = os.path.join(figdir, f'fig-OVSAs_spec_{timestamp.strftime("%Y%m%d")}.png')
         if os.path.exists(figname):
             if timerange is None:
                 # If the combined figure already exists, skip plotting individual figures
