@@ -414,7 +414,7 @@ class LightCurveBuilder:
                     self.xx.pop()
                     self.yy.pop()
             self.clickedpoints.set_data(self.xx, self.yy)
-            self.clickedpoints.figure.canvas.draw()
+            self.clickedpoints.figure.canvas.draw_idle()
             self.update()
         else:
             if event.inaxes != self.axes_dspec:
@@ -445,7 +445,7 @@ class LightCurveBuilder:
         self.lightcurveplt = lightcurveplt
 
         self.lghtcurvline.set_data(x, flux)
-        self.lghtcurvline.figure.canvas.draw()
+        self.lghtcurvline.figure.canvas.draw_idle()
 
     def save(self, event):
         if len(self.lightcurveplt['x']) > 0:
@@ -469,21 +469,21 @@ class LightCurveBuilder:
             self.lghtcurvlines.insert(indx, lghtcurvline)
             self.update()
             # self.update_text()
-            self.clickedpoints.figure.canvas.draw()
+            self.clickedpoints.figure.canvas.draw_idle()
 
     def delete(self, event):
         if len(self.lghtcurvlines) > 0:
             self.lghtcurvlines[-1].remove()
             self.lghtcurvlines.pop()
             self.lightcurves.pop()
-            self.clickedpoints.figure.canvas.draw()
+            self.clickedpoints.figure.canvas.draw_idle()
 
     def delete_byindex(self, index):
         self.lghtcurvlines[index].remove()
         del self.lghtcurvlines[index]
         del self.lightcurves[index]
         # self.update_text()
-        self.clickedpoints.figure.canvas.draw()
+        self.clickedpoints.figure.canvas.draw_idle()
 
     def update_text(self):
         for tx in self.clickedpoints_text:
@@ -580,7 +580,7 @@ class SpaceTimeSlitBuilder:
                     self.xx.pop()
                     self.yy.pop()
             self.clickedpoints.set_data(self.xx, self.yy)
-            self.clickedpoints.figure.canvas.draw()
+            self.clickedpoints.figure.canvas.draw_idle()
             self.update()
             if event.button == 2:
                 self.xx.append(event.xdata)
@@ -682,7 +682,7 @@ class SpaceTimeSlitBuilder:
                         vmin = vmin_
                 vmargin = (vmax - vmin) * 0.1
                 self.axes_accel.set_ylim(vmin - vmargin, vmax + vmargin)
-        self.slitline.figure.canvas.draw()
+        self.slitline.figure.canvas.draw_idle()
 
     def save(self, event):
         if len(self.spacetimeslitplt['xcen']) > 0:
@@ -716,7 +716,7 @@ class SpaceTimeSlitBuilder:
                 self.accellines.insert(indx, accelline)
             self.update()
             self.update_text()
-            self.clickedpoints.figure.canvas.draw()
+            self.clickedpoints.figure.canvas.draw_idle()
 
     def delete(self, event):
         if len(self.slitlines) > 0:
@@ -731,7 +731,7 @@ class SpaceTimeSlitBuilder:
             if self.axes_accel:
                 self.accellines[-1].remove()
                 self.accellines.pop()
-            self.clickedpoints.figure.canvas.draw()
+            self.clickedpoints.figure.canvas.draw_idle()
 
     def delete_byindex(self, index):
         self.slitlines[index].remove()
@@ -742,7 +742,7 @@ class SpaceTimeSlitBuilder:
         if self.axes_accel:
             del self.accellines[index]
         self.update_text()
-        self.clickedpoints.figure.canvas.draw()
+        self.clickedpoints.figure.canvas.draw_idle()
 
     def update_text(self):
         for tx in self.slitlines_text:
@@ -770,7 +770,7 @@ class SpaceTimeSlitBuilder:
                 tmp_selected_distance_list.append(event.xdata)
                 axes_sdas.axvspan(tmp_selected_distance_list[-1], tmp_selected_distance_list[-1] + 1, facecolor='r',
                                   edgecolor='r')
-                axes_sdas.figure.canvas.draw()
+                axes_sdas.figure.canvas.draw_idle()
             else:
                 print('Only left clicking is supported')
 
@@ -778,7 +778,7 @@ class SpaceTimeSlitBuilder:
             if len(tmp_selected_distance_list) > 1.e-9:
                 self.yy.append(tmp_selected_distance_list[-1])
                 self.clickedpoints.set_data(self.xx, self.yy)
-                self.clickedpoints.figure.canvas.draw()
+                self.clickedpoints.figure.canvas.draw_idle()
                 self.update()
 
         plt.connect('button_press_event', sdas_on_click)
@@ -849,7 +849,7 @@ class CutslitBuilder:
                     self.xx.pop()
                     self.yy.pop()
             self.clickedpoints.set_data(self.xx, self.yy)
-            self.clickedpoints.figure.canvas.draw()
+            self.clickedpoints.figure.canvas.draw_idle()
             self.update()
         else:
             if event.inaxes != self.axes:
@@ -886,9 +886,9 @@ class CutslitBuilder:
             self.slitline.set_data(ma.masked_array(cutslitplt['xcen'], mask), ma.masked_array(cutslitplt['ycen'], mask))
             self.slitline0.set_data(ma.masked_array(cutslitplt['xs0'], mask), ma.masked_array(cutslitplt['ys0'], mask))
             self.slitline1.set_data(ma.masked_array(cutslitplt['xs1'], mask), ma.masked_array(cutslitplt['ys1'], mask))
-        self.slitline.figure.canvas.draw()
-        self.slitline0.figure.canvas.draw()
-        self.slitline1.figure.canvas.draw()
+        self.slitline.figure.canvas.draw_idle()
+        self.slitline0.figure.canvas.draw_idle()
+        self.slitline1.figure.canvas.draw_idle()
 
 
 class Stackplot:
@@ -1603,7 +1603,7 @@ class Stackplot:
                     im1.set_data(smap.data)
                     titletext = self.get_plot_title(smap, title)
                     ax.set_title(titletext)
-                    fig_mapseq.canvas.draw()
+                    fig_mapseq.canvas.draw_idle()
                     return
 
                 ani = animation.FuncAnimation(fig_mapseq, update_frame, nframe, interval=50, blit=False)
@@ -1638,7 +1638,7 @@ class Stackplot:
                         tstr = smap.date.iso
                     ax.set_title('{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, tstr))
                     t_map = Time(tstr)
-                    fig_mapseq.canvas.draw()
+                    fig_mapseq.canvas.draw_idle()
                     fig_mapseq.savefig('{0}/{3}{1}-{2}.png'.format(out_dir, smap.meta['wavelnth'],
                                                                    t_map.iso.replace(' ', 'T').replace(':',
                                                                                                        '').replace('-',
@@ -1683,7 +1683,7 @@ class Stackplot:
                 im1.set_data(smap.data)
                 titletext = self.get_plot_title(smap, title)
                 ax.set_title(titletext)
-                fig_mapseq.canvas.draw()
+                fig_mapseq.canvas.draw_idle()
 
             self.sFrame.on_changed(sFrame_update)
 
@@ -1769,7 +1769,7 @@ class Stackplot:
             self.cutslitbd.yy = cutslit['y']
             if mask is None:
                 self.cutslitbd.clickedpoints.set_data(self.cutslitbd.xx, self.cutslitbd.yy)
-            self.cutslitbd.clickedpoints.figure.canvas.draw()
+            self.cutslitbd.clickedpoints.figure.canvas.draw_idle()
             self.cutslitbd.update(mask=mask)
             if color:
                 self.cutslitbd.slitline.set_color(color)
@@ -2005,7 +2005,7 @@ class Stackplot:
                     update_slit(frm)
                     ax.set_title(
                         '{} {} {} {}'.format(smap.observatory, smap.detector, smap.wavelength, smap.meta['t_obs']))
-                    fig_mapseq.canvas.draw()
+                    fig_mapseq.canvas.draw_idle()
                     return
 
                 ani = animation.FuncAnimation(fig_mapseq, update_frame2, nframe, interval=50, blit=False)
@@ -2051,7 +2051,7 @@ class Stackplot:
                     vspan.set_xy(vspan_xy)
                     update_slit(frm)
                     t_map = Time(tstr)
-                    fig_mapseq.canvas.draw()
+                    fig_mapseq.canvas.draw_idle()
                     try:
                         outname = '{0}/Stackplot-{3}{1}-{2}.png'.format(out_dir, smap.meta['wavelnth'],
                                                                         t_map.iso.replace(' ', 'T').replace(':',
@@ -2120,7 +2120,7 @@ class Stackplot:
                         vspan_xy[np.array([2, 3]), 0] = self.tplt[frm].plot_date
                     vspan.set_xy(vspan_xy)
                     update_slit(frm)
-                    fig_mapseq.canvas.draw()
+                    fig_mapseq.canvas.draw_idle()
                 else:
                     self.fig_mapseq.canvas.toolbar.set_message(
                         'Uncheck toolbar button {} first!'.format(tmode))
