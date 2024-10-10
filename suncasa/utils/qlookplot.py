@@ -2197,6 +2197,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
 
                 if nspws > 1:
                     imagefiles, fitsfiles = [], []
+
                     if restoringbeam == ['']:
                         if observatory == 'EOVSA':
                             restoringbms = mstools.get_bmsize(cfreqs, refbmsize=refbmsize, reffreq=reffreq, minbmsize=minbmsize)
@@ -2213,6 +2214,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                                   'and minimum beam size settings.')
                             restoringbms = mstools.get_bmsize(cfreqs, refbmsize=refbmsize, reffreq=reffreq,
                                                               minbmsize=minbmsize)
+                    print(f'restoringbms: {restoringbms}')
                     sto = stokes.replace(',', '')
                     print('Original phasecenter: ' + str(ra0) + str(dec0))
                     print('use phasecenter: ' + phasecenter)

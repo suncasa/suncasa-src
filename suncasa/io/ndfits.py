@@ -495,9 +495,15 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
 
             data = np.zeros((npol, nbd, ny, nx))
             cfreqs = []
+            cbmaj = []
+            cbmin = []
+            cbpa = []
             for sidx, fitsf in enumerate(fits_exist):
                 hdu = fits.open(fitsf)
                 cfreqs.append(hdu[-1].header['RESTFRQ'])
+                cbmaj.append(hdu[-1].header['BMAJ'])
+                cbmin.append(hdu[-1].header['BMIN'])
+                cbpa.append(hdu[-1].header['BPA'])
                 for pidx in range(npol):
                     if hdu[-1].data.ndim == 2:
                         data[pidx, idx_fits_exist[sidx], :, :] = hdu[-1].data
@@ -507,9 +513,15 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
                         data[pidx, idx_fits_exist[sidx], :, :] = hdu[-1].data[pidx, 0, :, :]
             cfreqs = np.array(cfreqs)
             cdelts = np.array(cdelts)
+            cbmaj = np.array(cbmaj)
+            cbmin = np.array(cbmin)
+            cbpa = np.array(cbpa)
             indfreq = np.argsort(cfreqs)
             cfreqs = cfreqs[indfreq]
             cdelts = cdelts[indfreq]
+            cbmaj = cbmaj[indfreq]
+            cbmin = cbmin[indfreq]
+            cbpa = cbpa[indfreq]
             for pidx in range(npol):
                 data[pidx, ...] = data[pidx, indfreq]
 
