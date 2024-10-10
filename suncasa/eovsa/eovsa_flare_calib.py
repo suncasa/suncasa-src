@@ -89,9 +89,11 @@ def import_calib_idb(trange, workdir=None, ncpu=1, timebin='0s', width=1):
     vis = calibeovsa(msfiles, caltype=['refpha', 'phacal'], interp='nearest', doflag=True, flagant='13~15',
                                 doimage=False, doconcat=True,
                                 concatvis=concatvis, keep_orig_ms=False)
-    
+    outputvis = concatvis[:-3] + 'XXYY.ms'
+    split(vis=concatvis, outputvis=outputvis, correlation='XX,YY', datacolumn='data',
+          antenna='0~12&&0~12')
                    
 
-    return concatvis
+    return outputvis
 
 
