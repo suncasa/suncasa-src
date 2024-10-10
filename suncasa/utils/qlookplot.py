@@ -304,33 +304,46 @@ def get_colorbar_params(fbounds, stepfactor=1):
 
 
 def download_jp2(tstart, tend, wavelengths, outdir):
+    import os
     from sunpy.net.helioviewer import HelioviewerClient
-    from astropy import time as time_module
+    from astropy.time import Time, TimeDelta
     from sunpy import map as smap
     hv = HelioviewerClient()
-
+    data_sources = hv.data_sources
+    
     for wave in wavelengths:
         if wave != 1600 and wave != 1700:
-            tdt = time_module.TimeDelta(12, format='sec')
-        else:
-            tdt = time_module.TimeDelta(24, format='sec')
-        if wave == 1600 or wave == 1700:
-            product = 'aia.lev1_uv_24s'
-        else:
+            tdt = TimeDelta(12, format='sec')
             product = 'aia.lev1_euv_12s'
+        else:
+            tdt = TimeDelta(24, format='sec')
+            product = 'aia.lev1_uv_24s'
+        
         st = tstart
         while st <= tend:
             st.format = 'iso'
-            filepath = hv.download_jp2(st.value, observatory='SDO', instrument='AIA', measurement=str(int(wave)))
-            print(filepath)
-            aiamap = smap.Map(filepath)
-            head = aiamap.meta
-            tobs = head['T_OBS']
-            date = tobs[:10]
-            time = ''.join(tobs[10:].split(':'))[:-1]
-            wavelength1 = head['WAVELNTH']
-            filename = product + '.' + date + time + '_Z.' + str(wavelength1) + ".image_lev_1.fits"
-            os.system("mv " + filepath + " " + outdir + filename)
+            found = False
+            for key in data_sources.keys():
+                if key[0] == 'SDO' and key[1] == 'AIA' and key[3] == str(int(wave)):
+                    found = True
+                    break
+            if found:
+                try:
+                    filepath = hv.download_jp2(st.value, observatory='SDO', instrument='AIA', measurement=str(int(wave)))
+                    print(filepath)
+                    aiamap = smap.Map(filepath)
+                    head = aiamap.meta
+                    tobs = head['T_OBS']
+                    date = tobs[:10]
+                    time = ''.join(tobs[10:].split(':'))[:-1]
+                    wavelength1 = head['WAVELNTH']
+                    filename = product + '.' + date + time + '_Z.' + str(wavelength1) + ".image_lev_1.jp2"
+                    os.system("mv " + filepath + " " + outdir + filename)
+                    # os.rename(filepath, os.path.join(outdir, filename))
+                except Exception as e:
+                    print(f"Failed to download for time {st.value} and wavelength {wave}: {e}")
+            else:
+                print(f"JP2 data {wave} is not found at {st.value}.")
             st += tdt
     return
 
@@ -364,88 +377,94 @@ def downloadAIAdata(trange, wavelength=None, cadence=None, outdir='./'):
 
     nwave = len(wavelength)
     print('{} passbands to download'.format(nwave))
-    try:
-        from pathlib import Path
-        import drms
-        for widx, wave in enumerate(wavelength):
-            client = drms.Client(email=os.environ.get("JSOC_EMAIL"))
-            keys_jsoc = ["EXPTIME", "QUALITY", "T_OBS", "T_REC", "WAVELNTH"]
-            if wave==1600 or wave==1700:
-                updated_qstr = "aia.lev1_uv_24s["+tst.isot+"Z-"+ted.isot+"Z][?WAVELNTH="+str(int(wave))+"?]{image}"# and EXPTIME<2
-            else:
-                updated_qstr = "aia.lev1_euv_12s["+tst.isot+"Z-"+ted.isot+"Z][?WAVELNTH="+str(int(wave))+"?]{image}"# and EXPTIME<2
-            records_jsoc, filenames_jsoc = client.query(updated_qstr, key=keys_jsoc , seg="image")
-            print(f"JSOC: {len(records_jsoc)} records retrieved. \n")
-            export_jsoc = client.export(updated_qstr, method="url", protocol="fits", email='suncasa-group@njit.edu')
-            jsoc_files = export_jsoc.download(Path(outdir).expanduser().as_posix())
-            print('JSOC: ', jsoc_files[0].split('.fits')[0])
-            res = jsoc_files
-    except:
-        print("No JSOC data")
-        attempts = 0
-        while attempts < 5:
-            try:
-                from sunpy.net import Fido
-                from sunpy.net import attrs as a
-                for widx, wave in enumerate(wavelength):
-                    wave1 = wave - 3.0
-                    wave2 = wave + 3.0
 
-                    if cadence is None:
-                        qr = Fido.search(a.Time(tst.iso, ted.iso),
-                                         a.Instrument.aia,
-                                         a.Wavelength(wave1 * u.AA, wave2 * u.AA))
-                    else:
-                        qr = Fido.search(a.Time(tst.iso, ted.iso),
-                                         a.Instrument.aia,
-                                         a.Wavelength(wave1 * u.AA, wave2 * u.AA),
-                                         a.Sample(cadence))
-                    res = Fido.fetch(qr)
-                    for ll in res:
-                        vsonamestrs = ll.split('_')
-                        if vsonamestrs[2].startswith('1600') or vsonamestrs[2].startswith('1700'):
-                            product = 'aia.lev1_uv_24s'
-                        else:
-                            product = 'aia.lev1_euv_12s'
-                        jsocnamestr = product + '.' + '{}-{}-{}{}{}Z.'.format(vsonamestrs[3], vsonamestrs[4], vsonamestrs[5],
-                                                                              vsonamestrs[6],
-                                                                              vsonamestrs[7]).upper() + vsonamestrs[2][
-                                                                                                        :-1] + '.image_lev1.fits'
-                        print(ll, jsocnamestr)
-                        os.system('mv {} {}/{}'.format(ll, outdir, jsocnamestr))
-                break
-            except:
+    try:
+        download_jp2(tst, ted, wavelength, outdir)
+        print(f"JP2: AIA data downloaded")
+    except:
+        try:
+            print(f"JP2 downloading failed")
+            from pathlib import Path
+            import drms
+            for widx, wave in enumerate(wavelength):
+                client = drms.Client(email=os.environ.get("JSOC_EMAIL"))
+                keys_jsoc = ["EXPTIME", "QUALITY", "T_OBS", "T_REC", "WAVELNTH"]
+                if wave==1600 or wave==1700:
+                    updated_qstr = "aia.lev1_uv_24s["+tst.isot+"Z-"+ted.isot+"Z][?WAVELNTH="+str(int(wave))+"?]{image}"# and EXPTIME<2
+                else:
+                    updated_qstr = "aia.lev1_euv_12s["+tst.isot+"Z-"+ted.isot+"Z][?WAVELNTH="+str(int(wave))+"?]{image}"# and EXPTIME<2
+                records_jsoc, filenames_jsoc = client.query(updated_qstr, key=keys_jsoc , seg="image")
+                print(f"JSOC: {len(records_jsoc)} records retrieved. \n")
+                export_jsoc = client.export(updated_qstr, method="url", protocol="fits", email='suncasa-group@njit.edu')
+                jsoc_files = export_jsoc.download(Path(outdir).expanduser().as_posix())
+                print('JSOC: ', jsoc_files[0].split('.fits')[0])
+                res = jsoc_files
+            print(f"JSOC: AIA data downloaded")
+        except:
+            print(f"JSOC downloading failed")
+            attempts = 0
+            while attempts < 5:
                 try:
-                    from sunpy.net import vso
-                    client = vso.VSOClient()
+                    from sunpy.net import Fido
+                    from sunpy.net import attrs as a
                     for widx, wave in enumerate(wavelength):
                         wave1 = wave - 3.0
                         wave2 = wave + 3.0
-                        print('{}/{} Downloading  AIA {:.0f} data ...'.format(widx + 1, nwave, wave))
-                        qr = client.query(vso.attrs.Time(tst.iso, ted.iso), vso.attrs.Instrument('aia'),
-                                          vso.attrs.Wave(wave1 * u.AA, wave2 * u.AA))
-                        res = client.get(qr, path='{file}').wait()
 
+                        if cadence is None:
+                            qr = Fido.search(a.Time(tst.iso, ted.iso),
+                                             a.Instrument.aia,
+                                             a.Wavelength(wave1 * u.AA, wave2 * u.AA))
+                        else:
+                            qr = Fido.search(a.Time(tst.iso, ted.iso),
+                                             a.Instrument.aia,
+                                             a.Wavelength(wave1 * u.AA, wave2 * u.AA),
+                                             a.Sample(cadence))
+                        res = Fido.fetch(qr)
                         for ll in res:
                             vsonamestrs = ll.split('_')
                             if vsonamestrs[2].startswith('1600') or vsonamestrs[2].startswith('1700'):
                                 product = 'aia.lev1_uv_24s'
                             else:
                                 product = 'aia.lev1_euv_12s'
-                            jsocnamestr = product + '.' + '{}-{}-{}{}{}Z.'.format(vsonamestrs[3], vsonamestrs[4],
-                                                                                  vsonamestrs[5],
+                            jsocnamestr = product + '.' + '{}-{}-{}{}{}Z.'.format(vsonamestrs[3], vsonamestrs[4], vsonamestrs[5],
                                                                                   vsonamestrs[6],
                                                                                   vsonamestrs[7]).upper() + vsonamestrs[2][
                                                                                                             :-1] + '.image_lev1.fits'
                             print(ll, jsocnamestr)
                             os.system('mv {} {}/{}'.format(ll, outdir, jsocnamestr))
+                    break
                 except:
-                    download_jp2(tst, ted, wavelength, outdir)
-            finally:
-                attempts += 1
+                    try:
+                        from sunpy.net import vso
+                        client = vso.VSOClient()
+                        for widx, wave in enumerate(wavelength):
+                            wave1 = wave - 3.0
+                            wave2 = wave + 3.0
+                            print('{}/{} Downloading  AIA {:.0f} data ...'.format(widx + 1, nwave, wave))
+                            qr = client.query(vso.attrs.Time(tst.iso, ted.iso), vso.attrs.Instrument('aia'),
+                                              vso.attrs.Wave(wave1 * u.AA, wave2 * u.AA))
+                            res = client.get(qr, path='{file}').wait()
 
-    if len(res) == 0:
-        download_jp2(tst, ted, wavelength, outdir)
+                            for ll in res:
+                                vsonamestrs = ll.split('_')
+                                if vsonamestrs[2].startswith('1600') or vsonamestrs[2].startswith('1700'):
+                                    product = 'aia.lev1_uv_24s'
+                                else:
+                                    product = 'aia.lev1_euv_12s'
+                                jsocnamestr = product + '.' + '{}-{}-{}{}{}Z.'.format(vsonamestrs[3], vsonamestrs[4],
+                                                                                      vsonamestrs[5],
+                                                                                      vsonamestrs[6],
+                                                                                      vsonamestrs[7]).upper() + vsonamestrs[2][
+                                                                                                                :-1] + '.image_lev1.fits'
+                                print(ll, jsocnamestr)
+                                os.system('mv {} {}/{}'.format(ll, outdir, jsocnamestr))
+                    except:
+                        download_jp2(tst, ted, wavelength, outdir)
+                finally:
+                    attempts += 1
+    # if len(res) == 0:
+    #     download_jp2(tst, ted, wavelength, outdir)
     if os.path.exists('/tmp/suds/'):
         os.system('rm -rf /tmp/suds/')
 
@@ -1266,7 +1285,7 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
             # pdb.set_trace()
             if np.count_nonzero(aiafiles) > 0:
                 try:
-                    #     print(aiafiles)
+                    # print(aiafiles)
                     aiafits = aiafiles[i]
                     aiamap = smap.Map(aiafits)
                     aiamap = DButil.normalize_aiamap(aiamap)

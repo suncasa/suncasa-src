@@ -1173,7 +1173,7 @@ def readsdofileX(datadir=None, filelist=None, wavelength=None, trange=None, isex
                 for i in range(delta.days + 1):
                     ymd = d1 + td(days=i)
                     sdofitspathtmp = glob.glob(
-                        datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd.year, ymd.month, ymd.day,
+                        datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.*'.format(ymd.year, ymd.month, ymd.day,
                                                                                     wavelength))
                     if len(sdofitspathtmp) > 0:
                         sdofitspath = sdofitspath + sdofitspathtmp
@@ -1228,10 +1228,10 @@ def readsdofileX(datadir=None, filelist=None, wavelength=None, trange=None, isex
             sdofitspath = filelist
         else:
             sdofitspath = glob.glob(
-                datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
+                datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.*'.format(ymd[0], ymd[1], ymd[2], wavelength))
         if len(sdofitspath) == 0:
             sdofitspath = glob.glob(
-                datadir + '/hmi*{0}*{1}*{2}*.fits'.format(ymd[0], ymd[1], ymd[2]))
+                datadir + '/hmi*{0}*{1}*{2}*.*'.format(ymd[0], ymd[1], ymd[2]))
             if len(sdofitspath) == 0:
                 return []  # raise ValueError('No SDO file found under {}.'.format(datadir))
         sdofits = [os.path.basename(ll) for ll in sdofitspath]
