@@ -115,7 +115,8 @@ def read_imres(imresfile):
     for k, v in iterop_:
         imres[k] = list(np.array(v))
     Spw = sorted(list(set(imres['Spw'])))
-    Spw = [str(int(sp)) for sp in Spw]
+    # Spw = [str(int(sp)) for sp in Spw]
+    Spw = [str(int(sp)) if '~' not in sp else sp for sp in Spw]
     nspw = len(Spw)
     imres['Freq'] = [list(ll) for ll in imres['Freq']]
     Freq = sorted(uniq(imres['Freq']))
@@ -304,7 +305,10 @@ def get_colorbar_params(fbounds, stepfactor=1):
 
 
 def download_jp2(tstart, tend, wavelengths, outdir):
-    from sunpy.net.helioviewer import HelioviewerClient
+    try:
+        from hvpy import HelioviewerClient
+    except:
+        from sunpy.net.helioviewer import HelioviewerClient
     from astropy import time as time_module
     from sunpy import map as smap
     hv = HelioviewerClient()
