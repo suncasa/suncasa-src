@@ -90,8 +90,7 @@ def import_calib_idb(trange, workdir=None, ncpu=1, timebin='0s', width=1):
                                 doimage=False, doconcat=True,
                                 concatvis=concatvis, keep_orig_ms=False)
     outputvis = concatvis[:-3] + 'XXYY.ms'
-    split(vis=concatvis, outputvis=outputvis, correlation='XX,YY', datacolumn='data',
-          antenna='0~12&&0~12')
+    split(vis=concatvis, outputvis=outputvis, correlation='XX,YY', datacolumn='data')
                    
 
     return outputvis
