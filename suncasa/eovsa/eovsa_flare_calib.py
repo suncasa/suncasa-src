@@ -14,7 +14,7 @@ from suncasa.utils import mstools as mst
 
 
 
-def import_calib_idb(trange, workdir=None, ncpu=1, timebin='0s', width=1):
+def import_calib_idb(trange, workdir=None, ncpu=1, timebin='0s', width=1, udb_corr=True):
     """
     Script to import and calibrate IDB data based on an input time range or list of IDB files.
 
@@ -80,8 +80,15 @@ def import_calib_idb(trange, workdir=None, ncpu=1, timebin='0s', width=1):
 
 
         filelist = info['FILE'][sidx]
-        # filelist = filelist[np.array([0, 2, 3, 4, 5, 6, 7, 8])]
-        # filelist = filelist[np.array([0, 2])]
+        print('The timerange corresponds to these files (will take about', len(filelist) * 4, 'minutes to process)')
+        for file in filelist:
+            print(file)
+
+        ans = input('Do you want to continue? (say no if you want to adjust timerange) [y/n]?').strip().lower()
+        if ans == 'n':
+            print('Please adjust the timerange and try again.')
+            return None
+
         inpath = idbdir + '{}/'.format(trange[0].datetime.strftime("%Y%m%d"))
         idbfiles = [inpath + ll for ll in filelist]
     except:
@@ -96,7 +103,7 @@ def import_calib_idb(trange, workdir=None, ncpu=1, timebin='0s', width=1):
     msfiles = importeovsa(idbfiles=idbfiles, ncpu=ncpu, timebin=timebin, width=width,
                                        visprefix=outpath,
                                        nocreatms=False, doconcat=False,
-                                       modelms="", doscaling=False, keep_nsclms=False, udb_corr=True,
+                                       modelms="", doscaling=False, keep_nsclms=False, udb_corr=udb_corr,
                                        use_exist_udbcorr=True)
     # msfiles = [outpath + ll + '.ms' for ll in filelist]
     if len(msfiles)==0:
