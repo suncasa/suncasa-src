@@ -115,7 +115,8 @@ def read_imres(imresfile):
     for k, v in iterop_:
         imres[k] = list(np.array(v))
     Spw = sorted(list(set(imres['Spw'])))
-    Spw = [str(int(sp)) for sp in Spw]
+    # Spw = [str(int(sp)) for sp in Spw]
+    Spw = [str(int(sp)) if '~' not in sp else sp for sp in Spw]
     nspw = len(Spw)
     imres['Freq'] = [list(ll) for ll in imres['Freq']]
     Freq = sorted(uniq(imres['Freq']))
@@ -305,12 +306,15 @@ def get_colorbar_params(fbounds, stepfactor=1):
 
 def download_jp2(tstart, tend, wavelengths, outdir):
     import os
-    from sunpy.net.helioviewer import HelioviewerClient
+    try:
+        from hvpy import HelioviewerClient
+    except:
+        from sunpy.net.helioviewer import HelioviewerClient
     from astropy.time import Time, TimeDelta
     from sunpy import map as smap
     hv = HelioviewerClient()
     data_sources = hv.data_sources
-    
+
     for wave in wavelengths:
         if wave != 1600 and wave != 1700:
             tdt = TimeDelta(12, format='sec')
@@ -318,7 +322,7 @@ def download_jp2(tstart, tend, wavelengths, outdir):
         else:
             tdt = TimeDelta(24, format='sec')
             product = 'aia.lev1_uv_24s'
-        
+
         st = tstart
         while st <= tend:
             st.format = 'iso'
@@ -2216,6 +2220,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
 
                 if nspws > 1:
                     imagefiles, fitsfiles = [], []
+
                     if restoringbeam == ['']:
                         if observatory == 'EOVSA':
                             restoringbms = mstools.get_bmsize(cfreqs, refbmsize=refbmsize, reffreq=reffreq, minbmsize=minbmsize)
@@ -2232,6 +2237,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                                   'and minimum beam size settings.')
                             restoringbms = mstools.get_bmsize(cfreqs, refbmsize=refbmsize, reffreq=reffreq,
                                                               minbmsize=minbmsize)
+                    print(f'restoringbms: {restoringbms}')
                     sto = stokes.replace(',', '')
                     print('Original phasecenter: ' + str(ra0) + str(dec0))
                     print('use phasecenter: ' + phasecenter)

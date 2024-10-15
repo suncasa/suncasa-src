@@ -40,7 +40,10 @@ else:
     pass
 
 import sunpy.map
-from sunpy.physics.solar_rotation import mapsequence_solar_derotate
+try:
+    from sunpy.physics.solar_rotation import mapsequence_solar_derotate
+except:
+    pass
 from sunpy.map.mapsequence import MapSequence
 
 ## todo maybe add this to sunkit-image
@@ -1214,7 +1217,12 @@ class Stackplot:
                     try:
                         submaptmp = DButil.normalize_aiamap(submaptmp)
                     except:
-                        pass
+                        data = submaptmp.data.copy().astype(float)
+                        idxpix = ~np.isnan(data)
+                        data[idxpix] = data[idxpix] / submaptmp.exposure_time.value
+                        data[data < 0] = 0
+                        submaptmp.meta['exptime'] = 1.0
+                        submaptmp = sunpy.map.Map(data, submaptmp.meta)
             maplist.append(submaptmp)
         if derotate:
             mapseq = mapsequence_solar_derotate(sunpy.map.Map(maplist, sequence=True))
@@ -1396,7 +1404,7 @@ class Stackplot:
         return mapseq_diff
 
     def mapseq_mkdiff(self, mode='rdiff', dt=36., medfilt=None, gaussfilt=None, bfilter=False, lowcut=1 / 10 / 60.,
-                      highcut=1 / 1 / 60., window=[None, None], outfile=None, tosave=False, dtype=None, hdf5=False):
+                      highcut=1 / 1 / 60., window=[None, None], outfile=None, tosave=False, dtype=None, hdf5=False, normalize=True):
         '''
 
         :param mode: accept modes: rdiff, rratio, bdiff, bratio, dtrend, dtrend_diff, dtrend_ratio
@@ -1432,10 +1440,9 @@ class Stackplot:
                 maplist.append(deepcopy(ll))
                 tjd_ = tplt[idx]
                 sidx = np.argmin(np.abs(tplt - (tjd_ - dt / 3600. / 24.)))
-                # if idx - dt_frm < 0:
-                #     sidx = 0
-                # else:
-                #     sidx = idx - dt_frm
+                if sidx==idx and idx>0:
+                    sidx=idx-1
+                print(f'time difference between {idx} and {sidx} is {(tplt[idx] - tplt[sidx])*24*3600}')
                 if mode == 'rdiff':
                     mapdata = datacube[:, :, idx] - datacube[:, :, sidx]
                     mapdata[np.isnan(mapdata)] = 0.0
@@ -2089,7 +2096,11 @@ class Stackplot:
                                 facecolor=axcolor, frame_on=False)
             self.sframe2 = Slider(axframe2, '', frm_range[0], frm_range[-1] - 1, valinit=frm_range[0],
                                   valfmt='frm %0.0f',
-                                  alpha=0.0)
+                                  alpha=0.0,track_color = 'none')
+            # try:'')
+            # self.sframe2.poly.set(alpha=0.0)
+            # except:
+            #     pass
             nfrms = len(self.tplt)
 
             def update_slit(frm):

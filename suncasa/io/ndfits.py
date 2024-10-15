@@ -516,14 +516,12 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
             cbmaj = np.array(cbmaj)
             cbmin = np.array(cbmin)
             cbpa = np.array(cbpa)
-
             indfreq = np.argsort(cfreqs)
             cfreqs = cfreqs[indfreq]
             cdelts = cdelts[indfreq]
             cbmaj = cbmaj[indfreq]
             cbmin = cbmin[indfreq]
             cbpa = cbpa[indfreq]
-
             for pidx in range(npol):
                 data[pidx, ...] = data[pidx, indfreq]
 
