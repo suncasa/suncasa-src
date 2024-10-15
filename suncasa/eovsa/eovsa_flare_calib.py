@@ -30,6 +30,8 @@ def import_calib_idb(trange, workdir=None, ncpu=1, timebin='0s', width=1, udb_co
     :type timebin: str, optional
     :param width: Width of the frequency channels. Defaults to 1.
     :type width: int, optional
+    :param udb_corr: Apply correction to input UDB files before import to MS. Defaults to True.
+    :type udb_corr: bool, optional
     :returns: Concatenated CASA measurement set with initial gain, amplitude, and phase calibrations applied.
     :rtype: str
     """
