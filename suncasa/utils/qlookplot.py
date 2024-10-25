@@ -856,6 +856,47 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
         return imres, outfits_list
 
 
+def radio_image_clevels(imres, clevels=[0.2, 0.4, 0.6, 0.8], snr=2., timerange_bkg=None, overbright=1e12):
+    '''
+    Function to calculate contour levels for plotting from a timeserioes of the input radio images. 
+    The contour levels are fixed to those relative to the flare peak.
+    :param imres: a dictionary contains the information of the FITS files (produced by qlookplot)
+    :param clevels: relative contour levels with regard to the flare peak
+    :snr: minimum enhancement during the peak time against the background level. Default 3
+    :timerange_bkg: timerange of the background. Example: ['2024-01-03T17:46', '2024-01-03T17:47']. 
+                    Default to None. If None, use the median of all FITS files
+    :overbright: Brightness temperature threshold in K, above which the peak values are deemed corrupted and not considered
+                    Default to 1e12 K.
+    '''
+    max_fs = []
+    for i, f in enumerate(imres['images']):
+        meta, rdata = ndfits.read(f)
+        max_f = np.nanmax(rdata, axis=(1, 2))
+        max_fs.append(max_f)
+        if i == 0:
+            peaks = np.zeros_like(max_f)
+            idx0, = np.where((max_f < overbright))
+            peaks[idx0] = max_f[idx0]
+        idx, = np.where((max_f > peaks) & (max_f < overbright))
+        if len(idx) > 0:
+            peaks[idx] = max_f[idx]
+
+    if timerange_bkg is None:
+        peaks_bkg = max_fs[0]
+    else:
+        idx0 = max(np.argmin(np.abs(Time(imres['btimes']).mjd-Time(timerange_bkg[0]).mjd)),0)
+        idx1 = min(np.argmin(np.abs(Time(imres['btimes']).mjd-Time(timerange_bkg[1]).mjd)), len(imres['btimes'])-1)
+        peaks_bkg = np.nanmedian(max_fs[idx0:idx1], axis=0)
+
+    clevelsfix = []
+    for p, p_bkg in zip(peaks, peaks_bkg):
+        if p / p_bkg > snr:
+            clevelsfix.append(np.array(clevels)*p)
+        else:
+            clevelsfix.append(np.array([2.])*p)
+
+    return clevelsfix
+
 def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None,
                     verbose=True, stokes='I,V', fov=None,
                     imax=None, imin=None, icmap=None, inorm=None,
@@ -863,7 +904,8 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                     nclevels=None, dmax=None, dmin=None, dcmap=None, dnorm=None, sclfactor=1.0,
                     clevels=None, clevelsfix=None, aiafits='', aiadir=None, aiawave=171, plotaia=True,
                     freqbounds=None, moviename='',
-                    alpha_cont=1.0, custom_mapcubes=[], opencontour=False, movieformat='html', ds_normalised=False):
+                    alpha_cont=1.0, custom_mapcubes=[], opencontour=False, movieformat='html', ds_normalised=False,
+                    minsnr=5, overwrite=True):
     '''
     Required inputs:
     Important optional inputs:
@@ -1178,7 +1220,8 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
             # from suncasa.utils import stackplotX as stp
             # st = stp.Stackplot(aiafits)
             # tjd_aia = st.tplt.jd
-            pass
+            aiafiles = aiafits
+
     for i, plttime in enumerate(tqdm(plttimes)):
         plt.ioff()
         # plt.clf()
@@ -1187,7 +1230,7 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
         plttime = btimes[i]
         figname = observatory + '_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:19] + '.png'
         fignameful = os.path.join(figdir_, figname)
-        if i > 0 and os.path.exists(fignameful):
+        if i > 0 and os.path.exists(fignameful) and not overwrite:
             continue
         # tofd = plttime.mjd - np.fix(plttime.mjd)
 
@@ -1398,7 +1441,20 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                         ax = axs[pidx + s * 2]
                     else:
                         ax = axs[s]
-                rmap_ = pmX.Sunmap(rmap)
+
+                # Check the quality of the data
+                #(ny, nx) = data.shape
+                max_pix = np.nanmax(rmap.data)
+                min_pix = np.nanmin(rmap.data)
+                #data[int(ny * 0.25):int(ny * 0.75), int(nx * 0.5):int(nx * 0.75)] = np.nan
+                rms = np.nanstd(rmap.data)
+                dyn_range=max_pix/rms
+
+                if dyn_range > minsnr and max_pix>2*np.abs(min_pix):
+                    rmap_ = pmX.Sunmap(rmap)
+                else:
+                    continue
+
                 if plotaia:
                     if aiamap:
                         if anorm is None:
@@ -2447,12 +2503,16 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                             clvls[pol] = np.array(clevels)
 
             if 'aiamap' in vars():
-                if anorm is None:
-                    if amax is None:
-                        amax = np.nanmax(aiamap.data)
-                    if amin is None:
-                        amin = 1.0
-                    anorm = colors.LogNorm(vmin=amin, vmax=amax)
+                if amax is None:
+                    amax = np.nanmax(aiamap.data)
+                if amin is None:
+                    amin = 1.0
+                if anorm.lower() == 'linear':
+                    anorm_ = colors.LogNorm(vmin=amin, vmax=amax)
+                elif anorm.lower() == 'log':
+                    anorm_ = colors.LogNorm(vmin=amin, vmax=amax)
+                else:
+                    print('anorm: Only "linear" and "log" are accepted for scaling AIA. Use "log" scaling.')
 
                 title0 = 'AIA {0:.0f} Å'.format(aiamap.wavelength.value)
                 aiamap_ = pmX.Sunmap(aiamap)
@@ -2460,7 +2520,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                 axs = [ax4, ax6]
                 aiamap_.draw_limb(axes=axs)
                 aiamap_.draw_grid(axes=axs)
-                aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=anorm, interpolation='nearest')
+                aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=anorm_, interpolation='nearest')
                 for axidx, ax in enumerate(axs):
                     ax.set_title(title0, fontsize=9)
                     rect = mpl.patches.Rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value, edgecolor='w',
