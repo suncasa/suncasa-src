@@ -1811,15 +1811,25 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
     workdir = './'
     if specfile:
         try:
-            specdata = ds.Dspec(specfile)
+            spec_inst = ds.Dspec()
+            try:
+                spec_inst.read(specfile)
+            except:
+                sources = ["eovsa", "suncasa", "lwa", "general"]
+                for source in sources:
+                    try:
+                        spec_inst.read(specfile, source=source)
+                        break
+                    except:
+                        pass
         except:
             print('Provided dynamic spectrum file not numpy npz. Generating one from the visibility data')
             specfile = os.path.join(workdir, os.path.basename(vis) + '.dspec.npz')
             if c_external:
                 dspec_external(vis, workdir=workdir, specfile=specfile)
-                specdata = ds.Dspec(specfile)
+                spec_inst = ds.Dspec(specfile)
             else:
-                specdata = ds.Dspec(vis, specfile=specfile, domedian=True, verbose=True, usetbtool=True)
+                spec_inst = ds.Dspec(vis, specfile=specfile, domedian=True, verbose=True, usetbtool=True)
 
     else:
         print('Dynamic spectrum file not provided; Generating one from the visibility data')
@@ -1827,9 +1837,9 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
         specfile = os.path.join(workdir, os.path.basename(vis) + '.dspec.npz')
         if c_external:
             dspec_external(vis, workdir=workdir, specfile=specfile)
-            specdata = ds.Dspec(specfile)
+            spec_inst = ds.Dspec(specfile)
         else:
-            specdata = ds.Dspec(vis, specfile=specfile, domedian=True, verbose=True, usetbtool=True)
+            spec_inst = ds.Dspec(vis, specfile=specfile, domedian=True, verbose=True, usetbtool=True)
 
     try:
         tb.open(vis + '/POINTING')
@@ -2025,7 +2035,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                                                          show_warnings=show_warnings)
             if not os.path.exists(qlookfigdir):
                 os.makedirs(qlookfigdir)
-            outmovie = plt_qlook_image(imres, timerange=timerange, spwplt=spwplt, figdir=qlookfigdir, specdata=specdata,
+            outmovie = plt_qlook_image(imres, timerange=timerange, spwplt=spwplt, figdir=qlookfigdir, specdata=spec_inst,
                                        verbose=verbose,
                                        stokes=stokes, fov=xyrange,
                                        amax=amax, amin=amin, acmap=acmap, anorm=anorm,
@@ -2037,10 +2047,10 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                                        opencontour=opencontour, movieformat=movieformat, ds_normalised=ds_normalised)
 
     else:
-        if np.iscomplexobj(specdata.data):
-            spec = np.abs(specdata.data)
+        if np.iscomplexobj(spec_inst.data):
+            spec = np.abs(spec_inst.data)
         else:
-            spec = specdata.data
+            spec = spec_inst.data
         spec = spec * sclfactor
         spec = checkspecnan(spec)
         if spec.ndim == 2:
@@ -2054,9 +2064,9 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
         else:
             (npol_fits, nbl, nfreq, ntim) = spec.shape
         fidx = range(nfreq)
-        freq = specdata.freq_axis
+        freq = spec_inst.freq_axis
         freqghz = freq / 1e9
-        spec_tim = specdata.time_axis
+        spec_tim = spec_inst.time_axis
         spec_tim_plt = spec_tim.plot_date
         plt.ion()
         if not quiet:
@@ -2530,7 +2540,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                 axs = [ax5, ax7]
                 aiamap_.draw_limb(axes=axs)
                 aiamap_.draw_grid(axes=axs)
-                aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=anorm, interpolation='nearest')
+                aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=anorm_, interpolation='nearest')
 
                 axs = [[ax4, ax5], [ax6, ax7]]
                 draw_limb_grid_flag = True

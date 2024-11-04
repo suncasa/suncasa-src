@@ -176,6 +176,10 @@ def trange2timerange(trange):
     """
 
     sttime, edtime = trange
+    if isinstance(sttime, str):
+        sttime = pd.to_datetime(sttime)
+    if isinstance(edtime, str):
+        edtime = pd.to_datetime(edtime)
     timerange = f"{sttime.strftime('%Y/%m/%d/%H:%M:%S')}~{edtime.strftime('%Y/%m/%d/%H:%M:%S')}"
     return timerange
 
@@ -909,6 +913,8 @@ def shift_corr(mmsfiles, trange_series, spws, imagemodel, imagemodel_fits, refti
     # Load the model image maps and calculate the reference time
     imagemodel_map = smap.Map(imagemodel_fits)
 
+    if isinstance(reftime_master, str):
+        reftime_master = Time(reftime_master)
     # Calculate mid-points of time ranges for rotation
     trange_series_mid = [(start + (end - start) / 2) for start, end in trange_series]
     mmsfiles_rot = []
@@ -1821,6 +1827,13 @@ def process_time_block(tidx_ted_tbg, msfile_in, msname, subdir, total_blocks, td
     tidx, (tbg, ted) = tidx_ted_tbg
     timerange = trange2timerange([tbg, ted])
 
+    if isinstance(reftime_master, str):
+        reftime_master = Time(reftime_master)
+
+    if isinstance(tdt, int):
+        ## assume tdt is in seconds
+        tdt = timedelta(seconds=tdt)
+
     if isinstance(msfile_in, list):
         msfile = msfile_in[tidx]
         log_print('INFO',
@@ -2007,6 +2020,11 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     diskxmlfile = msfile + '.SOLDISK.xml'
     disk_params = {'dsize': dsize, 'fdens': fdens, 'freq': freq, 'diskxmlfile': diskxmlfile}
 
+    disk_params_converted = {
+        key: value.tolist() if isinstance(value, np.ndarray) else value
+        for key, value in disk_params.items()
+    }
+
     combined_vis = os.path.join(subdir, f'{msname}_shift_corrected.b{tdtmststr}.s{tdtstr}.ms')
     if outputvis == '':
         outputvis = os.path.join(workdir, f'{msname}.b{tdtmststr}.s{tdtstr}.shift_corr.ms')
@@ -2088,28 +2106,96 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 log_print('INFO', f"Running on pipeline server. Using 1 CPU for splitting ...")
                 mmsfiles = split_mms(msfile, tr_series_master, workdir=subdir, overwrite=overwrite, verbose=True)
                 msfile2proc = mmsfiles
+                import subprocess
+                import json
+
+                # Directory for the temporary scripts and results
+                script_dir = os.path.join(subdir, "temp_scripts")
+                result_dir = os.path.join(subdir, "temp_results")
+                os.makedirs(script_dir, exist_ok=True)
+                os.makedirs(result_dir, exist_ok=True)
+
+                # Generate and run a script for each time block
+                processes = []
+                for tidx, (tbg, ted) in enumerate(tr_series_master):
+                    script_path = os.path.join(script_dir, f"process_block_{tidx}.py")
+                    result_path = os.path.join(result_dir, f"result_{tidx}.json")
+
+                    # Write the script with arguments for this time block
+                    with open(script_path, 'w') as f:
+                        f.write(f"""
+import json
+from suncasa.eovsa import eovsa_synoptic_imaging_pipeline as esip
+
+# Function arguments
+args = {{
+    "tidx_ted_tbg": ({tidx}, ("{tbg.strftime('%Y-%m-%d %H:%M:%S')}", "{ted.strftime('%Y-%m-%d %H:%M:%S')}")),
+    "msfile_in": {repr(msfile2proc)},
+    "msname": {repr(msname)},
+    "subdir": {repr(subdir)},
+    "total_blocks": {total_blocks},
+    "tdt": {repr(tdt.seconds)},
+    "tdtstr": {repr(tdtstr)},
+    "spws": {spws},
+    "niter_init": {niter_init},
+    "reftime_master": {repr(reftime_master.iso)},
+    "do_diskslfcal": {do_diskslfcal},
+    "disk_params": {repr(disk_params_converted)},
+    "pols": {repr(pols)},
+    "do_sbdcal": {do_sbdcal},
+    "overwrite": {overwrite}
+}}
+
+# Run the process_time_block function and save the result
+result = esip.process_time_block(**args)
+
+# Save result to a JSON file
+with open({repr(result_path)}, 'w') as result_file:
+    json.dump(result, result_file)
+""")
+
+                    # Run the script in a new process
+                    p = subprocess.Popen(
+                        ["/bin/bash", "-c",
+                            f"source /home/sjyu/.setenv_pyenv38SY && /home/user/.pyenv/shims/python {script_path}"
+                        ]
+                    )
+                    processes.append(p)
+
+                # Wait for all processes to complete
+                for p in processes:
+                    p.wait()
+
+                # Collect results
+                results = []
+                for tidx in range(len(tr_series_master)):
+                    result_path = os.path.join(result_dir, f"result_{tidx}.json")
+                    if os.path.exists(result_path):
+                        with open(result_path, 'r') as result_file:
+                            result = json.load(result_file)
+                            results.append(result)
+                    else:
+                        log_print('ERROR', f"No result found for block {tidx}")
+
             else:
                 msfile2proc = msfile
-            worker = partial(process_time_block,
-                             msfile_in=msfile2proc,
-                             msname=msname,
-                             subdir=subdir,
-                             total_blocks=total_blocks,
-                             tdt=tdt,
-                             tdtstr=tdtstr,
-                             spws=spws,
-                             niter_init=niter_init,
-                             reftime_master=reftime_master,
-                             do_diskslfcal=do_diskslfcal,
-                             disk_params=disk_params, pols=pols,
-                             do_sbdcal=do_sbdcal, overwrite=overwrite)
+                worker = partial(process_time_block,
+                                 msfile_in=msfile2proc,
+                                 msname=msname,
+                                 subdir=subdir,
+                                 total_blocks=total_blocks,
+                                 tdt=tdt,
+                                 tdtstr=tdtstr,
+                                 spws=spws,
+                                 niter_init=niter_init,
+                                 reftime_master=reftime_master,
+                                 do_diskslfcal=do_diskslfcal,
+                                 disk_params=disk_params, pols=pols,
+                                 do_sbdcal=do_sbdcal, overwrite=overwrite)
 
-            with Pool(ncpu) as pool:
-                results = pool.map(worker, enumerate(tr_series_master))
-            # with Pool(ncpu) as pool:
-            #     # Using map_async instead of map
-            #     result_object = pool.map_async(worker, enumerate(tr_series_master))
-            #     results = result_object.get()
+                with Pool(ncpu) as pool:
+                    results = pool.map(worker, enumerate(tr_series_master))
+
             mmsfiles_rot_all = [res for res in results if res is not None]
 
         if os.path.isdir(combined_vis) == True:
