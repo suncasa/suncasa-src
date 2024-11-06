@@ -1,33 +1,71 @@
-import os, sys, glob
-import numpy as np
-from astropy.time import Time
-import time
-from astropy.io import fits
 import datetime as dt
-import subprocess
-from casatasks import *
-from casatools import image, ms, msmetadata, table
-from suncasa.utils import qlookplot
-from suncasa.utils import helioimage2fits as hf
-import timeit
-from sunpy.time import parse_time
-import matplotlib
-from casatasks import imhead,listobs
-
+import glob
+import os
 import platform
+import subprocess
+import timeit
+
 import matplotlib
-import matplotlib.colors as colors
-import random
+import numpy as np
+from astropy.io import fits
+from astropy.time import Time
+import shutil
+import re
+import tarfile
+import getpass
+from casatasks import *
+from casatasks import imhead, listobs
+from casatools import image, ms, msmetadata, table
+from sunpy.time import parse_time
+
+from suncasa.utils import helioimage2fits as hf
+from suncasa.utils import qlookplot
 
 if platform.system() == 'Linux':
     matplotlib.use('Agg')
 
-start = timeit.default_timer()
+timer_start = timeit.default_timer()
 ia = image()
 ms = ms()
 msmd = msmetadata()
 tb = table()
 
+
+def run_command(command, use_sudo=False):
+    """
+    Helper function to run a command with or without sudo privileges.
+    """
+    if use_sudo:
+        command = f"sudo {command}"
+    try:
+        subprocess.run(command, shell=True, check=True)
+    except subprocess.CalledProcessError as e:
+        if not use_sudo:
+            print(f"Error running command: {command}")
+            print(f"Trying with sudo...")
+            sudo_password = getpass.getpass(prompt=f'Enter your sudo password to execute "{command}": ')
+            command = f"echo {sudo_password} | sudo -S {command}"
+            subprocess.run(command, shell=True, check=True)
+        else:
+            raise e
+
+def get_user_confirmation(prompt):
+    """
+    Prompt the user to enter 'yes' or 'no' and return the response.
+
+    :param prompt: The message to display to the user.
+    :type prompt: str
+    :return: True if the user enters 'yes', False if the user enters 'no'.
+    :rtype: bool
+    """
+    while True:
+        response = input(prompt + " [y/n]: ").strip().lower()
+        if response in ['y', 'yes']:
+            return True
+        elif response in ['n', 'no']:
+            return False
+        else:
+            print("Invalid input. Please enter 'y' or 'n'.")
 
 class FlareSelfCalib():
     def __init__(self, vis=None, workpath='./', logfile=None):
@@ -63,7 +101,7 @@ class FlareSelfCalib():
         # ============ declaring the working directories ============
         ### remember / is necessary in all the folder names
         # self.workpath = '/data1/bchen/flare_pipeline/tmp/'  ## / is needed at the end of all paths
-        
+
         self.slfcaldir = self.workpath + 'slfcal/'  # place to put all selfcalibration products
         self.imagedir = self.slfcaldir + 'images/'  # place to put all selfcalibration images
         self.caltbdir = self.slfcaldir + 'caltables/'  # place to put calibration tables
@@ -99,7 +137,7 @@ class FlareSelfCalib():
         self.flare_location = None ## flare location in solar coords [solar-X, solar-Y]arcsec
         self.flare_peaktime = ''  ### should be in '2021/05/07/19:10:00~2021/05/07/19:11:00' format
         self.flare_peak_intensity = []  ### peak intensity for each spw at the peak time
-        
+
         # ============ Output files ============
         self.outfits_list = []  ### Output fits files
         self.outmovie = ''  ### Output fits files
@@ -121,7 +159,7 @@ class FlareSelfCalib():
         value: full path for the input visibility data
         -------
         """
-        
+
         if type(value)==str:
             if os.path.isdir(value)==False:
                 raise ValueError('input visibility {0:s} does not exist! Please supply a valid one.'.format(value))
@@ -1003,7 +1041,7 @@ class FlareSelfCalib():
         self.flare_peak_datetime = Time(peak_time / 3600. / 24., format='mjd').datetime
         self.ms_startmjd = ms_startmjd
         self.ms_endmjd = ms_endmjd
-    
+
     def produce_required_inputs_from_flare_time(self,num_spws):
         self.flare_times=[self.flare_peaktime]*num_spws
         self.found_flares=[True]*num_spws
@@ -1012,12 +1050,12 @@ class FlareSelfCalib():
                                     int(temp[0][11:13]), int(temp[0][14:16]), int(temp[0][17:19]))]*num_spws
         self.flare_end_datetime=[dt.datetime(int(temp[1][0:4]),int(temp[1][5:7]), int(temp[1][8:10]),\
                                     int(temp[1][11:13]), int(temp[1][14:16]), int(temp[1][17:19]))]*num_spws
-        
+
         start_mjd=Time(self.flare_start_datetime[0]).mjd
         end_mjd=Time(self.flare_end_datetime[0]).mjd
         self.flare_peak_mjd=(end_mjd+start_mjd)/2.0*86400
         self.flare_peak_datetime=Time(self.flare_peak_mjd/86400.0,format='mjd').datetime
-        
+
         ms.open(self.vis)
         ms.selectinit(datadescid=0)
         data = ms.getdata(['axis_info'], ifraxis=True)
@@ -1072,7 +1110,7 @@ class FlareSelfCalib():
         -------
         Updates self.phasecenter (in J2000 RA and DEC) to be the flare location
         """
-        
+
         if self.flare_location is None:
             print ("Finding phasecenter from images")
             imagename = self.workpath + "tmpimg"
@@ -1125,7 +1163,7 @@ class FlareSelfCalib():
                 print(phasecenter)
                 # logf.write("Phasecenter:{}\n".format(phasecenter))
                 os.system("rm -rf " + imagename + ".*")
-            
+
             else:
                 # logf.write("Appropriate phase center could not be found." + \
                 #           "Please restart after providing an appropriate one.\n")
@@ -1134,7 +1172,7 @@ class FlareSelfCalib():
                       "setting FlareSelfCalib.phasecenter='J2000 00h00m00s +00d00m00s'. ")
                 self.phasecenter = ''
                 self.flare_loc_available = False
-        
+
 
     def do_selfcal(self, slfcalms, sp, spwran, uvrange='', cell_val='2arcsec', imsize=2048, ref_image='',
                    make_shifted_mask=False, combine_spws=False):
@@ -1159,7 +1197,7 @@ class FlareSelfCalib():
                 tclean(vis=slfcalms, imagename=imagename, uvrange=uvrange, spw=spwran, imsize=imsize, \
                        cell=cell_val, niter=1, gain=0.05, cyclefactor=10, weighting='briggs', stokes='XX', \
                        robust=0.0, savemodel='none', pbcor=False, pblimit=0.001, phasecenter=self.phasecenter)
-                
+
                 max_psf_val=imstat(imagename + ".psf")['max'][0] ### this can be 0 in case all data are flagged
 
                 # print ("Check if image produced or not")
@@ -1174,8 +1212,8 @@ class FlareSelfCalib():
                     self.logf.write("spw=" + str(sp).zfill(2) + " PSF is junk\n")
                     os.system('rm -rf ' + self.caltbdir + '*_spw_' + sp.zfill(2) + '*')
                     os.system('rm -rf ' + self.imagedir + '*spw_' + sp.zfill(2) + '*')
-                    return False, False                
-                
+                    return False, False
+
                 # print ("Getting image statistics")
                 self.logf.write("spw=" + str(sp).zfill(2) + " Getting image statistics\n")
                 max_pix, min_pix, rms = self.get_img_stat(imagename)
@@ -1569,7 +1607,7 @@ class FlareSelfCalib():
                 os.makedirs(self.imagedir)
                 os.makedirs(self.caltbdir)
                 os.makedirs(self.maskdir)
-                os.makedirs(self.imagedir_slfcaled)    
+                os.makedirs(self.imagedir_slfcaled)
         ##=========== Obtain information from the input visibility =======
         nspw_ms = FlareSelfCalib.get_spw_num(self.vis)
         freqs_ms = FlareSelfCalib.get_ref_freqlist(self.vis)
@@ -1586,8 +1624,8 @@ class FlareSelfCalib():
             self.logf.write("Finding flare time took {0:d} seconds:" + str(time1 - flare_finder_timer))
         else:
             self.produce_required_inputs_from_flare_time(nspw_ms)
-        
-            
+
+
         tmpms = self.workpath + 'temp_ms.ms'
         if os.path.exists(tmpms):
             os.system('rm -rf {0:s}'.format(tmpms))
@@ -1636,11 +1674,11 @@ class FlareSelfCalib():
             self.find_phasecenter()
             time1 = timeit.default_timer()
             self.logf.write("Finding flare location took {0:d} seconds:" + str(time1 - flare_loc_timer))
-        else: 
+        else:
             print ("Finding phasecenter from the given flare location")
             self.phasecenter,midtim=hf.calc_phasecenter_from_solxy(self.vis, timerange=Time(self.flare_peak_datetime),\
                             xycen=self.flare_location, usemsphacenter=False)
-        
+
 
 
     def flare_ms_calib(self,value):
@@ -1760,24 +1798,34 @@ class FlareSelfCalib():
 
 
             selfcal_timer = timeit.default_timer()
-            self.logf.write("Time taken for selfcal in seconds is " + str(selfcal_timer - start))
+            self.logf.write(f"Time taken for selfcal in seconds is {selfcal_timer - timer_start:0.2f}\n")
 
             final_ms = self.vis.replace('.ms', '_selfcaleds.ms')
             print(final_ms, self.vis)
             print("Applying caltables")
             if os.path.isdir(final_ms) == False:
-                for s in self.imaging_spw:
-                    caltable = self.caltbdir + 'final_cal_spw_' + str(s).zfill(2) + '.gcal'
-                    if os.path.isdir(caltable) == False:
-                        continue
-                    applycal(vis=self.vis, gaintable=caltable, spw=str(s), applymode='calonly', interp='nearest')
-                ##TODO: perhaps we only need to split out the spws that are self-calibrated
-                # split(vis=self.vis, outputvis=final_ms, spw=self.spwstr, correlation='XX', datacolumn='corrected')
-                # split(vis=self.vis, outputvis=final_ms, correlation='XX', datacolumn='corrected', spw=[str(spwi) for spwi in self.imaging_spw])
-                split(vis=self.vis, outputvis=final_ms, correlation='XX', datacolumn='corrected')
-                self.logf.write("Calibrated MS split\n")
-                time1 = timeit.default_timer()
-                self.logf.write("Calibrated data split in seconds:" + str(time1 - selfcal_timer))
+                if len(self.imaging_spw) == 0:
+                    warning_str = f'All images produced at the self-cal step have dynamic range small than the threshold {self.min_DR_threshold}. No imaging will be done./n'
+                    self.logf.write(warning_str)
+                    print(warning_str)
+                    if doimaging:
+                        if get_user_confirmation( 'Do you want to continue imaging with the original MS?'):
+                            pass
+                        else:
+                            doimaging = False
+                else:
+                    for s in self.imaging_spw:
+                        caltable = self.caltbdir + 'final_cal_spw_' + str(s).zfill(2) + '.gcal'
+                        if os.path.isdir(caltable) == False:
+                            continue
+                        applycal(vis=self.vis, gaintable=caltable, spw=str(s), applymode='calonly', interp='nearest')
+                    ##TODO: perhaps we only need to split out the spws that are self-calibrated
+                    # split(vis=self.vis, outputvis=final_ms, spw=self.spwstr, correlation='XX', datacolumn='corrected')
+                    # split(vis=self.vis, outputvis=final_ms, correlation='XX', datacolumn='corrected', spw=[str(spwi) for spwi in self.imaging_spw])
+                    split(vis=self.vis, outputvis=final_ms, correlation='XX', datacolumn='corrected')
+                    self.logf.write("Calibrated MS split\n")
+                    time1 = timeit.default_timer()
+                    self.logf.write("Calibrated data split in seconds:" + str(time1 - selfcal_timer))
 
             self.final_ms = final_ms
 
@@ -1785,7 +1833,7 @@ class FlareSelfCalib():
             imaging_timer = timeit.default_timer()
             ##TODO: the following relies on the completion of the prior self-calibration produced images.
             ## Need to remove such dependence if these images are not available.
-            if doselfcal:            
+            if doselfcal:
                 if hasattr(self, 'final_ms'):
                     if os.path.exists(self.final_ms):
                         msname = self.final_ms
@@ -1809,16 +1857,16 @@ class FlareSelfCalib():
                 self.imaging_start_mjd = self.flare_peak_mjd - self.total_duration / 2
             else:
                 self.imaging_start_mjd = Time(self.imaging_start).mjd*86400 # in mjd seconds
-                
+
             if self.imaging_start_mjd < self.ms_startmjd:
                 self.logf.write("Start time given for imaging is before the start time of MS. Resetting to first time of MS.")
                 self.imaging_start_mjd = self.ms_startmjd
-            
+
             if self.imaging_end is None:
-                self.imaging_end_mjd = self.flare_peak_mjd + self.total_duration / 2 
+                self.imaging_end_mjd = self.flare_peak_mjd + self.total_duration / 2
             else:
                 self.imaging_end_mjd = Time(self.imaging_end).mjd*86400 ### in mjd seconds
-            
+
             if self.imaging_end_mjd < self.ms_startmjd:
                 self.logf.write("End time given for imaging is before the start time of MS. Resetting to last time of MS.")
                 self.imaging_end_mjd = self.ms_endmjd
@@ -1826,14 +1874,14 @@ class FlareSelfCalib():
             if self.imaging_end_mjd > self.ms_endmjd:
                 self.logf.write("End time given for imaging is after the end time of MS. Resetting to last time of MS.")
                 self.imaging_end_mjd = self.ms_endmjd
-            
+
             imaging_start_time=Time(self.imaging_start_mjd/86400,format='mjd').datetime.strftime(
-                    "%Y/%m/%d/%H:%M:%S")   
-                    
+                    "%Y/%m/%d/%H:%M:%S")
+
             imaging_end_time=Time(self.imaging_end_mjd/86400,format='mjd').datetime.strftime(
                     "%Y/%m/%d/%H:%M:%S")
-                    
-            
+
+
             time_str = imaging_start_time + "~" + imaging_end_time
 
             specfile = msname[:-3] + "_dspec.npz"
@@ -1870,7 +1918,7 @@ class FlareSelfCalib():
 
         self.logf.close()
 
-    def rename_move_files(self, flare_id, fitsdir_web_tp, movdir_web_tp, msdir_web_tp, dorename_fits=False, domove_fits=False, 
+    def rename_move_files(self, flare_id, fitsdir_web_tp, movdir_web_tp, msdir_web_tp=None, dorename_fits=False, domove_fits=False,
         dorename_mov=False, domove_mov=False, domove_ms=False, dormworkdir=False, docopy=False):
         """
         Rename EOVSA FITS/movie/ms/slfcal_ms files and move them to the web folder
@@ -1883,20 +1931,20 @@ class FlareSelfCalib():
         movdir_web_tp = '/common/webplots/SynopticImg/eovsamedia/eovsa-browser/' #'YYYY/MM/DD/'
         msdir_web_tp = '/data1/eovsa/fits/flares/' #'YYYY/MM/DD/flare_id/'
         """
-        import os
-        import glob
-        from astropy.io import fits
-        import shutil
-        import tarfile
 
         workdir = self.workpath
         eofits_tot = self.outfits_list
         eofits_dir = os.path.split(eofits_tot[0])[0]
         eomovie = self.outmovie
         eomovie_dir = os.path.split(eomovie)[0]
+        if msdir_web_tp is None:
+            msdir_web_tp = fitsdir_web_tp
 
         eofits = fits.open(eofits_tot[0])
         eodate = (eofits[1].header['DATE-OBS']).split('T')[0]
+        if not re.match(r'^\d{4}-\d{2}-\d{2}$', eodate):
+            print(f"Error: DATE-OBS format is incorrect. Check the header in the fits file: {eofits_tot[0]}")
+            return
         year, month, day = eodate.split('-')
 
         file_fits_tot = []
@@ -1929,19 +1977,14 @@ class FlareSelfCalib():
 
         if domove_fits:
             workdir_web = os.path.join(fitsdir_web_tp, year, month, day, flare_id)
-            # if os.path.exists(workdir_web):
-            #     shutil.rmtree(workdir_web)
-            # os.makedirs(workdir_web)
             if not os.path.exists(workdir_web):
-                os.makedirs(workdir_web)
+                run_command(f"mkdir -p {workdir_web}")
                 print('fits folder not exist and created from ',workdir_web)
             else:
-                os.system("rm -r " + workdir_web + "/*")
+                run_command(f"rm -rf {workdir_web}/*")
                 print('fits folder exists and deleted from ',workdir_web)
             for i in file_fits_tot:
-                # if os.path.exists(os.path.join(workdir_web, os.path.basename(i))):
-                #     os.remove(os.path.join(workdir_web, os.path.basename(i)))
-                shutil.move(i, workdir_web)    
+                run_command(f"mv {i} {workdir_web}")
             if len(file_fits_tot) < 1:
                 print("ERRORs: no .fits files to move")
             else:
@@ -1950,44 +1993,32 @@ class FlareSelfCalib():
         if domove_mov:
             workdir_web = os.path.join(movdir_web_tp, year, month, day)
             if not os.path.exists(workdir_web):
-                os.makedirs(workdir_web)
+                run_command(f"mkdir -p {workdir_web}")
             for i in file_mov_tot:
                 if os.path.exists(os.path.join(workdir_web, os.path.basename(i))):
-                    os.remove(os.path.join(workdir_web, os.path.basename(i)))
-                shutil.move(i, workdir_web)  
+                    run_command(f"rm -rf {os.path.join(workdir_web, os.path.basename(i))}")
+                run_command(f"mv {i} {workdir_web}")
             if len(file_mov_tot) < 1:
                 print("ERRORs: no .mp4 file to move")
             else:
                 print("Move .mp4 to: " + workdir_web)
 
         if domove_ms:
-            # workdir_web = os.path.join(msdir_web_tp, 'ms_'+year, flare_id)
-            # if not os.path.exists(workdir_web):
-            #     os.makedirs(workdir_web)
-            #     print('ms folder not exist and created ', workdir_web)
-            # else:
-            #     os.system("rm -r " + workdir_web + "/*")
-            #     print('ms folder exists and deleted from ', workdir_web)
             workdir_web = os.path.join(fitsdir_web_tp, year, month, day, flare_id)
             i = self.vis
             print(i)
             with tarfile.open(os.path.join(workdir_web, flare_id+'.calibrated.ms.tar.gz'), "w:gz") as tar:
                 tar.add(i, arcname=os.path.basename(i))
-            # shutil.move(i, workdir_web+'/')
             print("Move calibrated.ms to: " + workdir_web)
             i = self.final_ms
             print(i)
             with tarfile.open(os.path.join(workdir_web, flare_id+'.selfcalibrated.ms.tar.gz'), "w:gz") as tar:
                 tar.add(i, arcname=os.path.basename(i))
-            # shutil.move(i, workdir_web+'/')
             print("Move selfcalibrated.ms to: " + workdir_web)
             i = self.caltbdir
             print(i)
             with tarfile.open(os.path.join(workdir_web, flare_id+'.caltables.tar.gz'), "w:gz") as tar:
                 tar.add(i, arcname=os.path.basename(i))
-            # if os.path.exists(os.path.join(workdir_web, os.path.basename(i))):
-            #     shutil.rmtree(os.path.join(workdir_web, os.path.basename(i)))
-            # shutil.move(i, workdir_web+'/')
             print("Move caltbdir to: " + workdir_web)
 
         if dormworkdir:
@@ -1995,16 +2026,16 @@ class FlareSelfCalib():
                 print("ERRORs: no .fits files have been moved")
                 return -1
             else:
-                os.system("rm -rf " + workdir + "*")
-                print("Delete all files from: " + workdir)
+                run_command(f"rm -r {os.path.join(workdir, '*')}")
+                print(f"Delete workdir {workdir}")
 
         if docopy:
             file_mov_new = [os.path.basename(m) for m in file_mov_tot]
             movdir_web_copy = os.path.join(movdir_web_tp, '2021', '00')
             for i in file_mov_new:
                 if os.path.exists(os.path.join(movdir_web_copy, i)):
-                    os.remove(os.path.join(movdir_web_copy, i))
-                shutil.copy(os.path.join(movdir_web_tp, year, month, day, i), movdir_web_copy)
+                    run_command(f"rm -r {os.path.join(movdir_web_copy, i)}")
+                run_command(f"cp -r {os.path.join(movdir_web_tp, year, month, day, i)} {movdir_web_copy}")
                 print("Copy .mp4 from " + movdir_web_tp + " to: " + movdir_web_copy)
 
         return

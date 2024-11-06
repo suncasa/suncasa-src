@@ -122,6 +122,7 @@ def import_calib_idb(trange, workdir=None, ncpu=1, timebin='0s', width=1, udb_co
                                 concatvis=concatvis, keep_orig_ms=False)
     outputvis = concatvis[:-3] + 'XXYY.ms'
     split(vis=concatvis, outputvis=outputvis, correlation='XX,YY', datacolumn='data')
+    os.system(f'rm -rf {concatvis}')
                    
 
     return outputvis
