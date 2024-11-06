@@ -1800,7 +1800,7 @@ class FlareSelfCalib():
             selfcal_timer = timeit.default_timer()
             self.logf.write(f"Time taken for selfcal in seconds is {selfcal_timer - timer_start:0.2f}\n")
 
-            final_ms = self.vis.replace('.ms', '_selfcaleds.ms')
+            final_ms = self.vis.replace('.ms', '_selfcaled.ms')
             print(final_ms, self.vis)
             print("Applying caltables")
             if os.path.isdir(final_ms) == False:
