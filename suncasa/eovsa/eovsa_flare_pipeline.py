@@ -1951,6 +1951,7 @@ class FlareSelfCalib():
         file_mov_tot = []
 
         if dorename_fits:
+            print("Renaming the .fits files ...")
             for f in eofits_tot:
                 eofits = fits.open(f)
                 eodate = (eofits[1].header['DATE-OBS']).split('T')[0]
@@ -1959,21 +1960,23 @@ class FlareSelfCalib():
                 src = f
                 dst = os.path.join(eofits_dir, f'{(eofits[1].header["TELESCOP"]).lower()}.lev1_mbd_{str(self.final_image_int)}s.{eodate}T{eotime}Z.image.fits')
                 try:
+                    # print(f"Rename {src} to {dst}")
                     os.rename(src, dst)
                 except FileNotFoundError:
                     print(f"Files .fits not found: {src}")
                 file_fits_tot.append(dst)
-            print("Rename the .fits files")
 
         if dorename_mov:
+            print("Renaming the .mp4 file ...")
             src = eomovie
             dst = os.path.join(eomovie_dir, f'{(eofits[1].header["TELESCOP"]).lower()}.lev1_mbd_{str(self.final_image_int)}s.flare_id_{flare_id}.mp4')
             try:
                 os.rename(src, dst)
+                print(f"Rename {src} to {dst}")
             except FileNotFoundError:
                 print(f"File .mp4 not found: {src}")
             file_mov_tot.append(dst)
-            print("Rename the .mp4 file")
+
 
         if domove_fits:
             workdir_web = os.path.join(fitsdir_web_tp, year, month, day, flare_id)
@@ -1983,8 +1986,9 @@ class FlareSelfCalib():
             else:
                 run_command(f"rm -rf {workdir_web}/*")
                 print('fits folder exists and deleted from ',workdir_web)
-            for i in file_fits_tot:
-                run_command(f"mv {i} {workdir_web}")
+            files_to_move = ' '.join(file_fits_tot)
+            run_command(f"mv {files_to_move} {workdir_web}/")
+
             if len(file_fits_tot) < 1:
                 print("ERRORs: no .fits files to move")
             else:
@@ -1997,29 +2001,64 @@ class FlareSelfCalib():
             for i in file_mov_tot:
                 if os.path.exists(os.path.join(workdir_web, os.path.basename(i))):
                     run_command(f"rm -rf {os.path.join(workdir_web, os.path.basename(i))}")
-                run_command(f"mv {i} {workdir_web}")
             if len(file_mov_tot) < 1:
                 print("ERRORs: no .mp4 file to move")
             else:
                 print("Move .mp4 to: " + workdir_web)
+                files_to_move = ' '.join(file_mov_tot)
+                run_command(f"mv {files_to_move} {workdir_web}/")
 
         if domove_ms:
+            # workdir_web = os.path.join(fitsdir_web_tp, year, month, day, flare_id)
+
+            # i = self.vis
+            # print(i)
+            # with tarfile.open(os.path.join(workdir_web, flare_id+'.calibrated.ms.tar.gz'), "w:gz") as tar:
+            #     tar.add(i, arcname=os.path.basename(i))
+            # print("Move calibrated.ms to: " + workdir_web)
+            # i = self.final_ms
+            # print(i)
+            # with tarfile.open(os.path.join(workdir_web, flare_id+'.selfcalibrated.ms.tar.gz'), "w:gz") as tar:
+            #     tar.add(i, arcname=os.path.basename(i))
+            # print("Move selfcalibrated.ms to: " + workdir_web)
+            # i = self.caltbdir
+            # print(i)
+            # with tarfile.open(os.path.join(workdir_web, flare_id+'.caltables.tar.gz'), "w:gz") as tar:
+            #     tar.add(i, arcname=os.path.basename(i))
+            # print("Move caltbdir to: " + workdir_web)
+
             workdir_web = os.path.join(fitsdir_web_tp, year, month, day, flare_id)
+            # Tar files in their current directory
+            tar_filess = []
+
+            # Create tar file for calibrated.ms
             i = self.vis
-            print(i)
-            with tarfile.open(os.path.join(workdir_web, flare_id+'.calibrated.ms.tar.gz'), "w:gz") as tar:
+            tar_file = flare_id + '.calibrated.ms.tar.gz'
+            print(f"Packing calibrated.ms: {i} to {tar_file}")
+            with tarfile.open(tar_file, "w:gz") as tar:
                 tar.add(i, arcname=os.path.basename(i))
-            print("Move calibrated.ms to: " + workdir_web)
+            tar_filess.append(tar_file)
+
+            # Create tar file for selfcalibrated.ms
             i = self.final_ms
-            print(i)
-            with tarfile.open(os.path.join(workdir_web, flare_id+'.selfcalibrated.ms.tar.gz'), "w:gz") as tar:
+            tar_file = flare_id + '.selfcalibrated.ms.tar.gz'
+            print(f"Packaging selfcalibrated.ms: {i} to {tar_file}")
+            with tarfile.open(tar_file, "w:gz") as tar:
                 tar.add(i, arcname=os.path.basename(i))
-            print("Move selfcalibrated.ms to: " + workdir_web)
+            tar_filess.append(tar_file)
+
+            # Create tar file for caltables
             i = self.caltbdir
-            print(i)
-            with tarfile.open(os.path.join(workdir_web, flare_id+'.caltables.tar.gz'), "w:gz") as tar:
+            tar_file = flare_id + '.caltables.tar.gz'
+            print(f"Packaging caltables: {i} to {tar_file}")
+            with tarfile.open(tar_file, "w:gz") as tar:
                 tar.add(i, arcname=os.path.basename(i))
-            print("Move caltbdir to: " + workdir_web)
+            tar_filess.append(tar_file)
+
+            # Move all tar files to workdir_web using sudo
+            files_to_move = ' '.join(tar_filess)
+            run_command(f"mv {files_to_move} {workdir_web}")
+            print("Moved all tar files to: " + workdir_web)
 
         if dormworkdir:
             if len(file_fits_tot) < 1:
