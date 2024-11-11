@@ -2745,7 +2745,10 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                 if amin is None:
                     amin = 1.0
 
-                _anorm = get_normalization(amin, amax, anorm)
+                if aia_jp2:
+                    _anorm = get_normalization(0, 255, 'linear')
+                else:
+                    _anorm = get_normalization(amin, amax, anorm)
 
                 title0 = 'AIA {0:.0f} Å'.format(aiamap.wavelength.value)
                 aiamap_ = pmX.Sunmap(aiamap)
