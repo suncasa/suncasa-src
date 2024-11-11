@@ -2464,10 +2464,14 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                 try:
                     aiafits = newlist[0]
                     aiamap = smap.Map(aiafits)
-                    aiamap = DButil.normalize_aiamap(aiamap)
-                    data = aiamap.data
-                    data[data < 1.0] = 1.0
-                    aiamap = smap.Map(data, aiamap.meta)
+                    aia_jp2 = False
+                    if aiafits.endswith('.jp2'):
+                        aia_jp2 = True
+                    if not aia_jp2:
+                        aiamap = DButil.normalize_aiamap(aiamap)
+                        data = aiamap.data
+                        data[data < 1.0] = 1.0
+                        aiamap = smap.Map(data, aiamap.meta)
                 except:
                     print('error in reading aiafits. Proceed without AIA')
 
