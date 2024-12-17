@@ -336,6 +336,21 @@ class Dspec:
                     self.telescope = 'LWA'
                     self.observatory = 'OVRO'
 
+            if source.lower() =='general' and (fname.endswith('.fits') or fname.endswith('.fts')):
+                hdu = fits.open(fname)
+                self.data = hdu[0].data
+                tim = hdu[2].data
+                tmjd = np.array(tim['mjd']) + np.array(tim['time']) / 24. / 3600 / 1000
+                self.time_axis = Time(tmjd, format='mjd')
+                self.freq_axis = hdu[1].data['sfreq'] * 1e9
+                self.pol = [hdu[0].header['POLARIZA']]
+                if 'BUNIT' in hdu[0].header:
+                    self.spec_unit = hdu[0].header['BUNIT']
+                if 'BNAME' in hdu[0].header:
+                    self.spec_name = hdu[0].header['BNAME']
+                self.telescope = hdu[0].header['TELESCOP']
+                self.observatory = ''
+
         elif source.lower() == 'lwa' and type(fname) is list:
             from .sources import lwa
             spec, tim, freq, pol, calfac_x, calfac_y, bkg_flux = lwa.read_data(fname, **kwargs)
@@ -467,6 +482,13 @@ class Dspec:
         prihdr.set('YCEN', 0.0, 'Antenna pointing in arcsec from Sun center')
         prihdr.set('POLARIZA', 'I', 'Polarizations present')
         prihdr.set('RESOLUTI', 0.0, 'Resolution value')
+        if spec_unit.lower() in ['sfu', 'jy', 'mjy']:
+            prihdr.set('BTYPE', 'flx', 'Flux density')
+            prihdr.set('BNAME', 'Flux Density')
+        elif spec_unit.lower() in ['k']:
+            prihdr.set('BTYPE', 'Tb', 'Brightness temperature')
+            prihdr.set('BNAME', 'Brightness Temperature')
+        prihdr.set('BUNIT', spec_unit, 'Data units')
         # Write the file
         hdulist.writeto(fitsfile, overwrite=True)
 
@@ -1090,6 +1112,10 @@ class Dspec:
             spec_unit_print = 'K'
         if spec_unit.lower() == 'sfu':
             spec_unit_print = 's.f.u'
+        if hasattr(self, 'spec_name'):
+            spec_name = self.spec_name
+        else:
+            spec_name = 'Intensity'
 
         if spec.ndim == 2:
             nfreq, ntim = len(self.freq_axis), len(self.time_axis)
@@ -1250,7 +1276,7 @@ class Dspec:
                 divider = make_axes_locatable(ax)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax, cax=cax_spec)
-                clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
+                clb_spec.set_label(f'{spec_name} [{spec_unit_print}]')
 
 
                 ax.set_ylabel('Frequency [{0:s}]'.format(freq_unit))
@@ -1383,7 +1409,7 @@ class Dspec:
                 divider = make_axes_locatable(ax1)
                 cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
                 clb_spec = plt.colorbar(im, ax=ax1, cax=cax_spec)
-                clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
+                clb_spec.set_label(f'{spec_name} [{spec_unit_print}]')
 
 
                 ax1.set_ylabel('Frequency [{0:s}]'.format(freq_unit))
@@ -1446,7 +1472,7 @@ class Dspec:
                 if pol == 'IP':
                     clb_spec.set_label(polstr[1])
                 else:
-                    clb_spec.set_label('Intensity [{}]'.format(spec_unit_print))
+                    clb_spec.set_label(f'{spec_name} [{spec_unit_print}]')
 
                 locator = AutoDateLocator(minticks=2)
                 ax2.xaxis.set_major_locator(locator)

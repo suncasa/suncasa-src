@@ -34,28 +34,52 @@ ms = mstool()
 tb = tbtool()
 
 import socket
-hostname = socket.gethostname()
 import os
 
+hostname = socket.gethostname()
+is_on_server = hostname in ['pipeline', 'inti.hpcnet.campus.njit.edu']
+is_on_inti = hostname == 'inti.hpcnet.campus.njit.edu'
+if is_on_server:
+    base_dir = "/inti/data/pipeline_mirror" if is_on_inti else ""
+else:
+    base_dir = './'
+
 class Path_config:
-    def __init__(self):
-        self.udbmsdir = self._get_env_var('EOVSAUDBMS', '/data1/eovsa/fits/UDBms/')
-        self.udbmsscldir = self._get_env_var('EOVSAUDBMSSCL', '/data1/eovsa/fits/UDBms_scl/')
-        self.udbmsslfcaleddir = self._get_env_var('EOVSAUDBMSSLFCALED', '/data1/eovsa/fits/UDBms_slfcaled/')
-        self.udbdir = self._get_env_var('EOVSAUDB', '/data1/eovsa/fits/UDB/')
-        self.caltbdir = self._get_env_var('EOVSACAL', '/data1/eovsa/caltable/')
-        self.slfcaltbdir = self._get_env_var('EOVSASLFCAL', '/data1/eovsa/slfcaltable/')
-        self.qlookfitsdir = self._get_env_var('EOVSAQLOOKFITS', '/data1/eovsa/fits/synoptic/')
-        self.qlookfigdir = self._get_env_var('EOVSAQLOOKFIG', '/common/webplots/qlookimg_10m/')
-        self.synopticfigdir = self._get_env_var('EOVSASYNOPTICFIG', '/common/webplots/SynopticImg/')
+    def __init__(self, base_dir=base_dir):
+        self.paths = {}
+
+        self.base_dir = base_dir
+        # Setting paths
+        self.udbmsdir = self._get_env_var('EOVSAUDBMS', f'{base_dir}/data1/eovsa/fits/UDBms/')
+        self.udbmsscldir = self._get_env_var('EOVSAUDBMSSCL', f'{base_dir}/data1/eovsa/fits/UDBms_scl/')
+        self.udbmsslfcaleddir = self._get_env_var('EOVSAUDBMSSLFCALED', f'{base_dir}/data1/eovsa/fits/UDBms_slfcaled/')
+        self.udbdir = self._get_env_var('EOVSAUDB', f'{base_dir}/data1/eovsa/fits/UDB/')
+        self.caltbdir = self._get_env_var('EOVSACAL', f'{base_dir}/data1/eovsa/caltable/')
+        self.slfcaltbdir = self._get_env_var('EOVSASLFCAL', f'{base_dir}/data1/eovsa/slfcaltable/')
+        self.qlookfitsdir = self._get_env_var('EOVSAQLOOKFITS', f'{base_dir}/data1/eovsa/fits/synoptic/')
+        self.qlookfigdir = self._get_env_var('EOVSAQLOOKFIG', f'{base_dir}/common/webplots/qlookimg_10m/')
+        self.synopticfigdir = self._get_env_var('EOVSASYNOPTICFIG', f'{base_dir}/common/webplots/SynopticImg/')
+        self.workdir_default = self._get_env_var('EOVSAWORKDIR', f'{base_dir}/data1/workdir/')
+
+        # Print a summary of paths
+        self._print_summary()
 
     def _get_env_var(self, env_var, default_path):
         path = os.getenv(env_var) or default_path
         if not os.path.exists(path):
-            if hostname!='pipeline':
-                path = os.path.basename(default_path.rstrip('/')) + '/'
+            # if not is_on_server:
+            #     path = os.path.basename(default_path.rstrip('/')) + '/'
+            #     if not os.path.exists(path):
+            #         os.makedirs(path)
+            # else:
             os.makedirs(path)
+        self.paths[env_var] = path
         return path
+
+    def _print_summary(self):
+        print("Paths Configuration Summary:")
+        for env_var, path in self.paths.items():
+            print(f"  {env_var}: {path}")
 
 # Usage
 pathconfig = Path_config()
@@ -70,6 +94,7 @@ slfcaltbdir = pathconfig.slfcaltbdir
 qlookfitsdir = pathconfig.qlookfitsdir
 qlookfigdir = pathconfig.qlookfigdir
 synopticfigdir = pathconfig.synopticfigdir
+workdir_default = pathconfig.workdir_default
 
 def getspwfreq(vis):
     '''
@@ -217,7 +242,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
     '''
 
     if workdir is None:
-        workdir = '/data1/workdir'
+        workdir = workdir_default
     os.chdir(workdir)
     if isinstance(trange, Time):
         mslist = trange2ms(trange=trange, doimport=False)
@@ -721,7 +746,7 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
 
     >>> python eovsa_pipeline.py -h
     """
-    workdir = '/data1/workdir/'
+    workdir = workdir_default
     os.chdir(workdir)
     if year is None:
         # Default behavior: Process data from one day prior to the current date.

@@ -20,7 +20,7 @@ tb = tbtool()
 ms = mstool()
 qa = qatool()
 
-def get_bandinfo(msfile, spw=None, returnbdinfo=False):
+def get_bandinfo(msfile, spw=None, returnbdinfo=False, verbose=False):
     '''
     get center frequencies of all spectral windows for msfile
     spw: [option] return the cfreq of spw. spw can be a a string or a list of string.
@@ -55,7 +55,8 @@ def get_bandinfo(msfile, spw=None, returnbdinfo=False):
         freqbounds_hi_spw = []
         cfreqs_spw = []
         for sp in spw:
-            print(f'Parsing spw {sp}...')
+            if verbose:
+                print(f'Parsing spw {sp}...')
             try:
                 staql = {'spw': sp}
                 ms.selectinit(reset=True)
@@ -70,7 +71,8 @@ def get_bandinfo(msfile, spw=None, returnbdinfo=False):
                 efreq = (spwInfo[str(espw)]['Chan1Freq'] + spwInfo[str(espw)]['ChanWidth'] * echan) / 1e9
                 cfreq = (bfreq + efreq) / 2.
             except ValueError:
-                print("Parsing spw {} failed. Aborting...".format(sp))
+                if verbose:
+                    print("Parsing spw {} failed. Aborting...".format(sp))
                 continue
             freqbounds_lo_spw.append(bfreq)
             freqbounds_hi_spw.append(efreq)

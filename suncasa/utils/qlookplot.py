@@ -1,21 +1,40 @@
+import copy
 import os
+import platform
+import re
 import sys
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import drms
+import hvpy
+import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 import numpy as np
 import sunpy
 import sunpy.map as smap
 from astropy import units as u
 from astropy.time import Time
+from hvpy.datasource import DataSource
+from sunpy.net import Fido, attrs as a
+
 from ..dspec import dspec as ds
 # from config import get_and_create_download_dir
 from ..utils import helioimage2fits as hf
 from ..utils import mstools
-import copy
-import platform
-import re
 
-import re
+data_sources_aia = {
+    131: DataSource.AIA_131,
+    193: DataSource.AIA_193,
+    4500: DataSource.AIA_4500,
+    1600: DataSource.AIA_1600,
+    211: DataSource.AIA_211,
+    94: DataSource.AIA_94,
+    1700: DataSource.AIA_1700,
+    304: DataSource.AIA_304,
+    171: DataSource.AIA_171,
+    335: DataSource.AIA_335
+}
 
 systemname = platform.system()
 
@@ -31,6 +50,7 @@ else:
 
 from ..suncasatasks import ptclean6 as ptclean
 from ..casa_compat import import_casatools, import_casatasks
+
 tasks = import_casatasks('split', 'tclean', 'casalog')
 split = tasks.get('split')
 tclean = tasks.get('tclean')
@@ -67,6 +87,7 @@ else:
 
 polmap = {'RR': 0, 'LL': 1, 'I': 0, 'V': 1, 'XX': 0, 'YY': 1}
 
+
 def validate_and_reset_restoringbeam(restoringbm):
     """
     Validates the format of the restoringbeam string. If the format is incorrect,
@@ -89,6 +110,33 @@ def validate_and_reset_restoringbeam(restoringbm):
         return ''  # Reset to an empty string if the format is incorrect
     else:
         return restoringbm  # Return the original string if the format is correct
+
+
+def get_normalization(vmin, vmax, scale):
+    """
+    Returns a normalization object based on the given scaling type.
+
+    :param vmin: Minimum value for normalization
+    :type vmin: float
+    :param vmax: Maximum value for normalization
+    :type vmax: float
+    :param scale: Type of scaling, either 'linear' or 'log'
+    :type scale: str
+    :return: The normalization object based on the given scaling
+    :rtype: colors.Normalize or colors.LogNorm
+    :raises ValueError: If `scale` is not 'linear' or 'log'
+    """
+    # print(f"vmin: {vmin}, vmax: {vmax}, scale: {scale}")
+    if scale.lower() == 'linear':
+        norm = colors.Normalize(vmin=vmin, vmax=vmax)
+    elif scale.lower() == 'log':
+        if vmin <= 0:
+            vmin = None
+        norm = colors.LogNorm(vmin=vmin, vmax=vmax)
+    else:
+        raise ValueError('Only "linear" and "log" are accepted for scaling.')
+
+    return norm
 
 
 def read_imres(imresfile):
@@ -304,187 +352,271 @@ def get_colorbar_params(fbounds, stepfactor=1):
     return ticks, bounds, fmax, fmin, freqmask
 
 
-def download_jp2(tstart, tend, wavelengths, outdir):
-    import os
-    try:
-        from hvpy import HelioviewerClient
-    except:
-        from sunpy.net.helioviewer import HelioviewerClient
-    from astropy.time import Time, TimeDelta
-    from sunpy import map as smap
-    hv = HelioviewerClient()
-    data_sources = hv.data_sources
+def parse_trange(trange):
+    """
+    Parses the time range input and returns start and end times.
 
-    for wave in wavelengths:
-        if wave != 1600 and wave != 1700:
-            tdt = TimeDelta(12, format='sec')
-            product = 'aia.lev1_euv_12s'
-        else:
-            tdt = TimeDelta(24, format='sec')
-            product = 'aia.lev1_uv_24s'
+    :param trange: Time range for the query.
+    :type trange: list or astropy.time.Time
+    :raises ValueError: If `trange` is empty or the start time is later than the end time.
+    :return: Start and end times as astropy Time objects.
+    :rtype: tuple of astropy.time.Time
+    """
+    if not trange:
+        raise ValueError("trange cannot be empty. Provide at least one timestamp.")
 
-        st = tstart
-        while st <= tend:
-            st.format = 'iso'
-            found = False
-            for key in data_sources.keys():
-                if key[0] == 'SDO' and key[1] == 'AIA' and key[3] == str(int(wave)):
-                    found = True
-                    break
-            if found:
-                try:
-                    filepath = hv.download_jp2(st.value, observatory='SDO', instrument='AIA', measurement=str(int(wave)))
-                    print(filepath)
-                    aiamap = smap.Map(filepath)
-                    head = aiamap.meta
-                    tobs = head['T_OBS']
-                    date = tobs[:10]
-                    time = ''.join(tobs[10:].split(':'))[:-1]
-                    wavelength1 = head['WAVELNTH']
-                    filename = product + '.' + date + time + '_Z.' + str(wavelength1) + ".image_lev_1.jp2"
-                    os.system("mv " + filepath + " " + outdir + filename)
-                    # os.rename(filepath, os.path.join(outdir, filename))
-                except Exception as e:
-                    print(f"Failed to download for time {st.value} and wavelength {wave}: {e}")
-            else:
-                print(f"JP2 data {wave} is not found at {st.value}.")
-            st += tdt
-    return
+    trange = Time(trange) if not isinstance(trange, Time) else trange
 
-
-def downloadAIAdata(trange, wavelength=None, cadence=None, outdir='./'):
-    if isinstance(trange, list) or isinstance(trange, tuple) or isinstance(trange, np.ndarray) or isinstance(trange,
-                                                                                                             Time):
-        if len(trange) != 2:
-            raise ValueError('trange must be a number or a two elements array/list/tuple')
-        else:
-            trange = Time(trange)
-            if trange.jd[1] < trange.jd[0]:
-                raise ValueError('start time must be occur earlier than end time!')
-            else:
-                [tst, ted] = trange
+    if isinstance(trange, Time) and trange.isscalar:
+        delta = np.array([-24, 24]) / 86400.0  # seconds to days
+        tst, ted = Time(trange.jd + delta, format='jd')
+    elif len(trange) == 2:
+        tst, ted = trange[0], trange[1]
+        if ted < tst:
+            raise ValueError("Start time must occur earlier than end time!")
     else:
-        [tst, ted] = Time(trange.jd + np.array([-1., 1.]) / 24. / 3600 * 6.0, format='jd')
+        tst, ted = trange[0], trange[-1]
+        if ted < tst:
+            raise ValueError("Start time must occur earlier than end time!")
 
-    if wavelength == None:
-        wavelength = [171]
-    elif type(wavelength) is str:
-        if wavelength.lower() == 'all':
-            wavelength = [94, 131, 171, 193, 211, 304, 335, 1600, 1700]
-        else:
-            wavelength = [float(wavelength)]
-    elif type(wavelength) is float or type(wavelength) is int:
-        wavelength = [wavelength]
-    wavelength = [float(ll) for ll in wavelength]
-    if ted.mjd <= tst.mjd:
-        print('Error: start time must occur earlier than end time. please re-enter start time and end time!!!')
+    return tst, ted
 
-    nwave = len(wavelength)
-    print('{} passbands to download'.format(nwave))
 
-    try:
-        download_jp2(tst, ted, wavelength, outdir)
-        print(f"JP2: AIA data downloaded")
-    except:
+def download_aia_data(trange, wavelengths=[171], cadence=None, outdir='./'):
+    """
+    Downloads AIA data for specified time range and wavelengths.
+
+    :param trange: Time range for the query.
+    :type trange: list or astropy.time.Time
+    :param wavelengths: List of wavelengths to download, defaults to [171].
+    :type wavelengths: list, optional
+    :param cadence: Desired data cadence, defaults to None.
+    :type cadence: Quantity, optional
+    :param outdir: Output directory for the downloaded data, defaults to './'.
+    :type outdir: str, optional
+    :return: List of downloaded files.
+    :rtype: list
+    """
+    trange = Time(trange) if not isinstance(trange, Time) else trange
+    outdir = Path(outdir).expanduser()
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    if isinstance(wavelengths, (int, float)):
+        wavelengths = [wavelengths]
+    elif isinstance(wavelengths, str) and wavelengths.lower() == 'all':
+        wavelengths = [94, 131, 171, 193, 211, 304, 335, 1600, 1700]
+
+    print(f"{len(wavelengths)} passbands to download")
+    downloaded_files = []
+
+    if trange.isscalar:
+        # Attempt downloading using JP2 single downloader first
         try:
-            print(f"JP2 downloading failed")
-            from pathlib import Path
-            import drms
-            for widx, wave in enumerate(wavelength):
-                client = drms.Client(email=os.environ.get("JSOC_EMAIL"))
-                keys_jsoc = ["EXPTIME", "QUALITY", "T_OBS", "T_REC", "WAVELNTH"]
-                if wave==1600 or wave==1700:
-                    updated_qstr = "aia.lev1_uv_24s["+tst.isot+"Z-"+ted.isot+"Z][?WAVELNTH="+str(int(wave))+"?]{image}"# and EXPTIME<2
-                else:
-                    updated_qstr = "aia.lev1_euv_12s["+tst.isot+"Z-"+ted.isot+"Z][?WAVELNTH="+str(int(wave))+"?]{image}"# and EXPTIME<2
-                records_jsoc, filenames_jsoc = client.query(updated_qstr, key=keys_jsoc , seg="image")
-                print(f"JSOC: {len(records_jsoc)} records retrieved. \n")
-                export_jsoc = client.export(updated_qstr, method="url", protocol="fits", email='suncasa-group@njit.edu')
-                jsoc_files = export_jsoc.download(Path(outdir).expanduser().as_posix())
-                print('JSOC: ', jsoc_files[0].split('.fits')[0])
-                res = jsoc_files
-            print(f"JSOC: AIA data downloaded")
-        except:
-            print(f"JSOC downloading failed")
-            attempts = 0
-            while attempts < 5:
-                try:
-                    from sunpy.net import Fido
-                    from sunpy.net import attrs as a
-                    for widx, wave in enumerate(wavelength):
-                        wave1 = wave - 3.0
-                        wave2 = wave + 3.0
+            for wave in wavelengths:
+                downloaded_files.append(
+                    download_single_jp2(trange.to_datetime(), wave, outdir, {wave: DataSource.AIA_171}))
+            return downloaded_files
+        except Exception as e:
+            print(f"Single JP2 download failed: {e}")
 
-                        if cadence is None:
-                            qr = Fido.search(a.Time(tst.iso, ted.iso),
-                                             a.Instrument.aia,
-                                             a.Wavelength(wave1 * u.AA, wave2 * u.AA))
-                        else:
-                            qr = Fido.search(a.Time(tst.iso, ted.iso),
-                                             a.Instrument.aia,
-                                             a.Wavelength(wave1 * u.AA, wave2 * u.AA),
-                                             a.Sample(cadence))
-                        res = Fido.fetch(qr)
-                        for ll in res:
-                            vsonamestrs = ll.split('_')
-                            if vsonamestrs[2].startswith('1600') or vsonamestrs[2].startswith('1700'):
-                                product = 'aia.lev1_uv_24s'
-                            else:
-                                product = 'aia.lev1_euv_12s'
-                            jsocnamestr = product + '.' + '{}-{}-{}{}{}Z.'.format(vsonamestrs[3], vsonamestrs[4], vsonamestrs[5],
-                                                                                  vsonamestrs[6],
-                                                                                  vsonamestrs[7]).upper() + vsonamestrs[2][
-                                                                                                            :-1] + '.image_lev1.fits'
-                            print(ll, jsocnamestr)
-                            os.system('mv {} {}/{}'.format(ll, outdir, jsocnamestr))
-                    break
-                except:
-                    try:
-                        from sunpy.net import vso
-                        client = vso.VSOClient()
-                        for widx, wave in enumerate(wavelength):
-                            wave1 = wave - 3.0
-                            wave2 = wave + 3.0
-                            print('{}/{} Downloading  AIA {:.0f} data ...'.format(widx + 1, nwave, wave))
-                            qr = client.query(vso.attrs.Time(tst.iso, ted.iso), vso.attrs.Instrument('aia'),
-                                              vso.attrs.Wave(wave1 * u.AA, wave2 * u.AA))
-                            res = client.get(qr, path='{file}').wait()
+    # If single download fails or we have a range, use the full range downloader
+    tst, ted = parse_trange(trange)
 
-                            for ll in res:
-                                vsonamestrs = ll.split('_')
-                                if vsonamestrs[2].startswith('1600') or vsonamestrs[2].startswith('1700'):
-                                    product = 'aia.lev1_uv_24s'
-                                else:
-                                    product = 'aia.lev1_euv_12s'
-                                jsocnamestr = product + '.' + '{}-{}-{}{}{}Z.'.format(vsonamestrs[3], vsonamestrs[4],
-                                                                                      vsonamestrs[5],
-                                                                                      vsonamestrs[6],
-                                                                                      vsonamestrs[7]).upper() + vsonamestrs[2][
-                                                                                                                :-1] + '.image_lev1.fits'
-                                print(ll, jsocnamestr)
-                                os.system('mv {} {}/{}'.format(ll, outdir, jsocnamestr))
-                    except:
-                        download_jp2(tst, ted, wavelength, outdir)
-                finally:
-                    attempts += 1
-    # if len(res) == 0:
-    #     download_jp2(tst, ted, wavelength, outdir)
-    if os.path.exists('/tmp/suds/'):
-        os.system('rm -rf /tmp/suds/')
+    # Attempt downloading using JP2 downloader
+    try:
+        downloaded_files += download_jp2(tst, ted, wavelengths, outdir, cadence)
+    except Exception as e:
+        print(f"JP2 download failed: {e}")
+        # Attempt downloading using JSOC
+        try:
+            downloaded_files += download_using_jsoc(tst, ted, wavelengths, cadence, outdir)
+        except Exception as e:
+            print(f"JSOC download failed: {e}")
+            # Attempt downloading using SunPy Fido
+            try:
+                downloaded_files += download_using_fido(tst, ted, wavelengths, cadence, outdir)
+            except Exception as e:
+                print(f"Fido download failed: {e}")
+
+    return downloaded_files
+
+
+def download_jp2(tstart, tend, wavelengths, outdir, cadence=None):
+    """
+    Download AIA data in JP2 format using hvpy.
+
+    :param tstart: Start time for the data.
+    :type tstart: astropy.time.Time
+    :param tend: End time for the data.
+    :type tend: astropy.time.Time
+    :param wavelengths: List of wavelengths to download.
+    :type wavelengths: list
+    :param outdir: Output directory for the downloaded data.
+    :type outdir: str
+    :param cadence: Desired data cadence, defaults to None.
+    :type cadence: Quantity, optional
+    :return: List of downloaded files.
+    :rtype: list
+    """
+
+    downloaded_files = []
+    for wave in wavelengths:
+        if wave not in data_sources_aia:
+            print(f"Wavelength {wave} not supported for JP2 download.")
+            continue
+
+        tdt = timedelta(seconds=12 if wave not in [1600, 1700] else 24) if cadence is None else timedelta(
+            seconds=cadence.value)
+
+        st = tstart.to_datetime()
+        et = tend.to_datetime()
+        timestamps = [st + i * tdt for i in range(int((et - st) / tdt) + 1)]
+        for timestamp in tqdm(timestamps, desc=f"Downloading {wave}"):
+            downloaded_files.append(download_single_jp2(timestamp, wave, outdir, data_sources_aia))
+    return downloaded_files
+
+
+def download_single_jp2(timestamp, wave, outdir, data_sources):
+    """
+    Download a single JP2 file for the given timestamp and wavelength.
+
+    :param timestamp: Timestamp for the data.
+    :type timestamp: datetime
+    :param wave: Wavelength of the data.
+    :type wave: int
+    :param outdir: Output directory for the downloaded data.
+    :type outdir: str
+    :param data_sources: Dictionary of data sources for different wavelengths.
+    :type data_sources: dict
+    :return: Path to the downloaded JP2 file.
+    :rtype: str
+    """
+    from datetime import datetime
+    try:
+        product = 'aia.lev1_euv_12s' if wave not in [1600, 1700] else 'aia.lev1_uv_24s'
+        res = hvpy.getClosestImage(date=timestamp, sourceId=data_sources[wave])
+        timestamp_real = datetime.strptime(res['date'], '%Y-%m-%d %H:%M:%S')
+        timestr = timestamp_real.strftime("%Y-%m-%dT%H%M%S")
+        filename = f"{product}.{timestr}Z.{wave:.0f}.image_lev1.jp2"
+        outfile = os.path.join(outdir, filename)
+        if os.path.exists(outfile):
+            print(f"File {outfile} already exists.")
+        else:
+            print(f"Downloading {filename}")
+            hvpy.save_file(hvpy.getJP2Image(timestamp_real, sourceId=data_sources[wave]), filename=outfile,
+                           overwrite=False)
+        return outfile
+    except Exception as e:
+        print(f"Failed to download for time {timestamp} and wavelength {wave}: {e}")
+        return None
+
+
+def download_using_jsoc(tst, ted, wavelengths, cadence, outdir):
+    """
+    Download AIA data using the JSOC API.
+
+    :param tst: Start time for the data.
+    :type tst: astropy.time.Time
+    :param ted: End time for the data.
+    :type ted: astropy.time.Time
+    :param wavelengths: List of wavelengths to download.
+    :type wavelengths: list
+    :param cadence: Desired data cadence, defaults to None.
+    :type cadence: Quantity, optional
+    :param outdir: Output directory for the downloaded data.
+    :type outdir: pathlib.Path
+    :raises drms.ExportError: If JSOC export fails.
+    :return: List of downloaded files.
+    :rtype: list
+    """
+    client = drms.Client(email=os.environ.get("JSOC_EMAIL"))
+    downloaded_files = []
+    for wave in wavelengths:
+        query_str = build_jsoc_query(wave, tst, ted, cadence)
+        print(f"JSOC query: {query_str}")
+        try:
+            result = client.export(query_str, method="url", protocol="fits", email='suncasa-group@njit.edu')
+            files = result.download(outdir.as_posix())
+            downloaded_files.extend(files)
+            print(f"JSOC: {files}")
+        except drms.ExportError as e:
+            print(f"JSOC export failed for wavelength {wave}: {e}")
+    return downloaded_files
+
+
+def build_jsoc_query(wave, tst, ted, cadence):
+    """
+    Build JSOC query string for data export.
+
+    :param wave: Wavelength of the data.
+    :type wave: int
+    :param tst: Start time for the data.
+    :type tst: astropy.time.Time
+    :param ted: End time for the data.
+    :type ted: astropy.time.Time
+    :param cadence: Desired data cadence, defaults to None.
+    :type cadence: Quantity, optional
+    :return: JSOC query string.
+    :rtype: str
+    """
+    product = 'aia.lev1_euv_12s' if wave not in [1600, 1700] else 'aia.lev1_uv_24s'
+    cadence_str = f"@{cadence.value:.0f}s" if cadence else ""
+    return f"{product}[{tst.isot}Z-{ted.isot}Z{cadence_str}][?WAVELNTH={int(wave)}?]{{image}}"
+
+
+def download_using_fido(tst, ted, wavelengths, cadence, outdir):
+    """
+    Download AIA data using SunPy Fido.
+
+    :param tst: Start time for the data.
+    :type tst: astropy.time.Time
+    :param ted: End time for the data.
+    :type ted: astropy.time.Time
+    :param wavelengths: List of wavelengths to download.
+    :type wavelengths: list
+    :param cadence: Desired data cadence, defaults to None.
+    :type cadence: Quantity, optional
+    :param outdir: Output directory for the downloaded data.
+    :type outdir: pathlib.Path
+    :return: List of downloaded files.
+    :rtype: list
+    """
+    downloaded_files = []
+    for wave in wavelengths:
+        wave_range = a.Wavelength(wave * u.angstrom, wave * u.angstrom)
+        try:
+            result = Fido.search(a.Time(tst.iso, ted.iso), wave_range, a.Instrument('AIA'))
+            files = Fido.fetch(result, path=str(outdir / '{file}.fits'))
+            downloaded_files.extend(files)
+            print(f"Fido: Downloaded {len(files)} files for wavelength {wave}")
+        except Exception as e:
+            print(f"Fido download failed for wavelength {wave}: {e}")
+    return downloaded_files
 
 
 def trange2aiafits(trange, aiawave, aiadir):
-    trange = Time(trange)
-    if len(trange.iso) == 2:
-        if trange[1].jd - trange[0].jd < 12. / 24. / 3600:
-            trange = Time(np.mean(trange.jd) + np.array([-1., 1.]) * 6. / 24. / 3600, format='jd')
+    """
+    Retrieve or download AIA FITS files for the specified time range and wavelength.
+
+    :param trange: Time range for the query.
+    :type trange: list or astropy.time.Time
+    :param aiawave: Wavelength of the AIA data.
+    :type aiawave: int
+    :param aiadir: Directory to search for the data.
+    :type aiadir: str
+    :return: Path to the AIA FITS files.
+    :rtype: str or None
+    """
+    trange = parse_trange(trange)
+    if (trange[1] - trange[0]).jd < 12.0 / 24.0 / 3600.0:
+        trange = Time(np.mean(trange.jd) + np.array([-1.0, 1.0]) * 6.0 / 24.0 / 3600.0, format='jd')
     aiafits = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=trange, isexists=True)
     if not aiafits:
         aiafits = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=trange, isexists=True)
     if not aiafits:
         aiafits = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=trange, isexists=True)
     if not aiafits:
-        downloadAIAdata(trange, wavelength=aiawave)
+        download_aia_data(trange, wavelengths=[aiawave])
         aiafits = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=trange, isexists=True)
     return aiafits
 
@@ -589,7 +721,7 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
                    uvrange='', subregion='', c_external=True, show_warnings=False):
     vis = [vis]
     subdir = ['/']
-    outfits_list=[]
+    outfits_list = []
 
     for idx, f in enumerate(vis):
         if f[-1] == '/':
@@ -858,7 +990,7 @@ def mk_qlook_image(vis, ncpu=1, timerange='', twidth=12, stokes='I,V', antenna='
 
 def radio_image_clevels(imres, clevels=[0.2, 0.4, 0.6, 0.8], snr=2., timerange_bkg=None, overbright=1e12):
     '''
-    Function to calculate contour levels for plotting from a timeserioes of the input radio images. 
+    Function to calculate contour levels for plotting from a timeseries of the input radio images.
     The contour levels are fixed to those relative to the flare peak.
     :param imres: a dictionary contains the information of the FITS files (produced by qlookplot)
     :param clevels: relative contour levels with regard to the flare peak
@@ -884,66 +1016,198 @@ def radio_image_clevels(imres, clevels=[0.2, 0.4, 0.6, 0.8], snr=2., timerange_b
     if timerange_bkg is None:
         peaks_bkg = max_fs[0]
     else:
-        idx0 = max(np.argmin(np.abs(Time(imres['btimes']).mjd-Time(timerange_bkg[0]).mjd)),0)
-        idx1 = min(np.argmin(np.abs(Time(imres['btimes']).mjd-Time(timerange_bkg[1]).mjd)), len(imres['btimes'])-1)
+        idx0 = max(np.argmin(np.abs(Time(imres['btimes']).mjd - Time(timerange_bkg[0]).mjd)), 0)
+        idx1 = min(np.argmin(np.abs(Time(imres['btimes']).mjd - Time(timerange_bkg[1]).mjd)), len(imres['btimes']) - 1)
         peaks_bkg = np.nanmedian(max_fs[idx0:idx1], axis=0)
 
     clevelsfix = []
     for p, p_bkg in zip(peaks, peaks_bkg):
         if p / p_bkg > snr:
-            clevelsfix.append(np.array(clevels)*p)
+            clevelsfix.append(np.array(clevels) * p)
         else:
-            clevelsfix.append(np.array([2.])*p)
+            clevelsfix.append(np.array([2.]) * p)
 
     return clevelsfix
 
-def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None,
-                    verbose=True, stokes='I,V', fov=None,
-                    imax=None, imin=None, icmap=None, inorm=None,
-                    amax=None, amin=None, acmap=None, anorm=None,
-                    nclevels=None, dmax=None, dmin=None, dcmap=None, dnorm=None, sclfactor=1.0,
+
+def get_data_limits(data, dmin, dmax, dnorm):
+    if dmax is None:
+        dmax = np.nanpercentile(data, 99)
+    if dmin is None:
+        dmin = np.nanpercentile(data, 1)
+        if dnorm == 'log' and dmin <= 0:
+            dmin = np.nanpercentile(data[data > 0], 1)
+    return dmin, dmax
+
+
+def setup_axes(fig, npols, nspw, plotaia):
+    if npols == 1:
+        hnspw = max(nspw // 2, 1)
+        ncols = hnspw
+        nrows = 4
+        gs = gridspec.GridSpec(nrows, ncols, height_ratios=[4, 4, 1, 1])
+
+        if nspw <= 1 or plotaia:
+            axs = [fig.add_subplot(gs[:2, :hnspw])]
+        else:
+            axs = [fig.add_subplot(gs[0, 0])]
+            for ll in range(1, nspw):
+                axs.append(fig.add_subplot(gs[ll // hnspw, ll % hnspw], sharex=axs[0], sharey=axs[0]))
+
+        axs_dspec = [fig.add_subplot(gs[2:, :])]
+
+    elif npols == 2:
+        hnspw = max(nspw // 2, 1)
+        ncols = hnspw + 2
+        nrows = 4
+        gs = gridspec.GridSpec(nrows, ncols, height_ratios=[1, 1, 1, 1])
+
+        if nspw <= 1 or plotaia:
+            axs = [fig.add_subplot(gs[:2, 2:]), fig.add_subplot(gs[2:, 2:])]
+        else:
+            axs = [fig.add_subplot(gs[0, 2])]
+            for ll in range(1, nspw):
+                axs.append(fig.add_subplot(gs[ll // hnspw, ll % hnspw + 2], sharex=axs[0], sharey=axs[0]))
+            for ll in range(nspw):
+                axs.append(fig.add_subplot(gs[ll // hnspw + 2, ll % hnspw + 2], sharex=axs[0], sharey=axs[0]))
+
+        axs_dspec = [fig.add_subplot(gs[:2, :2]), fig.add_subplot(gs[2:, :2])]
+
+    return axs, axs_dspec, gs
+
+
+def plt_qlook_image(imres, timerange='', spwplt=None, figdir='./qlookimgs/', specdata=None,
+                    verbose=False, stokes='I,V', fov=None,
+                    imax=None, imin=None, icmap='RdYlBu', inorm='linear',
+                    amax=None, amin=None, acmap='gray_r', anorm='log',
+                    dmax=None, dmin=None, dcmap='viridis', dnorm='linear',
+                    sclfactor=1.0,
+                    nclevels=3,
                     clevels=None, clevelsfix=None, aiafits='', aiadir=None, aiawave=171, plotaia=True,
                     freqbounds=None, moviename='',
                     alpha_cont=1.0, custom_mapcubes=[], opencontour=False, movieformat='html', ds_normalised=False,
-                    minsnr=5, overwrite=True):
-    '''
-    Required inputs:
-    Important optional inputs:
-    Optional inputs:
-            aiadir: directory to search aia fits files
-    Example:
-    :param imres:
-    :param timerange:
-    :param figdir:
-    :param specdata:
-    :param verbose:
-    :param stokes:
-    :param fov:
-    :param imax: ## radio image plot setting
-    :param imin:
-    :param icmap:
-    :param inorm:
-    :param amax:  ## aia plot setting
-    :param amin:
-    :param acmap:
-    :param anorm:
-    :param nclevels:
-    :param dmax:  ## dynamic spectra plot setting
-    :param dmin:
-    :param dcmap:
-    :param dnorm:
-    :param sclfactor:
-    :param clevels:
-    :param aiafits:
-    :param aiadir:
-    :param aiawave:
-    :param plotaia:
-    :param moviename:
-    :param alpha_cont:
-    :param custom_mapcubes:
-    :return:
-    '''
+                    minsnr=5, timtol=10. / 60. / 24., overwrite=True):
+    """
+    Generate quick-look images of solar radio data with optional AIA overlays.
 
+    This function plots dynamic spectra, AIA overlays, and radio images for a specified time range and field of view.
+    It can handle different plotting configurations, including stokes parameters and plotting custom contour levels.
+
+    :param imres: Input image results dictionary from suncasa.utils.qlookplot.
+    :type imres: dict or str
+    :param timerange: Time range for plotting, defaults to ''. If '', use the entire timerange of the input imres.
+                      Can be a string or `astropy.time.Time` object, e.g., '2024-01-03T17:46~2024-01-03T17:47'.
+    :type timerange: str or `astropy.time.Time`, optional
+    :param spwplt: List of spectral windows to plot, defaults to None.
+    :type spwplt: list, optional
+    :param figdir: Directory to save the generated plots, defaults to './qlookimgs/'.
+    :type figdir: str, optional
+    :param specdata: Spectral data for plotting dynamic spectra.
+    :type specdata: object, optional
+    :param verbose: If True, print verbose output, defaults to True.
+    :type verbose: bool, optional
+    :param stokes: Comma-separated stokes parameters to plot, defaults to 'I,V'.
+    :type stokes: str, optional
+    :param fov: Field of view for the plot, defaults to None.
+    :type fov: list, optional
+    :param imax: Maximum value for radio image plot, defaults to None.
+    :type imax: float, optional
+    :param imin: Minimum value for radio image plot, defaults to None.
+    :type imin: float, optional
+    :param icmap: Colormap for radio image, defaults to 'RdYlBu'.
+    :type icmap: str, optional
+    :param inorm: Normalization for radio images. Must be 'linear' or 'log'.
+    :type inorm: str, optional
+    :param amax, amin: Max and min values for AIA data normalization.
+    :type amax: float, optional
+    :type amin: float, optional
+    :param acmap: Colormap for AIA images, defaults to None.
+    :type acmap: str, optional
+    :param anorm: Normalization for AIA data. Must be 'linear' or 'log'.
+    :type anorm: str, optional
+    :param dmax, dmin: Max and min values for dynamic spectra normalization.
+    :type dmax: float, optional
+    :type dmin: float, optional
+    :param dcmap: Colormap for dynamic spectra, defaults to 'viridis'.
+    :type dcmap: str, optional
+    :param dnorm: Normalization for dynamic spectra. Must be 'linear' or 'log'.
+    :type dnorm: str, optional
+    :param sclfactor: Scaling factor for spectral data, defaults to 1.0.
+    :type sclfactor: float, optional
+    :param nclevels: Number of contour levels for radio images, calculated between `imin` and `imax`.
+                     Used if `clevels` and `clevelsfix` are not provided.
+    :type nclevels: int, optional
+    :param clevels: Contour levels for radio images, defined as percentages of the maximum value in the image.
+                    Overrides `nclevels` if provided. For example, `[0.3, 0.5, 0.8]` plots contours at 30%, 50%,
+                    and 80% of the maximum value for each spectral window.
+    :type clevels: list, optional
+    :param clevelsfix: Fixed contour levels for each spectral window, calculated using `radio_image_clevels`.
+                       These levels are relative to the flare peak and defined as percentages of the peak value.
+                       Overrides both `nclevels` and `clevels` if provided.
+    :type clevelsfix: list, optional
+    :param aiafits: Path to AIA FITS files, defaults to ''.
+    :type aiafits: str, optional
+    :param aiadir: Directory to search for AIA FITS files, defaults to None.
+    :type aiadir: str, optional
+    :param aiawave: AIA wavelength to use, defaults to 171.
+    :type aiawave: int, optional
+    :param plotaia: If True, plot AIA data, defaults to True.
+    :type plotaia: bool, optional
+    :param freqbounds: Frequency bounds for plotting, defaults to None.
+    :type freqbounds: dict, optional
+    :param moviename: Name for the output movie, defaults to ''.
+    :type moviename: str, optional
+    :param alpha_cont: Alpha value for contours, defaults to 1.0.
+    :type alpha_cont: float, optional
+    :param custom_mapcubes: List of custom mapcubes to plot, defaults to [].
+    :type custom_mapcubes: list, optional
+    :param opencontour: If True, use open contours, defaults to False.
+    :type opencontour: bool, optional
+    :param movieformat: Format for the output movie, defaults to 'html'.
+    :type movieformat: str, optional
+    :param ds_normalised: If True, normalize the dynamic spectra, defaults to False.
+    :type ds_normalised: bool, optional
+    :param minsnr: Minimum signal-to-noise ratio for plotting, defaults to 5.
+    :type minsnr: int, optional
+    :param timtol: Time tolerance for matching AIA data, defaults to 10./60./24. (in days).
+    :type timtol: float, optional
+    :param overwrite: If True, overwrite existing plots, defaults to True.
+    :type overwrite: bool, optional
+
+    :raises ValueError: If the input parameters are not valid.
+
+    :return: Path to the generated movie file.
+    :rtype: str
+
+    Example usage:
+    --------------
+    ```python
+    from suncasa.utils import qlookplot as ql
+    from astropy.time import Time
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    # Load imres from the npz file from a prior qlookplot run
+    imres = np.load('./qlookfits/IDB20240514_1645-1738.XXYY.cal.1s.ms.slfcaled.imres.npz', allow_pickle=True)['imres'].item()
+
+    # Load dynamic spectrum
+    from suncasa.dspec import dspec
+    d = dspec.Dspec()
+    d.read('eovsa.spec.flare_id_20240514164700.fits', source='eovsa')
+
+    # Calculate contour levels
+    # Define the background time to determine bands with sufficient flare enhancement
+    timerange_bkg = Time(['2024-05-14T16:39', '2024-05-14T16:42'])
+    clevelsfix = ql.radio_image_clevels(imres, timerange_bkg=timerange_bkg, snr=2)
+
+    # Define timerange, fov, dmin, dmax (for spectrogram), and AIA normalization for plotting images
+    fov = [[760., 1060.], [-430., -130.]]
+    fov = None
+    ql.plt_qlook_image(imres, stokes='I', figdir='./qlookimgs/',
+                       specdata=d, icmap=plt.get_cmap('RdYlBu'), aiadir='./', fov=fov,
+                       opencontour=True, dcmap='viridis', dnorm='log', clevelsfix=clevelsfix, movieformat='mp4')
+    ```
+    """
     from matplotlib import pyplot as plt
     from sunpy import map as smap
     if sunpy1:
@@ -951,17 +1215,11 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
     else:
         from sunpy import sun
     import astropy.units as u
-    if not figdir:
-        figdir = './'
-    figdir_ = figdir + '/'
 
     if isinstance(icmap, str):
         icmap = plt.get_cmap(icmap)
-    if nclevels is None:
-        if plotaia:
-            nclevels = 2
-        else:
-            nclevels = 3
+    if plotaia:
+        nclevels = 2
 
     pols = stokes.split(',')
     npols = len(pols)
@@ -971,8 +1229,8 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
         wrapfits = True
     else:
         wrapfits = False
-    tstart, tend = timerange.split('~')
-    t_ran = Time([qa.quantity(tstart, 'd')['value'], qa.quantity(tend, 'd')['value']], format='mjd')
+    if freqbounds is None:
+        freqbounds = mstools.get_bandinfo(imres['vis'], spw=imres['spw'], returnbdinfo=True)
     cfreqs = freqbounds['cfreqs']
     cfreqs_all = freqbounds['cfreqs_all']
     freq_dist = (cfreqs - cfreqs_all[0]) / (cfreqs_all[-1] - cfreqs_all[0])
@@ -981,8 +1239,6 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
         # 'freq': imres['freq'], 'obs': imres['obs']}
         btimes = Time(imres['btimes'])
         etimes = Time(imres['etimes'])
-        print(btimes.iso, btimes.jd)
-        print(t_ran.iso, t_ran.jd)
         # tpltidxs, = np.where(np.logical_and(btimes.jd >= t_ran[0].jd, etimes.jd <= t_ran[1].jd))
         # btimes = btimes[tpltidxs]
         # etimes = etimes[tpltidxs]
@@ -1032,7 +1288,17 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
         spws_sort = spws[inds].reshape(ntime, nspw)
         btimes = btimes_sort[:, 0]
 
+    if isinstance(timerange, str):
+        if timerange == '':
+            t_ran = [btimes[0], etimes[-1]]
+        else:
+            tstart, tend = timerange.split('~')
+            t_ran = Time([qa.quantity(tstart, 'd')['value'], qa.quantity(tend, 'd')['value']], format='mjd')
+    else:
+        t_ran = Time(timerange)
+
     dt = np.nanmean(np.diff(plttimes.mjd)) * 24. * 60 * 60  ## time cadence in seconds
+    print(f'time cadence: {dt:.1f} s')
     if custom_mapcubes:
         cmpc_plttimes_mjd = []
         for cmpc in custom_mapcubes['mapcube']:
@@ -1041,7 +1307,6 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
     # if verbose:
     #     print('{0:d} figures to plot'.format(len(tpltidxs)))
     plt.ioff()
-    import matplotlib.gridspec as gridspec
     if np.iscomplexobj(specdata.data):
         spec = np.abs(specdata.data)
     else:
@@ -1067,115 +1332,65 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
     tidx, = np.where(np.logical_and(spec_tim > t_ran[0], spec_tim < t_ran[1]))
     spec_tim_plt = spec_tim.plot_date
 
+    spec_plt = None
+    polstr = None
+    cmaps = None
+    dranges = None
+    iranges = None
+
     if npols == 1:
-        if pol == 'RR':
+        if pol in ['RR', 'XX']:
             spec_plt = spec[0, 0, :, :]
-        elif pol == 'LL':
-            spec_plt = spec[1, 0, :, :]
-        elif pol == 'XX':
-            spec_plt = spec[0, 0, :, :]
-        elif pol == 'YY':
+        elif pol in ['LL', 'YY']:
             spec_plt = spec[1, 0, :, :]
         elif pol == 'I':
-            spec_plt = (spec[0, 0, :, :] + spec[1, 0, :, :]) / 2.
+            spec_plt = (spec[0, 0, :, :] + spec[1, 0, :, :]) / 2
         elif pol == 'V':
             spec_plt = (spec[0, 0, :, :] - spec[1, 0, :, :]) / (spec[0, 0, :, :] + spec[1, 0, :, :])
         spec_plt = [spec_plt]
-        print('plot the dynamic spectrum in pol ' + pol)
 
-        # hnspw = max(nspw // 2, 1)
-        # ncols = hnspw
-        # nrows = 2 + 2  # 1 image: 1x1, 1 dspec:2x4
-        # fig = plt.figure(figsize=(10, 10))
-        # gs = gridspec.GridSpec(nrows, ncols, height_ratios=[4, 4, 1, 1])
-        # if nspw <= 1 or plotaia:
-        #     axs = [plt.subplot(gs[:2, :hnspw])]
-        # else:
-        #     axs = [plt.subplot(gs[0, 0])]
-        #     for ll in range(1, nspw):
-        #         axs.append(plt.subplot(gs[ll // hnspw, ll % hnspw], sharex=axs[0], sharey=axs[0]))
-        #     # for ll in range(nspw):
-        #     #     axs.append(plt.subplot(gs[ll // hnspw + 2, ll % hnspw], sharex=axs[0], sharey=axs[0]))
-        fig = plt.figure(figsize=(10, 10))
-        if nspw <= 1 or plotaia:
-            hnspw = max(nspw // 2, 1)
-            ncols = hnspw
-            nrows = 2 + 2  # 1 image: 1x1, 1 dspec:2x4
-            gs = gridspec.GridSpec(nrows, ncols, height_ratios=[4, 4, 1, 1])
-            axs = [plt.subplot(gs[:2, :hnspw])]
-        else:
-            hnspw = nspw // 2 + nspw % 2
-            ncols = hnspw
-            nrows = 2 + 2  # 1 image: 1x1, 1 dspec:2x4
-            gs = gridspec.GridSpec(nrows, ncols, height_ratios=[4, 4, 1, 1])
-            axs = [plt.subplot(gs[0, 0])]
-            for ll in range(1, nspw):
-                axs.append(plt.subplot(gs[ll // hnspw, ll % hnspw], sharex=axs[0], sharey=axs[0]))
-
-        axs_dspec = [plt.subplot(gs[2:, :])]
-        cmaps = [plt.get_cmap(dcmap)]
-        if dmax is None:
-            dmax = np.nanmax(spec_plt)
-            dmax = np.percentile(np.array(spec_plt).flatten(), 99)
-        if dmin is None:
-            dmin = np.nanmin(spec_plt)
-            dmin = np.percentile(np.array(spec_plt).flatten(), 1)
+        dmin, dmax = get_data_limits(np.array(spec_plt).flatten(), dmin, dmax, dnorm)
         dranges = [[dmin, dmax]]
         iranges = [[imin, imax]]
+        cmaps = [plt.get_cmap(dcmap)]
+        print(f'Plotting the dynamic spectrum in polarization {pol}')
     elif npols == 2:
-        R_plot = np.absolute(spec[0, 0, :, :])
-        L_plot = np.absolute(spec[1, 0, :, :])
+        R_plot = np.abs(spec[0, 0, :, :])
+        L_plot = np.abs(spec[1, 0, :, :])
+
         if pol == 'RRLL':
             spec_plt = [R_plot, L_plot]
             polstr = ['RR', 'LL']
-            cmaps = [plt.get_cmap(dcmap)] * 2
-            if dmax is None:
-                dmax = np.nanmax(spec_plt)
-            if dmin is None:
-                dmin = np.nanmin(spec_plt)
-            dranges = [[dmin, dmax]] * 2
-            iranges = [[imin, imax]] * 2
         elif pol == 'XXYY':
             spec_plt = [R_plot, L_plot]
             polstr = ['XX', 'YY']
-            cmaps = [plt.get_cmap(dcmap)] * 2
-            if dmax is None:
-                dmax = np.nanmax(spec_plt)
-            if dmin is None:
-                dmin = np.nanmin(spec_plt)
-            dranges = [[dmin, dmax]] * 2
-            iranges = [[imin, imax]] * 2
         elif pol == 'IV':
-            I_plot = (R_plot + L_plot) / 2.
-            V_plot = (R_plot - L_plot) / 2. / I_plot
+            I_plot = (R_plot + L_plot) / 2
+            V_plot = (R_plot - L_plot) / (2 * I_plot)
             spec_plt = [I_plot, V_plot]
             polstr = ['I', 'V']
             cmaps = [plt.get_cmap(dcmap), plt.get_cmap('RdBu')]
-            if dmax is None:
-                dmax = np.nanmax(spec_plt)
-            if dmin is None:
-                dmin = np.nanmin(spec_plt)
             dranges = [[dmin, dmax], [-1, 1]]
             iranges = [[imin, imax], [-1, 1]]
-        print('plot the dynamic spectrum in pol ' + pol)
-
-        hnspw = max(nspw // 2, 1)
-        ncols = hnspw + 2  # 1 image: 1x1, 1 dspec:2x2
-        nrows = 2 + 2
-        fig = plt.figure(figsize=(12, 8))
-        gs = gridspec.GridSpec(nrows, ncols, height_ratios=[1, 1, 1, 1])
-        if nspw <= 1 or plotaia:
-            axs = [plt.subplot(gs[:2, 2:]), plt.subplot(gs[2:, 2:])]
         else:
-            # pdb.set_trace()
-            axs = [plt.subplot(gs[0, 2])]
-            for ll in range(1, nspw):
-                axs.append(plt.subplot(gs[ll // hnspw, ll % hnspw + 2], sharex=axs[0], sharey=axs[0]))
-            for ll in range(nspw):
-                axs.append(plt.subplot(gs[ll // hnspw + 2, ll % hnspw + 2], sharex=axs[0], sharey=axs[0]))
+            raise ValueError(f'Invalid polarization: {pol}')
 
-        axs_dspec = [plt.subplot(gs[:2, :2])]
-        axs_dspec.append(plt.subplot(gs[2:, :2]))
+        dmin, dmax = get_data_limits(np.array(spec_plt).flatten(), dmin, dmax, dnorm)
+        if dranges is None:
+            dranges = [[dmin, dmax]] * len(spec_plt)
+        if iranges is None:
+            iranges = [[imin, imax]] * len(spec_plt)
+        if cmaps is None:
+            cmaps = [plt.get_cmap(dcmap)] * len(spec_plt)
+
+        print(f'Plotting the dynamic spectrum in polarization {pol}')
+
+    else:
+        raise ValueError(f'Unsupported value for npols: {npols}')
+
+    fig_size = (10, 12)
+    fig = plt.figure(figsize=fig_size)
+    axs, axs_dspec, gs = setup_axes(fig, npols, nspw, plotaia)
 
     for ax in axs + axs_dspec:
         ax.tick_params(direction='out', axis='both')
@@ -1189,33 +1404,36 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                 for i in tqdm(range(ntime)):
                     plttime = btimes[i]
                     aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime, isexists=True,
-                                                  timtol=120. / 3600. / 24)
+                                                  timtol=timtol)
                     if not aiafile:
                         aiafile = DButil.readsdofile(datadir=aiadir_default, wavelength=aiawave, trange=plttime,
                                                      isexists=True,
-                                                     timtol=120. / 3600. / 24)
+                                                     timtol=timtol)
                     if not aiafile:
                         aiafile = DButil.readsdofileX(datadir='./', wavelength=aiawave, trange=plttime, isexists=True,
-                                                      timtol=120. / 3600. / 24)
+                                                      timtol=timtol)
                     if aiafile == []:
-                        aiafiles.append(None)
-                    else:
-                        aiafiles.append(aiafile)
+                        if verbose:
+                            print('No AIA fits files found. Downloading AIA data...')
+                        aiafile = download_aia_data(trange=plttime, wavelengths=aiawave, cadence=dt * u.second)[0]
+                        # print(f'download jp2: {aiafile}')
+                    aiafiles.append(aiafile)
                     # print(i, aiafile)
 
-                if np.count_nonzero(aiafiles) == 0:
-                    aiafiles = []
-                    downloadAIAdata(trange=t_ran, wavelength=aiawave, cadence=dt * u.second)
-                    aiadir = './'
-                    for i in tqdm(range(ntime)):
-                        plttime = btimes[i]
-                        aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime,
-                                                      isexists=True,
-                                                      timtol=120. / 3600. / 24)
-                        if aiafile == []:
-                            aiafiles.append(None)
-                        else:
-                            aiafiles.append(aiafile)
+                # if np.count_nonzero(aiafiles) <ntime:
+                #     aiafiles = []
+                #     print('No AIA fits files found. Downloading AIA data...')
+                #     download_aia_data(trange=t_ran, wavelength=aiawave, cadence=dt * u.second)
+                #     aiadir = './'
+                #     for i in tqdm(range(ntime)):
+                #         plttime = btimes[i]
+                #         aiafile = DButil.readsdofileX(datadir=aiadir, wavelength=aiawave, trange=plttime,
+                #                                       isexists=True,
+                #                                       timtol=timtol)
+                #         if aiafile == []:
+                #             aiafiles.append(None)
+                #         else:
+                #             aiafiles.append(aiafile)
         else:
             # from suncasa.utils import stackplotX as stp
             # st = stp.Stackplot(aiafits)
@@ -1228,8 +1446,8 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
         for ax in axs:
             ax.cla()
         plttime = btimes[i]
-        figname = observatory + '_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:19] + '.png'
-        fignameful = os.path.join(figdir_, figname)
+        figname = f'{observatory}_qlimg_{plttime.isot.replace(":", "").replace("-", "")[:19]}.png'
+        fignameful = os.path.join(figdir, figname)
         if i > 0 and os.path.exists(fignameful) and not overwrite:
             continue
         # tofd = plttime.mjd - np.fix(plttime.mjd)
@@ -1239,25 +1457,22 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
         #     continue
         # fig=plt.figure(figsize=(9,6))
         # fig.suptitle('EOVSA @ '+plttime.iso[:19])
-        if verbose:
-            print('Plotting image at: ', plttime.iso)
+        # if verbose:
+        #     print('Plotting image at: ', plttime.iso)
 
         if plttime == plttimes[0]:
             dspecvspans = []
             for pol in range(npols):
                 ax = axs_dspec[pol]
-                if dnorm is None:
-                    vnorm = colors.Normalize(vmax=dranges[pol][1], vmin=dranges[pol][0])
-                else:
-                    vnorm = dnorm
+                _dnorm = get_normalization(dranges[pol][0], dranges[pol][1], dnorm)
                 cmap_plt = copy.copy(cmaps[pol])
                 cmap_plt.set_bad(cmap_plt(0.0))
                 im_spec = ax.pcolormesh(spec_tim_plt[tidx], freqghz, spec_plt[pol][:, tidx], cmap=cmap_plt,
-                                        norm=vnorm, rasterized=True)
+                                        norm=_dnorm, rasterized=True)
                 ax.set_xlim(spec_tim_plt[tidx[0]], spec_tim_plt[tidx[-1]])
                 ax.set_ylim(freqghz[fidx[0]], freqghz[fidx[-1]])
                 ax.set_ylabel('Frequency [GHz]')
-                for idx, freq in enumerate(Freq):##dotted lines indicating spws
+                for idx, freq in enumerate(Freq):  ##dotted lines indicating spws
                     if nspw <= 10:
                         # ax.axhspan(freq[0], freq[1], linestyle='dotted', edgecolor='w', alpha=0.7, facecolor='none')
                         xtext, ytext = ax.transAxes.inverted().transform(
@@ -1266,26 +1481,10 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                         #         fontweight='bold', ha='left', va='center',
                         #         fontsize=8, alpha=0.5)
                         colors_spws = icmap(freq_dist)
-                        ax.annotate('', xy=(xtext-0.02 , ytext), xycoords='axes fraction', xytext=(xtext, ytext),textcoords='axes fraction',
-                                            arrowprops=dict(arrowstyle='-', color=colors_spws[idx], linewidth=2), horizontalalignment='right')
-
-                # for idx, freq in enumerate(Freq):
-                #     if nspw <= 10:
-                #         line = ax.axhline(y=freq[0], color=colors_spws[idx])  # Customize color and style as needed
-                #         line.set_clip_on(True)  # Set False if you want the line to extend beyond the axes limits
-                # colors_spws = icmap(freq_dist)
-                # freq_ax_twtp = [freq[0] for freq in Freq]
-                # color_axtwtp = colors_spws#[colors_spws[int(s)] for s in Spw]
-                # ax_twtp = ax.twinx()##axis ticks indicating spws
-                # ax_twtp.set_ylim(ax.get_ylim())
-                # ax_twtp.set_yticks(freq_ax_twtp)
-                # for tick, color in zip(ax_twtp.yaxis.get_major_ticks(), color_axtwtp):
-                #     tick.label1.set_visible(False)
-                #     tick.label2.set_visible(False)
-                #     tick.tick2line.set_markeredgewidth(2)
-                #     tick.tick2line.set_color(color)
-                # # ax_twtp.spines['right'].set_visible(False)
-                # # ax_twtp.tick_params(right=True)
+                        ax.annotate('', xy=(xtext - 0.02, ytext), xycoords='axes fraction', xytext=(xtext, ytext),
+                                    textcoords='axes fraction',
+                                    arrowprops=dict(arrowstyle='-', color=colors_spws[idx], linewidth=2),
+                                    horizontalalignment='right')
 
                 ax.text(0.01, 0.98, 'Stokes ' + pols[pol], color='w', transform=ax.transAxes, fontweight='bold',
                         ha='left', va='top')
@@ -1330,15 +1529,20 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                 dspecvspans[pol].set_xy(xy)
         if plotaia:
             # pdb.set_trace()
+            aia_jp2 = False
             if np.count_nonzero(aiafiles) > 0:
                 try:
-                    # print(aiafiles)
                     aiafits = aiafiles[i]
+                    if verbose:
+                        print(f'plotting AIA image at {plttime.iso}: {aiafits}')
                     aiamap = smap.Map(aiafits)
-                    aiamap = DButil.normalize_aiamap(aiamap)
-                    data = aiamap.data
-                    data[data < 1.0] = 1.0
-                    aiamap = smap.Map(data, aiamap.meta)
+                    if aiafits.endswith('.jp2'):
+                        aia_jp2 = True
+                    if not aia_jp2:
+                        aiamap = DButil.normalize_aiamap(aiamap)
+                        data = aiamap.data
+                        data[data < 1.0] = 1.0
+                        aiamap = smap.Map(data, aiamap.meta)
                 except Exception as e:
                     aiamap = None
                     if verbose:
@@ -1363,11 +1567,12 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
 
         colors_spws = icmap(freq_dist)
         spwpltCounts = 0
+        # print(f'starting plotting radio images. spwpltCounts: {spwpltCounts} initiated')
         for s, sp in enumerate(Spw):
             if spwplt is not None:
                 if sp not in spwplt:
                     continue
-
+            # print(f'spwpltCounts: {spwpltCounts}, s: {s}, sp: {sp}')
             # print(image)
             for pidx, pol in enumerate(pols):
                 if wrapfits:
@@ -1443,39 +1648,47 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                         ax = axs[s]
 
                 # Check the quality of the data
-                #(ny, nx) = data.shape
+                # (ny, nx) = data.shape
                 max_pix = np.nanmax(rmap.data)
                 min_pix = np.nanmin(rmap.data)
-                #data[int(ny * 0.25):int(ny * 0.75), int(nx * 0.5):int(nx * 0.75)] = np.nan
+                # data[int(ny * 0.25):int(ny * 0.75), int(nx * 0.5):int(nx * 0.75)] = np.nan
                 rms = np.nanstd(rmap.data)
-                dyn_range=max_pix/rms
+                dyn_range = max_pix / rms
 
-                if dyn_range > minsnr and max_pix>2*np.abs(min_pix):
-                    rmap_ = pmX.Sunmap(rmap)
+                rmap_ = pmX.Sunmap(rmap)
+                if dyn_range > minsnr and max_pix > 2 * np.abs(min_pix):
+                    rmap_flag = False
                 else:
-                    continue
+                    rmap_flag = True
+                    # print(f'Bad data quality at {plttime.iso} for spw {sp} pol {pol}. dyn_range: {dyn_range:.1f}, max_pix: {max_pix:.1f}, rms: {rms:.1f}. Skip plotting.')
+                    # continue
 
                 if plotaia:
                     if aiamap:
-                        if anorm is None:
-                            if amax is None:
-                                amax = np.nanmax(aiamap.data)
-                            if amin is None:
-                                amin = 1.0
-                            anorm = colors.LogNorm(vmin=amin, vmax=amax)
+                        if amax is None:
+                            amax = np.nanmax(aiamap.data)
+                        if amin is None:
+                            amin = 1.0
+                        if aia_jp2:
+                            _anorm = get_normalization(0, 255, 'linear')
+                        else:
+                            _anorm = get_normalization(amin, amax, anorm)
                         if acmap is None:
                             acmap = 'gray_r'
 
                         if nspw > 1:
+                            # print(f'adding radio images at s: {s}, sp: {sp}: spwpltCounts: {spwpltCounts}')
                             if spwpltCounts == 0:
                                 aiamap_ = pmX.Sunmap(aiamap)
                                 aiamap_.imshow(axes=ax, cmap=acmap,
-                                               norm=anorm,
+                                               norm=_anorm,
                                                interpolation='nearest')
+                                # print(
+                                #     f'radio image at sp:{sp} pol:{pol} at {plttime.iso} aiamap.data.max: {np.nanmax(aiamap.data)}')
                         else:
                             aiamap_ = pmX.Sunmap(aiamap)
                             aiamap_.imshow(axes=ax, cmap=acmap,
-                                           norm=anorm,
+                                           norm=_anorm,
                                            interpolation='nearest')
                     else:
                         rmap_blank = sunpy.map.Map(np.full_like(rmap.data, np.nan), rmap.meta)
@@ -1485,34 +1698,45 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                                 rmap_blank_.imshow(axes=ax)
                         else:
                             rmap_blank_.imshow(axes=ax)
-                    
-                    try:
-                        clevels1 = np.array(clevelsfix[s])#firstly try contour with clevelsfix if given 
-                    except:
+
+                    if not rmap_flag:
                         try:
-                            clevels1 = np.linspace(iranges[pidx][0], iranges[pidx][1], nclevels)
+                            clevels1 = np.array(clevelsfix[s])  # firstly try contour with clevelsfix if given
                         except:
                             try:
-                                clevels1 = np.array(clevels) * np.nanmax(rmap.data)
+                                clevels1 = np.linspace(iranges[pidx][0], iranges[pidx][1], nclevels)
                             except:
-                                clevels1 = np.linspace(0.5, 1.0, 2) * np.nanmax(rmap.data)
-                    if np.any(clevels1):
-                        if nspw > 1:
-                            if opencontour:
-                                rmap_.contour(axes=ax, levels=clevels1,
-                                              colors=[colors_spws[s]] * len(clevels1),
-                                              alpha=alpha_cont, linewidths=2)
+                                try:
+                                    clevels1 = np.array(clevels) * np.nanmax(rmap.data)
+                                except:
+                                    clevels1 = np.linspace(0.5, 1.0, 2) * np.nanmax(rmap.data)
+                        if np.any(clevels1):
+                            if nspw > 1:
+                                if opencontour:
+                                    rmap_.contour(axes=ax, levels=clevels1,
+                                                  colors=[colors_spws[s]] * len(clevels1),
+                                                  alpha=alpha_cont, linewidths=2)
+                                else:
+                                    rmap_.contourf(axes=ax, levels=[clevels1[0], np.nanmax(rmap.data)],
+                                                   colors=[colors_spws[s]] * 2,
+                                                   alpha=alpha_cont)
                             else:
-                                rmap_.contourf(axes=ax, levels=clevels1,
-                                               colors=[colors_spws[s]] * len(clevels1),
-                                               alpha=alpha_cont)
-                        else:
-                            rmap_.contour(axes=ax, levels=clevels1, cmap=icmap)
+                                rmap_.contour(axes=ax, levels=clevels1, cmap=icmap)
                 else:
-                    rmap_.imshow(axes=ax, vmax=iranges[pidx][1], vmin=iranges[pidx][0], cmap=cmaps[pol],
-                                 interpolation='nearest')
-                    rmap_.draw_limb(axes=ax)
-                    rmap_.draw_grid(axes=ax)
+                    if rmap_flag:
+                        rmap_blank = sunpy.map.Map(np.full_like(rmap.data, np.nan), rmap.meta)
+                        rmap_blank_ = pmX.Sunmap(rmap_blank)
+                        if nspw > 1:
+                            if spwpltCounts == 0:
+                                rmap_blank_.imshow(axes=ax)
+                        else:
+                            rmap_blank_.imshow(axes=ax)
+                    else:
+                        _inorm = get_normalization(iranges[pidx][0], iranges[pidx][1], inorm)
+                        rmap_.imshow(axes=ax, norm=_inorm, cmap=cmaps[pol],
+                                     interpolation='nearest')
+                        rmap_.draw_limb(axes=ax)
+                        rmap_.draw_grid(axes=ax)
                 if custom_mapcubes:
                     for cmpcidx, cmpc in enumerate(custom_mapcubes['mapcube']):
                         dtcmpc = np.mean(np.diff(cmpc_plttimes_mjd[cmpcidx]))
@@ -1543,27 +1767,18 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                     ax.set_xlim(fov[0])
                     ax.set_ylim(fov[1])
                 else:
-                    ax.set_xlim([-1220, 1220])
-                    ax.set_ylim([-1220, 1220])
+                    # ax.set_xlim([-1220, 1220])
+                    # ax.set_ylim([-1220, 1220])
+                    ax.set_xlim(rmap_.xrange.value)
+                    ax.set_ylim(rmap_.yrange.value)
                 if spwpltCounts == 0 and pidx == 0:
                     timetext = ax.text(0.99, 0.98, '', color='w', fontweight='bold', fontsize=9, ha='right', va='top',
                                        transform=ax.transAxes)
                     timetext.set_text(plttime.iso[:19])
-                if nspw <= 1 or plotaia==False:
-                    # if nspw <= 10:
-                    #     try:
-                    #         ax.text(0.98, 0.01 + 0.05 * s,
-                    #                 '{1} @ {0:.1f} GHz'.format(rmap.meta['RESTFRQ'] / 1e9, pol),
-                    #                 color=icmap(float(s) / (nspw - 1)), transform=ax.transAxes,
-                    #                 fontweight='bold', ha='right')
-                    #     except:
-                    #         ax.text(0.98, 0.01 + 0.05 * s, '{1} @ {0:.1f} GHz'.format(0., pol),
-                    #                 color=icmap(float(s) / (nspw - 1)), transform=ax.transAxes,
-                    #                 fontweight='bold', ha='right')
-                    # else:
+                if nspw <= 1 or plotaia == False:
                     try:
                         ax.text(0.98, 0.01, '{1} @ {0:.1f} GHz'.format(cfreqs[s], pol),
-                                color='w',transform=ax.transAxes, fontweight='bold', ha='right')
+                                color='w', transform=ax.transAxes, fontweight='bold', ha='right')
                     except:
                         ax.text(0.98, 0.01, '{1} @ {0:.1f} GHz'.format(0., pol), color='w',
                                 transform=ax.transAxes, fontweight='bold',
@@ -1573,7 +1788,7 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
                 # ax.xaxis.set_visible(False)
                 # ax.yaxis.set_visible(False)
             spwpltCounts += 1
-        if i == 0 and plotaia == True:
+        if i == 0 and plotaia:
             if nspw > 1:
                 import matplotlib.colorbar as colorbar
                 ticks, bounds, fmax, fmin, freqmask = get_colorbar_params(freqbounds)
@@ -1604,8 +1819,8 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
         # figname = observatory + '_qlimg_' + plttime.isot.replace(':', '').replace('-', '')[:19] + '.png'
         # fig_tdt = plttime.to_datetime())
         # fig_subdir = fig_tdt.strftime("%Y/%m/%d/")
-        if not os.path.exists(figdir_):
-            os.makedirs(figdir_)
+        if not os.path.exists(figdir):
+            os.makedirs(figdir)
         if verbose:
             print('Saving plot to: ' + fignameful)
         if i == 0:
@@ -1615,9 +1830,9 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir=None, specdata=None
     if not moviename:
         moviename = 'movie'
     if movieformat.lower() == 'html':
-        DButil.img2html_movie(figdir_, outname=moviename)
+        DButil.img2html_movie(figdir, outname=moviename)
     else:
-        DButil.img2movie(figdir_, outname=moviename)
+        DButil.img2movie(figdir, outname=moviename)
     outmovie = figdir + moviename + '.' + movieformat
     return outmovie
 
@@ -1661,10 +1876,10 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
               wrapfits=True,
               nclevels=3,
               clevels=None, clevelsfix=None, calpha=0.5, opencontour=False,
-              imax=None, imin=None, icmap=None, inorm=None,
-              dmin=None, dmax=None, dcmap=None, dnorm=None,
+              imax=None, imin=None, icmap=None, inorm='linear',
+              dmin=None, dmax=None, dcmap=None, dnorm='linear',
               plotaia=True, aiawave=171, aiafits=None, aiadir=None,
-              amax=None, amin=None, acmap=None, anorm=None,
+              amax=None, amin=None, acmap=None, anorm='log',
               goestime=None,
               mkmovie=False, ncpu=1, twidth=1, movieformat='html',
               cleartmpfits=True, overwrite=True,
@@ -1811,15 +2026,25 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
     workdir = './'
     if specfile:
         try:
-            specdata = ds.Dspec(specfile)
+            spec_inst = ds.Dspec()
+            try:
+                spec_inst.read(specfile)
+            except:
+                sources = ["eovsa", "suncasa", "lwa", "general"]
+                for source in sources:
+                    try:
+                        spec_inst.read(specfile, source=source)
+                        break
+                    except:
+                        pass
         except:
             print('Provided dynamic spectrum file not numpy npz. Generating one from the visibility data')
             specfile = os.path.join(workdir, os.path.basename(vis) + '.dspec.npz')
             if c_external:
                 dspec_external(vis, workdir=workdir, specfile=specfile)
-                specdata = ds.Dspec(specfile)
+                spec_inst = ds.Dspec(specfile)
             else:
-                specdata = ds.Dspec(vis, specfile=specfile, domedian=True, verbose=True, usetbtool=True)
+                spec_inst = ds.Dspec(vis, specfile=specfile, domedian=True, verbose=True, usetbtool=True)
 
     else:
         print('Dynamic spectrum file not provided; Generating one from the visibility data')
@@ -1827,9 +2052,9 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
         specfile = os.path.join(workdir, os.path.basename(vis) + '.dspec.npz')
         if c_external:
             dspec_external(vis, workdir=workdir, specfile=specfile)
-            specdata = ds.Dspec(specfile)
+            spec_inst = ds.Dspec(specfile)
         else:
-            specdata = ds.Dspec(vis, specfile=specfile, domedian=True, verbose=True, usetbtool=True)
+            spec_inst = ds.Dspec(vis, specfile=specfile, domedian=True, verbose=True, usetbtool=True)
 
     try:
         tb.open(vis + '/POINTING')
@@ -2025,7 +2250,10 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                                                          show_warnings=show_warnings)
             if not os.path.exists(qlookfigdir):
                 os.makedirs(qlookfigdir)
-            outmovie = plt_qlook_image(imres, timerange=timerange, spwplt=spwplt, figdir=qlookfigdir, specdata=specdata,
+
+            # clevelsfix = radio_image_clevels(imres, snr=2)
+            outmovie = plt_qlook_image(imres, timerange=timerange, spwplt=spwplt, figdir=qlookfigdir,
+                                       specdata=spec_inst,
                                        verbose=verbose,
                                        stokes=stokes, fov=xyrange,
                                        amax=amax, amin=amin, acmap=acmap, anorm=anorm,
@@ -2034,13 +2262,16 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                                        sclfactor=sclfactor,
                                        aiafits=aiafits, aiawave=aiawave, aiadir=aiadir, plotaia=plotaia,
                                        freqbounds=bdinfo, alpha_cont=calpha,
-                                       opencontour=opencontour, movieformat=movieformat, ds_normalised=ds_normalised)
+                                       opencontour=opencontour,
+                                       nclevels=nclevels,
+                                       # clevelsfix = clevelsfix,
+                                       movieformat=movieformat, ds_normalised=ds_normalised)
 
     else:
-        if np.iscomplexobj(specdata.data):
-            spec = np.abs(specdata.data)
+        if np.iscomplexobj(spec_inst.data):
+            spec = np.abs(spec_inst.data)
         else:
-            spec = specdata.data
+            spec = spec_inst.data
         spec = spec * sclfactor
         spec = checkspecnan(spec)
         if spec.ndim == 2:
@@ -2054,9 +2285,9 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
         else:
             (npol_fits, nbl, nfreq, ntim) = spec.shape
         fidx = range(nfreq)
-        freq = specdata.freq_axis
+        freq = spec_inst.freq_axis
         freqghz = freq / 1e9
-        spec_tim = specdata.time_axis
+        spec_tim = spec_inst.time_axis
         spec_tim_plt = spec_tim.plot_date
         plt.ion()
         if not quiet:
@@ -2233,10 +2464,14 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                 try:
                     aiafits = newlist[0]
                     aiamap = smap.Map(aiafits)
-                    aiamap = DButil.normalize_aiamap(aiamap)
-                    data = aiamap.data
-                    data[data < 1.0] = 1.0
-                    aiamap = smap.Map(data, aiamap.meta)
+                    aia_jp2 = False
+                    if aiafits.endswith('.jp2'):
+                        aia_jp2 = True
+                    if not aia_jp2:
+                        aiamap = DButil.normalize_aiamap(aiamap)
+                        data = aiamap.data
+                        data[data < 1.0] = 1.0
+                        aiamap = smap.Map(data, aiamap.meta)
                 except:
                     print('error in reading aiafits. Proceed without AIA')
 
@@ -2279,7 +2514,8 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
 
                     if restoringbeam == ['']:
                         if observatory == 'EOVSA':
-                            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=refbmsize, reffreq=reffreq, minbmsize=minbmsize)
+                            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=refbmsize, reffreq=reffreq,
+                                                              minbmsize=minbmsize)
                         else:
                             restoringbms = [''] * nspws
                     else:
@@ -2369,7 +2605,8 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                     if restoringbeam == ['']:
                         if observatory == 'EOVSA':
                             # Don't use CASA's default. Trying my best to get a good estimate of the restoring beam
-                            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=refbmsize, reffreq=reffreq, minbmsize=minbmsize)
+                            restoringbms = mstools.get_bmsize(cfreqs, refbmsize=refbmsize, reffreq=reffreq,
+                                                              minbmsize=minbmsize)
                             restoringbeam = str(np.mean(restoringbms[0])) + 'arcsec'
                     else:
                         restoringbeam = restoringbeam[0]
@@ -2507,12 +2744,11 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                     amax = np.nanmax(aiamap.data)
                 if amin is None:
                     amin = 1.0
-                if anorm.lower() == 'linear':
-                    anorm_ = colors.LogNorm(vmin=amin, vmax=amax)
-                elif anorm.lower() == 'log':
-                    anorm_ = colors.LogNorm(vmin=amin, vmax=amax)
+
+                if aia_jp2:
+                    _anorm = get_normalization(0, 255, 'linear')
                 else:
-                    print('anorm: Only "linear" and "log" are accepted for scaling AIA. Use "log" scaling.')
+                    _anorm = get_normalization(amin, amax, anorm)
 
                 title0 = 'AIA {0:.0f} Å'.format(aiamap.wavelength.value)
                 aiamap_ = pmX.Sunmap(aiamap)
@@ -2520,7 +2756,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                 axs = [ax4, ax6]
                 aiamap_.draw_limb(axes=axs)
                 aiamap_.draw_grid(axes=axs)
-                aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=anorm_, interpolation='nearest')
+                aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=_anorm, interpolation='nearest')
                 for axidx, ax in enumerate(axs):
                     ax.set_title(title0, fontsize=9)
                     rect = mpl.patches.Rectangle((xyrange[0][0], xyrange[1][0]), sz_x.value, sz_y.value, edgecolor='w',
@@ -2530,7 +2766,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                 axs = [ax5, ax7]
                 aiamap_.draw_limb(axes=axs)
                 aiamap_.draw_grid(axes=axs)
-                aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=anorm, interpolation='nearest')
+                aiamap_.imshow(axes=axs, cmap=cmap_aia, norm=_anorm, interpolation='nearest')
 
                 axs = [[ax4, ax5], [ax6, ax7]]
                 draw_limb_grid_flag = True
@@ -2547,7 +2783,7 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
                             rmap_plt = smap.Map(np.squeeze(datas[pol]), meta['header'])
                         rmap_plt_ = pmX.Sunmap(rmap_plt)
                         rmap_data_max = np.nanmax(rmap_plt.data)
-                        if rmap_data_max <=0.0 or rmap_data_max is np.nan:
+                        if rmap_data_max <= 0.0 or rmap_data_max is np.nan:
                             print(f'Warning: the max value of the map is {rmap_data_max}. Skip plotting this map.')
                             continue
                         if nspws > 1:
