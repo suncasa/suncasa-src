@@ -55,8 +55,10 @@ def get_bandinfo(msfile, spw=None, returnbdinfo=False):
         freqbounds_hi_spw = []
         cfreqs_spw = []
         for sp in spw:
+            print(f'Parsing spw {sp}...')
             try:
                 staql = {'spw': sp}
+                ms.selectinit(reset=True)
                 ms.msselect(staql, onlyparse=True)
                 ndx = ms.msselectedindices()
                 chan_sel = ndx['channel']
@@ -87,7 +89,7 @@ def get_bandinfo(msfile, spw=None, returnbdinfo=False):
         return cfreqs
 
 
-def get_bmsize(cfreq, refbmsize=30.0, reffreq=1.6, minbmsize=4.0):
+def get_bmsize(cfreq, refbmsize=70.0, reffreq=1.0, minbmsize=4.0):
     '''
     get beamsize at frequencies definded by cfreq based on refbmsize at reffreq
     cfreq: input frequencies at GHz
@@ -218,11 +220,12 @@ def splitX(vis, datacolumn2='MODEL_DATA', **kwargs):
     split(vis=vis, **kwargs)
 
     # Prepare for the second split
+    tmpms_file = f'{vis}.tmpms'
     kwargs2 = {k: v for k, v in kwargs.items() if k not in ['datacolumn', 'outputvis']}
-    kwargs2.update({'outputvis': 'tmpms.ms', 'datacolumn': datacolumn2.replace('_DATA', '')})
+    kwargs2.update({'outputvis': tmpms_file, 'datacolumn': datacolumn2.replace('_DATA', '')})
 
     # Ensure temporary MS is removed if it exists
-    tmpms_file = 'tmpms.ms'
+
     if os.path.exists(tmpms_file):
         rmtree(tmpms_file)
 

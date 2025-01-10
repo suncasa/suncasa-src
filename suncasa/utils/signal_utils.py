@@ -167,6 +167,26 @@ def low_pass_filter(t, data, fs=1. / 4, cutoff=1. / 60, order=6, showplot=False)
 
 
 def bandpass_filter(t, data, fs=1. / 4, cutoff=1. / 60, order=6, showplot=False):
+    """
+    Apply a Butterworth bandpass filter to a given dataset and optionally plot the frequency response and filtered data.
+
+    :param t: Time array corresponding to the data points.
+    :type t: array_like
+    :param data: Data array to be filtered.
+    :type data: array_like
+    :param fs: Sampling frequency of the data in Hz, defaults to 0.25 Hz (1/4 Hz).
+    :type fs: float, optional
+    :param cutoff: Cutoff frequencies of the filter in Hz. It should be a tuple with (low, high) values, defaults to approximately 0.0167 Hz (1/60 Hz).
+    :type cutoff: tuple, optional
+    :param order: Order of the Butterworth filter, defaults to 6.
+    :type order: int, optional
+    :param showplot: If True, plots the frequency response and the original plus filtered data, defaults to False.
+    :type showplot: bool, optional
+    :raises ValueError: Raises an exception if the 'cutoff' parameter does not meet the expected tuple format.
+
+    :return: The filtered data array.
+    :rtype: ndarray
+    """
     from scipy.signal import butter, freqz, filtfilt
     import matplotlib.pyplot as plt
 

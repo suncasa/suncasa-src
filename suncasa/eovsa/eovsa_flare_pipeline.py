@@ -47,7 +47,7 @@ class FlareSelfCalib():
             [str(s) for s in self.slfcal_spws])  ## string format of self.spws for, e.g., split
         self.selfcal_spw = '0~' + str(self.maximum_spw)  ## actual spw range used for self-calibration
         self.imaging_spw = []
-        self.min_DR_threshold = 10.
+        self.min_DR_threshold = 12.
 
         ##===================== final imaging parameters ===========================
         self.total_duration = 480.  ### seconds to image; time will be centred on detected flare peak
@@ -57,8 +57,8 @@ class FlareSelfCalib():
         self.beam_1GHz = '89.7arcsec'  ### beam size at 1 GHz (and scales with 1/nu)
         self.cell_size = 2.  ### cell size of the final images
         self.final_imsize = 512  ### number of pixels for the final images
-        self.imaging_start=None
-        self.imaging_end=None
+        self.imaging_start = None
+        self.imaging_end = None
 
         # ============ declaring the working directories ============
         ### remember / is necessary in all the folder names
@@ -96,8 +96,9 @@ class FlareSelfCalib():
         self.phasecenter = ''  ### phasecenter of the flare in RA and DEC
         self.flare_time_available = False  ### Flag on whether the flare time (peak and duration) is available
         self.flare_loc_available = False  ### Flag on whether the flare location is available
-        self.flare_location=None ## flare location in solar coords [solar-X, solar-Y]arcsec
-        self.flare_peaktime=''  ### should be in '2021/05/07/19:10:00~2021/05/07/19:11:00' format
+        self.flare_location = None ## flare location in solar coords [solar-X, solar-Y]arcsec
+        self.flare_peaktime = ''  ### should be in '2021/05/07/19:10:00~2021/05/07/19:11:00' format
+        self.flare_peak_intensity = []  ### peak intensity for each spw at the peak time
         
         # ============ Output files ============
         self.outfits_list = []  ### Output fits files
@@ -155,7 +156,6 @@ class FlareSelfCalib():
             [str(s) for s in self.slfcal_spws])  ## string format of self.spws for, e.g., split
         self.selfcal_spw = '0~' + str(self.maximum_spw)  ## actual spw range used for self-calibration
 
-    
     @staticmethod
     def get_img_center_heliocoords(images):
         """
@@ -191,6 +191,27 @@ class FlareSelfCalib():
             y[j] = dy_asec
         xycen = [np.median(x), np.median(y)]
         return xycen
+
+    @staticmethod
+    def get_img_peak_intensity(images):
+        """
+        Provide a set of images in helioprojective coordinates (at different frequencies), find the peak intensity for each spw
+        Parameters
+        ----------
+        images: list of fits image files
+
+        Returns
+        -------
+        peak_intensity: in the unit same as one from image (eg. in K)
+        """
+        num_img = len(images)
+        peak_intensity = np.zeros(num_img)
+        peak_intensity = []
+        for j, img in enumerate(images):
+            head = fits.getheader(img)
+            data = fits.getdata(img)[0, 0, :, :]
+            peak_intensity.append(np.nanmax(data))
+        return peak_intensity
 
     @staticmethod
     def find_sidelobe_level(image):
@@ -1283,6 +1304,7 @@ class FlareSelfCalib():
                         threshold = max_pix * 0.5
                         self.logf.write("spw=" + str(sp).zfill(2) + " Threshold was too high." + \
                                         "new threshold={}\n".format(threshold))
+                        os.system("rm -rf "+imagename+"*")
                         tclean(vis=slfcalms, imagename=imagename, spw=spwran, uvrange=uvrange, \
                                imsize=imsize, threshold=str(threshold) + "Jy", cell=cell_val, niter=10000, \
                                gain=0.05, cyclefactor=10, weighting='briggs', robust=0.0, \
@@ -1740,7 +1762,7 @@ class FlareSelfCalib():
             selfcal_timer = timeit.default_timer()
             self.logf.write("Time taken for selfcal in seconds is " + str(selfcal_timer - start))
 
-            final_ms = self.vis.replace('.ms', '_selfcaled.ms')
+            final_ms = self.vis.replace('.ms', '_selfcaleds.ms')
             print(final_ms, self.vis)
             print("Applying caltables")
             if os.path.isdir(final_ms) == False:
@@ -1751,6 +1773,7 @@ class FlareSelfCalib():
                     applycal(vis=self.vis, gaintable=caltable, spw=str(s), applymode='calonly', interp='nearest')
                 ##TODO: perhaps we only need to split out the spws that are self-calibrated
                 # split(vis=self.vis, outputvis=final_ms, spw=self.spwstr, correlation='XX', datacolumn='corrected')
+                # split(vis=self.vis, outputvis=final_ms, correlation='XX', datacolumn='corrected', spw=[str(spwi) for spwi in self.imaging_spw])
                 split(vis=self.vis, outputvis=final_ms, correlation='XX', datacolumn='corrected')
                 self.logf.write("Calibrated MS split\n")
                 time1 = timeit.default_timer()
@@ -1762,18 +1785,25 @@ class FlareSelfCalib():
             imaging_timer = timeit.default_timer()
             ##TODO: the following relies on the completion of the prior self-calibration produced images.
             ## Need to remove such dependence if these images are not available.
-            
-            if hasattr(self, 'final_ms'):
-                if os.path.exists(self.final_ms):
-                    msname = self.final_ms
-                else:
-                    print('self-calibrated ms does not exist. Using original visibility for imaging.')
-                    msname = self.vis
+            if doselfcal:            
+                if hasattr(self, 'final_ms'):
+                    if os.path.exists(self.final_ms):
+                        msname = self.final_ms
+                    else:
+                        print('self-calibrated ms does not exist. Using original visibility for imaging.')
+                        msname = self.vis
+            else:
+                msname = self.vis
+
             if self.flare_location is None:
                 image_list = glob.glob(imgprefix + "*_helio.fits")
                 xycen = self.get_img_center_heliocoords(image_list)
             else:
-                xycen=self.flare_location
+                xycen = self.flare_location
+
+            if self.flare_peak_intensity is []:
+                image_list = glob.glob(imgprefix + "*_helio.fits")
+                self.flare_peak_intensity = self.get_img_peak_intensity(image_list)
 
             if self.imaging_start is None:
                 self.imaging_start_mjd = self.flare_peak_mjd - self.total_duration / 2
@@ -1815,40 +1845,51 @@ class FlareSelfCalib():
             stokes = 'XX'
             mkmovie = True
             docompress = True
-            opencontour = False
+            opencontour = True
             clevels = [0.6, 1.0]
+            clevelsfix = [[i*0.1, i] for i in self.flare_peak_intensity]#contour of fixed Tb over time at each spw
             plotaia = True
             aiawave = 1600
             movieformat = 'mp4'
             overwrite = False
             subregion = ''  # box[[128pix,128pix],[284pix,384pix]]'
-            outfits, outfits_list, outmovie =qlookplot.qlookplot(vis=msname, timerange=time_str, spw=spws,
+            outfits, outfits_list, outmovie = qlookplot.qlookplot(vis=msname, timerange=time_str, spw=spws,
                                 ncpu=1, imsize=[self.final_imsize], cell=cell_size1, restoringbeam=[self.beam_1GHz],
-                                robust=0.5, opencontour=opencontour, clevels=clevels, plotaia=plotaia,
+                                robust=0.5, opencontour=opencontour, clevels=clevels, clevelsfix=clevelsfix, plotaia=plotaia,
                                 aiawave=aiawave, mkmovie=mkmovie, twidth=int(self.final_image_int),
-                                docompress=docompress,dnorm=colors.LogNorm(vmin=0.1, vmax=10),
+                                docompress=docompress,dnorm=None,
                                 stokes=stokes, movieformat=movieformat, uvrange='',
-                                niter=300, overwrite=overwrite, xycen=xycen, fov=[256, 256])
+                                niter=300, overwrite=overwrite, xycen=xycen, fov=[256, 256], calpha=1.0)
             final_clean_timer = timeit.default_timer()
             self.logf.write("Final clean done in seconds:" + str(final_clean_timer - imaging_timer))
-            self.outfits_list=outfits_list
-            self.outmovie=outmovie
+            self.outfits_list = outfits_list
+            self.outmovie = outmovie
+
+        self.final_ms = self.vis.replace('.ms', '_selfcaled.ms')
+        split(vis=self.vis, outputvis=self.final_ms, correlation='XX', datacolumn='corrected', spw=','.join([str(spwi) for spwi in self.imaging_spw]))
 
         self.logf.close()
 
-    def rename_move_files(self, flare_id, fitsdir_web_tp, movdir_web_tp, dorename_fits=False, domove_fits=False, 
-        dorename_mov=False, domove_mov=False, dormworkdir=False, docopy=False):
+    def rename_move_files(self, flare_id, fitsdir_web_tp, movdir_web_tp, msdir_web_tp, dorename_fits=False, domove_fits=False, 
+        dorename_mov=False, domove_mov=False, domove_ms=False, dormworkdir=False, docopy=False):
         """
-        Rename EOVSA FITS files and move them to the web folder.
+        Rename EOVSA FITS/movie/ms/slfcal_ms files and move them to the web folder
         'eovsa.lev1_mbd_12s.2022-11-12T180524Z.image.fits'
-        'eovsa.lev1_mbd_12s.flare_id_20221112180524.mp4'
+        'eovsa.lev1_mbd_12s.flare_id_20221112180200.mp4'
+        'IDB20221112_1801-1811.ms' to '20221112180200.calibrated.ms.tar.gz'
+        'IDB20221112_1801-1811_selfcaled.ms' to '20221112180200.selfcalibrated.ms.tar.gz'
+
+        fitsdir_web_tp = '/data1/eovsa/fits/flares/' #'YYYY/MM/DD/flare_id/'
+        movdir_web_tp = '/common/webplots/SynopticImg/eovsamedia/eovsa-browser/' #'YYYY/MM/DD/'
+        msdir_web_tp = '/data1/eovsa/fits/flares/' #'YYYY/MM/DD/flare_id/'
         """
         import os
         import glob
         from astropy.io import fits
         import shutil
+        import tarfile
 
-        workdir=self.workpath
+        workdir = self.workpath
         eofits_tot = self.outfits_list
         eofits_dir = os.path.split(eofits_tot[0])[0]
         eomovie = self.outmovie
@@ -1858,8 +1899,8 @@ class FlareSelfCalib():
         eodate = (eofits[1].header['DATE-OBS']).split('T')[0]
         year, month, day = eodate.split('-')
 
-        file_fits_tot=[]
-        file_mov_tot=[]
+        file_fits_tot = []
+        file_mov_tot = []
 
         if dorename_fits:
             for f in eofits_tot:
@@ -1872,7 +1913,7 @@ class FlareSelfCalib():
                 try:
                     os.rename(src, dst)
                 except FileNotFoundError:
-                    print(f"File not found: {src}")
+                    print(f"Files .fits not found: {src}")
                 file_fits_tot.append(dst)
             print("Rename the .fits files")
 
@@ -1882,20 +1923,27 @@ class FlareSelfCalib():
             try:
                 os.rename(src, dst)
             except FileNotFoundError:
-                print(f"File not found: {src}")
+                print(f"File .mp4 not found: {src}")
             file_mov_tot.append(dst)
-            print("Rename the .mp4 files")
+            print("Rename the .mp4 file")
 
         if domove_fits:
             workdir_web = os.path.join(fitsdir_web_tp, year, month, day, flare_id)
+            # if os.path.exists(workdir_web):
+            #     shutil.rmtree(workdir_web)
+            # os.makedirs(workdir_web)
             if not os.path.exists(workdir_web):
                 os.makedirs(workdir_web)
+                print('fits folder not exist and created from ',workdir_web)
+            else:
+                os.system("rm -r " + workdir_web + "/*")
+                print('fits folder exists and deleted from ',workdir_web)
             for i in file_fits_tot:
-                if os.path.exists(os.path.join(workdir_web, os.path.basename(i))):
-                    os.remove(os.path.join(workdir_web, os.path.basename(i)))
+                # if os.path.exists(os.path.join(workdir_web, os.path.basename(i))):
+                #     os.remove(os.path.join(workdir_web, os.path.basename(i)))
                 shutil.move(i, workdir_web)    
             if len(file_fits_tot) < 1:
-                print("ERRORs: no files to move")
+                print("ERRORs: no .fits files to move")
             else:
                 print("Move .fits to: " + workdir_web)
 
@@ -1908,25 +1956,55 @@ class FlareSelfCalib():
                     os.remove(os.path.join(workdir_web, os.path.basename(i)))
                 shutil.move(i, workdir_web)  
             if len(file_mov_tot) < 1:
-                print("ERRORs: no files to move")
+                print("ERRORs: no .mp4 file to move")
             else:
                 print("Move .mp4 to: " + workdir_web)
 
+        if domove_ms:
+            # workdir_web = os.path.join(msdir_web_tp, 'ms_'+year, flare_id)
+            # if not os.path.exists(workdir_web):
+            #     os.makedirs(workdir_web)
+            #     print('ms folder not exist and created ', workdir_web)
+            # else:
+            #     os.system("rm -r " + workdir_web + "/*")
+            #     print('ms folder exists and deleted from ', workdir_web)
+            workdir_web = os.path.join(fitsdir_web_tp, year, month, day, flare_id)
+            i = self.vis
+            print(i)
+            with tarfile.open(os.path.join(workdir_web, flare_id+'.calibrated.ms.tar.gz'), "w:gz") as tar:
+                tar.add(i, arcname=os.path.basename(i))
+            # shutil.move(i, workdir_web+'/')
+            print("Move calibrated.ms to: " + workdir_web)
+            i = self.final_ms
+            print(i)
+            with tarfile.open(os.path.join(workdir_web, flare_id+'.selfcalibrated.ms.tar.gz'), "w:gz") as tar:
+                tar.add(i, arcname=os.path.basename(i))
+            # shutil.move(i, workdir_web+'/')
+            print("Move selfcalibrated.ms to: " + workdir_web)
+            i = self.caltbdir
+            print(i)
+            with tarfile.open(os.path.join(workdir_web, flare_id+'.caltables.tar.gz'), "w:gz") as tar:
+                tar.add(i, arcname=os.path.basename(i))
+            # if os.path.exists(os.path.join(workdir_web, os.path.basename(i))):
+            #     shutil.rmtree(os.path.join(workdir_web, os.path.basename(i)))
+            # shutil.move(i, workdir_web+'/')
+            print("Move caltbdir to: " + workdir_web)
+
         if dormworkdir:
             if len(file_fits_tot) < 1:
-                print("ERRORs: no fits files have been moved")
+                print("ERRORs: no .fits files have been moved")
                 return -1
             else:
                 os.system("rm -rf " + workdir + "*")
                 print("Delete all files from: " + workdir)
 
         if docopy:
-            file_mov_new=[os.path.basename(m) for m in file_mov_tot]
-            movdir_web_copy=os.path.join(movdir_web_tp, '2021', '00')
+            file_mov_new = [os.path.basename(m) for m in file_mov_tot]
+            movdir_web_copy = os.path.join(movdir_web_tp, '2021', '00')
             for i in file_mov_new:
                 if os.path.exists(os.path.join(movdir_web_copy, i)):
                     os.remove(os.path.join(movdir_web_copy, i))
-                shutil.copy(os.path.join(workdir_web, i), movdir_web_copy)
-                print("Copy .mp4 from " + workdir_web + " to: " + movdir_web_copy)
+                shutil.copy(os.path.join(movdir_web_tp, year, month, day, i), movdir_web_copy)
+                print("Copy .mp4 from " + movdir_web_tp + " to: " + movdir_web_copy)
 
         return

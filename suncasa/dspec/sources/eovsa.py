@@ -54,10 +54,17 @@ def get_dspec(filename, doplot=False, vmax=None, vmin=None, norm=None, cmap=None
 
     hdulist = fits.open(filename)
     spec = hdulist[0].data
-    fghz = np.array(astropy.table.Table(hdulist[1].data)['sfreq'])
+    try:
+        fghz = np.array(astropy.table.Table(hdulist[1].data)['sfreq'])
+    except:
+        fghz = np.array(astropy.table.Table(hdulist[1].data)['FGHZ'])
     tim = astropy.table.Table(hdulist[2].data)
-    tmjd= np.array(tim['mjd']) + np.array(tim['time']) / 24. / 3600 / 1000
-    tim = Time(tmjd, format='mjd')
+    try:
+        tmjd= np.array(tim['mjd']) + np.array(tim['time']) / 24. / 3600 / 1000
+        tim = Time(tmjd, format='mjd')
+    except:
+        tim = Time(tim['TIME'], format='jd')
+        tmjd = tim.mjd
     timplt = tim.plot_date
     ntim = len(timplt)
     nfreq = len(fghz)

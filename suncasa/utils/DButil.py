@@ -1173,7 +1173,7 @@ def readsdofileX(datadir=None, filelist=None, wavelength=None, trange=None, isex
                 for i in range(delta.days + 1):
                     ymd = d1 + td(days=i)
                     sdofitspathtmp = glob.glob(
-                        datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd.year, ymd.month, ymd.day,
+                        datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.*'.format(ymd.year, ymd.month, ymd.day,
                                                                                     wavelength))
                     if len(sdofitspathtmp) > 0:
                         sdofitspath = sdofitspath + sdofitspathtmp
@@ -1228,10 +1228,10 @@ def readsdofileX(datadir=None, filelist=None, wavelength=None, trange=None, isex
             sdofitspath = filelist
         else:
             sdofitspath = glob.glob(
-                datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.fits'.format(ymd[0], ymd[1], ymd[2], wavelength))
+                datadir + '/aia.lev1_*{0}*{1}*{2}*Z.{3}.image*.*'.format(ymd[0], ymd[1], ymd[2], wavelength))
         if len(sdofitspath) == 0:
             sdofitspath = glob.glob(
-                datadir + '/hmi*{0}*{1}*{2}*.fits'.format(ymd[0], ymd[1], ymd[2]))
+                datadir + '/hmi*{0}*{1}*{2}*.*'.format(ymd[0], ymd[1], ymd[2]))
             if len(sdofitspath) == 0:
                 return []  # raise ValueError('No SDO file found under {}.'.format(datadir))
         sdofits = [os.path.basename(ll) for ll in sdofitspath]
@@ -1295,15 +1295,20 @@ def polyfit(x, y, length, deg, keepxorder=False):
 
 
 def htfit_warren2011(x, y, cutlength):
+    '''
+    reference: https://ui.adsabs.harvard.edu/abs/2011ApJ...742...92W/abstract
+    '''
     from scipy.optimize import curve_fit
 
     def fit_func(t, h0, vt, a0, tau):
         return h0 + vt * t + a0 * tau ** 2 * (np.exp(-t / tau) - 1)
 
+    print(x,y)
     x0 = x[0]
     params = curve_fit(fit_func, x - x0, y)
 
     [h0, vt, a0, tau] = params[0]
+    print([h0, vt, a0, tau])
     xs = np.linspace(np.nanmin(x), np.nanmax(x), cutlength)
     ys = fit_func(xs - x0, h0, vt, a0, tau)
     grads = get_curve_grad(xs, ys)
