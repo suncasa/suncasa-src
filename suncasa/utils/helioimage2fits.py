@@ -114,6 +114,9 @@ def read_horizons(t0=None, dur=None, vis=None, observatory="OVRO", verbose=False
 =======
     """
 
+    # uppercase the observatory name
+    observatory = observatory.upper()
+
     if use_astropy:
 
         from sunpy.coordinates import sun
@@ -138,18 +141,48 @@ def read_horizons(t0=None, dur=None, vis=None, observatory="OVRO", verbose=False
 
         obstime = btime
 
-        # Get coordinates using astropy
-        location = EarthLocation.of_site(observatory)
-        phasecentre = get_body('sun', obstime, location)
-        ra = phasecentre.ra.to(u.rad).value
-        dec = phasecentre.dec.to(u.rad).value
 
-        # Get solar angles from sunpy
-        P = sun.P(obstime).to(u.deg).value
-        B0 = sun.B0(obstime).to(u.deg).value
-        L0 = sun.L0(obstime).to(u.deg).value
-        
-        ephem = {'time': [btime], 'ra': [ra], 'dec': [dec], 'p0': [P], 'delta': [0]}
+        # if dur >1min, do every 1 min
+        if dur > 1./60./24.+1e-6: 
+            etime = Time(btime.mjd + dur, format='mjd')
+            times = Time(np.linspace(btime.mjd, etime.mjd, int(dur*24*60)), format='mjd')
+
+            time_set = []
+            ra_set = []
+            dec_set = []
+            p0_set = []
+            delta_set = []
+            for time in times:
+                # Get coordinates using astropy
+                location = EarthLocation.of_site(observatory)
+                phasecentre = get_body('sun', time, location)
+                ra = phasecentre.ra.to(u.rad).value
+                dec = phasecentre.dec.to(u.rad).value
+
+                # Get solar angles from sunpy
+                P = sun.P(time).to(u.deg).value
+                B0 = sun.B0(time).to(u.deg).value
+                L0 = sun.L0(time).to(u.deg).value
+                time_set.append(time)
+                ra_set.append(ra)
+                dec_set.append(dec)
+                p0_set.append(P)
+                delta_set.append(0)
+
+            ephem = {'time': time_set, 'ra': ra_set, 'dec': dec_set, 'p0': p0_set, 'delta': delta_set} 
+
+        else:
+            # Get coordinates using astropy
+            location = EarthLocation.of_site(observatory)
+            phasecentre = get_body('sun', obstime, location)
+            ra = phasecentre.ra.to(u.rad).value
+            dec = phasecentre.dec.to(u.rad).value
+
+            # Get solar angles from sunpy
+            P = sun.P(obstime).to(u.deg).value
+            B0 = sun.B0(obstime).to(u.deg).value
+            L0 = sun.L0(obstime).to(u.deg).value            
+            ephem = {'time': [btime], 'ra': [ra], 'dec': [dec], 'p0': [P], 'delta': [0]}
         return ephem
 
     else:
@@ -170,7 +203,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory="OVRO", verbose=False
             # turn observatory names into JPL Horizons' codes
             if observatory == 'EVLA' or observatory == '-5' or observatory=='VLA':
                 observatory = '-5'
-            elif observatory == 'EOVSA' or observatory == 'FASR' or observatory == 'OVRO_MMA' or observatory == '-81':
+            elif observatory == 'EOVSA' or observatory == 'FASR' or observatory == 'OVRO_MMA' or observatory == "OVRO" or observatory == '-81':
                 observatory = '-81'
             elif observatory == 'ALMA' or observatory == '-7':
                 observatory = '-7'
