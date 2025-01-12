@@ -142,48 +142,36 @@ def read_horizons(t0=None, dur=None, vis=None, observatory="OVRO", verbose=False
         obstime = btime
 
 
-        # if dur >1min, do every 1 min
-        if dur > 1./60./24.+1e-6: 
-            etime = Time(btime.mjd + dur, format='mjd')
-            times = Time(np.linspace(btime.mjd, etime.mjd, int(dur*24*60)), format='mjd')
+        if dur<=1e-6/3600/24: # robust for wild input of dur<=0
+            dur = 1e-6/3600/24
 
-            time_set = []
-            ra_set = []
-            dec_set = []
-            p0_set = []
-            delta_set = []
-            for time in times:
-                # Get coordinates using astropy
-                location = EarthLocation.of_site(observatory)
-                phasecentre = get_body('sun', time, location)
-                ra = phasecentre.ra.to(u.rad).value
-                dec = phasecentre.dec.to(u.rad).value
+        etime = Time(btime.mjd + dur, format='mjd')
+        times = Time(np.linspace(btime.mjd, etime.mjd, int(np.ceil(dur*24*60))), format='mjd')
 
-                # Get solar angles from sunpy
-                P = sun.P(time).to(u.deg).value
-                B0 = sun.B0(time).to(u.deg).value
-                L0 = sun.L0(time).to(u.deg).value
-                time_set.append(time)
-                ra_set.append(ra)
-                dec_set.append(dec)
-                p0_set.append(P)
-                delta_set.append(0)
-
-            ephem = {'time': time_set, 'ra': ra_set, 'dec': dec_set, 'p0': p0_set, 'delta': delta_set} 
-
-        else:
+        time_set = []
+        ra_set = []
+        dec_set = []
+        p0_set = []
+        delta_set = []
+        for time in times:
             # Get coordinates using astropy
             location = EarthLocation.of_site(observatory)
-            phasecentre = get_body('sun', obstime, location)
+            phasecentre = get_body('sun', time, location)
             ra = phasecentre.ra.to(u.rad).value
             dec = phasecentre.dec.to(u.rad).value
 
             # Get solar angles from sunpy
-            P = sun.P(obstime).to(u.deg).value
-            B0 = sun.B0(obstime).to(u.deg).value
-            L0 = sun.L0(obstime).to(u.deg).value            
-            ephem = {'time': [btime], 'ra': [ra], 'dec': [dec], 'p0': [P], 'delta': [0]}
-        return ephem
+            P = sun.P(time).to(u.deg).value
+            B0 = sun.B0(time).to(u.deg).value
+            L0 = sun.L0(time).to(u.deg).value
+            time_set.append(time)
+            ra_set.append(ra)
+            dec_set.append(dec)
+            p0_set.append(P)
+            delta_set.append(0)
+
+        ephem = {'time': time_set, 'ra': ra_set, 'dec': dec_set, 'p0': p0_set, 'delta': delta_set} 
+
 
     else:
         if not t0 and not vis:
