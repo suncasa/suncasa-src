@@ -112,9 +112,9 @@ def import_calib_idb(trange, workdir=None, ncpu=1, timebin='0s', width=1, udb_co
         print(f"No measurement set files are imported. Check the input IDB files: {idbfiles}.")
         raise ValueError
     if len(msfiles)==1:
-        ms_trange = mst.get_trange_ms(msfiles[0])
+        ms_trange = mst.get_trange(msfiles[0])
     else:
-        ms_trange = Time([mst.get_trange_ms(msfiles[0])[0], mst.get_trange_ms(msfiles[-1])[1]])
+        ms_trange = Time([mst.get_trange(msfiles[0])[0], mst.get_trange(msfiles[-1])[1]])
     namesuffix = '_' + ms_trange[0].to_datetime().strftime('%H%M') + '-' + ms_trange[1].to_datetime().strftime('%H%M')
     concatvis = os.path.basename(msfiles[0])[:11] + namesuffix + '.ms'
     vis = calibeovsa(msfiles, caltype=['refpha', 'phacal'], interp='nearest', doflag=True, flagant='13~15',
@@ -122,6 +122,7 @@ def import_calib_idb(trange, workdir=None, ncpu=1, timebin='0s', width=1, udb_co
                                 concatvis=concatvis, keep_orig_ms=False)
     outputvis = concatvis[:-3] + 'XXYY.ms'
     split(vis=concatvis, outputvis=outputvis, correlation='XX,YY', datacolumn='data')
+    os.system(f'rm -rf {concatvis}')
                    
 
     return outputvis

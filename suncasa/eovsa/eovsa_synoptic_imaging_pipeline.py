@@ -1,30 +1,32 @@
+import argparse
+import inspect
+import logging
+import os
+import shutil
+import socket
+from datetime import datetime, time, timedelta
+from glob import glob
+
+import astropy.units as u
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.ma as ma
-from datetime import datetime, timedelta, time
-import os
-from glob import glob
-import matplotlib.pyplot as plt
-from suncasa.utils import helioimage2fits as hf
-from sunpy import map as smap
-import astropy.units as u
-from scipy import ndimage
-from astropy.time import Time
 import pandas as pd
-import shutil
-from suncasa.utils import mstools as mstl
-from suncasa.casa_compat import import_casatasks
+from astropy.time import Time
+from scipy import ndimage
+from sunpy import map as smap
 from tqdm import tqdm
+
+from suncasa.casa_compat import import_casatasks
 from suncasa.io import ndfits
-import logging
-import inspect
-import argparse
-import socket
+from suncasa.utils import helioimage2fits as hf
+from suncasa.utils import mstools as mstl
 
 hostname = socket.gethostname()
-if hostname in ['pipeline', 'inti.hpcnet.campus.njit.edu']:
-    is_on_server = True
-else:
-    is_on_server = False
+is_on_server = hostname in ['pipeline', 'inti.hpcnet.campus.njit.edu']
+is_on_inti = hostname == 'inti.hpcnet.campus.njit.edu'
+script_mode = True
 
 logging.basicConfig(level=logging.INFO, format='EOVSA pipeline: [%(levelname)s] - %(asctime)s - %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
@@ -87,6 +89,131 @@ def log_print(level, message):
         logger.critical(full_message)
     else:
         logger.info(full_message)  # Default to INFO if an unsupported level is given
+
+
+def compute_snr(images, rsun_pix, crpix1, crpix2):
+    """
+    Compute the SNR for each image.
+
+    Args:
+        images: 3D array of images (n_images, height, width).
+        rsun_pix: Radius of the circular region in pixels.
+        crpix1: X-coordinate of the circle center.
+        crpix2: Y-coordinate of the circle center.
+
+    Returns:
+        snrs: Array of SNR values for each image.
+    """
+    ny, nx = images.shape[1], images.shape[2]
+    y, x = np.ogrid[:ny, :nx]
+    mask = (x - crpix1) ** 2 + (y - crpix2) ** 2 <= rsun_pix ** 2
+
+    snrs = []
+    # signal = np.percentile(images, 99.9995)
+    for img in images:
+        noise_region = img[~mask]  # Pixels outside the circle
+        noise = np.sqrt(np.nanmean(noise_region ** 2))  # RMS noise
+        signal = np.percentile(img, 99.9995)
+        snr = signal / noise if noise > 0 else np.nan
+        snrs.append(snr)
+    return np.array(snrs)
+
+
+def compute_standard_deviation(images):
+    """Compute the standard deviation for each image."""
+    std_devs = [np.nanstd(img) for img in images]
+    return np.array(std_devs)
+
+
+def compute_mean_residuals(images):
+    """Compute residuals between each image and the mean image."""
+    mean_image = np.nanmean(images, axis=0)
+    residuals = [np.nansum(np.abs(img - mean_image)) for img in images]
+    return np.array(residuals)
+
+
+# def analyze_frequency(images):
+#     """Analyze the frequency domain and detect high-frequency noise."""
+#     high_freq_scores = []
+#     for img in images:
+#         fft_image = np.log1p(np.abs(fftshift(fft2(img))))
+#         high_freq_energy = np.sum(fft_image[fft_image > np.percentile(fft_image, 90)])
+#         high_freq_scores.append(high_freq_energy)
+#     return np.array(high_freq_scores)
+
+def detect_noisy_images(data_stack, rsun_pix, crpix1, crpix2, std_threshold=2.0, residual_threshold=2.0,
+                        snr_threshold=80.0, showplt=False):
+    images = np.transpose(np.squeeze(data_stack), (2, 0, 1))
+
+    # Compute scores
+    std_devs = compute_standard_deviation(images)
+    residuals = compute_mean_residuals(images)
+    snrs = compute_snr(images, rsun_pix, crpix1, crpix2)
+    msnrs = ma.masked_less(snrs, snr_threshold)
+    if msnrs.mask.all():
+        msnrs = ma.masked_less(snrs, snr_threshold / 2)
+    if msnrs.mask.all():
+        msnrs = ma.masked_less(snrs, snr_threshold / 2)
+    if msnrs.mask.all():
+        msnrs = ma.masked_less(snrs, snr_threshold / 2)
+    mstd_devs = ma.masked_array(std_devs, mask=msnrs.mask)
+    mresiduals = ma.masked_array(residuals, mask=msnrs.mask)
+
+
+    # Normalize scores for comparison
+    std_scores = (std_devs - np.nanmean(mstd_devs)) / np.nanstd(mstd_devs)
+    residual_scores = (residuals - np.nanmean(mresiduals)) / np.nanstd(mresiduals)
+
+    snr_scores = 1 / snrs
+
+    noisy_indices = np.vstack(
+        [std_scores > std_threshold, residual_scores > residual_threshold, snr_scores > 1 / snr_threshold])
+    print(noisy_indices.shape)
+    noisy_indices = np.sum(noisy_indices, axis=0)
+    print(noisy_indices)
+
+    c = []
+    for l in noisy_indices:
+        if l > 2:
+            c.append('C3')
+        else:
+            c.append('C0')
+
+    if showplt:
+        nt = len(images)
+
+        # Plot images
+        fig_img, axs_img = plt.subplots(1, nt, figsize=(20, 5), sharex=True, sharey=True)
+        img_vmin = 1e4
+        img_vmax = np.percentile(images, 99.995)
+        for i, ax in enumerate(axs_img):
+            ax.imshow(images[i], cmap='gray', norm=mcolors.LogNorm(vmin=img_vmin, vmax=img_vmax), origin='lower')
+            ax.set_facecolor('black')
+
+        # Plot scores
+        fig, axs = plt.subplots(3, 1, figsize=(10, 8))
+        ax = axs[0]
+        ax.scatter(np.arange(nt), std_scores, marker='o', c=c, label='Standard Deviation')
+        ax.axhline(std_threshold, color='r', linestyle='--', label='Threshold')
+        ax.set_xlabel('Image Index')
+        ax.set_ylabel('Standard Deviation Score')
+        ax.legend()
+
+        ax = axs[1]
+        ax.scatter(np.arange(nt), residual_scores, marker='o', c=c, label='Mean Residuals')
+        ax.axhline(residual_threshold, color='r', linestyle='--', label='Threshold')
+        ax.set_xlabel('Image Index')
+        ax.set_ylabel('Mean Residual Score')
+        ax.legend()
+
+        ax = axs[2]
+        ax.scatter(np.arange(nt), snr_scores, marker='o', c=c, label='SNR')
+        ax.axhline(1 / snr_threshold, color='r', linestyle='--', label='Threshold')
+        ax.set_xlabel('Image Index')
+        ax.set_ylabel('SNR Score')
+        ax.legend()
+
+    return noisy_indices, std_scores, residual_scores, snr_scores
 
 
 def is_factor_of_60_minutes(tdt):
@@ -176,6 +303,10 @@ def trange2timerange(trange):
     """
 
     sttime, edtime = trange
+    if isinstance(sttime, str):
+        sttime = pd.to_datetime(sttime)
+    if isinstance(edtime, str):
+        edtime = pd.to_datetime(edtime)
     timerange = f"{sttime.strftime('%Y/%m/%d/%H:%M:%S')}~{edtime.strftime('%Y/%m/%d/%H:%M:%S')}"
     return timerange
 
@@ -909,6 +1040,8 @@ def shift_corr(mmsfiles, trange_series, spws, imagemodel, imagemodel_fits, refti
     # Load the model image maps and calculate the reference time
     imagemodel_map = smap.Map(imagemodel_fits)
 
+    if isinstance(reftime_master, str):
+        reftime_master = Time(reftime_master)
     # Calculate mid-points of time ranges for rotation
     trange_series_mid = [(start + (end - start) / 2) for start, end in trange_series]
     mmsfiles_rot = []
@@ -1511,7 +1644,7 @@ def fd_images(vis,
 
     if timerange == '':
         trange = ant_trange(vis)
-        (tstart, tend) = timerange.split('~')
+        (tstart, tend) = trange.split('~')
         tbg = Time(qa.quantity(tstart, 's')['value'], format='mjd').to_datetime()
         fitsname_prefix = f'eovsa_{tbg.strftime("%Y%m%d")}'
     else:
@@ -1566,33 +1699,7 @@ def fd_images(vis,
                       f'Processing tclean for SPW {spwstr} -- (timerange: {timerange}) image_marker: {image_marker}')
             if os.path.exists(imname + imext):
                 rm_imname_extensions(imname)
-            # try:
-            #     if os.path.isdir(imname + '.init.image'):
-            #         ## if the init.image already exists, get the beam size from the existing image
-            #         bmaj, bmin, bpa, beamunit, bpaunit = hf.getbeam(imagefile=[imname + '.init.image'])
-            #     else:
-            #         ## use multiscale to make high quality images
-            #         ## do an initial hogbom clean with niter=0 to determine the beam size
-            #         tclean(vis=vis, selectdata=True, spw=sp, timerange=trange,
-            #                uvrange='',
-            #                antenna="0~12&0~12",
-            #                datacolumn=datacolumn, imagename=imname, imsize=imsize, cell=cell,
-            #                stokes=stokes, projection="SIN", specmode="mfs", interpolation="linear",
-            #                deconvolver="hogbom",
-            #                weighting="briggs", robust=0,
-            #                niter=0, gain=0.05, savemodel="none")
-            #         bmaj, bmin, bpa, beamunit, bpaunit = hf.getbeam(imagefile=[imname + '.image'])
-            #     bmsz = np.nanmean([bmaj, bmin])
-            #     if bmsz < 5.0:
-            #         bmsz = 5.0
-            #     scalesfactor = [0, 1, 3]  ## [ 0, 1xbeam, 3xbeam]
-            #     scales = [np.ceil(l * bmsz / cellvalue) for l in scalesfactor]
-            #     log_print('INFO',
-            #               f'Applying scales {scales} for multiscale clean, determined by initial beam size assessment.')
-            # except:
-            #     scales = [0, 5, 15]
-            #     log_print('WARNING:',
-            #               f'Unable to determine beam size from initial clean. Applying default scales {scales} for multiscale clean.')
+
             reffreq, cdelt4_real = freq_setup.get_reffreq_and_cdelt(sp)
             bmsz = get_bmsize(float(reffreq.rstrip('GHz')), minbmsize=5.0)
             scalesfactor = [0, 1, 3]  ## [ 0, 1xbeam, 3xbeam]
@@ -1612,7 +1719,7 @@ def fd_images(vis,
                 final_params = {'sidelobethreshold': 0.5, 'noisethreshold': 1.0, 'lownoisethreshold': 0.5,
                                 'minbeamfrac': 0.2,
                                 'negativethreshold': 0.0,
-                                'growiterations': 75}
+                                'growiterations': 50}
 
                 log_print('INFO', 'Initial tclean run')
                 rm_imname_extensions(imname)
@@ -1687,16 +1794,6 @@ def fd_images(vis,
     if all(item is None for item in imagefile):
         log_print('WARNING', "All elements in imagefile are None. Skipping imreg.")
     else:
-        # print(
-        #     f"vis={vis}, "
-        #     f"imagefile={imagefile}, "
-        #     f"fitsfile={fitsfile}, "
-        #     f"timerange={[trange] * len(fitsfile)}, "
-        #     f"toTb={toTb}, "
-        #     f"usephacenter={False}, "
-        #     f"overwrite={overwrite}, "
-        #     f"docompress={compress}"
-        # )
         hf.imreg(vis=vis, imagefile=imagefile, fitsfile=fitsfile, timerange=[trange] * len(fitsfile), toTb=toTb,
                  usephacenter=False, overwrite=overwrite, docompress=compress)
         if image_marker == '.init':
@@ -1708,7 +1805,7 @@ def fd_images(vis,
     return fitsfile, imagefile
 
 
-def merge_FITSfiles(fitsfilesin, outfits, exptime_weight=False, suppress_ondiskres=False, suppress_thrshd=0.3,
+def merge_FITSfiles(fitsfilesin, outfits, exptime_weight=False, snr_weight=None,deselect_index=None, suppress_ondiskres=False, suppress_thrshd=0.3,
                     overwrite=True):
     """
     Merges multiple FITS files into a single output file by calculating the mean of stacked data.
@@ -1725,6 +1822,11 @@ def merge_FITSfiles(fitsfilesin, outfits, exptime_weight=False, suppress_ondiskr
         File path for the output FITS file where the merged data will be saved.
     exptime_weight : bool, optional
         If True, the exposure time is used as a weight for calculating the mean of the stacked data. Defaults to False.
+    snr_weight : list of float, optional
+        List of signal-to-noise ratios (SNRs) to use as weights for calculating the mean of the stacked data.
+        If both exposure time and SNR weights are provided, the weights will be the product of the two. Defaults to None.
+    deselect_index : list of int, optional
+        index of the images to be deselected. Defaults to None.
     suppress_ondiskres : bool, optional
         If True, suppresses on-disk residuals based on `suppress_thrshd`. Defaults to False.
     suppress_thrshd : float, optional
@@ -1794,16 +1896,22 @@ def merge_FITSfiles(fitsfilesin, outfits, exptime_weight=False, suppress_ondiskr
         mask_disk_expanded = np.repeat(mask_disk[..., np.newaxis], mdata_stack.shape[2], axis=2)
         mdata_stack[mask_disk_expanded] = mdata_stack_[mask_disk_expanded]
 
+
+    if snr_weight is not None:
+        weights = np.array(snr_weight)
+    else:
+        weights = np.ones(mdata_stack.shape[-1])
     if exptime_weight:
         ## use the exposure time as the weight to calculate the mean
-        weights = np.array(exptimes)
+        weights = weights*np.array(exptimes)
         # Adjust the weights of the first and last images by halving them to mitigate edge effects.
-        weights[[0, -1]] /= 2
-        weights = weights / np.sum(weights)
-        weights = weights[np.newaxis, np.newaxis, :]
-        data_stack = np.nansum(mdata_stack * weights, axis=-1)
-    else:
-        data_stack = np.nanmean(mdata_stack, axis=-1)
+        # weights[[0, -1]] /= 2
+    weights = weights / np.sum(weights)
+    weights[deselect_index] = 0
+    for w, f in zip(weights, fitsfilesin):
+        log_print('INFO', f'Weight: {w:.2f} for {os.path.basename(f)}')
+    weights = weights[np.newaxis, np.newaxis, :]
+    data_stack = np.nansum(mdata_stack * weights, axis=-1)
     meta['header']['EXPTIME'] = np.nansum(exptimes)
     date_obs = Time(meta['header']['date-obs']).datetime.replace(hour=20, minute=0, second=0) - timedelta(
         seconds=meta['header']['EXPTIME'] / 2.0)
@@ -1820,6 +1928,13 @@ def process_time_block(tidx_ted_tbg, msfile_in, msname, subdir, total_blocks, td
                        reftime_master, do_diskslfcal, disk_params, pols='XX', do_sbdcal=False, overwrite=False):
     tidx, (tbg, ted) = tidx_ted_tbg
     timerange = trange2timerange([tbg, ted])
+
+    if isinstance(reftime_master, str):
+        reftime_master = Time(reftime_master)
+
+    if isinstance(tdt, int):
+        ## assume tdt is in seconds
+        tdt = timedelta(seconds=tdt)
 
     if isinstance(msfile_in, list):
         msfile = msfile_in[tidx]
@@ -1854,6 +1969,8 @@ def process_time_block(tidx_ted_tbg, msfile_in, msname, subdir, total_blocks, td
                                   image_marker='init',
                                   niter=niter_init, spws=spws,
                                   imgoutdir=subdir)
+    # for l in enumerate(img_ref)
+
     img_ref_name = [l.rstrip('.image') for l in img_ref]
     img_ref_model = [f'{l}.model' for l in img_ref_name]
     img_ref_model_fits = [f'{l}.model.fits' for l in img_ref_name]
@@ -1875,12 +1992,13 @@ def process_time_block(tidx_ted_tbg, msfile_in, msname, subdir, total_blocks, td
         shutil.rmtree(combined_vis_sub, ignore_errors=True)
     concat(vis=[l for l in mmsfiles_rot if l is not None], concatvis=combined_vis_sub)
 
-    log_print('INFO', f"Time block {tidx + 1} of {total_blocks} completed.")
+    log_print('INFO', f"Shift Corr: Time block {tidx + 1} of {total_blocks} completed.")
+    os.system(f'touch {os.path.join(subdir, f"TimeBlock{tidx + 1}.shift_corr.done")}')
     return combined_vis_sub
 
 
-def process_imaging_timerange(tbg_ted, msfile_in, spws, subdir, overwrite):
-    tidx, (tbg, ted) = tbg_ted
+def process_imaging_timerange(tidx_ted_tbg, msfile_in, spws, subdir, overwrite):
+    tidx, (tbg, ted) = tidx_ted_tbg
     if isinstance(msfile_in, list):
         ## this is for running the code on pipeline server
         msfile = msfile_in[tidx]
@@ -1897,10 +2015,13 @@ def process_imaging_timerange(tbg_ted, msfile_in, spws, subdir, overwrite):
                                     niter=5000, spws=spws,
                                     imgoutdir=subdir,
                                     compress=True)
+    log_print('INFO', f"Imaging: Time block {tidx + 1} completed.")
+    os.system(f'touch {os.path.join(subdir, f"TimeBlock{tidx + 1}.imaging.done")}')
     return fitsfile, imagefile
 
 
 def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None, figoutdir=None, clearcache=False,
+                 clearlargecache=False,
                  pols='XX', mergeFITSonly=False, verbose=True, do_diskslfcal=True, overwrite=False, niter_init=200,
                  ncpu='auto',
                  tr_series_imaging=None,
@@ -1920,8 +2041,10 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     :type imgoutdir: str, optional
     :param figoutdir: Output directory for figures, defaults to None.
     :type figoutdir: str, optional
-    :param clearcache: If True, clears the cache after processing, defaults to False.
+    :param clearcache: If True, clears all cache files after processing, defaults to False.
     :type clearcache: bool, optional
+    :param clearlargecache: If True, clears the large cache after processing, defaults to False. If True, clearcache is ignored.
+    :type clearlargecache: bool, optional
     :param pols: Polarization types to process, defaults to 'XX'.
     :type pols: str, optional
     :param mergeFITSonly: If True, skips processing and only merges FITS files, defaults to False.
@@ -2007,6 +2130,11 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     diskxmlfile = msfile + '.SOLDISK.xml'
     disk_params = {'dsize': dsize, 'fdens': fdens, 'freq': freq, 'diskxmlfile': diskxmlfile}
 
+    disk_params_converted = {
+        key: value.tolist() if isinstance(value, np.ndarray) else value
+        for key, value in disk_params.items()
+    }
+
     combined_vis = os.path.join(subdir, f'{msname}_shift_corrected.b{tdtmststr}.s{tdtstr}.ms')
     if outputvis == '':
         outputvis = os.path.join(workdir, f'{msname}.b{tdtmststr}.s{tdtstr}.shift_corr.ms')
@@ -2016,35 +2144,34 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     ### --------------------------------------------------------------###
     ## pre-processing block. flagging, hanning smoothing...
     ### --------------------------------------------------------------###
-    run_start_time_pre_proc = datetime.now()
-    if os.path.isdir(msfile + '.flagversions') == True:
-        if verbose:
-            log_print('INFO', f'Flagversion of {msfile} already exists. Skipped...')
-        # flagmanager(msfile, mode='restore', versionname='pipeline_init')
-        # shutil.rmtree(msfile + '.flagversions',ignore_errors=True)
-    else:
-        if verbose:
-            log_print('INFO', f'Flagging any high amplitudes viz from flares or RFIs in {msfile}')
-        flagmanager(msfile, mode='save', versionname='pipeline_init')
-        flagdata(vis=msfile, mode="tfcrop", spw='', action='apply', display='',
-                 timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=False)
-        flagmanager(msfile, mode='save', versionname='pipeline_remove_RFI-and-BURSTS')
-
-    if hanning:
-        msfile_hanning = msfile + '.hanning'
-        if not os.path.exists(msfile_hanning):
+    if not mergeFITSonly:
+        run_start_time_pre_proc = datetime.now()
+        if os.path.isdir(msfile + '.flagversions') == True:
             if verbose:
-                log_print('INFO', f'Perform hanningsmooth for {msfile}...')
-            hanningsmooth(vis=msfile, datacolumn='data', outputvis=msfile_hanning)
+                log_print('INFO', f'Flagversion of {msfile} already exists. Skipped...')
         else:
             if verbose:
-                log_print('INFO', f'The hanningsmoothed {msfile} already exists. Skipped...')
-        msfile = msfile_hanning
+                log_print('INFO', f'Flagging any high amplitudes viz from flares or RFIs in {msfile}')
+            flagmanager(msfile, mode='save', versionname='pipeline_init')
+            flagdata(vis=msfile, mode="tfcrop", spw='', action='apply', display='',
+                     timecutoff=3.0, freqcutoff=2.0, maxnpieces=2, flagbackup=False)
+            flagmanager(msfile, mode='save', versionname='pipeline_remove_RFI-and-BURSTS')
 
-    run_end_time_pre_proc = datetime.now()
-    elapsed_time = run_end_time_pre_proc - run_start_time_pre_proc
-    elapsed_time_pre_proc = elapsed_time.total_seconds() / 60
-    log_print('INFO', f"Pre-processing completed. Elapsed time: {elapsed_time_pre_proc:.1f} minutes")
+        if hanning:
+            msfile_hanning = msfile + '.hanning'
+            if not os.path.exists(msfile_hanning):
+                if verbose:
+                    log_print('INFO', f'Perform hanningsmooth for {msfile}...')
+                hanningsmooth(vis=msfile, datacolumn='data', outputvis=msfile_hanning)
+            else:
+                if verbose:
+                    log_print('INFO', f'The hanningsmoothed {msfile} already exists. Skipped...')
+            msfile = msfile_hanning
+
+        run_end_time_pre_proc = datetime.now()
+        elapsed_time = run_end_time_pre_proc - run_start_time_pre_proc
+        elapsed_time_pre_proc = elapsed_time.total_seconds() / 60
+        log_print('INFO', f"Pre-processing completed. Elapsed time: {elapsed_time_pre_proc:.1f} minutes")
 
     ### --------------------------------------------------------------###
     ## shift correction block.
@@ -2084,38 +2211,136 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 mmsfiles_rot_all.append(combined_vis_sub)
         else:
             log_print('INFO', f"Using {ncpu} CPUs for parallel processing ...")
-            if is_on_server:
+            if script_mode:
                 log_print('INFO', f"Running on pipeline server. Using 1 CPU for splitting ...")
                 mmsfiles = split_mms(msfile, tr_series_master, workdir=subdir, overwrite=overwrite, verbose=True)
                 msfile2proc = mmsfiles
+                import subprocess
+                import json
+
+                # Directory for the temporary scripts and results
+                script_dir = os.path.join(subdir, "temp_scripts")
+                result_dir = os.path.join(subdir, "temp_results")
+                os.makedirs(script_dir, exist_ok=True)
+                os.makedirs(result_dir, exist_ok=True)
+
+                # Generate and run a script for each time block
+                processes = []
+                for tidx, (tbg, ted) in enumerate(tr_series_master):
+                    script_path = os.path.join(script_dir, f"process_block_{tidx}.py")
+                    result_path = os.path.join(result_dir, f"result_{tidx}.json")
+
+                    # Write the script with arguments for this time block
+                    with open(script_path, 'w') as f:
+                        f.write(f"""
+import json
+from suncasa.eovsa import eovsa_synoptic_imaging_pipeline as esip
+
+# Function arguments
+args = {{
+    "tidx_ted_tbg": ({tidx}, ("{tbg.strftime('%Y-%m-%d %H:%M:%S')}", "{ted.strftime('%Y-%m-%d %H:%M:%S')}")),
+    "msfile_in": {repr(msfile2proc)},
+    "msname": {repr(msname)},
+    "subdir": {repr(subdir)},
+    "total_blocks": {total_blocks},
+    "tdt": {repr(tdt.seconds)},
+    "tdtstr": {repr(tdtstr)},
+    "spws": {spws},
+    "niter_init": {niter_init},
+    "reftime_master": {repr(reftime_master.iso)},
+    "do_diskslfcal": {do_diskslfcal},
+    "disk_params": {repr(disk_params_converted)},
+    "pols": {repr(pols)},
+    "do_sbdcal": {do_sbdcal},
+    "overwrite": {overwrite}
+}}
+
+# Run the process_time_block function and save the result
+result = esip.process_time_block(**args)
+
+# Save result to a JSON file
+with open({repr(result_path)}, 'w') as result_file:
+    json.dump(result, result_file)
+""")
+
+                    # py_configfile = '/inti/.init_loadpython38' if is_on_inti else '/home/sjyu/.setenv_pyenv38SY'
+                    # py_exec = '/inti/software/anaconda3/envs/python38_env/bin/python' if is_on_inti else '/home/user/.pyenv/shims/python'
+                    py_config_files = ['/inti/.init_loadpython38', '$HOME/.setenv_pyenv38SY',
+                                       '$HOME/.setenv_pyenv310']
+                    # Find the first available configuration file
+                    py_configfile = None
+                    for py_configfile in py_config_files:
+                        if os.path.exists(py_configfile):
+                            break
+                    if py_configfile is None:
+                        raise FileNotFoundError("No valid Python configuration file found.")
+
+                    # Source the configuration file and find the Python executable
+                    try:
+                        result = subprocess.run(
+                            ["/bin/bash", "-c", f"source {py_configfile} && which python"],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True
+                        )
+                        py_exec = result.stdout.strip()
+                        if not py_exec:
+                            raise RuntimeError(f"Could not find Python executable after sourcing {py_configfile}.")
+                    except Exception as e:
+                        raise RuntimeError(f"Error sourcing {py_configfile} or finding Python executable: {e}")
+                    # Run the script in a new process
+                    p = subprocess.Popen(
+                        ["/bin/bash", "-c",
+                         f"source {py_configfile} && {py_exec} {script_path}"
+                         ]
+                    )
+                    processes.append(p)
+
+                # Wait for all processes to complete
+                for p in processes:
+                    p.wait()
+
+                # Collect results
+                results = []
+                for tidx in range(len(tr_series_master)):
+                    result_path = os.path.join(result_dir, f"result_{tidx}.json")
+                    if os.path.exists(result_path):
+                        with open(result_path, 'r') as result_file:
+                            result = json.load(result_file)
+                            results.append(result)
+                    else:
+                        log_print('ERROR', f"No result found for block {tidx}")
+
             else:
                 msfile2proc = msfile
-            worker = partial(process_time_block,
-                             msfile_in=msfile2proc,
-                             msname=msname,
-                             subdir=subdir,
-                             total_blocks=total_blocks,
-                             tdt=tdt,
-                             tdtstr=tdtstr,
-                             spws=spws,
-                             niter_init=niter_init,
-                             reftime_master=reftime_master,
-                             do_diskslfcal=do_diskslfcal,
-                             disk_params=disk_params, pols=pols,
-                             do_sbdcal=do_sbdcal, overwrite=overwrite)
+                worker = partial(process_time_block,
+                                 msfile_in=msfile2proc,
+                                 msname=msname,
+                                 subdir=subdir,
+                                 total_blocks=total_blocks,
+                                 tdt=tdt,
+                                 tdtstr=tdtstr,
+                                 spws=spws,
+                                 niter_init=niter_init,
+                                 reftime_master=reftime_master,
+                                 do_diskslfcal=do_diskslfcal,
+                                 disk_params=disk_params, pols=pols,
+                                 do_sbdcal=do_sbdcal, overwrite=overwrite)
 
-            with Pool(ncpu) as pool:
-                results = pool.map(worker, enumerate(tr_series_master))
-            # with Pool(ncpu) as pool:
-            #     # Using map_async instead of map
-            #     result_object = pool.map_async(worker, enumerate(tr_series_master))
-            #     results = result_object.get()
+                with Pool(ncpu) as pool:
+                    results = pool.map(worker, enumerate(tr_series_master))
+
             mmsfiles_rot_all = [res for res in results if res is not None]
 
         if os.path.isdir(combined_vis) == True:
             shutil.rmtree(combined_vis, ignore_errors=True)
 
-        concat(vis=[l for l in mmsfiles_rot_all if l is not None], concatvis=combined_vis)
+        if overwrite:
+            if os.path.exists(combined_vis):
+                shutil.rmtree(combined_vis, ignore_errors=True)
+
+        if not os.path.exists(combined_vis):
+            concat(vis=[l for l in mmsfiles_rot_all if l is not None], concatvis=combined_vis)
 
         add_disk_before_imaging = False
         if add_disk_before_imaging:
@@ -2158,16 +2383,100 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                                 # usemask='user', ## toggle this for single band imaging
                                                 imgoutdir=subdir)
         else:
-            if is_on_server:
+            if script_mode:
                 msfiles_in = mmsfiles_rot_all
+
+                # Directory for the temporary scripts and results
+                script_dir = os.path.join(subdir, "temp_scripts_imaging")
+                result_dir = os.path.join(subdir, "temp_results_imaging")
+                os.makedirs(script_dir, exist_ok=True)
+                os.makedirs(result_dir, exist_ok=True)
+
+                # Generate and run a script for each time block
+                processes = []
+                for tidx, (tbg, ted) in enumerate(tr_series_imaging):
+                    script_path = os.path.join(script_dir, f"process_imaging_block_{tidx}.py")
+                    result_path = os.path.join(result_dir, f"result_imaging_{tidx}.json")
+
+                    # Write the script with arguments for this time block
+                    with open(script_path, 'w') as f:
+                        f.write(f"""
+import json
+from suncasa.eovsa import eovsa_synoptic_imaging_pipeline as esip
+
+# Function arguments
+args = {{
+    "tidx_ted_tbg": ({tidx}, ("{tbg.strftime('%Y-%m-%d %H:%M:%S')}", "{ted.strftime('%Y-%m-%d %H:%M:%S')}")),
+    "msfile_in": {repr(msfiles_in)},
+    "spws": {spws_imaging},
+    "subdir": {repr(subdir)},
+    "overwrite": {overwrite}
+}}
+
+# Run the process_imaging_timerange function and save the result
+result = esip.process_imaging_timerange(**args)
+
+# Save result to a JSON file
+with open({repr(result_path)}, 'w') as result_file:
+    json.dump(result, result_file)
+                """)
+
+                    # Run the script in a new process
+
+                    # py_configfile = '/inti/.init_loadpython38' if is_on_inti else '/home/sjyu/.setenv_pyenv38SY'
+                    # py_exec = '/inti/software/anaconda3/envs/python38_env/bin/python' if is_on_inti else '/home/user/.pyenv/shims/python'
+                    py_config_files = ['/inti/.init_loadpython38', '$HOME/.setenv_pyenv38SY',
+                                       '$HOME/.setenv_pyenv310']
+                    # Find the first available configuration file
+                    py_configfile = None
+                    for py_configfile in py_config_files:
+                        if os.path.exists(py_configfile):
+                            break
+                    if py_configfile is None:
+                        raise FileNotFoundError("No valid Python configuration file found.")
+
+                    # Source the configuration file and find the Python executable
+                    try:
+                        result = subprocess.run(
+                            ["/bin/bash", "-c", f"source {py_configfile} && which python"],
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            text=True
+                        )
+                        py_exec = result.stdout.strip()
+                        if not py_exec:
+                            raise RuntimeError(f"Could not find Python executable after sourcing {py_configfile}.")
+                    except Exception as e:
+                        raise RuntimeError(f"Error sourcing {py_configfile} or finding Python executable: {e}")
+                    p = subprocess.Popen([
+                        "/bin/bash", "-c",
+                        f"source {py_configfile} && {py_exec} {script_path}"
+                    ])
+                    processes.append(p)
+
+                # Wait for all processes to complete
+                for p in processes:
+                    p.wait()
+
+                # Collect results
+                imaging_results = []
+                for tidx in range(len(tr_series_imaging)):
+                    result_path = os.path.join(result_dir, f"result_imaging_{tidx}.json")
+                    if os.path.exists(result_path):
+                        with open(result_path, 'r') as result_file:
+                            result = json.load(result_file)
+                            imaging_results.append(result)
+                    else:
+                        log_print('ERROR', f"No result found for imaging block {tidx}")
+
             else:
                 msfiles_in = combined_vis
-            # Prepare partial function with pre-filled arguments
-            process_with_params = partial(process_imaging_timerange, msfile_in=msfiles_in, spws=spws_imaging,
-                                          subdir=subdir, overwrite=overwrite)
+                # Prepare partial function with pre-filled arguments
+                process_with_params = partial(process_imaging_timerange, msfile_in=msfiles_in, spws=spws_imaging,
+                                              subdir=subdir, overwrite=overwrite)
 
-            with Pool(ncpu) as p:
-                p.map(process_with_params, enumerate(tr_series_imaging))
+                with Pool(ncpu) as p:
+                    p.map(process_with_params, enumerate(tr_series_imaging))
 
     run_end_time_imaging = datetime.now()
     elapsed_time = run_end_time_imaging - run_start_time_imaging
@@ -2184,9 +2493,32 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     ## filename convention
     ## eovsa.dailysynoptic.20211124T200000_UTC.s02-05.tb.fits
     ## eovsa.synoptic_180m.20211124T180000_UTC.s02-05.tb.fits
-    for spw in spws_imaging:
+
+    snr_threshold = [15, 25, 50, 80, 80, 40, 20 ]
+    # snr_threshold = [15, 25, 50, 80, 80, 40, 20 ]
+    for sidx, spw in enumerate(spws_imaging):
         spwstr = format_spw(spw)
         eofiles_rot = sorted(glob(f"{subdir}/eovsa_{date_str}T*_??min.s{spwstr}.tb.fits"))
+        data_stack = []
+        for file in eofiles_rot:
+            meta_, data_ = ndfits.read(file)
+            if data_ is not None:
+                data = data_
+                meta = meta_
+                data_stack.append(np.squeeze(data))
+        rsun_pix = meta['header']['RSUN_OBS'] / meta['header']['CDELT1']
+        data_stack = np.dstack(data_stack)
+        mdata_stack = ma.masked_invalid(data_stack)
+        # Add SNR parameters and compute SNR
+        crpix1 = meta['header']['CRPIX1']
+        crpix2 = meta['header']['CRPIX2']
+
+        noisy_indices, std_scores, residual_scores, snr_scores = detect_noisy_images(
+            mdata_stack, rsun_pix, crpix1, crpix2, std_threshold=5.0, residual_threshold=5.0, snr_threshold=10,
+            showplt=False)
+
+        snr = 1 / snr_scores
+        deselect_index = np.where(noisy_indices ==3)[0]
 
         eofiles_rot_disk = []
         for eofile in eofiles_rot:
@@ -2199,8 +2531,11 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 eofiles_rot_disk.append(synfitsfile)
 
         syndaily_fitsfile = os.path.join(imgoutdir, f"eovsa.synoptic_daily.{date_str}T200000_UTC.s{spwstr}.tb.fits")
-        merge_FITSfiles(eofiles_rot_disk, syndaily_fitsfile, exptime_weight=True)
-        syndaily_fitsfiles.append(syndaily_fitsfiles)
+        try:
+            merge_FITSfiles(eofiles_rot_disk, syndaily_fitsfile, exptime_weight=True, snr_weight=snr,deselect_index=deselect_index)
+            syndaily_fitsfiles.append(syndaily_fitsfiles)
+        except Exception as e:
+            log_print('ERROR', f"Error merging FITS files: {e}. Skipping the spectral window {spwstr}.")
         ## todo synoptic_60m FITS images currently align to 20 UT. Need to rotate them to better reflect actual observation times. Also, the FITS files need to be compressed.
 
     ## remove the intermediate ms files
@@ -2218,6 +2553,15 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         if os.path.exists(newdiskxmlfile):
             shutil.rmtree(newdiskxmlfile)
         shutil.move(diskxmlfile, newdiskxmlfile)
+
+    if clearlargecache:
+        clearcache = False
+        shutil.rmtree(os.path.join(subdir, 'images'), ignore_errors=True)
+        shutil.rmtree(os.path.join(subdir, '*.ms'), ignore_errors=True)
+        shutil.rmtree(os.path.join(subdir, '*.model'), ignore_errors=True)
+        print(f'files in {os.path.join(subdir, "images")} removed.')
+        print(f'files in {os.path.join(subdir, "*.ms")} removed.')
+        print(f'files in {os.path.join(subdir, "*.model")} removed.')
 
     if clearcache:
         shutil.rmtree(subdir, ignore_errors=True)
@@ -2262,7 +2606,9 @@ if __name__ == '__main__':
     parser.add_argument('--slfcaltbdir', type=str, help='Directory for storing calibration tables.')
     parser.add_argument('--imgoutdir', type=str, help='Output directory for image files.')
     parser.add_argument('--figoutdir', type=str, help='Output directory for figures.')
-    parser.add_argument('--clearcache', action='store_true', help='Clears the cache after processing.')
+    parser.add_argument('--clearcache', action='store_true', help='Clears all cache files after processing.')
+    parser.add_argument('--clearlargecache', action='store_true',
+                        help='Clears the large cache files after processing. If True, clearcache will be set to False.')
     parser.add_argument('--pols', type=str, default='XX', help='Polarization types to process.')
     parser.add_argument('--mergeFITSonly', action='store_true', help='Skips processing and only merges FITS files.')
     # parser.add_argument('--verbose', action='store_true', help='Enables verbose output during processing.')
@@ -2286,6 +2632,7 @@ if __name__ == '__main__':
         imgoutdir=args.imgoutdir,
         figoutdir=args.figoutdir,
         clearcache=args.clearcache,
+        clearlargecache=args.clearlargecache,
         pols=args.pols,
         mergeFITSonly=args.mergeFITSonly,
         # verbose=args.verbose,

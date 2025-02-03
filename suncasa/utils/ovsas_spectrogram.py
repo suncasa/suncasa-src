@@ -153,7 +153,7 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', fi
     if combine:
         if figname is None:
             # Define the file name for the combined figure
-            figname = os.path.join(figdir, f'fig-OVSAs_spec_{timestamp.strftime("%Y%m%d")}.png')
+            figname = os.path.join(figdir, f'fig-OVSAs_spec_{timestamp.strftime("%Y%m%d")}.jpg')
         if os.path.exists(figname):
             if timerange is None:
                 # If the combined figure already exists, skip plotting individual figures
@@ -161,10 +161,10 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', fi
                 return [figname]
     else:
         # Define file names for each figure
-        figname_eovsa = os.path.join(figdir, f'fig-eovsa_spec_{timestamp.strftime("%Y%m%d")}.png')
-        figname_ovrolwa = os.path.join(figdir, f'fig-ovrolwa_spec_{timestamp.strftime("%Y%m%d")}.png')
-        figname_stix = os.path.join(figdir, f'fig-stix_lc_{timestamp.strftime("%Y%m%d")}.png')
-        figname_goes = os.path.join(figdir, f'fig-goes_lc_{timestamp.strftime("%Y%m%d")}.png')
+        figname_eovsa = os.path.join(figdir, f'fig-eovsa_spec_{timestamp.strftime("%Y%m%d")}.jpg')
+        figname_ovrolwa = os.path.join(figdir, f'fig-ovrolwa_spec_{timestamp.strftime("%Y%m%d")}.jpg')
+        figname_stix = os.path.join(figdir, f'fig-stix_lc_{timestamp.strftime("%Y%m%d")}.jpg')
+        figname_goes = os.path.join(figdir, f'fig-goes_lc_{timestamp.strftime("%Y%m%d")}.jpg')
 
     # Define paths for the data files
     ovrolwapath = '/common/lwa/spec_v2/fits/'
@@ -273,16 +273,16 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', fi
         overall_end = Time(timerange[1])
         if combine:
             figname = os.path.join(figdir,
-                                   f'fig-OVSAs_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
+                                   f'fig-OVSAs_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.jpg')
         else:
             figname_eovsa = os.path.join(figdir,
-                                         f'fig-eovsa_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
+                                         f'fig-eovsa_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.jpg')
             figname_ovrolwa = os.path.join(figdir,
-                                           f'fig-ovrolwa_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
+                                           f'fig-ovrolwa_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.jpg')
             figname_stix = os.path.join(figdir,
-                                        f'fig-stix_lc_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
+                                        f'fig-stix_lc_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.jpg')
             figname_goes = os.path.join(figdir,
-                                        f'fig-goes_lc_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.png')
+                                        f'fig-goes_lc_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.jpg')
 
     print(f'processing STIX light curves for {timestamp.strftime("%Y-%m-%d")}')
     # Load STIX light curves
@@ -434,3 +434,14 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', fi
     t1 = time.time()
     print(f'Plotting took {t1 - t0:.2f} seconds.')
     return figout
+
+
+if __name__ == '__main__':
+    import os
+    from datetime import datetime, timedelta
+    from suncasa.utils import ovsas_spectrogram as ovsp
+
+    current_date = datetime.now()
+    previous_day = (current_date - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    print(f'plotting OVSAs spectrogram for {previous_day.strftime("%Y-%m-%d")}')
+    plot(previous_day, figdir=f'/common/webplots/SynopticImg/eovsamedia/eovsa-browser/{previous_day.strftime("%Y/%m/%d")}/', clip=[10, 99.5])
