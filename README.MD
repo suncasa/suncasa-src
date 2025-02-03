@@ -274,13 +274,5 @@ echo "    sys.path.append(sitepackagepath)"     >> $HOME/.casa/config.py
 > **_note:_** The `sitepackagepath` may varies for python versions on different platforms.
 
 
-**Note for Mac M1 users**: For macOS 12 on an ARM-based M1 chip, users will need to install the wheels of CASA version
-11 for intel architecture. For that, we recommend to install [Apple Rosetta](https://support.apple.com/en-us/HT211861) to enable a Mac with Apple silicon to use
-apps made for an Intel processor ([How-to](https://medium.com/mkdir-awesome/how-to-install-x86-64-homebrew-packages-on-apple-m1-macbook-54ba295230f)). 
 
-By now you can use the following command to pip install the CASA wheels:
-
-```bash
-arch -x86_64 python3.8 -m pip install ...
-```
 
