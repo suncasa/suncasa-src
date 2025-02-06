@@ -340,7 +340,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory="OVRO", verbose=False
             delta.append(float(items[8]))
         # convert list of dictionary to a dictionary of arrays
         ephem = {'time': t, 'ra': ra, 'dec': dec, 'p0': p0, 'delta': delta}
-        return ephem
+    return ephem
 
 
 def read_msinfo(vis=None, msinfofile=None, interp_to_scan=False, verbose=False):
@@ -720,18 +720,23 @@ def ephem_to_helio(vis=None, ephem=None, msinfo=None, reftime=None, dopolyfit=Tr
             # Do not need to read the information from the measurement set
             if msinfo0['observatory'] == 'EVLA':
                 observatory_id = '-5'
+                observatory = 'vla'
             elif msinfo0['observatory'] == 'EOVSA' or msinfo0['observatory'] == 'FASR' or msinfo0['observatory'] == 'OVRO_MMA':
                 observatory_id = '-81'
+                observatory = 'ovro'
             elif msinfo0['observatory'] == 'GMRT' or msinfo0['observatory'] == 'uGMRT':
                 observatory_id = '399'
+                observatory = 'gmrt'
             elif msinfo0['observatory'] == 'ALMA':
                 observatory_id = '-7'
+                observatory = 'alma'
             else:
-                print('Observatory {} not recognized. Assume geocentric.'.format(msinfo0['observatory']))
+                print('Observatory {} not recognized. Assume OVRO.'.format(msinfo0['observatory']))
                 observatory_id = '500'
+                observatory = 'ovro'
 
             if not ephem:
-                ephem = read_horizons(Time(tref_d, format='mjd'), observatory=observatory_id)
+                ephem = read_horizons(Time(tref_d, format='mjd'), observatory=observatory)
 
         times_ephem = ephem['time']
         ras_ephem = ephem['ra']
