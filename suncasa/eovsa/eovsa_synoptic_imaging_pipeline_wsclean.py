@@ -2286,6 +2286,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 else:
                     log_print('WARNING',
                               f"No model files found for SPW {spws[sidx]}. Skipping disk self-calibration...")
+            run_end_time_disk_slfcal = datetime.now()
+            elapsed_time = run_end_time_disk_slfcal - run_start_time_disk_slfcal
+            elapsed_time_disk_slfcal = elapsed_time.total_seconds() / 60
             log_print('INFO',
                       f"Disk self-calibration for SPW {spwstr}: completed in {elapsed_time_disk_slfcal:.1f} minutes")
 
