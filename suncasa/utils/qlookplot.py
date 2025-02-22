@@ -1717,9 +1717,10 @@ def plt_qlook_image(imres, timerange='', spwplt=None, figdir='./qlookimgs/', spe
                                                   colors=[colors_spws[s]] * len(clevels1),
                                                   alpha=alpha_cont, linewidths=2)
                                 else:
-                                    rmap_.contourf(axes=ax, levels=[clevels1[0], np.nanmax(rmap.data)],
-                                                   colors=[colors_spws[s]] * 2,
-                                                   alpha=alpha_cont)
+                                    if clevels1[0]<np.nanmax(rmap.data):
+                                        rmap_.contourf(axes=ax, levels=[clevels1[0], np.nanmax(rmap.data)],
+                                                       colors=[colors_spws[s]] * 2,
+                                                       alpha=alpha_cont)
                             else:
                                 rmap_.contour(axes=ax, levels=clevels1, cmap=icmap)
                 else:

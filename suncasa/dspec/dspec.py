@@ -1315,7 +1315,7 @@ class Dspec:
                 elif pol == 'IV':
                     spec_plt_1 = I_plot
                     spec_plt_2 = V_plot
-                    cmap2 = 'gray'
+                    cmap2 = 'RdBu_r'
                     if (vmax2 is None) and (vmin2 is None):
                         vmax2 = np.nanmax(np.abs(spec_plt_2))
                         vmin2 = -vmax2
@@ -1328,7 +1328,7 @@ class Dspec:
                     # this is for Stokes I + polarization degree
                     spec_plt_1 = I_plot
                     spec_plt_2 = V_plot / I_plot
-                    cmap2 = 'gray'
+                    cmap2 = 'RdBu_r'
                     if (vmax2 is None) and (vmin2 is None):
                         vmax2 = 1.
                         vmin2 = -1.

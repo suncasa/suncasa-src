@@ -105,6 +105,78 @@ def pltEmptyImage(datestr, spws, vmaxs, vmins, dpis_dict={'t': 32.0}):
     return
 
 
+def pltEovsaQlookImage_v3(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None, overwrite=False, verbose=False):
+    from astropy.visualization.stretch import AsinhStretch
+    from astropy.visualization import ImageNormalize
+    plt.ioff()
+    dateobj = datetime.strptime(datestr, "%Y-%m-%d")
+    datestr = dateobj.strftime('%Y%m%d')
+    datestrdir = dateobj.strftime("%Y/%m/%d/")
+    imgindir = imgfitsdir + datestrdir
+    imgoutdir = pltfigdir + datestrdir
+
+    cmap = plt.get_cmap('sdoaia304')
+    cmap.set_bad(color='k')
+
+    if fig is None or ax is None:
+        mkfig = True
+    else:
+        mkfig = False
+
+    if mkfig:
+        fig, ax = plt.subplots(figsize=(8, 8))
+        fig.subplots_adjust(bottom=0.0, top=1.0, left=0.0, right=1.0)
+
+    if verbose: print('Processing EOVSA images for date {}'.format(dateobj.strftime('%Y-%m-%d')))
+    for s, sp in enumerate(spws):
+        fexists = []
+        for l, dpi in dpis_dict.items():
+            figname = os.path.join(imgoutdir, f'{l}_eovsa_bd{s+1:02d}_v3.0.jpg')
+            fexists.append(os.path.exists(figname))
+
+        if overwrite or (False in fexists):
+            ax.cla()
+            spwstr = '-'.join(['{:02d}'.format(int(sp_)) for sp_ in sp.split('~')])
+            eofile = os.path.join(imgindir, f'eovsa.synoptic_daily.{datestr}T200000Z.s{spwstr}.tb.disk.fits')
+            if not os.path.exists(eofile):
+                print('Fail to plot {} as it does not exist'.format(eofile))
+                continue
+            if not os.path.exists(imgoutdir): os.makedirs(imgoutdir)
+            try:
+                eomap = smap.Map(eofile)
+                stretch = AsinhStretch(a=0.15)
+                norm = ImageNormalize(vmin=vmins[s], vmax=vmaxs[s], stretch=stretch)
+                # norm = colors.Normalize(vmin=vmins[s], vmax=vmaxs[s])
+                eomap_ = pmX.Sunmap(eomap)
+                eomap_.imshow(axes=ax, cmap=cmap, norm=norm)
+                eomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
+                eomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
+                ax.set_xlabel('')
+                ax.set_ylabel('')
+                ax.set_xticklabels([])
+                ax.set_yticklabels([])
+                ax.text(0.02, 0.02,
+                        'EOVSA {:.1f} GHz  {}'.format(eomap.meta['CRVAL3'] / 1e9, eomap.date.strftime('%d-%b-%Y 20:00 UT')),
+                        transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=9)
+                ax.text(0.98, 0.02, 'Max Tb {:.0f} K'.format(np.nanmax(eomap.data)),
+                        transform=ax.transAxes, color='w', ha='right', va='bottom', fontsize=9)
+                ax.set_xlim(-1227, 1227)
+                ax.set_ylim(-1227, 1227)
+
+                for l, dpi in dpis_dict.items():
+                    figname = os.path.join(imgoutdir, f'{l}_eovsa_bd{s+1:02d}_v3.0.jpg')
+                    fig.savefig(figname, dpi=int(dpi), pil_kwargs={"quality":85})
+                    print('EOVSA image saved to {}'.format(figname))
+            except Exception as err:
+                print('Fail to plot {}'.format(eofile))
+                print(err)
+    if mkfig:
+        pass
+    else:
+        plt.close(fig)
+    return
+
+
 def pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None, overwrite=False, verbose=False):
     from astropy.visualization.stretch import AsinhStretch
     from astropy.visualization import ImageNormalize
@@ -455,11 +527,14 @@ def main(year=None, month=None, day=None, ndays=1, clearcache=False, ovwrite_eov
 
         if dateobs > tsep:
             spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43', '44~49']
+            spws_v3 = ['0~1', '2~4', '5~10', '11~20', '21~30', '31~43', '44~49']
         else:
             spws = ['1~3', '4~9', '10~16', '17~24', '25~30']
 
+
         datestr = dateobs.strftime("%Y-%m-%d")
         pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict_eo, fig, ax, overwrite=ovwrite_eovsa, verbose=True)
+        pltEovsaQlookImage_v3(datestr, spws_v3, vmaxs, vmins, dpis_dict_eo, fig, ax, overwrite=ovwrite_eovsa, verbose=True)
         pltSdoQlookImage(datestr, dpis_dict_sdo, fig, ax, overwrite=ovwrite_sdo, verbose=True, clearcache=clearcache)
         pltBbsoQlookImage(datestr, dpis_dict_bbso, fig, ax, overwrite=ovwrite_bbso, verbose=True,
                           clearcache=clearcache)

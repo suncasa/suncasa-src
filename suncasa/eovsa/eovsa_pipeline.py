@@ -297,7 +297,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
     if version == 'v1.0':
         output_file_path = outpath + os.path.basename(invis[0])[:11] + '.ms'
     else:
-        output_file_path = outpath + os.path.basename(invis[0])[:11] + f'.{version}.ms.'
+        output_file_path = outpath + os.path.basename(invis[0])[:11] + f'.{version}.ms'
     slfcaltbdir_path = os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/'
 
     if verbose:
@@ -316,12 +316,27 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
                               workdir=workdir,
                               slfcaltbdir=slfcaltbdir_path,
                               imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols)
-    else:
+    elif version== 'v2.0':
         from suncasa.eovsa import eovsa_synoptic_imaging_pipeline as esip
         vis = esip.pipeline_run(vis, outputvis=output_file_path,
                                 workdir=workdir,
                                 slfcaltbdir=slfcaltbdir_path,
                                 imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols, ncpu=ncpu,overwrite=overwrite)
+    elif version== 'v3.0':
+        from suncasa.eovsa import eovsa_synoptic_imaging_pipeline_wsclean as esip
+        temp_dir = os.path.join(workdir,tdate.datetime.strftime('temp_%Y%m%d'))
+        vis = esip.pipeline_run(vis, outputvis=output_file_path,
+                                workdir=temp_dir,
+                                slfcaltbdir=slfcaltbdir_path,
+                                imgoutdir=imgoutdir, pols=pols)
+        if clearcache:
+            os.system(f'rm -rf {temp_dir}')
+    else:
+        print(f'Version {version} is not supported. Valid versions are v1.0, v2.0, and v3.0. Use the default version.')
+        vis = ed.pipeline_run(vis, outputvis=output_file_path,
+                              workdir=workdir,
+                              slfcaltbdir=slfcaltbdir_path,
+                              imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols)
     return vis
 
 
