@@ -324,13 +324,12 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
                                 imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols, ncpu=ncpu,overwrite=overwrite)
     elif version== 'v3.0':
         from suncasa.eovsa import eovsa_synoptic_imaging_pipeline_wsclean as esip
-        temp_dir = os.path.join(workdir,tdate.datetime.strftime('temp_%Y%m%d'))
         vis = esip.pipeline_run(vis, outputvis=output_file_path,
-                                workdir=temp_dir,
+                                workdir=workdir,
                                 slfcaltbdir=slfcaltbdir_path,
                                 imgoutdir=imgoutdir, pols=pols, overwrite=overwrite)
         if clearcache:
-            os.system(f'rm -rf {temp_dir}')
+            os.system(f'rm -rf {workdir}/*')
     else:
         print(f'Version {version} is not supported. Valid versions are v1.0, v2.0, and v3.0. Use the default version.')
         vis = ed.pipeline_run(vis, outputvis=output_file_path,
