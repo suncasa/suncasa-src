@@ -1528,6 +1528,7 @@ class MSselfcal:
                  maxuvw_m=None,
                  minuvw_m=None,
                  data_column="CORRECTED_DATA",
+                 pols='XX',
                  beam_size=None,
                  reftime_daily=None):
         self.msfile = msfile
@@ -1551,6 +1552,7 @@ class MSselfcal:
         self.image_marker = image_marker
         self.niter = niter
         self.gain = gain
+        self.pols=pols
         self.data_column = data_column
         self.beam_size = beam_size
         self.reftime_daily = reftime_daily
@@ -1603,7 +1605,7 @@ class MSselfcal:
 
         os.system(f'rm -rf {os.path.join(self.workdir, imname)}*.fits')
         clean_obj = ww.WSClean(self.msfile)
-        clean_obj.setup(size=1024, scale="2.5asec", weight_briggs=self.briggs, pol=pols,
+        clean_obj.setup(size=1024, scale="2.5asec", weight_briggs=self.briggs, pol=self.pols,
                         niter=self.niter,
                         mgain=0.85,
                         gain=self.gain,
