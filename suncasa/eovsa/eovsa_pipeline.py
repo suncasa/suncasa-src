@@ -813,7 +813,7 @@ if __name__ == '__main__':
     parser.add_argument('--doimport', action='store_true', default=True, help='Perform import step before processing')
     parser.add_argument('--pols', type=str, default='XX', choices=['XX', 'XXYY'], help='Polarizations to process')
     parser.add_argument('--ncpu', type=str, default='auto', help='Number of CPUs to use for processing')
-    parser.add_argument('--version', type=str, default='v1.0', choices=['v1.0', 'v2.0'],
+    parser.add_argument('--version', type=str, default='v1.0', choices=['v1.0', 'v2.0','v3.0'],
                         help='Version of the EOVSA pipeline to use')
     parser.add_argument('--debugging', action='store_true', default=False, help='Run the pipeline in debugging mode')
 
