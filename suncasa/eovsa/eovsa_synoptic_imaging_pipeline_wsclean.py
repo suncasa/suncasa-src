@@ -1692,7 +1692,7 @@ class MSselfcal:
 
 
 def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None,
-                 pols='XX', verbose=True, do_diskslfcal=True, hanning=False, do_sbdcal=False):
+                 pols='XX', verbose=True, do_diskslfcal=True, hanning=False, do_sbdcal=False, overwrite=False):
     """
     Executes the EOVSA data processing pipeline for solar observation data.
 
@@ -1749,6 +1749,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     >>> tr_series_imaging = esip.generate_trange_series(tbg_imaging, ted_imaging, tdt_imaging)
     """
 
+    if os.path.exists(outputvis) and not overwrite:
+        log_print('INFO', f"Output MS file {outputvis} already exists. Skipping processing.")
+        return outputvis
     # slfcaltbdir = None
     # imgoutdir = None
     # clearcache = False,

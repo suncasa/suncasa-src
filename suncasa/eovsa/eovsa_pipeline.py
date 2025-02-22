@@ -328,7 +328,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
         vis = esip.pipeline_run(vis, outputvis=output_file_path,
                                 workdir=temp_dir,
                                 slfcaltbdir=slfcaltbdir_path,
-                                imgoutdir=imgoutdir, pols=pols)
+                                imgoutdir=imgoutdir, pols=pols, overwrite=overwrite)
         if clearcache:
             os.system(f'rm -rf {temp_dir}')
     else:
