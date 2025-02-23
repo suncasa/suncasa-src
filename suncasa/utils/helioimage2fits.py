@@ -861,7 +861,7 @@ def getbeam(imagefile=None, beamfile=None):
                     bpa_.append(bpa0)
                 beamunit_ = beams['*' + chans_[0]]['*0']['major']['unit']
                 bpaunit_ = beams['*' + chans_[0]]['*0']['positionangle']['unit']
-            if 'restoringbeam' in sum.keys():  # only one beam
+            elif 'restoringbeam' in sum.keys():  # only one beam
                 bmaj_.append(sum['restoringbeam']['major']['value'])
                 bmin_.append(sum['restoringbeam']['minor']['value'])
                 bpa_.append(sum['restoringbeam']['positionangle']['value'])
@@ -869,6 +869,23 @@ def getbeam(imagefile=None, beamfile=None):
                 bpaunit_ = sum['restoringbeam']['positionangle']['unit']
                 nbeams = 1
                 chans_ = [0]
+            else:
+                if img.lower().endswith('.fits') or img.lower().endswith('.fts'):
+                    from astropy.io import fits
+                    hdulist = fits.open(img)
+                    if hdulist[0].header['BMAJ']<0:
+                        print(f'Warning: Negative beam size found in {img}. Set to positive value. Check your imaging results carefully!')
+                    bmaj0 = abs(hdulist[0].header['BMAJ'])*3600
+                    bmin0 = abs(hdulist[0].header['BMIN'])*3600
+                    bpa0 = hdulist[0].header['BPA']
+                    beamunit_ = 'arcsec'
+                    bpaunit_ = 'deg'
+                    hdulist.close()
+                    bmaj_.append(bmaj0)
+                    bmin_.append(bmin0)
+                    bpa_.append(bpa0)
+                    nbeams = 1
+                    chans_ = [0]
 
         bmaj.append(bmaj_)
         bmin.append(bmin_)

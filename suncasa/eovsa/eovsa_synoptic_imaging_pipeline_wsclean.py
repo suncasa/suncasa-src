@@ -2395,9 +2395,13 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         spwstr = format_spw(spw)
         outfits= os.path.join(imgoutdir, f'eovsa.synoptic_daily.{date_str}T200000Z.s{spwstr}.tb.disk.fits')
         synfitsfiles = sorted(glob(os.path.join(imgoutdir,
-                                   f"eovsa.synoptic.{date_str}T*.s{spwstr}.tb.disk.fits")))
-        merge_FITSfiles(synfitsfiles, outfits, overwrite=True, snr_threshold=10)
-        outfits_all.append(outfits)
+                                   f"eovsa.synoptic.{date_str[:-1]}?T??????.s{spwstr}.tb.disk.fits")))
+        if len(synfitsfiles) > 0:
+            merge_FITSfiles(synfitsfiles, outfits, overwrite=True, snr_threshold=10)
+            outfits_all.append(outfits)
+        else:
+            outfits_all.append(None)
+            log_print('WARNING', f"No synoptic images found for SPW {spwstr}. Skipping merge_FITSfiles.")
 
     ms2concat = glob(f'{msname}.sp*.slfcaled.ms')
     concat(vis=ms2concat, concatvis=outputvis)
