@@ -1966,6 +1966,13 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     else:
         alldaymode_spidx = [0]
     for sidx, sp_index in enumerate(spws_indices):
+        msfile_sp = msfile_sp
+        if os.path.exists(msfile_sp):
+            if overwrite:
+                os.system('rm -rf ' + msfile_sp)
+            else:
+                log_print('INFO', f"MS file {msfile_sp} already exists. Skipping processing.")
+                continue
         caltbs = []
         ncaltbs = len(caltbs)
         if sidx not in spwidx2proc:
@@ -2383,7 +2390,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             synfitsfiles.append(synfitsfile)
         add_convolved_disk_to_fits(fitsname_helio_ref_daily, synfitsfiles, dszs, fdns, ignore_data=False, toTb=True,
                                    rfreq=reffreq)
-        split(vis=msfile, outputvis=f'{msname}.sp{spwstr}.slfcaled.ms', spw=spws[sidx],datacolumn='corrected')
+        split(vis=msfile, outputvis=msfile_sp, spw=spws[sidx],datacolumn='corrected')
 
         run_end_time = datetime.now()
         elapsed_time = run_end_time - run_start_time
@@ -2404,6 +2411,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             log_print('WARNING', f"No synoptic images found for SPW {spwstr}. Skipping merge_FITSfiles.")
 
     ms2concat = glob(f'{msname}.sp*.slfcaled.ms')
+    if os.path.exists(outputvis): os.system('rm -rf ' + outputvis)
     concat(vis=ms2concat, concatvis=outputvis)
 
     log_print('INFO', f"Moving calibration tables to {slfcaltbdir} ...")
