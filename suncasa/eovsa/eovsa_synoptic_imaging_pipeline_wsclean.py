@@ -1966,7 +1966,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     else:
         alldaymode_spidx = [0]
     for sidx, sp_index in enumerate(spws_indices):
-        msfile_sp = msfile_sp
+        msfile_sp = f'{msname}.sp{spwstr}.slfcaled.ms'
         if os.path.exists(msfile_sp):
             if overwrite:
                 os.system('rm -rf ' + msfile_sp)
