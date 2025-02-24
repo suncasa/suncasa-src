@@ -1433,7 +1433,10 @@ def merge_FITSfiles(fitsfilesin, outfits, snr_weight=None, deselect_index=None,
         hdu = fits.open(file)[0]
         header = hdu.header
         data.append(np.squeeze(hdu.data))
-        exptimes.append(header['EXPTIME'])
+        if 'EXPTIME' in header:
+            exptimes.append(header['EXPTIME'])
+        else:
+            exptimes.append(0.0)
     data_stack = np.array(data)
     if deselect_index is None:
         rsun_pix = header['RSUN_OBS'] / header['CDELT1']
@@ -1452,9 +1455,10 @@ def merge_FITSfiles(fitsfilesin, outfits, snr_weight=None, deselect_index=None,
     weights = weights[:, np.newaxis, np.newaxis]
     date_merged = np.nansum(data_stack * weights, axis=0)
     newheader = header.copy()
+    exptime = np.nansum(exptimes)
     date_obs = Time(header['date-obs']).datetime.replace(hour=20, minute=0, second=0) - timedelta(
-        seconds=header['EXPTIME'] / 2.0)
-    newheader.update({'EXPTIME': np.nansum(exptimes), 'DATE-OBS': date_obs.strftime('%Y-%m-%dT%H:%M:%S')})
+        seconds=exptime / 2.0)
+    newheader.update({'EXPTIME': exptime, 'DATE-OBS': date_obs.strftime('%Y-%m-%dT%H:%M:%S')})
     newheader['HISTORY'] = 'Merged from multiple images'
     hdu = fits.PrimaryHDU(date_merged, header=newheader)
     hdu.writeto(outfits, overwrite=overwrite)
