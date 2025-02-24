@@ -965,7 +965,10 @@ def get_beam_kernel(header=None, bmaj=None, bmin=None, bpa=None, pixel_scale_arc
                 bmin = header["BMIN"]
                 bpa = header["BPA"]
                 if bmaj <= 0 or bmin <= 0:
-                    raise ValueError("Beam parameters 'BMAJ' and 'BMIN' must be positive.")
+                    # raise ValueError("Beam parameters 'BMAJ' and 'BMIN' must be positive.")
+                    bmaj = abs(bmaj)
+                    bmin = abs(bmin)
+                    print("Beam parameters 'BMAJ' and 'BMIN' must be positive. Taking absolute values. Check your results carefully.")
             except KeyError as e:
                 raise KeyError(
                     "Beam parameters 'BMAJ', 'BMIN', and 'BPA' must be provided either as inputs or in the header.") from e
