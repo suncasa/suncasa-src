@@ -2402,8 +2402,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         spwstr = format_spw(spw)
         outfits= os.path.join(imgoutdir, f'eovsa.synoptic_daily.{date_str}T200000Z.s{spwstr}.tb.disk.fits')
         synfitsfiles = sorted(glob(os.path.join(imgoutdir,
-                                   f"eovsa.synoptic.{date_str[:-1]}?T??????.s{spwstr}.tb.disk.fits")))
+                                   f"eovsa.synoptic.{date_str[:-1]}?T??????Z.s{spwstr}.tb.disk.fits")))
         if len(synfitsfiles) > 0:
+            log_print('INFO', f"Merging synoptic images for SPW {spwstr} to {outfits} ...")
             merge_FITSfiles(synfitsfiles, outfits, overwrite=True, snr_threshold=10)
             outfits_all.append(outfits)
         else:
@@ -2411,8 +2412,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             log_print('WARNING', f"No synoptic images found for SPW {spwstr}. Skipping merge_FITSfiles.")
 
     ms2concat = glob(f'{msname}.sp*.slfcaled.ms')
-    if os.path.exists(outputvis): os.system('rm -rf ' + outputvis)
-    concat(vis=ms2concat, concatvis=outputvis)
+    if os.path.exists(outputvis):
+        if overwrite: os.system('rm -rf ' + outputvis)
+        concat(vis=ms2concat, concatvis=outputvis)
+        log_print('INFO', f"Concatenated MS file written to {outputvis}")
+    else:
+        log_print('WARNING', f"Output MS file {outputvis} already exists. Skipping concatenation.")
 
     log_print('INFO', f"Moving calibration tables to {slfcaltbdir} ...")
     caltbs_comb = [item for sublist in caltbs_all for item in sublist]
