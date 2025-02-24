@@ -1102,11 +1102,24 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         return None
 
     # Copy original ms to local directory
-    if os.path.exists(os.path.basename(vis)):
-        shutil.rmtree(os.path.basename(vis))
-    print('Copy {} to working directory {}/'.format(vis, os.getcwd()))
-    shutil.copytree(vis, os.path.basename(vis))
-    vis = os.path.basename(vis)
+    if vis.lower().endswith('.ms'):
+        if os.path.exists(os.path.basename(vis)):
+            shutil.rmtree(os.path.basename(vis))
+        print('Copy {} to working directory {}/'.format(vis, os.getcwd()))
+        shutil.copytree(vis, os.path.basename(vis))
+        vis = os.path.basename(vis)
+    elif vis.lower().endswith('.tar.gz'):
+        if os.path.exists(os.path.basename(vis)):
+            shutil.rmtree(os.path.basename(vis))
+        if os.path.exists(os.path.basename(vis.rstrip('.tar.gz'))):
+            shutil.rmtree(os.path.basename(vis.rstrip('.tar.gz')))
+        print(f'Extracting {vis} to working directory {os.getcwd()}/')
+        os.system(f'tar -xzf {vis} -C {os.getcwd()}')
+        vis = os.path.basename(vis.rstrip('.tar.gz'))
+    else:
+        print('Input vis file must be either a .ms or .tar.gz file.')
+        return None
+
     # Generate calibrated visibility by self calibrating on the solar disk
     ##ms_slfcaled, diskxmlfile = disk_slfcal(vis, slfcaltbdir=slfcaltbdir)
     flagmanager(vis, mode='save', versionname='pipeline_init')

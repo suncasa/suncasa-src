@@ -5,6 +5,7 @@ from suncasa.suncasatasks import ptclean6 as ptclean
 from suncasa.suncasatasks import calibeovsa
 from suncasa.suncasatasks import importeovsa
 
+import re
 import sys
 import numpy as np
 from eovsapy.dump_tsys import findfiles
@@ -32,6 +33,28 @@ mstool = tools['mstool']
 tbtool = tools['tbtool']
 ms = mstool()
 tb = tbtool()
+
+
+def get_tdate_from_basename(vis):
+    # Define the regular expression pattern
+    pattern = r'UDB(\d{8})\.ms(\.tar\.gz)?'
+
+    # Extract the basename from the vis path
+    basename = os.path.basename(vis)
+
+    # Search for the pattern in the basename
+    match = re.search(pattern, basename)
+
+    if match:
+        # Extract the date string
+        date_str = match.group(1)
+
+        # Convert the date string to a datetime object
+        tdate = datetime.strptime(date_str, '%Y%m%d').replace(hour=20, minute=0, second=0)
+
+        return tdate
+    else:
+        raise ValueError("The basename does not match the expected format.")
 
 import socket
 import os
@@ -188,12 +211,15 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
         os.makedirs(outpath)
         msfiles = []
     else:
-        msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
+        msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms*'.format(outpath)) if ll.endswith('.ms') or ll.endswith('.ms.tar.gz')]
+
 
     msfile_synoptic = os.path.join(outpath, 'UDB' + tdatetime.strftime("%Y%m%d") + '.ms')
-    if overwrite and doimport:
-        if os.path.exists(msfile_synoptic):
-            os.system('rm -rf {}'.format(msfile_synoptic))
+
+    if os.path.exists(msfile_synoptic):
+        if overwrite and doimport:
+            os.system(f'rm -rf {msfile_synoptic}*')
+
 
     # sclist = ra.findfiles(trange, projid='NormalObserving', srcid='Sun')
     sclist = findfiles(trange, projid='NormalObserving', srcid='Sun')
@@ -221,7 +247,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
                         visprefix=outpath, nocreatms=False,
                         doconcat=False, modelms="", doscaling=doscaling, keep_nsclms=False, udb_corr=True)
 
-        msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms'.format(outpath))]
+        msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms*'.format(outpath)) if ll.endswith('.ms') or ll.endswith('.ms.tar.gz')]
         udbfilelist_set = set(udbfilelist)
         msfiles = udbfilelist_set.intersection(msfiles)
         filelist = udbfilelist_set - msfiles
@@ -283,14 +309,16 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
         vis = invis[0]
 
     udbmspath = udbmsslfcaleddir
-    tdate = mstl.get_trange(vis)[0]
-    outpath = os.path.join(udbmspath, tdate.datetime.strftime('%Y%m')) + '/'
+    # tdate = mstl.get_trange(vis)[0]
+    tdate = get_tdate_from_basename(vis)
+
+    outpath = os.path.join(udbmspath, tdate.strftime('%Y%m')) + '/'
     if not os.path.exists(outpath):
         os.makedirs(outpath)
-    imgoutdir = os.path.join(qlookfitsdir, tdate.datetime.strftime("%Y/%m/%d/"))
+    imgoutdir = os.path.join(qlookfitsdir, tdate.strftime("%Y/%m/%d/"))
     if not os.path.exists(imgoutdir):
         os.makedirs(imgoutdir)
-    figoutdir = os.path.join(synopticfigdir, tdate.datetime.strftime("%Y/"))
+    figoutdir = os.path.join(synopticfigdir, tdate.strftime("%Y/"))
     if not os.path.exists(figoutdir):
         os.makedirs(figoutdir)
 
@@ -298,7 +326,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
         output_file_path = outpath + os.path.basename(invis[0])[:11] + '.ms'
     else:
         output_file_path = outpath + os.path.basename(invis[0])[:11] + f'.{version}.ms'
-    slfcaltbdir_path = os.path.join(slfcaltbdir, tdate.datetime.strftime('%Y%m')) + '/'
+    slfcaltbdir_path = os.path.join(slfcaltbdir, tdate.strftime('%Y%m')) + '/'
 
     if verbose:
         print('input of pipeline_run:')

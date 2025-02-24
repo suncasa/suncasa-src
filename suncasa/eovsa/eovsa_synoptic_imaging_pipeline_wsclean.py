@@ -1808,9 +1808,14 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     msname, _ = os.path.splitext(msfile)
     msname = os.path.basename(msname)
 
-    msfile_copy = os.path.join(workdir, os.path.basename(msfile))
+    msfile_copy = os.path.join(workdir, f'{msname}.ms')
     if not os.path.exists(msfile_copy):
-        shutil.copytree(msfile, msfile_copy)
+        if msfile.lower().endswith('.ms'):
+            shutil.copytree(msfile, msfile_copy)
+        elif msfile.lower().endswith('.ms.tar.gz'):
+            os.system(f'tar -zxf {msfile} -C {workdir}')
+        else:
+            raise ValueError(f"Unsupported file format: {msfile}")
     msfile = msfile_copy
 
     ## the msfile we use 60 min model image to correct the data in 10 min interval. the model image is shifted to the reftime_master (20:00 UT of each day).
@@ -2408,7 +2413,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         spwstr = format_spw(spw)
         outfits= os.path.join(imgoutdir, f'eovsa.synoptic_daily.{date_str}T200000Z.s{spwstr}.tb.disk.fits')
         synfitsfiles = sorted(glob(os.path.join(imgoutdir,
-                                   f"eovsa.synoptic.{date_str[:-1]}?T??????Z.s{spwstr}.tb.disk.fits")))
+                                                f"eovsa.synoptic.{date_str[:-1]}?T??????Z.s{spwstr}.tb.disk.fits")))
         if len(synfitsfiles) > 0:
             log_print('INFO', f"Merging synoptic images for SPW {spwstr} to {outfits} ...")
             merge_FITSfiles(synfitsfiles, outfits, overwrite=True, snr_threshold=10)

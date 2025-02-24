@@ -2097,8 +2097,16 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
     msfile_copy = os.path.join(subdir, f'{msname}.ms')
     if not os.path.exists(msfile_copy):
-        shutil.copytree(msfile, msfile_copy)
+        if msfile.lower().endswith('.ms'):
+            shutil.copytree(msfile, msfile_copy)
+        elif msfile.lower().endswith('.ms.tar.gz'):
+            os.system(f'tar -zxf {msfile} -C {subdir}')
+        else:
+            raise ValueError(f"Unsupported file format: {msfile}")
     msfile = msfile_copy
+
+
+
     diskxmlfile = msfile + '.SOLDISK.xml'
     disk_params = {'dsize': dsize, 'fdens': fdens, 'freq': freq, 'diskxmlfile': diskxmlfile}
 
