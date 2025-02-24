@@ -1427,16 +1427,18 @@ def merge_FITSfiles(fitsfilesin, outfits, snr_weight=None, deselect_index=None,
     from astropy.io import fits
     from astropy.time import Time
     from datetime import datetime, timedelta
+
+
     exptimes = []
     data = []
     for fidx, file in enumerate(fitsfilesin):
-        hdu = fits.open(file)[0]
-        header = hdu.header
-        data.append(np.squeeze(hdu.data))
-        if 'EXPTIME' in header:
-            exptimes.append(header['EXPTIME'])
-        else:
-            exptimes.append(0.0)
+        with fits.open(file) as hdulist:
+            for idx, hdu in enumerate(hdulist):
+                if 'CDELT1' in hdu.header:
+                    header = hdu.header
+                    data.append(np.squeeze(hdu.data))
+                    exptimes.append(header['EXPTIME'])
+                    break
     data_stack = np.array(data)
     if deselect_index is None:
         rsun_pix = header['RSUN_OBS'] / header['CDELT1']
