@@ -1966,6 +1966,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     else:
         alldaymode_spidx = [0]
     for sidx, sp_index in enumerate(spws_indices):
+        spwstr = format_spw(spws[sidx])
         msfile_sp = f'{msname}.sp{spwstr}.slfcaled.ms'
         if os.path.exists(msfile_sp):
             if overwrite:
@@ -1981,7 +1982,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             slfcal_rnd2_objs.append(None)
             caltbs_all.append(caltbs)
             continue
-        spwstr = format_spw(spws[sidx])
         clearcal(msfile, spw=spws[sidx])
         # reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(spws[sidx], return_bmsize=True)
         log_print('INFO', f"Processing SPW {spws[sidx]} for msfile {os.path.basename(msfile)} ...")
