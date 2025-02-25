@@ -1575,6 +1575,7 @@ class MSselfcal:
         self.minuvw_m = minuvw_m
         self.auto_mask = auto_mask
         self.auto_threshold = auto_threshold
+        self.succeeded =True
 
         # self.intervals_out = None
 
@@ -1667,6 +1668,7 @@ class MSselfcal:
                 hf.imreg(vis=self.msfile, imagefile=fitsname, fitsfile=heliofitsname, timerange=timerange_, )
             except Exception as e:
                 log_print('ERROR', f'Failed to register {fitsname} to heliocentric frame due to {e}')
+                self.succeeded = False
                 continue
 
             if self.reftime_daily is not None:
@@ -2022,8 +2024,17 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                    auto_mask=auto_mask, auto_threshold=auto_threshold,)
         # data_column="DATA", beam_size=bmsize)
         slfcal_obj.run()
+
+        ## check if all data in the fits files are flagged. If so, skip the self-calibration for this spw.
         # slfcal_obj.run(imaging_only=True)
-        slfcal_init_objs.append(slfcal_obj)
+        if slfcal_obj.succeeded:
+            slfcal_init_objs.append(slfcal_obj)
+        else:
+            slfcal_init_objs.append(None)
+            slfcal_rnd1_objs.append(None)
+            slfcal_rnd2_objs.append(None)
+            caltbs_all.append(caltbs)
+            continue
 
         caltb = os.path.join(workdir, f"caltb_init_inf_sp{spwstr}.pha")
         if os.path.exists(caltb): os.system('rm -rf ' + caltb)
