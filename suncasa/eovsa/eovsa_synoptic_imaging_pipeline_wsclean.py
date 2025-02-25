@@ -2092,7 +2092,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 out_fits = model_imname + '-model.fits'
                 dsz = float(dsize[sp].rstrip('arcsec'))
                 fdn = fdens[sp]
-                add_convolved_disk_to_fits(in_fits, out_fits, dsz, fdn, ignore_data=True)
+                add_convolved_disk_to_fits(in_fits, out_fits, dsz, fdn, ignore_data=True, bmaj=bmsize)
                 cmd = f"wsclean -predict -reorder -spws {sp}" + f" \
                     -name {model_imname} -quiet -intervals-out 1 {msfile}"
                 log_print('INFO', f"Running wsclean predict: {cmd}")
@@ -2301,7 +2301,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 if len(in_fits_files) > 0:
                     for in_fits in in_fits_files:
                         out_fits = in_fits.replace(slfcal_init_objs[sidx].model_minor_name_str, model_dir_disk_name_str)
-                        add_convolved_disk_to_fits(in_fits, out_fits, dsz, fdn, ignore_data=True)
+                        add_convolved_disk_to_fits(in_fits, out_fits, dsz, fdn, ignore_data=True, bmaj=bmsize)
                     cmd = f"wsclean -predict -reorder -spws {sp}" + f" \
                         -name {model_dir_disk_name_str} -quiet -intervals-out {N1 * N2} {msfile}"
                     log_print('INFO', f"Running wsclean predict: {cmd}")
@@ -2405,7 +2405,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                        f"eovsa.synoptic.{datetimestr}.s{spwstr}.tb.disk.fits")
             synfitsfiles.append(synfitsfile)
         add_convolved_disk_to_fits(fitsname_helio_ref_daily, synfitsfiles, dszs, fdns, ignore_data=False, toTb=True,
-                                   rfreq=reffreq)
+                                   rfreq=reffreq, bmaj=bmsize)
         split(vis=msfile, outputvis=msfile_sp, spw=spws[sidx],datacolumn='corrected')
 
         run_end_time = datetime.now()
