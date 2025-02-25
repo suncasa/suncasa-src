@@ -957,21 +957,18 @@ def get_beam_kernel(header=None, bmaj=None, bmin=None, bpa=None, pixel_scale_arc
     :return: A 2D numpy array representing the normalized elliptical Gaussian beam kernel.
     :rtype: numpy.ndarray
     """
-    # If a header is provided, extract beam parameters and pixel scale if not explicitly given.
     if header is not None:
-        if bmaj is None or bmin is None or bpa is None:
-            try:
+        # If a header is provided, extract beam parameters and pixel scale first.
+        try:
+            if header["BMAJ"] > 0 and header["BMIN"] > 0:
                 bmaj = header["BMAJ"]
                 bmin = header["BMIN"]
                 bpa = header["BPA"]
-                if bmaj <= 0 or bmin <= 0:
-                    # raise ValueError("Beam parameters 'BMAJ' and 'BMIN' must be positive.")
-                    bmaj = abs(bmaj)
-                    bmin = abs(bmin)
-                    print("Beam parameters 'BMAJ' and 'BMIN' must be positive. Taking absolute values. Check your results carefully.")
-            except KeyError as e:
-                raise KeyError(
-                    "Beam parameters 'BMAJ', 'BMIN', and 'BPA' must be provided either as inputs or in the header.") from e
+            else:
+                print(f"Beam parameters 'BMAJ' and 'BMIN' must be positive. Use the provided values: ")
+        except KeyError as e:
+            raise KeyError(
+                "Beam parameters 'BMAJ', 'BMIN', and 'BPA' must be provided either as inputs or in the header.") from e
         if pixel_scale_arcsec is None:
             try:
                 cdelt1 = header["CDELT1"]
@@ -1018,7 +1015,7 @@ def get_beam_kernel(header=None, bmaj=None, bmin=None, bpa=None, pixel_scale_arc
     return kernel.array
 
 
-def add_convolved_disk_to_fits(in_fits, out_fits, dsz, fdn, ignore_data=False, toTb=False, rfreq=None, add_limb=False):
+def add_convolved_disk_to_fits(in_fits, out_fits, dsz, fdn, ignore_data=False, toTb=False, rfreq=None, add_limb=False, bmaj=None):
     """
     Adds a circular disk to the image from a FITS file, optionally applies a 10%-increased limb,
     convolves the disk with the beam, and writes the modified image to a new FITS file.
@@ -1055,7 +1052,7 @@ def add_convolved_disk_to_fits(in_fits, out_fits, dsz, fdn, ignore_data=False, t
 
     # Function to compute disk image given a header, a disk radius value (in arcsec),
     # and the uniform disk value (fdn_val).
-    def compute_disk_image(header, dsz_value, fdn_value, add_limb):
+    def compute_disk_image(header, dsz_value, fdn_value, add_limb, bmaj=None):
         # Extract pixel scale from header.
         try:
             cdelt1 = header["CDELT1"]
@@ -1097,10 +1094,14 @@ def add_convolved_disk_to_fits(in_fits, out_fits, dsz, fdn, ignore_data=False, t
 
         if add_limb:
             # Compute limb width: 6 times the beam FWHM in pixels.
-            try:
-                bmaj = header["BMAJ"]
-            except KeyError as e:
-                raise KeyError("Header must contain 'BMAJ' for beam FWHM computation.") from e
+            if 'BMAJ' in header:
+                if  header["BMAJ"]>0:
+                    bmaj = header["BMAJ"]
+                else:
+                    if bmaj is None:
+                        raise KeyError("Header must contain 'BMAJ' for beam FWHM computation.")
+                    else:
+                        print(f"Beam parameters 'BMAJ' must be positive. Use the provided value: {bmaj}")
             beam_fwhm_arcsec = bmaj * 3600.0
             beam_fwhm_pixels = beam_fwhm_arcsec / pixel_scale_arcsec
             limb_width = 6 * beam_fwhm_pixels
@@ -1121,14 +1122,14 @@ def add_convolved_disk_to_fits(in_fits, out_fits, dsz, fdn, ignore_data=False, t
         # dsz is a list: compute a disk image for each and take the mean.
         disk_images = []
         for d in dsz:
-            disk_images.append(compute_disk_image(header, d, fdn_val, add_limb))
+            disk_images.append(compute_disk_image(header, d, fdn_val, add_limb, bmaj))
         disk_img_final = np.nanmean(np.array(disk_images), axis=0)
     else:
         # dsz is a single float.
-        disk_img_final = compute_disk_image(header, dsz, fdn_val, add_limb)
+        disk_img_final = compute_disk_image(header, dsz, fdn_val, add_limb, bmaj)
 
     # Obtain the beam kernel from the header (assumed to be the same for all files).
-    beam_kernel = get_beam_kernel(header=header)
+    beam_kernel = get_beam_kernel(header=header, bmaj=bmaj, bmin=bmaj, bpa=0)
 
     # Convolve the disk image with the beam.
     convolved_disk = fftconvolve(disk_img_final, beam_kernel, mode='same')
@@ -2085,6 +2086,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             in_fits = os.path.join(workdir, f"{imname}-model.fits")
             for sp in sp_index.split(','):
                 # run_start_time_disk_slfcal_sp = datetime.now()
+                reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(f'{sp}~{sp}', return_bmsize=True)
                 sp = int(sp)
                 model_imname = imname.replace(format_spw(spws[sidx]), f'{sp:02d}') + '_adddisk'
                 out_fits = model_imname + '-model.fits'
