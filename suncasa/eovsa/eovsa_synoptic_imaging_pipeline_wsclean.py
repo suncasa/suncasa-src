@@ -2000,7 +2000,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             caltbs_all.append(caltbs)
             continue
         clearcal(msfile, spw=spws[sidx])
-        # reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(spws[sidx], return_bmsize=True)
+        reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(spws[sidx], return_bmsize=True)
         log_print('INFO', f"Processing SPW {spws[sidx]} for msfile {os.path.basename(msfile)} ...")
         if sidx in [0]:
             auto_mask = 2
@@ -2408,7 +2408,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         dszs = [float(dsize[int(sp)].rstrip('arcsec')) for sp in range(int(sp_st), int(sp_ed) + 1)]
         fdns = [fdens[int(sp)] for sp in range(int(sp_st), int(sp_ed) + 1)]
         # fdns = [fdens[int(sp)]*50 for sp in range(int(sp_st), int(sp_ed)+1)]
-        reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(spws[sidx], return_bmsize=True)
         synfitsfiles = []
         for eoidx, eofile in enumerate(fitsname):
             datetimestr = time_intervals_major_avg[eoidx].datetime.strftime('%Y%m%dT%H%M%SZ')
