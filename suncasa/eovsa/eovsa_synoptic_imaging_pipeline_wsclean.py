@@ -1762,7 +1762,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     >>> tdt_imaging = timedelta(minutes=2)
     >>> tr_series_imaging = esip.generate_trange_series(tbg_imaging, ted_imaging, tdt_imaging)
     """
-
+    from eovsapy.util import Time
     if os.path.exists(outputvis) and not overwrite:
         log_print('INFO', f"Output MS file {outputvis} already exists. Skipping processing.")
         return outputvis
@@ -1774,7 +1774,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     debug_mode = False
     if debug_mode:
         workdir = './'
-        from eovsapy.util import Time
         slfcaltbdir = None
         imgoutdir = './'
         pols = 'XX'

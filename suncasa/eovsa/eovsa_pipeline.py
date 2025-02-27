@@ -1,6 +1,6 @@
 import argparse
 from datetime import datetime, timedelta
-from astropy.time import Time
+# from astropy.time import Time
 from suncasa.suncasatasks import ptclean6 as ptclean
 from suncasa.suncasatasks import calibeovsa
 from suncasa.suncasatasks import importeovsa
