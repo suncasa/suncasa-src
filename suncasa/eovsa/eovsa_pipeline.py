@@ -259,7 +259,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
 
 
 def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearcache=False, verbose=False, pols='XX',
-                   version='v1.0', ncpu='auto'):
+                   version='v1.0', ncpu='auto', caltype=['refpha', 'phacal']):
     ''' 
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
@@ -281,8 +281,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
             invis = [trange]
 
     for idx, f in enumerate(invis):
-        if f[-1] == '/':
-            invis[idx] = f[:-1]
+        invis[idx] = f.rstrip('/')
 
     if overwrite or (invis == []):
         if isinstance(trange, Time):
@@ -296,11 +295,10 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
                 invis = [trange]
 
         for idx, f in enumerate(invis):
-            if f[-1] == '/':
-                invis[idx] = f[:-1]
+            invis[idx] = f.rstrip('/')
 
         outputvis = os.path.join(os.path.dirname(invis[0]), os.path.basename(invis[0])[:11] + '.ms')
-        vis = calibeovsa(invis, caltype=['refpha', 'phacal'], caltbdir=caltbdir, interp='nearest',
+        vis = calibeovsa(invis, caltype=caltype, caltbdir=caltbdir, interp='nearest',
                          doflag=True,
                          flagant='13~15',
                          doimage=False, doconcat=True,

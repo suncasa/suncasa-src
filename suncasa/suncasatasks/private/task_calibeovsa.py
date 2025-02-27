@@ -311,7 +311,8 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                         continue
                     else:
                         t_pha = phacal['t_pha']
-                        phambd_ns = phacal['pslope']
+                        ## A negative sign is added to the phase slope to make it consistent with the CASA convention
+                        phambd_ns = -phacal['pslope']
                         for n in range(2):
                             phambd_ns[:, n] -= phambd_ns[0, n]
                         # set all flagged values to be zero
@@ -364,8 +365,9 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                         # generate a new table interpolating between two daily phase calibrations
                         dt_obs = t_mid.mjd - bphacal['t_pha'].mjd
                         dt_pha = ephacal['t_pha'].mjd - bphacal['t_pha'].mjd
-                        phambd_diff = ephacal['pslope'] - bphacal['pslope']
-                        phambd_ns = bphacal['pslope'] + dt_obs / dt_pha * phambd_diff
+                        ## A negative sign is added to the phase slope to make it consistent with the CASA convention
+                        phambd_diff = -ephacal['pslope'] + bphacal['pslope']
+                        phambd_ns = -bphacal['pslope'] + dt_obs / dt_pha * phambd_diff
                         for n in range(2):
                             phambd_ns[:, n] -= phambd_ns[0, n]
                         # set all flagged values to be zero

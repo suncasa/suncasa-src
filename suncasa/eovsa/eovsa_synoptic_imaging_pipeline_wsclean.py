@@ -1766,20 +1766,73 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     if os.path.exists(outputvis) and not overwrite:
         log_print('INFO', f"Output MS file {outputvis} already exists. Skipping processing.")
         return outputvis
-    # slfcaltbdir = None
-    # imgoutdir = None
-    # clearcache = False,
-    # clearlargecache = False,
-    # pols = 'XX'
-    # mergeFITSonly = False
-    # verbose = True
-    # do_diskslfcal = True
-    # overwrite = False
-    # hanning = False
-    # do_sbdcal = False
+
 
     if not workdir.endswith('/'):
         workdir += '/'
+
+    debug_mode = False
+    if debug_mode:
+        workdir = './'
+        from eovsapy.util import Time
+        slfcaltbdir = None
+        imgoutdir = './'
+        pols = 'XX'
+        verbose = True
+        do_diskslfcal = True
+        overwrite = False
+        hanning = False
+        do_sbdcal = False
+        udbdir = '/data1/eovsa/fits/UDB/'
+        from suncasa.suncasatasks import calibeovsa
+        from suncasa.suncasatasks import importeovsa
+        from eovsapy.dump_tsys import findfiles
+
+        datein = datetime(2024, 12, 15, 20, 0, 0)
+        trange = Time(datein)
+        if trange.mjd == np.fix(trange.mjd):
+            # if only date is given, move the time from 00 to 12 UT
+            trange = Time(trange.mjd + 0.5, format='mjd')
+
+        tdatetime = trange.to_datetime()
+        dhr = trange.LocalTime.utcoffset().total_seconds() / 60 / 60 / 24
+        btime = Time(np.fix(trange.mjd + dhr) - dhr, format='mjd')
+        etime = Time(btime.mjd + 1, format='mjd')
+        trange = Time([btime, etime])
+        print('Selected timerange in UTC: ', trange.iso)
+        inpath = '{}{}/'.format(udbdir, tdatetime.strftime("%Y"))
+        outpath = './'
+        msfile_synoptic = os.path.join(outpath, 'UDB' + tdatetime.strftime("%Y%m%d") + '.ms')
+        # sclist = ra.findfiles(trange, projid='NormalObserving', srcid='Sun')
+        sclist = findfiles(trange, projid='NormalObserving', srcid='Sun')
+        udbfilelist = sclist['scanlist']
+        udbfilelist = [os.path.basename(ll) for ll in udbfilelist]
+        udbfilelist_set = set(udbfilelist)
+        msfiles = []
+        msfiles = udbfilelist_set.intersection(msfiles)
+        filelist = udbfilelist_set - msfiles
+        filelist = sorted(list(filelist))
+        ncpu = 1
+        importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
+                    visprefix=outpath, nocreatms=False,
+                    doconcat=False, modelms="", doscaling=False, keep_nsclms=False, udb_corr=True)
+
+        msfiles = [os.path.basename(ll).split('.')[0] for ll in glob('{}UDB*.ms*'.format(outpath)) if ll.endswith('.ms') or ll.endswith('.ms.tar.gz')]
+        udbfilelist_set = set(udbfilelist)
+        msfiles = udbfilelist_set.intersection(msfiles)
+        filelist = udbfilelist_set - msfiles
+        filelist = sorted(list(filelist))
+
+        invis = [outpath + ll + '.ms' for ll in sorted(list(msfiles))]
+        outputvis = os.path.join(os.path.dirname(invis[0]), os.path.basename(invis[0])[:11] + '.ms')
+        vis = calibeovsa(invis, caltype=['refpha','phacal'], caltbdir='./', interp='nearest',
+                         doflag=True,
+                         flagant='13~15',
+                         doimage=False, doconcat=True,
+                         concatvis=outputvis, keep_orig_ms=True)
+
+        vis=outputvis
+
 
     # workdir = '/data1/sjyu/eovsa/20241215'
     # if not workdir.endswith('/'):
@@ -1921,8 +1974,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         msfile = msfile_hanning
 
     delmod(msfile)
-
-
 
     wsclean_intervals = WSCleanTimeIntervals(msfile, combine_scans=True)
     ## this step use a single model from the entire MS file and rotate it to each of the minor intervals.
