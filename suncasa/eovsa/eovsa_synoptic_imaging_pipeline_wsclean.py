@@ -2490,11 +2490,15 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
     ms2concat = glob(f'{msname}.sp*.slfcaled.ms')
     if os.path.exists(outputvis):
-        if overwrite: os.system('rm -rf ' + outputvis)
+        if overwrite:
+            os.system('rm -rf ' + outputvis)
+            concat(vis=ms2concat, concatvis=outputvis)
+            log_print('INFO', f"Concatenated MS file written to {outputvis}")
+        else:
+            log_print('WARNING', f"Output MS file {outputvis} already exists. Skipping concatenation.")
+    else:
         concat(vis=ms2concat, concatvis=outputvis)
         log_print('INFO', f"Concatenated MS file written to {outputvis}")
-    else:
-        log_print('WARNING', f"Output MS file {outputvis} already exists. Skipping concatenation.")
 
     log_print('INFO', f"Moving calibration tables to {slfcaltbdir} ...")
     caltbs_comb = [item for sublist in caltbs_all for item in sublist]
