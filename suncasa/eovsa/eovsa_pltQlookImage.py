@@ -248,7 +248,33 @@ def pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=None
     return
 
 
-def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, verbose=False, clearcache=False):
+def plot_sdo_func(sdofile, ax, dpis_dict, key, imgoutdir, fig):
+    sdomap = smap.Map(sdofile)
+    norm = colors.Normalize()
+    sdomap_ = pmX.Sunmap(sdomap)
+    if "HMI" in key:
+        cmap = plt.get_cmap('gray')
+    else:
+        cmap = plt.get_cmap('sdoaia' + key.lstrip('0'))
+    sdomap_.imshow(axes=ax, cmap=cmap, norm=norm)
+    sdomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
+    sdomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
+    ax.set_xlabel('')
+    ax.set_ylabel('')
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    ax.text(0.02, 0.02,
+            '{}/{} {}  {}'.format(sdomap.observatory, sdomap.instrument.split(' ')[0], sdomap.measurement,
+                                  sdomap.date.strftime('%d-%b-%Y %H:%M UT')),
+            transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=9)
+    ax.set_xlim(-1227, 1227)
+    ax.set_ylim(-1227, 1227)
+
+    for l, dpi in dpis_dict.items():
+        figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
+        fig.savefig(figname, dpi=int(dpi), pil_kwargs={"quality": 85})
+
+def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, verbose=False, clearcache=False, debug=False):
     plt.ioff()
     dateobj = datetime.strptime(datestr, "%Y-%m-%d")
     datestrdir = dateobj.strftime("%Y/%m/%d/")
@@ -301,59 +327,15 @@ def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ver
 
             if not os.path.exists(sdofile): continue
             if not os.path.exists(imgoutdir): os.makedirs(imgoutdir)
-            # ##debug
-            # sdomap = smap.Map(sdofile)
-            # norm = colors.Normalize()
-            # sdomap_ = pmX.Sunmap(sdomap)
-            # if "HMI" in key:
-            #     cmap = plt.get_cmap('gray')
-            # else:
-            #     cmap = plt.get_cmap('sdoaia' + key.lstrip('0'))
-            # sdomap_.imshow(axes=ax, cmap=cmap, norm=norm)
-            # sdomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
-            # sdomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
-            # ax.set_xlabel('')
-            # ax.set_ylabel('')
-            # ax.set_xticklabels([])
-            # ax.set_yticklabels([])
-            # ax.text(0.02, 0.02,
-            #         '{}/{} {}  {}'.format(sdomap.observatory, sdomap.instrument.split(' ')[0], sdomap.measurement,
-            #                               sdomap.date.strftime('%d-%b-%Y %H:%M UT')),
-            #         transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=9)
-            # ax.set_xlim(-1227, 1227)
-            # ax.set_ylim(-1227, 1227)
-            #
-            # for l, dpi in dpis_dict.items():
-            #     figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
-            #     fig.savefig(figname, dpi=int(dpi), pil_kwargs={"quality": 85})
-            try:
-                sdomap = smap.Map(sdofile)
-                norm = colors.Normalize()
-                sdomap_ = pmX.Sunmap(sdomap)
-                if "HMI" in key:
-                    cmap = plt.get_cmap('gray')
-                else:
-                    cmap = plt.get_cmap('sdoaia' + key.lstrip('0'))
-                sdomap_.imshow(axes=ax, cmap=cmap, norm=norm)
-                sdomap_.draw_limb(axes=ax, lw=0.5, alpha=0.5)
-                sdomap_.draw_grid(axes=ax, grid_spacing=10. * u.deg, lw=0.5)
-                ax.set_xlabel('')
-                ax.set_ylabel('')
-                ax.set_xticklabels([])
-                ax.set_yticklabels([])
-                ax.text(0.02, 0.02,
-                        '{}/{} {}  {}'.format(sdomap.observatory, sdomap.instrument.split(' ')[0], sdomap.measurement,
-                                              sdomap.date.strftime('%d-%b-%Y %H:%M UT')),
-                        transform=ax.transAxes, color='w', ha='left', va='bottom', fontsize=9)
-                ax.set_xlim(-1227, 1227)
-                ax.set_ylim(-1227, 1227)
 
-                for l, dpi in dpis_dict.items():
-                    figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
-                    fig.savefig(figname, dpi=int(dpi), pil_kwargs={"quality":85})
-            except Exception as err:
-                print('Fail to plot {}'.format(sdofile))
-                print(err)
+            if debug:
+                plot_sdo_func(sdofile, ax, dpis_dict, key, imgoutdir, fig)
+            else:
+                try:
+                    plot_sdo_func(sdofile, ax, dpis_dict, key, imgoutdir, fig)
+                except Exception as err:
+                    print('Fail to plot {}'.format(sdofile))
+                    print(err)
     if clearcache:
         os.system('rm -rf ' + imgindir)
 
@@ -490,7 +472,7 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
 
 
 def main(year=None, month=None, day=None, ndays=1, clearcache=False, ovwrite_eovsa=False, ovwrite_sdo=False,
-         ovwrite_bbso=False, show_warning=False):
+         ovwrite_bbso=False, show_warning=False, debug=False):
     # tst = datetime.strptime("2017-04-01", "%Y-%m-%d")
     # ted = datetime.strptime("2019-12-31", "%Y-%m-%d")
     if not show_warning:
@@ -535,7 +517,7 @@ def main(year=None, month=None, day=None, ndays=1, clearcache=False, ovwrite_eov
         datestr = dateobs.strftime("%Y-%m-%d")
         pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict_eo, fig, ax, overwrite=ovwrite_eovsa, verbose=True)
         pltEovsaQlookImage_v3(datestr, spws_v3, vmaxs, vmins, dpis_dict_eo, fig, ax, overwrite=ovwrite_eovsa, verbose=True)
-        pltSdoQlookImage(datestr, dpis_dict_sdo, fig, ax, overwrite=ovwrite_sdo, verbose=True, clearcache=clearcache)
+        pltSdoQlookImage(datestr, dpis_dict_sdo, fig, ax, overwrite=ovwrite_sdo, verbose=True, clearcache=clearcache, debug=debug)
         pltBbsoQlookImage(datestr, dpis_dict_bbso, fig, ax, overwrite=ovwrite_bbso, verbose=True,
                           clearcache=clearcache)
 
@@ -590,6 +572,7 @@ if __name__ == '__main__':
     ovwrite_sdo = False
     ovwrite_bbso = False
     show_warning = False
+    debug=False
     try:
         argv = sys.argv[1:]
         opts, args = getopt.getopt(argv, "c:n:e:s:b:w:",
@@ -634,6 +617,13 @@ if __name__ == '__main__':
                     show_warning = False
                 else:
                     show_warning = np.bool_(arg)
+            elif opt in ('-d', '--debug'):
+                if arg in ['True', 'T', '1']:
+                    debug = True
+                elif arg in ['False', 'F', '0']:
+                    debug = False
+                else:
+                    debug = np.bool_(arg)
         nargs = len(args)
         if nargs == 3:
             year = int(args[0])
@@ -655,6 +645,7 @@ if __name__ == '__main__':
         ovwrite_sdo = False
         ovwrite_bbso = False
         show_warning = False
+        debug=False
 
     print("Running pipeline_plt for date {}-{}-{}.".format(year, month, day))
     kargs = {'ndays': ndays,
@@ -662,7 +653,9 @@ if __name__ == '__main__':
              'ovwrite_eovsa': ovwrite_eovsa,
              'ovwrite_sdo': ovwrite_sdo,
              'ovwrite_bbso': ovwrite_bbso,
-             'show_warning': show_warning}
+             'show_warning': show_warning,
+             'debug': debug,
+             }
     for k, v in kargs.items():
         print(k, v)
 
@@ -681,4 +674,5 @@ if __name__ == '__main__':
          ovwrite_eovsa=ovwrite_eovsa,
          ovwrite_sdo=ovwrite_sdo,
          ovwrite_bbso=ovwrite_bbso,
-         show_warning=show_warning)
+         show_warning=show_warning,
+         debug=debug)
