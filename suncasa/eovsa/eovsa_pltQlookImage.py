@@ -575,9 +575,9 @@ if __name__ == '__main__':
     debug=False
     try:
         argv = sys.argv[1:]
-        opts, args = getopt.getopt(argv, "c:n:e:s:b:w:",
+        opts, args = getopt.getopt(argv, "c:n:e:s:b:w:d:",
                                    ['clearcache=', 'ndays=', 'ovwrite_eovsa=', 'ovwrite_sdo=', 'ovwrite_bbso=',
-                                    'show_warning='])
+                                    'show_warning=','debug='])
         print(opts, args)
         for opt, arg in opts:
             if opt in ['-c', '--clearcache']:
