@@ -163,6 +163,7 @@ def pltEovsaQlookImage_v3(datestr, spws, vmaxs, vmins, dpis_dict, fig=None, ax=N
                 ax.set_xlim(-1227, 1227)
                 ax.set_ylim(-1227, 1227)
 
+                print(f'Processing EOVSA images {eofile}')
                 for l, dpi in dpis_dict.items():
                     figname = os.path.join(imgoutdir, f'{l}_eovsa_bd{s+1:02d}_v3.0.jpg')
                     fig.savefig(figname, dpi=int(dpi), pil_kwargs={"quality":85})
