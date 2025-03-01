@@ -1788,6 +1788,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         from eovsapy.dump_tsys import findfiles
 
         datein = datetime(2024, 12, 15, 20, 0, 0)
+        datein = datetime(2021, 11, 25, 20, 0, 0)
         trange = Time(datein)
         if trange.mjd == np.fix(trange.mjd):
             # if only date is given, move the time from 00 to 12 UT
@@ -1900,7 +1901,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     fdens = fdens / 2.0  ## convert from I to XX
 
     spwidx2proc = [0,1,2,3,4,5,6]
-    # spwidx2proc = [5, 6]
+    # spwidx2proc = [0,1,2]
+    # spwidx2proc = [1, 2]
     # spwidx2proc = [1]
     # spwidx2proc = [2]
     # spwidx2proc = [3]
@@ -1926,10 +1928,14 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             uvmax_l_list.append(0)
             uvmin_l_list.append(0)
         else:
-            uvmax_d = 20
-            uvmin_d = 130
+            # uvmax_d = 20
+            # uvmin_d = 130
+            # if sidx in [0]:
+            #     uvmin_d=65
+            uvmax_d = 15
+            uvmin_d = 110
             if sidx in [0]:
-                uvmin_d=65
+                uvmin_d=55
             sp_st, sp_ed = (int(s) for s in spws[sidx].split('~'))
             uvmax_l_list.append(uvmax_d / ((3e8 / (np.nanmean(freq[sp_st:sp_st + 1]) * 1e9))))
             uvmin_l_list.append(uvmin_d / ((3e8 / (np.nanmean(freq[sp_st:sp_st + 1]) * 1e9))))
@@ -2028,21 +2034,27 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     slfcal_rnd2_objs = []
     ## alldaymode_spidx is the spw index for using the all-day viz data for imaging in the initial round of self-calibration.
     ## for observation after 2023-01-15, we use spw 0, 5, 6 for all-day mode imaging. The selection of the spw is mostly empirical as it yields the best results.
-    if reftime_daily>Time(datetime(2023, 1, 15, 0, 0, 0)):
-        alldaymode_spidx = [0,5,6]
-    else:
-        alldaymode_spidx = [0]
+    # if reftime_daily>Time(datetime(2023, 1, 15, 0, 0, 0)):
+    #     alldaymode_spidx = [0,5,6]
+    #     # alldaymode_spidx = [0,1,2, 5, 6]
+    # else:
+    #     alldaymode_spidx = [0]
+    alldaymode_spidx = [0]
     for sidx, sp_index in enumerate(spws_indices):
         spwstr = format_spw(spws[sidx])
         msfile_sp = f'{msname}.sp{spwstr}.slfcaled.ms'
+        caltbs = []
+        ncaltbs = len(caltbs)
         if os.path.exists(msfile_sp):
             if overwrite:
                 os.system('rm -rf ' + msfile_sp)
             else:
                 log_print('INFO', f"MS file {msfile_sp} already exists. Skipping processing.")
+                slfcal_init_objs.append(None)
+                slfcal_rnd1_objs.append(None)
+                slfcal_rnd2_objs.append(None)
+                caltbs_all.append(caltbs)
                 continue
-        caltbs = []
-        ncaltbs = len(caltbs)
         if sidx not in spwidx2proc:
             slfcal_init_objs.append(None)
             slfcal_rnd1_objs.append(None)
