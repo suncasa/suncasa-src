@@ -1706,7 +1706,7 @@ class MSselfcal:
 
 
 def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None,
-                 pols='XX', verbose=True, do_diskslfcal=True, hanning=False, do_sbdcal=False, overwrite=False):
+                 pols='XX', verbose=True, do_diskslfcal=True, hanning=False, do_sbdcal=False, overwrite=False, segmented_imaging=True):
     """
     Executes the EOVSA data processing pipeline for solar observation data.
 
@@ -1748,6 +1748,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     :type hanning: bool, optional
     :param do_sbdcal: Boolean flag to perform single-band delay calibration, defaults to False.
     :type do_sbdcal: bool
+    :param segmented_imaging: Determines whether to segment the all-day data into chunks for imaging,
+                          defaults to True.
+    :type segmented_imaging: bool (optional)
     :return: Path to the processed visibility data.
     :rtype: str
 
@@ -1770,7 +1773,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
     if not workdir.endswith('/'):
         workdir += '/'
-
+    outfits_all = []
     debug_mode = False
     if debug_mode:
         workdir = './'
@@ -1782,13 +1785,14 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         overwrite = False
         hanning = False
         do_sbdcal = False
+        segmented_imaging = True
         udbdir = '/data1/eovsa/fits/UDB/'
         from suncasa.suncasatasks import calibeovsa
         from suncasa.suncasatasks import importeovsa
         from eovsapy.dump_tsys import findfiles
 
         datein = datetime(2024, 12, 15, 20, 0, 0)
-        datein = datetime(2021, 11, 25, 20, 0, 0)
+        # datein = datetime(2021, 11, 25, 20, 0, 0)
         trange = Time(datein)
         if trange.mjd == np.fix(trange.mjd):
             # if only date is given, move the time from 00 to 12 UT
@@ -1824,14 +1828,14 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         filelist = sorted(list(filelist))
 
         invis = [outpath + ll + '.ms' for ll in sorted(list(msfiles))]
-        outputvis = os.path.join(os.path.dirname(invis[0]), os.path.basename(invis[0])[:11] + '.ms')
+        vis_out = os.path.join(os.path.dirname(invis[0]), os.path.basename(invis[0])[:11] + '.ms')
         vis = calibeovsa(invis, caltype=['refpha','phacal'], caltbdir='./', interp='nearest',
                          doflag=True,
                          flagant='13~15',
                          doimage=False, doconcat=True,
-                         concatvis=outputvis, keep_orig_ms=True)
+                         concatvis=vis_out, keep_orig_ms=True)
 
-        vis=outputvis
+        vis=vis_out
 
 
     # workdir = '/data1/sjyu/eovsa/20241215'
@@ -2032,6 +2036,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     slfcal_init_objs = []
     slfcal_rnd1_objs = []
     slfcal_rnd2_objs = []
+    imaging_objs = []
     ## alldaymode_spidx is the spw index for using the all-day viz data for imaging in the initial round of self-calibration.
     ## for observation after 2023-01-15, we use spw 0, 5, 6 for all-day mode imaging. The selection of the spw is mostly empirical as it yields the best results.
     # if reftime_daily>Time(datetime(2023, 1, 15, 0, 0, 0)):
@@ -2425,47 +2430,103 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
         caltbs_all.append(caltbs)
 
+        briggs = 0.0
+        gain = 0.3
         # reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(spws[sidx], return_bmsize=True)
         # imname_strlist = ["eovsa", "major", f"{msfilename}", f"sp{spwstr}", 'final','disk']
         imname_strlist = ["eovsa", "major", f"{msfilename}", f"sp{spwstr}", 'final']
         imname = '-'.join(imname_strlist)
         # briggs = 0.5 if sidx in [0] else 0.0
-        briggs = 0.0
+        flagdata(vis=msfile, mode="tfcrop", spw=spws[sidx], action='apply', display='',
+                 timecutoff=3.0, freqcutoff=3.0, maxnpieces=2, flagbackup=False)
         clean_obj = ww.WSClean(msfile)
-        gain = 0.3
-        clean_obj.setup(size=1024, scale="2.5asec", pol=pols,
-                        weight_briggs=briggs,
-                        niter=2000,
-                        mgain=0.85,
-                        gain=gain,
-                        # gain=0.2,
-                        data_column='CORRECTED_DATA',
-                        name=os.path.join(workdir, imname),
-                        multiscale=True,
-                        multiscale_gain=0.3,
-                        # multiscale_gain=0.5,
-                        multiscale_scales=[0, 5, 12.5],
-                        auto_mask=2, auto_threshold=1,
-                        # auto_mask=1.5, auto_threshold=1,
-                        # minuv_l=500,
-                        minuv_l=uvmin_l_list[sidx]/3.0,
-                        minuvw_m=8,
-                        maxuvw_m=1500,
-                        intervals_out=N1,
-                        no_negative=True, quiet=True,
-                        circular_beam=True,
-                        spws=sp_index)
-        clean_obj.run(dryrun=False)
+        if segmented_imaging:
+            clean_obj.setup(size=1024, scale="2.5asec", pol=pols,
+                            weight_briggs=briggs,
+                            niter=2000,
+                            mgain=0.85,
+                            gain=gain,
+                            # gain=0.2,
+                            data_column='CORRECTED_DATA',
+                            name=os.path.join(workdir, imname),
+                            multiscale=True,
+                            multiscale_gain=0.3,
+                            # multiscale_gain=0.5,
+                            multiscale_scales=[0, 5, 12.5],
+                            auto_mask=2, auto_threshold=1,
+                            # auto_mask=1.5, auto_threshold=1,
+                            # minuv_l=500,
+                            minuv_l=uvmin_l_list[sidx]/3.0,
+                            minuvw_m=8,
+                            maxuvw_m=1500,
+                            intervals_out=N1,
+                            no_negative=True, quiet=True,
+                            circular_beam=True,
+                            spws=sp_index)
+            clean_obj.run(dryrun=False)
 
-        log_print('INFO', f"Final imaging for SPW {spws[sidx]}: completed")
+            log_print('INFO', f"Final imaging for SPW {spws[sidx]}: completed")
 
-        fitsname = sorted(glob(os.path.join(workdir, imname + '*image.fits')))
-        fitsname_helio = [f.replace('image.fits', 'image.helio.fits') for f in fitsname]
-        fitsname_helio_ref_daily = [f.replace('image.fits', 'image.helio.ref_daily.fits') for f in fitsname]
-        hf.imreg(vis=msfile, imagefile=fitsname, fitsfile=fitsname_helio, timerange=timeranges, toTb=True)
-        for eoidx, (fits_helio, fits_helio_ref_daily) in enumerate(zip(fitsname_helio, fitsname_helio_ref_daily)):
-            solar_diff_rot_heliofits(fits_helio, reftime_daily, fits_helio_ref_daily,
-                                     in_time=time_intervals_major_avg[eoidx])
+            fitsname = sorted(glob(os.path.join(workdir, imname + '*image.fits')))
+            fitsname_helio = [f.replace('image.fits', 'image.helio.fits') for f in fitsname]
+            fitsname_helio_ref_daily = [f.replace('image.fits', 'image.helio.ref_daily.fits') for f in fitsname]
+            hf.imreg(vis=msfile, imagefile=fitsname, fitsfile=fitsname_helio, timerange=timeranges, toTb=True)
+            for eoidx, (fits_helio, fits_helio_ref_daily) in enumerate(zip(fitsname_helio, fitsname_helio_ref_daily)):
+                solar_diff_rot_heliofits(fits_helio, reftime_daily, fits_helio_ref_daily,
+                                         in_time=time_intervals_major_avg[eoidx])
+            fitsfilefinal = fitsname_helio_ref_daily
+        else:
+            imaging_obj = MSselfcal(msfile, time_intervals, time_intervals_major_avg, time_intervals_minor_avg,
+                                    spws[sidx], N1, N2, workdir, image_marker='temp', niter=1000,
+                                    briggs=briggs,
+                                    gain=gain,
+                                    minuv_l=uvmin_l_list[sidx] / 3.0,
+                                    minuvw_m=8,
+                                    maxuvw_m=1500,
+                                    auto_mask=2, auto_threshold=1,
+                                    data_column="CORRECTED_DATA",
+                                    reftime_daily=reftime_daily
+                                    )
+            imaging_obj.run()
+            imaging_objs.append(imaging_obj)
+
+            uvsub(vis=msfile)
+            delmod(vis=msfile)
+            model_dir_name_str = imaging_objs[sidx].model_ref_name_str
+            cmd = "wsclean -predict -reorder -spws " + sp_index + f" \
+                -name {model_dir_name_str} -intervals-out {N1} {msfile}"
+            os.system(cmd)
+            uvsub(vis=msfile, reverse=True)  # Now the viz data contains residuals + corrected models
+
+            clean_obj.setup(size=1024, scale="2.5asec", pol=pols,
+                            weight_briggs=briggs,
+                            niter=2000,
+                            mgain=0.85,
+                            gain=gain,
+                            # gain=0.2,
+                            data_column='CORRECTED_DATA',
+                            name=os.path.join(workdir, imname),
+                            multiscale=True,
+                            multiscale_gain=0.3,
+                            # multiscale_gain=0.5,
+                            multiscale_scales=[0, 5, 12.5],
+                            auto_mask=2, auto_threshold=1,
+                            minuv_l=uvmin_l_list[sidx]/3.0,
+                            minuvw_m=8,
+                            maxuvw_m=1500,
+                            intervals_out=1,
+                            no_negative=True, quiet=True,
+                            circular_beam=True,
+                            spws=sp_index)
+            clean_obj.run(dryrun=False)
+
+            log_print('INFO', f"Final imaging for SPW {spws[sidx]}: completed")
+
+            fitsname = sorted(glob(os.path.join(workdir, imname + '*image.fits')))
+            fitsname_helio = [f.replace('image.fits', 'image.helio.fits') for f in fitsname]
+            hf.imreg(vis=msfile, imagefile=fitsname, fitsfile=fitsname_helio, timerange=[viz_timerange], toTb=True)
+            fitsfilefinal = fitsname_helio
+
         sp_st, sp_ed = spws[sidx].split('~')
         dszs = [float(dsize[int(sp)].rstrip('arcsec')) for sp in range(int(sp_st), int(sp_ed) + 1)]
         fdns = [fdens[int(sp)] for sp in range(int(sp_st), int(sp_ed) + 1)]
@@ -2473,11 +2534,21 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         synfitsfiles = []
         for eoidx, eofile in enumerate(fitsname):
             datetimestr = time_intervals_major_avg[eoidx].datetime.strftime('%Y%m%dT%H%M%SZ')
-            synfitsfile = os.path.join(imgoutdir,
-                                       f"eovsa.synoptic.{datetimestr}.s{spwstr}.tb.disk.fits")
+            if segmented_imaging:
+                synfitsfile = os.path.join(imgoutdir,
+                                           f"eovsa.synoptic.{datetimestr}.s{spwstr}.tb.disk.fits")
+            else:
+                synfitsfile = os.path.join(imgoutdir,
+                                           f"eovsa.synoptic_daily.{date_str}T200000Z.s{spwstr}.tb.disk.fits")
             synfitsfiles.append(synfitsfile)
-        add_convolved_disk_to_fits(fitsname_helio_ref_daily, synfitsfiles, dszs, fdns, ignore_data=False, toTb=True,
-                                   rfreq=reffreq, bmaj=bmsize/3600.)
+        add_convolved_disk_to_fits(fitsfilefinal, synfitsfiles, dszs, fdns, ignore_data=False, toTb=True,
+                                   rfreq=reffreq, bmaj=bmsize / 3600.)
+        if not segmented_imaging:
+            if len(synfitsfiles) > 0:
+                outfits_all.append(synfitsfiles[0])
+            else:
+                outfits_all.append(None)
+
         split(vis=msfile, outputvis=msfile_sp, spw=spws[sidx],datacolumn='corrected')
 
         run_end_time = datetime.now()
@@ -2485,19 +2556,19 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         elapsed_time_total = elapsed_time.total_seconds() / 60
         log_print('INFO', f"Pipeline for SPW {spws[sidx]}: completed in {elapsed_time_total:.1f} minutes")
 
-    outfits_all = []
-    for spw in spws:
-        spwstr = format_spw(spw)
-        outfits= os.path.join(imgoutdir, f'eovsa.synoptic_daily.{date_str}T200000Z.s{spwstr}.tb.disk.fits')
-        synfitsfiles = sorted(glob(os.path.join(imgoutdir,
-                                                f"eovsa.synoptic.{date_str[:-1]}?T??????Z.s{spwstr}.tb.disk.fits")))
-        if len(synfitsfiles) > 0:
-            log_print('INFO', f"Merging synoptic images for SPW {spwstr} to {outfits} ...")
-            merge_FITSfiles(synfitsfiles, outfits, overwrite=True, snr_threshold=10)
-            outfits_all.append(outfits)
-        else:
-            outfits_all.append(None)
-            log_print('WARNING', f"No synoptic images found for SPW {spwstr}. Skipping merge_FITSfiles.")
+    if segmented_imaging:
+        for spw in spws:
+            spwstr = format_spw(spw)
+            outfits= os.path.join(imgoutdir, f'eovsa.synoptic_daily.{date_str}T200000Z.s{spwstr}.tb.disk.fits')
+            synfitsfiles = sorted(glob(os.path.join(imgoutdir,
+                                                    f"eovsa.synoptic.{date_str[:-1]}?T??????Z.s{spwstr}.tb.disk.fits")))
+            if len(synfitsfiles) > 0:
+                log_print('INFO', f"Merging synoptic images for SPW {spwstr} to {outfits} ...")
+                merge_FITSfiles(synfitsfiles, outfits, overwrite=True, snr_threshold=10)
+                outfits_all.append(outfits)
+            else:
+                outfits_all.append(None)
+                log_print('WARNING', f"No synoptic images found for SPW {spwstr}. Skipping merge_FITSfiles.")
 
     ms2concat = glob(f'{msname}.sp*.slfcaled.ms')
     if os.path.exists(outputvis):
