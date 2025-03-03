@@ -1740,25 +1740,25 @@ def imaging(vis, workdir=None, imgoutdir=None, pols='XX', data_column='DATA'):
     time_intervals_major_avg = wscln_tim_info_combscan['time_intervals_major_avg']
 
     timeranges = []
+
     for tidx, trange in enumerate(time_intervals):
         timeranges.append(
             trange[0].datetime.strftime('%Y/%m/%d/%H:%M:%S') + '~' + trange[-1].datetime.strftime('%Y/%m/%d/%H:%M:%S'))
-
-    msname, _ = os.path.splitext(msfile)
-    msfilename = os.path.basename(msfile)
 
     for sidx, sp_index in enumerate(spws_indices):
         spwstr = format_spw(spws[sidx])
         # reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(spws[sidx], return_bmsize=True)
         # imname_strlist = ["eovsa", "major", f"{msfilename}", f"sp{spwstr}", 'final','disk']
-        imname_strlist = ["eovsa", "major", f"{msfilename}", f"sp{spwstr}", 'final']
-        imname = '-'.join(imname_strlist)
         # briggs = 0.5 if sidx in [0] else 0.0
         # flagdata(vis=msfile, mode="tfcrop", spw=spws[sidx], action='apply', display='',
         #          timecutoff=3.0, freqcutoff=3.0, maxnpieces=2, flagbackup=False)
         if isinstance(vis, list):
             msfile = vis[sidx]
             sp_index = []
+        msname, _ = os.path.splitext(msfile)
+        msfilename = os.path.basename(msfile)
+        imname_strlist = ["eovsa", "major", f"{msfilename}", f"sp{spwstr}", 'final']
+        imname = '-'.join(imname_strlist)
         clean_obj = ww.WSClean(msfile)
         clean_obj.setup(size=1024, scale="2.5asec", pol=pols,
                         weight_briggs=briggs,
@@ -1910,7 +1910,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         from suncasa.suncasatasks import importeovsa
         from eovsapy.dump_tsys import findfiles
 
-        datein = datetime(2024, 12, 15, 20, 0, 0)
+        # datein = datetime(2024, 12, 15, 20, 0, 0)
+        datein = datetime(2025, 2, 6, 20, 0, 0)
+        pols = 'XX,YY'
         # datein = datetime(2021, 11, 25, 20, 0, 0)
         trange = Time(datein)
         if trange.mjd == np.fix(trange.mjd):
@@ -2203,11 +2205,13 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                    time_intervals_minor_avg_comb,
                                    spws[sidx], N1_comb, N2_comb, workdir, image_marker='init', niter=100,
                                    data_column="DATA",
+                                   pols=pols,
                                    auto_mask=auto_mask, auto_threshold=auto_threshold,)
         else:
             slfcal_obj = MSselfcal(msfile, time_intervals, time_intervals_major_avg, time_intervals_minor_avg,
                                    spws[sidx], N1, N2, workdir, image_marker='init', niter=100,
                                    data_column="DATA",
+                                   pols=pols,
                                    auto_mask=auto_mask, auto_threshold=auto_threshold,)
         # data_column="DATA", beam_size=bmsize)
         slfcal_obj.run()
@@ -2263,7 +2267,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             imname_strlist = ["eovsa", "disk", f"{msfilename}", f"sp{spwstr}"]
             imname = '-'.join(imname_strlist)
             clean_obj = ww.WSClean(msfile)
-            clean_obj.setup(size=1024, scale="2.5asec", pol=pols,
+            clean_obj.setup(size=1024, scale="2.5asec",
+                            pol=pols,
                             weight_briggs=0.0,
                             niter=1,
                             mgain=0.85,
@@ -2393,6 +2398,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                minuvw_m=8,
                                maxuvw_m=1500,
                                auto_mask=auto_mask, auto_threshold=auto_threshold,
+                               pols=pols,
                                data_column="CORRECTED_DATA")
         slfcal_obj.run()
         slfcal_rnd1_objs.append(slfcal_obj)
@@ -2455,6 +2461,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                     minuvw_m=8,
                                     maxuvw_m=1500,
                                     auto_mask=auto_mask, auto_threshold=auto_threshold,
+                                    pols=pols,
                                     data_column="CORRECTED_DATA"
                                     )
         # beam_size=bmsize)
@@ -2576,7 +2583,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                             auto_mask=2, auto_threshold=1,
                             # auto_mask=1.5, auto_threshold=1,
                             # minuv_l=500,
-                            minuv_l=uvmin_l_list[sidx]/3.0,
+                            # minuv_l=uvmin_l_list[sidx]/3.0,
+                            minuv_l=None,
                             minuvw_m=8,
                             maxuvw_m=1500,
                             intervals_out=N1,
@@ -2601,12 +2609,13 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                     spws[sidx], N1, N2, workdir, image_marker='temp', niter=1000,
                                     briggs=briggs,
                                     gain=gain,
-                                    # minuv_l=uvmin_l_list[sidx] / 3.0,
-                                    minuv_l=None,
+                                    minuv_l=uvmin_l_list[sidx] / 3.0,
+                                    # minuv_l=None,
                                     minuvw_m=8,
                                     maxuvw_m=1500,
                                     auto_mask=2, auto_threshold=1,
                                     data_column="CORRECTED_DATA",
+                                    pols=pols,
                                     reftime_daily=reftime_daily
                                     )
             imaging_obj.run()
@@ -2620,7 +2629,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             os.system(cmd)
             uvsub(vis=msfile, reverse=True)  # Now the viz data contains residuals + corrected models
 
-            clean_obj.setup(size=1024, scale="2.5asec", pol=pols,
+            clean_obj.setup(size=1024, scale="2.5asec",
+                            pol=pols,
                             weight_briggs=briggs,
                             niter=2000,
                             mgain=0.85,
