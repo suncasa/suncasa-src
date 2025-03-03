@@ -1704,9 +1704,127 @@ class MSselfcal:
             # os.system(f'rm -rf {model_dir}/{imname}*model.helio.rot.fits')
         return
 
+def imaging(vis, workdir=None, imgoutdir=None, pols='XX', data_column='DATA'):
+
+    if isinstance(vis, list):
+        msfile = vis[0]
+    else:
+        msfile=vis
+
+    viz_timerange = ant_trange(msfile)
+    (tstart, tend) = viz_timerange.split('~')
+    tbg_msfile = Time(qa.quantity(tstart, 's')['value'], format='mjd').to_datetime()
+    ted_msfile = Time(qa.quantity(tend, 's')['value'], format='mjd').to_datetime()
+    reftime_daily = Time(datetime.combine(tbg_msfile.date(), time(20, 0)))
+    date_str = tbg_msfile.strftime('%Y%m%d')
+    freq_setup = FrequencySetup(Time(tbg_msfile))
+    spws_indices = freq_setup.spws_indices
+    spws = freq_setup.spws
+    spws_imaging = spws
+    defaultfreq = freq_setup.defaultfreq
+    freq = defaultfreq
+    nbands = freq_setup.nbands
+    slashdate = tbg_msfile.strftime('%Y/%m/%d')
+    dsize, fdens = calc_diskmodel(slashdate, nbands, freq, defaultfreq)
+    fdens = fdens / 2.0  ## convert from I to XX
+
+    briggs = 0.0
+    gain = 0.3
+    wsclean_intervals = WSCleanTimeIntervals(msfile, combine_scans=True)
+    ## this step use a single model from the entire MS file and rotate it to each of the minor intervals.
+    wsclean_intervals.compute_intervals(nintervals_minor=3)
+    wscln_tim_info_combscan = wsclean_intervals.results()
+
+    N1 = wscln_tim_info_combscan['nintervals_major']
+    time_intervals = wscln_tim_info_combscan['time_intervals']
+    time_intervals_major_avg = wscln_tim_info_combscan['time_intervals_major_avg']
+
+    timeranges = []
+    for tidx, trange in enumerate(time_intervals):
+        timeranges.append(
+            trange[0].datetime.strftime('%Y/%m/%d/%H:%M:%S') + '~' + trange[-1].datetime.strftime('%Y/%m/%d/%H:%M:%S'))
+
+    msname, _ = os.path.splitext(msfile)
+    msfilename = os.path.basename(msfile)
+
+    for sidx, sp_index in enumerate(spws_indices):
+        spwstr = format_spw(spws[sidx])
+        # reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(spws[sidx], return_bmsize=True)
+        # imname_strlist = ["eovsa", "major", f"{msfilename}", f"sp{spwstr}", 'final','disk']
+        imname_strlist = ["eovsa", "major", f"{msfilename}", f"sp{spwstr}", 'final']
+        imname = '-'.join(imname_strlist)
+        # briggs = 0.5 if sidx in [0] else 0.0
+        # flagdata(vis=msfile, mode="tfcrop", spw=spws[sidx], action='apply', display='',
+        #          timecutoff=3.0, freqcutoff=3.0, maxnpieces=2, flagbackup=False)
+        if isinstance(vis, list):
+            msfile = vis[sidx]
+            sp_index = []
+        clean_obj = ww.WSClean(msfile)
+        clean_obj.setup(size=1024, scale="2.5asec", pol=pols,
+                        weight_briggs=briggs,
+                        niter=2000,
+                        mgain=0.85,
+                        gain=gain,
+                        # gain=0.2,
+                        data_column=data_column.upper(),
+                        name=os.path.join(workdir, imname),
+                        multiscale=True,
+                        multiscale_gain=0.3,
+                        # multiscale_gain=0.5,
+                        multiscale_scales=[0, 5, 12.5],
+                        auto_mask=2, auto_threshold=1,
+                        # auto_mask=1.5, auto_threshold=1,
+                        # minuv_l=500,
+                        minuv_l=None,
+                        minuvw_m=8,
+                        maxuvw_m=1500,
+                        intervals_out=N1,
+                        no_negative=True, quiet=True,
+                        circular_beam=True,
+                        spws=sp_index)
+        clean_obj.run(dryrun=False)
+
+        fitsname = sorted(glob(os.path.join(workdir, imname + '*image.fits')))
+        fitsname_helio = [f.replace('image.fits', 'image.helio.fits') for f in fitsname]
+        fitsname_helio_ref_daily = [f.replace('image.fits', 'image.helio.ref_daily.fits') for f in fitsname]
+        hf.imreg(vis=msfile, imagefile=fitsname, fitsfile=fitsname_helio, timerange=timeranges, toTb=True)
+        for eoidx, (fits_helio, fits_helio_ref_daily) in enumerate(zip(fitsname_helio, fitsname_helio_ref_daily)):
+            solar_diff_rot_heliofits(fits_helio, reftime_daily, fits_helio_ref_daily,
+                                     in_time=time_intervals_major_avg[eoidx])
+        fitsfilefinal = fitsname_helio_ref_daily
+
+        log_print('INFO', f"Final imaging for SPW {spws[sidx]}: completed")
+
+        reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(spws[sidx], return_bmsize=True)
+        sp_st, sp_ed = spws[sidx].split('~')
+        dszs = [float(dsize[int(sp)].rstrip('arcsec')) for sp in range(int(sp_st), int(sp_ed) + 1)]
+        fdns = [fdens[int(sp)] for sp in range(int(sp_st), int(sp_ed) + 1)]
+        # fdns = [fdens[int(sp)]*50 for sp in range(int(sp_st), int(sp_ed)+1)]
+        synfitsfiles = []
+        for eoidx, eofile in enumerate(fitsname):
+            datetimestr = time_intervals_major_avg[eoidx].datetime.strftime('%Y%m%dT%H%M%SZ')
+            synfitsfile = os.path.join(imgoutdir,
+                                       f"eovsa.synoptic.{datetimestr}.s{spwstr}.tb.disk.fits")
+            synfitsfiles.append(synfitsfile)
+        add_convolved_disk_to_fits(fitsfilefinal, synfitsfiles, dszs, fdns, ignore_data=False, toTb=True,
+                                   rfreq=reffreq, bmaj=bmsize / 3600.)
+    outfits_all = []
+    for spw in spws:
+        spwstr = format_spw(spw)
+        outfits = os.path.join(imgoutdir, f'eovsa.synoptic_daily.{date_str}T200000Z.s{spwstr}.tb.disk.fits')
+        synfitsfiles = sorted(glob(os.path.join(imgoutdir,
+                                                f"eovsa.synoptic.{date_str[:-1]}?T??????Z.s{spwstr}.tb.disk.fits")))
+        if len(synfitsfiles) > 0:
+            log_print('INFO', f"Merging synoptic images for SPW {spwstr} to {outfits} ...")
+            merge_FITSfiles(synfitsfiles, outfits, overwrite=True, snr_threshold=10)
+            outfits_all.append(outfits)
+        else:
+            outfits_all.append(None)
+    return outfits_all
+
 
 def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None,
-                 pols='XX', verbose=True, do_diskslfcal=True, hanning=False, do_sbdcal=False, overwrite=False, segmented_imaging=True):
+                 pols='XX', verbose=True, do_diskslfcal=True, hanning=False, do_sbdcal=False, overwrite=False, skip_slfcal=False, segmented_imaging=True):
     """
     Executes the EOVSA data processing pipeline for solar observation data.
 
@@ -1748,6 +1866,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     :type hanning: bool, optional
     :param do_sbdcal: Boolean flag to perform single-band delay calibration, defaults to False.
     :type do_sbdcal: bool
+    :param skip_slfcal: If True, skips self-calibration and directly images the data, defaults to False.
     :param segmented_imaging: Determines whether to segment the all-day data into chunks for imaging,
                           defaults to True.
     :type segmented_imaging: bool (optional)
@@ -2050,6 +2169,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         msfile_sp = f'{msname}.sp{spwstr}.slfcaled.ms'
         caltbs = []
         ncaltbs = len(caltbs)
+
         if os.path.exists(msfile_sp):
             if overwrite:
                 os.system('rm -rf ' + msfile_sp)
@@ -2439,8 +2559,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         # briggs = 0.5 if sidx in [0] else 0.0
         flagdata(vis=msfile, mode="tfcrop", spw=spws[sidx], action='apply', display='',
                  timecutoff=3.0, freqcutoff=3.0, maxnpieces=2, flagbackup=False)
-        clean_obj = ww.WSClean(msfile)
         if segmented_imaging:
+            clean_obj = ww.WSClean(msfile)
             clean_obj.setup(size=1024, scale="2.5asec", pol=pols,
                             weight_briggs=briggs,
                             niter=2000,
@@ -2465,8 +2585,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                             spws=sp_index)
             clean_obj.run(dryrun=False)
 
-            log_print('INFO', f"Final imaging for SPW {spws[sidx]}: completed")
-
             fitsname = sorted(glob(os.path.join(workdir, imname + '*image.fits')))
             fitsname_helio = [f.replace('image.fits', 'image.helio.fits') for f in fitsname]
             fitsname_helio_ref_daily = [f.replace('image.fits', 'image.helio.ref_daily.fits') for f in fitsname]
@@ -2475,12 +2593,16 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 solar_diff_rot_heliofits(fits_helio, reftime_daily, fits_helio_ref_daily,
                                          in_time=time_intervals_major_avg[eoidx])
             fitsfilefinal = fitsname_helio_ref_daily
+
+            log_print('INFO', f"Final imaging for SPW {spws[sidx]}: completed")
         else:
+            clean_obj = ww.WSClean(msfile)
             imaging_obj = MSselfcal(msfile, time_intervals, time_intervals_major_avg, time_intervals_minor_avg,
                                     spws[sidx], N1, N2, workdir, image_marker='temp', niter=1000,
                                     briggs=briggs,
                                     gain=gain,
-                                    minuv_l=uvmin_l_list[sidx] / 3.0,
+                                    # minuv_l=uvmin_l_list[sidx] / 3.0,
+                                    minuv_l=None,
                                     minuvw_m=8,
                                     maxuvw_m=1500,
                                     auto_mask=2, auto_threshold=1,
@@ -2511,7 +2633,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                             # multiscale_gain=0.5,
                             multiscale_scales=[0, 5, 12.5],
                             auto_mask=2, auto_threshold=1,
-                            minuv_l=uvmin_l_list[sidx]/3.0,
+#                             minuv_l=uvmin_l_list[sidx] / 3.0,
+                            minuv_l=None,
                             minuvw_m=8,
                             maxuvw_m=1500,
                             intervals_out=1,

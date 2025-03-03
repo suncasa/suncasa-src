@@ -189,7 +189,8 @@ class WSClean:
             spws = self.params['spws']
             if isinstance(spws, list):
                 spws = ','.join(map(str, spws))
-            cmd.extend(['-spws', spws])
+            if spws:
+                cmd.extend(['-spws', spws])
 
         cmd.extend(['-name', self.params['name']])
         cmd.append(self.vis)
