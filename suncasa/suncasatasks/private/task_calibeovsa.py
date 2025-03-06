@@ -291,7 +291,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
             spwmaps.append(nspw * [0])
 
         if 'phacal' in caltype:
-            phacals = np.array(sql2phacalX([bt, et], neat=True, verbose=False))
+            phacals = np.array(sql2phacalX([bt, et], nrecords=0, neat=True, verbose=False))
             if not phacals.any() or len(phacals) == 0:
                 print("Found no phacal records in SQL database, will skip phase calibration")
             else:
