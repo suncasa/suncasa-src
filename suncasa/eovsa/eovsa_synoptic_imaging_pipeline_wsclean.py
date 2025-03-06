@@ -1892,8 +1892,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
     if not workdir.endswith('/'):
         workdir += '/'
-    outfits_all = []
     debug_mode = False
+    outfits_all = []
     if debug_mode:
         workdir = './'
         slfcaltbdir = None
@@ -1910,9 +1910,10 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         from suncasa.suncasatasks import importeovsa
         from eovsapy.dump_tsys import findfiles
 
-        # datein = datetime(2024, 12, 15, 20, 0, 0)
-        datein = datetime(2025, 2, 6, 20, 0, 0)
-        pols = 'XX,YY'
+        datein = datetime(2024, 12, 15, 20, 0, 0)
+        # datein = datetime(2025, 2, 6, 20, 0, 0)
+        # pols = 'YY'
+        # datein = datetime(2022, 6, 15, 20, 0, 0)
         # datein = datetime(2021, 11, 25, 20, 0, 0)
         trange = Time(datein)
         if trange.mjd == np.fix(trange.mjd):
@@ -1942,7 +1943,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                     visprefix=outpath, nocreatms=False,
                     doconcat=False, modelms="", doscaling=False, keep_nsclms=False, udb_corr=True)
 
-        msfiles = [os.path.basename(ll).split('.')[0] for ll in glob('{}UDB*.ms*'.format(outpath)) if ll.endswith('.ms') or ll.endswith('.ms.tar.gz')]
+        msfiles = [os.path.basename(ll).split('.')[0] for ll in glob('{}UDB*.ms'.format(outpath)) if ll.endswith('.ms') or ll.endswith('.ms.tar.gz')]
         udbfilelist_set = set(udbfilelist)
         msfiles = udbfilelist_set.intersection(msfiles)
         filelist = udbfilelist_set - msfiles
@@ -1951,12 +1952,17 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         invis = [outpath + ll + '.ms' for ll in sorted(list(msfiles))]
         vis_out = os.path.join(os.path.dirname(invis[0]), os.path.basename(invis[0])[:11] + '.ms')
         vis = calibeovsa(invis, caltype=['refpha','phacal'], caltbdir='./', interp='nearest',
+        # vis = calibeovsa(invis, caltype=['refpha'], caltbdir='./', interp='nearest',
                          doflag=True,
                          flagant='13~15',
                          doimage=False, doconcat=True,
                          concatvis=vis_out, keep_orig_ms=True)
 
         vis=vis_out
+
+        # if not os.path.exists(vis.replace('.ms','.pols.ms')):
+        #     mstl.sort_polarization_order(vis, vis.replace('.ms','.pols.ms'))
+        # vis=vis.replace('.ms','.pols.ms')
 
 
     # workdir = '/data1/sjyu/eovsa/20241215'
@@ -1980,6 +1986,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     # vis = 'UDB20250214.ms'
 
 
+    # vis='UDB20250206.pols.ms'
     msfile = vis.rstrip('/')
     if workdir is None:
         workdir = './'
@@ -2026,9 +2033,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     fdens = fdens / 2.0  ## convert from I to XX
 
     spwidx2proc = [0,1,2,3,4,5,6]
+    alldaymode_spidx = [0]
+    diskslfcal_first = [False, False, False, False, False, False, False]
+    # spwidx2proc = [4,5,6]
     # spwidx2proc = [0,1,2]
     # spwidx2proc = [1, 2]
-    # spwidx2proc = [1]
+    # spwidx2proc = [0]
     # spwidx2proc = [2]
     # spwidx2proc = [3]
     ## disk slfcal after feature cal works better for spwidx [0,1,2, 3, !4, !5]
@@ -2041,14 +2051,14 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     uvmin_l_list = []
 
     ## a flag indicates if the disk self-calibration shall be performed before the feature self-calibration.
-    diskslfcal_first = []
+
 
     for sidx, sp_index in enumerate(spws_indices):
         # diskslfcal_first.append(False)
-        if sidx in [0, 1, 2, 3]:
-            diskslfcal_first.append(False)
-        else:
-            diskslfcal_first.append(True)
+        # if sidx in [0, 1, 2, 3]:
+        #     diskslfcal_first.append(False)
+        # else:
+        #     diskslfcal_first.append(True)
         if sidx not in spwidx2proc:
             uvmax_l_list.append(0)
             uvmin_l_list.append(0)
@@ -2165,7 +2175,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     #     # alldaymode_spidx = [0,1,2, 5, 6]
     # else:
     #     alldaymode_spidx = [0]
-    alldaymode_spidx = [0]
+
     for sidx, sp_index in enumerate(spws_indices):
         spwstr = format_spw(spws[sidx])
         msfile_sp = f'{msname}.sp{spwstr}.slfcaled.ms'
@@ -2191,7 +2201,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         clearcal(msfile, spw=spws[sidx])
         reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(spws[sidx], return_bmsize=True)
         log_print('INFO', f"Processing SPW {spws[sidx]} for msfile {os.path.basename(msfile)} ...")
-        if sidx in [0]:
+        if sidx in alldaymode_spidx:
             auto_mask = 2
             auto_threshold = 1.5
         # elif sidx in [5,6]:
@@ -2230,7 +2240,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         caltb = os.path.join(workdir, f"caltb_init_inf_sp{spwstr}.pha")
         if os.path.exists(caltb): os.system('rm -rf ' + caltb)
         ## select a subset of the data for the initial phase self-calibration.
-        if sidx in [0]:
+        if sidx in alldaymode_spidx:
             # timerange_sub = trange2timerange([time_intervals[min(1, N1 // 2 - 1)][0], time_intervals[N1 // 2 + 1][-1]])
             timerange_sub = viz_timerange
         else:
@@ -2383,7 +2393,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         log_print('INFO', f"Processing SPW {spws[sidx]} for msfile {os.path.basename(msfile)} ...")
         # briggs = 0.5 if sidx in [0] else 0.0
         briggs = 0.0
-        if sidx in [0]:
+        if sidx in alldaymode_spidx:
             auto_mask = 2
             auto_threshold = 1.5
         # elif sidx in [5,6]:
@@ -2444,7 +2454,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         log_print('INFO', f"Processing SPW {spws[sidx]}  ...")
         # briggs = 0.5 if sidx in [0] else 0.0
         briggs = 0.0
-        if sidx in [0]:
+        if sidx in alldaymode_spidx:
             auto_mask = 2
             auto_threshold = 1
         # elif sidx in [5,6]:

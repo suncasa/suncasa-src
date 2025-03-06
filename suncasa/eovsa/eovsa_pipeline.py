@@ -259,7 +259,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
 
 
 def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearcache=False, verbose=False, pols='XX',
-                   version='v3.0', ncpu='auto', caltype=['refpha']):
+                   version='v3.0', ncpu='auto', caltype=['refpha','phacal']):
     ''' 
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
