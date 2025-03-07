@@ -56,6 +56,7 @@ def get_tdate_from_basename(vis):
     else:
         raise ValueError("The basename does not match the expected format.")
 
+
 import socket
 import os
 
@@ -66,6 +67,7 @@ if is_on_server:
     base_dir = "/inti/data/pipeline_mirror" if is_on_inti else ""
 else:
     base_dir = './'
+
 
 class Path_config:
     def __init__(self, base_dir=base_dir):
@@ -104,6 +106,7 @@ class Path_config:
         for env_var, path in self.paths.items():
             print(f"  {env_var}: {path}")
 
+
 # Usage
 pathconfig = Path_config()
 print(pathconfig.udbmsdir)  # Accessing the directory path
@@ -118,6 +121,7 @@ qlookfitsdir = pathconfig.qlookfitsdir
 qlookfigdir = pathconfig.qlookfigdir
 synopticfigdir = pathconfig.synopticfigdir
 workdir_default = pathconfig.workdir_default
+
 
 def getspwfreq(vis):
     '''
@@ -211,15 +215,14 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
         os.makedirs(outpath)
         msfiles = []
     else:
-        msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms*'.format(outpath)) if ll.endswith('.ms') or ll.endswith('.ms.tar.gz')]
-
+        msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms*'.format(outpath)) if
+                   ll.endswith('.ms') or ll.endswith('.ms.tar.gz')]
 
     msfile_synoptic = os.path.join(outpath, 'UDB' + tdatetime.strftime("%Y%m%d") + '.ms')
 
     if os.path.exists(msfile_synoptic):
         if overwrite and doimport:
             os.system(f'rm -rf {msfile_synoptic}*')
-
 
     # sclist = ra.findfiles(trange, projid='NormalObserving', srcid='Sun')
     sclist = findfiles(trange, projid='NormalObserving', srcid='Sun')
@@ -247,7 +250,8 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
                         visprefix=outpath, nocreatms=False,
                         doconcat=False, modelms="", doscaling=doscaling, keep_nsclms=False, udb_corr=True)
 
-        msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms*'.format(outpath)) if ll.endswith('.ms') or ll.endswith('.ms.tar.gz')]
+        msfiles = [os.path.basename(ll).split('.')[0] for ll in glob.glob('{}UDB*.ms*'.format(outpath)) if
+                   ll.endswith('.ms') or ll.endswith('.ms.tar.gz')]
         udbfilelist_set = set(udbfilelist)
         msfiles = udbfilelist_set.intersection(msfiles)
         filelist = udbfilelist_set - msfiles
@@ -259,7 +263,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
 
 
 def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearcache=False, verbose=False, pols='XX',
-                   version='v3.0', ncpu='auto', caltype=['refpha','phacal']):
+                   version='v3.0', ncpu='auto', caltype=['refpha', 'phacal'], interp='nearest'):
     ''' 
        trange: can be 1) a single Time() object: use the entire day
                       2) a range of Time(), e.g., Time(['2017-08-01 00:00','2017-08-01 23:00'])
@@ -298,7 +302,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
             invis[idx] = f.rstrip('/')
 
         outputvis = os.path.join(os.path.dirname(invis[0]), os.path.basename(invis[0])[:11] + '.ms')
-        vis = calibeovsa(invis, caltype=caltype, caltbdir=caltbdir, interp='nearest',
+        vis = calibeovsa(invis, caltype=caltype, caltbdir=caltbdir, interp=interp,
                          doflag=True,
                          flagant='13~15',
                          doimage=False, doconcat=True,
@@ -334,21 +338,22 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
                'slfcaltbdir': slfcaltbdir_path,
                'imgoutdir': imgoutdir,
                'figoutdir': figoutdir,
-               'overwrite':overwrite,
-               'clearcache':clearcache,
-               'pols':pols,'ncpu':ncpu})
+               'overwrite': overwrite,
+               'clearcache': clearcache,
+               'pols': pols, 'ncpu': ncpu})
     if version == 'v1.0':
         vis = ed.pipeline_run(vis, outputvis=output_file_path,
                               workdir=workdir,
                               slfcaltbdir=slfcaltbdir_path,
                               imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols)
-    elif version== 'v2.0':
+    elif version == 'v2.0':
         from suncasa.eovsa import eovsa_synoptic_imaging_pipeline as esip
         vis = esip.pipeline_run(vis, outputvis=output_file_path,
                                 workdir=workdir,
                                 slfcaltbdir=slfcaltbdir_path,
-                                imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols, ncpu=ncpu,overwrite=overwrite)
-    elif version== 'v3.0':
+                                imgoutdir=imgoutdir, figoutdir=figoutdir, clearcache=clearcache, pols=pols, ncpu=ncpu,
+                                overwrite=overwrite)
+    elif version == 'v3.0':
         from suncasa.eovsa import eovsa_synoptic_imaging_pipeline_wsclean as esip
         vis = esip.pipeline_run(vis, outputvis=output_file_path,
                                 workdir=workdir,
@@ -735,7 +740,7 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
 
 
 def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrite=False, doimport=True, pols='XX',
-             version='v1.0', ncpu='auto', debugging=False):
+             version='v1.0', ncpu='auto', debugging=False, caltype=['refpha', 'phacal'], interp='nearest'):
     """
     Main pipeline for importing and calibrating EOVSA visibility data.
 
@@ -773,6 +778,10 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
     :type ncpu: str, optional
     :param debugging: Whether to run the pipeline in debugging mode, defaults to False.
     :type debugging: bool, optional
+    :param caltype: Calibration types to use, defaults to ['refpha','phacal'].
+    :type caltype: list, optional
+    :param interp: Interpolation method to use for calibration tables, defaults to 'nearest'. Options are 'nearest', 'linear'
+    :type interp: str, optional
 
     :raises ValueError: Raises an exception if the date parameters are out of the valid Gregorian calendar range.
 
@@ -811,11 +820,13 @@ def pipeline(year=None, month=None, day=None, ndays=1, clearcache=True, overwrit
 
         if debugging:
             vis_corrected = calib_pipeline(t1, overwrite=overwrite, doimport=doimport,
-                                           workdir=subdir, clearcache=False, pols=pols, version=version, ncpu=ncpu)
+                                           workdir=subdir, clearcache=False, pols=pols, version=version, ncpu=ncpu,
+                                           caltype=caltype, interp=interp)
         else:
             try:
                 vis_corrected = calib_pipeline(t1, overwrite=overwrite, doimport=doimport,
-                                               workdir=subdir, clearcache=False, pols=pols, version=version, ncpu=ncpu)
+                                               workdir=subdir, clearcache=False, pols=pols, version=version, ncpu=ncpu,
+                                               caltype=caltype, interp=interp)
             except Exception as e:
                 print(f'error in processing {datestr}. Error message: {e}')
         if clearcache:
@@ -838,9 +849,16 @@ if __name__ == '__main__':
     parser.add_argument('--doimport', action='store_true', default=True, help='Perform import step before processing')
     parser.add_argument('--pols', type=str, default='XX', choices=['XX', 'XXYY'], help='Polarizations to process')
     parser.add_argument('--ncpu', type=str, default='auto', help='Number of CPUs to use for processing')
-    parser.add_argument('--version', type=str, default='v3.0', choices=['v1.0', 'v2.0','v3.0'],
+    parser.add_argument('--version', type=str, default='v3.0', choices=['v1.0', 'v2.0', 'v3.0'],
                         help='Version of the EOVSA pipeline to use')
     parser.add_argument('--debugging', action='store_true', default=False, help='Run the pipeline in debugging mode')
+    parser.add_argument('--caltype', type=str, nargs='+', default=['refpha', 'phacal'],
+                        help='Calibration types to use, defaults to refpha and phacal')
+    parser.add_argument('--interp', type=str, default='nearest', choices=['nearest', 'linear', 'auto'],
+                        help='Interpolation method for calibration tables. Options: "nearest", "linear", "auto". '
+                             'If "auto" is selected, calibeovsa automatically chooses the method: '
+                             'if the time difference between the observation and the phacal calibrations is less than 1 hour, it uses "nearest"; '
+                             'otherwise, it uses "linear".')
 
     # Parse the arguments
     args = parser.parse_args()
@@ -853,4 +871,4 @@ if __name__ == '__main__':
 
     # Run the main pipeline function
     pipeline(year, month, day, args.ndays, args.clearcache, args.overwrite, args.doimport, args.pols,
-             args.version, args.ncpu, args.debugging)
+             args.version, args.ncpu, args.debugging, args.caltype, args.interp)

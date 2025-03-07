@@ -76,7 +76,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
         casalog.origin('calibeovsa')
         if not caltype:
             casalog.post("Caltype not provided. Perform reference phase calibration and daily phase calibration.")
-            caltype = ['refpha', 'phacal']  ## use this line after the phacal is applied  # caltype = ['refcal']
+            caltype = ['refpha', 'phacal']
         if not os.path.exists(msfile):
             casalog.post("Input visibility does not exist. Aborting...")
             continue
@@ -332,9 +332,14 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                                    parameter=pha0.flatten().tolist())
 
                 # now decides which table to apply depending on the interpolation method ("nearest" or "linear")
+                dt = np.min(np.abs(t_phas.mjd - t_mid.mjd)) * 24.
+                if interp == 'auto':
+                    if dt < 1.:
+                        interp = 'nearest'
+                    else:
+                        interp = 'linear'
                 if interp == 'nearest':
                     tbind = np.argmin(np.abs(t_phas.mjd - t_mid.mjd))
-                    dt = np.min(np.abs(t_phas.mjd - t_mid.mjd)) * 24.
                     print("Selected nearest phase calibration table at " + t_phas[tbind].iso)
                     gaintables.append(caltbs_phambd[tbind])
                     spwmaps.append(nspw * [0])
@@ -353,11 +358,13 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                         spwmaps.append(nspw * [0])
                         gaintables.append(caltbs_phambd_pha0[bt_ind[-1]])
                         spwmaps.append(nspw * [0])
+                        print("Using phase calibration table at " + t_phas[bt_ind[-1]].iso)
                     elif len(bt_ind) == 0 and len(et_ind) > 0:
                         gaintables.append(caltbs_phambd[et_ind[0]])
                         spwmaps.append(nspw * [0])
                         gaintables.append(caltbs_phambd_pha0[et_ind[0]])
                         spwmaps.append(nspw * [0])
+                        print("Using phase calibration table at " + t_phas[et_ind[0]].iso)
                     elif len(bt_ind) > 0 and len(et_ind) > 0:
                         bphacal = phacals[bt_ind[-1]]
                         ephacal = phacals[et_ind[0]]
