@@ -1893,6 +1893,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     if not workdir.endswith('/'):
         workdir += '/'
     debug_mode = False
+
     outfits_all = []
     if debug_mode:
         workdir = './'
@@ -1910,11 +1911,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         from suncasa.suncasatasks import importeovsa
         from eovsapy.dump_tsys import findfiles
 
-        datein = datetime(2024, 12, 15, 20, 0, 0)
+        # datein = datetime(2024, 12, 15, 20, 0, 0)
         # datein = datetime(2025, 2, 6, 20, 0, 0)
         # pols = 'YY'
         # datein = datetime(2022, 6, 15, 20, 0, 0)
         # datein = datetime(2021, 11, 25, 20, 0, 0)
+        datein = datetime(2021, 11, 23, 20, 0, 0)
         trange = Time(datein)
         if trange.mjd == np.fix(trange.mjd):
             # if only date is given, move the time from 00 to 12 UT
@@ -1951,8 +1953,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
         invis = [outpath + ll + '.ms' for ll in sorted(list(msfiles))]
         vis_out = os.path.join(os.path.dirname(invis[0]), os.path.basename(invis[0])[:11] + '.ms')
-        vis = calibeovsa(invis, caltype=['refpha','phacal'], caltbdir='./', interp='nearest',
-        # vis = calibeovsa(invis, caltype=['refpha'], caltbdir='./', interp='nearest',
+        # vis = calibeovsa(invis, caltype=['refpha','phacal'], caltbdir='./', interp='nearest',
+        vis = calibeovsa(invis, caltype=['refpha'], caltbdir='./', interp='nearest',
                          doflag=True,
                          flagant='13~15',
                          doimage=False, doconcat=True,
@@ -2034,7 +2036,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
     spwidx2proc = [0,1,2,3,4,5,6]
     alldaymode_spidx = [0]
-    diskslfcal_first = [False, False, False, False, False, False, False]
+    diskslfcal_first = [False, False, False, False, True, True, True]
     # spwidx2proc = [4,5,6]
     # spwidx2proc = [0,1,2]
     # spwidx2proc = [1, 2]
@@ -2054,7 +2056,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
 
     for sidx, sp_index in enumerate(spws_indices):
-        # diskslfcal_first.append(False)
+        # # diskslfcal_first.append(False)
         # if sidx in [0, 1, 2, 3]:
         #     diskslfcal_first.append(False)
         # else:
@@ -2728,8 +2730,15 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     log_print('INFO', f"Moving calibration tables to {slfcaltbdir} ...")
     caltbs_comb = [item for sublist in caltbs_all for item in sublist]
     for caltb in caltbs_comb:
-        if os.path.exists(caltb): os.system(f'mv {caltb} {slfcaltbdir}/')
+        if os.path.exists(caltb):
+            targetfile = f'{slfcaltbdir}/{os.path.basename(caltb)}'
+            if os.path.exists(targetfile):
+                os.system(f'rm -rf {targetfile}')
+            os.system(f'mv {caltb} {slfcaltbdir}/')
     if os.path.isdir(msfile + '.flagversions') == True:
+        targetfile = f'{os.path.dirname(outputvis)}/{msfile}.flagversions'
+        if os.path.exists(targetfile):
+            os.system(f'rm -rf {targetfile}')
         os.system(f'mv {msfile}.flagversions {os.path.dirname(outputvis)}/')
 
     # if clearlargecache:
