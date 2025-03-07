@@ -334,10 +334,13 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                 # now decides which table to apply depending on the interpolation method ("nearest" or "linear")
                 dt = np.min(np.abs(t_phas.mjd - t_mid.mjd)) * 24.
                 if interp == 'auto':
+                    print(f'The time difference threshold is set to 1 hour')
                     if dt < 1.:
                         interp = 'nearest'
+                        print(f'The time difference between the mid time of the scan and the nearest phase calibration table is {dt:.f} hours. Using nearest interp.')
                     else:
                         interp = 'linear'
+                        print(f'The time difference between the mid time of the scan and the nearest phase calibration table is {dt:.f} hours. Using linear interp.')
                 if interp == 'nearest':
                     tbind = np.argmin(np.abs(t_phas.mjd - t_mid.mjd))
                     print("Selected nearest phase calibration table at " + t_phas[tbind].iso)
