@@ -360,20 +360,20 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                         print("No phacal found before or after the ms data within the day of observation")
                         print("Skipping daily phase calibration")
                     elif len(bt_ind) > 0 and len(et_ind) == 0:
-                        gaintables.append(caltbs_phambd[bt_ind[0]])
+                        gaintables.append(caltbs_phambd[bt_ind[-1]])
                         spwmaps.append(nspw * [0])
-                        gaintables.append(caltbs_phambd_pha0[bt_ind[0]])
+                        gaintables.append(caltbs_phambd_pha0[bt_ind[-1]])
                         spwmaps.append(nspw * [0])
-                        print("Using phase calibration table at " + t_phas[bt_ind[0]].iso)
+                        print("Using phase calibration table at " + t_phas[bt_ind[-1]].iso)
                     elif len(bt_ind) == 0 and len(et_ind) > 0:
-                        gaintables.append(caltbs_phambd[et_ind[-1]])
+                        gaintables.append(caltbs_phambd[et_ind[0]])
                         spwmaps.append(nspw * [0])
-                        gaintables.append(caltbs_phambd_pha0[et_ind[-1]])
+                        gaintables.append(caltbs_phambd_pha0[et_ind[0]])
                         spwmaps.append(nspw * [0])
-                        print("Using phase calibration table at " + t_phas[et_ind[-1]].iso)
+                        print("Using phase calibration table at " + t_phas[et_ind[0]].iso)
                     elif len(bt_ind) > 0 and len(et_ind) > 0:
-                        bphacal = phacals[bt_ind[0]]
-                        ephacal = phacals[et_ind[-1]]
+                        bphacal = phacals[bt_ind[-1]]
+                        ephacal = phacals[et_ind[0]]
                         # generate a new table interpolating between two daily phase calibrations
                         dt_obs = t_mid.mjd - bphacal['t_pha'].mjd
                         dt_pha = ephacal['t_pha'].mjd - bphacal['t_pha'].mjd

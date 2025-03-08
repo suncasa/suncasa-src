@@ -201,7 +201,7 @@ def trange2ms(trange=None, doimport=False, verbose=False, doscaling=False, overw
         etime = Time(btime.mjd + 1, format='mjd')
         trange = Time([btime, etime])
 
-    print('Selected timerange in UTC: ', trange.iso)
+    print('Selected idb files in the  time range (UTC): ', trange.iso)
 
     if doscaling:
         udbmspath = udbmsscldir
