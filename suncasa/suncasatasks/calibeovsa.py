@@ -24,7 +24,7 @@ class _calibeovsa:
     vis          input EOVSA (uncalibrated) measurement set(s).
     caltype      Types of calibrations to perform
     caltbdir     Directory to place calibration tables.
-    interp       Temporal interpolation for phacal table(s) (nearest or linear)
+    interp       Temporal interpolation for phacal table(s) (nearest, linear or auto)
     docalib      If False, only create the calibration tables but do not perform applycal.
     doflag       If true then perform flagging.
     flagant      Antennas to be flagged. Follow CASA syntax of "antenna".
@@ -63,7 +63,7 @@ class _calibeovsa:
     
     caltbdir -- string. Place to hold calibration tables. Default is current directory. Pipeline should use /data1/eovsa/caltable
     
-    interp -- string. How interpolation is done for phacal? 'nearest' or 'linear'
+    interp -- string. How interpolation is done for phacal? 'nearest', 'linear' or 'auto'
     
     docalib -- boolean. Default True. If False, only create the calibration tables but do not perform applycal
     
