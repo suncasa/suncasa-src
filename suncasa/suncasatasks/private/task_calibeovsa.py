@@ -56,6 +56,8 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
     :return:
     '''
 
+    interp0 = interp
+
     if type(vis) == str:
         vis = [vis]
 
@@ -333,7 +335,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
 
                 # now decides which table to apply depending on the interpolation method ("nearest" or "linear")
                 dt = np.min(np.abs(t_phas.mjd - t_mid.mjd)) * 24.
-                if interp == 'auto':
+                if interp0 == 'auto':
                     print(f'The time difference threshold is set to 1 hour')
                     if dt < 1.:
                         interp = 'nearest'
