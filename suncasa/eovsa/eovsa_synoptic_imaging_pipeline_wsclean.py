@@ -1899,7 +1899,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         pols = 'XX'
         verbose = True
         do_diskslfcal = True
-        overwrite = False
+        overwrite = True
         hanning = False
         do_sbdcal = False
         segmented_imaging = True
@@ -1909,7 +1909,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         from eovsapy.dump_tsys import findfiles
 
         spwidx2proc = [0, 1, 2, 3, 4, 5, 6]
-        # spwidx2proc = [1, 3, 5]  ## band window index to process
+        spwidx2proc = [0,3,5]  ## band window index to process
         alldaymode_spidx = [0]
         diskslfcal_first = [False, False, False, False, True, True, True]
 
@@ -1962,6 +1962,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         vis = calibeovsa(invis, caltype=['refpha','phacal'], caltbdir='./', interp=interp,
                          doflag=True,
                          flagant='13~15',
+                         flagspw='0~1',
                          doimage=False, doconcat=True,
                          # doimage=False, doconcat=False,
                          concatvis=vis_out, keep_orig_ms=True)
