@@ -7,7 +7,8 @@ import os
 from glob import glob
 
 # xmlfiles = glob('calibeovsa*.xml')
-xmlfiles = ['calibeovsa.xml','importeovsa.xml']
+# xmlfiles = ['calibeovsa.xml','importeovsa.xml']
+xmlfiles = ['calibeovsa.xml']
 for xmlfile in xmlfiles:
     # os.system("buildmytasks --upgrade {}".format(xmlfile)) ## this only need to be run once.
     os.system("buildmytasks --module suncasatasks {}".format(xmlfile))

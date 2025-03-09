@@ -1888,7 +1888,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         workdir += '/'
     debug_mode = False
     spwidx2proc = [0, 1, 2, 3, 4, 5, 6]  ## band window index to process
-    alldaymode_spidx = []  ## band window index to process for all-day mode
+    alldaymode_spidx = [0]  ## band window index to process for all-day mode
     diskslfcal_first = [False, False, False, False, True, True, True]  ## whether to perform disk self-calibration first
 
     outfits_all = []
@@ -1909,8 +1909,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         from eovsapy.dump_tsys import findfiles
 
         spwidx2proc = [0, 1, 2, 3, 4, 5, 6]
-        spwidx2proc = [0,3]  ## band window index to process
-        alldaymode_spidx = []
+        # spwidx2proc = [0,3]  ## band window index to process
+        alldaymode_spidx = [0]
         diskslfcal_first = [False, False, False, False, True, True, True]
 
         datein = datetime(2024, 12, 15, 20, 0, 0)
@@ -1943,9 +1943,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         filelist = udbfilelist_set - msfiles
         filelist = sorted(list(filelist))
         ncpu = 1
-        importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
-                    visprefix=outpath, nocreatms=False,
-                    doconcat=False, modelms="", doscaling=False, keep_nsclms=False, udb_corr=True)
+        # importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
+        #             visprefix=outpath, nocreatms=False,
+        #             doconcat=False, modelms="", doscaling=False, keep_nsclms=False, udb_corr=True)
 
         msfiles = [os.path.basename(ll).split('.')[0] for ll in glob('{}UDB*.ms'.format(outpath)) if
                    ll.endswith('.ms') or ll.endswith('.ms.tar.gz')]
@@ -1962,7 +1962,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         vis = calibeovsa(invis, caltype=['refpha','phacal'], caltbdir='./', interp=interp,
                          doflag=True,
                          flagant='13~15',
-                         doimage=False, doconcat=False,
+                         doimage=False, doconcat=True,
                          # doimage=False, doconcat=False,
                          concatvis=vis_out, keep_orig_ms=True)
 
@@ -1972,28 +1972,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         #     mstl.sort_polarization_order(vis, vis.replace('.ms','.pols.ms'))
         # vis=vis.replace('.ms','.pols.ms')
 
-    # workdir = '/data1/sjyu/eovsa/20241215'
-    # if not workdir.endswith('/'):
-    #     workdir += '/'
-    # vis = 'UDB20241215.ms'
-    #
-    # workdir = '/data1/sjyu/eovsa/20211124'
-    # if not workdir.endswith('/'):
-    #     workdir += '/'
-    # vis = 'UDB20211124.ms'
-
-    # workdir = '/data1/sjyu/eovsa/20250101'
-    # if not workdir.endswith('/'):
-    #     workdir += '/'
-    # vis = 'UDB20250101.ms'
-    #
-    # workdir = '/data1/sjyu/eovsa/20250214'
-    # if not workdir.endswith('/'):
-    #     workdir += '/'
-    # vis = 'UDB20250214.ms'
-
-    # vis='UDB20250206.pols.ms'
-    msfile = vis.rstrip('/')
     if workdir is None:
         workdir = './'
     os.chdir(workdir)
@@ -2001,6 +1979,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         slfcaltbdir = workdir + '/'
     if imgoutdir is None:
         imgoutdir = workdir + '/'
+
+    msfile = vis.rstrip('/')
 
     msname, _ = os.path.splitext(msfile)
     msname = os.path.basename(msname)
@@ -2014,23 +1994,21 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         else:
             raise ValueError(f"Unsupported file format: {msfile}")
     msfile = msfile_copy
-
-    ## the msfile we use 60 min model image to correct the data in 10 min interval. the model image is shifted to the reftime_master (20:00 UT of each day).
-    # tdt_imaging = timedelta(hours=1)
-    # tdt_sub = timedelta(minutes=10)
+    msfilename = os.path.basename(msfile)
 
     viz_timerange = ant_trange(msfile)
     (tstart, tend) = viz_timerange.split('~')
     tbg_msfile = Time(qa.quantity(tstart, 's')['value'], format='mjd').to_datetime()
     ted_msfile = Time(qa.quantity(tend, 's')['value'], format='mjd').to_datetime()
-    tmid_msfile = Time((tbg_msfile + ted_msfile) / 2)
-    reftime_daily = Time(datetime.combine(tbg_msfile.date(), time(20, 0)))
+    tmid_msfile = tbg_msfile + (ted_msfile - tbg_msfile) / 2
 
     ## date_str is set to the day 1 if the time is between 08:00 UT on day 1 to 08:00 UT(+1) on day 2
     if tbg_msfile.time() < time(8, 0):
-        date_str = (tbg_msfile - timedelta(days=1)).strftime('%Y%m%d')
+        date_local = tbg_msfile.date() - timedelta(days=1)
     else:
-        date_str = tbg_msfile.strftime('%Y%m%d')
+        date_local = tbg_msfile.date()
+    date_str = date_local.strftime('%Y%m%d')
+    reftime_daily = Time(datetime.combine(date_local, time(20, 0)))
     freq_setup = FrequencySetup(Time(tbg_msfile))
     spws_indices = freq_setup.spws_indices
     spws = freq_setup.spws
@@ -2044,14 +2022,13 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     dsize, fdens = calc_diskmodel(tmid_msfile, nbands, freq, defaultfreq)
     fdens = fdens / 2.0  ## convert from I to XX
 
+
     ## set a maxmium uv range for disk self-calibration. 30 meters is a good choice for EOVSA. A minumum of 200 lambda.
     uvmax_l_list = []
     ## set a minimum uv range for feature self-calibration. 225 meters is a good choice for EOVSA. A minumum of 1500 lambda.
     uvmin_l_list = []
-
-    ## a flag indicates if the disk self-calibration shall be performed before the feature self-calibration.
-
     for sidx, sp_index in enumerate(spws_indices):
+
         # # diskslfcal_first.append(False)
         # if sidx in [0, 1, 2, 3]:
         #     diskslfcal_first.append(False)
@@ -2112,9 +2089,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
     delmod(msfile)
 
-    msfile_scans = split_ms_by_scan(msfile, timerange=viz_timerange, outdir=workdir, datacolumn='corrected',
-                                    verbose=verbose)
-
     wsclean_intervals = WSCleanTimeIntervals(msfile, combine_scans=True)
     wsclean_intervals.compute_intervals(nintervals_minor=3)
     wscln_tim_info_combscan = wsclean_intervals.results()
@@ -2143,22 +2117,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     ## combine all the major's minor intervals to a single one.
     time_intervals_minor_avg_comb = [
         Time(np.hstack([l.mjd for l in wscln_tim_info_combscan_comb['time_intervals_minor_avg']]), format='mjd')]
-    # N1_comb = 1
-    # N2_comb = N1
-    # time_intervals_comb = [
-    #     Time([wscln_tim_info_combscan_comb['time_intervals'][0][0], wscln_tim_info_combscan_comb['time_intervals'][-1][-1]])]
-    # time_intervals_major_avg_comb = Time(
-    #     [np.nanmean(np.hstack([l.mjd for l in wscln_tim_info_combscan['time_intervals']]))], format='mjd')
-    # time_intervals_minor_avg_comb = [Time([l.mjd],format='mjd') for l in time_intervals_major_avg]
+
 
     timeranges = []
     for tidx, trange in enumerate(time_intervals):
         timeranges.append(
             trange[0].datetime.strftime('%Y/%m/%d/%H:%M:%S') + '~' + trange[-1].datetime.strftime('%Y/%m/%d/%H:%M:%S'))
-
-    msname, _ = os.path.splitext(msfile)
-    msname = os.path.basename(msname)
-    msfilename = os.path.basename(msfile)
 
     caltbs_all = []
     slfcal_init_objs = []
