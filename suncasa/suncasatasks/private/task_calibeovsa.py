@@ -40,9 +40,21 @@ ms = mstool()
 qa = qatool()
 ia = iatool()
 
+
+def flag_caltb_by_spw(caltb, flagspw='0~1'):
+    sp_st, sp_ed = flagspw.split('~')
+    tb.open(caltb, nomodify=False)
+    phambd_flag = tb.getcol('FLAG')
+    phambd_spw = tb.getcol('SPECTRAL_WINDOW_ID')
+    # spwindx = np.where(phambd_spw <= 1)[0]
+    spwindx = np.where(np.logical_and(phambd_spw >= int(sp_st), phambd_spw <= int(sp_ed)))[0]
+    phambd_flag[:, :, spwindx] = True
+    tb.putcol('FLAG', phambd_flag)
+    tb.close()
+
 def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, doflag=True, flagant='13~15',
-               doimage=False, imagedir=None, antenna=None, timerange=None, spw=None, stokes=None, dosplit=False,
-               outputvis=None, doconcat=False, concatvis=None, keep_orig_ms=True):
+               flagspw='0~1', doimage=False, imagedir=None, antenna=None, timerange=None, spw=None, stokes=None,
+               dosplit=False, outputvis=None, doconcat=False, concatvis=None, keep_orig_ms=True):
     '''
 
     :param vis: EOVSA visibility dataset(s) to be calibrated 
@@ -323,6 +335,8 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                         if not os.path.exists(caltb_phambd):
                             gencal(vis=msfile, caltable=caltb_phambd, caltype='mbd', pol='X,Y', antenna=antennas,
                                    parameter=phambd_ns.flatten().tolist())
+                            flag_caltb_by_spw(caltb_phambd, flagspw=flagspw)
+
 
                         # When applying the multi-band delays, they are referenced to the center of spw 0
                         # Make a corresponding calibration table for the reference phase at the center of spw 0
@@ -332,6 +346,7 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                         if not os.path.exists(caltb_phambd_pha0):
                             gencal(vis=msfile, caltable=caltb_phambd_pha0, caltype='ph', pol='X,Y', antenna=antennas,
                                    parameter=pha0.flatten().tolist())
+                            flag_caltb_by_spw(caltb_phambd, flagspw=flagspw)
 
                 # now decides which table to apply depending on the interpolation method ("nearest" or "linear")
                 dt = np.min(np.abs(t_phas.mjd - t_mid.mjd)) * 24.
@@ -348,9 +363,12 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                     tbind = np.argmin(np.abs(t_phas.mjd - t_mid.mjd))
                     print("Selected nearest phase calibration table at " + t_phas[tbind].iso)
                     gaintables.append(caltbs_phambd[tbind])
-                    spwmaps.append(nspw * [0])
+                    ## Note: gencal generates the same solution for all spws, so no need to specify spwmap
+                    # spwmaps.append(nspw * [0])
+                    spwmaps.append([])
                     gaintables.append(caltbs_phambd_pha0[tbind])
-                    spwmaps.append(nspw * [0])
+                    # spwmaps.append(nspw * [0])
+                    spwmaps.append([])
                 if interp == 'linear':
                     # bphacal = sql2phacalX(btime)
                     # ephacal = sql2phacalX(etime,reverse=True)
@@ -361,15 +379,19 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                         print("Skipping daily phase calibration")
                     elif len(bt_ind) > 0 and len(et_ind) == 0:
                         gaintables.append(caltbs_phambd[bt_ind[-1]])
-                        spwmaps.append(nspw * [0])
+                        # spwmaps.append(nspw * [0])
+                        spwmaps.append([])
                         gaintables.append(caltbs_phambd_pha0[bt_ind[-1]])
-                        spwmaps.append(nspw * [0])
+                        # spwmaps.append(nspw * [0])
+                        spwmaps.append([])
                         print("Using phase calibration table at " + t_phas[bt_ind[-1]].iso)
                     elif len(bt_ind) == 0 and len(et_ind) > 0:
                         gaintables.append(caltbs_phambd[et_ind[0]])
-                        spwmaps.append(nspw * [0])
+                        # spwmaps.append(nspw * [0])
+                        spwmaps.append([])
                         gaintables.append(caltbs_phambd_pha0[et_ind[0]])
-                        spwmaps.append(nspw * [0])
+                        # spwmaps.append(nspw * [0])
+                        spwmaps.append([])
                         print("Using phase calibration table at " + t_phas[et_ind[0]].iso)
                     elif len(bt_ind) > 0 and len(et_ind) > 0:
                         bphacal = phacals[bt_ind[-1]]
@@ -397,9 +419,11 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                         print("Using phase calibration table interpolated between records at " + bphacal[
                             't_pha'].iso + ' and ' + ephacal['t_pha'].iso)
                         gaintables.append(caltb_phambd_interp)
-                        spwmaps.append(nspw * [0])
+                        # spwmaps.append(nspw * [0])
+                        spwmaps.append([])
                         gaintables.append(caltb_phambd_interp_pha0)
-                        spwmaps.append(nspw * [0])
+                        # spwmaps.append(nspw * [0])
+                        spwmaps.append([])
 
         if docalib:
             clearcal(msfile)

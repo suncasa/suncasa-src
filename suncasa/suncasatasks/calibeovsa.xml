@@ -48,6 +48,8 @@
 
         flagant -- string. Follow CASA antenna selection syntax. Default '13~15'.
 
+        flagspw -- string. Follow CASA spw selection syntax. Default '0~1'.
+
         doimage -- boolean. Default False. If true, make a quicklook image using the specified time range and specified spw range
 
         imagedir -- string. Directory to place the output image.
@@ -110,6 +112,11 @@
         <param type="string" name="flagant" subparam="true">
             <description>Antennas to be flagged. Follow CASA syntax of &quot;antenna&quot;.</description>
             <value type="string">13~15</value>
+        </param>
+
+       <param type="string" name="flagspw" subparam="true">
+            <description>Spectral windows to be flagged. Follow CASA syntax of &quot;spw&quot;. Note this flag only applies to phacal tables. </description>
+            <value type="string">0~1</value>
         </param>
 
         <param type="bool" name="doimage">
