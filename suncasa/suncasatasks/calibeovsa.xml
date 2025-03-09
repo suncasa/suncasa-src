@@ -116,7 +116,7 @@
 
        <param type="string" name="flagspw" subparam="true">
             <description>Spectral windows to be flagged. Follow CASA syntax of &quot;spw&quot;. Note this flag only applies to phacal tables. </description>
-            <value type="string">0~1</value>
+            <value type="string"/>
         </param>
 
         <param type="bool" name="doimage">

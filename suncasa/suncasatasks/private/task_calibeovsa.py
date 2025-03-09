@@ -1,8 +1,10 @@
 from ...casa_compat import check_dependencies
+
 check_dependencies()
 
 import platform
 import matplotlib
+
 if platform.system() == 'Linux':
     matplotlib.use('Agg')
 import os
@@ -46,7 +48,7 @@ def flag_phambd_by_spw(caltb, flagspw='0~1'):
     tb.open(caltb, nomodify=False)
     phambd_spw = tb.getcol('SPECTRAL_WINDOW_ID')
     spwindx = np.where(np.logical_and(phambd_spw >= int(sp_st), phambd_spw <= int(sp_ed)))[0]
-    print(spwindx)
+    # print(spwindx)
 
     if 'CPARAM' in tb.colnames():
         data = tb.getcol('CPARAM')
@@ -65,8 +67,9 @@ def flag_phambd_by_spw(caltb, flagspw='0~1'):
     tb.close()
     return True
 
+
 def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, doflag=True, flagant='13~15',
-               flagspw='0~1', doimage=False, imagedir=None, antenna=None, timerange=None, spw=None, stokes=None,
+               flagspw='', doimage=False, imagedir=None, antenna=None, timerange=None, spw=None, stokes=None,
                dosplit=False, outputvis=None, doconcat=False, concatvis=None, keep_orig_ms=True):
     '''
 
@@ -348,8 +351,8 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                         if not os.path.exists(caltb_phambd):
                             gencal(vis=msfile, caltable=caltb_phambd, caltype='mbd', pol='X,Y', antenna=antennas,
                                    parameter=phambd_ns.flatten().tolist())
-                            flag_phambd_by_spw(caltb_phambd, flagspw=flagspw)
-
+                            if flagspw != '':
+                                flag_phambd_by_spw(caltb_phambd, flagspw=flagspw)
 
                         # When applying the multi-band delays, they are referenced to the center of spw 0
                         # Make a corresponding calibration table for the reference phase at the center of spw 0
@@ -359,12 +362,14 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                         if not os.path.exists(caltb_phambd_pha0):
                             gencal(vis=msfile, caltable=caltb_phambd_pha0, caltype='ph', pol='X,Y', antenna=antennas,
                                    parameter=pha0.flatten().tolist())
-                            flag_phambd_by_spw(caltb_phambd_pha0, flagspw=flagspw)
+                            if flagspw != '':
+                                flag_phambd_by_spw(caltb_phambd_pha0, flagspw=flagspw)
 
                 # now decides which table to apply depending on the interpolation method ("nearest" or "linear")
                 dt = np.min(np.abs(t_phas.mjd - t_mid.mjd)) * 24.
                 if interp0 == 'auto':
-                    print(f'interp method is set to auto. The interpolation method will be determined based on the time difference between the mid time of the scan and the nearest phase calibration table.')
+                    print(
+                        f'interp method is set to auto. The interpolation method will be determined based on the time difference between the mid time of the scan and the nearest phase calibration table.')
                     print(f'The time difference threshold is set to 1 hour')
                     if dt < 1.:
                         interp = 'nearest'
@@ -426,11 +431,13 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
                         if not os.path.exists(caltb_phambd_interp):
                             gencal(vis=msfile, caltable=caltb_phambd_interp, caltype='mbd', pol='X,Y', antenna=antennas,
                                    parameter=phambd_ns.flatten().tolist())
-                            flag_phambd_by_spw(caltb_phambd_interp, flagspw=flagspw)
+                            if flagspw != '':
+                                flag_phambd_by_spw(caltb_phambd_interp, flagspw=flagspw)
                         if not os.path.exists(caltb_phambd_interp_pha0):
                             gencal(vis=msfile, caltable=caltb_phambd_interp_pha0, caltype='ph', pol='X,Y',
                                    antenna=antennas, parameter=pha0.flatten().tolist())
-                            flag_phambd_by_spw(caltb_phambd_interp_pha0, flagspw=flagspw)
+                            if flagspw != '':
+                                flag_phambd_by_spw(caltb_phambd_interp_pha0, flagspw=flagspw)
                         print("Using phase calibration table interpolated between records at " + bphacal[
                             't_pha'].iso + ' and ' + ephacal['t_pha'].iso)
                         gaintables.append(caltb_phambd_interp)

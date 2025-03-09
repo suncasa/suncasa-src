@@ -1168,7 +1168,7 @@ def add_convolved_disk_to_fits(in_fits, out_fits, dsz, fdn, ignore_data=False, t
         process_file(in_fits, out_fits)
 
 
-def calc_diskmodel(slashdate, nbands, freq, defaultfreq):
+def calc_diskmodel(tim, nbands, freq, defaultfreq):
     from astropy.time import Time
     # Default disk size measured for 2019/09/03
     # todo add monthly fitting procedure for the disk size and flux density
@@ -1181,14 +1181,14 @@ def calc_diskmodel(slashdate, nbands, freq, defaultfreq):
     # Get current solar distance and modify the default size accordingly
     try:
         from sunpy.coordinates.sun import earth_distance
-        fac = earth_distance('2019/09/03') / earth_distance(slashdate)
+        fac = earth_distance('2019/09/03') / earth_distance(tim)
     except:
         import sunpy.coordinates.ephemeris as eph
-        fac = eph.get_sunearth_distance('2019/09/03') / eph.get_sunearth_distance(slashdate)
+        fac = eph.get_sunearth_distance('2019/09/03') / eph.get_sunearth_distance(tim)
 
     newsize = defaultsize * fac.to_value()
     if nbands == 34:
-        if Time(slashdate.replace('/', '-')).mjd < Time('2018-03-13').mjd:
+        if tim.mjd < Time('2018-03-13').mjd:
             # Interpolate size to 31 spectral windows (bands 4-34 -> spw 0-30)
             newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq[3:])
         else:
@@ -1208,7 +1208,7 @@ def calc_diskmodel(slashdate, nbands, freq, defaultfreq):
                              10023598, 8896671])
     fdens = defaultfdens
     if nbands == 34:
-        if Time(slashdate.replace('/', '-')).mjd < Time('2018-03-13').mjd:
+        if tim.mjd < Time('2018-03-13').mjd:
             # Interpolate size to 31 spectal windows (bands 4-34 -> spw 0-30)
             fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq[3:])
         else:
@@ -1710,6 +1710,7 @@ def imaging(vis, workdir=None, imgoutdir=None, pols='XX', data_column='DATA'):
     (tstart, tend) = viz_timerange.split('~')
     tbg_msfile = Time(qa.quantity(tstart, 's')['value'], format='mjd').to_datetime()
     ted_msfile = Time(qa.quantity(tend, 's')['value'], format='mjd').to_datetime()
+    tmid_msfile = Time((tbg_msfile + ted_msfile) / 2.0)
     reftime_daily = Time(datetime.combine(tbg_msfile.date(), time(20, 0)))
     date_str = tbg_msfile.strftime('%Y%m%d')
     freq_setup = FrequencySetup(Time(tbg_msfile))
@@ -1719,8 +1720,7 @@ def imaging(vis, workdir=None, imgoutdir=None, pols='XX', data_column='DATA'):
     defaultfreq = freq_setup.defaultfreq
     freq = defaultfreq
     nbands = freq_setup.nbands
-    slashdate = tbg_msfile.strftime('%Y/%m/%d')
-    dsize, fdens = calc_diskmodel(slashdate, nbands, freq, defaultfreq)
+    dsize, fdens = calc_diskmodel(tmid_msfile, nbands, freq, defaultfreq)
     fdens = fdens / 2.0  ## convert from I to XX
 
     briggs = 0.0
@@ -1888,7 +1888,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         workdir += '/'
     debug_mode = False
     spwidx2proc = [0, 1, 2, 3, 4, 5, 6]  ## band window index to process
-    alldaymode_spidx = [0]  ## band window index to process for all-day mode
+    alldaymode_spidx = []  ## band window index to process for all-day mode
     diskslfcal_first = [False, False, False, False, True, True, True]  ## whether to perform disk self-calibration first
 
     outfits_all = []
@@ -1909,8 +1909,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         from eovsapy.dump_tsys import findfiles
 
         spwidx2proc = [0, 1, 2, 3, 4, 5, 6]
-        spwidx2proc = [0,3,5]  ## band window index to process
-        alldaymode_spidx = [0]
+        spwidx2proc = [0,3]  ## band window index to process
+        alldaymode_spidx = []
         diskslfcal_first = [False, False, False, False, True, True, True]
 
         datein = datetime(2024, 12, 15, 20, 0, 0)
@@ -1943,9 +1943,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         filelist = udbfilelist_set - msfiles
         filelist = sorted(list(filelist))
         ncpu = 1
-        # importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
-        #             visprefix=outpath, nocreatms=False,
-        #             doconcat=False, modelms="", doscaling=False, keep_nsclms=False, udb_corr=True)
+        importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
+                    visprefix=outpath, nocreatms=False,
+                    doconcat=False, modelms="", doscaling=False, keep_nsclms=False, udb_corr=True)
 
         msfiles = [os.path.basename(ll).split('.')[0] for ll in glob('{}UDB*.ms'.format(outpath)) if
                    ll.endswith('.ms') or ll.endswith('.ms.tar.gz')]
@@ -1962,12 +1962,11 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         vis = calibeovsa(invis, caltype=['refpha','phacal'], caltbdir='./', interp=interp,
                          doflag=True,
                          flagant='13~15',
-                         flagspw='0~1',
-                         doimage=False, doconcat=True,
+                         doimage=False, doconcat=False,
                          # doimage=False, doconcat=False,
                          concatvis=vis_out, keep_orig_ms=True)
 
-        vis = vis_out
+        # vis = vis_out
 
         # if not os.path.exists(vis.replace('.ms','.pols.ms')):
         #     mstl.sort_polarization_order(vis, vis.replace('.ms','.pols.ms'))
@@ -2024,8 +2023,14 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     (tstart, tend) = viz_timerange.split('~')
     tbg_msfile = Time(qa.quantity(tstart, 's')['value'], format='mjd').to_datetime()
     ted_msfile = Time(qa.quantity(tend, 's')['value'], format='mjd').to_datetime()
+    tmid_msfile = Time((tbg_msfile + ted_msfile) / 2)
     reftime_daily = Time(datetime.combine(tbg_msfile.date(), time(20, 0)))
-    date_str = tbg_msfile.strftime('%Y%m%d')
+
+    ## date_str is set to the day 1 if the time is between 08:00 UT on day 1 to 08:00 UT(+1) on day 2
+    if tbg_msfile.time() < time(8, 0):
+        date_str = (tbg_msfile - timedelta(days=1)).strftime('%Y%m%d')
+    else:
+        date_str = tbg_msfile.strftime('%Y%m%d')
     freq_setup = FrequencySetup(Time(tbg_msfile))
     spws_indices = freq_setup.spws_indices
     spws = freq_setup.spws
@@ -2035,8 +2040,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     nbands = freq_setup.nbands
     # bandinfo = mstl.get_bandinfo(msfile, returnbdinfo=True)
 
-    slashdate = tbg_msfile.strftime('%Y/%m/%d')
-    dsize, fdens = calc_diskmodel(slashdate, nbands, freq, defaultfreq)
+
+    dsize, fdens = calc_diskmodel(tmid_msfile, nbands, freq, defaultfreq)
     fdens = fdens / 2.0  ## convert from I to XX
 
     ## set a maxmium uv range for disk self-calibration. 30 meters is a good choice for EOVSA. A minumum of 200 lambda.
@@ -2107,8 +2112,10 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
     delmod(msfile)
 
+    msfile_scans = split_ms_by_scan(msfile, timerange=viz_timerange, outdir=workdir, datacolumn='corrected',
+                                    verbose=verbose)
+
     wsclean_intervals = WSCleanTimeIntervals(msfile, combine_scans=True)
-    ## this step use a single model from the entire MS file and rotate it to each of the minor intervals.
     wsclean_intervals.compute_intervals(nintervals_minor=3)
     wscln_tim_info_combscan = wsclean_intervals.results()
 
@@ -2153,9 +2160,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     msname = os.path.basename(msname)
     msfilename = os.path.basename(msfile)
 
-    diskxmlfile = msfile + '.SOLDISK.xml'
-    run_start_time_shift_corr = datetime.now()
-
     caltbs_all = []
     slfcal_init_objs = []
     slfcal_rnd1_objs = []
@@ -2194,12 +2198,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         clearcal(msfile, spw=spws[sidx])
         reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(spws[sidx], return_bmsize=True)
         log_print('INFO', f"Processing SPW {spws[sidx]} for msfile {os.path.basename(msfile)} ...")
-        if sidx in alldaymode_spidx:
-            auto_mask = 2
-            auto_threshold = 1.5
-        # elif sidx in [5,6]:
-        #     auto_mask = 5
-        #     auto_threshold = 2.5
+        if sidx in [0]:
+            auto_mask = 3
+            auto_threshold = 2
         else:
             auto_mask = 6
             auto_threshold = 3

@@ -72,7 +72,7 @@ class _calibeovsa:
     
     flagant -- string. Follow CASA antenna selection syntax. Default '13~15'.
 
-    flagspw -- string. Follow CASA spw selection syntax. Default '0~1'.
+    flagspw -- string. Follow CASA spw selection syntax. Default ''.
     
     doimage -- boolean. Default False. If true, make a quicklook image using the specified time range and specified spw range
     
@@ -106,7 +106,7 @@ class _calibeovsa:
     _info_group_ = """Calibration"""
     _info_desc_ = """Calibrating EOVSA one or more measurement sets using calibration products in the SQL database."""
 
-    def __call__( self, vis='', caltype=[  ], caltbdir='', interp='nearest', docalib=True, doflag=True, flagant='13~15', flagspw='0~1', doimage=False, imagedir='.', antenna='0~12', timerange='', spw='1~3', stokes='XX', dosplit=False, outputvis='', doconcat=False, concatvis='', keep_orig_ms=True ):
+    def __call__( self, vis='', caltype=[  ], caltbdir='', interp='nearest', docalib=True, doflag=True, flagant='13~15', flagspw='', doimage=False, imagedir='.', antenna='0~12', timerange='', spw='1~3', stokes='XX', dosplit=False, outputvis='', doconcat=False, concatvis='', keep_orig_ms=True ):
         schema = {'vis': {'anyof': [{'type': 'cStr', 'coerce': _coerce.to_str}, {'type': 'cStrVec', 'coerce': [_coerce.to_list,_coerce.to_strvec]}]}, 'caltype': {'anyof': [{'type': 'cStr', 'coerce': _coerce.to_str}, {'type': 'cStrVec', 'coerce': [_coerce.to_list,_coerce.to_strvec]}]}, 'caltbdir': {'type': 'cStr', 'coerce': _coerce.to_str}, 'interp': {'type': 'cStr', 'coerce': _coerce.to_str}, 'docalib': {'type': 'cBool'}, 'doflag': {'type': 'cBool'}, 'flagant': {'type': 'cStr', 'coerce': _coerce.to_str}, 'flagspw': {'type': 'cStr', 'coerce': _coerce.to_str}, 'doimage': {'type': 'cBool'}, 'imagedir': {'type': 'cStr', 'coerce': _coerce.to_str}, 'antenna': {'type': 'cStr', 'coerce': _coerce.to_str}, 'timerange': {'type': 'cStr', 'coerce': _coerce.to_str}, 'spw': {'type': 'cStr', 'coerce': _coerce.to_str}, 'stokes': {'type': 'cStr', 'coerce': _coerce.to_str}, 'dosplit': {'type': 'cBool'}, 'outputvis': {'anyof': [{'type': 'cStr', 'coerce': _coerce.to_str}, {'type': 'cStrVec', 'coerce': [_coerce.to_list,_coerce.to_strvec]}]}, 'doconcat': {'type': 'cBool'}, 'concatvis': {'type': 'cStr', 'coerce': _coerce.to_str}, 'keep_orig_ms': {'type': 'cBool'}}
         doc = {'vis': vis, 'caltype': caltype, 'caltbdir': caltbdir, 'interp': interp, 'docalib': docalib, 'doflag': doflag, 'flagant': flagant, 'flagspw': flagspw, 'doimage': doimage, 'imagedir': imagedir, 'antenna': antenna, 'timerange': timerange, 'spw': spw, 'stokes': stokes, 'dosplit': dosplit, 'outputvis': outputvis, 'doconcat': doconcat, 'concatvis': concatvis, 'keep_orig_ms': keep_orig_ms}
         assert _pc.validate(doc,schema), create_error_string(_pc.errors)

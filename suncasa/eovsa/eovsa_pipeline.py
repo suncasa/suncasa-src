@@ -362,7 +362,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
         if clearcache:
             os.system(f'rm -rf {workdir}/*')
     else:
-        print(f'Version {version} is not supported. Valid versions are v1.0, v2.0, and v3.0. Use the default version.')
+        print(f'Version {version} is not supported. Valid versions are v1.0, v2.0, and v3.0. Use the default version 1.0.')
         vis = ed.pipeline_run(vis, outputvis=output_file_path,
                               workdir=workdir,
                               slfcaltbdir=slfcaltbdir_path,
