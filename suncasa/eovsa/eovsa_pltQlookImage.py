@@ -471,18 +471,44 @@ def pltBbsoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, ve
         plt.close(fig)
     return
 
-
-def main(year=None, month=None, day=None, ndays=1, clearcache=False, ovwrite_eovsa=False, ovwrite_sdo=False,
+def main(dateobj=None, ndays=1, clearcache=False, ovwrite_eovsa=False, ovwrite_sdo=False,
          ovwrite_bbso=False, show_warning=False, debug=False):
-    # tst = datetime.strptime("2017-04-01", "%Y-%m-%d")
-    # ted = datetime.strptime("2019-12-31", "%Y-%m-%d")
+    """
+    Main pipeline for plotting EOVSA daily full-disk images at multiple frequencies.
+
+    :param dateobj: Starting datetime for processing. If None, defaults to two days before now.
+    :type dateobj: datetime, optional
+    :param ndays: Number of days to process (spanning from dateobj - ndays to dateobj); default is 1.
+    :type ndays: int, optional
+    :param clearcache: If True, remove temporary files after processing; default is False.
+    :type clearcache: bool, optional
+    :param ovwrite_eovsa: If True, overwrite existing EOVSA images; default is False.
+    :type ovwrite_eovsa: bool, optional
+    :param ovwrite_sdo: If True, overwrite existing SDO images; default is False.
+    :type ovwrite_sdo: bool, optional
+    :param ovwrite_bbso: If True, overwrite existing BBSO images; default is False.
+    :type ovwrite_bbso: bool, optional
+    :param show_warning: If True, show warnings during processing; default is False.
+    :type show_warning: bool, optional
+    :param debug: If True, run the pipeline in debugging mode; default is False.
+    :type debug: bool, optional
+    :raises Exception: If an error occurs during processing.
+    :return: None
+    :rtype: None
+    """
+    import warnings
+    import numpy as np
+    from datetime import timedelta
+    from astropy.time import Time
+    import matplotlib.pyplot as plt
+
     if not show_warning:
         import warnings
         warnings.filterwarnings("ignore")
-    if year:
-        ted = datetime(year, month, day)
-    else:
-        ted = datetime.now() - timedelta(days=2)
+
+    # Determine the end date for processing.
+    ted = dateobj if dateobj is not None else (datetime.now() - timedelta(days=2))
+    # Calculate the start date based on ndays.
     tst = Time(np.fix(Time(ted).mjd) - ndays, format='mjd').datetime
     tsep = datetime.strptime('2019-02-22', "%Y-%m-%d")
 
@@ -505,175 +531,104 @@ def main(year=None, month=None, day=None, ndays=1, clearcache=False, ovwrite_eov
     dateobs = tst
     while dateobs < ted:
         dateobs = dateobs + timedelta(days=1)
-
-        # dateobs = datetime.strptime("2019-12-21", "%Y-%m-%d")
-
+        # Determine spectral window settings based on the observation date.
         if dateobs > tsep:
             spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43', '44~49']
             spws_v3 = ['0~1', '2~4', '5~10', '11~20', '21~30', '31~43', '44~49']
         else:
             spws = ['1~3', '4~9', '10~16', '17~24', '25~30']
 
-
         datestr = dateobs.strftime("%Y-%m-%d")
-        pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict_eo, fig, ax, overwrite=ovwrite_eovsa, verbose=True)
-        pltEovsaQlookImage_v3(datestr, spws_v3, vmaxs, vmins, dpis_dict_eo, fig, ax, overwrite=ovwrite_eovsa, verbose=True)
-        pltSdoQlookImage(datestr, dpis_dict_sdo, fig, ax, overwrite=ovwrite_sdo, verbose=True, clearcache=clearcache, debug=debug)
-        pltBbsoQlookImage(datestr, dpis_dict_bbso, fig, ax, overwrite=ovwrite_bbso, verbose=True,
-                          clearcache=clearcache)
+        pltEovsaQlookImage(datestr, spws, vmaxs, vmins, dpis_dict_eo, fig, ax,
+                            overwrite=ovwrite_eovsa, verbose=True)
+        pltEovsaQlookImage_v3(datestr, spws_v3, vmaxs, vmins, dpis_dict_eo, fig, ax,
+                               overwrite=ovwrite_eovsa, verbose=True)
+        pltSdoQlookImage(datestr, dpis_dict_sdo, fig, ax,
+                         overwrite=ovwrite_sdo, verbose=True, clearcache=clearcache, debug=debug)
+        pltBbsoQlookImage(datestr, dpis_dict_bbso, fig, ax,
+                          overwrite=ovwrite_bbso, verbose=True, clearcache=clearcache)
 
 
 if __name__ == '__main__':
-    '''
-    Name: 
-    eovsa_pltQlookImage --- pipeline for plotting EOVSA daily full-disk images at multi frequencies.
+    import argparse
+    import os
+    from datetime import datetime, timedelta
+    from astropy.time import Time
 
-    Synopsis:
-    eovsa_pltQlookImage.py [options]... [DATE_IN_YY_MM_DD]
+    parser = argparse.ArgumentParser(
+        description='Pipeline for plotting EOVSA daily full-disk images at multiple frequencies.'
+    )
+    # Default date is set to two days before the current date at 20:00 UT,
+    # formatted as YYYY-MM-DDT20:00.
+    default_date = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%dT20:00')
+    parser.add_argument(
+        '--date', type=str, default=default_date,
+        help='Date to process in YYYY-MM-DDT20:00 format, defaults to 20:00 UT two days before the current date.'
+    )
+    parser.add_argument(
+        '--ndays', type=int, default=1,
+        help='Process data spanning from DATE minus ndays to DATE (default: 1 days).'
+    )
+    parser.add_argument(
+        '--clearcache', action='store_true',
+        help='Remove temporary files after processing.'
+    )
+    parser.add_argument(
+        '--ovwrite_eovsa', action='store_true',
+        help='Overwrite existing EOVSA images.'
+    )
+    parser.add_argument(
+        '--ovwrite_sdo', action='store_true',
+        help='Overwrite existing SDO images.'
+    )
+    parser.add_argument(
+        '--ovwrite_bbso', action='store_true',
+        help='Overwrite existing BBSO images.'
+    )
+    parser.add_argument(
+        '--show_warning', action='store_true',
+        help='Show warnings during processing.'
+    )
+    parser.add_argument(
+        '--debug', action='store_true',
+        help='Run the pipeline in debugging mode.'
+    )
+    # Optional positional date arguments: year month day (overrides --date if provided)
+    parser.add_argument(
+        'date_args', type=int, nargs='*',
+        help='Optional date arguments: year month day. If provided, overrides --date.'
+    )
 
-    Description:
-    Plot EOVSA daily full-disk images at multi frequencies of the date specified
-    by DATE_IN_YY_MM_DD (or from ndays before the DATE_IN_YY_MM_DD if option --ndays/-n is provided).
-    If DATE_IN_YY_MM_DD is omitted, it will be set to 2 days before now by default. 
-    The are no mandatory arguments in this command.
 
-    -c, --clearcache
-            Remove temporary files
+    args = parser.parse_args()
 
-    -n, --ndays
-            Processing the date spanning from DATE_IN_YY_MM_DD-ndays to DATE_IN_YY_MM_DD. Default is 30
+    # Determine the processing date.
+    if len(args.date_args) == 3:
+        year, month, day = args.date_args
+        dateobj = datetime(year, month, day, 20)  # Use 20:00 UT for the specified date.
+    else:
+        dateobj = Time(args.date).datetime
 
-    -e, --ovwrite_eovsa
-            If True, overwrite eovsa images.
-            Syntax: True, False, T, F, 1, 0
+    print(f"Running pipeline_plt for date {t.strftime('%Y-%m-%dT%H:%M')}.")
+    print("Arguments:")
+    print(f"  ndays: {args.ndays}")
+    print(f"  clearcache: {args.clearcache}")
+    print(f"  ovwrite_eovsa: {args.ovwrite_eovsa}")
+    print(f"  ovwrite_sdo: {args.ovwrite_sdo}")
+    print(f"  ovwrite_bbso: {args.ovwrite_bbso}")
+    print(f"  show_warning: {args.show_warning}")
+    print(f"  debug: {args.debug}")
 
-    -s, --ovwrite_sdo
-            If True, overwrite sdo images.
-            Syntax: True, False, T, F, 1, 0
-            
-    -b, --ovwrite_bbso
-            If True, overwrite bbso images.
-            Syntax: True, False, T, F, 1, 0                                
+    # Run the main pipeline function with the datetime object.
+    main(
+        dateobj=dateobj,
+        ndays=args.ndays,
+        clearcache=args.clearcache,
+        ovwrite_eovsa=args.ovwrite_eovsa,
+        ovwrite_sdo=args.ovwrite_sdo,
+        ovwrite_bbso=args.ovwrite_bbso,
+        show_warning=args.show_warning,
+        debug=args.debug
+    )
 
-
-    Example: 
-    eovsa_pltQlookImage.py -c True -n 20 -e True -s False -b False 2020 06 10
-    '''
-
-    import sys
-    import numpy as np
-    import getopt
-
-    year = None
-    month = None
-    day = None
-    ndays = 1
-    clearcache = True
-    ovwrite_eovsa = False
-    ovwrite_sdo = False
-    ovwrite_bbso = False
-    show_warning = False
-    debug=False
-    try:
-        argv = sys.argv[1:]
-        opts, args = getopt.getopt(argv, "c:n:e:s:b:w:d:",
-                                   ['clearcache=', 'ndays=', 'ovwrite_eovsa=', 'ovwrite_sdo=', 'ovwrite_bbso=',
-                                    'show_warning=','debug='])
-        print(opts, args)
-        for opt, arg in opts:
-            if opt in ['-c', '--clearcache']:
-                if arg in ['True', 'T', '1']:
-                    clearcache = True
-                elif arg in ['False', 'F', '0']:
-                    clearcache = False
-                else:
-                    clearcache = np.bool_(arg)
-            elif opt in ('-n', '--ndays'):
-                ndays = int(arg)
-            elif opt in ('-e', '--ovwrite_eovsa'):
-                if arg in ['True', 'T', '1']:
-                    ovwrite_eovsa = True
-                elif arg in ['False', 'F', '0']:
-                    ovwrite_eovsa = False
-                else:
-                    ovwrite_eovsa = np.bool_(arg)
-            elif opt in ('-s', '--ovwrite_sdo'):
-                if arg in ['True', 'T', '1']:
-                    ovwrite_sdo = True
-                elif arg in ['False', 'F', '0']:
-                    ovwrite_sdo = False
-                else:
-                    ovwrite_sdo = np.bool_(arg)
-            elif opt in ('-s', '--ovwrite_bbso'):
-                if arg in ['True', 'T', '1']:
-                    ovwrite_bbso = True
-                elif arg in ['False', 'F', '0']:
-                    ovwrite_bbso = False
-                else:
-                    ovwrite_bbso = np.bool_(arg)
-            elif opt in ('-w', '--show_warning'):
-                if arg in ['True', 'T', '1']:
-                    show_warning = True
-                elif arg in ['False', 'F', '0']:
-                    show_warning = False
-                else:
-                    show_warning = np.bool_(arg)
-            elif opt in ('-d', '--debug'):
-                if arg in ['True', 'T', '1']:
-                    debug = True
-                elif arg in ['False', 'F', '0']:
-                    debug = False
-                else:
-                    debug = np.bool_(arg)
-        nargs = len(args)
-        if nargs == 3:
-            year = int(args[0])
-            month = int(args[1])
-            day = int(args[2])
-        else:
-            year = None
-            month = None
-            day = None
-    except getopt.GetoptError as err:
-        print(err)
-        print('Error interpreting command line argument')
-        year = None
-        month = None
-        day = None
-        ndays = 1
-        clearcache = True
-        ovwrite_eovsa = False
-        ovwrite_sdo = False
-        ovwrite_bbso = False
-        show_warning = False
-        debug=False
-
-    print("Running pipeline_plt for date {}-{}-{}.".format(year, month, day))
-    kargs = {'ndays': ndays,
-             'clearcache': clearcache,
-             'ovwrite_eovsa': ovwrite_eovsa,
-             'ovwrite_sdo': ovwrite_sdo,
-             'ovwrite_bbso': ovwrite_bbso,
-             'show_warning': show_warning,
-             'debug': debug,
-             }
-    for k, v in kargs.items():
-        print(k, v)
-
-    # ##debug
-    # year = 2023
-    # month = 1
-    # day = 5
-    # ndays = 1
-    # clearcache = False
-    # ovwrite_eovsa = True
-    # ovwrite_sdo = True
-    # ovwrite_bbso = True
-
-    main(year=year, month=month, day=day, ndays=ndays,
-         clearcache=clearcache,
-         ovwrite_eovsa=ovwrite_eovsa,
-         ovwrite_sdo=ovwrite_sdo,
-         ovwrite_bbso=ovwrite_bbso,
-         show_warning=show_warning,
-         debug=debug)
+    print(f"Running pipeline plot for date {t.strftime('%Y-%m-%dT%H:%M')}...")

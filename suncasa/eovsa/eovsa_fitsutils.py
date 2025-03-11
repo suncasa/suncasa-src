@@ -94,138 +94,90 @@ def rewriteImageFits(datestr, verbose=False, writejp2=False, overwritejp2=False,
                 ndfits.write_j2000_image(fj2name, data[::-1, :], hdu.header)
     return
 
+def main(dateobj=None, ndays=1, overwritejp2=False, overwritefits=False):
+    """
+    Main pipeline for creating compressed FITS and JP2 files of EOVSA daily full-disk images.
 
-def main(year=None, month=None, day=None, ndays=1, overwritejp2=False, overwritefits=False):
-    # tst = datetime.strptime("2017-04-01", "%Y-%m-%d")
-    # ted = datetime.strptime("2019-12-31", "%Y-%m-%d")
-    if year:
-        ted = datetime(year, month, day)
-    else:
+    :param dateobj: The starting datetime for processing. If None, defaults to two days before now.
+    :type dateobj: datetime, optional
+    :param ndays: Number of days to process (spanning from dateobj - ndays + 1 to dateobj), defaults to 1.
+    :type ndays: int, optional
+    :param overwritejp2: If True, overwrite existing EOVSA JP2 files, defaults to False.
+    :type overwritejp2: bool, optional
+    :param overwritefits: If True, overwrite existing EOVSA FITS files, defaults to False.
+    :type overwritefits: bool, optional
+    :raises Exception: If an error occurs during processing.
+    :return: None
+    :rtype: None
+    """
+    from datetime import timedelta
+    import numpy as np
+    from astropy.time import Time
+
+    # Use dateobj if provided; otherwise, default to two days before now.
+    if dateobj is None:
         ted = datetime.now() - timedelta(days=2)
+    else:
+        ted = dateobj
+
+    # Compute the start date (tst) for processing based on ndays.
     tst = Time(np.fix(Time(ted).mjd) - ndays + 1, format='mjd').datetime
-    print("Running pipeline_fitsutils for date from {} to {}".format(tst.strftime("%Y-%m-%d"),
-                                                                     ted.strftime("%Y-%m-%d")))
+    print("Running pipeline_fitsutils for date from {} to {}.".format(
+        tst.strftime("%Y-%m-%d"), ted.strftime("%Y-%m-%d")))
     dateobs = tst
     while dateobs <= ted:
         datestr = dateobs.strftime("%Y-%m-%d")
-        rewriteImageFits(datestr, verbose=True, writejp2=True, overwritejp2=overwritejp2, overwritefits=overwritefits)
+        rewriteImageFits(datestr, verbose=True, writejp2=True,
+                          overwritejp2=overwritejp2, overwritefits=overwritefits)
         dateobs = dateobs + timedelta(days=1)
 
 
 if __name__ == '__main__':
-    '''
-    Name: 
-    eovsa_fitsutils --- pipeline for created the compressed fits and jp2 files of EOVSA daily full-disk images.
-
-    Synopsis:
-    eovsa_fitsutils.py [options]... [DATE_IN_YY_MM_DD]
-
-    Description:
-    Plot EOVSA daily full-disk images at multi frequencies of the date specified
-    by DATE_IN_YY_MM_DD (or from ndays before the DATE_IN_YY_MM_DD if option --ndays/-n is provided).
-    If DATE_IN_YY_MM_DD is omitted, it will be set to 2 days before now by default. 
-    The are no mandatory arguments in this command.
-
-    -c, --clearcache
-            Remove temporary files
-
-    -n, --ndays
-            Processing the date spanning from DATE_IN_YY_MM_DD-ndays to DATE_IN_YY_MM_DD. Default is 30
-
-    -o, --overwritejp2
-            If True, overwrite eovsa jp2 files.
-            Syntax: True, False, T, F, 1, 0
-
-    -O, --overwritefits
-            If True, overwrite eovsa fits files.
-            Syntax: True, False, T, F, 1, 0                          
-
-
-    Example: 
-    eovsa_fitsutils.py -c True -n 2 -o True -O True 2020 06 10
-    '''
-    import sys
-    import numpy as np
-    import getopt
+    import argparse
     from datetime import datetime, timedelta
+    from astropy.time import Time
 
-    # import subprocess
-    # shell = subprocess.check_output('echo $0', shell=True).decode().replace('\n', '').split('/')[-1]
-    # print("shell " + shell + " is using")
+    parser = argparse.ArgumentParser(
+        description='Pipeline for creating compressed FITS and JP2 files of EOVSA daily full-disk images.'
+    )
+    # Default date is set to two days before the current date at 20:00 UT (YYYY-MM-DDT20:00).
+    default_date = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%dT20:00')
+    parser.add_argument(
+        '--date', type=str, default=default_date,
+        help='Date to process in YYYY-MM-DDT20:00 format, defaults to 20:00 UT two days before the current date.'
+    )
+    parser.add_argument(
+        '--ndays', type=int, default=1,
+        help='Process data spanning from DATE minus ndays to DATE (default: 1 day).'
+    )
+    parser.add_argument(
+        '--overwritejp2', action='store_true',
+        help='Overwrite existing EOVSA JP2 files.'
+    )
+    parser.add_argument(
+        '--overwritefits', action='store_true',
+        help='Overwrite existing EOVSA FITS files.'
+    )
+    # Optional positional date arguments: year month day (overrides --date if provided)
+    parser.add_argument(
+        'date_args', type=int, nargs='*',
+        help='Optional date arguments: year month day. If provided, overrides --date.'
+    )
 
-    print(sys.argv)
-    year = None
-    month = None
-    day = None
-    ndays = 1
-    clearcache = True
-    opts = []
-    overwritejp2 = False
-    overwritefits = False
-    try:
-        argv = sys.argv[1:]
-        opts, args = getopt.getopt(argv, "c:n:o:O:", ['clearcache=', 'ndays=', 'overwritejp2=', 'overwritefits='])
-        print(opts, args)
-        for opt, arg in opts:
-            if opt in ['-c', '--clearcache']:
-                if arg in ['True', 'T', '1']:
-                    clearcache = True
-                elif arg in ['False', 'F', '0']:
-                    clearcache = False
-                else:
-                    clearcache = np.bool_(arg)
-            elif opt in ('-n', '--ndays'):
-                ndays = int(arg)
-            elif opt in ('-o', '--overwritejp2'):
-                if arg in ['True', 'T', '1']:
-                    overwritejp2 = True
-                elif arg in ['False', 'F', '0']:
-                    overwritejp2 = False
-                else:
-                    overwritejp2 = np.bool_(arg)
-            elif opt in ('-O', '--overwritefits'):
-                if arg in ['True', 'T', '1']:
-                    overwritefits = True
-                elif arg in ['False', 'F', '0']:
-                    overwritefits = False
-                else:
-                    overwritefits = np.bool_(arg)
-        nargs = len(args)
-        if nargs == 3:
-            year = int(args[0])
-            month = int(args[1])
-            day = int(args[2])
-        else:
-            year = None
-            month = None
-            day = None
-    except getopt.GetoptError as err:
-        print(err)
-        print('Error interpreting command line argument')
-        year = None
-        month = None
-        day = None
-        ndays = 1
-        clearcache = True
-        opts = []
-        overwritejp2 = False
-        overwritefits = False
+    args = parser.parse_args()
 
-    # ##debug
-    # year = 2023
-    # month = 1
-    # day = 5
-    # ndays = 1
-    # clearcache = False
-    # overwritejp2 = True
-    # overwritefits = True
+    # Determine the processing date.
+    if len(args.date_args) == 3:
+        year, month, day = args.date_args
+        dateobj = datetime(year, month, day, 20)  # Use 20:00 UT for the specified date.
+    else:
+        dateobj = Time(args.date).datetime
 
-    print("Running eovsa_fitsutils for date {}-{}-{}.".format(year, month, day))
-    kargs = {'ndays': ndays,
-             'clearcache': clearcache,
-             'overwritejp2': overwritejp2,
-             'overwritefits': overwritefits}
-    for k, v in kargs.items():
-        print(k, v)
+    print(f"Running eovsa_fitsutils for date {dateobj.strftime('%Y-%m-%d')}.")
+    print("Arguments:")
+    print(f"  ndays: {args.ndays}")
+    print(f"  overwritejp2: {args.overwritejp2}")
+    print(f"  overwritefits: {args.overwritefits}")
 
-    main(year, month, day, ndays, overwritejp2=overwritejp2, overwritefits=overwritefits)
+    # Call the main function with the parsed datetime object.
+    main(dateobj, args.ndays, overwritejp2=args.overwritejp2, overwritefits=args.overwritefits)
