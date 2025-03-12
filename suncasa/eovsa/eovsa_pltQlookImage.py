@@ -609,7 +609,7 @@ if __name__ == '__main__':
     else:
         dateobj = Time(args.date).datetime
 
-    print(f"Running pipeline_plt for date {t.strftime('%Y-%m-%dT%H:%M')}.")
+    print(f"Running pipeline_plt for date {dateobj.strftime('%Y-%m-%dT%H:%M')}.")
     print("Arguments:")
     print(f"  ndays: {args.ndays}")
     print(f"  clearcache: {args.clearcache}")
