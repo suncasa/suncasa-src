@@ -1452,7 +1452,7 @@ def merge_FITSfiles(fitsfilesin, outfits, snr_weight=None, deselect_index=None,
     if snr_weight is not None:
         weights = np.array(snr_weight)
     else:
-        weights = np.ones(data_stack.shape[-1])
+        weights = np.ones(data_stack.shape[0])
     weights[deselect_index] = 0
     weights = weights / np.sum(weights)
     weights = weights[:, np.newaxis, np.newaxis]
@@ -1909,7 +1909,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         from eovsapy.dump_tsys import findfiles
 
         spwidx2proc = [0, 1, 2, 3, 4, 5, 6]
-        spwidx2proc = [0]  ## band window index to process
+        # spwidx2proc = [0]  ## band window index to process
         alldaymode_spidx = [0]
         diskslfcal_first = [False, False, False, False, True, True, True]
 
@@ -1919,7 +1919,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         # datein = datetime(2022, 6, 15, 20, 0, 0)
         # datein = datetime(2021, 11, 25, 20, 0, 0)
         # datein = datetime(2021, 11, 23, 20, 0, 0)
-        datein = datetime(2020, 11, 29, 20, 0, 0)
+        # datein = datetime(2020, 11, 29, 20, 0, 0)
+        datein = datetime(2024, 4, 8, 20, 0, 0)
 
         trange = Time(datein)
         if trange.mjd == np.fix(trange.mjd):
@@ -1945,9 +1946,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         filelist = udbfilelist_set - msfiles
         filelist = sorted(list(filelist))
         ncpu = 1
-        importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
-                    visprefix=outpath, nocreatms=False,
-                    doconcat=False, modelms="", doscaling=False, keep_nsclms=False, udb_corr=True)
+        # importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
+        #             visprefix=outpath, nocreatms=False,
+        #             doconcat=False, modelms="", doscaling=False, keep_nsclms=False, udb_corr=True)
 
         msfiles = [os.path.basename(ll).split('.')[0] for ll in glob('{}UDB*.ms'.format(outpath)) if
                    ll.endswith('.ms') or ll.endswith('.ms.tar.gz')]
@@ -1964,7 +1965,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         vis = calibeovsa(invis, caltype=['refpha','phacal'], caltbdir='./', interp=interp,
                          doflag=True,
                          flagant='13~15',
-                         flagspw='0~1',
+                         # flagspw='0~1',
                          doimage=False, doconcat=True,
                          # doimage=False, doconcat=False,
                          concatvis=vis_out, keep_orig_ms=True)
