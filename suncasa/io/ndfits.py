@@ -485,10 +485,14 @@ def wrap(fitsfiles, outfitsfile=None, docompress=False, mask=None, fix_invalid=T
             else:
                 cdelts = np.squeeze(np.diff(np.array(imres['freq']), axis=1)) * 1e9
             stokesinfo = headerparse(header)
+
             if stokesinfo['axis'] is None:
                 npol = 1
             else:
                 npol = int(header['NAXIS{}'.format(stokesinfo['axis'])])
+                if docompress:
+                    print(f'Warning: only 1D, 2D, or 3D images are currently supported for compression.  {npol} polarization(s) found in the input fits files. Only the first polarization will be written to the output file.')
+                    npol=1
             nbd = nband
             ny = int(header['NAXIS2'])
             nx = int(header['NAXIS1'])

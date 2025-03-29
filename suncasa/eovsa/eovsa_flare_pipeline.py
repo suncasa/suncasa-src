@@ -68,6 +68,55 @@ def get_user_confirmation(prompt):
             print("Invalid input. Please enter 'y' or 'n'.")
 
 class FlareSelfCalib():
+    """
+    FlareSelfCalib provides a pipeline for self-calibration and imaging of EOVSA solar flare data.
+
+    This class handles the detection of flare times and locations, self-calibration of visibility data,
+    and final imaging steps for flare events, as well as renaming and moving the output files to designated
+    web directories.
+
+    :param vis: Full path for the input visibility data or a pre-processed flare-calibrated dataset, defaults to None
+    :type vis: str or object, optional
+    :param workpath: Working directory path for pipeline outputs, defaults to './'
+    :type workpath: str, optional
+    :param logfile: Path to the logfile. If not provided, a default log file is generated based on the current time, defaults to None
+    :type logfile: str, optional
+
+    :raises ValueError: If the input visibility (when provided as a string) does not exist.
+
+    Example:
+        from suncasa.eovsa import eovsa_flare_pipeline
+        from eovsapy.util import Time
+
+        trange_str = ['2023-12-14T16:54:00', '2023-12-14T17:10:00']
+        flare_id = '20231214170000'
+
+        # Initialize the pipeline with a given time range
+        trange = Time(trange_str)
+        fp = eovsa_flare_pipeline.FlareSelfCalib(vis=trange)
+
+        # Run the self-calibration and imaging pipeline
+        fp.slfcal_pipeline(doselfcal=True, doimaging=True)
+
+        # Rename and move the output files to the designated web directories
+        fp.rename_move_files(
+            flare_id=flare_id,
+            fitsdir_web_tp='/data1/eovsa/fits/flares/',
+            movdir_web_tp='/common/webplots/SynopticImg/eovsamedia/eovsa-browser/',
+            msdir_web_tp='/data1/eovsa/fits/flares/',
+            dorename_fits=True,
+            domove_fits=True,
+            dorename_mov=True,
+            domove_mov=True,
+            domove_ms=True,
+            dormworkdir=True,
+            docopy=True
+        )
+
+    :return: None
+    :rtype: None
+    """
+
     def __init__(self, vis=None, workpath='./', logfile=None):
         ##========================= initial setups =================================
         self.workpath = workpath

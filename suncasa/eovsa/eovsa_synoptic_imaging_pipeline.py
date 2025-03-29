@@ -1539,34 +1539,6 @@ class FrequencySetup:
         return crval, cdelt
 
 
-# def get_eofreq(vis):
-#     spw2band = np.array([0, 1] + list(range(4, 52)))
-#     bandwidth = 0.325  ## 325 MHz
-#     defaultfreq = 1.1 + bandwidth * (spw2band + 0.5)
-#     if mstl.get_trange(vis)[0].mjd > 58536:
-#         # After 2019 Feb 22, the band numbers changed to 1-52, and spw from 0-49
-#         nbands = 52
-#         eofreq = defaultfreq
-#         spws = ['0~1', '2~4', '5~10', '11~20', '21~30', '31~40', '41~49']
-#     else:
-#         # Before 2019 Feb 22, the band numbers were 1-34, and spw from 0-30
-#         bandwidth = 0.5  ## 500 MHz
-#         nbands = 34
-#         eofreq = 1.419 + np.arange(nbands) * bandwidth
-#         spws = ['1~3', '4~9', '10~16', '17~24', '25~30']
-#     return eofreq, spws, bandwidth
-#
-#
-# def get_reffreq(spw, reffreqs, bandwidth):
-#     if '~' in spw:
-#         sp_st, sp_ed = [int(i) for i in spw.split('~')]
-#     else:
-#         sp_st = sp_ed = int(spw)
-#     nband = (reffreqs[sp_ed] - reffreqs[sp_st]) / bandwidth + 1
-#     crval = f'{np.mean(reffreqs[sp_st:sp_ed + 1]):.4f}GHz'
-#     cdelt = f'{nband * bandwidth:.4f}GHz'
-#     return crval, cdelt
-
 
 def fd_images(vis,
               cleanup=False,
@@ -2125,8 +2097,16 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
     msfile_copy = os.path.join(subdir, f'{msname}.ms')
     if not os.path.exists(msfile_copy):
-        shutil.copytree(msfile, msfile_copy)
+        if msfile.lower().endswith('.ms'):
+            shutil.copytree(msfile, msfile_copy)
+        elif msfile.lower().endswith('.ms.tar.gz'):
+            os.system(f'tar -zxf {msfile} -C {subdir}')
+        else:
+            raise ValueError(f"Unsupported file format: {msfile}")
     msfile = msfile_copy
+
+
+
     diskxmlfile = msfile + '.SOLDISK.xml'
     disk_params = {'dsize': dsize, 'fdens': fdens, 'freq': freq, 'diskxmlfile': diskxmlfile}
 
@@ -2551,7 +2531,7 @@ with open({repr(result_path)}, 'w') as result_file:
 
         newdiskxmlfile = '{}.SOLDISK.xml'.format(outputvis)
         if os.path.exists(newdiskxmlfile):
-            shutil.rmtree(newdiskxmlfile)
+            os.remove(newdiskxmlfile)
         shutil.move(diskxmlfile, newdiskxmlfile)
 
     if clearlargecache:

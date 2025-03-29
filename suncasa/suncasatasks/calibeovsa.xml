@@ -40,13 +40,15 @@
 
         caltbdir -- string. Place to hold calibration tables. Default is current directory. Pipeline should use /data1/eovsa/caltable
 
-        interp -- string. How interpolation is done for phacal? 'nearest' or 'linear'
+        interp -- string. How interpolation is done for phacal? 'nearest', 'linear', or 'auto'
 
         docalib -- boolean. Default True. If False, only create the calibration tables but do not perform applycal
 
         doflag -- boolean. Default True. Peforming flags?
 
         flagant -- string. Follow CASA antenna selection syntax. Default '13~15'.
+
+        flagspw -- string. Follow CASA spw selection syntax. Default '0~1'.
 
         doimage -- boolean. Default False. If true, make a quicklook image using the specified time range and specified spw range
 
@@ -93,7 +95,7 @@
         </param>
 
         <param type="string" name="interp">
-            <description>Temporal interpolation for phacal table(s) (nearest or linear)</description>
+            <description>Temporal interpolation for phacal table(s) (nearest, linear or auto)</description>
             <value type="string">nearest</value>
         </param>
 
@@ -110,6 +112,11 @@
         <param type="string" name="flagant" subparam="true">
             <description>Antennas to be flagged. Follow CASA syntax of &quot;antenna&quot;.</description>
             <value type="string">13~15</value>
+        </param>
+
+       <param type="string" name="flagspw" subparam="true">
+            <description>Spectral windows to be flagged. Follow CASA syntax of &quot;spw&quot;. Note this flag only applies to phacal tables. </description>
+            <value type="string"/>
         </param>
 
         <param type="bool" name="doimage">

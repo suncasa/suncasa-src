@@ -166,7 +166,6 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False, 
 
     if use_astropy:
         from sunpy.coordinates import sun
-        from astropy import units as u
         from astropy.coordinates import get_body, EarthLocation
 
         if observatory is None:
@@ -218,7 +217,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory=None, verbose=False, 
             p0_set.append(P)
             delta_set.append(0)
 
-        ephem = {'time': time_set, 'ra': ra_set, 'dec': dec_set, 'p0': p0_set, 'delta': delta_set} 
+        ephem = {'time': time_set, 'ra': ra_set, 'dec': dec_set, 'p0': p0_set, 'delta': delta_set}
 
     else:
         if not t0 and not vis:
@@ -821,7 +820,7 @@ def getbeam(imagefile=None, beamfile=None):
                     bpa_.append(bpa0)
                 beamunit_ = beams['*' + chans_[0]]['*0']['major']['unit']
                 bpaunit_ = beams['*' + chans_[0]]['*0']['positionangle']['unit']
-            if 'restoringbeam' in sum.keys():  # only one beam
+            elif 'restoringbeam' in sum.keys():  # only one beam
                 bmaj_.append(sum['restoringbeam']['major']['value'])
                 bmin_.append(sum['restoringbeam']['minor']['value'])
                 bpa_.append(sum['restoringbeam']['positionangle']['value'])
@@ -829,6 +828,23 @@ def getbeam(imagefile=None, beamfile=None):
                 bpaunit_ = sum['restoringbeam']['positionangle']['unit']
                 nbeams = 1
                 chans_ = [0]
+            else:
+                if img.lower().endswith('.fits') or img.lower().endswith('.fts'):
+                    from astropy.io import fits
+                    hdulist = fits.open(img)
+                    if hdulist[0].header['BMAJ']<0:
+                        print(f'Warning: Negative beam size found in {img}. Set to positive value. Check your imaging results carefully!')
+                    bmaj0 = abs(hdulist[0].header['BMAJ'])*3600
+                    bmin0 = abs(hdulist[0].header['BMIN'])*3600
+                    bpa0 = hdulist[0].header['BPA']
+                    beamunit_ = 'arcsec'
+                    bpaunit_ = 'deg'
+                    hdulist.close()
+                    bmaj_.append(bmaj0)
+                    bmin_.append(bmin0)
+                    bpa_.append(bpa0)
+                    nbeams = 1
+                    chans_ = [0]
 
         bmaj.append(bmaj_)
         bmin.append(bmin_)

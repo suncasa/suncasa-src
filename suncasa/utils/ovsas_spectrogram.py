@@ -444,4 +444,4 @@ if __name__ == '__main__':
     current_date = datetime.now()
     previous_day = (current_date - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     print(f'plotting OVSAs spectrogram for {previous_day.strftime("%Y-%m-%d")}')
-    plot(previous_day, figdir=f'/common/webplots/SynopticImg/eovsamedia/eovsa-browser/{previous_day.strftime("%Y/%m/%d")}/', clip=[10, 99.5])
+    ovsp.plot(previous_day, figdir=f'/common/webplots/SynopticImg/eovsamedia/eovsa-browser/{previous_day.strftime("%Y/%m/%d")}/', clip=[10, 99.5])
