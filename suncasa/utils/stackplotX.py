@@ -1442,7 +1442,7 @@ class Stackplot:
                 sidx = np.argmin(np.abs(tplt - (tjd_ - dt / 3600. / 24.)))
                 if sidx==idx and idx>0:
                     sidx=idx-1
-                print(f'time difference between {idx} and {sidx} is {(tplt[idx] - tplt[sidx])*24*3600}')
+                # print(f'time difference between {idx} and {sidx} is {(tplt[idx] - tplt[sidx])*24*3600}')
                 if mode == 'rdiff':
                     mapdata = datacube[:, :, idx] - datacube[:, :, sidx]
                     mapdata[np.isnan(mapdata)] = 0.0
@@ -1479,6 +1479,8 @@ class Stackplot:
             print('diff mode not recognized. Accept modes: rdiff, rratio, bdiff, bratio, dtrend')
             return None
         mapseq_diff = sunpy.map.Map(maplist, sequence=True)
+        print(f'mapseq_diff shape: {mapseq_diff.as_array().shape}')
+
 
         if bfilter:
             datacube = mapseq_diff.as_array()
@@ -1859,6 +1861,7 @@ class Stackplot:
         return mapseq
 
     def stackplt_wrap(self):
+        
         cutslitplt = self.cutslitbd.cutslitplt
         dspec = {'dspec': self.stackplt, 'x': np.hstack(
             (self.tplt.plot_date, self.tplt.plot_date[-1] + np.nanmean(np.diff(self.tplt.plot_date)))),

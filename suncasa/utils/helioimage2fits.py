@@ -120,8 +120,6 @@ def read_horizons(t0=None, dur=None, vis=None, observatory="OVRO", verbose=False
     if use_astropy:
 
         from sunpy.coordinates import sun
-        from astropy.time import Time
-        from astropy import units as u
         from astropy.coordinates import get_body, EarthLocation
 
         if not t0 and not vis:
@@ -170,8 +168,7 @@ def read_horizons(t0=None, dur=None, vis=None, observatory="OVRO", verbose=False
             p0_set.append(P)
             delta_set.append(0)
 
-        ephem = {'time': time_set, 'ra': ra_set, 'dec': dec_set, 'p0': p0_set, 'delta': delta_set} 
-
+        ephem = {'time': time_set, 'ra': ra_set, 'dec': dec_set, 'p0': p0_set, 'delta': delta_set}
 
     else:
         if not t0 and not vis:

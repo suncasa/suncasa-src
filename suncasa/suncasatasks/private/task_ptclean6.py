@@ -3,6 +3,7 @@ import numpy as np
 import shutil
 from functools import partial
 from time import time
+from astropy.time import Time
 import glob
 import sys
 from ...utils import helioimage2fits as hf
@@ -159,19 +160,6 @@ def ptclean6(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
         casalog.post('ncpu should be an integer')
         ncpu = 1
 
-    if doreg:
-        # check if ephem and msinfo exist. If not, generate one on the fly
-        try:
-            ephem = hf.read_horizons(vis=vis)
-        except ValueError:
-            print("error in obtaining ephemeris")
-        try:
-            msinfo = hf.read_msinfo(vis)
-        except ValueError:
-            print("error in getting ms info")
-    else:
-        ephem = None
-        msinfo = None
 
     if imageprefix:
         workdir = os.path.dirname(imageprefix)
@@ -224,6 +212,33 @@ def ptclean6(vis, imageprefix, imagesuffix, ncpu, twidth, doreg, usephacenter, r
 
     btstr = qa.time(qa.quantity(tim[btidx], 's'), prec=9, form='fits')[0]
     etstr = qa.time(qa.quantity(tim[etidx], 's'), prec=9, form='fits')[0]
+
+    if doreg:
+        times_utc = Time(tim / 86400.0, format='mjd', scale='utc')
+        bt_tim = times_utc[btidx]
+        et_tim = times_utc[etidx]
+        # check if ephem and msinfo exist. If not, generate one on the fly
+        try:
+            msinfo = hf.read_msinfo(vis)
+        except ValueError:
+            print("error in getting ms info")
+        if 'observatory' in msinfo.keys():
+            if msinfo['observatory'] == 'EOVSA' or msinfo['observatory'] == 'FASR':
+                usephacenter = False
+
+        observatory=msinfo['observatory']
+        if observatory == 'EOVSA' or observatory == 'FASR' or observatory == 'OVRO_MMA':
+            observatory = 'OVRO'
+
+        try:
+            ephem = hf.read_horizons(t0=bt_tim, dur=et_tim.mjd-bt_tim.mjd, observatory=observatory)
+        except ValueError:
+            print("error in obtaining ephemeris")
+    else:
+        ephem = None
+        msinfo = None
+
+
 
     iterable = range(btidx, etidx + 1, twidth)
     print('First time pixel: ' + btstr)
