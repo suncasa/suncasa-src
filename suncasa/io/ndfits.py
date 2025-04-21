@@ -209,96 +209,101 @@ def read(filepath, hdus=None, verbose=False, **kwargs):
             h.verify('silentfix+warn')
 
         meta = {}
+        data = None
+        # Process primary HDUs to extract image/map metadata and data
         for i, hdu in enumerate(hdulist):
             try:
-                ndim = hdu.data.ndim
                 header = hdu.header
+                arr = hdu.data
+                if arr is None:
+                    continue
+
+                ndim = arr.ndim
                 slc = [slice(None)] * ndim
                 freq_axis = None
                 pol_axis = None
-                _ = None
                 npol = 1
-                nfreq_fits = 1
+                nfreq = 1
+
+                # Identify frequency and polarization axes
                 for idx in range(ndim):
-                    v = header['CTYPE{}'.format(idx + 1)]
-                    if v.startswith('FREQ'):
+                    ctype = header.get(f'CTYPE{idx+1}', '')
+                    if ctype.startswith('FREQ'):
                         freq_axis = ndim - (idx + 1)
-                        nfreq_fits = header['NAXIS{}'.format(idx + 1)]
-                    if v.startswith('STOKES'):
+                        nfreq = header.get(f'NAXIS{idx+1}', 1)
+                    if ctype.startswith('STOKES'):
                         pol_axis = ndim - (idx + 1)
-                        npol = header['NAXIS{}'.format(idx + 1)]
+                        npol = header.get(f'NAXIS{idx+1}', 1)
+
+                # Build frequency metadata
                 if freq_axis is not None:
                     slc[freq_axis] = slice(0, 1)
-                    meta['ref_cfreqs'] = (hdu.header['CRVAL{}'.format(ndim - freq_axis)] + hdu.header[
-                        'CDELT{}'.format(ndim - freq_axis)] * np.arange(
-                        hdu.header['NAXIS{}'.format(ndim - freq_axis)]))
-                    meta['ref_freqdelts'] = np.ones_like(meta['ref_cfreqs']) \
-                                            * hdu.header['CDELT{}'.format(ndim - freq_axis)]
+                    vals = header.get(f'NAXIS{ndim-freq_axis}', 1)
+                    crval = header.get(f'CRVAL{ndim-freq_axis}', 0.0)
+                    cdelt = header.get(f'CDELT{ndim-freq_axis}', 1.0)
+                    meta['ref_cfreqs'] = crval + cdelt * np.arange(vals)
+                    meta['ref_freqdelts'] = np.ones(vals) * cdelt
                 else:
-                    meta['ref_cfreqs'] = np.array([hdu.header['RESTFRQ']])
+                    restfrq = header.get('RESTFRQ', 0.0)
+                    meta['ref_cfreqs'] = np.array([restfrq])
+                    meta['ref_freqdelts'] = np.array([0.0])
 
+                # Build polarization metadata
                 if pol_axis is not None:
                     slc[pol_axis] = slice(0, 1)
-                    meta['pol_idxs'] = (hdu.header['CRVAL{}'.format(ndim - pol_axis)] + hdu.header[
-                        'CDELT{}'.format(ndim - pol_axis)] * np.arange(
-                        hdu.header['NAXIS{}'.format(ndim - pol_axis)]))
-                    meta['pol_names'] = [stokesval['{0:d}'.format(int(p))] for p in meta['pol_idxs']]
-                if _ is not None:
-                    slc[_] = slice(0, 1)
-                hdu.data[np.isnan(hdu.data)] = 0.0
-                rmap = smap.Map(np.squeeze(hdu.data[tuple(slc)]), hdu.header)
-                data = hdu.data.copy()
-                meta['header'] = hdu.header.copy()
-                meta['refmap'] = rmap  # this is a sunpy map of the first slice
-                meta['naxis'] = ndim
-                meta['hgln_axis'] = ndim - 1  # solar X
-                meta['nx'] = header['NAXIS1']
-                meta['hglt_axis'] = ndim - 2  # solar Y
-                meta['ny'] = header['NAXIS2']
-                meta['freq_axis'] = freq_axis
-                meta['nfreq'] = nfreq_fits
-                meta['pol_axis'] = pol_axis
-                meta['npol'] = npol
+                    vals = header.get(f'NAXIS{ndim-pol_axis}', 1)
+                    crval = header.get(f'CRVAL{ndim-pol_axis}', 0.0)
+                    cdelt = header.get(f'CDELT{ndim-pol_axis}', 1.0)
+                    meta['pol_idxs'] = crval + cdelt * np.arange(vals)
+                    # Assume a global stokesval dict exists or adapt as needed
+                    meta['pol_names'] = [stokesval.get(str(int(p)), '') for p in meta['pol_idxs']]
+
+                # Clean NaNs and build a SunPy map for the first slice
+                clean_arr = np.nan_to_num(arr)
+                rmap = smap.Map(np.squeeze(clean_arr[tuple(slc)]), header)
+
+                data = clean_arr.copy()
+                # Populate basic metadata
+                meta.update({
+                    'header': header.copy(),
+                    'refmap': rmap,
+                    'naxis': ndim,
+                    'nx': header.get('NAXIS1', 0),
+                    'ny': header.get('NAXIS2', 0),
+                    'hgln_axis': ndim - 1,
+                    'hglt_axis': ndim - 2,
+                    'freq_axis': freq_axis,
+                    'nfreq': nfreq,
+                    'pol_axis': pol_axis,
+                    'npol': npol,
+                })
                 break
             except Exception as e:
                 if verbose:
-                    if hasattr(e, 'message'):
-                        print(e.message)
-                    else:
-                        print(e)
-                    print('skipped HDU {}'.format(i))
+                    print(e)
+                    print(f'skipped HDU {i}')
                 meta, data = {}, None
 
-        # Check if an additional frequency axis exists. If so, they should be in the last hdu.
-        if hasattr(hdulist[-1].data, 'cfreqs'):
-            if verbose:
-                print('FITS file contains an additional frequency axis. '
-                      'Update the frequency information in cfreqs and cdelts. '
-                      'Ignore the original version with equal spacings.')
-            meta['ref_cfreqs'] = np.array(hdulist[-1].data['cfreqs'])
-            meta['ref_freqdelts'] = np.array(hdulist[-1].data['cdelts'])
+        # Check for additional table columns in the last HDU and map keys as needed
+        last_data = hdulist[-1].data
+        if hasattr(last_data, 'dtype') and last_data.dtype.names:
+            key_map = {
+                'cfreqs': 'ref_cfreqs',
+                'cdelts': 'ref_freqdelts',
+                'cbmaj': 'bmaj',
+                'cbmin': 'bmin',
+                'cbpa': 'bpa',
+            }
+            for key in last_data.dtype.names:
+                arr = np.array(last_data[key])
+                out_key = key_map.get(key, key)
+                meta[out_key] = arr
+        elif verbose:
+            print('No table fields found in the last HDU; no additional columns added.')
 
-        if hasattr(hdulist[-1].data, 'bmaj'):
-            meta['bmaj'] = np.array(hdulist[-1].data['bmaj'])
-            meta['bmin'] = np.array(hdulist[-1].data['bmin'])
-            meta['bpa'] = np.array(hdulist[-1].data['bpa'])
-
-        if hasattr(hdulist[-1].data, 'cbmaj'):
-            meta['bmaj'] = np.array(hdulist[-1].data['cbmaj'])
-            meta['bmin'] = np.array(hdulist[-1].data['cbmin'])
-            meta['bpa'] = np.array(hdulist[-1].data['cbpa'])
-
-        if hasattr(hdulist[-1].data, 'refra_shift_x'):
-            meta['refra_shift_x'] = np.array(hdulist[-1].data['refra_shift_x'])
-            meta['refra_shift_y'] = np.array(hdulist[-1].data['refra_shift_y'])
-
-        else:
-            if verbose:
-                print('FITS file does not have an additional frequency axis. '
-                      'Use the original version with equal spacings.')
         hdulist.close()
+    return meta, data
 
-        return meta, data
 
 
 def write(fname, data, header, mask=None, fix_invalid=True, filled_value=0.0, overwrite=True, **kwargs):
