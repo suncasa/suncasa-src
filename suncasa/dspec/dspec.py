@@ -313,6 +313,7 @@ class Dspec:
                     self.telescope = 'EOVSA'
                     self.observatory = 'OVRO'
 
+
             if source.lower() == 'suncasa':
                 spec, tim, freq, bl, pol, spec_unit = self.rd_dspec(fname, spectype='amp', spec_unit='jy')
                 self.data = spec
@@ -336,7 +337,7 @@ class Dspec:
                     self.telescope = 'LWA'
                     self.observatory = 'OVRO'
 
-            if source.lower() =='general' and (fname.endswith('.fits') or fname.endswith('.fts')):
+            if source.lower() =='general' and (fname.endswith('.fits') or fname.endswith('.fts') or fname.endswith('.fit')):
                 hdu = fits.open(fname)
                 self.data = hdu[0].data
                 tim = hdu[2].data
@@ -364,7 +365,15 @@ class Dspec:
             self.spec_unit = 'sfu'
             self.telescope = 'LWA'
             self.observatory = 'OVRO'
-
+        elif source.lower()=='ecallisto':
+            from .sources import ecallisto
+            s = ecallisto.get_dspec(fname, doplot=False)
+            self.data = s['spectrogram']
+            self.time_axis = Time(s['time_axis'], format='mjd')
+            self.freq_axis = s['spectrum_axis'] * 1e6
+            self.spec_unit = 'sfu'
+            self.telescope = 'e-callisto'
+            self.observatory = 'e-callisto'
         else:
             raise ValueError(f"Unsupported data source or type provided: {source}")
 
