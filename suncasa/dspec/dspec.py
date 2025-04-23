@@ -325,7 +325,8 @@ class Dspec:
                 self.telescope = ''
                 self.observatory = ''
 
-            if source.lower() == 'lwa' and fname.endswith('.fits'):
+            if source.lower() == 'lwa':
+                if fname.endswith('.fits'):
                     hdu = fits.open(fname) 
                     self.data = hdu[0].data
                     tim = hdu[2].data
@@ -333,6 +334,19 @@ class Dspec:
                     self.time_axis = Time(tmjd, format='mjd')
                     self.freq_axis = hdu[1].data['sfreq'] * 1e9
                     self.pol = [hdu[0].header['POLARIZA']]
+                    self.spec_unit = 'sfu'
+                    self.telescope = 'LWA'
+                    self.observatory = 'OVRO'
+                else:
+                    from .sources import lwa
+                    spec, tim, freq, pol, calfac_x, calfac_y, bkg_flux = lwa.read_data(fname, **kwargs)
+                    self.data = spec
+                    self.time_axis = Time(tim, format='mjd')
+                    self.freq_axis = freq
+                    self.pol = pol
+                    self.calfac_x = calfac_x # correction factor for X pol, same shape as freq
+                    self.calfac_y = calfac_y # correction factor for Y pol, same shape as freq
+                    self.bkg_flux = bkg_flux
                     self.spec_unit = 'sfu'
                     self.telescope = 'LWA'
                     self.observatory = 'OVRO'
