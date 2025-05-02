@@ -57,7 +57,7 @@ def setup_time_axis(ax, start, end, minticks=5, maxticks=10):
 
 
 def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', figname=None, combine=True,
-         clip=[10, 99.995], add_logo=False, fast_plot=True, interactive=False):
+         clip=[10, 99.995], add_logo=False, fast_plot=True, interactive=False, overwrite=False):
     """
     Plot the OVRO-LWA and EOVSA spectrograms along with STIX and GOES light curves for a given timestamp or time range.
 
@@ -155,9 +155,10 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', fi
             # Define the file name for the combined figure
             figname = os.path.join(figdir, f'fig-OVSAs_spec_{timestamp.strftime("%Y%m%d")}.jpg')
         if os.path.exists(figname):
-            if timerange is None:
-                # If the combined figure already exists, skip plotting individual figures
-                print(f'Combined figure for {timestamp.strftime("%Y-%m-%d")} already exists. Skipping individual figures.')
+            if overwrite:
+                os.system(f'rm -f {figname}')
+            else:
+                print(f'Combined figure for {timestamp.strftime("%Y-%m-%d")} already exists. Skipping.')
                 return [figname]
     else:
         # Define file names for each figure
@@ -210,7 +211,10 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', fi
         ax_ovrolwa.text(0.5, 0.5, 'No OVRO-LWA data available', transform=ax_ovrolwa.transAxes,
                         ha='center', va='center', fontsize=12, color='gray')
         ax_ovrolwa.set_ylabel('Frequency [MHz]')
-        ax_ovrolwa.set_ylim(29.033934, 83.871824)
+        if timestamp>= datetime(2025, 4, 18):
+            ax_ovrolwa.set_ylim(15, 85)
+        else:
+            ax_ovrolwa.set_ylim(29.033934, 83.871824)
         ovro_lwa_start, ovro_lwa_end = default_start_time, default_end_time
         divider = make_axes_locatable(ax_ovrolwa)
         cax_spec = divider.append_axes('right', size='1.5%', pad=0.05)
