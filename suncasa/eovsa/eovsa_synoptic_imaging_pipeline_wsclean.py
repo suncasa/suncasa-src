@@ -1168,15 +1168,25 @@ def add_convolved_disk_to_fits(in_fits, out_fits, dsz, fdn, ignore_data=False, t
         process_file(in_fits, out_fits)
 
 
-def calc_diskmodel(tim, nbands, freq, defaultfreq):
+def calc_diskmodel0(tim, nbands, freq, defaultfreq):
     from astropy.time import Time
     # Default disk size measured for 2019/09/03
-    # todo add monthly fitting procedure for the disk size and flux density
     defaultsize = np.array([990.6, 989.4, 988.2, 987.1, 986.0, 984.9, 983.8, 982.7, 981.7, 980.7,
                             979.7, 978.8, 977.8, 976.9, 976.0, 975.2, 974.3, 973.5, 972.7, 972.0,
                             971.2, 970.5, 969.8, 969.1, 968.5, 967.8, 967.2, 966.7, 966.1, 965.6,
                             965.1, 964.6, 964.1, 963.7, 963.3, 962.9, 962.5, 962.1, 961.8, 961.5,
                             961.3, 961.0, 960.8, 960.6, 960.4, 960.2, 960.1, 960.0, 959.9, 959.8])
+
+    # These are nominal flux densities * 2, determined on 2019/09/03
+    defaultfdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
+                             1613253, 1702751, 1800721, 1946756, 2096020, 2243951,
+                             2367362, 2525968, 2699795, 2861604, 3054829, 3220450,
+                             3404182, 3602625, 3794312, 3962926, 4164667, 4360683,
+                             4575677, 4767210, 4972824, 5211717, 5444632, 5648266,
+                             5926634, 6144249, 6339863, 6598018, 6802707, 7016012,
+                             7258929, 7454951, 7742816, 7948976, 8203206, 8411834,
+                             8656720, 8908130, 9087766, 9410760, 9571365, 9827078,
+                             10023598, 8896671])
 
     # Get current solar distance and modify the default size accordingly
     try:
@@ -1196,16 +1206,7 @@ def calc_diskmodel(tim, nbands, freq, defaultfreq):
             newsize = np.polyval(np.polyfit(defaultfreq, newsize, 5), freq[[0] + list(range(2, 34))])
     dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize], dtype='U12')
 
-    # These are nominal flux densities * 2, determined on 2019/09/03
-    defaultfdens = np.array([891282, 954570, 1173229, 1245433, 1373730, 1506802,
-                             1613253, 1702751, 1800721, 1946756, 2096020, 2243951,
-                             2367362, 2525968, 2699795, 2861604, 3054829, 3220450,
-                             3404182, 3602625, 3794312, 3962926, 4164667, 4360683,
-                             4575677, 4767210, 4972824, 5211717, 5444632, 5648266,
-                             5926634, 6144249, 6339863, 6598018, 6802707, 7016012,
-                             7258929, 7454951, 7742816, 7948976, 8203206, 8411834,
-                             8656720, 8908130, 9087766, 9410760, 9571365, 9827078,
-                             10023598, 8896671])
+
     fdens = defaultfdens
     if nbands == 34:
         if tim.mjd < Time('2018-03-13').mjd:
@@ -1216,6 +1217,97 @@ def calc_diskmodel(tim, nbands, freq, defaultfreq):
             fdens = np.polyval(np.polyfit(defaultfreq, fdens, 5), freq[[0] + list(range(2, 34))])
     return dsize, fdens
 
+
+
+def disk_size_function(v, c1, alpha1, c2, alpha2):
+    """
+    Analytic model for disk size as a function of frequency.
+
+    R(v) = c1 / v^(alpha1) + c2 / v^(alpha2)
+
+    Parameters:
+      v      : float or array_like
+               Frequency (e.g., in GHz).
+      c1     : float
+               Coefficient for the first term.
+      alpha1 : float
+               Exponent for the first term.
+      c2     : float
+               Coefficient for the second term.
+      alpha2 : float
+               Exponent for the second term.
+
+    Returns:
+      Disk size at frequency v.
+    """
+    return c1 * v ** (-alpha1) + c2 * v ** (-alpha2)
+
+
+def flux_function(v, c1, alpha1, c2, alpha2):
+    """
+    Analytic model for disk flux as a function of frequency.
+
+    F(v) = c1 * v^(alpha1) + c2 * v^(alpha2)
+
+    Parameters:
+      v      : float or array_like
+               Frequency (e.g., in GHz).
+      c1     : float
+               Coefficient for the first term.
+      alpha1 : float
+               Exponent for the first term.
+      c2     : float
+               Coefficient for the second term.
+      alpha2 : float
+               Exponent for the second term.
+
+    Returns:
+      Disk flux at frequency v.
+    """
+    return c1 * v ** (alpha1) + c2 * v ** (alpha2)
+
+
+def calc_diskmodel(tim, nbands, freq):
+    from astropy.time import Time
+    ## The following disk size and flux density are derived using diskfitter based on 22 days of quiescent Sun data in 2019/09-2019/10.
+    ## The disk sizes of all days are rescaled to the size on 2019/09/01.
+    ## fitting params for disk size. [8.99295515e+02, 3.26324866e-01, 3.59103477e+02, -1.88429536e-01]
+    ## fitting params for disk flux density. [60.9254115   0.69705383  0.60279497  2.29533769]
+    ## Note: the lastest diskfitter is on /data1/sjyu/eovsa/ipynb_scripts, not in local. The parameters can be found in eovsa_disk_fitting.ipynb
+    params_disksize = [899.295515, 0.326324866, 359.103477, -0.188429536]
+    params_flux = [60.9254115, 0.69705383, 0.60279497, 2.29533769]
+
+    # Get current solar distance and modify the default size accordingly
+    try:
+        from sunpy.coordinates.sun import earth_distance
+        fac = earth_distance('2019/09/01') / earth_distance(tim)
+    except:
+        import sunpy.coordinates.ephemeris as eph
+        fac = eph.get_sunearth_distance('2019/09/01') / eph.get_sunearth_distance(tim)
+
+
+    if nbands == 34:
+        if tim.mjd < Time('2018-03-13').mjd:
+            # Interpolate size to 31 spectral windows (bands 4-34 -> spw 0-30)
+            newsize = disk_size_function(freq[3:], *params_disksize) * fac.to_value()
+        else:
+            # Dates between 2018-03-13 have 33 spectral windows
+            newsize = disk_size_function(freq[[0] + list(range(2, 34))], *params_disksize) * fac.to_value()
+    else:
+        newsize = disk_size_function(freq, *params_disksize) * fac.to_value()
+    dsize = np.array([str(i)[:5] + 'arcsec' for i in newsize], dtype='U12')
+
+
+    if nbands == 34:
+        if tim.mjd < Time('2018-03-13').mjd:
+            # Interpolate size to 31 spectal windows (bands 4-34 -> spw 0-30)
+            fdens = flux_function(freq[3:], *params_flux)
+        else:
+            # Dates between 2018-03-13 have 33 spectral windows
+            fdens = flux_function(freq[[0] + list(range(2, 34))], *params_flux)
+    else:
+        fdens = flux_function(freq, *params_flux)
+    return dsize, fdens*1e4
 
 def ant_trange(vis):
     ''' Figure out nominal times for tracking of old EOVSA antennas, and return time
@@ -1720,7 +1812,7 @@ def imaging(vis, workdir=None, imgoutdir=None, pols='XX', data_column='DATA'):
     defaultfreq = freq_setup.defaultfreq
     freq = defaultfreq
     nbands = freq_setup.nbands
-    dsize, fdens = calc_diskmodel(tmid_msfile, nbands, freq, defaultfreq)
+    dsize, fdens = calc_diskmodel(tmid_msfile, nbands, freq)
     fdens = fdens / 2.0  ## convert from I to XX
 
     briggs = 0.0
@@ -2023,7 +2115,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     # bandinfo = mstl.get_bandinfo(msfile, returnbdinfo=True)
 
 
-    dsize, fdens = calc_diskmodel(tmid_msfile, nbands, freq, defaultfreq)
+    dsize, fdens = calc_diskmodel(tmid_msfile, nbands, freq)
     fdens = fdens / 2.0  ## convert from I to XX
 
 
