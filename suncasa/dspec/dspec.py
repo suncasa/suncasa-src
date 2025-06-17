@@ -490,7 +490,7 @@ class Dspec:
 
         # primary header
         prihdr = hdulist[0].header
-        prihdr.set('FILENAME', fitsfile)
+        prihdr.set('FILENAME', os.path.basename(fitsfile))
         prihdr.set('ORIGIN', 'NJIT', 'Location where file was made')
         prihdr.set('DATE', Time.now().isot, 'Date when file was made')
         prihdr.set('OBSERVER', observer, 'Who to appreciate/blame')
