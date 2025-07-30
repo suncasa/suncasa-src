@@ -46,7 +46,7 @@
 
         doflag -- boolean. Default True. Peforming flags?
 
-        flagant -- string. Follow CASA antenna selection syntax. Default '13~15'.
+        flagant -- string. Follow CASA antenna selection syntax. Default ''.
 
         flagspw -- string. Follow CASA spw selection syntax. Default '0~1'.
 
@@ -54,7 +54,7 @@
 
         imagedir -- string. Directory to place the output image.
 
-        antenna -- string. Default '0~12'. Antenna/baselines to be used for imaging. Follow CASA antenna selection syntax.
+        antenna -- string. Default ''. Antenna/baselines to be used for imaging. Follow CASA antenna selection syntax.
 
         timerange -- string. Default '' (the whole duration of the visibility data). Follow CASA timerange syntax.
                      e.g., '2017/07/11/20:16:00~2017/07/11/20:17:00'
@@ -111,7 +111,7 @@
 
         <param type="string" name="flagant" subparam="true">
             <description>Antennas to be flagged. Follow CASA syntax of &quot;antenna&quot;.</description>
-            <value type="string">13~15</value>
+            <value type="string"></value>
         </param>
 
        <param type="string" name="flagspw" subparam="true">
@@ -131,7 +131,7 @@
 
         <param type="string" name="antenna" subparam="true">
             <description>antenna/baselines to be used for imaging. Follow CASA syntax of &quot;antenna&quot;.</description>
-            <value type="string">0~12</value>
+            <value type="string"></value>
         </param>
 
         <param type="string" name="timerange" subparam="true">

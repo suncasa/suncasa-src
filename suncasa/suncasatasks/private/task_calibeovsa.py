@@ -18,6 +18,7 @@ from eovsapy import dbutil as db
 from eovsapy import pipeline_cal as pc
 from eovsapy.sqlutil import sql2refcalX, sql2phacalX
 from .. import concateovsa
+from suncasa.eovsa.update_log import EOVSA15_UPGRADE_DATE, DCM_IF_FILTER_UPGRADE_DATE
 
 from ...casa_compat import import_casatools, import_casatasks
 
@@ -68,8 +69,8 @@ def flag_phambd_by_spw(caltb, flagspw='0~1'):
     return True
 
 
-def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, doflag=True, flagant='13~15',
-               flagspw='', doimage=False, imagedir=None, antenna=None, timerange=None, spw=None, stokes=None,
+def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, doflag=True, flagant='',
+               flagspw='', doimage=False, imagedir=None, antenna='', timerange=None, spw=None, stokes=None,
                dosplit=False, outputvis=None, doconcat=False, concatvis=None, keep_orig_ms=True):
     '''
 
@@ -158,6 +159,14 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
         print("This scan observed from {} to {} UTC".format(btime.iso, etime.iso))
         gaintables = []
         spwmaps = []
+
+        if not antenna.strip():
+            antenna = '0~12'
+        if not flagant.strip():
+            flagant = '13~15'
+        if t_mid.mjd >= EOVSA15_UPGRADE_DATE.mjd:
+            antenna = '0~14'
+            flagant = '15'
 
         if ('refpha' in caltype) or ('refamp' in caltype) or ('refcal' in caltype):
             refcal = sql2refcalX(btime)
@@ -472,8 +481,6 @@ def calibeovsa(vis=None, caltype=None, caltbdir='', interp=None, docalib=True, d
             from suncasa.utils import helioimage2fits as hf
             from sunpy import map as smap
 
-            if not antenna:
-                antenna = '0~12'
             if not stokes:
                 stokes = 'XX'
             if not timerange:

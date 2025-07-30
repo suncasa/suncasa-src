@@ -15,6 +15,7 @@ from suncasa.eovsa import eovsa_diskmodel as ed
 from suncasa.utils import mstools as mstl
 
 from suncasa.casa_compat import import_casatasks, import_casatools
+from suncasa.eovsa.update_log import  EOVSA15_UPGRADE_DATE,DCM_IF_FILTER_UPGRADE_DATE
 
 tasks = import_casatasks('split', 'tclean', 'gencal', 'clearcal', 'applycal', 'gaincal',
                          'delmod')
@@ -287,6 +288,8 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
     for idx, f in enumerate(invis):
         invis[idx] = f.rstrip('/')
 
+
+
     if overwrite or (invis == []):
         if isinstance(trange, Time):
             mslist = trange2ms(trange=trange, doimport=doimport, overwrite=overwrite)
@@ -301,10 +304,13 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
         for idx, f in enumerate(invis):
             invis[idx] = f.rstrip('/')
 
+
         outputvis = os.path.join(os.path.dirname(invis[0]), os.path.basename(invis[0])[:11] + '.ms')
+        tdate = get_tdate_from_basename(outputvis)
+        flagant = '13~15' if Time(tdate).mjd >= EOVSA15_UPGRADE_DATE.mjd else '15'
         vis = calibeovsa(invis, caltype=caltype, caltbdir=caltbdir, interp=interp,
                          doflag=True,
-                         flagant='13~15',
+                         flagant=flagant,
                          doimage=False, doconcat=True,
                          concatvis=outputvis, keep_orig_ms=False)
     else:
@@ -699,7 +705,7 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
         print('date format not recognised. Abort....')
         return None
 
-    if date.mjd > Time('2019-02-02 12:00:00').mjd:
+    if date.mjd >= DCM_IF_FILTER_UPGRADE_DATE.mjd:
         ## the last '' window is for fullBD synthesis image. Now obsolete.
         # spws = ['6~10', '11~20', '21~30', '31~43', '']
         # spws = ['6~10', '11~20', '21~30', '31~43']

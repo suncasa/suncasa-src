@@ -4,7 +4,41 @@ Originally written by Dr. Peijin Zhang @peijin94
 
 import subprocess
 from typing import List, Optional, Union
+import time
+from datetime import datetime
+from functools import wraps
 
+def format_duration(seconds):
+    """Format seconds into appropriate unit string."""
+    if seconds < 60:
+        return f"{seconds:.2f} seconds"
+    minutes = seconds / 60
+    if minutes < 60:
+        return f"{minutes:.2f} minutes"
+    hours = minutes / 60
+    if hours < 24:
+        return f"{hours:.2f} hours"
+    days = hours / 24
+    return f"{days:.2f} days"
+
+
+def runtime_report(func):
+    """Decorator to report runtime of a function and log completion time."""
+    import time
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        duration = end - start
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(
+            f"'{func.__name__}' completed at {now}; "
+            f"runtime: {format_duration(duration)}"
+        )
+        return result
+    return wrapper
 
 class WSClean:
     def __init__(self, vis: str):
@@ -30,7 +64,7 @@ class WSClean:
             'multiscale': False,  # default no multiscale
             'multiscale_gain': 0.1,  # default multiscale gain
             'multiscale_scales': [0, 5, 12.5],  # default multiscale scales
-            'muiltiscale_scale_bias': 0.6,  # default multiscale scale bias. A lower bias will give more focus to larger scales. Default: 0.6
+            'multiscale_scale_bias': 0.6,  # default multiscale scale bias. A lower bias will give more focus to larger scales. Default: 0.6
             'multiscale_shape': 'tapered-quadratic',  # default multiscale shape. Sets the shape function used during multi-scale clean. Either 'tapered-quadratic' (default) or 'gaussian'.
             'maxuvw_m': None,  # max uvw in meters
             'minuvw_m': None,  # min uvw in meters
@@ -39,6 +73,7 @@ class WSClean:
             'no_update_model': False,  # default update model
             'no_negative': False,  # default allow negative
             'beam_size': None,  # if not None, the beam size in arcsec
+            'beam_fitting_size': 5,  # if not None, the beam fitting size in PSFs. Default: 5 PSFs
             'circular_beam': False,  # default no circular beam
             'local_rms': False,  # Instead of using a single RMS for auto thresholding/masking, use a spatially varying RMS image
             'local_rms_strength': 1.0,  # default local rms strength
@@ -126,7 +161,7 @@ class WSClean:
             if len(self.params['multiscale_scales']) > 0:
                 scales = ','.join(map(str, self.params['multiscale_scales']))
                 cmd.extend(['-multiscale-scales', scales])
-            cmd.extend(['-multiscale-scale-bias', str(self.params['muiltiscale_scale_bias'])])
+            cmd.extend(['-multiscale-scale-bias', str(self.params['multiscale_scale_bias'])])
             cmd.extend(['-multiscale-shape', self.params['multiscale_shape']])
 
 
@@ -176,6 +211,9 @@ class WSClean:
         if self.params['beam_size'] is not None:
             cmd.extend(['-beam-size', str(self.params['beam_size'])])
 
+        if self.params['beam_fitting_size'] is not None:
+            cmd.extend(['-beam-fitting-size', str(self.params['beam_fitting_size'])])
+
         if 'intervals_out' in self.params:
             cmd.extend(['-intervals-out', str(self.params['intervals_out'])])
 
@@ -197,6 +235,7 @@ class WSClean:
 
         return ' '.join(cmd)
 
+    @runtime_report
     def run(self, dryrun: bool = False) -> int:
         """
         Run wsclean command
