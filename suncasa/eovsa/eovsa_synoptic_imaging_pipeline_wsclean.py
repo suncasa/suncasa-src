@@ -2150,6 +2150,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         datein = datetime(2019, 9, 20, 20, 0, 0)
         # datein = datetime(2019, 9, 18, 20, 0, 0)
         datein = datetime(2023, 12, 24, 20, 0, 0)
+        datein = datetime(2025, 2, 14, 20, 0, 0)
 
         trange = Time(datein)
         if trange.mjd == np.fix(trange.mjd):
@@ -2164,41 +2165,43 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         print('Selected timerange in UTC: ', trange.iso)
         inpath = '{}{}/'.format(udbdir, tdatetime.strftime("%Y"))
         outpath = './'
-        msfile_synoptic = os.path.join(outpath, 'UDB' + tdatetime.strftime("%Y%m%d") + '.ms')
-        # sclist = ra.findfiles(trange, projid='NormalObserving', srcid='Sun')
-        sclist = findfiles(trange, projid='NormalObserving', srcid='Sun')
-        udbfilelist = sclist['scanlist']
-        udbfilelist = [os.path.basename(ll) for ll in udbfilelist]
-        udbfilelist_set = set(udbfilelist)
-        msfiles = []
-        msfiles = udbfilelist_set.intersection(msfiles)
-        filelist = udbfilelist_set - msfiles
-        filelist = sorted(list(filelist))
-        ncpu = 1
-        importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
-                    visprefix=outpath, nocreatms=False,
-                    doconcat=False, modelms="", doscaling=False, keep_nsclms=False, udb_corr=True)
+        vis = os.path.join(outpath, 'UDB' + tdatetime.strftime("%Y%m%d") + '.ms')
+        if not os.path.exists(vis):
+            msfile_synoptic = os.path.join(outpath, 'UDB' + tdatetime.strftime("%Y%m%d") + '.ms')
+            # sclist = ra.findfiles(trange, projid='NormalObserving', srcid='Sun')
+            sclist = findfiles(trange, projid='NormalObserving', srcid='Sun')
+            udbfilelist = sclist['scanlist']
+            udbfilelist = [os.path.basename(ll) for ll in udbfilelist]
+            udbfilelist_set = set(udbfilelist)
+            msfiles = []
+            msfiles = udbfilelist_set.intersection(msfiles)
+            filelist = udbfilelist_set - msfiles
+            filelist = sorted(list(filelist))
+            ncpu = 1
+            importeovsa(idbfiles=[inpath + ll for ll in filelist], ncpu=ncpu, timebin="0s", width=1,
+                        visprefix=outpath, nocreatms=False,
+                        doconcat=False, modelms="", doscaling=False, keep_nsclms=False, udb_corr=True)
 
-        msfiles = [os.path.basename(ll).split('.')[0] for ll in glob('{}UDB*.ms'.format(outpath)) if
-                   ll.endswith('.ms') or ll.endswith('.ms.tar.gz')]
-        udbfilelist_set = set(udbfilelist)
-        msfiles = udbfilelist_set.intersection(msfiles)
-        filelist = udbfilelist_set - msfiles
-        filelist = sorted(list(filelist))
+            msfiles = [os.path.basename(ll).split('.')[0] for ll in glob('{}UDB*.ms'.format(outpath)) if
+                       ll.endswith('.ms') or ll.endswith('.ms.tar.gz')]
+            udbfilelist_set = set(udbfilelist)
+            msfiles = udbfilelist_set.intersection(msfiles)
+            filelist = udbfilelist_set - msfiles
+            filelist = sorted(list(filelist))
 
-        invis = [outpath + ll + '.ms' for ll in sorted(list(msfiles))]
-        vis_out = os.path.join(os.path.dirname(invis[0]), os.path.basename(invis[0])[:11] + '.ms')
-        interp = 'auto'
-        # interp = 'nearest'
-        # vis = calibeovsa(invis, caltype=['refpha', 'phacal'], caltbdir='./', interp='auto',
-        flagant = '13~15' if btime.mjd >= EOVSA15_UPGRADE_DATE.mjd else '15'
-        vis = calibeovsa(invis, caltype=['refpha', 'phacal'], caltbdir='./', interp=interp,
-                         doflag=True,
-                         flagant=flagant,
-                         # flagspw='0~1',
-                         doimage=False, doconcat=True,
-                         # doimage=False, doconcat=False,
-                         concatvis=vis_out, keep_orig_ms=True)
+            invis = [outpath + ll + '.ms' for ll in sorted(list(msfiles))]
+            vis_out = os.path.join(os.path.dirname(invis[0]), os.path.basename(invis[0])[:11] + '.ms')
+            interp = 'auto'
+            # interp = 'nearest'
+            # vis = calibeovsa(invis, caltype=['refpha', 'phacal'], caltbdir='./', interp='auto',
+            flagant = '13~15' if btime.mjd >= EOVSA15_UPGRADE_DATE.mjd else '15'
+            vis = calibeovsa(invis, caltype=['refpha', 'phacal'], caltbdir='./', interp=interp,
+                             doflag=True,
+                             flagant=flagant,
+                             # flagspw='0~1',
+                             doimage=False, doconcat=True,
+                             # doimage=False, doconcat=False,
+                             concatvis=vis_out, keep_orig_ms=True)
 
         # vis = vis_out
 
@@ -2318,29 +2321,63 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     wsclean_intervals = WSCleanTimeIntervals(msfile, combine_scans=True)
     ## for calibration, we want to use longer time intervals for the first two bands
     # Mapping: spectral index → (multiplier of 50 min intervals)
-    interval_multipliers = {
+    interval_multipliers_init = {
         0: 20,  # 20× longer for band 0 -- all day mode
-        1: 4,  # 4× longer for band 1
+        1: 20,  # 20× longer for band 1 -- all day mode
     }
 
     ## for imaging, we want to use shorter time intervals for the first two bands
     # bands 2–6 use the base length (50 min)
-    interval_multipliers.update({idx: 1 for idx in range(2, 7)})
+    interval_multipliers_init.update({idx: 1 for idx in range(2, 7)})
+
+    interval_multipliers_rnd1 = {
+        0: 6,  # 20× longer for band 0 -- 5× longer for band 0
+        1: 3,  # 20× longer for band 1 -- 3× longer for band 1
+    }
+
+    ## for imaging, we want to use shorter time intervals for the first two bands
+    # bands 2–6 use the base length (50 min)
+    interval_multipliers_rnd1.update({idx: 1 for idx in range(2, 7)})
+
+    interval_multipliers_rnd2 = {
+        0: 4,  # 20× longer for band 0 -- 5× longer for band 0
+        1: 2,  # 20× longer for band 1 -- 3× longer for band 1
+    }
+
+    ## for imaging, we want to use shorter time intervals for the first two bands
+    # bands 2–6 use the base length (50 min)
+    interval_multipliers_rnd2.update({idx: 1 for idx in range(2, 7)})
+
 
     # Mapping: spectral index → (multiplier of 50 min intervals)
     interval_multipliers_final = {
-        0: 2,  # 3× longer for band 0
-        1: 1,  # 2× longer for band 1
+        0: 2.4,  # 2.4× longer for band 0
+        1: 1.2,  # 1.2× longer for band 1
     }
     # bands 2–6 use the base length (50 min)
     interval_multipliers_final.update({idx: 1 for idx in range(2, 7)})
 
-    N1 = {}
-    N2 = {}
-    time_intervals = {}
-    time_intervals_major_avg = {}
-    time_intervals_minor_avg = {}
-    timeranges = {}
+    N1_init = {}
+    N2_init = {}
+    time_intervals_init = {}
+    time_intervals_major_avg_init = {}
+    time_intervals_minor_avg_init = {}
+    timeranges_init = {}
+
+    N1_rnd1 = {}
+    N2_rnd1 = {}
+    time_intervals_rnd1 = {}
+    time_intervals_major_avg_rnd1 = {}
+    time_intervals_minor_avg_rnd1 = {}
+    timeranges_rnd1 = {}
+
+    N1_rnd2 = {}
+    N2_rnd2 = {}
+    time_intervals_rnd2 = {}
+    time_intervals_major_avg_rnd2 = {}
+    time_intervals_minor_avg_rnd2 = {}
+    timeranges_rnd2 = {}
+
     N1_final = {}
     N2_final = {}
     time_intervals_final = {}
@@ -2457,24 +2494,59 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             if snr >= 30:
                 bright[sidx] = True
                 log_print('INFO', f"SPW {spws[sidx]}: SNR is high enough ({snr:.1f}). Setting bright to True.")
-                interval_multipliers[sidx] = 2
+                # interval_multipliers_rnd1[sidx] = 2
 
-        mult = interval_multipliers.get(sidx, 1)
+        ## set the multipliers for the time intervals based init, rnd1, and final imaging
+        mult = interval_multipliers_init.get(sidx, 1)
         wsclean_intervals.interval_length = 50 * mult
         wsclean_intervals.compute_intervals(nintervals_minor=3)
         res = wsclean_intervals.results()
 
-        N1[sidx] = res['nintervals_major']
-        N2[sidx] = res['nintervals_minor']
-        time_intervals[sidx] = res['time_intervals']
-        time_intervals_major_avg[sidx] = res['time_intervals_major_avg']
-        time_intervals_minor_avg[sidx] = res['time_intervals_minor_avg']
+        N1_init[sidx] = res['nintervals_major']
+        N2_init[sidx] = res['nintervals_minor']
+        time_intervals_init[sidx] = res['time_intervals']
+        time_intervals_major_avg_init[sidx] = res['time_intervals_major_avg']
+        time_intervals_minor_avg_init[sidx] = res['time_intervals_minor_avg']
         tr = []
         for tidx, trange in enumerate(res['time_intervals']):
             tr.append(
                 trange[0].datetime.strftime('%Y/%m/%d/%H:%M:%S') + '~' + trange[-1].datetime.strftime(
                     '%Y/%m/%d/%H:%M:%S'))
-        timeranges[sidx] = tr
+        timeranges_init[sidx] = tr
+
+        mult = interval_multipliers_rnd1.get(sidx, 1)
+        wsclean_intervals.interval_length = 50 * mult
+        wsclean_intervals.compute_intervals(nintervals_minor=3)
+        res = wsclean_intervals.results()
+
+        N1_rnd1[sidx] = res['nintervals_major']
+        N2_rnd1[sidx] = res['nintervals_minor']
+        time_intervals_rnd1[sidx] = res['time_intervals']
+        time_intervals_major_avg_rnd1[sidx] = res['time_intervals_major_avg']
+        time_intervals_minor_avg_rnd1[sidx] = res['time_intervals_minor_avg']
+        tr = []
+        for tidx, trange in enumerate(res['time_intervals']):
+            tr.append(
+                trange[0].datetime.strftime('%Y/%m/%d/%H:%M:%S') + '~' + trange[-1].datetime.strftime(
+                    '%Y/%m/%d/%H:%M:%S'))
+        timeranges_rnd1[sidx] = tr
+
+        mult = interval_multipliers_rnd2.get(sidx, 1)
+        wsclean_intervals.interval_length = 50 * mult
+        wsclean_intervals.compute_intervals(nintervals_minor=3)
+        res = wsclean_intervals.results()
+
+        N1_rnd2[sidx] = res['nintervals_major']
+        N2_rnd2[sidx] = res['nintervals_minor']
+        time_intervals_rnd2[sidx] = res['time_intervals']
+        time_intervals_major_avg_rnd2[sidx] = res['time_intervals_major_avg']
+        time_intervals_minor_avg_rnd2[sidx] = res['time_intervals_minor_avg']
+        tr = []
+        for tidx, trange in enumerate(res['time_intervals']):
+            tr.append(
+                trange[0].datetime.strftime('%Y/%m/%d/%H:%M:%S') + '~' + trange[-1].datetime.strftime(
+                    '%Y/%m/%d/%H:%M:%S'))
+        timeranges_rnd2[sidx] = tr
 
         mult = interval_multipliers_final.get(sidx, 1)
         wsclean_intervals.interval_length = 50 * mult
@@ -2499,9 +2571,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         feature_slfcal = bright[sidx]
         if feature_slfcal:
             ## initial phase self-calibration
-            slfcal_obj = MSselfcal(msfile, time_intervals[sidx], time_intervals_major_avg[sidx],
-                                   time_intervals_minor_avg[sidx],
-                                   spws[sidx], N1[sidx], N2[sidx], workdir, image_marker='init', niter=100,
+            slfcal_obj = MSselfcal(msfile, time_intervals_init[sidx], time_intervals_major_avg_init[sidx],
+                                   time_intervals_minor_avg_init[sidx],
+                                   spws[sidx], N1_init[sidx], N2_init[sidx], workdir, image_marker='init', niter=100,
                                    data_column="DATA",
                                    pols=pols,
                                    auto_mask=auto_mask,
@@ -2526,10 +2598,10 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             ## select a subset of the data for the initial phase self-calibration.
             # timerange_sub = viz_timerange
 
-            if N1[sidx] == 1:
-                timerange_sub = trange2timerange([time_intervals[sidx][0][0], time_intervals[sidx][0][-1]])
+            if N1_init[sidx] == 1:
+                timerange_sub = trange2timerange([time_intervals_init[sidx][0][0], time_intervals_init[sidx][0][-1]])
             else:
-                timerange_sub = trange2timerange([time_intervals[sidx][0][-1], time_intervals[sidx][N1[sidx] - 1][0]])
+                timerange_sub = trange2timerange([time_intervals_init[sidx][0][-1], time_intervals_init[sidx][N1_init[sidx] - 1][0]])
 
             gaincal(vis=msfile, caltable=caltb, selectdata=True,
                     timerange=timerange_sub,
@@ -2549,7 +2621,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                     uvrange='',
                     spw=spws[sidx],
                     combine="scan", antenna=f'{antenna}&{antenna}', refant='0',
-                    solint=f'{tdur * 60 / N1[sidx]:.0f}s', refantmode="flex",
+                    solint=f'{tdur * 60 / N1_init[sidx]/ N2_init[sidx]:.0f}s', refantmode="flex",
                     gaintype='G',
                     gaintable=caltbs,
                     minsnr=1.0, calmode='p', append=False)
@@ -2585,9 +2657,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             # else:
             auto_mask = 4
             auto_threshold = 2
-            slfcal_obj = MSselfcal(msfile, time_intervals[sidx], time_intervals_major_avg[sidx],
-                                   time_intervals_minor_avg[sidx],
-                                   spws[sidx], N1[sidx], N2[sidx], workdir, image_marker='round1', niter=500,
+            slfcal_obj = MSselfcal(msfile, time_intervals_rnd1[sidx], time_intervals_major_avg_rnd1[sidx],
+                                   time_intervals_minor_avg_rnd1[sidx],
+                                   spws[sidx], N1_rnd1[sidx], N2_rnd1[sidx], workdir, image_marker='round1', niter=500,
                                    briggs=briggs,
                                    minuvw_m=8,
                                    maxuvw_m=1500,
@@ -2606,7 +2678,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                     spw=spws[sidx],
                     combine="scan", antenna=f'{antenna}&{antenna}', refant='0',
                     # solint=f'{tdur *60 / N2[sidx] / N1[sidx]:.0f}s', refantmode="flex",
-                    solint=f'{tdur * 60 / N1[sidx]:.0f}s', refantmode="flex",
+                    solint=f'{tdur * 60 / N1_rnd1[sidx]/ N2_rnd1[sidx]:.0f}s', refantmode="flex",
                     gaintype='G',
                     gaintable=caltbs,
                     minsnr=1.0, calmode='p', append=False)
@@ -2646,9 +2718,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             auto_mask = 3
             auto_threshold = 1
             # reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(spws[sidx], return_bmsize=True)
-            slfcal_rnd2_obj = MSselfcal(msfile, time_intervals[sidx], time_intervals_major_avg[sidx],
-                                        time_intervals_minor_avg[sidx],
-                                        spws[sidx], N1[sidx], N2[sidx], workdir, image_marker='round2', niter=1000,
+            slfcal_rnd2_obj = MSselfcal(msfile, time_intervals_rnd2[sidx], time_intervals_major_avg_rnd2[sidx],
+                                        time_intervals_minor_avg_rnd2[sidx],
+                                        spws[sidx], N1_rnd2[sidx], N2_rnd2[sidx], workdir, image_marker='round2', niter=1000,
                                         briggs=briggs,
                                         minuv_l=uvmin_l_list[sidx] / 3.0,
                                         minuvw_m=8,
@@ -2669,7 +2741,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                     uvrange='',
                     spw=spws[sidx],
                     combine="scan", antenna=f'{antenna}&{antenna}', refant='0',
-                    solint=f'{tdur * 60 / N2[sidx] / N1[sidx]:.0f}s',
+                    solint=f'{tdur * 60 / N2_rnd2[sidx] / N1_rnd2[sidx]:.0f}s',
                     refantmode="flex",
                     gaintype='G',
                     gaintable=caltbs,
@@ -2699,10 +2771,10 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         run_start_time_disk_slfcal = datetime.now()
         log_print('INFO', f"Starting Disk self-calibration for SPW {spws[sidx]} ...")
 
-        if feature_slfcal:
-            uvrange = ''
-        else:
-            uvrange = uvmin_l_str[sidx].replace('>', '<')  ## use the maximum uv range for disk self-calibration
+        # if feature_slfcal:
+        #     uvrange = ''
+        # else:
+        #     uvrange = uvmin_l_str[sidx].replace('>', '<')  ## use the maximum uv range for disk self-calibration
         for sp in sp_index.split(','):
             # run_start_time_disk_slfcal_sp = datetime.now()
             reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(f'{sp}~{sp}', return_bmsize=True)
@@ -2726,7 +2798,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                         add_convolved_disk_to_fits(in_fits, out_fits, dsz, fdn, ignore_data=False, bmaj=bmsize / 3600.,
                                                    rfreq=reffreq, )
                     cmd = f"wsclean -predict -reorder -spws {sp}" + f" \
-                        -name {model_dir_disk_name_str} -quiet -intervals-out {N1[sidx] * N2[sidx]} {msfile}"
+                        -name {model_dir_disk_name_str} -quiet -intervals-out {N1_init[sidx] * N2_init[sidx]} {msfile}"
                 else:
                     log_print('WARNING',
                               f"No feature cal model files found for SPW {spws[sidx]}. Use the uniform disk model for disk self-calibration...")
@@ -2763,7 +2835,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 spw=spws[sidx],
                 combine="scan",
                 antenna=f'{antenna}&{antenna}', refant='0',
-                solint=f'{tdur * 60 / N2[sidx] / N1[sidx]:.0f}s',
+                solint=f'{tdur * 60 / N2_final[sidx] / N1_final[sidx]:.0f}s',
                 refantmode="strict",
                 gaintype='G',
                 gaintable=caltbs,
@@ -2779,7 +2851,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 spw=spws[sidx],
                 combine="scan",
                 antenna=f'{antenna}&{antenna}', refant='0',
-                solint=f'{tdur * 60 / N1[sidx]:.0f}s',
+                solint=f'{tdur * 60 / N1_final[sidx]:.0f}s',
                 refantmode="flex",
                 gaintype='G',
                 gaintable=caltbs,
@@ -2966,7 +3038,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                                     f"eovsa.synoptic.{date_str[:-1]}?T??????Z.s{spwstr}.tb.fits")))
             # snr_threshold = 10 if feature_slfcal else 5
             snr_threshold = 3
-            if len(synfitsfiles) > 0:
+            if len(synfitsfiles) > 0 and tb_models[sidx] is not None:
                 log_print('INFO', f"Merging synoptic images for SPW {spwstr} to {outfits} ...")
                 merge_FITSfiles(synfitsfiles, outfits, overwrite=True, snr_threshold=snr_threshold,
                                 rms_threshold=tb_models[sidx] * 2)
