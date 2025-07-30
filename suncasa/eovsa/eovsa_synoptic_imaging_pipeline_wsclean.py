@@ -2095,7 +2095,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
     if not workdir.endswith('/'):
         workdir += '/'
-    debug_mode = True
+    debug_mode = False
     spwidx2proc = [0, 1, 2, 3, 4, 5, 6]  ## band window index to process
     # alldaymode_spidx = [0]  ## band window index to process for all-day mode
     diskslfcal_first = [False, False, False, False, True, True, True]  ## whether to perform disk self-calibration first
