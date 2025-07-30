@@ -3067,7 +3067,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     caltbs_comb = [item for sublist in caltbs_all for item in sublist]
     for caltb in caltbs_comb:
         if os.path.exists(caltb):
-            targetfile = f'{slfcaltbdir}/{os.path.basename(caltb)}'
+            targetfile = f'{slfcaltbdir}/{os.path.basename(caltb).replace("caltb_", f"caltb_{date_str}_")}'
             if os.path.exists(targetfile):
                 os.system(f'rm -rf {targetfile}')
             os.system(f'mv {caltb} {slfcaltbdir}/')
