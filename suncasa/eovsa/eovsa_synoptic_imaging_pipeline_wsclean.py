@@ -3018,8 +3018,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             log_print('INFO', f"Final imaging for SPW {spws[sidx]}: completed")
             fitsname = sorted(glob(os.path.join(workdir, imname + '*image.fits')))
             fitsname_helio = [f.replace('image.fits', 'image.helio.fits') for f in fitsname]
-            hf.imreg(vis=msfile, imagefile=fitsname, fitsfile=fitsname_helio, timerange=[viz_timerange], toTb=True)
-            fitsfilefinal = fitsname_helio
+            try:
+                hf.imreg(vis=msfile, imagefile=fitsname, fitsfile=fitsname_helio, timerange=[viz_timerange], toTb=True)
+                fitsfilefinal = fitsname_helio
+            except Exception as e:
+                log_print('ERROR', f"Error in hf.imreg or solar_diff_rot_heliofits: {e}")
+                fitsfilefinal = []
 
         clearn_junk(imname)
 
