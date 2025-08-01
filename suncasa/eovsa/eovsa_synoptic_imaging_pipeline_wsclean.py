@@ -2102,10 +2102,10 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     debug_mode = False
     spwidx2proc = [0, 1, 2, 3, 4, 5, 6]  ## band window index to process
     # alldaymode_spidx = [0]  ## band window index to process for all-day mode
-    bright_thresh = [6, 5, 4, 3, 2, 2, 2]
+    bright_thresh = np.array([350, 900, 2000, 2800, 800, 150, 100])
     # bright_thresh = [3, 3, 3, 2, 2, 2, 2]
     bright = [False, False, False, False, False, False, False]
-    segmented_imaging = [True, True, True, True, False, False, False]
+    segmented_imaging = [True, True, True, False, False, False, False]
     # segmented_imaging = [False, False, False, False, False, False, False]
     briggs = [-1.0, -1.0, -1.0, -1.0, -1.0, -0.5, -0.5]
     tb_models = []
