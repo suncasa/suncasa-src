@@ -2954,7 +2954,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 fitsfilefinal = fitsname_helio_ref_daily
             except Exception as e:
                 log_print('ERROR', f"Error in hf.imreg or solar_diff_rot_heliofits: {e}")
-                fitsfilefinal = None
+                fitsfilefinal = []
             log_print('INFO', f"Final imaging for SPW {spws[sidx]}: completed")
             imaging_objs.append(None)
         else:
