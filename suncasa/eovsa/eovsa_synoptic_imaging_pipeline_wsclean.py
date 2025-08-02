@@ -2152,9 +2152,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         # datein = datetime(2019, 9, 23, 20, 0, 0)
         # datein = datetime(2019, 9, 20, 20, 0, 0)
         # datein = datetime(2019, 9, 18, 20, 0, 0)
-        datein = datetime(2021, 9, 20, 20, 0, 0)
+        # datein = datetime(2021, 9, 20, 20, 0, 0)
         # datein = datetime(2023, 12, 24, 20, 0, 0)
-        # datein = datetime(2025, 2, 14, 20, 0, 0)
+        datein = datetime(2025, 2, 14, 20, 0, 0)
 
         trange = Time(datein)
         if trange.mjd == np.fix(trange.mjd):
@@ -2485,6 +2485,14 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             diskstatss.append(diskstats)
 
         tb_image = np.nanmean([ds[7] for ds in diskstatss])
+        if np.isnan(tb_image):
+            log_print('ERROR', f"TB image for SPW {spws[sidx]} is NaN. Skipping this SPW.")
+            slfcal_init_objs.append(None)
+            slfcal_rnd1_objs.append(None)
+            slfcal_rnd2_objs.append(None)
+            caltbs_all.append(caltbs)
+            imaging_objs.append(None)
+            continue
         tb_model = np.nanmean([ds[8] for ds in diskstatss])
         tb_models[sidx] = tb_model * 1e3
         snr = np.nanmean([ds[10] for ds in diskstatss])
