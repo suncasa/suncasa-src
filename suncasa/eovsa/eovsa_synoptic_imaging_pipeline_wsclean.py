@@ -2129,7 +2129,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         from eovsapy.dump_tsys import findfiles
 
         spwidx2proc = [0, 1, 2, 3, 4, 5]  ## band window index to process
-        spwidx2proc = [3]  ## band window index to process
+        spwidx2proc = [4]  ## band window index to process
         # spwidx2proc = [0, 1]  ## band window index to process
         # alldaymode_spidx = [0, 1]
         # alldaymode_spidx = []
@@ -2157,7 +2157,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         # datein = datetime(2024, 4, 8, 20, 0, 0)
         # datein = datetime(2019, 9, 25, 20, 0, 0)
         # datein = datetime(2019, 9, 23, 20, 0, 0)
-        # datein = datetime(2019, 9, 20, 20, 0, 0)
+        datein = datetime(2019, 9, 20, 20, 0, 0)
         # datein = datetime(2019, 9, 18, 20, 0, 0)
         # datein = datetime(2023, 12, 24, 20, 0, 0)
         # datein = datetime(2025, 2, 14, 20, 0, 0)
@@ -3012,6 +3012,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                             # maxuvw_m=1500,
                             intervals_out=1,
                             no_negative=False, quiet=True,
+                            theoretic_beam = True,  ## to avoid bad beam fitting and very small beam size
                             circular_beam=False,
                             spws=sp_index)
             clean_obj.run(dryrun=False)

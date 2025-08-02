@@ -75,6 +75,7 @@ class WSClean:
             'beam_size': None,  # if not None, the beam size in arcsec
             'beam_fitting_size': 5,  # if not None, the beam fitting size in PSFs. Default: 5 PSFs
             'circular_beam': False,  # default no circular beam
+            'theoretic_beam': False,  # Use the theoretical beam size instead of the fitted beam size
             'local_rms': False,  # Instead of using a single RMS for auto thresholding/masking, use a spatially varying RMS image
             'local_rms_strength': 1.0,  # default local rms strength
             'local_rms_window': 25,  # Size of window for creating the RMS background map, in number of PSFs. Default: 25 psfs
@@ -213,6 +214,9 @@ class WSClean:
 
         if self.params['beam_fitting_size'] is not None:
             cmd.extend(['-beam-fitting-size', str(self.params['beam_fitting_size'])])
+
+        if self.params['theoretic_beam']:
+            cmd.append('-theoretic-beam')
 
         if 'intervals_out' in self.params:
             cmd.extend(['-intervals-out', str(self.params['intervals_out'])])
