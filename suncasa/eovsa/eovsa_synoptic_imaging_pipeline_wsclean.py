@@ -181,7 +181,6 @@ def detect_noisy_images(data_stack,
         disk_rms_values.append(np.sqrt(np.nanmean(disk_pixels ** 2)))
         snr_values.append(signal / rms)
 
-
     ring_rms_values = np.array(ring_rms_values)
     snr_values = np.array(snr_values)
     disk_rms_values = np.array(disk_rms_values)
@@ -215,8 +214,6 @@ def detect_noisy_images(data_stack,
         med_snr = np.nanmedian(snr_values)
         std_snr = np.sqrt(np.nanmean((snr_values - med_snr) ** 2))
         snr_threshold = med_snr - std_snr
-
-
 
     # Flag noisy: low‐SNR or high‐RMS, but ignore very‐high‐SNR outliers
     noisy = ((snr_values < snr_threshold) |
@@ -1844,7 +1841,7 @@ class MSselfcal:
                  data_column="CORRECTED_DATA",
                  pols='XX',
                  beam_size=None,
-                 circular_beam= True,
+                 circular_beam=True,
                  no_negative=True,
                  reftime_daily=None):
         self.msfile = msfile
@@ -2108,9 +2105,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     segmented_imaging = [True, True, True, False, False, False, False]
     # segmented_imaging = [False, False, False, False, False, False, False]
     briggs = [-1.0, -1.0, -1.0, -1.0, -1.0, -0.5, -0.5]
-    tb_models = []
-    outfits_all = []
-
 
     if debug_mode:
         workdir = './'
@@ -2129,7 +2123,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         from eovsapy.dump_tsys import findfiles
 
         spwidx2proc = [0, 1, 2, 3, 4, 5]  ## band window index to process
-        spwidx2proc = [4]  ## band window index to process
+        spwidx2proc = [0]  ## band window index to process
         # spwidx2proc = [0, 1]  ## band window index to process
         # alldaymode_spidx = [0, 1]
         # alldaymode_spidx = []
@@ -2144,7 +2138,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         segmented_imaging = [True, True, True, False, False, False, False]
         # segmented_imaging = [False, False, False, False, False, False, False]
         briggs = [-1.0, -1.0, -1.0, -1.0, -1.0, -0.5, -0.5]
-        tb_models = []
 
         # datein = datetime(2024, 12, 15, 20, 0, 0)
         # datein = datetime(2025, 2, 6, 20, 0, 0)
@@ -2152,13 +2145,14 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         # datein = datetime(2022, 6, 15, 20, 0, 0)
         # datein = datetime(2022, 6, 14, 20, 0, 0)
         # datein = datetime(2021, 11, 25, 20, 0, 0)
-        datein = datetime(2021, 11, 24, 20, 0, 0)
+        # datein = datetime(2021, 11, 24, 20, 0, 0)
         # datein = datetime(2020, 11, 29, 20, 0, 0)
         # datein = datetime(2024, 4, 8, 20, 0, 0)
         # datein = datetime(2019, 9, 25, 20, 0, 0)
         # datein = datetime(2019, 9, 23, 20, 0, 0)
-        datein = datetime(2019, 9, 20, 20, 0, 0)
+        # datein = datetime(2019, 9, 20, 20, 0, 0)
         # datein = datetime(2019, 9, 18, 20, 0, 0)
+        datein = datetime(2021, 9, 20, 20, 0, 0)
         # datein = datetime(2023, 12, 24, 20, 0, 0)
         # datein = datetime(2025, 2, 14, 20, 0, 0)
 
@@ -2229,7 +2223,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     if imgoutdir is None:
         imgoutdir = workdir + '/'
 
-
     msfile = vis.rstrip('/')
 
     msname, _ = os.path.splitext(msfile)
@@ -2264,6 +2257,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     reftime_daily = Time(datetime.combine(date_local, time(20, 0)))
     freq_setup = FrequencySetup(Time(tbg_msfile))
     spws_indices = freq_setup.spws_indices
+    tb_models = {}
+    outfits_all = {}
     spws = freq_setup.spws
     spws_imaging = spws
     defaultfreq = freq_setup.defaultfreq
@@ -2361,7 +2356,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     # bands 2–6 use the base length (50 min)
     interval_multipliers_rnd2.update({idx: 1 for idx in range(2, 7)})
 
-
     # Mapping: spectral index → (multiplier of 50 min intervals)
     interval_multipliers_final = {
         0: 2.4,  # 2.4× longer for band 0
@@ -2398,7 +2392,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     time_intervals_minor_avg_final = {}
     timeranges_final = {}
 
-
     wsclean_intervals.interval_length = 50  # 50 minutes long intervals
     wsclean_intervals.compute_intervals(nintervals_minor=3)
     res = wsclean_intervals.results()
@@ -2413,6 +2406,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     imname_init_disk_strlist = ["eovsa", "disk", "init", f"{msfilename}"]
 
     for sidx, sp_index in enumerate(spws_indices):
+        tb_models[sidx] = None
+        outfits_all[sidx] = None
         spwstr = format_spw(spws[sidx])
         msfile_sp = f'{msname}.sp{spwstr}.slfcaled.ms'
         caltbs = []
@@ -2427,7 +2422,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 slfcal_rnd1_objs.append(None)
                 slfcal_rnd2_objs.append(None)
                 caltbs_all.append(caltbs)
-                tb_models.append(None)
                 imaging_objs.append(None)
                 continue
         if sidx not in spwidx2proc:
@@ -2435,7 +2429,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             slfcal_rnd1_objs.append(None)
             slfcal_rnd2_objs.append(None)
             caltbs_all.append(caltbs)
-            tb_models.append(None)
             imaging_objs.append(None)
             continue
         # clearcal(msfile, spw=spws[sidx])
@@ -2471,7 +2464,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                         intervals_out=1,
                         no_negative=True, quiet=True,
                         circular_beam=True,
-                        beam_size=bmsize,
+                        # beam_size=bmsize,
+                        theoretic_beam=True,  ## to avoid bad beam fitting and very small beam size
                         spws=sp_index)
         clean_obj.run(dryrun=False)
 
@@ -2492,20 +2486,20 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
         tb_image = np.nanmean([ds[7] for ds in diskstatss])
         tb_model = np.nanmean([ds[8] for ds in diskstatss])
-        tb_models.append(tb_model * 1e3)
+        tb_models[sidx] = tb_model * 1e3
         snr = np.nanmean([ds[10] for ds in diskstatss])
         bright_ratio = min(tb_image / tb_model, snr)
         bright[sidx] = bright_ratio * snr > bright_thresh[sidx]
         log_print('INFO',
                   f"SPW {spws[sidx]}: tb_image = {tb_image:.1f} kK, tb_model = {tb_model:.1f} kK, Ratio = {bright_ratio * snr:.1f}, Thresh = {bright_thresh[sidx]}, SNR = {snr:.1f}")
 
-        if sidx==0:
-            if snr>=5:
+        if sidx == 0:
+            if snr >= 5:
                 bright[sidx] = True
                 log_print('INFO', f"SPW {spws[sidx]}: SNR is high enough ({snr:.1f}). Setting bright to True.")
                 # interval_multipliers[sidx] = 3
 
-        if sidx==1:
+        if sidx == 1:
             if snr >= 30:
                 bright[sidx] = True
                 log_print('INFO', f"SPW {spws[sidx]}: SNR is high enough ({snr:.1f}). Setting bright to True.")
@@ -2618,7 +2612,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             if N1_init[sidx] == 1:
                 timerange_sub = trange2timerange([time_intervals_init[sidx][0][0], time_intervals_init[sidx][0][-1]])
             else:
-                timerange_sub = trange2timerange([time_intervals_init[sidx][0][-1], time_intervals_init[sidx][N1_init[sidx] - 1][0]])
+                timerange_sub = trange2timerange(
+                    [time_intervals_init[sidx][0][-1], time_intervals_init[sidx][N1_init[sidx] - 1][0]])
 
             gaincal(vis=msfile, caltable=caltb, selectdata=True,
                     timerange=timerange_sub,
@@ -2638,7 +2633,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                     uvrange='',
                     spw=spws[sidx],
                     combine="scan", antenna=f'{antenna}&{antenna}', refant='0',
-                    solint=f'{tdur * 60 / N1_init[sidx]/ N2_init[sidx]:.0f}s', refantmode="flex",
+                    solint=f'{tdur * 60 / N1_init[sidx] / N2_init[sidx]:.0f}s', refantmode="flex",
                     gaintype='G',
                     gaintable=caltbs,
                     minsnr=1.0, calmode='p', append=False)
@@ -2695,7 +2690,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                     spw=spws[sidx],
                     combine="scan", antenna=f'{antenna}&{antenna}', refant='0',
                     # solint=f'{tdur *60 / N2[sidx] / N1[sidx]:.0f}s', refantmode="flex",
-                    solint=f'{tdur * 60 / N1_rnd1[sidx]/ N2_rnd1[sidx]:.0f}s', refantmode="flex",
+                    solint=f'{tdur * 60 / N1_rnd1[sidx] / N2_rnd1[sidx]:.0f}s', refantmode="flex",
                     gaintype='G',
                     gaintable=caltbs,
                     minsnr=1.0, calmode='p', append=False)
@@ -2736,7 +2731,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             # reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(spws[sidx], return_bmsize=True)
             slfcal_rnd2_obj = MSselfcal(msfile, time_intervals_rnd2[sidx], time_intervals_major_avg_rnd2[sidx],
                                         time_intervals_minor_avg_rnd2[sidx],
-                                        spws[sidx], N1_rnd2[sidx], N2_rnd2[sidx], workdir, image_marker='round2', niter=1000,
+                                        spws[sidx], N1_rnd2[sidx], N2_rnd2[sidx], workdir, image_marker='round2',
+                                        niter=1000,
                                         briggs=0.0,
                                         minuv_l=uvmin_l_list[sidx] / 3.0,
                                         minuvw_m=8,
@@ -2893,7 +2889,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         flagdata(vis=msfile, mode="tfcrop", spw=spws[sidx], action='apply', display='',
                  timecutoff=6.0, freqcutoff=6.0, maxnpieces=2, flagbackup=False)
 
-
         ## subtract the disk model from the viz
         run_start_time_disk_slfcal_subtract = datetime.now()
         if slfcal_init_objs[sidx] is not None:
@@ -2930,7 +2925,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                             # multiscale_gain=0.5,
                             multiscale_scale_bias=0.6,
                             auto_mask=2, auto_threshold=1,
-                            minuv_l = 200,
+                            minuv_l=200,
                             # minuv_l=uvmin_l_list[sidx] / 3.0,
                             # minuvw_m=8,
                             # maxuvw_m=1500,
@@ -2938,6 +2933,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                             no_negative=False, quiet=True,
                             circular_beam=True,
                             beam_size=bmsize,
+                            # theoretic_beam=True,  ## to avoid bad beam fitting and very small beam size
                             spws=sp_index)
             clean_obj.run(dryrun=False)
 
@@ -2981,6 +2977,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             imaging_obj.run()
             imaging_objs.append(imaging_obj)
 
+            if not imaging_obj.succeeded:
+                log_print('ERROR', f"Final imaging for SPW {spws[sidx]} failed when creating viz model. Skipping...")
+                continue
 
             uvsub(vis=msfile)
             delmod(vis=msfile)
@@ -3012,7 +3011,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                             # maxuvw_m=1500,
                             intervals_out=1,
                             no_negative=False, quiet=True,
-                            theoretic_beam = True,  ## to avoid bad beam fitting and very small beam size
+                            theoretic_beam=True,  ## to avoid bad beam fitting and very small beam size
                             circular_beam=False,
                             spws=sp_index)
             clean_obj.run(dryrun=False)
@@ -3038,13 +3037,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 synfitsfile = os.path.join(imgoutdir,
                                            f"eovsa.synoptic_daily.{date_str}T200000Z.s{spwstr}.tb.fits")
             synfitsfiles.append(synfitsfile)
+            log_print('INFO', f"Copying {eofile} to {synfitsfile} ...")
             os.system(f'cp {eofile} {synfitsfile}')
 
         if not segmented_imaging[sidx]:
             if len(synfitsfiles) > 0:
-                outfits_all.append(synfitsfiles[0])
-            else:
-                outfits_all.append(None)
+                outfits_all[sidx] = synfitsfiles[0]
 
         # split(vis=msfile, outputvis=msfile_sp, spw=spws[sidx], datacolumn='corrected')
 
@@ -3070,23 +3068,21 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 log_print('INFO', f"Merging synoptic images for SPW {spwstr} to {outfits} ...")
                 merge_FITSfiles(synfitsfiles, outfits, overwrite=True, snr_threshold=snr_threshold,
                                 rms_threshold=tb_models[sidx] * 2)
-                outfits_all.append(outfits)
+                outfits_all[sidx] = outfits
                 synfitsfiles_disk = [l.replace('.tb.fits', '.tb.disk.fits') for l in synfitsfiles]
                 add_convolved_disk_to_fits(synfitsfiles + [outfits], synfitsfiles_disk + [outfits_disk], dszs, fdns,
                                            ignore_data=False, toTb=True,
                                            rfreq=reffreq, bmaj=bmsize / 3600.)
             else:
-                outfits_all.append(None)
                 log_print('WARNING', f"No synoptic images found for SPW {spwstr}. Skipping merge_FITSfiles.")
         else:
             if os.path.exists(outfits):
                 log_print('INFO', f"Add disk to synoptic image {outfits} ...")
-                outfits_all.append(outfits)
+                outfits_all[sidx] = outfits
                 add_convolved_disk_to_fits([outfits], [outfits_disk], dszs, fdns,
                                            ignore_data=False, toTb=True,
                                            rfreq=reffreq, bmaj=bmsize / 3600.)
             else:
-                outfits_all.append(None)
                 log_print('WARNING', f"No synoptic image found for SPW {spwstr}. Skipping disk addition.")
 
     # ms2concat = glob(f'{msname}.sp*.slfcaled.ms')
