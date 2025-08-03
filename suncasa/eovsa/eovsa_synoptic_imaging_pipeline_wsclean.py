@@ -1310,7 +1310,11 @@ def add_convolved_disk_to_fits(
     files_in = [in_fits] if isinstance(in_fits, str) else list(in_fits)
     files_out = [out_fits] if isinstance(out_fits, str) else list(out_fits)
     # open header
-    hdr = fits.open(files_in[0])[0].header
+    with fits.open(files_in[0]) as hdulist:
+        for idx, hdu in enumerate(hdulist):
+            if 'CDELT1' in hdu.header:
+                hdr = hdu.header
+                break
     if bmaj is None:
         bmaj = hdr.get('BMAJ', None)
         bmin = hdr.get('BMIN', None)
@@ -1353,8 +1357,12 @@ def add_convolved_disk_to_fits(
     # process each file
     stats = []
     for fidx, (f_in, outf) in enumerate(zip(files_in, files_out)):
-        dat = fits.open(f_in)[0].data.copy()
-        hdr = fits.open(f_in)[0].header
+        with fits.open(f_in) as hdulist:
+            for idx, hdu in enumerate(hdulist):
+                if 'CDELT1' in hdu.header:
+                    hdr = hdu.header
+                    dat = hdu.data.copy()
+                    break
         dat_squeeze = np.squeeze(dat)
         if fidx == 0:
             dateobs = Time(hdr['DATE-OBS'])
@@ -2152,9 +2160,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         # datein = datetime(2019, 9, 23, 20, 0, 0)
         # datein = datetime(2019, 9, 20, 20, 0, 0)
         # datein = datetime(2019, 9, 18, 20, 0, 0)
-        # datein = datetime(2021, 9, 20, 20, 0, 0)
+        datein = datetime(2021, 9, 20, 20, 0, 0)
         # datein = datetime(2023, 12, 24, 20, 0, 0)
-        datein = datetime(2025, 2, 14, 20, 0, 0)
+        # datein = datetime(2025, 2, 14, 20, 0, 0)
 
         trange = Time(datein)
         if trange.mjd == np.fix(trange.mjd):
@@ -2464,8 +2472,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                         intervals_out=1,
                         no_negative=True, quiet=True,
                         circular_beam=True,
-                        # beam_size=bmsize,
-                        theoretic_beam=True,  ## to avoid bad beam fitting and very small beam size
+                        beam_size=bmsize,
+                        # theoretic_beam=True,  ## to avoid bad beam fitting and very small beam size
                         spws=sp_index)
         clean_obj.run(dryrun=False)
 
@@ -2994,7 +3002,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
             model_dir_name_str = imaging_objs[sidx].model_ref_name_str
             cmd = "wsclean -predict -reorder -spws " + sp_index + f" \
-                -name {model_dir_name_str} -intervals-out {N1_final[sidx]} {msfile}"
+                -name {model_dir_name_str}  -quiet -intervals-out {N1_final[sidx]} {msfile}"
             os.system(cmd)
             uvsub(vis=msfile, reverse=True)  # Now the viz data contains residuals + corrected models
             imname_strlist = ["eovsa", "major", f"{msfilename}", f"sp{spwstr}", 'final']
@@ -3078,9 +3086,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                 rms_threshold=tb_models[sidx] * 2)
                 outfits_all[sidx] = outfits
                 synfitsfiles_disk = [l.replace('.tb.fits', '.tb.disk.fits') for l in synfitsfiles]
-                add_convolved_disk_to_fits(synfitsfiles + [outfits], synfitsfiles_disk + [outfits_disk], dszs, fdns,
-                                           ignore_data=False, toTb=True,
-                                           rfreq=reffreq, bmaj=bmsize / 3600.)
+                try:
+                    add_convolved_disk_to_fits(synfitsfiles + [outfits], synfitsfiles_disk + [outfits_disk], dszs, fdns,
+                                               ignore_data=False, toTb=True,
+                                               rfreq=reffreq, bmaj=bmsize / 3600.)
+                except Exception as e:
+                    log_print('ERROR', f"Error in add_convolved_disk_to_fits: {e}, skipping disk addition.")
             else:
                 log_print('WARNING', f"No synoptic images found for SPW {spwstr}. Skipping merge_FITSfiles.")
         else:
