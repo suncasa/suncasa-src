@@ -1340,7 +1340,7 @@ def add_convolved_disk_to_fits(
         y_indices, x_indices = np.ogrid[:ny, :nx]
         rsun_pix = rsun_obs / np.abs(hdr['CDELT1']) / 3600
         dist = np.sqrt((x_indices - crpix1) ** 2 + (y_indices - crpix2) ** 2)
-        mask_img[dist <= rsun_pix*1.1] = True
+        mask_img[dist <= rsun_pix * 1.1] = True
         mask_outf = files_in[0].replace('image.fits', 'mask.fits')
         fits.writeto(mask_outf, mask_img.astype(np.float32), hdr, overwrite=True)
     if doconvolve:
@@ -1965,7 +1965,7 @@ class MSselfcal:
                         no_negative=self.no_negative, quiet=True,
                         spws=self.sp_index,
                         beam_size=self.beam_size,
-                        theoretic_beam = self.theoretic_beam,
+                        theoretic_beam=self.theoretic_beam,
                         circular_beam=self.circular_beam)
         clean_obj.run(dryrun=False)
 
@@ -2301,13 +2301,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     nbands = freq_setup.nbands
     # bandinfo = mstl.get_bandinfo(msfile, returnbdinfo=True)
 
-
     for sidx, sp_index in enumerate(spws_indices):
         tb_models[sidx] = None
         outfits_all[sidx] = None
         bright[sidx] = False
         bright_thresh[sidx] = bright_thresh_[sidx]
-        segmented_imaging[sidx] = True if sidx in [0] else False
+        segmented_imaging[sidx] = True if sidx in [0, 1, 2, 3] else False
         briggs[sidx] = briggs_[sidx]
 
     dsize, fdens = calc_diskmodel(tmid_msfile, nbands, freq)
@@ -2511,14 +2510,14 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
         in_fits = os.path.join(workdir, f"{imname}-image.fits")
         diskstatss = []
-        for i,sp in enumerate(sp_index.split(',')):
+        for i, sp in enumerate(sp_index.split(',')):
             # run_start_time_disk_slfcal_sp = datetime.now()
             reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(f'{sp}~{sp}', return_bmsize=True)
             sp = int(sp)
             out_fits = '-'.join(imname_init_disk_strlist + [f'sp{sp:02d}_adddisk-model.fits'])
             dsz = float(dsize[sp].rstrip('arcsec'))
             fdn = fdens[sp]
-            if i==0:
+            if i == 0:
                 create_mask = True
             else:
                 create_mask = False
@@ -2643,8 +2642,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                    pols=pols,
                                    auto_mask=auto_mask,
                                    auto_threshold=auto_threshold,
-                                   fits_mask = fits_mask[sidx],
-                                   beam_size = bmsize,
+                                   fits_mask=fits_mask[sidx],
+                                   beam_size=bmsize,
                                    circular_beam=False,
                                    )
             slfcal_obj.run()
@@ -2733,7 +2732,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                    briggs=0.0,
                                    auto_mask=auto_mask,
                                    auto_threshold=auto_threshold,
-                                   fits_mask = fits_mask[sidx],
+                                   fits_mask=fits_mask[sidx],
                                    pols=pols,
                                    beam_size=bmsize,
                                    circular_beam=False,
@@ -2797,7 +2796,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                         briggs=0.0,
                                         auto_mask=auto_mask,
                                         auto_threshold=auto_threshold,
-                                        fits_mask = fits_mask[sidx],
+                                        fits_mask=fits_mask[sidx],
                                         pols=pols,
                                         beam_size=bmsize,
                                         circular_beam=False,
@@ -3139,10 +3138,10 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                                     f"eovsa.synoptic.{date_str[:-1]}?T??????Z.s{spwstr}.tb.fits")))
             # snr_threshold = 10 if feature_slfcal else 5
             snr_threshold = 3
-            if len(synfitsfiles) > 0: # and tb_models[sidx] is not None:
+            if len(synfitsfiles) > 0:  # and tb_models[sidx] is not None:
                 log_print('INFO', f"Merging synoptic images for SPW {spwstr} to {outfits} ...")
-                merge_FITSfiles(synfitsfiles, outfits, overwrite=True, snr_threshold=snr_threshold,)
-                                # rms_threshold=tb_models[sidx] * 2)
+                merge_FITSfiles(synfitsfiles, outfits, overwrite=True, snr_threshold=snr_threshold, )
+                # rms_threshold=tb_models[sidx] * 2)
                 outfits_all[sidx] = outfits
                 synfitsfiles_disk = [l.replace('.tb.fits', '.tb.disk.fits') for l in synfitsfiles]
                 try:
