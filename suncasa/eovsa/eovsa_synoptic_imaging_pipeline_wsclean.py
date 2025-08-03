@@ -2107,13 +2107,13 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     debug_mode = False
     spwidx2proc = [0, 1, 2, 3, 4, 5, 6]  ## band window index to process
     # alldaymode_spidx = [0]  ## band window index to process for all-day mode
-    bright_thresh = np.array([350, 900, 2000, 2800, 800, 150, 100])
+    bright_thresh_ = np.array([350, 900, 2000, 2800, 800, 150, 100])
     # bright_thresh = [3, 3, 3, 2, 2, 2, 2]
-    bright = [False, False, False, False, False, False, False]
-    segmented_imaging = [True, True, True, False, False, False, False]
-    segmented_imaging = [True, True, True, True, True, True, True]
+    # bright = [False, False, False, False, False, False, False]
+    # segmented_imaging = [True, True, True, False, False, False, False]
+    # segmented_imaging = [True, True, True, True, True, True, True]
     # segmented_imaging = [False, False, False, False, False, False, False]
-    briggs = [-1.0, -1.0, -1.0, -1.0, -1.0, -0.5, -0.5]
+    briggs_ = [-1.0, -1.0, -1.0, -1.0, -1.0, -0.5, -0.5]
 
     if debug_mode:
         workdir = './'
@@ -2143,11 +2143,11 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         # bright_thresh = [100, 100, 100, 100, 100, 100, 100]
         # bright_thresh = np.array([432.5, 1313.0, 5535.4, 6378.7, 1408.1, 215.6, 200])/2.0
         # bright_thresh = np.array([350, 1000, 3000, 3200, 800, 150, 100])
-        bright_thresh = np.array([350, 900, 2000, 2800, 800, 150, 100])
-        bright = [False, False, False, False, False, False, False]
-        segmented_imaging = [True, True, True, False, False, False, False]
+        bright_thresh_ = np.array([350, 900, 2000, 2800, 800, 150, 100])
+        # bright = [False, False, False, False, False, False, False]
+        # segmented_imaging = [True, True, True, False, False, False, False]
         # segmented_imaging = [False, False, False, False, False, False, False]
-        briggs = [-1.0, -1.0, -1.0, -1.0, -1.0, -0.5, -0.5]
+        briggs_ = [-1.0, -1.0, -1.0, -1.0, -1.0, -0.5, -0.5]
 
         # datein = datetime(2024, 12, 15, 20, 0, 0)
         # datein = datetime(2025, 2, 6, 20, 0, 0)
@@ -2269,12 +2269,25 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     spws_indices = freq_setup.spws_indices
     tb_models = {}
     outfits_all = {}
+    bright = {}
+    bright_thresh = {}
+    segmented_imaging = {}
+    briggs = {}
     spws = freq_setup.spws
     spws_imaging = spws
     defaultfreq = freq_setup.defaultfreq
     freq = defaultfreq
     nbands = freq_setup.nbands
     # bandinfo = mstl.get_bandinfo(msfile, returnbdinfo=True)
+
+
+    for sidx, sp_index in enumerate(spws_indices):
+        tb_models[sidx] = None
+        outfits_all[sidx] = None
+        bright[sidx] = False
+        bright_thresh[sidx] = bright_thresh_[sidx]
+        segmented_imaging[sidx] = True if sidx in [0] else False
+        briggs[sidx] = briggs_[sidx]
 
     dsize, fdens = calc_diskmodel(tmid_msfile, nbands, freq)
     fdens = fdens / 2.0  ## convert from I to XX
@@ -2284,7 +2297,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     ## set a minimum uv range for feature self-calibration. 225 meters is a good choice for EOVSA. A minumum of 1500 lambda.
     uvmin_l_list = []
     for sidx, sp_index in enumerate(spws_indices):
-
         if sidx not in spwidx2proc:
             uvmax_l_list.append(0)
             uvmin_l_list.append(0)
@@ -2416,8 +2428,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     imname_init_disk_strlist = ["eovsa", "disk", "init", f"{msfilename}"]
 
     for sidx, sp_index in enumerate(spws_indices):
-        tb_models[sidx] = None
-        outfits_all[sidx] = None
         spwstr = format_spw(spws[sidx])
         msfile_sp = f'{msname}.sp{spwstr}.slfcaled.ms'
         caltbs = []
@@ -2523,6 +2533,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 log_print('INFO', f"SPW {spws[sidx]}: SNR is high enough ({snr:.1f}). Setting bright to True.")
                 # interval_multipliers_rnd1[sidx] = 2
 
+        if bright[sidx]:
+            log_print('INFO', f"SPW {spws[sidx]} is bright. Proceeding with segmented imaging.")
+            segmented_imaging[sidx] = True
         ## set the multipliers for the time intervals based init, rnd1, and final imaging
         mult = interval_multipliers_init.get(sidx, 1)
         wsclean_intervals.interval_length = 50 * mult
