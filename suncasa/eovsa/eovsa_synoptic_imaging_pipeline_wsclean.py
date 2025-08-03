@@ -1273,7 +1273,8 @@ def add_convolved_disk_to_fits(
         dsz: Union[float, List[float]], fdn: Union[float, List[float]],
         ignore_data: bool = False, toTb: bool = False, rfreq: str = None,
         add_limb: bool = False, bmaj: float = None, no_negative: bool = False,
-        doconvolve: bool = True
+        doconvolve: bool = True,
+        create_mask: bool = False,
 ) -> List[FluxComparison]:
     """
     Add a uniform disk to FITS images, convolve with beam, and save.
@@ -1329,6 +1330,15 @@ def add_convolved_disk_to_fits(
     # build disk model
     disk_img = compute_disk_image(hdr, radius, flux, add_limb, bmaj)
 
+    if create_mask:
+        mask_img = np.zeros_like(disk_img, dtype=bool)
+        crpix1, crpix2 = hdr['CRPIX1'], hdr['CRPIX2']
+        ny, nx = disk_img.shape
+        y_indices, x_indices = np.ogrid[:ny, :nx]
+        dist = np.sqrt((x_indices - crpix1) ** 2 + (y_indices - crpix2) ** 2)
+        mask_img[dist <= radius*1.2] = True
+        mask_outf = files_out[0].replace('image.fits', 'mask.fits')
+        fits.writeto(mask_outf, mask_img.astype(np.float32), hdr, overwrite=True)
     if doconvolve:
         # convolve
         beam = get_beam_kernel(header=hdr, bmaj=bmaj, bmin=bmin)
@@ -1851,6 +1861,7 @@ class MSselfcal:
                  beam_size=None,
                  circular_beam=True,
                  no_negative=True,
+                 fits_mask=None,
                  reftime_daily=None):
         self.msfile = msfile
         self.time_intervals = time_intervals
@@ -1889,6 +1900,7 @@ class MSselfcal:
         self.succeeded = True
         self.no_negative = no_negative
         self.circular_beam = circular_beam
+        self.fits_mask = fits_mask
 
         # self.intervals_out = None
 
@@ -1942,6 +1954,7 @@ class MSselfcal:
                         maxuvw_m=self.maxuvw_m, minuvw_m=self.minuvw_m,
                         auto_mask=self.auto_mask,
                         auto_threshold=self.auto_threshold,
+                        fits_mask=self.fits_mask,
                         intervals_out=self.N1,
                         no_negative=self.no_negative, quiet=True,
                         spws=self.sp_index,
@@ -2273,6 +2286,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     bright_thresh = {}
     segmented_imaging = {}
     briggs = {}
+    mask_fits = {}
     spws = freq_setup.spws
     spws_imaging = spws
     defaultfreq = freq_setup.defaultfreq
@@ -2349,16 +2363,13 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     delmod(msfile)
 
     wsclean_intervals = WSCleanTimeIntervals(msfile, combine_scans=True)
-    ## for calibration, we want to use longer time intervals for the first two bands
+    ## for calibration, we want to use longer time intervals for the first round
     # Mapping: spectral index → (multiplier of 50 min intervals)
     interval_multipliers_init = {
         0: 20,  # 20× longer for band 0 -- all day mode
         1: 20,  # 20× longer for band 1 -- all day mode
     }
-
-    ## for imaging, we want to use shorter time intervals for the first two bands
-    # bands 2–6 use the base length (50 min)
-    interval_multipliers_init.update({idx: 1 for idx in range(2, 7)})
+    interval_multipliers_init.update({idx: 3 for idx in range(2, 7)})
 
     interval_multipliers_rnd1 = {
         0: 6,  # 20× longer for band 0 -- 5× longer for band 0
@@ -2493,17 +2504,23 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
         in_fits = os.path.join(workdir, f"{imname}-image.fits")
         diskstatss = []
-        for sp in sp_index.split(','):
+        for i,sp in enumerate(sp_index.split(',')):
             # run_start_time_disk_slfcal_sp = datetime.now()
             reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(f'{sp}~{sp}', return_bmsize=True)
             sp = int(sp)
             out_fits = '-'.join(imname_init_disk_strlist + [f'sp{sp:02d}_adddisk-model.fits'])
             dsz = float(dsize[sp].rstrip('arcsec'))
             fdn = fdens[sp]
+            if i==0:
+                create_mask = True
+            else:
+                create_mask = False
             diskstats = add_convolved_disk_to_fits(in_fits, out_fits, dsz, fdn, ignore_data=True,
-                                                   bmaj=bmsize / 3600., rfreq=reffreq)
+                                                   bmaj=bmsize / 3600., rfreq=reffreq, create_mask=create_mask)
+
             diskstatss.append(diskstats)
 
+        mask_fits[sidx] = os.path.join(workdir, f"{imname}-mask.fits")
         tb_image = np.nanmean([ds[7] for ds in diskstatss])
         if np.isnan(tb_image):
             log_print('ERROR', f"TB image for SPW {spws[sidx]} is NaN. Skipping this SPW.")
@@ -2619,7 +2636,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                    pols=pols,
                                    auto_mask=auto_mask,
                                    auto_threshold=auto_threshold,
-                                   # beam_size=bmsize,
+                                   beam_size=bmsize,
                                    circular_beam=False,
                                    )
             slfcal_obj.run()
@@ -2635,11 +2652,11 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 caltbs_all.append(caltbs)
                 continue
 
-            if N1_init[sidx] == 1:
-                timerange_sub = trange2timerange([time_intervals_init[sidx][0][0], time_intervals_init[sidx][0][-1]])
-            else:
-                timerange_sub = trange2timerange(
-                    [time_intervals_init[sidx][0][-1], time_intervals_init[sidx][N1_init[sidx] - 1][0]])
+            # if N1_init[sidx] == 1:
+            #     timerange_sub = trange2timerange([time_intervals_init[sidx][0][0], time_intervals_init[sidx][0][-1]])
+            # else:
+            #     timerange_sub = trange2timerange(
+            #         [time_intervals_init[sidx][0][-1], time_intervals_init[sidx][N1_init[sidx] - 1][0]])
 
             caltb = os.path.join(workdir, f"caltb_init_inf_sp{spwstr}.pha")
             if os.path.exists(caltb):
@@ -2647,7 +2664,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                     os.system('rm -rf ' + caltb)
             if not os.path.exists(caltb):
                 gaincal(vis=msfile, caltable=caltb, selectdata=True,
-                        timerange=timerange_sub,
+                        timerange='',
                         uvrange='',
                         spw=spws[sidx],
                         combine="scan", antenna=f'{antenna}&{antenna}', refant='0',
@@ -2704,14 +2721,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             auto_threshold = 2
             slfcal_obj = MSselfcal(msfile, time_intervals_rnd1[sidx], time_intervals_major_avg_rnd1[sidx],
                                    time_intervals_minor_avg_rnd1[sidx],
-                                   spws[sidx], N1_rnd1[sidx], N2_rnd1[sidx], workdir, image_marker='round1', niter=500,
+                                   spws[sidx], N1_rnd1[sidx], N2_rnd1[sidx], workdir, image_marker='round1', niter=200,
                                    briggs=0.0,
-                                   minuvw_m=8,
-                                   maxuvw_m=1500,
                                    auto_mask=auto_mask,
                                    auto_threshold=auto_threshold,
                                    pols=pols,
-                                   # beam_size=bmsize,
+                                   beam_size=bmsize,
                                    circular_beam=False,
                                    data_column="CORRECTED_DATA")
             slfcal_obj.run()
@@ -2769,15 +2784,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             slfcal_rnd2_obj = MSselfcal(msfile, time_intervals_rnd2[sidx], time_intervals_major_avg_rnd2[sidx],
                                         time_intervals_minor_avg_rnd2[sidx],
                                         spws[sidx], N1_rnd2[sidx], N2_rnd2[sidx], workdir, image_marker='round2',
-                                        niter=1000,
+                                        niter=500,
                                         briggs=0.0,
-                                        minuv_l=uvmin_l_list[sidx] / 3.0,
-                                        minuvw_m=8,
-                                        maxuvw_m=1500,
                                         auto_mask=auto_mask,
                                         auto_threshold=auto_threshold,
                                         pols=pols,
-                                        # beam_size=bmsize,
+                                        beam_size=bmsize,
                                         circular_beam=False,
                                         data_column="CORRECTED_DATA"
                                         )
@@ -3024,6 +3036,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                     no_negative=False,
                                     circular_beam=False,
                                     # beam_size=bmsize,
+                                    theoretic_beam=True,  ## to avoid bad beam fitting and very small beam size
                                     reftime_daily=reftime_daily
                                     )
             imaging_obj.run()

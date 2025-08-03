@@ -79,6 +79,7 @@ class WSClean:
             'local_rms': False,  # Instead of using a single RMS for auto thresholding/masking, use a spatially varying RMS image
             'local_rms_strength': 1.0,  # default local rms strength
             'local_rms_window': 25,  # Size of window for creating the RMS background map, in number of PSFs. Default: 25 psfs
+            'fits_mask': None,  # If not None, the FITS mask file to use
         }
 
     def setup(self, **kwargs):
@@ -191,6 +192,9 @@ class WSClean:
 
         if 'pol' in self.params:
             cmd.extend(['-pol', self.params['pol']])
+
+        if 'fits_mask' in self.params and self.params['fits_mask'] is not None:
+            cmd.extend(['-fits-mask', self.params['fits_mask']])
 
         if 'auto_mask' in self.params:
             cmd.extend(['-auto-mask', str(self.params['auto_mask'])])
