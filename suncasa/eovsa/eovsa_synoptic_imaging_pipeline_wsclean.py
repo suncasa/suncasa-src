@@ -2111,6 +2111,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     # bright_thresh = [3, 3, 3, 2, 2, 2, 2]
     bright = [False, False, False, False, False, False, False]
     segmented_imaging = [True, True, True, False, False, False, False]
+    segmented_imaging = [True, True, True, True, True, True, True]
     # segmented_imaging = [False, False, False, False, False, False, False]
     briggs = [-1.0, -1.0, -1.0, -1.0, -1.0, -0.5, -0.5]
 
@@ -2144,8 +2145,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         # bright_thresh = np.array([350, 1000, 3000, 3200, 800, 150, 100])
         bright_thresh = np.array([350, 900, 2000, 2800, 800, 150, 100])
         bright = [False, False, False, False, False, False, False]
-        # segmented_imaging = [True, True, True, False, False, False, False]
-        segmented_imaging = [True, True, True, True, True, True, True]
+        segmented_imaging = [True, True, True, False, False, False, False]
         # segmented_imaging = [False, False, False, False, False, False, False]
         briggs = [-1.0, -1.0, -1.0, -1.0, -1.0, -0.5, -0.5]
 
