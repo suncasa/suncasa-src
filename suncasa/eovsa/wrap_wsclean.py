@@ -193,7 +193,7 @@ class WSClean:
         if 'pol' in self.params:
             cmd.extend(['-pol', self.params['pol']])
 
-        if 'fits_mask' in self.params and self.params['fits_mask'] is not None:
+        if self.params['fits_mask'] is not None:
             cmd.extend(['-fits-mask', self.params['fits_mask']])
 
         if 'auto_mask' in self.params:

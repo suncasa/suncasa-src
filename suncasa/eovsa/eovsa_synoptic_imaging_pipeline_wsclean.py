@@ -1315,6 +1315,8 @@ def add_convolved_disk_to_fits(
         for idx, hdu in enumerate(hdulist):
             if 'CDELT1' in hdu.header:
                 hdr = hdu.header
+                dateobs = Time(hdr['DATE-OBS'])
+                rsun_obs = sun.angular_radius(dateobs).value
                 break
     if bmaj is None:
         bmaj = hdr.get('BMAJ', None)
@@ -1332,12 +1334,14 @@ def add_convolved_disk_to_fits(
 
     if create_mask:
         mask_img = np.zeros_like(disk_img, dtype=bool)
+        mask_img[:] = False  # initialize mask
         crpix1, crpix2 = hdr['CRPIX1'], hdr['CRPIX2']
         ny, nx = disk_img.shape
         y_indices, x_indices = np.ogrid[:ny, :nx]
+        rsun_pix = rsun_obs / np.abs(hdr['CDELT1']) / 3600
         dist = np.sqrt((x_indices - crpix1) ** 2 + (y_indices - crpix2) ** 2)
-        mask_img[dist <= radius*1.2] = True
-        mask_outf = files_out[0].replace('image.fits', 'mask.fits')
+        mask_img[dist <= rsun_pix*1.1] = True
+        mask_outf = files_in[0].replace('image.fits', 'mask.fits')
         fits.writeto(mask_outf, mask_img.astype(np.float32), hdr, overwrite=True)
     if doconvolve:
         # convolve
@@ -1862,6 +1866,7 @@ class MSselfcal:
                  circular_beam=True,
                  no_negative=True,
                  fits_mask=None,
+                 theoretic_beam=False,
                  reftime_daily=None):
         self.msfile = msfile
         self.time_intervals = time_intervals
@@ -1901,6 +1906,7 @@ class MSselfcal:
         self.no_negative = no_negative
         self.circular_beam = circular_beam
         self.fits_mask = fits_mask
+        self.theoretic_beam = theoretic_beam
 
         # self.intervals_out = None
 
@@ -1959,6 +1965,7 @@ class MSselfcal:
                         no_negative=self.no_negative, quiet=True,
                         spws=self.sp_index,
                         beam_size=self.beam_size,
+                        theoretic_beam = self.theoretic_beam,
                         circular_beam=self.circular_beam)
         clean_obj.run(dryrun=False)
 
@@ -2156,7 +2163,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         # bright_thresh = [100, 100, 100, 100, 100, 100, 100]
         # bright_thresh = np.array([432.5, 1313.0, 5535.4, 6378.7, 1408.1, 215.6, 200])/2.0
         # bright_thresh = np.array([350, 1000, 3000, 3200, 800, 150, 100])
-        bright_thresh_ = np.array([350, 900, 2000, 2800, 800, 150, 100])
+        bright_thresh_ = np.array([350, 900, 2000, 2800, 800, 300, 150])
         # bright = [False, False, False, False, False, False, False]
         # segmented_imaging = [True, True, True, False, False, False, False]
         # segmented_imaging = [False, False, False, False, False, False, False]
@@ -2286,7 +2293,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     bright_thresh = {}
     segmented_imaging = {}
     briggs = {}
-    mask_fits = {}
+    fits_mask = {}
     spws = freq_setup.spws
     spws_imaging = spws
     defaultfreq = freq_setup.defaultfreq
@@ -2520,7 +2527,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
             diskstatss.append(diskstats)
 
-        mask_fits[sidx] = os.path.join(workdir, f"{imname}-mask.fits")
+        fits_mask[sidx] = os.path.join(workdir, f"{imname}-mask.fits")
         tb_image = np.nanmean([ds[7] for ds in diskstatss])
         if np.isnan(tb_image):
             log_print('ERROR', f"TB image for SPW {spws[sidx]} is NaN. Skipping this SPW.")
@@ -2636,7 +2643,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                    pols=pols,
                                    auto_mask=auto_mask,
                                    auto_threshold=auto_threshold,
-                                   beam_size=bmsize,
+                                   fits_mask = fits_mask[sidx],
+                                   beam_size = bmsize,
                                    circular_beam=False,
                                    )
             slfcal_obj.run()
@@ -2725,6 +2733,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                    briggs=0.0,
                                    auto_mask=auto_mask,
                                    auto_threshold=auto_threshold,
+                                   fits_mask = fits_mask[sidx],
                                    pols=pols,
                                    beam_size=bmsize,
                                    circular_beam=False,
@@ -2788,6 +2797,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                         briggs=0.0,
                                         auto_mask=auto_mask,
                                         auto_threshold=auto_threshold,
+                                        fits_mask = fits_mask[sidx],
                                         pols=pols,
                                         beam_size=bmsize,
                                         circular_beam=False,
