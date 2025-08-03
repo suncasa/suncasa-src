@@ -186,28 +186,28 @@ def detect_noisy_images(data_stack,
     disk_rms_values = np.array(disk_rms_values)
 
     # --- Automatic RMS threshold (knee detection) ---
-    if rms_threshold is None:
-        sorted_rms = np.sort(ring_rms_values)
-        N = len(sorted_rms)
+    # if rms_threshold is None:
+    sorted_rms = np.sort(ring_rms_values)
+    N = len(sorted_rms)
 
-        pts = np.vstack((np.arange(N), sorted_rms)).T
-        p0, pN = pts[0], pts[-1]
-        vec = pN - p0
-        length = np.linalg.norm(vec)
+    pts = np.vstack((np.arange(N), sorted_rms)).T
+    p0, pN = pts[0], pts[-1]
+    vec = pN - p0
+    length = np.linalg.norm(vec)
 
-        rel = pts - p0
-        proj = np.dot(rel, vec / length)
-        proj_vec = np.outer(proj, vec / length)
-        dists = np.linalg.norm(rel - proj_vec, axis=1)
+    rel = pts - p0
+    proj = np.dot(rel, vec / length)
+    proj_vec = np.outer(proj, vec / length)
+    dists = np.linalg.norm(rel - proj_vec, axis=1)
 
-        knee = np.argmax(dists)
-        fallback = np.nanmedian(ring_rms_values) + np.nanstd(ring_rms_values)
+    knee = np.argmax(dists)
+    fallback = np.nanmedian(ring_rms_values) + np.nanstd(ring_rms_values)
 
-        if knee in (0, N - 1):
-            rms_threshold = fallback
-        else:
-            thr = sorted_rms[knee]
-            rms_threshold = thr if np.sum(ring_rms_values > thr) > 0 else fallback
+    if knee in (0, N - 1):
+        rms_threshold = fallback
+    else:
+        thr = sorted_rms[knee]
+        rms_threshold = thr if np.sum(ring_rms_values > thr) > 0 else fallback
 
     # --- Automatic SNR threshold ---
     if snr_threshold is None:
@@ -2037,8 +2037,8 @@ def clearn_junk(imname, junks=['dirty', 'model', 'psf', 'residual']):
 
 
 def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=None,
-                 pols='XX', verbose=True, do_diskslfcal=True, hanning=False, do_sbdcal=False, overwrite=False,
-                 skip_slfcal=False, segmented_imaging=True):
+                 pols='XX', verbose=True, hanning=False, do_sbdcal=False, overwrite=False,
+                 overwrite_caltb=True):
     """
     Executes the EOVSA data processing pipeline for solar observation data.
 
@@ -2122,6 +2122,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         verbose = True
         do_diskslfcal = True
         overwrite = True
+        overwrite_caltb = True
         hanning = False
         do_sbdcal = False
 
@@ -2143,7 +2144,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         # bright_thresh = np.array([350, 1000, 3000, 3200, 800, 150, 100])
         bright_thresh = np.array([350, 900, 2000, 2800, 800, 150, 100])
         bright = [False, False, False, False, False, False, False]
-        segmented_imaging = [True, True, True, False, False, False, False]
+        # segmented_imaging = [True, True, True, False, False, False, False]
+        segmented_imaging = [True, True, True, True, True, True, True]
         # segmented_imaging = [False, False, False, False, False, False, False]
         briggs = [-1.0, -1.0, -1.0, -1.0, -1.0, -0.5, -0.5]
 
@@ -2160,9 +2162,9 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         # datein = datetime(2019, 9, 23, 20, 0, 0)
         # datein = datetime(2019, 9, 20, 20, 0, 0)
         # datein = datetime(2019, 9, 18, 20, 0, 0)
-        datein = datetime(2021, 9, 20, 20, 0, 0)
+        # datein = datetime(2021, 9, 20, 20, 0, 0)
         # datein = datetime(2023, 12, 24, 20, 0, 0)
-        # datein = datetime(2025, 2, 14, 20, 0, 0)
+        datein = datetime(2025, 2, 14, 20, 0, 0)
 
         trange = Time(datein)
         if trange.mjd == np.fix(trange.mjd):
@@ -2504,7 +2506,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         tb_model = np.nanmean([ds[8] for ds in diskstatss])
         tb_models[sidx] = tb_model * 1e3
         snr = np.nanmean([ds[10] for ds in diskstatss])
-        bright_ratio = min(tb_image / tb_model, snr)
+        bright_ratio = tb_image / tb_model
         bright[sidx] = bright_ratio * snr > bright_thresh[sidx]
         log_print('INFO',
                   f"SPW {spws[sidx]}: tb_image = {tb_image:.1f} kK, tb_model = {tb_model:.1f} kK, Ratio = {bright_ratio * snr:.1f}, Thresh = {bright_thresh[sidx]}, SNR = {snr:.1f}")
@@ -2620,39 +2622,42 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 caltbs_all.append(caltbs)
                 continue
 
-            caltb = os.path.join(workdir, f"caltb_init_inf_sp{spwstr}.pha")
-            if os.path.exists(caltb): os.system('rm -rf ' + caltb)
-            ## select a subset of the data for the initial phase self-calibration.
-            # timerange_sub = viz_timerange
-
             if N1_init[sidx] == 1:
                 timerange_sub = trange2timerange([time_intervals_init[sidx][0][0], time_intervals_init[sidx][0][-1]])
             else:
                 timerange_sub = trange2timerange(
                     [time_intervals_init[sidx][0][-1], time_intervals_init[sidx][N1_init[sidx] - 1][0]])
 
-            gaincal(vis=msfile, caltable=caltb, selectdata=True,
-                    timerange=timerange_sub,
-                    uvrange='',
-                    spw=spws[sidx],
-                    combine="scan", antenna=f'{antenna}&{antenna}', refant='0',
-                    solint='inf', refantmode="flex",
-                    gaintype='G',
-                    gaintable=caltbs,
-                    minsnr=1.0, calmode='p', append=False)
+            caltb = os.path.join(workdir, f"caltb_init_inf_sp{spwstr}.pha")
+            if os.path.exists(caltb):
+                if overwrite_caltb:
+                    os.system('rm -rf ' + caltb)
+            if not os.path.exists(caltb):
+                gaincal(vis=msfile, caltable=caltb, selectdata=True,
+                        timerange=timerange_sub,
+                        uvrange='',
+                        spw=spws[sidx],
+                        combine="scan", antenna=f'{antenna}&{antenna}', refant='0',
+                        solint='inf', refantmode="flex",
+                        gaintype='G',
+                        gaintable=caltbs,
+                        minsnr=1.0, calmode='p', append=False)
             if os.path.exists(caltb): caltbs.append(caltb)
 
             caltb = os.path.join(workdir, f"caltb_init_int_sp{spwstr}.pha")
-            if os.path.exists(caltb): os.system('rm -rf ' + caltb)
-            gaincal(vis=msfile, caltable=caltb, selectdata=True,
-                    timerange='',
-                    uvrange='',
-                    spw=spws[sidx],
-                    combine="scan", antenna=f'{antenna}&{antenna}', refant='0',
-                    solint=f'{tdur * 60 / N1_init[sidx] / N2_init[sidx]:.0f}s', refantmode="flex",
-                    gaintype='G',
-                    gaintable=caltbs,
-                    minsnr=1.0, calmode='p', append=False)
+            if os.path.exists(caltb):
+                if overwrite_caltb:
+                    os.system('rm -rf ' + caltb)
+            if not os.path.exists(caltb):
+                gaincal(vis=msfile, caltable=caltb, selectdata=True,
+                        timerange='',
+                        uvrange='',
+                        spw=spws[sidx],
+                        combine="scan", antenna=f'{antenna}&{antenna}', refant='0',
+                        solint=f'{tdur * 60 / N1_init[sidx] / N2_init[sidx]:.0f}s', refantmode="flex",
+                        gaintype='G',
+                        gaintable=caltbs,
+                        minsnr=1.0, calmode='p', append=False)
             if os.path.exists(caltb): caltbs.append(caltb)
 
             if len(caltbs) > ncaltbs:
@@ -2700,16 +2705,19 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             slfcal_rnd1_objs.append(slfcal_obj)
 
             caltb = os.path.join(workdir, f"caltb_rnd1_int_sp{spwstr}.pha")
-            if os.path.exists(caltb): os.system('rm -rf ' + caltb)
-            gaincal(vis=msfile, caltable=caltb, selectdata=True,
-                    uvrange='',
-                    spw=spws[sidx],
-                    combine="scan", antenna=f'{antenna}&{antenna}', refant='0',
-                    # solint=f'{tdur *60 / N2[sidx] / N1[sidx]:.0f}s', refantmode="flex",
-                    solint=f'{tdur * 60 / N1_rnd1[sidx] / N2_rnd1[sidx]:.0f}s', refantmode="flex",
-                    gaintype='G',
-                    gaintable=caltbs,
-                    minsnr=1.0, calmode='p', append=False)
+            if os.path.exists(caltb):
+                if overwrite_caltb:
+                    os.system('rm -rf ' + caltb)
+            if not os.path.exists(caltb):
+                gaincal(vis=msfile, caltable=caltb, selectdata=True,
+                        uvrange='',
+                        spw=spws[sidx],
+                        combine="scan", antenna=f'{antenna}&{antenna}', refant='0',
+                        # solint=f'{tdur *60 / N2[sidx] / N1[sidx]:.0f}s', refantmode="flex",
+                        solint=f'{tdur * 60 / N1_rnd1[sidx] / N2_rnd1[sidx]:.0f}s', refantmode="flex",
+                        gaintype='G',
+                        gaintable=caltbs,
+                        minsnr=1.0, calmode='p', append=False)
             if os.path.exists(caltb): caltbs.append(caltb)
 
             if do_sbdcal:
@@ -2765,28 +2773,34 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             slfcal_rnd2_objs.append(slfcal_rnd2_obj)
 
             caltb = os.path.join(workdir, f"caltb_rnd2_int_sp{spwstr}.pha")
-            if os.path.exists(caltb): os.system('rm -rf ' + caltb)
-            gaincal(vis=msfile, caltable=caltb, selectdata=True,
-                    uvrange='',
-                    spw=spws[sidx],
-                    combine="scan", antenna=f'{antenna}&{antenna}', refant='0',
-                    solint=f'{tdur * 60 / N2_rnd2[sidx] / N1_rnd2[sidx]:.0f}s',
-                    refantmode="flex",
-                    gaintype='G',
-                    gaintable=caltbs,
-                    minsnr=1.0, calmode='p', append=False)
+            if os.path.exists(caltb):
+                if overwrite_caltb:
+                    os.system('rm -rf ' + caltb)
+            if not os.path.exists(caltb):
+                gaincal(vis=msfile, caltable=caltb, selectdata=True,
+                        uvrange='',
+                        spw=spws[sidx],
+                        combine="scan", antenna=f'{antenna}&{antenna}', refant='0',
+                        solint=f'{tdur * 60 / N2_rnd2[sidx] / N1_rnd2[sidx]:.0f}s',
+                        refantmode="flex",
+                        gaintype='G',
+                        gaintable=caltbs,
+                        minsnr=1.0, calmode='p', append=False)
             if os.path.exists(caltb): caltbs.append(caltb)
 
             caltb = os.path.join(workdir, f"caltb_rnd2_inf_sp{spwstr}.amp")
-            if os.path.exists(caltb): os.system('rm -rf ' + caltb)
-            gaincal(vis=msfile, caltable=caltb, selectdata=True,
-                    uvrange=uvmin_l_str[sidx],
-                    spw=spws[sidx],
-                    # combine="scan", antenna=f'{antenna}&{antenna', refant='0', solint=f'{tdur *60 / N2[sidx] / N1[sidx]:.0f}s', refantmode="flex",
-                    combine="scan", antenna=f'{antenna}&{antenna}', refant='0', solint='inf', refantmode="flex",
-                    gaintype='G',
-                    gaintable=caltbs,
-                    minsnr=1.0, calmode='a', append=False)
+            if os.path.exists(caltb):
+                if overwrite_caltb:
+                    os.system('rm -rf ' + caltb)
+            if not os.path.exists(caltb):
+                gaincal(vis=msfile, caltable=caltb, selectdata=True,
+                        uvrange=uvmin_l_str[sidx],
+                        spw=spws[sidx],
+                        # combine="scan", antenna=f'{antenna}&{antenna', refant='0', solint=f'{tdur *60 / N2[sidx] / N1[sidx]:.0f}s', refantmode="flex",
+                        combine="scan", antenna=f'{antenna}&{antenna}', refant='0', solint='inf', refantmode="flex",
+                        gaintype='G',
+                        gaintable=caltbs,
+                        minsnr=1.0, calmode='a', append=False)
             if os.path.exists(caltb): caltbs.append(caltb)
         else:
             slfcal_init_objs.append(None)
@@ -2844,48 +2858,57 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                   f"Disk self-calibration for SPW {spwstr}: completed in {elapsed_time_disk_slfcal:.1f} minutes")
 
         caltb = os.path.join(workdir, f"caltb_disk_inf_sp{spwstr}.pha")
-        if os.path.exists(caltb): os.system('rm -rf ' + caltb)
-        gaincal(vis=msfile, caltable=caltb, selectdata=True,
-                uvrange='',
-                spw=spws[sidx],
-                combine="scan",
-                antenna=f'{antenna}&{antenna}', refant='0', solint='inf', refantmode="strict",
-                gaintype='G',
-                gaintable=caltbs,
-                minsnr=1,
-                calmode='p', append=False)
+        if os.path.exists(caltb):
+            if overwrite_caltb:
+                os.system('rm -rf ' + caltb)
+        if not os.path.exists(caltb):
+            gaincal(vis=msfile, caltable=caltb, selectdata=True,
+                    uvrange='',
+                    spw=spws[sidx],
+                    combine="scan",
+                    antenna=f'{antenna}&{antenna}', refant='0', solint='inf', refantmode="strict",
+                    gaintype='G',
+                    gaintable=caltbs,
+                    minsnr=1,
+                    calmode='p', append=False)
         if os.path.exists(caltb):
             caltbs.append(caltb)
 
         caltb = os.path.join(workdir, f"caltb_disk_int_sp{spwstr}.pha")
-        if os.path.exists(caltb): os.system('rm -rf ' + caltb)
-        gaincal(vis=msfile, caltable=caltb, selectdata=True,
-                uvrange='',
-                spw=spws[sidx],
-                combine="scan",
-                antenna=f'{antenna}&{antenna}', refant='0',
-                solint=f'{tdur * 60 / N2_final[sidx] / N1_final[sidx]:.0f}s',
-                refantmode="strict",
-                gaintype='G',
-                gaintable=caltbs,
-                minsnr=1,
-                calmode='p', append=False)
+        if os.path.exists(caltb):
+            if overwrite_caltb:
+                os.system('rm -rf ' + caltb)
+        if not os.path.exists(caltb):
+            gaincal(vis=msfile, caltable=caltb, selectdata=True,
+                    uvrange='',
+                    spw=spws[sidx],
+                    combine="scan",
+                    antenna=f'{antenna}&{antenna}', refant='0',
+                    solint=f'{tdur * 60 / N2_final[sidx] / N1_final[sidx]:.0f}s',
+                    refantmode="strict",
+                    gaintype='G',
+                    gaintable=caltbs,
+                    minsnr=1,
+                    calmode='p', append=False)
         if os.path.exists(caltb):
             caltbs.append(caltb)
 
         caltb = os.path.join(workdir, f"caltb_disk_int_sp{spwstr}.amp")
-        if os.path.exists(caltb): os.system('rm -rf ' + caltb)
-        gaincal(vis=msfile, caltable=caltb, selectdata=True,
-                uvrange='',
-                spw=spws[sidx],
-                combine="scan",
-                antenna=f'{antenna}&{antenna}', refant='0',
-                solint=f'{tdur * 60 / N1_final[sidx]:.0f}s',
-                refantmode="flex",
-                gaintype='G',
-                gaintable=caltbs,
-                minsnr=1,
-                calmode='a', append=False)
+        if os.path.exists(caltb):
+            if overwrite_caltb:
+                os.system('rm -rf ' + caltb)
+        if not os.path.exists(caltb):
+            gaincal(vis=msfile, caltable=caltb, selectdata=True,
+                    uvrange='',
+                    spw=spws[sidx],
+                    combine="scan",
+                    antenna=f'{antenna}&{antenna}', refant='0',
+                    solint=f'{tdur * 60 / N1_final[sidx]:.0f}s',
+                    refantmode="flex",
+                    gaintype='G',
+                    gaintable=caltbs,
+                    minsnr=1,
+                    calmode='a', append=False)
         if os.path.exists(caltb):
             mstl.flagcaltboutliers(caltb, limit=[0.125, 8.0])
             caltbs.append(caltb)
@@ -3080,10 +3103,10 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                                     f"eovsa.synoptic.{date_str[:-1]}?T??????Z.s{spwstr}.tb.fits")))
             # snr_threshold = 10 if feature_slfcal else 5
             snr_threshold = 3
-            if len(synfitsfiles) > 0 and tb_models[sidx] is not None:
+            if len(synfitsfiles) > 0: # and tb_models[sidx] is not None:
                 log_print('INFO', f"Merging synoptic images for SPW {spwstr} to {outfits} ...")
-                merge_FITSfiles(synfitsfiles, outfits, overwrite=True, snr_threshold=snr_threshold,
-                                rms_threshold=tb_models[sidx] * 2)
+                merge_FITSfiles(synfitsfiles, outfits, overwrite=True, snr_threshold=snr_threshold,)
+                                # rms_threshold=tb_models[sidx] * 2)
                 outfits_all[sidx] = outfits
                 synfitsfiles_disk = [l.replace('.tb.fits', '.tb.disk.fits') for l in synfitsfiles]
                 try:
