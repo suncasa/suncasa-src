@@ -519,9 +519,9 @@ def main(dateobj=None, ndays=1, clearcache=False, ovwrite_eovsa=False, ovwrite_s
 
     dpis = np.array([256, 512, 1024]) / 8
     dpis_dict_eo = {'t': dpis[0], 'l': dpis[1], 'f': dpis[2]}
-    dpis = np.array([256, 512, 2048]) / 8
+    dpis = np.array([256, 512, 1024]) / 8
     dpis_dict_sdo = {'t': dpis[0], 'l': dpis[1], 'f': dpis[2]}
-    dpis = np.array([256, 512, 2048]) / 8
+    dpis = np.array([256, 512, 1024]) / 8
     dpis_dict_bbso = {'t': dpis[0], 'l': dpis[1], 'f': dpis[2]}
 
     plt.ioff()
