@@ -12,21 +12,15 @@ import socket
 from datetime import datetime, time, timedelta
 from glob import glob
 from functools import wraps
-import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
-import numpy as np
-import numpy.ma as ma
 import pandas as pd
-import astropy.units as u
 from eovsapy.util import Time
 from scipy import ndimage
 from sunpy import map as smap
-from tqdm import tqdm
 from typing import NamedTuple, List, Union
 from scipy.signal import fftconvolve
 import numbers
 from suncasa.casa_compat import import_casatasks
-from suncasa.io import ndfits
 from suncasa.utils import helioimage2fits as hf
 from suncasa.utils import mstools as mstl
 from suncasa.eovsa import wrap_wsclean as ww
@@ -254,202 +248,6 @@ def detect_noisy_images(data_stack,
         plt.show()
 
     return keep, ring_rms_values, snr_values
-
-
-def detect_noisy_images0(data_stack, rsun_pix, crpix1, crpix2, rsun_ratio=[1.2, 1.3], rms_threshold=None,
-                         snr_threshold=None, showplt=False):
-    """
-    Detect noisy images based on the RMS noise calculated from pixels outside a circular mask.
-
-    This function computes the RMS noise for each image in the stack using only the pixels
-    outside the circle defined by the center (crpix1, crpix2) and radius (rsun_pix * rsun_ratio).
-    An image is flagged as noisy if its RMS exceeds the specified threshold. If no threshold is provided,
-    it is set to the median RMS value plus one standard deviation.
-
-    :param data_stack: 3D array of images (n_images, height, width).
-    :type data_stack: numpy.ndarray
-    :param rsun_pix: Radius (in pixels) of the reference circle.
-    :type rsun_pix: int or float
-    :param crpix1: X-coordinate of the circle center.
-    :type crpix1: int or float
-    :param crpix2: Y-coordinate of the circle center.
-    :type crpix2: int or float
-    :param rsun_ratio: Ratio to scale the reference circle radius, defaults to 1.2.
-    :type rsun_ratio: float, optional
-    :param rms_threshold: RMS threshold for flagging an image as noisy. If None, it is set to (median + std)
-                          of the computed RMS values.
-    :type rms_threshold: float, optional
-    :param snr_threshold: SNR threshold for flagging an image as noisy. If None, it is set to (median - std)
-
-    :param showplt: If True, plot the RMS values for each image.
-    :type showplt: bool, optional
-
-    :return: A tuple (noisy_indices, rms_values) where:
-             - noisy_indices is a boolean array indicating which images are noisy.
-             - rms_values is an array of computed RMS noise values for each image.
-    :rtype: tuple(numpy.ndarray, numpy.ndarray)
-
-    Example:
-        noisy, rms = detect_noisy_images(data_stack, rsun_pix=100, crpix1=256, crpix2=256, rsun_ratio=1.2, rms_threshold=5.0)
-    """
-    # Transpose the data stack if necessary to have shape (n_images, height, width)
-    images = np.squeeze(data_stack)
-    ny, nx = images.shape[1], images.shape[2]
-    y, x = np.ogrid[:ny, :nx]
-    pix_dist = np.sqrt((x - crpix1) ** 2 + (y - crpix2) ** 2)
-    mask_ring = (pix_dist > (rsun_pix * rsun_ratio[0])) & (pix_dist < (rsun_pix * rsun_ratio[1]))
-    mask_disk = pix_dist <= (rsun_pix * 1.01)
-
-    # Compute RMS noise for each image using only the pixels outside the mask
-    rms_values = []
-    snr_values = []
-    for img in images:
-        noise_region = img[mask_ring]
-        # signal = np.nanmax(img[mask_disk])
-        signal = np.nanpercentile(img[mask_disk], 99.999)
-        rms = np.sqrt(np.nanmean(noise_region ** 2))
-        rms_values.append(rms)
-        snr = signal / rms
-        snr_values.append(snr)
-    rms_values = np.array(rms_values)
-    snr_values = np.array(snr_values)
-
-    # --- automatic RMS threshold if none provided ---
-    # if rms_threshold is None:
-    fallback = rms_threshold
-    sorted_r = np.sort(rms_values)
-    N = len(sorted_r)
-    # build the straight line from first to last point
-    pts = np.vstack((np.arange(N), sorted_r)).T
-    p0, pN = pts[0], pts[-1]
-    line_vec = pN - p0
-    line_len = np.linalg.norm(line_vec)
-
-    # compute perpendicular distances
-    rel_pts = pts - p0
-    proj = np.dot(rel_pts, line_vec / line_len)
-    proj_vec = np.outer(proj, line_vec / line_len)
-    dists = np.linalg.norm(rel_pts - proj_vec, axis=1)
-
-    knee_idx = np.argmax(dists)
-
-    # # fall-back stats
-    # median_r = np.nanmedian(rms_values)
-    # std_r    = np.nanstd(rms_values)
-    # fallback = median_r + std_r
-
-    # decide which to use
-    if knee_idx in (0, N - 1):
-        # knee is at the ends → unreliable
-        rms_threshold = fallback
-    else:
-        rms_knee = sorted_r[knee_idx]
-        # if knee-based threshold would flag *no* images, fall back
-        if np.sum(rms_values > rms_knee) == 0:
-            rms_threshold = fallback
-        else:
-            rms_threshold = rms_knee
-        # --- SNR threshold as before ---
-        if snr_threshold is None:
-            med, std = np.nanmedian(snr_values), np.sqrt(np.nanmean((snr_values - np.nanmedian(snr_values)) ** 2))
-            snr_threshold = med - std
-
-    # Flag an image as noisy if:
-    # - SNR is below the threshold OR RMS is above the threshold,
-    #   AND the SNR is not significantly high (i.e., SNR ≤ 3 × snr_threshold).
-    # This avoids flagging high-SNR images even if their RMS is slightly high.
-    noisy_indices = ((snr_values < snr_threshold) | (rms_values > rms_threshold)) & (snr_values <= 3 * snr_threshold)
-
-    # prevent all images from being flagged as noisy
-    select_indices = ~noisy_indices
-    if np.sum(select_indices) == 0:
-        # Get the indices of the top two SNR values
-        top_two_indices = np.argsort(snr_values)[-2:]
-        # Set the corresponding indices in select_indices to True
-        select_indices[top_two_indices] = True
-
-    if showplt:
-        import matplotlib.pyplot as plt
-        fig, axs = plt.subplots(2, 1, figsize=(8, 8))
-        axs[0].plot(np.arange(len(rms_values)), rms_values, 'bo-', label='RMS Noise')
-        axs[0].axhline(rms_threshold, color='r', linestyle='--', label=f'Threshold ({rms_threshold:.2f})')
-        axs[0].set_xlabel('Image Index')
-        axs[0].set_ylabel('RMS Noise')
-        axs[0].set_title('RMS Noise Outside Masked Region')
-        axs[0].legend()
-
-        axs[1].plot(np.arange(len(snr_values)), snr_values, 'go-', label='SNR')
-        axs[1].axhline(snr_threshold, color='r', linestyle='--', label=f'Threshold ({snr_threshold:.2f})')
-        axs[1].set_xlabel('Image Index')
-        axs[1].set_ylabel('SNR')
-        axs[1].set_title('SNR (Signal = 99th percentile inside mask)')
-        axs[1].legend()
-        plt.tight_layout()
-        plt.show()
-
-    return select_indices, rms_values, snr_values
-
-
-def is_factor_of_60_minutes(tdt):
-    """
-    Check if tdt is a factor of 60 minutes or a harmonic of 60 minutes.
-
-    :param tdt: Time duration to check.
-    :type tdt: timedelta
-    :return: True if tdt is a factor or harmonic of 60 minutes, False otherwise.
-    :rtype: bool
-    """
-    minutes = tdt.total_seconds() / 60
-    return 60 % minutes == 0 or minutes % 60 == 0
-
-
-def split_ms_by_scan(msfile, timerange='', outdir='./', antenna='0~12&&0~12', datacolumn='data', verbose=False):
-    """
-    Splits a Measurement Set (MS) file into sub-MS files based on scan numbers.
-
-    This function reads the scan numbers from the MS file and creates a sub-MS file
-    for each scan. The output sub-MS files are named using the scan number.
-
-    :param msfile: Path to the Measurement Set (MS) file.
-    :type msfile: str
-    :param timerange: Time range to consider for splitting the MS, defaults to an empty string.
-    :type timerange: str, optional
-    :param antenna: Antenna selection string, defaults to '0~12&&0~12'.
-    :type antenna: str, optional
-    :param datacolumn: Data column to use for splitting, defaults to 'data'.
-    :type datacolumn: str, optional
-    :param outdir: Directory to save the sub-MS files, defaults to the current directory.
-    :type outdir: str, optional
-    :param verbose: If True, prints additional information during the process, defaults to False.
-    :type verbose: bool, optional
-    :return: List of paths to the sub-MS files created.
-    :rtype: list[str]
-    """
-    ms.open(msfile)
-    scans = ms.getscansummary()
-    ms.close()
-
-    sub_ms_files = []
-    for scan in scans:
-        run_start_time = datetime.now()
-        scan_number = scan
-        sub_ms_filename = os.path.basename(f"{msfile.replace('.ms', '')}.scan{scan_number}.ms")
-        sub_ms_file = os.path.join(outdir, sub_ms_filename)
-        sub_ms_files.append(sub_ms_file)
-        if verbose:
-            log_print('INFO', f"Splitting scan {scan_number} to {sub_ms_filename}")
-        if os.path.exists(sub_ms_file):
-            log_print('WARNING', f"Sub-MS file {sub_ms_filename} already exists. Skipping.")
-            continue
-        split(vis=msfile, outputvis=sub_ms_file, timerange=timerange, scan=str(scan_number), antenna=antenna,
-              datacolumn=datacolumn)
-        run_end_time = datetime.now()
-        elapsed_time = run_end_time - run_start_time
-        elapsed_time = elapsed_time.total_seconds() / 60
-        if verbose:
-            log_print('INFO', f"Splitting scan {scan_number} took {elapsed_time:.1f} minutes.")
-
-    return sub_ms_files
 
 
 def extract_time_flags_from_ms(msfile, threshold=0.75, plotflag=False, return_flag=False):
@@ -1405,30 +1203,6 @@ def add_convolved_disk_to_fits(
         return stats
 
 
-def disk_size_function0(v, c1, alpha1, c2, alpha2):
-    """
-    Analytic model for disk size as a function of frequency.
-
-    R(v) = c1 / v^(alpha1) + c2 / v^(alpha2)
-
-    Parameters:
-      v      : float or array_like
-               Frequency (e.g., in GHz).
-      c1     : float
-               Coefficient for the first term.
-      alpha1 : float
-               Exponent for the first term.
-      c2     : float
-               Coefficient for the second term.
-      alpha2 : float
-               Exponent for the second term.
-
-    Returns:
-      Disk size at frequency v.
-    """
-    return c1 * v ** (-alpha1) + c2 * v ** (-alpha2)
-
-
 def disk_size_function(v, c1, alpha1):
     """
     Analytic model for disk size as a function of frequency.
@@ -1447,30 +1221,6 @@ def disk_size_function(v, c1, alpha1):
       Disk size at frequency v.
     """
     return c1 * v ** (-alpha1)
-
-
-def flux_function0(v, c1, alpha1, c2, alpha2):
-    """
-    Analytic model for disk flux as a function of frequency.
-
-    F(v) = c1 * v^(alpha1) + c2 * v^(alpha2)
-
-    Parameters:
-      v      : float or array_like
-               Frequency (e.g., in GHz).
-      c1     : float
-               Coefficient for the first term.
-      alpha1 : float
-               Exponent for the first term.
-      c2     : float
-               Coefficient for the second term.
-      alpha2 : float
-               Exponent for the second term.
-
-    Returns:
-      Disk flux at frequency v.
-    """
-    return c1 * v ** (alpha1) + c2 * v ** (alpha2)
 
 
 def flux_function(v, c1, alpha1, c2, alpha2, c3, alpha3):
@@ -2128,7 +1878,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     spwidx2proc = [0, 1, 2, 3, 4, 5, 6]  ## band window index to process
     # alldaymode_spidx = [0]  ## band window index to process for all-day mode
     bright_thresh_ = np.array([350, 900, 2000, 2800, 800, 150, 100])
-    # bright_thresh = [3, 3, 3, 2, 2, 2, 2]
+    tb_ratio_thresh_ = np.array([1.5, 5.0, 5.0, 3.0, 1.5, 1.5, 1.5])
+# bright_thresh = [3, 3, 3, 2, 2, 2, 2]
     # bright = [False, False, False, False, False, False, False]
     # segmented_imaging = [True, True, True, False, False, False, False]
     # segmented_imaging = [True, True, True, True, True, True, True]
@@ -2164,6 +1915,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         # bright_thresh = np.array([432.5, 1313.0, 5535.4, 6378.7, 1408.1, 215.6, 200])/2.0
         # bright_thresh = np.array([350, 1000, 3000, 3200, 800, 150, 100])
         bright_thresh_ = np.array([350, 900, 2000, 2800, 800, 300, 150])
+        tb_ratio_thresh_ = np.array([1.5, 5.0, 5.0, 3.0, 1.5, 1.5, 1.5])
         # bright = [False, False, False, False, False, False, False]
         # segmented_imaging = [True, True, True, False, False, False, False]
         # segmented_imaging = [False, False, False, False, False, False, False]
@@ -2290,7 +2042,8 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     tb_models = {}
     outfits_all = {}
     bright = {}
-    bright_thresh = {}
+    bright_thresh = {}  ## Threshold of brightness for each band window
+    tb_ratio_thresh = {}  ## Threshold of Tb ratio between tb_image and tb_model for each band window
     segmented_imaging = {}
     briggs = {}
     fits_mask = {}
@@ -2306,6 +2059,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         outfits_all[sidx] = None
         bright[sidx] = False
         bright_thresh[sidx] = bright_thresh_[sidx]
+        tb_ratio_thresh[sidx] = tb_ratio_thresh_[sidx]
         segmented_imaging[sidx] = True if sidx in [0, 1, 2, 3] else False
         briggs[sidx] = briggs_[sidx]
 
@@ -2559,6 +2313,10 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         if bright[sidx]:
             log_print('INFO', f"SPW {spws[sidx]} is bright. Proceeding with segmented imaging.")
             segmented_imaging[sidx] = True
+
+        if bright_ratio < tb_ratio_thresh[sidx]:
+            segmented_imaging[sidx] = False
+
         ## set the multipliers for the time intervals based init, rnd1, and final imaging
         mult = interval_multipliers_init.get(sidx, 1)
         wsclean_intervals.interval_length = 50 * mult
