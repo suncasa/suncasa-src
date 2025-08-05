@@ -2047,6 +2047,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     segmented_imaging = {}
     briggs = {}
     fits_mask = {}
+    imaging_objs = {}
     spws = freq_setup.spws
     spws_imaging = spws
     defaultfreq = freq_setup.defaultfreq
@@ -2058,6 +2059,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         tb_models[sidx] = None
         outfits_all[sidx] = None
         bright[sidx] = False
+        imaging_objs[sidx] = None
         bright_thresh[sidx] = bright_thresh_[sidx]
         tb_ratio_thresh[sidx] = tb_ratio_thresh_[sidx]
         segmented_imaging[sidx] = True if sidx in [0, 1, 2, 3] else False
@@ -2194,7 +2196,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     slfcal_init_objs = []
     slfcal_rnd1_objs = []
     slfcal_rnd2_objs = []
-    imaging_objs = []
+
 
     imname_init_disk_strlist = ["eovsa", "disk", "init", f"{msfilename}"]
 
@@ -2213,14 +2215,12 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 slfcal_rnd1_objs.append(None)
                 slfcal_rnd2_objs.append(None)
                 caltbs_all.append(caltbs)
-                imaging_objs.append(None)
                 continue
         if sidx not in spwidx2proc:
             slfcal_init_objs.append(None)
             slfcal_rnd1_objs.append(None)
             slfcal_rnd2_objs.append(None)
             caltbs_all.append(caltbs)
-            imaging_objs.append(None)
             continue
         # clearcal(msfile, spw=spws[sidx])
         reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(spws[sidx], return_bmsize=True)
@@ -2288,7 +2288,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             slfcal_rnd1_objs.append(None)
             slfcal_rnd2_objs.append(None)
             caltbs_all.append(caltbs)
-            imaging_objs.append(None)
             continue
         tb_model = np.nanmean([ds[8] for ds in diskstatss])
         tb_models[sidx] = tb_model * 1e3
@@ -2783,7 +2782,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 log_print('ERROR', f"Error in hf.imreg or solar_diff_rot_heliofits: {e}")
                 fitsfilefinal = []
             log_print('INFO', f"Final imaging for SPW {spws[sidx]}: completed")
-            imaging_objs.append(None)
         else:
             clean_obj = ww.WSClean(msfile)
             imaging_obj = MSselfcal(msfile, time_intervals_final[sidx], time_intervals_major_avg_final[sidx],
@@ -2807,7 +2805,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                                     reftime_daily=reftime_daily
                                     )
             imaging_obj.run()
-            imaging_objs.append(imaging_obj)
+            imaging_objs[sidx] = imaging_obj
 
             if not imaging_obj.succeeded:
                 log_print('ERROR', f"Final imaging for SPW {spws[sidx]} failed when creating viz model. Skipping...")
