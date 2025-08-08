@@ -271,7 +271,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
                       3) a single or a list of UDBms file(s)
                       4) None -- use current date Time.now()
     '''
-    udbmspath = udbmsslfcaleddir
+
     if workdir is None:
         workdir = workdir_default
     os.chdir(workdir)
@@ -291,15 +291,17 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
     fileexist = False
 
     tdate = trange.datetime
-    udbmspath = os.path.join(udbmsdir, tdate.strftime('%Y%m'))
-    vis = os.path.join(udbmspath, tdate.strftime('UDB%Y%m%d') + '.ms')
+    vispath = os.path.join(udbmsdir, tdate.strftime('%Y%m'))
+    vis = os.path.join(vispath, tdate.strftime('UDB%Y%m%d') + '.ms')
     print(f'Trying to use visibility file: {vis}')
     if os.path.exists(vis):
+        print(f'Visibility file {vis} exists.')
         fileexist = True
     else:
         if os.path.exists(f'{vis}.tar.gz'):
+            print(f'Visibility file {vis}.tar.gz exists. Extracting...')
             fileexist = True
-            os.system(f'tar -xzf {vis}.tar.gz -C {udbmspath}')
+            os.system(f'tar -xzf {vis}.tar.gz -C {vispath}')
 
     if overwrite:
         fileexist=False
@@ -335,6 +337,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
     # tdate = mstl.get_trange(vis)[0]
     tdate = get_tdate_from_basename(vis)
 
+    udbmspath = udbmsslfcaleddir
     outpath = os.path.join(udbmspath, tdate.strftime('%Y%m')) + '/'
     if not os.path.exists(outpath):
         os.makedirs(outpath)
