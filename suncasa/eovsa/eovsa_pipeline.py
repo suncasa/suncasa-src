@@ -291,19 +291,21 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
     fileexist = False
 
     tdate = trange.datetime
-    outpath = os.path.join(udbmspath, tdate.strftime('%Y%m'))
-    vis = os.path.join(outpath, tdate.strftime('UDB%Y%m%d') + '.ms')
+    udbmspath = os.path.join(udbmsdir, tdate.strftime('%Y%m'))
+    vis = os.path.join(udbmspath, tdate.strftime('UDB%Y%m%d') + '.ms')
+    print(f'Trying to use visibility file: {vis}')
     if os.path.exists(vis):
         fileexist = True
     else:
         if os.path.exists(f'{vis}.tar.gz'):
             fileexist = True
-            os.system(f'tar -xzf {vis}.tar.gz -C {outpath}')
+            os.system(f'tar -xzf {vis}.tar.gz -C {udbmspath}')
 
     if overwrite:
         fileexist=False
 
     if not fileexist:
+        print('Visibility file does not exist. Running calibration pipeline...')
         if isinstance(trange, Time):
             mslist = trange2ms(trange=trange, doimport=doimport, overwrite=overwrite)
             invis = mslist['ms']
