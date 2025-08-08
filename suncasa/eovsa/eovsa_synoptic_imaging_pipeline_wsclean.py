@@ -2942,7 +2942,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             targetfile = f'{slfcaltbdir}/{os.path.basename(caltb).replace("caltb_", f"caltb_{date_str}_")}'
             if os.path.exists(targetfile):
                 os.system(f'rm -rf {targetfile}')
-            os.system(f'mv {caltb} {slfcaltbdir}/')
+            os.system(f'mv {caltb} {targetfile}')
     if os.path.isdir(msfile + '.flagversions') == True:
         targetfile = f'{os.path.dirname(outputvis)}/{msfile}.flagversions'
         if os.path.exists(targetfile):
