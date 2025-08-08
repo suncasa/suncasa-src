@@ -271,7 +271,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
                       3) a single or a list of UDBms file(s)
                       4) None -- use current date Time.now()
     '''
-
+    udbmspath = udbmsslfcaleddir
     if workdir is None:
         workdir = workdir_default
     os.chdir(workdir)
@@ -288,9 +288,18 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
     for idx, f in enumerate(invis):
         invis[idx] = f.rstrip('/')
 
+    fileexist = False
+    if invis:
+        tdate = get_tdate_from_basename(invis[0])
+        outpath = os.path.join(udbmspath, tdate.strftime('%Y%m')) + '/'
+        vis = os.path.join(outpath, os.path.basename(invis[0])[:11] + '.ms')
+        if os.path.exists(vis):
+            fileexist = True
 
+    if overwrite:
+        fileexist=False
 
-    if overwrite or (invis == []):
+    if not fileexist:
         if isinstance(trange, Time):
             mslist = trange2ms(trange=trange, doimport=doimport, overwrite=overwrite)
             invis = mslist['ms']
@@ -304,7 +313,6 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
         for idx, f in enumerate(invis):
             invis[idx] = f.rstrip('/')
 
-
         outputvis = os.path.join(os.path.dirname(invis[0]), os.path.basename(invis[0])[:11] + '.ms')
         tdate = get_tdate_from_basename(outputvis)
         flagant = '13~15' if Time(tdate).mjd >= EOVSA15_UPGRADE_DATE.mjd else '15'
@@ -313,10 +321,8 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
                          flagant=flagant,
                          doimage=False, doconcat=True,
                          concatvis=outputvis, keep_orig_ms=False)
-    else:
-        vis = invis[0]
 
-    udbmspath = udbmsslfcaleddir
+
     # tdate = mstl.get_trange(vis)[0]
     tdate = get_tdate_from_basename(vis)
 
