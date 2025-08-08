@@ -278,7 +278,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
     if isinstance(trange, Time):
         mslist = trange2ms(trange=trange, doimport=False)
         invis = mslist['ms']
-    if type(trange) == str:
+    if isinstance(trange, str):
         try:
             mslist = trange2ms(trange=trange, doimport=False)
             invis = mslist['ms']
@@ -286,14 +286,13 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
             invis = [trange]
 
     for idx, f in enumerate(invis):
-        invis[idx] = f.rstrip('/')
+        invis[idx] = os.path.normpath(f)
 
     fileexist = False
 
     tdate = trange.datetime
     outpath = os.path.join(udbmspath, tdate.strftime('%Y%m'))
-    vis = os.path.join(outpath, os.path.basename(invis[0])[:11] + '.ms')
-    print(f'Output visibility file: {vis}')
+    vis = os.path.join(outpath, tdate.strftime('UDB%Y%m%d') + '.ms')
     if os.path.exists(vis):
         fileexist = True
     else:
@@ -308,7 +307,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
         if isinstance(trange, Time):
             mslist = trange2ms(trange=trange, doimport=doimport, overwrite=overwrite)
             invis = mslist['ms']
-        if type(trange) == str:
+        if isinstance(trange, str):
             try:
                 mslist = trange2ms(trange=trange, doimport=doimport, overwrite=overwrite)
                 invis = mslist['ms']
