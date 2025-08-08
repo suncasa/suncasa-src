@@ -303,7 +303,10 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
             fileexist = True
             os.system(f'tar -xzf {vis}.tar.gz -C {vispath}')
 
+    print(f'Visibility file exists: {fileexist}')
     if overwrite:
+        print(f'overwrite: {overwrite}')
+        print('Overwriting existing visibility file...')
         fileexist=False
 
     if not fileexist:
@@ -870,7 +873,7 @@ if __name__ == '__main__':
     parser.add_argument('--ndays', type=int, default=1,
                         help='Process data from DATE_IN_YY_MM_DD-ndays to DATE_IN_YY_MM_DD, default is 1.')
     parser.add_argument('--overwrite', action='store_true', default=False, help='Overwrite existing processed data')
-    parser.add_argument('--doimport', action='store_true', default=True, help='Perform import step before processing')
+    parser.add_argument('--doimport', action='store_true', default=False, help='Perform import step before processing')
     parser.add_argument('--pols', type=str, default='XX', choices=['XX', 'XXYY'], help='Polarizations to process')
     parser.add_argument('--ncpu', type=str, default='auto', help='Number of CPUs to use for processing')
     parser.add_argument('--version', type=str, default='v3.0', choices=['v1.0', 'v2.0', 'v3.0'],
