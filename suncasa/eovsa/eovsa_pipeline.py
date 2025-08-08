@@ -291,10 +291,14 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
     fileexist = False
     if invis:
         tdate = get_tdate_from_basename(invis[0])
-        outpath = os.path.join(udbmspath, tdate.strftime('%Y%m')) + '/'
+        outpath = udbmspath, tdate.strftime('%Y%m')
         vis = os.path.join(outpath, os.path.basename(invis[0])[:11] + '.ms')
         if os.path.exists(vis):
             fileexist = True
+        else:
+            if os.path.exists(vis+'tar.gz'):
+                fileexist = True
+                os.system(f'tar -xzf {vis}.tar.gz -C {outpath}')
 
     if overwrite:
         fileexist=False
@@ -321,6 +325,9 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
                          flagant=flagant,
                          doimage=False, doconcat=True,
                          concatvis=outputvis, keep_orig_ms=False)
+    else:
+        if verbose:
+            print(f'Using existing visibility file: {vis}')
 
 
     # tdate = mstl.get_trange(vis)[0]
