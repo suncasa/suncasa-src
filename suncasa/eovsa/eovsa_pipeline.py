@@ -304,8 +304,8 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
             os.system(f'tar -xzf {vis}.tar.gz -C {vispath}')
 
     print(f'Visibility file exists: {fileexist}')
-    if overwrite:
-        print(f'overwrite: {overwrite}')
+    if doimport:
+        print(f'doimport: {doimport}')
         print('Overwriting existing visibility file...')
         fileexist=False
 
