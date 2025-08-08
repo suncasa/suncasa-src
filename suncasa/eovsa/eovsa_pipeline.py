@@ -352,9 +352,9 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
         os.makedirs(figoutdir)
 
     if version == 'v1.0':
-        output_file_path = outpath + os.path.basename(invis[0])[:11] + '.ms'
+        output_file_path = os.path.join(outpath, tdate.strftime('UDB%Y%m%d') + '.ms')
     else:
-        output_file_path = outpath + os.path.basename(invis[0])[:11] + f'.{version}.ms'
+        output_file_path = os.path.join(outpath, tdate.strftime('UDB%Y%m%d') + f'.{version}.ms')
     slfcaltbdir_path = os.path.join(slfcaltbdir, tdate.strftime('%Y%m')) + '/'
 
     if verbose:
