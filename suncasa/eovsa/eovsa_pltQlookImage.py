@@ -532,7 +532,6 @@ def main(dateobj=None, ndays=1, clearcache=False, ovwrite_eovsa=False, ovwrite_s
 
     dateobs = tst
     while dateobs < ted:
-        dateobs = dateobs + timedelta(days=1)
         # Determine spectral window settings based on the observation date.
         if dateobs > tsep:
             spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43', '44~49']
@@ -549,7 +548,7 @@ def main(dateobj=None, ndays=1, clearcache=False, ovwrite_eovsa=False, ovwrite_s
                          overwrite=ovwrite_sdo, verbose=True, clearcache=clearcache, debug=debug)
         pltBbsoQlookImage(datestr, dpis_dict_bbso, fig, ax,
                           overwrite=ovwrite_bbso, verbose=True, clearcache=clearcache)
-
+        dateobs = dateobs + timedelta(days=1)
 
 if __name__ == '__main__':
     import argparse
