@@ -301,7 +301,8 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
         if os.path.exists(f'{vis}.tar.gz'):
             print(f'Visibility file {vis}.tar.gz exists. Extracting...')
             fileexist = True
-            os.system(f'tar -xzf {vis}.tar.gz -C {vispath}')
+            vis= f'{vis}.tar.gz'
+            # os.system(f'tar -xzf {vis}.tar.gz -C {vispath}')
 
     print(f'Visibility file exists: {fileexist}')
     if doimport:

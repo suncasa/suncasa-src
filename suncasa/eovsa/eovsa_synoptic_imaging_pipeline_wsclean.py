@@ -2005,10 +2005,16 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     if imgoutdir is None:
         imgoutdir = workdir + '/'
 
-    msfile = vis.rstrip('/')
+    msfile = os.path.normpath(vis)
 
-    msname, _ = os.path.splitext(msfile)
-    msname = os.path.basename(msname)
+    # Get the base name without any of the known extensions
+    basename = os.path.basename(msfile)
+    if basename.lower().endswith('.ms.tar.gz'):
+        msname = basename[:-len('.ms.tar.gz')]
+    elif basename.lower().endswith('.ms'):
+        msname = basename[:-len('.ms')]
+    else:
+        raise ValueError(f"Unsupported file format: {basename}")
 
     msfile_copy = os.path.join(workdir, f'{msname}.ms')
     if not os.path.exists(msfile_copy):
@@ -2019,7 +2025,6 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
         else:
             raise ValueError(f"Unsupported file format: {msfile}")
     msfile = msfile_copy
-    msfilename = os.path.basename(msfile)
 
     viz_timerange = ant_trange(msfile)
     (tstart, tend) = viz_timerange.split('~')
@@ -2198,7 +2203,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     slfcal_rnd2_objs = []
 
 
-    imname_init_disk_strlist = ["eovsa", "disk", "init", f"{msfilename}"]
+    imname_init_disk_strlist = ["eovsa", "disk", "init", f"{msname}"]
 
     for sidx, sp_index in enumerate(spws_indices):
         spwstr = format_spw(spws[sidx])
@@ -2224,7 +2229,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
             continue
         # clearcal(msfile, spw=spws[sidx])
         reffreq, cdelt4_real, bmsize = freq_setup.get_reffreq_and_cdelt(spws[sidx], return_bmsize=True)
-        log_print('INFO', f"Processing SPW {spws[sidx]} for msfile {msfilename} ...")
+        log_print('INFO', f"Processing SPW {spws[sidx]} for msfile {msname} ...")
         # if sidx in [0]:
         #     auto_mask = 3
         #     auto_threshold = 2
@@ -2739,7 +2744,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
 
         gain = 0.2
         if segmented_imaging[sidx]:
-            imname_strlist = ["eovsa", "major", f"{msfilename}", f"sp{spwstr}", 'final']
+            imname_strlist = ["eovsa", "major", f"{msname}", f"sp{spwstr}", 'final']
             imname = '-'.join(imname_strlist)
             clean_obj = ww.WSClean(msfile)
             clean_obj.setup(size=1024, scale="2.5asec", pol=pols,
@@ -2819,7 +2824,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
                 -name {model_dir_name_str}  -quiet -intervals-out {N1_final[sidx]} {msfile}"
             os.system(cmd)
             uvsub(vis=msfile, reverse=True)  # Now the viz data contains residuals + corrected models
-            imname_strlist = ["eovsa", "major", f"{msfilename}", f"sp{spwstr}", 'final']
+            imname_strlist = ["eovsa", "major", f"{msname}", f"sp{spwstr}", 'final']
             imname = '-'.join(imname_strlist)
             clean_obj.setup(size=1024, scale="2.5asec",
                             pol=pols,
