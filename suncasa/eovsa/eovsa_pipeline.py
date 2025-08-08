@@ -289,14 +289,16 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
         invis[idx] = f.rstrip('/')
 
     fileexist = False
+    print(f'Input visibility files: {invis}')
     if invis:
         tdate = get_tdate_from_basename(invis[0])
         outpath = udbmspath, tdate.strftime('%Y%m')
         vis = os.path.join(outpath, os.path.basename(invis[0])[:11] + '.ms')
+        print(f'Output visibility file: {vis}')
         if os.path.exists(vis):
             fileexist = True
         else:
-            if os.path.exists(vis+'tar.gz'):
+            if os.path.exists(f'{vis}.tar.gz'):
                 fileexist = True
                 os.system(f'tar -xzf {vis}.tar.gz -C {outpath}')
 
