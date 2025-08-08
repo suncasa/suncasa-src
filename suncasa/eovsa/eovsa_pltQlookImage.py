@@ -273,6 +273,8 @@ def plot_sdo_func(sdofile, ax, dpis_dict, key, imgoutdir, fig):
 
     for l, dpi in dpis_dict.items():
         figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
+        if os.path.exists(figname):
+            os.system('rm -rf ' + figname)
         fig.savefig(figname, dpi=int(dpi), pil_kwargs={"quality": 85})
 
 def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, verbose=False, clearcache=False, debug=False):

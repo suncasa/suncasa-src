@@ -1813,7 +1813,7 @@ class Stackplot:
             else:
                 frm_range = [0, len(mapseq)]
         maplist = []
-        nframe = frm_range[-1] - frm_range[0]
+        nframe = frm_range[-1] - frm_range[0]+1
         if movingcut == []:
             movingcut = [np.zeros(nframe), np.zeros(nframe)]
         else:
@@ -1845,8 +1845,8 @@ class Stackplot:
                         pass
                 else:
                     fov = stpu.get_map_corner_coord(smap)
-                intens = getimprofile(data, self.cutslitbd.cutslitplt, xrange=fov[:2].value + movingcut[0][idx],
-                                      yrange=fov[2:].value + movingcut[1][idx], get_peak=get_peak)
+                intens = getimprofile(data, self.cutslitbd.cutslitplt, xrange=fov[:2].value + movingcut[0][idx-frm_range[0]],
+                                      yrange=fov[2:].value + movingcut[1][idx-frm_range[0]], get_peak=get_peak)
                 if negval:
                     stackplt.append(-intens['y'])
                 else:
