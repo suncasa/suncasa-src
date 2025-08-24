@@ -15,6 +15,7 @@ from suncasa.eovsa import eovsa_diskmodel as ed
 from suncasa.utils import mstools as mstl
 
 from suncasa.casa_compat import import_casatasks, import_casatools
+from suncasa.eovsa.update_log import  EOVSA15_UPGRADE_DATE,DCM_IF_FILTER_UPGRADE_DATE
 
 tasks = import_casatasks('split', 'tclean', 'gencal', 'clearcal', 'applycal', 'gaincal',
                          'delmod')
@@ -277,7 +278,7 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
     if isinstance(trange, Time):
         mslist = trange2ms(trange=trange, doimport=False)
         invis = mslist['ms']
-    if type(trange) == str:
+    if isinstance(trange, str):
         try:
             mslist = trange2ms(trange=trange, doimport=False)
             invis = mslist['ms']
@@ -285,13 +286,36 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
             invis = [trange]
 
     for idx, f in enumerate(invis):
-        invis[idx] = f.rstrip('/')
+        invis[idx] = os.path.normpath(f)
 
-    if overwrite or (invis == []):
+    fileexist = False
+
+    tdate = trange.datetime
+    vispath = os.path.join(udbmsdir, tdate.strftime('%Y%m'))
+    vis = os.path.join(vispath, tdate.strftime('UDB%Y%m%d') + '.ms')
+    print(f'Trying to use visibility file: {vis}')
+    if os.path.exists(vis):
+        print(f'Visibility file {vis} exists.')
+        fileexist = True
+    else:
+        if os.path.exists(f'{vis}.tar.gz'):
+            print(f'Visibility file {vis}.tar.gz exists. Extracting...')
+            fileexist = True
+            vis= f'{vis}.tar.gz'
+            # os.system(f'tar -xzf {vis}.tar.gz -C {vispath}')
+
+    print(f'Visibility file exists: {fileexist}')
+    if doimport:
+        print(f'doimport: {doimport}')
+        print('Overwriting existing visibility file...')
+        fileexist=False
+
+    if not fileexist:
+        print('Visibility file does not exist. Running calibration pipeline...')
         if isinstance(trange, Time):
             mslist = trange2ms(trange=trange, doimport=doimport, overwrite=overwrite)
             invis = mslist['ms']
-        if type(trange) == str:
+        if isinstance(trange, str):
             try:
                 mslist = trange2ms(trange=trange, doimport=doimport, overwrite=overwrite)
                 invis = mslist['ms']
@@ -302,18 +326,22 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
             invis[idx] = f.rstrip('/')
 
         outputvis = os.path.join(os.path.dirname(invis[0]), os.path.basename(invis[0])[:11] + '.ms')
+        tdate = get_tdate_from_basename(outputvis)
+        flagant = '13~15' if Time(tdate).mjd >= EOVSA15_UPGRADE_DATE.mjd else '15'
         vis = calibeovsa(invis, caltype=caltype, caltbdir=caltbdir, interp=interp,
                          doflag=True,
-                         flagant='13~15',
+                         flagant=flagant,
                          doimage=False, doconcat=True,
                          concatvis=outputvis, keep_orig_ms=False)
     else:
-        vis = invis[0]
+        if verbose:
+            print(f'Using existing visibility file: {vis}')
 
-    udbmspath = udbmsslfcaleddir
+
     # tdate = mstl.get_trange(vis)[0]
     tdate = get_tdate_from_basename(vis)
 
+    udbmspath = udbmsslfcaleddir
     outpath = os.path.join(udbmspath, tdate.strftime('%Y%m')) + '/'
     if not os.path.exists(outpath):
         os.makedirs(outpath)
@@ -325,9 +353,9 @@ def calib_pipeline(trange, workdir=None, doimport=False, overwrite=False, clearc
         os.makedirs(figoutdir)
 
     if version == 'v1.0':
-        output_file_path = outpath + os.path.basename(invis[0])[:11] + '.ms'
+        output_file_path = os.path.join(outpath, tdate.strftime('UDB%Y%m%d') + '.ms')
     else:
-        output_file_path = outpath + os.path.basename(invis[0])[:11] + f'.{version}.ms'
+        output_file_path = os.path.join(outpath, tdate.strftime('UDB%Y%m%d') + f'.{version}.ms')
     slfcaltbdir_path = os.path.join(slfcaltbdir, tdate.strftime('%Y%m')) + '/'
 
     if verbose:
@@ -699,7 +727,7 @@ def qlook_image_pipeline(date, twidth=10, ncpu=15, doimport=False, docalib=False
         print('date format not recognised. Abort....')
         return None
 
-    if date.mjd > Time('2019-02-02 12:00:00').mjd:
+    if date.mjd >= DCM_IF_FILTER_UPGRADE_DATE.mjd:
         ## the last '' window is for fullBD synthesis image. Now obsolete.
         # spws = ['6~10', '11~20', '21~30', '31~43', '']
         # spws = ['6~10', '11~20', '21~30', '31~43']
@@ -846,7 +874,7 @@ if __name__ == '__main__':
     parser.add_argument('--ndays', type=int, default=1,
                         help='Process data from DATE_IN_YY_MM_DD-ndays to DATE_IN_YY_MM_DD, default is 1.')
     parser.add_argument('--overwrite', action='store_true', default=False, help='Overwrite existing processed data')
-    parser.add_argument('--doimport', action='store_true', default=True, help='Perform import step before processing')
+    parser.add_argument('--doimport', action='store_true', default=False, help='Perform import step before processing')
     parser.add_argument('--pols', type=str, default='XX', choices=['XX', 'XXYY'], help='Polarizations to process')
     parser.add_argument('--ncpu', type=str, default='auto', help='Number of CPUs to use for processing')
     parser.add_argument('--version', type=str, default='v3.0', choices=['v1.0', 'v2.0', 'v3.0'],

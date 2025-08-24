@@ -40,6 +40,7 @@ from suncasa.utils import helioimage2fits as hf
 import shutil, os
 import numpy as np
 from suncasa.utils import mstools as mstl
+from suncasa.eovsa.update_log import  EOVSA15_UPGRADE_DATE, DCM_IF_FILTER_UPGRADE_DATE
 
 spw2band = np.array([0, 1] + list(range(4, 52)))
 defaultfreq = 1.1 + 0.325 * (spw2band + 0.5)
@@ -1056,7 +1057,7 @@ def pipeline_run(vis, outputvis='', workdir=None, slfcaltbdir=None, imgoutdir=No
     from astropy.io import fits
 
     # Use vis name to determine date, and hence number of bands
-    if mstl.get_trange(vis)[0].mjd > 58536:
+    if mstl.get_trange(vis)[0].mjd >= DCM_IF_FILTER_UPGRADE_DATE.mjd:
         # After 2019 Feb 22, the band numbers changed to 1-52, and spw from 0-49
         nbands = 52
         freq = defaultfreq

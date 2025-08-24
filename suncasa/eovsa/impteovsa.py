@@ -4,7 +4,7 @@ import time
 import os
 import scipy.constants as constants
 from astropy.time import Time
-
+from suncasa.eovsa.update_log import EOVSA15_UPGRADE_DATE, DCM_IF_FILTER_UPGRADE_DATE
 
 try:
     ## in modular installation imports for CASA 6 and beyond, where components are accessed via casatools and casatasks.
@@ -15,14 +15,16 @@ except:
     pass
 
 from ..casa_compat import import_casatools
+
 tools = import_casatools(['smtool', 'metool'])
 smtool = tools['smtool']
 metool = tools['metool']
 
 me = metool()
 
-
 c_external = False
+
+
 def jd2mjds(tjd=None):
     tmjds = (tjd - 2400000.5) * 24. * 3600.
     return tmjds
@@ -64,24 +66,24 @@ def get_band(sfreq=None, sdf=None, date=None):
     from itertools import groupby
     # nband = 34
     bandlist = []
-    if date.mjd > Time('2019-02-02 12:00:00').mjd:
+    if date.mjd >= DCM_IF_FILTER_UPGRADE_DATE.mjd:
         import eovsapy.chan_util_52 as chan_util
     else:
         import eovsapy.chan_util_bc as chan_util
 
     bands = chan_util.freq2bdname(sfreq)
     cidxs = range(len(sfreq))
-    spwinfo = zip(bands,sfreq,sdf,cidxs)
+    spwinfo = zip(bands, sfreq, sdf, cidxs)
     for k, g in groupby(sorted(spwinfo), key=itemgetter(0)):
-        itm = map(itemgetter(1,2,3), g)
-        freq=[]
-        df =[]
+        itm = map(itemgetter(1, 2, 3), g)
+        freq = []
+        df = []
         cidx = []
         for i in itm:
             freq.append(i[0])
             df.append(i[1])
             cidx.append(i[2])
-        bandlist.append({'band':k,'freq':freq,'df':np.nanmean(df),'cidx':cidx})
+        bandlist.append({'band': k, 'freq': freq, 'df': np.nanmean(df), 'cidx': cidx})
 
     return bandlist
 
@@ -145,7 +147,7 @@ def creatms(idbfile, outpath, timebin=None, width=None):
     sm = smtool()
     sm.open(msname)
 
-    enu = np.reshape(uv['antpos'], (16, 3)) * constants.speed_of_light / 1e9
+    xyz = np.reshape(uv['antpos'], (16, 3)) * constants.speed_of_light / 1e9
     refpos_wgs84 = me.position('wgs84',
                                '-118.286952892965deg',
                                '37.2331698901026deg',
@@ -157,29 +159,32 @@ def creatms(idbfile, outpath, timebin=None, width=None):
         [0, -np.sin(lat), np.cos(lat)],
         [1, 0, 0],
         [0, np.cos(lat), np.sin(lat)]])
-    xyz = enu.dot(xform)  # + xyz0[np.newaxis,:]
+    enu = xyz.dot(xform)  # + xyz0[np.newaxis,:]
 
     # ----------- global xyz ------------
-    # xyz0 = rad*np.array([np.cos(lat)*np.cos(lon),np.cos(lat)*np.sin(lon),np.sin(lat)])
+    # enu0 = rad*np.array([np.cos(lat)*np.cos(lon),np.cos(lat)*np.sin(lon),np.sin(lat)])
     # # 3x3 transform matrix. Each row is a normal vector, i.e. the rows are (dE,dN,dU)
     # xform = np.array([
     #     [-np.sin(lon),np.cos(lon),0],
     #     [-np.cos(lon)*np.sin(lat),-np.sin(lon)*np.sin(lat),np.cos(lat)],
     #     [np.cos(lat)*np.cos(lon),np.cos(lat)*np.sin(lon),np.sin(lat)]
     # ])
-    # xyz = xyz0[np.newaxis,:] + enu.dot(xform)
+    # enu = enu0[np.newaxis,:] + xyz.dot(xform)
 
-    dishdiam = np.asarray([2.1] * uv['nants'])
-    dishdiam[-3:-1] = 27
-    dishdiam[-1] = 2.1
     station = uv['telescop'].replace('\x00', '')
     mount = ['ALT-AZ'] * uv['nants']
-    for l in [8, 9, 10, 12, 13, 14]:
-        mount[l] = 'EQUATORIAL'
+    dishdiam = np.asarray([2.1] * uv['nants'])
+    if ref_time_jd >= EOVSA15_UPGRADE_DATE.jd:
+        dishdiam[-1] = 27
+    else:
+        dishdiam[-3:-1] = 27
+        dishdiam[-1] = 2.1
+        for l in [8, 9, 10, 12, 13, 14]:
+            mount[l] = 'EQUATORIAL'
     sm.setconfig(telescopename=station,
-                 x=np.asarray(xyz)[:, 0],
-                 y=np.asarray(xyz)[:, 1],
-                 z=np.asarray(xyz)[:, 2],
+                 x=np.asarray(enu)[:, 0],
+                 y=np.asarray(enu)[:, 1],
+                 z=np.asarray(enu)[:, 2],
                  dishdiameter=dishdiam,
                  mount=mount,
                  antname=['eo' + "{0:02d}".format(l) for l in antlist],

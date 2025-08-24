@@ -80,7 +80,9 @@ def resettable(f):
 def b_filter(data, lowcut, highcut, fs, ix):
     x = data[ix]
     # y = butter_bandpass_filter(x, lowcut * fs, highcut * fs, fs, order=5)
-    y = su.bandpass_filter(None, x, fs=fs, cutoff=[lowcut, highcut]) + 1.0
+    y_ = su.bandpass_filter(None, x, fs=fs, cutoff=[lowcut, highcut])
+    y_[np.isnan(y_)] = 0.0
+    y = y_ + 1.0
     return {'idx': ix, 'y': y}
 
 
@@ -900,14 +902,14 @@ class Stackplot:
     aia_lvl1 = os.getenv('AIA_LVL1')
     suncasadb = os.getenv('SUNCASADB')
     if aia_lvl1:
-        print('Use ' + aia_lvl1 + ' as the file searching path')
+        # print('Use ' + aia_lvl1 + ' as the file searching path')
         fitsdir = aia_lvl1
     else:
         if suncasadb:
             fitsdir = suncasadb + '/aiaBrowserData/Download/'
         else:
-            print('Environmental variable for either AIA_LVL1 or SUNCASADB not defined')
-            print('Use current path')
+            # print('Environmental variable for either AIA_LVL1 or SUNCASADB not defined')
+            # print('Use current path')
             fitsdir = './'
     mapseq = None
     mapseq_diff = None
@@ -1487,9 +1489,9 @@ class Stackplot:
             datacube_ft = np.zeros_like(datacube)
             ny, nx, nt = datacube_ft.shape
             # fs = len(mapseq_diff) * 100.
-            fs = 1. / (np.mean(np.diff(self.tplt.mjd)) * 24 * 3600)
+            fs = 1. / (np.nanmedian(np.diff(self.tplt.mjd)) * 24 * 3600)
             ncpu = mp.cpu_count() - 1
-            print('filtering the mapseq in time domain.....')
+            print(f'filtering the mapseq in time domain. lowcut: {lowcut}, highcut: {highcut}, fs: {fs}')
             for ly in tqdm(range(ny)):
                 b_filter_partial = partial(b_filter, datacube[ly], lowcut, highcut, fs)
                 pool = mp.Pool(ncpu)
@@ -1811,7 +1813,7 @@ class Stackplot:
             else:
                 frm_range = [0, len(mapseq)]
         maplist = []
-        nframe = frm_range[-1] - frm_range[0]
+        nframe = frm_range[-1] - frm_range[0]+1
         if movingcut == []:
             movingcut = [np.zeros(nframe), np.zeros(nframe)]
         else:
@@ -1843,8 +1845,8 @@ class Stackplot:
                         pass
                 else:
                     fov = stpu.get_map_corner_coord(smap)
-                intens = getimprofile(data, self.cutslitbd.cutslitplt, xrange=fov[:2].value + movingcut[0][idx],
-                                      yrange=fov[2:].value + movingcut[1][idx], get_peak=get_peak)
+                intens = getimprofile(data, self.cutslitbd.cutslitplt, xrange=fov[:2].value + movingcut[0][idx-frm_range[0]],
+                                      yrange=fov[2:].value + movingcut[1][idx-frm_range[0]], get_peak=get_peak)
                 if negval:
                     stackplt.append(-intens['y'])
                 else:

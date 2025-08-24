@@ -273,6 +273,8 @@ def plot_sdo_func(sdofile, ax, dpis_dict, key, imgoutdir, fig):
 
     for l, dpi in dpis_dict.items():
         figname = os.path.join(imgoutdir, '{}{}.jpg'.format(l, key))
+        if os.path.exists(figname):
+            os.system('rm -rf ' + figname)
         fig.savefig(figname, dpi=int(dpi), pil_kwargs={"quality": 85})
 
 def pltSdoQlookImage(datestr, dpis_dict, fig=None, ax=None, overwrite=False, verbose=False, clearcache=False, debug=False):
@@ -519,9 +521,9 @@ def main(dateobj=None, ndays=1, clearcache=False, ovwrite_eovsa=False, ovwrite_s
 
     dpis = np.array([256, 512, 1024]) / 8
     dpis_dict_eo = {'t': dpis[0], 'l': dpis[1], 'f': dpis[2]}
-    dpis = np.array([256, 512, 2048]) / 8
+    dpis = np.array([256, 512, 1024]) / 8
     dpis_dict_sdo = {'t': dpis[0], 'l': dpis[1], 'f': dpis[2]}
-    dpis = np.array([256, 512, 2048]) / 8
+    dpis = np.array([256, 512, 1024]) / 8
     dpis_dict_bbso = {'t': dpis[0], 'l': dpis[1], 'f': dpis[2]}
 
     plt.ioff()
@@ -530,7 +532,6 @@ def main(dateobj=None, ndays=1, clearcache=False, ovwrite_eovsa=False, ovwrite_s
 
     dateobs = tst
     while dateobs < ted:
-        dateobs = dateobs + timedelta(days=1)
         # Determine spectral window settings based on the observation date.
         if dateobs > tsep:
             spws = ['0~1', '2~5', '6~10', '11~20', '21~30', '31~43', '44~49']
@@ -547,7 +548,7 @@ def main(dateobj=None, ndays=1, clearcache=False, ovwrite_eovsa=False, ovwrite_s
                          overwrite=ovwrite_sdo, verbose=True, clearcache=clearcache, debug=debug)
         pltBbsoQlookImage(datestr, dpis_dict_bbso, fig, ax,
                           overwrite=ovwrite_bbso, verbose=True, clearcache=clearcache)
-
+        dateobs = dateobs + timedelta(days=1)
 
 if __name__ == '__main__':
     import argparse
