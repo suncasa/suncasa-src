@@ -2329,8 +2329,12 @@ def qlookplot(vis, timerange=None, spw='', spwplt=None,
 
             print('plot the dynamic spectrum in pol ' + ' & '.join(pols))
 
-            if dnorm is None:
+            if dnorm is 'linear':
                 dnorm = colors.Normalize(vmax=dmax, vmin=dmin)
+            elif dnorm is 'log':
+                dnorm = colors.LogNorm(vmax=dmax, vmin=dmin)
+
+
 
             axs = [ax1, ax2]
             for axidx, ax in enumerate(axs):
