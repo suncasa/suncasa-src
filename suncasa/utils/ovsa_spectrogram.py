@@ -282,17 +282,23 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', fi
         overall_start = Time(timerange[0])
         overall_end = Time(timerange[1])
         if combine:
-            figname = os.path.join(figdir,
-                                   f'fig-OVSA_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.jpg')
+            if fix_tlim:
+                pass
+            else:
+                figname = os.path.join(figdir,
+                                       f'fig-OVSA_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.jpg')
         else:
-            figname_eovsa = os.path.join(figdir,
-                                         f'fig-eovsa_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.jpg')
-            figname_ovrolwa = os.path.join(figdir,
-                                           f'fig-ovrolwa_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.jpg')
-            figname_stix = os.path.join(figdir,
-                                        f'fig-stix_lc_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.jpg')
-            figname_goes = os.path.join(figdir,
-                                        f'fig-goes_lc_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.jpg')
+            if fix_tlim:
+                pass
+            else:
+                figname_eovsa = os.path.join(figdir,
+                                             f'fig-eovsa_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.jpg')
+                figname_ovrolwa = os.path.join(figdir,
+                                               f'fig-ovrolwa_spec_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.jpg')
+                figname_stix = os.path.join(figdir,
+                                            f'fig-stix_lc_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.jpg')
+                figname_goes = os.path.join(figdir,
+                                            f'fig-goes_lc_{timerange[0].strftime("%Y%m%dT%H%M%S")}-{timerange[1].strftime("%Y%m%dT%H%M%S")}.jpg')
 
 
     print(f'processing STIX light curves for {timestamp.strftime("%Y-%m-%d")}')
@@ -448,11 +454,22 @@ def plot(timestamp=None, timerange=None, figdir='/common/lwa/spec_v2/daily/', fi
 
 
 if __name__ == '__main__':
+    # import os
+    # from datetime import datetime, timedelta
+    # from suncasa.utils import ovsa_spectrogram as ovsp
+    #
+    # current_date = datetime.now()
+    # previous_day = (current_date - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    # print(f'plotting OVSA spectrogram for {previous_day.strftime("%Y-%m-%d")}')
+    # ovsp.plot(previous_day, figdir=f'/common/webplots/SynopticImg/eovsamedia/eovsa-browser/{previous_day.strftime("%Y/%m/%d")}/', clip=[10, 99.5], fix_tlim=True)
+
     import os
     from datetime import datetime, timedelta
     from suncasa.utils import ovsa_spectrogram as ovsp
 
+
     current_date = datetime.now()
-    previous_day = (current_date - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    previous_day = (current_date - timedelta(days=2)).replace(hour=0, minute=0, second=0, microsecond=0)
     print(f'plotting OVSA spectrogram for {previous_day.strftime("%Y-%m-%d")}')
     ovsp.plot(previous_day, figdir=f'/common/webplots/SynopticImg/eovsamedia/eovsa-browser/{previous_day.strftime("%Y/%m/%d")}/', clip=[10, 99.5], fix_tlim=True)
+
