@@ -146,6 +146,60 @@ def calc_bkg_dspec(spec, tim, bkgtim, interp_method='linear'):
 
     return spec_bkg
 
+def _fast_plot_prep(spec, tim, timebin=32):
+    """Prepare a 2-D spectrum image for the fast (single ``imshow``) plot path.
+
+    ``imshow`` lays the image columns out uniformly between the two extent
+    values, so irregular sampling (dropped frames, recording gaps) would
+    silently squeeze the good columns and misplace every feature in time.
+    When the sampling is irregular, put the data on a uniform time grid first
+    (missing samples -> NaN, drawn blank), which makes the uniform extent
+    correct; then average ``timebin`` grid columns per image column
+    (NaN-aware, so gaps stay blank) to keep the image light for display.
+
+    Parameters
+    ----------
+    spec : 2-D array (nfreq, ntime)
+    tim : 1-D array of matplotlib date numbers, len(spec.shape[1])
+    timebin : int, number of uniform time samples averaged per image column
+
+    Returns
+    -------
+    (spec_out, t_start, t_end) : image to show and the exact time extent it covers
+    """
+    spec = np.asarray(spec)
+    nfreq, ntim = spec.shape
+    if ntim < 1:
+        return spec, 0.0, 0.0
+    if ntim < 2:
+        return spec, tim[0], tim[-1]
+    dt = np.median(np.diff(tim))
+    if not np.isfinite(dt) or dt <= 0:
+        return spec, tim[0], tim[-1]
+
+    if np.max(np.diff(tim)) > 1.5 * dt:  # irregular sampling: gaps would be squeezed
+        ngrid = int(np.ceil((tim[-1] - tim[0]) / dt)) + 1
+        idx = np.clip(np.rint((tim - tim[0]) / dt).astype(np.int64), 0, ngrid - 1)
+        dtype = np.result_type(spec.dtype, np.float32)
+        grid = np.full((nfreq, ngrid), np.nan, dtype=dtype)
+        grid[:, idx] = spec
+        spec = grid
+
+    n = spec.shape[1]
+    if timebin > 1 and n >= 2 * timebin:
+        nbin = n // timebin
+        keep = nbin * timebin
+        blk = spec[:, :keep].reshape(nfreq, nbin, timebin)
+        cnt = np.isfinite(blk).sum(axis=2)
+        with np.errstate(invalid='ignore', divide='ignore'):
+            out = np.nansum(blk, axis=2) / np.maximum(cnt, 1)
+        out[cnt == 0] = np.nan
+        # block centers span [tim0 - dt/2, tim0 + (keep - 0.5)*dt]
+        return out, tim[0] - dt / 2.0, tim[0] + (keep - 0.5) * dt
+
+    return spec, tim[0], tim[-1]
+
+
 class Dspec:
     """
     A class to handle dynamic spectra from radio observations.
@@ -1032,7 +1086,7 @@ class Dspec:
 
     def plot(self, pol='I', vmin=None, vmax=None, norm='log', cmap='viridis', cmap2='viridis', vmin2=None, vmax2=None, figsize=None,
              timerange=None, freqrange=None, bkgtim=None, interp_method='linear',  ignore_gaps=True, freq_unit='GHz', spec_unit=None,
-             plot_fast=False, percentile=[1, 99], minmaxpercentile=False, axes=None, **kwargs):
+             plot_fast=False, timebin=32, percentile=[1, 99], minmaxpercentile=False, axes=None, **kwargs):
         """
         Plots the dynamic spectrum for a given polarization.
 
@@ -1074,6 +1128,11 @@ class Dspec:
         :type spec_unit: str, optional
         :param plot_fast: If True, uses a faster plotting method which may reduce detail. Default is False.
         :type plot_fast: bool, optional
+        :param timebin: Number of uniform time samples averaged into each image column in the
+            fast plotting path (used only when plot_fast is True). Gaps in the time sampling
+            (dropped frames, recording outages) are NaN-filled and drawn blank instead of
+            being squeezed by the uniform imshow extent. Set to 1 to disable averaging.
+        :type timebin: int, optional
         :param percentile: Percentile values to use for auto-scaling the color range. Default is [1, 99].
         :type percentile: list of float, optional
         :param minmaxpercentile: If True, uses percentile for vmin and vmax. Default is False.
@@ -1290,18 +1349,12 @@ class Dspec:
                 norm.vmax = vmax_n
 
                 if plot_fast:
-                    # rebin the data to speed up plotting
-                    ds_shape = spec_plt.shape
-                    if ds_shape[1] > 2100:
-                        pix_rebin = ds_shape[1] // 2048
-                        new_len = (ds_shape[1] // pix_rebin)
-                        new_len_total = new_len * pix_rebin
-
-                        spec_plt = rebin2d(spec_plt[:, 0:new_len_total], (ds_shape[0], new_len))
-                        # tim_plt = rebin1d(tim_plt[0:new_len_total], 2048)
+                    # uniform time grid (gaps -> NaN) + NaN-aware time averaging, so the
+                    # single imshow extent below matches the real time axis
+                    spec_plt, tim_plt_0, tim_plt_1 = _fast_plot_prep(spec_plt, tim_plt, timebin=timebin)
 
                     im = ax.imshow(spec_plt, cmap=cmap, norm=norm, aspect='auto', origin='lower',
-                                   extent=[tim_plt[0], tim_plt[-1], freq_plt[0], freq_plt[-1]])
+                                   extent=[tim_plt_0, tim_plt_1, freq_plt[0], freq_plt[-1]])
 
                 else:
                     im = ax.pcolormesh(tim_plt, freq_plt, spec_plt, cmap=cmap, norm=norm, shading='auto',
@@ -1416,6 +1469,7 @@ class Dspec:
                 spec_plt_2 = spec_plt_2[fidx, :][:, tidx]
                 tim_plt = tim_plt[tidx]
                 freq_plt = freq_plt[fidx]
+                tim_plt_0, tim_plt_1 = (tim_plt[0], tim_plt[-1]) if tim_plt.size else (0.0, 0.0)  # image extent (updated by plot_fast; empty when the timerange has no data)
 
                 if minmaxpercentile:
                     if percentile[0] > 0 and percentile[1] < 100 and percentile[0] < percentile[1]:
@@ -1435,19 +1489,13 @@ class Dspec:
                             norm.vmax = norm.vmin+1e-3
 
                 if plot_fast:
-                    # compress in time (idx1)
-                    ds_shape = spec_plt_1.shape
-                    if ds_shape[1] > 2100:
-                        pix_rebin = ds_shape[1] // 2048
-                        new_len = (ds_shape[1] // pix_rebin)
-                        new_len_total = new_len * pix_rebin
-
-                        spec_plt_1 = rebin2d(spec_plt_1[:, 0:new_len_total], (ds_shape[0], new_len))
-                        spec_plt_2 = rebin2d(spec_plt_2[:, 0:new_len_total], (ds_shape[0], new_len))
-                        # tim_plt = rebin1d(tim_plt[0:new_len_total], new_len)
+                    # uniform time grid (gaps -> NaN) + NaN-aware time averaging; both
+                    # panels share the same grid, hence the same time extent
+                    spec_plt_1, tim_plt_0, tim_plt_1 = _fast_plot_prep(spec_plt_1, tim_plt, timebin=timebin)
+                    spec_plt_2, _, _ = _fast_plot_prep(spec_plt_2, tim_plt, timebin=timebin)
 
                     im = ax1.imshow(spec_plt_1, cmap=cmap, norm=norm, aspect='auto', origin='lower',
-                                    extent=[tim_plt[0], tim_plt[-1], freq_plt[0], freq_plt[-1]])
+                                    extent=[tim_plt_0, tim_plt_1, freq_plt[0], freq_plt[-1]])
                 else:
                     im = ax1.pcolormesh(tim_plt, freq_plt, spec_plt_1, cmap=cmap, norm=norm, shading='auto',
                                         rasterized=True)
@@ -1510,8 +1558,9 @@ class Dspec:
                 norm2 = colors.Normalize(vmax=v2_hi, vmin=v2_lo)
 
                 if plot_fast:
+                    # spec_plt_2 was already put on the shared uniform grid above
                     im = ax2.imshow(spec_plt_2, cmap=cmap2, norm=norm2, aspect='auto', origin='lower',
-                                    extent=[tim_plt[0], tim_plt[-1], freq_plt[0], freq_plt[-1]])
+                                    extent=[tim_plt_0, tim_plt_1, freq_plt[0], freq_plt[-1]])
                 else:
                     im = ax2.pcolormesh(tim_plt, freq_plt, spec_plt_2, cmap=cmap2, norm=norm2, shading='auto',
                                         rasterized=True)
